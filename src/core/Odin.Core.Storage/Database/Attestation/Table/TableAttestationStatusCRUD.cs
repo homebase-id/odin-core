@@ -22,70 +22,11 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 {
     public record AttestationStatusRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private byte[] _attestationId;
-        public byte[] attestationId
-        {
-           get {
-                   return _attestationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 16)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long attestationId, was {value.Length} (max 64)");
-                  _attestationId = value;
-               }
-        }
-        internal byte[] attestationIdNoLengthCheck
-        {
-           get {
-                   return _attestationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 16)");
-                  _attestationId = value;
-               }
-        }
-        private Int32 _status;
-        public Int32 status
-        {
-           get {
-                   return _status;
-               }
-           set {
-                  _status = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public byte[] attestationId { get; set; }
+        public Int32 status { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
@@ -313,7 +254,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             var guid = new byte[16];
             var item = new AttestationStatusRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.attestationIdNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.attestationId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.attestationId?.Length < 16)
                 throw new Exception("Too little data in attestationId...");
             item.status = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];

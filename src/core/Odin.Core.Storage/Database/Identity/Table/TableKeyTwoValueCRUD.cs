@@ -22,94 +22,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record KeyTwoValueRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private byte[] _key1;
-        public byte[] key1
-        {
-           get {
-                   return _key1;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
-                    if (value?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {value.Length} (max 48)");
-                  _key1 = value;
-               }
-        }
-        internal byte[] key1NoLengthCheck
-        {
-           get {
-                   return _key1;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
-                  _key1 = value;
-               }
-        }
-        private byte[] _key2;
-        public byte[] key2
-        {
-           get {
-                   return _key2;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
-                    if (value?.Length > 128) throw new OdinDatabaseValidationException($"Too long key2, was {value.Length} (max 128)");
-                  _key2 = value;
-               }
-        }
-        internal byte[] key2NoLengthCheck
-        {
-           get {
-                   return _key2;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
-                  _key2 = value;
-               }
-        }
-        private byte[] _data;
-        public byte[] data
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                    if (value?.Length > 1048576) throw new OdinDatabaseValidationException($"Too long data, was {value.Length} (max 1048576)");
-                  _data = value;
-               }
-        }
-        internal byte[] dataNoLengthCheck
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                  _data = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public byte[] key1 { get; set; }
+        public byte[] key2 { get; set; }
+        public byte[] data { get; set; }
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -365,13 +282,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyTwoValueRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.key1NoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
+            item.key1 = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.key2NoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            item.key2 = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
+            item.data = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -455,10 +372,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key1 = key1;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.key2NoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
+            item.key2 = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            item.data = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -518,10 +435,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key2 = key2;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.key1 = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            item.data = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

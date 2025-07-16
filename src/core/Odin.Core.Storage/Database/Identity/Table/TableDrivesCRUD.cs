@@ -22,206 +22,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record DrivesRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _DriveId;
-        public Guid DriveId
-        {
-           get {
-                   return _DriveId;
-               }
-           set {
-                  _DriveId = value;
-               }
-        }
-        private Guid _DriveAlias;
-        public Guid DriveAlias
-        {
-           get {
-                   return _DriveAlias;
-               }
-           set {
-                  _DriveAlias = value;
-               }
-        }
-        private Guid _TempOriginalDriveId;
-        public Guid TempOriginalDriveId
-        {
-           get {
-                   return _TempOriginalDriveId;
-               }
-           set {
-                  _TempOriginalDriveId = value;
-               }
-        }
-        private Guid _DriveType;
-        public Guid DriveType
-        {
-           get {
-                   return _DriveType;
-               }
-           set {
-                  _DriveType = value;
-               }
-        }
-        private string _DriveName;
-        public string DriveName
-        {
-           get {
-                   return _DriveName;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null DriveName");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short DriveName, was {value.Length} (min 0)");
-                    if (value?.Length > 1024) throw new OdinDatabaseValidationException($"Too long DriveName, was {value.Length} (max 1024)");
-                  _DriveName = value;
-               }
-        }
-        internal string DriveNameNoLengthCheck
-        {
-           get {
-                   return _DriveName;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null DriveName");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short DriveName, was {value.Length} (min 0)");
-                  _DriveName = value;
-               }
-        }
-        private string _MasterKeyEncryptedStorageKeyJson;
-        public string MasterKeyEncryptedStorageKeyJson
-        {
-           get {
-                   return _MasterKeyEncryptedStorageKeyJson;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null MasterKeyEncryptedStorageKeyJson");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short MasterKeyEncryptedStorageKeyJson, was {value.Length} (min 0)");
-                    if (value?.Length > 1024) throw new OdinDatabaseValidationException($"Too long MasterKeyEncryptedStorageKeyJson, was {value.Length} (max 1024)");
-                  _MasterKeyEncryptedStorageKeyJson = value;
-               }
-        }
-        internal string MasterKeyEncryptedStorageKeyJsonNoLengthCheck
-        {
-           get {
-                   return _MasterKeyEncryptedStorageKeyJson;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null MasterKeyEncryptedStorageKeyJson");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short MasterKeyEncryptedStorageKeyJson, was {value.Length} (min 0)");
-                  _MasterKeyEncryptedStorageKeyJson = value;
-               }
-        }
-        private string _EncryptedIdIv64;
-        public string EncryptedIdIv64
-        {
-           get {
-                   return _EncryptedIdIv64;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null EncryptedIdIv64");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short EncryptedIdIv64, was {value.Length} (min 0)");
-                    if (value?.Length > 1024) throw new OdinDatabaseValidationException($"Too long EncryptedIdIv64, was {value.Length} (max 1024)");
-                  _EncryptedIdIv64 = value;
-               }
-        }
-        internal string EncryptedIdIv64NoLengthCheck
-        {
-           get {
-                   return _EncryptedIdIv64;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null EncryptedIdIv64");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short EncryptedIdIv64, was {value.Length} (min 0)");
-                  _EncryptedIdIv64 = value;
-               }
-        }
-        private string _EncryptedIdValue64;
-        public string EncryptedIdValue64
-        {
-           get {
-                   return _EncryptedIdValue64;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null EncryptedIdValue64");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short EncryptedIdValue64, was {value.Length} (min 0)");
-                    if (value?.Length > 1024) throw new OdinDatabaseValidationException($"Too long EncryptedIdValue64, was {value.Length} (max 1024)");
-                  _EncryptedIdValue64 = value;
-               }
-        }
-        internal string EncryptedIdValue64NoLengthCheck
-        {
-           get {
-                   return _EncryptedIdValue64;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null EncryptedIdValue64");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short EncryptedIdValue64, was {value.Length} (min 0)");
-                  _EncryptedIdValue64 = value;
-               }
-        }
-        private string _detailsJson;
-        public string detailsJson
-        {
-           get {
-                   return _detailsJson;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null detailsJson");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short detailsJson, was {value.Length} (min 0)");
-                    if (value?.Length > 21504) throw new OdinDatabaseValidationException($"Too long detailsJson, was {value.Length} (max 21504)");
-                  _detailsJson = value;
-               }
-        }
-        internal string detailsJsonNoLengthCheck
-        {
-           get {
-                   return _detailsJson;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null detailsJson");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short detailsJson, was {value.Length} (min 0)");
-                  _detailsJson = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid DriveId { get; set; }
+        public Guid DriveAlias { get; set; }
+        public Guid TempOriginalDriveId { get; set; }
+        public Guid DriveType { get; set; }
+        public string DriveName { get; set; }
+        public string MasterKeyEncryptedStorageKeyJson { get; set; }
+        public string EncryptedIdIv64 { get; set; }
+        public string EncryptedIdValue64 { get; set; }
+        public string detailsJson { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -643,11 +456,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.DriveAlias = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.TempOriginalDriveId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
             item.DriveType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[5]);
-            item.DriveNameNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.EncryptedIdIv64NoLengthCheck = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
-            item.EncryptedIdValue64NoLengthCheck = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[9];
-            item.detailsJsonNoLengthCheck = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[10];
+            item.DriveName = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.MasterKeyEncryptedStorageKeyJson = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.EncryptedIdIv64 = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
+            item.EncryptedIdValue64 = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[9];
+            item.detailsJson = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[10];
             item.created = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[11]);
             item.modified = (rdr[12] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[12]); // HACK
             return item;
@@ -723,11 +536,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.DriveAlias = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.TempOriginalDriveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.DriveType = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.DriveNameNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.EncryptedIdIv64NoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.EncryptedIdValue64NoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.detailsJsonNoLengthCheck = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
+            item.DriveName = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.MasterKeyEncryptedStorageKeyJson = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.EncryptedIdIv64 = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.EncryptedIdValue64 = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.detailsJson = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
@@ -780,11 +593,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.DriveAlias = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.TempOriginalDriveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.DriveType = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.DriveNameNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.EncryptedIdIv64NoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.EncryptedIdValue64NoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.detailsJsonNoLengthCheck = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
+            item.DriveName = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.MasterKeyEncryptedStorageKeyJson = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.EncryptedIdIv64 = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.EncryptedIdValue64 = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.detailsJson = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
@@ -837,11 +650,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.DriveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.DriveAlias = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.TempOriginalDriveId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.DriveNameNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.EncryptedIdIv64NoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.EncryptedIdValue64NoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
-            item.detailsJsonNoLengthCheck = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
+            item.DriveName = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.MasterKeyEncryptedStorageKeyJson = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.EncryptedIdIv64 = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.EncryptedIdValue64 = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.detailsJson = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
@@ -900,11 +713,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.DriveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.TempOriginalDriveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.DriveNameNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
-            item.MasterKeyEncryptedStorageKeyJsonNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
-            item.EncryptedIdIv64NoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.EncryptedIdValue64NoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.detailsJsonNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
+            item.DriveName = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
+            item.MasterKeyEncryptedStorageKeyJson = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.EncryptedIdIv64 = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.EncryptedIdValue64 = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.detailsJson = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[7];
             item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             item.modified = (rdr[9] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[9]); // HACK
             return item;

@@ -22,194 +22,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record OutboxRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _driveId;
-        public Guid driveId
-        {
-           get {
-                   return _driveId;
-               }
-           set {
-                  _driveId = value;
-               }
-        }
-        private Guid _fileId;
-        public Guid fileId
-        {
-           get {
-                   return _fileId;
-               }
-           set {
-                  _fileId = value;
-               }
-        }
-        private string _recipient;
-        public string recipient
-        {
-           get {
-                   return _recipient;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {value.Length} (max 256)");
-                  _recipient = value;
-               }
-        }
-        internal string recipientNoLengthCheck
-        {
-           get {
-                   return _recipient;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {value.Length} (min 0)");
-                  _recipient = value;
-               }
-        }
-        private Int32 _type;
-        public Int32 type
-        {
-           get {
-                   return _type;
-               }
-           set {
-                  _type = value;
-               }
-        }
-        private Int32 _priority;
-        public Int32 priority
-        {
-           get {
-                   return _priority;
-               }
-           set {
-                  _priority = value;
-               }
-        }
-        private Guid? _dependencyFileId;
-        public Guid? dependencyFileId
-        {
-           get {
-                   return _dependencyFileId;
-               }
-           set {
-                  _dependencyFileId = value;
-               }
-        }
-        private Int32 _checkOutCount;
-        public Int32 checkOutCount
-        {
-           get {
-                   return _checkOutCount;
-               }
-           set {
-                  _checkOutCount = value;
-               }
-        }
-        private UnixTimeUtc _nextRunTime;
-        public UnixTimeUtc nextRunTime
-        {
-           get {
-                   return _nextRunTime;
-               }
-           set {
-                  _nextRunTime = value;
-               }
-        }
-        private byte[] _value;
-        public byte[] value
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
-                  _value = value;
-               }
-        }
-        internal byte[] valueNoLengthCheck
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                  _value = value;
-               }
-        }
-        private Guid? _checkOutStamp;
-        public Guid? checkOutStamp
-        {
-           get {
-                   return _checkOutStamp;
-               }
-           set {
-                  _checkOutStamp = value;
-               }
-        }
-        private string _correlationId;
-        public string correlationId
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
-                  _correlationId = value;
-               }
-        }
-        internal string correlationIdNoLengthCheck
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                  _correlationId = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid driveId { get; set; }
+        public Guid fileId { get; set; }
+        public string recipient { get; set; }
+        public Int32 type { get; set; }
+        public Int32 priority { get; set; }
+        public Guid? dependencyFileId { get; set; }
+        public Int32 checkOutCount { get; set; }
+        public UnixTimeUtc nextRunTime { get; set; }
+        public byte[] value { get; set; }
+        public Guid? checkOutStamp { get; set; }
+        public string correlationId { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -665,17 +492,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.recipientNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.recipient = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             item.type = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
             item.priority = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
             item.dependencyFileId = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
             item.checkOutCount = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.nextRunTime = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
-            item.valueNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (byte[])(rdr[10]);
+            item.value = (rdr[10] == DBNull.Value) ? null : (byte[])(rdr[10]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
-            item.correlationIdNoLengthCheck = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
+            item.correlationId = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
             item.created = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[13]);
             item.modified = (rdr[14] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[14]); // HACK
             return item;
@@ -784,11 +611,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dependencyFileId = (rdr[3] == DBNull.Value) ? null : new Guid((byte[])rdr[3]);
             item.checkOutCount = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.nextRunTime = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.valueNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
+            item.value = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
-            item.correlationIdNoLengthCheck = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
+            item.correlationId = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
@@ -852,17 +679,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = driveId;
             item.fileId = fileId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.recipientNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.recipient = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.type = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             item.dependencyFileId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
             item.checkOutCount = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
             item.nextRunTime = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
-            item.valueNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (byte[])(rdr[7]);
+            item.value = (rdr[7] == DBNull.Value) ? null : (byte[])(rdr[7]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = (rdr[8] == DBNull.Value) ? null : new Guid((byte[])rdr[8]);
-            item.correlationIdNoLengthCheck = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
+            item.correlationId = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
             item.created = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
             item.modified = (rdr[11] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[11]); // HACK
             return item;

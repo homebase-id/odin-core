@@ -22,84 +22,11 @@ namespace Odin.Core.Storage.Database.System.Table
 {
     public record SettingsRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private string _key;
-        public string key
-        {
-           get {
-                   return _key;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long key, was {value.Length} (max 65535)");
-                  _key = value;
-               }
-        }
-        internal string keyNoLengthCheck
-        {
-           get {
-                   return _key;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key, was {value.Length} (min 0)");
-                  _key = value;
-               }
-        }
-        private string _value;
-        public string value
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null value");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
-                  _value = value;
-               }
-        }
-        internal string valueNoLengthCheck
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null value");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                  _value = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public string key { get; set; }
+        public string value { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
@@ -324,8 +251,8 @@ namespace Odin.Core.Storage.Database.System.Table
             var guid = new byte[16];
             var item = new SettingsRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.keyNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.valueNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.key = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.value = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.modified = (rdr[4] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[4]); // HACK
             return item;
@@ -396,7 +323,7 @@ namespace Odin.Core.Storage.Database.System.Table
             var item = new SettingsRecord();
             item.key = key;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.valueNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.value = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
             return item;

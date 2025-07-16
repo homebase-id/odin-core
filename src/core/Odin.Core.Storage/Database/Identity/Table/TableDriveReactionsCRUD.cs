@@ -22,80 +22,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record DriveReactionsRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _driveId;
-        public Guid driveId
-        {
-           get {
-                   return _driveId;
-               }
-           set {
-                  _driveId = value;
-               }
-        }
-        private Guid _postId;
-        public Guid postId
-        {
-           get {
-                   return _postId;
-               }
-           set {
-                  _postId = value;
-               }
-        }
-        private OdinId _identity;
-        public OdinId identity
-        {
-           get {
-                   return _identity;
-               }
-           set {
-                  _identity = value;
-               }
-        }
-        private string _singleReaction;
-        public string singleReaction
-        {
-           get {
-                   return _singleReaction;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
-                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {value.Length} (min 3)");
-                    if (value?.Length > 80) throw new OdinDatabaseValidationException($"Too long singleReaction, was {value.Length} (max 80)");
-                  _singleReaction = value;
-               }
-        }
-        internal string singleReactionNoLengthCheck
-        {
-           get {
-                   return _singleReaction;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null singleReaction");
-                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short singleReaction, was {value.Length} (min 3)");
-                  _singleReaction = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid driveId { get; set; }
+        public Guid postId { get; set; }
+        public OdinId identity { get; set; }
+        public string singleReaction { get; set; }
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -387,7 +319,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.postId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.identity = (rdr[4] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[4]);
-            item.singleReactionNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.singleReaction = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             return item;
        }
 

@@ -22,410 +22,36 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record DriveMainIndexRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _driveId;
-        public Guid driveId
-        {
-           get {
-                   return _driveId;
-               }
-           set {
-                  _driveId = value;
-               }
-        }
-        private Guid _fileId;
-        public Guid fileId
-        {
-           get {
-                   return _fileId;
-               }
-           set {
-                  _fileId = value;
-               }
-        }
-        private Guid? _globalTransitId;
-        public Guid? globalTransitId
-        {
-           get {
-                   return _globalTransitId;
-               }
-           set {
-                  _globalTransitId = value;
-               }
-        }
-        private Int32 _fileState;
-        public Int32 fileState
-        {
-           get {
-                   return _fileState;
-               }
-           set {
-                  _fileState = value;
-               }
-        }
-        private Int32 _requiredSecurityGroup;
-        public Int32 requiredSecurityGroup
-        {
-           get {
-                   return _requiredSecurityGroup;
-               }
-           set {
-                  _requiredSecurityGroup = value;
-               }
-        }
-        private Int32 _fileSystemType;
-        public Int32 fileSystemType
-        {
-           get {
-                   return _fileSystemType;
-               }
-           set {
-                  _fileSystemType = value;
-               }
-        }
-        private UnixTimeUtc _userDate;
-        public UnixTimeUtc userDate
-        {
-           get {
-                   return _userDate;
-               }
-           set {
-                  _userDate = value;
-               }
-        }
-        private Int32 _fileType;
-        public Int32 fileType
-        {
-           get {
-                   return _fileType;
-               }
-           set {
-                  _fileType = value;
-               }
-        }
-        private Int32 _dataType;
-        public Int32 dataType
-        {
-           get {
-                   return _dataType;
-               }
-           set {
-                  _dataType = value;
-               }
-        }
-        private Int32 _archivalStatus;
-        public Int32 archivalStatus
-        {
-           get {
-                   return _archivalStatus;
-               }
-           set {
-                  _archivalStatus = value;
-               }
-        }
-        private Int32 _historyStatus;
-        public Int32 historyStatus
-        {
-           get {
-                   return _historyStatus;
-               }
-           set {
-                  _historyStatus = value;
-               }
-        }
-        private string _senderId;
-        public string senderId
-        {
-           get {
-                   return _senderId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long senderId, was {value.Length} (max 256)");
-                  _senderId = value;
-               }
-        }
-        internal string senderIdNoLengthCheck
-        {
-           get {
-                   return _senderId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {value.Length} (min 0)");
-                  _senderId = value;
-               }
-        }
-        private Guid? _groupId;
-        public Guid? groupId
-        {
-           get {
-                   return _groupId;
-               }
-           set {
-                  _groupId = value;
-               }
-        }
-        private Guid? _uniqueId;
-        public Guid? uniqueId
-        {
-           get {
-                   return _uniqueId;
-               }
-           set {
-                  _uniqueId = value;
-               }
-        }
-        private Int64 _byteCount;
-        public Int64 byteCount
-        {
-           get {
-                   return _byteCount;
-               }
-           set {
-                  _byteCount = value;
-               }
-        }
-        private string _hdrEncryptedKeyHeader;
-        public string hdrEncryptedKeyHeader
-        {
-           get {
-                   return _hdrEncryptedKeyHeader;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrEncryptedKeyHeader");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short hdrEncryptedKeyHeader, was {value.Length} (min 16)");
-                    if (value?.Length > 512) throw new OdinDatabaseValidationException($"Too long hdrEncryptedKeyHeader, was {value.Length} (max 512)");
-                  _hdrEncryptedKeyHeader = value;
-               }
-        }
-        internal string hdrEncryptedKeyHeaderNoLengthCheck
-        {
-           get {
-                   return _hdrEncryptedKeyHeader;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrEncryptedKeyHeader");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short hdrEncryptedKeyHeader, was {value.Length} (min 16)");
-                  _hdrEncryptedKeyHeader = value;
-               }
-        }
-        private Guid _hdrVersionTag;
-        public Guid hdrVersionTag
-        {
-           get {
-                   return _hdrVersionTag;
-               }
-           set {
-                  _hdrVersionTag = value;
-               }
-        }
-        private string _hdrAppData;
-        public string hdrAppData
-        {
-           get {
-                   return _hdrAppData;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrAppData");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrAppData, was {value.Length} (min 0)");
-                    if (value?.Length > 21504) throw new OdinDatabaseValidationException($"Too long hdrAppData, was {value.Length} (max 21504)");
-                  _hdrAppData = value;
-               }
-        }
-        internal string hdrAppDataNoLengthCheck
-        {
-           get {
-                   return _hdrAppData;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrAppData");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrAppData, was {value.Length} (min 0)");
-                  _hdrAppData = value;
-               }
-        }
-        private Guid? _hdrLocalVersionTag;
-        public Guid? hdrLocalVersionTag
-        {
-           get {
-                   return _hdrLocalVersionTag;
-               }
-           set {
-                  _hdrLocalVersionTag = value;
-               }
-        }
-        private string _hdrLocalAppData;
-        public string hdrLocalAppData
-        {
-           get {
-                   return _hdrLocalAppData;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrLocalAppData, was {value.Length} (min 0)");
-                    if (value?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrLocalAppData, was {value.Length} (max 4096)");
-                  _hdrLocalAppData = value;
-               }
-        }
-        internal string hdrLocalAppDataNoLengthCheck
-        {
-           get {
-                   return _hdrLocalAppData;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrLocalAppData, was {value.Length} (min 0)");
-                  _hdrLocalAppData = value;
-               }
-        }
-        private string _hdrReactionSummary;
-        public string hdrReactionSummary
-        {
-           get {
-                   return _hdrReactionSummary;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrReactionSummary, was {value.Length} (min 0)");
-                    if (value?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrReactionSummary, was {value.Length} (max 4096)");
-                  _hdrReactionSummary = value;
-               }
-        }
-        internal string hdrReactionSummaryNoLengthCheck
-        {
-           get {
-                   return _hdrReactionSummary;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrReactionSummary, was {value.Length} (min 0)");
-                  _hdrReactionSummary = value;
-               }
-        }
-        private string _hdrServerData;
-        public string hdrServerData
-        {
-           get {
-                   return _hdrServerData;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrServerData");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrServerData, was {value.Length} (min 0)");
-                    if (value?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrServerData, was {value.Length} (max 16384)");
-                  _hdrServerData = value;
-               }
-        }
-        internal string hdrServerDataNoLengthCheck
-        {
-           get {
-                   return _hdrServerData;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrServerData");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrServerData, was {value.Length} (min 0)");
-                  _hdrServerData = value;
-               }
-        }
-        private string _hdrTransferHistory;
-        public string hdrTransferHistory
-        {
-           get {
-                   return _hdrTransferHistory;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrTransferHistory, was {value.Length} (min 0)");
-                    if (value?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrTransferHistory, was {value.Length} (max 16384)");
-                  _hdrTransferHistory = value;
-               }
-        }
-        internal string hdrTransferHistoryNoLengthCheck
-        {
-           get {
-                   return _hdrTransferHistory;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrTransferHistory, was {value.Length} (min 0)");
-                  _hdrTransferHistory = value;
-               }
-        }
-        private string _hdrFileMetaData;
-        public string hdrFileMetaData
-        {
-           get {
-                   return _hdrFileMetaData;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {value.Length} (min 0)");
-                    if (value?.Length > 60000) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {value.Length} (max 60000)");
-                  _hdrFileMetaData = value;
-               }
-        }
-        internal string hdrFileMetaDataNoLengthCheck
-        {
-           get {
-                   return _hdrFileMetaData;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {value.Length} (min 0)");
-                  _hdrFileMetaData = value;
-               }
-        }
-        private Guid _hdrTmpDriveAlias;
-        public Guid hdrTmpDriveAlias
-        {
-           get {
-                   return _hdrTmpDriveAlias;
-               }
-           set {
-                  _hdrTmpDriveAlias = value;
-               }
-        }
-        private Guid _hdrTmpDriveType;
-        public Guid hdrTmpDriveType
-        {
-           get {
-                   return _hdrTmpDriveType;
-               }
-           set {
-                  _hdrTmpDriveType = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid driveId { get; set; }
+        public Guid fileId { get; set; }
+        public Guid? globalTransitId { get; set; }
+        public Int32 fileState { get; set; }
+        public Int32 requiredSecurityGroup { get; set; }
+        public Int32 fileSystemType { get; set; }
+        public UnixTimeUtc userDate { get; set; }
+        public Int32 fileType { get; set; }
+        public Int32 dataType { get; set; }
+        public Int32 archivalStatus { get; set; }
+        public Int32 historyStatus { get; set; }
+        public string senderId { get; set; }
+        public Guid? groupId { get; set; }
+        public Guid? uniqueId { get; set; }
+        public Int64 byteCount { get; set; }
+        public string hdrEncryptedKeyHeader { get; set; }
+        public Guid hdrVersionTag { get; set; }
+        public string hdrAppData { get; set; }
+        public Guid? hdrLocalVersionTag { get; set; }
+        public string hdrLocalAppData { get; set; }
+        public string hdrReactionSummary { get; set; }
+        public string hdrServerData { get; set; }
+        public string hdrTransferHistory { get; set; }
+        public string hdrFileMetaData { get; set; }
+        public Guid hdrTmpDriveAlias { get; set; }
+        public Guid hdrTmpDriveType { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -1263,19 +889,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dataType = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
             item.archivalStatus = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[11];
             item.historyStatus = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[12];
-            item.senderIdNoLengthCheck = (rdr[13] == DBNull.Value) ? null : (string)rdr[13];
+            item.senderId = (rdr[13] == DBNull.Value) ? null : (string)rdr[13];
             item.groupId = (rdr[14] == DBNull.Value) ? null : new Guid((byte[])rdr[14]);
             item.uniqueId = (rdr[15] == DBNull.Value) ? null : new Guid((byte[])rdr[15]);
             item.byteCount = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[16];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
+            item.hdrEncryptedKeyHeader = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
             item.hdrVersionTag = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[18]);
-            item.hdrAppDataNoLengthCheck = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
+            item.hdrAppData = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[19];
             item.hdrLocalVersionTag = (rdr[20] == DBNull.Value) ? null : new Guid((byte[])rdr[20]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
-            item.hdrServerDataNoLengthCheck = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[24] == DBNull.Value) ? null : (string)rdr[24];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[25];
+            item.hdrLocalAppData = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrReactionSummary = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
+            item.hdrServerData = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
+            item.hdrTransferHistory = (rdr[24] == DBNull.Value) ? null : (string)rdr[24];
+            item.hdrFileMetaData = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[25];
             item.hdrTmpDriveAlias = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[26]);
             item.hdrTmpDriveType = (rdr[27] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[27]);
             item.created = (rdr[28] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[28]);
@@ -1370,19 +996,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dataType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
             item.archivalStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.historyStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-            item.senderIdNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
+            item.senderId = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
             item.groupId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
             item.uniqueId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
             item.byteCount = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.hdrEncryptedKeyHeader = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
             item.hdrVersionTag = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
-            item.hdrAppDataNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrAppData = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
             item.hdrLocalVersionTag = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
-            item.hdrServerDataNoLengthCheck = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrLocalAppData = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
+            item.hdrReactionSummary = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrServerData = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistory = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrFileMetaData = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
             item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
             item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
             item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[25]);
@@ -1449,19 +1075,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dataType = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.archivalStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
             item.historyStatus = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
-            item.senderIdNoLengthCheck = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
+            item.senderId = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
             item.groupId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
             item.uniqueId = (rdr[13] == DBNull.Value) ? null : new Guid((byte[])rdr[13]);
             item.byteCount = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[14];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
+            item.hdrEncryptedKeyHeader = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
             item.hdrVersionTag = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[16]);
-            item.hdrAppDataNoLengthCheck = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
+            item.hdrAppData = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
             item.hdrLocalVersionTag = (rdr[18] == DBNull.Value) ? null : new Guid((byte[])rdr[18]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
-            item.hdrServerDataNoLengthCheck = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
+            item.hdrLocalAppData = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrReactionSummary = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
+            item.hdrServerData = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
+            item.hdrTransferHistory = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
+            item.hdrFileMetaData = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
             item.hdrTmpDriveAlias = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
             item.hdrTmpDriveType = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[25]);
             item.created = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[26]);
@@ -1530,18 +1156,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dataType = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.archivalStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
             item.historyStatus = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
-            item.senderIdNoLengthCheck = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
+            item.senderId = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
             item.groupId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
             item.byteCount = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.hdrEncryptedKeyHeader = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
             item.hdrVersionTag = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
-            item.hdrAppDataNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrAppData = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
             item.hdrLocalVersionTag = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
-            item.hdrServerDataNoLengthCheck = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrLocalAppData = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
+            item.hdrReactionSummary = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrServerData = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistory = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrFileMetaData = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
             item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
             item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
             item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[25]);
@@ -1608,19 +1234,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dataType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
             item.archivalStatus = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.historyStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
-            item.senderIdNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
+            item.senderId = (rdr[10] == DBNull.Value) ? null : (string)rdr[10];
             item.groupId = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
             item.uniqueId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
             item.byteCount = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[13];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.hdrEncryptedKeyHeader = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
             item.hdrVersionTag = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[15]);
-            item.hdrAppDataNoLengthCheck = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
+            item.hdrAppData = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[16];
             item.hdrLocalVersionTag = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
-            item.hdrServerDataNoLengthCheck = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
+            item.hdrLocalAppData = (rdr[18] == DBNull.Value) ? null : (string)rdr[18];
+            item.hdrReactionSummary = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrServerData = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[20];
+            item.hdrTransferHistory = (rdr[21] == DBNull.Value) ? null : (string)rdr[21];
+            item.hdrFileMetaData = (rdr[22] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[22];
             item.hdrTmpDriveAlias = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[23]);
             item.hdrTmpDriveType = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
             item.created = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[25]);
@@ -1687,19 +1313,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dataType = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.archivalStatus = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[9];
             item.historyStatus = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[10];
-            item.senderIdNoLengthCheck = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
+            item.senderId = (rdr[11] == DBNull.Value) ? null : (string)rdr[11];
             item.groupId = (rdr[12] == DBNull.Value) ? null : new Guid((byte[])rdr[12]);
             item.uniqueId = (rdr[13] == DBNull.Value) ? null : new Guid((byte[])rdr[13]);
             item.byteCount = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[14];
-            item.hdrEncryptedKeyHeaderNoLengthCheck = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
+            item.hdrEncryptedKeyHeader = (rdr[15] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[15];
             item.hdrVersionTag = (rdr[16] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[16]);
-            item.hdrAppDataNoLengthCheck = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
+            item.hdrAppData = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[17];
             item.hdrLocalVersionTag = (rdr[18] == DBNull.Value) ? null : new Guid((byte[])rdr[18]);
-            item.hdrLocalAppDataNoLengthCheck = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
-            item.hdrReactionSummaryNoLengthCheck = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
-            item.hdrServerDataNoLengthCheck = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
-            item.hdrTransferHistoryNoLengthCheck = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
-            item.hdrFileMetaDataNoLengthCheck = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
+            item.hdrLocalAppData = (rdr[19] == DBNull.Value) ? null : (string)rdr[19];
+            item.hdrReactionSummary = (rdr[20] == DBNull.Value) ? null : (string)rdr[20];
+            item.hdrServerData = (rdr[21] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[21];
+            item.hdrTransferHistory = (rdr[22] == DBNull.Value) ? null : (string)rdr[22];
+            item.hdrFileMetaData = (rdr[23] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[23];
             item.hdrTmpDriveAlias = (rdr[24] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[24]);
             item.hdrTmpDriveType = (rdr[25] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[25]);
             item.created = (rdr[26] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[26]);
