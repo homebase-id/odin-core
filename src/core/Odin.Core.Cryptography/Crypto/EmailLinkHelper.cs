@@ -76,8 +76,9 @@ namespace Odin.Core.Cryptography.Crypto
             string token = query["token"];
             id.AssertGuidNotEmpty();
 
-            if (string.IsNullOrEmpty(token))
-                throw new ArgumentException("Invalid URL: Missing token parameters.");
+            // Token is allowed to be empty
+            //if (string.IsNullOrEmpty(token))
+            //    throw new ArgumentException("Invalid URL: Missing token parameters.");
 
             return (id, token);
         }
