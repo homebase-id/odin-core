@@ -27,15 +27,15 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         }
 
         // This record represents a player (ends up as a list of players)
-        public record ShamirPlayers(int Index, ShardType Type, OdinId player);
+        public record ShamirPlayer(int Index, ShardType Type, OdinId player);
 
         // This is the data structured stored at a player.
         // Interactive players encrypt the EncryptedShard with their master-key and it thus requires they
         // login to the owner console (where they first decrypt with their master-key, then with the dealer's key)
         // They get the dealer's key from the dealer's server over Peer, but can only get it when it is in recovery mode
-        public record ShamirShardPlayerWrapper(OdinId Player, int Index, ShardType Type, byte[] DealerEncryptedShard, byte[] DealerIv);
+        public record ShamirShardPlayerWrapper(ShamirPlayer Player, byte[] DealerEncryptedShard, byte[] DealerIv);
 
-        public record ShamirShardPlayerDoubleWrapper(OdinId Dealer, OdinId Player, int Index, ShardType Type, byte[] DoubleEncryptedShard, byte[] DealerIv, byte[] PlayerIv);
+        public record ShamirShardPlayerDoubleWrapper(OdinId Dealer, ShamirPlayer Player, byte[] DoubleEncryptedShard, byte[] DealerIv, byte[] PlayerIv);
 
         // One each these data structures are stored with the dealer for each shard given to a player
         // The key is encrypted with the drive key, and can thus be decrypted by a player when they request it.
@@ -58,7 +58,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // ClassicAssert.IsTrue(playerRecord.Player == this identity odin Id);
 
             // Store the record
-            if (playerRecord.Type == ShardType.Interactive)
+            if (playerRecord.Player.Type == ShardType.Interactive)
             {
                 // Retrieve the drive key for the rescue drive, below we simulate it
                 // The drive key is unavailable when the server is at rest and is only available
@@ -70,7 +70,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 // Now we doubly encrypt the dealer's encrypted shard with a player's 
                 // 
                 var (playerDealerEncryptedShard, playerIv) = AesCbc.Encrypt(playerRecord.DealerEncryptedShard, driveKeysba);
-                var recordToStore = new ShamirShardPlayerDoubleWrapper(sender, playerRecord.Player, playerRecord.Index, playerRecord.Type, playerDealerEncryptedShard, playerRecord.DealerIv, playerIv);
+                var recordToStore = new ShamirShardPlayerDoubleWrapper(sender, playerRecord.Player, playerDealerEncryptedShard, playerRecord.DealerIv, playerIv);
 
                 // We store "recordToStore" on the recovery drive probably with ACL { dealer } and thus
                 // that allows us to read it when the dealer makes a request
@@ -86,7 +86,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 // We ensure that if someone steals both the dealer and player's server, they 
                 // still cannot derive the password
                 var (playerDealerEncryptedShard, playerIv) = AesCbc.Encrypt(playerRecord.DealerEncryptedShard, ownerKeysba);
-                var recordToStore = new ShamirShardPlayerDoubleWrapper(sender, playerRecord.Player, playerRecord.Index, playerRecord.Type, playerDealerEncryptedShard, playerRecord.DealerIv, playerIv);
+                var recordToStore = 
+                    new ShamirShardPlayerDoubleWrapper(sender, playerRecord.Player, playerDealerEncryptedShard, playerRecord.DealerIv, playerIv);
 
                 // We store "recordToStore" on the recovery drive probably with owner ACL only
             }
@@ -114,13 +115,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // This is how Frodo has setup his 5 shards.
             // s0-s2 are run by Homebase and can be requested by Frodo's server
             // Sam and Gandalf are humanoids and Frodo must call, text or otherwise contact them to get his share
-            var shamirPlayers = new List<ShamirPlayers>()
+            var shamirPlayers = new List<ShamirPlayer>()
             {
-                new ShamirPlayers(0, ShardType.Automatic, new OdinId("s0.homebase.id")),
-                new ShamirPlayers(1, ShardType.Automatic, new OdinId("s1.homebase.id")),
-                new ShamirPlayers(2, ShardType.Automatic, new OdinId("s2.homebase.id")),
-                new ShamirPlayers(3, ShardType.Interactive, new OdinId("samwise.me")),
-                new ShamirPlayers(4, ShardType.Interactive, new OdinId("gandalf.me"))
+                new ShamirPlayer(0, ShardType.Automatic, new OdinId("s0.homebase.id")),
+                new ShamirPlayer(1, ShardType.Automatic, new OdinId("s1.homebase.id")),
+                new ShamirPlayer(2, ShardType.Automatic, new OdinId("s2.homebase.id")),
+                new ShamirPlayer(3, ShardType.Interactive, new OdinId("samwise.me")),
+                new ShamirPlayer(4, ShardType.Interactive, new OdinId("gandalf.me"))
             };
 
             // These are the objects stored with each player.
@@ -139,7 +140,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 var keyba = ByteArrayUtil.GetRandomCryptoGuid().ToByteArray();
                 var keysba = new SensitiveByteArray(keyba);
                 var (Iv, CipherText) = AesCbc.Encrypt(shards[i].Shard, keysba);
-                var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i].player, shards[i].Index, ShardType.Automatic, CipherText, Iv);
+                var playerRecord = 
+                    new ShamirShardPlayerWrapper(new ShamirPlayer(shards[i].Index, ShardType.Automatic, shamirPlayers[i].player), CipherText, Iv);
                 shamirShardPlayerWrapper.Add(playerRecord);
 
                 if (SendOverPeerD2PSendShard(playerRecord) == false)
