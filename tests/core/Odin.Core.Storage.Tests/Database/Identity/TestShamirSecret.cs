@@ -51,7 +51,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // One each these data structures are stored with the dealer for each shard given to a player
         // The key is encrypted with the drive key, and can thus be decrypted by a player when they request it.
         // (They can only request it when dealer's host is in recovery mode)
-        public record ShamirShardDealerWrapper(Guid Id, int Index, ShardType Type, byte[] Key, byte[] Iv);
+        public record ShamirShardDealerWrapper(Guid Id, ShamirPlayer Player, byte[] Key, byte[] Iv);
 
 
         // A dealer sends a shard / playerRecord to a player
@@ -85,7 +85,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
                 // Now we doubly encrypt the dealer's encrypted shard with a player's 
                 // 
-                var (playerDealerEncryptedShard, playerIv) = AesCbc.Encrypt(playerRecord.DealerEncryptedShard, driveKeysba);
+                var (playerIv, playerDealerEncryptedShard) = AesCbc.Encrypt(playerRecord.DealerEncryptedShard, driveKeysba);
                 var recordToStore = new ShamirShardPlayerDoubleWrapper(dealer, playerRecord.Player, playerRecord.Id, playerDealerEncryptedShard, playerIv);
 
                 SaveToPlayerDisk(recordToStore);
@@ -100,7 +100,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 // Now we doubly encrypt the dealer's encrypted shard with the player's key
                 // We ensure that if someone steals both the dealer and player's server, they 
                 // still cannot derive the password
-                var (playerDealerEncryptedShard, playerIv) = AesCbc.Encrypt(playerRecord.DealerEncryptedShard, ownerKeysba);
+                var (playerIv, playerDealerEncryptedShard) = AesCbc.Encrypt(playerRecord.DealerEncryptedShard, ownerKeysba);
                 var recordToStore = 
                     new ShamirShardPlayerDoubleWrapper(dealer, playerRecord.Player, playerRecord.Id, playerDealerEncryptedShard, playerIv);
 
@@ -135,8 +135,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // A dealer loads the Id from the disk
         private ShamirShardDealerWrapper LoadFromDealerDisk(Guid Id)
         {
-            if (playerDisk.ContainsKey(Id))
-                return (ShamirShardDealerWrapper)playerDisk[Id];
+            if (dealerDisk.ContainsKey(Id))
+                return (ShamirShardDealerWrapper)dealerDisk[Id];
             else
                 return null;
         }
@@ -172,8 +172,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (r.Dealer != dealer)
                 throw new Exception("Dealer mismatch");
 
-            if (r.Player.Type != ShardType.Automatic)
-                throw new Exception("Shard type is not set to automatic");
+            if (r.Player.Type != ShardType.Interactive)
+                throw new Exception("Shard type is not set to interactive");
 
             // Notify the player that Dealer needs their help
         }
@@ -197,7 +197,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 throw new Exception("Dealer must be in password recovery mode");
 
             // Get the player's decryption key, some kind of owner key
-            var ownerKeyba = ByteArrayUtil.GetRandomCryptoGuid().ToByteArray();
+            var ownerKeyba = playerOwnerKey;
             var ownerKeysba = new SensitiveByteArray(ownerKeyba);
 
             // Now we decrypt the doubly encrypted shard
@@ -222,7 +222,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (r == null)
                 throw new Exception("No such record found on disk");
 
-            if (r.Type != ShardType.Interactive)
+            if (r.Player.Type != ShardType.Interactive)
                 throw new Exception("Shard type is not set to automatic");
 
             // Assert r.Dealer == this.OdinId
@@ -315,31 +315,31 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // These are the objects stored with each player.
             var shamirShardPlayerWrapper = new List<ShamirShardPlayerWrapper>();
+            var shamirShardDealerWrapper = new List<ShamirShardDealerWrapper>();
 
             ClassicAssert.IsTrue(shards.Count == 5);
             ClassicAssert.IsTrue(shamirPlayers.Count == 5);
 
+            var keyba = dealerRandomKey;
+            var keysba = new SensitiveByteArray(keyba);
+
             for (int i = 0; i < shards.Count; i++)
             {
                 ClassicAssert.IsTrue(shards[i].Index == i + 1);
-                var keyba = dealerRandomKey;
-                var keysba = new SensitiveByteArray(keyba);
                 var (Iv, CipherText) = AesCbc.Encrypt(shards[i].Shard, keysba);
                 var id = Guid.NewGuid();
-                var playerRecord =
-                    new ShamirShardPlayerWrapper(new ShamirPlayer(shards[i].Index, ShardType.Automatic, shamirPlayers[i].player),
-                            id, CipherText);
+                var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], id, CipherText);
                 shamirShardPlayerWrapper.Add(playerRecord);
 
-                var dealerRecord = new ShamirShardDealerWrapper(id, shards[i].Index, shamirPlayers[i].Type, keyba, Iv);
+                var dealerRecord = new ShamirShardDealerWrapper(id, playerRecord.Player, keyba, Iv);
                 SaveToDealerDisk(dealerRecord);
+                shamirShardDealerWrapper.Add(dealerRecord);
 
                 if (SendOverPeerD2PSendShard(playerRecord) == false)
                 {
                     throw new Exception("Some communication failed... we should probably cleanup the shards that got delivered");
                     // Or maybe this can happen over the outbox?
                 }
-                shamirShardPlayerWrapper.Add(playerRecord);
             }
 
             // Now we have stored five objects locally and five with each player
@@ -348,10 +348,44 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // [TEST] ShamirSecretSharingFlowRecoveryExample()
 
             // .. Now we're in recovery mode. Let's get the automatic shards.
-            var shard1 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[0].Id);
-            var shard2 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[1].Id);
-            var shard3 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[2].Id);
+            var peerShard1 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[0].Id);
+            var ddisk1 = LoadFromDealerDisk(shamirShardPlayerWrapper[0].Id);
+            var dShard1 = AesCbc.Decrypt(peerShard1.DealerEncryptedShard, ddisk1.Key, ddisk1.Iv);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard1, shards[0].Shard) == true);
+            var shard1 = new ShamirSecretSharing.ShamirShard(ddisk1.Player.Index, dShard1);
+            
+            var peerShard2 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[1].Id);
+            var ddisk2 = LoadFromDealerDisk(shamirShardPlayerWrapper[1].Id);
+            var dShard2 = AesCbc.Decrypt(peerShard2.DealerEncryptedShard, ddisk2.Key, ddisk2.Iv);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard2, shards[1].Shard) == true);
+            var shard2 = new ShamirSecretSharing.ShamirShard(ddisk2.Player.Index, dShard2);
+            
+            var peerShard3 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[2].Id);
+            var ddisk3 = LoadFromDealerDisk(shamirShardPlayerWrapper[2].Id);
+            var dShard3 = AesCbc.Decrypt(peerShard3.DealerEncryptedShard, ddisk3.Key, ddisk3.Iv);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard3, shards[2].Shard) == true);
+            var shard3 = new ShamirSecretSharing.ShamirShard(ddisk3.Player.Index, dShard3);
 
+            // Signal the player that we need their help
+            var ddisk4 = LoadFromDealerDisk(shamirShardDealerWrapper[3].Id);
+            PeerRequestInteractiveShard(DealerOdinId, ddisk4.Id);
+            // ... 3 hours later ... the player does it
+            var s = LocalApiResolveInteractiveShard(ddisk4.Id);
+            // So I'm unsure if the player should see it, or if the dealer should receive it and store it on disk... ?
+            var dShard4 = Convert.FromBase64String(s);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard4, shards[3].Shard) == true);
+            var shard4 = new ShamirSecretSharing.ShamirShard(ddisk4.Player.Index, dShard4);
+            
+            // Signal the player that we need their help
+            var ddisk5 = LoadFromDealerDisk(shamirShardDealerWrapper[4].Id);
+            PeerRequestInteractiveShard(DealerOdinId, ddisk5.Id);
+            // ... 3 hours later ... the player does it
+            s = LocalApiResolveInteractiveShard(ddisk5.Id);
+            // So I'm unsure if the player should see it, or if the dealer should receive it and store it on disk... ?
+            var dShard5 = Convert.FromBase64String(s);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard5, shards[4].Shard) == true);
+            var shard5 = new ShamirSecretSharing.ShamirShard(ddisk5.Player.Index, dShard5);
+            
         }
 
 

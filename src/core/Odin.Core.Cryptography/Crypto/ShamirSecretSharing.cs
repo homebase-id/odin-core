@@ -10,9 +10,9 @@ public class ShamirSecretSharing
     // own prime number, we could eventually move this to a config file setting.
     private static readonly BigInteger PRIME = new BigInteger("189329554115601632036302071042466348524091279005500917236488474462559403412027");
 
-    public record ShamirShare(int Index, byte[] Shard);
+    public record ShamirShard(int Index, byte[] Shard);
 
-    public static List<ShamirShare> GenerateShamirShares(int totalShards, int minShards, byte[] secret)
+    public static List<ShamirShard> GenerateShamirShares(int totalShards, int minShards, byte[] secret)
     {
         ArgumentNullException.ThrowIfNull(secret);
         if (totalShards < minShards) throw new ArgumentException("Total shards must be >= minimum shards.");
@@ -26,10 +26,10 @@ public class ShamirSecretSharing
 
         SecretShare[] internalShares = Split(secretInt, minShards, totalShards, PRIME, random);
 
-        return internalShares.Select(s => new ShamirShare(s.Number, s.Share.ToByteArrayUnsigned())).ToList();
+        return internalShares.Select(s => new ShamirShard(s.Number, s.Share.ToByteArrayUnsigned())).ToList();
     }
 
-    public static byte[] ReconstructShamirSecret(List<ShamirShare> shares)
+    public static byte[] ReconstructShamirSecret(List<ShamirShard> shares)
     {
         ArgumentNullException.ThrowIfNull(shares);
         if (shares.Count < 2) throw new ArgumentException("At least 2 shares are required for reconstruction.");
