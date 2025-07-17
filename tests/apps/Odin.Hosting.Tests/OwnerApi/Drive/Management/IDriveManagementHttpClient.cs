@@ -33,7 +33,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Management
 
         [Post(RootEndpoint + "/set-allow-subscriptions")]
         Task<ApiResponse<HttpContent>> SetAllowSubscriptions([Body] UpdateDriveAllowSubscriptionsRequest request);
-        
-        
+
+        [Post(RootEndpoint + "/set-archive-drive")]
+        Task<ApiResponse<HttpContent>> SetArchiveDriveFlag([Body] UpdateDriveArchiveFlag request);
     }
 }

@@ -15,17 +15,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveMetadataController : OdinControllerBase
+    public class OwnerDriveMetadataController(IDriveManager driveManager) : OdinControllerBase
     {
-        private readonly IDriveManager _driveManager;
-
-
-        public OwnerDriveMetadataController(IDriveManager driveManager)
-        {
-            _driveManager = driveManager;
-            
-        }
-
         /// <summary>
         /// Gets a list of drives by their type
         /// </summary>
@@ -35,8 +26,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            
-            var drives = await _driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
+            var drives = await driveManager.GetDrivesAsync(request.DriveType, new PageOptions(request.PageNumber, request.PageSize), WebOdinContext);
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
@@ -48,6 +38,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
+                    IsArchived = drive.IsArchived,
                     Attributes = drive.Attributes
                 }).ToList();
 

@@ -102,6 +102,12 @@ namespace Odin.Services.Drives
             set { }
         }
 
+        public override bool IsArchived
+        {
+            get => _inner.IsArchived;
+            set => _inner.IsArchived = value;
+        }
+
         public string GetDrivePayloadPath()
         {
             return _tenantPathManager.GetDrivePayloadPath(Id);
@@ -216,5 +222,6 @@ namespace Odin.Services.Drives
         public virtual bool AllowSubscriptions { get; set; }
 
         public virtual Dictionary<string, string> Attributes { get; set; }
+        public virtual bool IsArchived { get; set; }
     }
 }
