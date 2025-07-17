@@ -46,7 +46,10 @@ public class DidService(
         }
 
         var signingPublicKey = await publicKeyService.GetSigningPublicKeyAsync();
-        var jwk = signingPublicKey.PublicKeyJwk();
+        var publicKeyJwk = signingPublicKey?.PublicKeyJwk();
+        var publicKeyJwkInstance = string.IsNullOrEmpty(publicKeyJwk)
+            ? null
+            : OdinSystemSerializer.DeserializeOrThrow<DidWebVerificationMethod.TPublicKeyJwk>(publicKeyJwk);
 
         var result = new DidWebResponse
         {
@@ -59,7 +62,7 @@ public class DidService(
                     Id = $"did:web:{domain}#key-authentication",
                     Type = "JsonWebKey2020",
                     Controller = $"did:web:{domain}",
-                    PublicKeyJwk = OdinSystemSerializer.DeserializeOrThrow<DidWebVerificationMethod.TPublicKeyJwk>(jwk)
+                    PublicKeyJwk = publicKeyJwkInstance
                 }
             ],
             Authentication = [$"did:web:{domain}#key-authentication"]
