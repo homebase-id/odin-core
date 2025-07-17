@@ -58,16 +58,20 @@ public class ShamirSecretSharing
     {
         BigInteger[] coeff = new BigInteger[needed];
         coeff[0] = secret;
+        int extraBits = 128;  // Adjustable; higher = less bias
         for (int i = 1; i < needed; i++)
         {
             BigInteger r;
             for (; ; )
             {
-                r = new BigInteger(prime.BitLength, random);
-                if (r.CompareTo(BigInteger.Zero) > 0 && r.CompareTo(prime) < 0)
+                r = new BigInteger(prime.BitLength + extraBits, random).Mod(prime);
+                if (r.CompareTo(BigInteger.Zero) == 0)
                 {
-                    break;
+                    // Rare; set to 1 (retrying would also work but is unnecessary)
+                    r = BigInteger.One;
+                    // No continue here, so it breaks next
                 }
+                break;
             }
             coeff[i] = r;
         }
@@ -83,7 +87,6 @@ public class ShamirSecretSharing
         }
         return shares;
     }
-
     private static BigInteger Combine(SecretShare[] shares, BigInteger prime)
     {
         BigInteger accum = BigInteger.Zero;
@@ -104,7 +107,7 @@ public class ShamirSecretSharing
             }
             BigInteger value = shares[formula].Share;
             BigInteger tmp = value.Multiply(numerator).Multiply(ModInverse(denominator, prime));
-            accum = prime.Add(accum).Add(tmp).Mod(prime);
+            accum = accum.Add(tmp).Mod(prime);
         }
         return accum;
     }

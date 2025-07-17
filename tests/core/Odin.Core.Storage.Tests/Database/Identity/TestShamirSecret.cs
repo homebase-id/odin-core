@@ -62,7 +62,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // the index could have the OdinId(Hash) so we can query by it.
 
             // Store the record
-            if (playerRecord.Player.Type == ShardType.Interactive)
+            if (playerRecord.Player.Type == ShardType.Automatic)
             {
                 // Retrieve the drive key for the rescue drive, below we simulate it
                 // The drive key is unavailable when the server is at rest and is only available
@@ -333,9 +333,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var tableNonce = scope.Resolve<TableNonce>();
 
             var secret = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-            var email = "frodo@baggins.me";
-            int totalShards = 5;
-            int minShards = 4;
+            //var email = "frodo@baggins.me";
+            //int totalShards = 5;
+            //int minShards = 4;
 
             // ============================================================================ 
             // The user clicks on "forgot password via email"
