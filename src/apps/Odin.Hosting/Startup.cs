@@ -3,67 +3,41 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
-using System.Reflection;
 using System.Threading.Tasks;
 using Autofac;
-using DnsClient;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Dns;
 using Odin.Core.Exceptions;
-using Odin.Core.Http;
-using Odin.Core.Logging;
-using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
 using Odin.Core.Util;
-using Odin.Services.Admin.Tenants;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
-using Odin.Services.Dns;
-using Odin.Services.Dns.PowerDns;
 using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Email;
 using Odin.Services.Registry;
-using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using Odin.Hosting._dev;
-using Odin.Hosting.Authentication.Owner;
-using Odin.Hosting.Authentication.Peer;
-using Odin.Hosting.Authentication.System;
-using Odin.Hosting.Authentication.YouAuth;
-using Odin.Hosting.Controllers.Admin;
-using Odin.Hosting.Controllers.Anonymous.SEO;
-using Odin.Hosting.Controllers.Registration;
-using Odin.Hosting.Extensions;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Background;
-using Odin.Services.Concurrency;
 using Odin.Services.Drives;
-using Odin.Services.JobManagement;
 using Odin.Services.LinkPreview;
-using StackExchange.Redis;
 
 namespace Odin.Hosting;
 
@@ -74,189 +48,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton(_config);
-
-        services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-        services.Configure<HostOptions>(options =>
-        {
-            options.ShutdownTimeout = TimeSpan.FromSeconds(_config.Host.ShutdownTimeoutSeconds);
-        });
-
-        PrepareEnvironment(_config);
-        AssertValidRenewalConfiguration(_config.CertificateRenewal);
-
-        services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
-        services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
-        services.AddSingleton<FileReaderWriter>();
-        services.AddSingleton<IForgottenTasks, ForgottenTasks>();
-        services.AddSingleton<ISystemDomains, SystemDomains>();
-
-        services.AddControllers()
-            .AddJsonOptions(options =>
-            {
-                foreach (var c in OdinSystemSerializer.JsonSerializerOptions!.Converters)
-                {
-                    options.JsonSerializerOptions.Converters.Add(c);
-                }
-
-                options.JsonSerializerOptions.IncludeFields = OdinSystemSerializer.JsonSerializerOptions.IncludeFields;
-                options.JsonSerializerOptions.Encoder = OdinSystemSerializer.JsonSerializerOptions.Encoder;
-                options.JsonSerializerOptions.MaxDepth = OdinSystemSerializer.JsonSerializerOptions.MaxDepth;
-                options.JsonSerializerOptions.NumberHandling = OdinSystemSerializer.JsonSerializerOptions.NumberHandling;
-                options.JsonSerializerOptions.ReferenceHandler = OdinSystemSerializer.JsonSerializerOptions.ReferenceHandler;
-                options.JsonSerializerOptions.WriteIndented = OdinSystemSerializer.JsonSerializerOptions.WriteIndented;
-                options.JsonSerializerOptions.AllowTrailingCommas = OdinSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
-                options.JsonSerializerOptions.DefaultBufferSize = OdinSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
-                options.JsonSerializerOptions.DefaultIgnoreCondition = OdinSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
-                options.JsonSerializerOptions.DictionaryKeyPolicy = OdinSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
-                options.JsonSerializerOptions.PropertyNamingPolicy = OdinSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
-                options.JsonSerializerOptions.ReadCommentHandling = OdinSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
-                options.JsonSerializerOptions.UnknownTypeHandling = OdinSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
-                options.JsonSerializerOptions.IgnoreReadOnlyFields = OdinSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
-                options.JsonSerializerOptions.IgnoreReadOnlyProperties = OdinSystemSerializer.JsonSerializerOptions
-                    .IgnoreReadOnlyProperties;
-                options.JsonSerializerOptions.PropertyNameCaseInsensitive = OdinSystemSerializer.JsonSerializerOptions
-                    .PropertyNameCaseInsensitive;
-            });
-
-        //Note: this product is designed to avoid use of the HttpContextAccessor in the services
-        //All params should be passed into to the services using DotYouContext
-        services.AddHttpContextAccessor();
-        services.AddResponseCompression(options => { options.EnableForHttps = true; });
-
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(c =>
-        {
-            c.IgnoreObsoleteActions();
-            c.IgnoreObsoleteProperties();
-            c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
-            c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
-                $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
-            c.EnableAnnotations();
-            c.SwaggerDoc("v1", new()
-            {
-                Title = "Odin API",
-                Version = "v1"
-            });
-        });
-
-        services.AddCorsPolicies();
-
-        services.AddAuthentication(options => { })
-            .AddOwnerAuthentication()
-            .AddYouAuthAuthentication()
-            .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
-            .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
-            .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
-            .AddSystemAuthentication();
-
-        services.AddAuthorization(policy =>
-        {
-            OwnerPolicies.AddPolicies(policy);
-            SystemPolicies.AddPolicies(policy);
-            YouAuthPolicies.AddPolicies(policy);
-            PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCertificateAuthScheme);
-            PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
-        });
-
-        // In production, the React files will be served from this directory
-        services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
-
-        services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
-            sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
-            sp.GetRequiredService<ICertificateService>(),
-            sp.GetRequiredService<IDynamicHttpClientFactory>(),
-            sp.GetRequiredService<ISystemHttpClient>(),
-            sp.GetRequiredService<IMultiTenantContainerAccessor>(),
-            TenantServices.ConfigureTenantServices,
-            _config));
-
-        services.AddSingleton(new CertificateStorageKey(_config.CertificateRenewal.StorageKey));
-        services.AddSingleton(new AcmeAccountConfig
-        {
-            AcmeContactEmail = _config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
-        });
-        services.AddSingleton<ILookupClient>(new LookupClient());
-        services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
-
-        services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
-
-        services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
-        services.AddSingleton<IDnsLookupService, DnsLookupService>();
-
-        services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
-            sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),
-            sp.GetRequiredService<IDynamicHttpClientFactory>(),
-            new Uri($"https://{_config.Registry.PowerDnsHostAddress}/api/v1"),
-            _config.Registry.PowerDnsApiKey));
-
-        services.AddSingleton<ICertesAcme>(sp => new CertesAcme(
-            sp.GetRequiredService<ILogger<CertesAcme>>(),
-            sp.GetRequiredService<IAcmeHttp01TokenCache>(),
-            sp.GetRequiredService<IDynamicHttpClientFactory>(),
-            _config.CertificateRenewal.UseCertificateAuthorityProductionServers));
-
-        services.AddSingleton<ICertificateStore, CertificateStore>();
-        services.AddSingleton<ICertificateService, CertificateService>();
-
-        services.AddSingleton<IEmailSender>(sp => new MailgunSender(
-            sp.GetRequiredService<ILogger<MailgunSender>>(),
-            sp.GetRequiredService<IDynamicHttpClientFactory>(),
-            _config.Mailgun.ApiKey,
-            _config.Mailgun.EmailDomain,
-            _config.Mailgun.DefaultFrom));
-
-        services.AddSingleton(sp => new AdminApiRestrictedAttribute(
-            sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
-            _config.Admin.ApiEnabled,
-            _config.Admin.ApiKey,
-            _config.Admin.ApiKeyHttpHeaderName,
-            _config.Admin.ApiPort,
-            _config.Admin.Domain));
-
-        services.AddSingleton(new RegistrationRestrictedAttribute(_config.Registry.ProvisioningEnabled));
-
-        services.AddTransient<ITenantAdmin, TenantAdmin>();
-
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
-
-        services.AddIpRateLimiter(_config.Host.IpRateLimitRequestsPerSecond);
-
-        if (_config.Redis.Enabled)
-        {
-            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(_config.Redis.Configuration));
-        }
-
-        if (_config.Redis.Enabled)
-        {
-            // Distributed lock:
-            services.AddSingleton<INodeLock, RedisLock>();
-        }
-        else
-        {
-            // Node-wide lock:
-            services.AddSingleton<INodeLock, NodeLock>();
-        }
-
-        services.AddCoreCacheServices(new CacheConfiguration
-        {
-            Level2CacheType = _config.Cache.Level2CacheType,
-        });
-
-        // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
-        services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(_config.Host.DataProtectionKeyPath));
-
-        // Payload storage
-        if (_config.S3PayloadStorage.Enabled)
-        {
-            services.AddS3AwsPayloadStorage(
-                _config.S3PayloadStorage.AccessKey,
-                _config.S3PayloadStorage.SecretAccessKey,
-                _config.S3PayloadStorage.ServiceUrl,
-                _config.S3PayloadStorage.Region,
-                _config.S3PayloadStorage.ForcePathStyle,
-                _config.S3PayloadStorage.BucketName);
-        }
+        services.AddSystemServices(_config);
     }
 
     // ConfigureContainer is where you can register things directly
@@ -265,32 +57,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
     public void ConfigureContainer(ContainerBuilder builder)
     {
-        builder.RegisterModule(new LoggingAutofacModule());
-        builder.RegisterModule(new MultiTenantAutofacModule());
-
-        builder.AddSystemBackgroundServices();
-        builder.AddJobManagerServices();
-
-        // Global database services
-        builder.AddDatabaseCacheServices();
-        builder.AddDatabaseCounterServices();
-
-        // System database services
-        switch (_config.Database.Type)
-        {
-            case DatabaseType.Sqlite:
-                // TenantPathManager.AssertEqualPaths(TenantPathManager.GetSysDatabasePath(), Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
-                builder.AddSqliteSystemDatabaseServices(Path.Combine(_config.Host.SystemDataRootPath, "sys.db"));
-                break;
-            case DatabaseType.Postgres:
-                builder.AddPgsqlSystemDatabaseServices(_config.Database.ConnectionString);
-                break;
-            default:
-                throw new OdinSystemException("Unsupported database type");
-        }
-
-        // Global cache services
-        builder.AddGlobalCaches();
+        builder.AddSystemServices(_config);
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -572,21 +339,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     }
 
     //
-
-    private void PrepareEnvironment(OdinConfiguration cfg)
-    {
-        Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
-        Directory.CreateDirectory(cfg.Host.SystemDataRootPath);
-    }
-
-    private void AssertValidRenewalConfiguration(OdinConfiguration.CertificateRenewalSection section)
-    {
-        var email = section?.CertificateAuthorityAssociatedEmail;
-        if (string.IsNullOrEmpty(email) || string.IsNullOrWhiteSpace(email))
-        {
-            throw new OdinSystemException($"{nameof(section.CertificateAuthorityAssociatedEmail)} is not configured");
-        }
-    }
 }
 
 //

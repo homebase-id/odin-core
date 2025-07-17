@@ -77,7 +77,7 @@ namespace Odin.Hosting;
 /// </summary>
 public static class TenantServices
 {
-    internal static void ConfigureTenantServices(
+    internal static void AddTenantServices(
         ContainerBuilder cb,
         IdentityRegistration registration,
         OdinConfiguration odinConfig)

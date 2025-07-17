@@ -144,15 +144,10 @@ namespace Odin.Hosting
             }
 
             Directory.CreateDirectory(odinConfig.Host.SystemDataRootPath);
-            Log.Information($"System root path:{odinConfig.Host.SystemDataRootPath}");
+            Log.Information("System root path: {HostSystemDataRootPath}", odinConfig.Host.SystemDataRootPath);
 
-            var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
-            if (!dataRootDirInfo.Exists)
-            {
-                throw new OdinSystemException($"Could not create tenant root folder at [{odinConfig.Host.TenantDataRootPath}]");
-            }
-
-            Log.Information($"Tenant root path:{odinConfig.Host.TenantDataRootPath}");
+            Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
+            Log.Information("Tenant root path: {HostTenantDataRootPath}", odinConfig.Host.TenantDataRootPath);
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })

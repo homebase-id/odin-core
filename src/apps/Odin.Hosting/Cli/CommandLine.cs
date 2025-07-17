@@ -1,15 +1,120 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Configuration;
-using Odin.Core.Storage.SQLite.Migrations;
+using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Tasks;
+using Odin.Services.Configuration;
+using Odin.Services.Registry;
+using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Cli;
 
-public static class CommandLine
+#nullable enable
+
+public class CommandLine
 {
-    public static (bool didHandle, int exitCode) HandleCommandLineArgs(string[] args)
+    private static ILifetimeScope _lifetimeScope = null!; // Convenience alternative for the service provider
+    private static IServiceProvider _serviceProvider = null!; // Convenience alternative for the lifetime scope
+    private static OdinConfiguration _config = null!;
+    private static ILogger<CommandLine> _logger = null!;
+
+    public static (bool didHandle, int exitCode) HandleCommandLineArgs(string[]? args)
     {
+        if (args == null || args.Length == 0)
+        {
+            return (false, 0);
+        }
+
+        (_config, _) = AppSettings.LoadConfig(true);
+        _config.BackgroundServices.SystemBackgroundServicesEnabled = false;
+        _config.BackgroundServices.TenantBackgroundServicesEnabled = false;
+
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddCommandLineLogging();
+        serviceCollection.AddSystemServices(_config);
+
+        var factory = new MultiTenantServiceProviderFactory();
+        var builder = factory.CreateBuilder(serviceCollection);
+        builder.AddSystemServices(_config);
+
+        _serviceProvider = factory.CreateServiceProvider(builder);
+        _lifetimeScope = ((AutofacServiceProvider)_serviceProvider).LifetimeScope;
+
+        _logger = _lifetimeScope.Resolve<ILogger<CommandLine>>();
+        try
+        {
+            return ParseCommandLineArgs(args);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Unhandled exception");
+            return (true, 1);
+        }
+        finally
+        {
+            _lifetimeScope.Dispose();
+        }
+    }
+
+    //
+
+    private static List<IdentityRegistration> LoadTenants()
+    {
+        var registry = _serviceProvider.GetRequiredService<IIdentityRegistry>();
+        registry.LoadRegistrations().BlockingWait();
+        return registry.GetTenants().Result;
+    }
+
+    //
+
+    private static ILifetimeScope GetTenantScope(string tenantId)
+    {
+        var tenantContainer = _serviceProvider.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+        return tenantContainer.GetTenantScope(tenantId);
+    }
+
+    //
+
+    private static ILifetimeScope GetTenantScope(IdentityRegistration tenant)
+    {
+        return GetTenantScope(tenant.PrimaryDomainName);
+    }
+
+    //
+
+    private static (bool didHandle, int exitCode) ParseCommandLineArgs(string[] args)
+    {
+        if (args is ["--dependency-demo"])
+        {
+            _logger.LogInformation("Dependency demo");
+
+            // Show that we can resolve a system service
+            {
+                var jobs = _serviceProvider.GetRequiredService<TableJobs>();
+                var jobCount = jobs.GetCountAsync().Result;
+                _logger.LogInformation("Found {JobCount} jobs in the scheduler", jobCount);
+            }
+
+            // Show that we can resolve a tenant service
+            {
+                var tenant = LoadTenants().First();
+                var scope = GetTenantScope(tenant);
+                var drives = scope.Resolve<TableDrives>();
+                var driveCount = drives.GetCountAsync().Result;
+                _logger.LogInformation("Found {DriveCount} drives on {tenant}", driveCount, tenant.PrimaryDomainName);
+            }
+
+            return (true, 0);
+        }
+
         //
         // Command line: run docker setup helper
         //
