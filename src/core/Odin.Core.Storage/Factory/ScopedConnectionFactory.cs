@@ -119,6 +119,8 @@ public interface IScopedConnectionFactory
     bool HasTransaction { get; }
 }
 
+//
+
 public interface IConnectionWrapper : IDisposable, IAsyncDisposable
 {
     DbConnection DangerousInstance { get; }
@@ -131,6 +133,8 @@ public interface IConnectionWrapper : IDisposable, IAsyncDisposable
     ICommandWrapper CreateCommand([CallerFilePath] string? filePath = null, [CallerLineNumber] int lineNumber = 0);
 }
 
+//
+
 public interface ITransactionWrapper : IDisposable, IAsyncDisposable
 {
     DbTransaction DangerousInstance { get; }
@@ -138,6 +142,8 @@ public interface ITransactionWrapper : IDisposable, IAsyncDisposable
     int RefCount { get; }
     void Commit();
 }
+
+//
 
 public interface ICommandWrapper : IDisposable, IAsyncDisposable
 {
@@ -219,87 +225,13 @@ public class ScopedConnectionFactory<T>(
 
     //
 
-    private void LogDiagnostics()
-    {
-        if (_logger.IsEnabled(LogLevel.Debug))
-        {
-            foreach (var (guid, info) in Diagnostics)
-            {
-                _logger.LogDebug("DB diag: connection {id} was created at {info}", guid, info);
-            }
-        }
-    }
-
-    //
-
-    private void LogError(string message)
-    {
-        LogDiagnostics();
-        _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag}\n{stackTrace}",
-            message, _connectionId, lifetimeScope.Tag, Environment.StackTrace);
-    }
-
-    //
-
-    private void LogException(string message, Exception exception)
-    {
-        LogDiagnostics();
-
-        // SEB:NOTE we log the exception as a non-error, because it should be possible for the caller
-        // to catch and handle the exception silently (e.g. in case of an expected sql constraint error),
-        // but we prefix it with "DBEX" to make it easier to spot in the logs.
-        _logger.LogDebug(exception, "DBEX {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
-            message, exception.Message, _connectionId, lifetimeScope.Tag);
-    }
-
-    //
-
-    private void LogTrace(string message)
-    {
-        if (_logger.IsEnabled(LogLevel.Trace))
-        {
-            _logger.LogTrace("{message} (ScopedConnectionFactory:{id} scope:{tag})",
-                message, _connectionId, lifetimeScope.Tag);
-        }
-    }
-
-    //
-
-    // SEB:NOTE
-    // This method is used to detect parallelism, i.e. if the same instance of this class is used in multiple threads.
-    // We used to have locking all around this class, but while that might save you when (mis)using the class across
-    // different threads or parallel tasks, it would not alert you to the fact that you are doing something wrong.
-    // Since we already know we're not thread-safe, we might as well make it explicit and throw an exception instead
-    // of wasting cycles doing locking.
-    private NoParallelismDisposer NoParallelism(string context, int expectedRefCount = 1)
-    {
-        if (Interlocked.Increment(ref _parallelDetectionRefCount) != expectedRefCount)
-        {
-            var message =
-                $"Parallelism detected ({context}). " +
-                "Use a new IOC scope for each parallel task or thread, or make sure to serialize calls with a lock.";
-            LogError(message);
-            throw new OdinDatabaseException(DatabaseType, message);
-        }
-
-        return new NoParallelismDisposer(this);
-    }
-
-    //
-
-    private sealed class NoParallelismDisposer(ScopedConnectionFactory<T> instance) : IDisposable
-    {
-        public void Dispose()
-        {
-            Interlocked.Decrement(ref instance._parallelDetectionRefCount);
-        }
-    }
+    #region ConnectionWrapper
 
     //
     // ConnectionWrapper
     // A wrapper around a DbConnection that ensures that the connection is disposed correctly.
     //
-    public sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IConnectionWrapper
+    private sealed class ConnectionWrapper(ScopedConnectionFactory<T> instance) : IConnectionWrapper
     {
         private bool _disposed;
         public DbConnection DangerousInstance => instance._connection!;
@@ -435,12 +367,18 @@ public class ScopedConnectionFactory<T>(
 
     //
 
+    #endregion
+
+    //
+
+    #region TransactionWrapper
+
     //
     // TransactionWrapper
     // A wrapper around a DbTransaction that supports stacked transactions
     // and ensures that the transaction is disposed correctly.
     //
-    public sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : ITransactionWrapper
+    private sealed class TransactionWrapper(ScopedConnectionFactory<T> instance) : ITransactionWrapper
     {
         private bool _disposed;
         public DbTransaction DangerousInstance => instance._transaction!;
@@ -563,11 +501,17 @@ public class ScopedConnectionFactory<T>(
 
     //
 
+    #endregion
+
+    //
+
+    #region CommandWrapper
+
     //
     // CommandWrapper
     // A wrapper around a DbCommand that ensures that the command is disposed correctly.
     //
-    public sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
+    private sealed class CommandWrapper(ScopedConnectionFactory<T> instance, DbCommand command) : ICommandWrapper
     {
         private readonly TimeSpan _queryRunTimeWarningThreshold = TimeSpan.FromSeconds(10);
         private bool _disposed;
@@ -766,6 +710,98 @@ public class ScopedConnectionFactory<T>(
             FinalizerError.ReportMissingDispose(GetType(), instance._logger);
         }
     }
+
+    #endregion
+
+    //
+
+    #region Diagnostics
+
+    //
+
+    private void LogDiagnostics()
+    {
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            foreach (var (guid, info) in Diagnostics)
+            {
+                _logger.LogDebug("DB diag: connection {id} was created at {info}", guid, info);
+            }
+        }
+    }
+
+    //
+
+    private void LogError(string message)
+    {
+        LogDiagnostics();
+        _logger.LogError("{message} (ScopedConnectionFactory:{id} scope:{tag}\n{stackTrace}",
+            message, _connectionId, lifetimeScope.Tag, Environment.StackTrace);
+    }
+
+    //
+
+    private void LogException(string message, Exception exception)
+    {
+        LogDiagnostics();
+
+        // SEB:NOTE we log the exception as a non-error, because it should be possible for the caller
+        // to catch and handle the exception silently (e.g. in case of an expected sql constraint error),
+        // but we prefix it with "DBEX" to make it easier to spot in the logs.
+        _logger.LogDebug(exception, "DBEX {message}: {error} (ScopedConnectionFactory:{id} scope:{tag})",
+            message, exception.Message, _connectionId, lifetimeScope.Tag);
+    }
+
+    //
+
+    private void LogTrace(string message)
+    {
+        if (_logger.IsEnabled(LogLevel.Trace))
+        {
+            _logger.LogTrace("{message} (ScopedConnectionFactory:{id} scope:{tag})",
+                message, _connectionId, lifetimeScope.Tag);
+        }
+    }
+
+    //
+
+    #endregion
+
+    //
+
+    #region NoParallelism
+
+    // SEB:NOTE
+    // This method is used to detect parallelism, i.e. if the same instance of this class is used in multiple threads.
+    // We used to have locking all around this class, but while that might save you when (mis)using the class across
+    // different threads or parallel tasks, it would not alert you to the fact that you are doing something wrong.
+    // Since we already know we're not thread-safe, we might as well make it explicit and throw an exception instead
+    // of wasting cycles doing locking.
+    private NoParallelismDisposer NoParallelism(string context, int expectedRefCount = 1)
+    {
+        if (Interlocked.Increment(ref _parallelDetectionRefCount) != expectedRefCount)
+        {
+            var message =
+                $"Parallelism detected ({context}). " +
+                "Use a new IOC scope for each parallel task or thread, or make sure to serialize calls with a lock.";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
+        }
+
+        return new NoParallelismDisposer(this);
+    }
+
+    //
+
+    private sealed class NoParallelismDisposer(ScopedConnectionFactory<T> instance) : IDisposable
+    {
+        public void Dispose()
+        {
+            Interlocked.Decrement(ref instance._parallelDetectionRefCount);
+        }
+    }
+
+    #endregion
 
     //
 }

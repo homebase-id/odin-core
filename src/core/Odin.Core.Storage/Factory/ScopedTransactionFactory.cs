@@ -13,12 +13,18 @@ namespace Odin.Core.Storage.Factory;
 /// the database WILL lock the one or more table.
 /// </remarks>
 
+//
+// Interfaces
+//
+
 public interface IScopedTransactionFactory
 {
     Task<IScopedTransaction> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default);
 }
+
+//
 
 public interface IScopedTransaction : IDisposable, IAsyncDisposable
 {
@@ -27,6 +33,10 @@ public interface IScopedTransaction : IDisposable, IAsyncDisposable
     ICommandWrapper CreateCommand();
     void Commit();
 }
+
+//
+// Implementation
+//
 
 public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnectionFactory)
     : IScopedTransactionFactory where T : IDbConnectionFactory
@@ -48,7 +58,9 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
         }
     }
 
-    public sealed class ScopedTransaction(IConnectionWrapper cn, ITransactionWrapper tx) : IScopedTransaction
+    //
+
+    private sealed class ScopedTransaction(IConnectionWrapper cn, ITransactionWrapper tx) : IScopedTransaction
     {
         public IConnectionWrapper Connection => cn;
         public ITransactionWrapper Transaction => tx;
@@ -83,4 +95,6 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
             await cn.DisposeAsync();
         }
     }
+
+    //
 }
