@@ -33,15 +33,16 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // Move this enum and the record below to Todd's code or ShamirsSecret
         public enum ShardType
         {
-            Automatic = 1,   // The dealer can request the copy of the (encrypted) shard
-            Interactive = 2  // The player must tell or send the dealer the shard, it won't be sent via Homebase
+            Automatic = 1,   // The dealer can request the copy of the (encrypted) shard from a (machine) player
+            Delegate = 2,    // The (human) player must click OK to release a shard to the dealer.
+            Manual = 3       // The (human) player must give the information out-of-band, Not yet implemented
         }
 
         // This record represents a player (ends up as a list of players)
         public record ShamirPlayer(int Index, ShardType Type, OdinId player);
 
         // This is the data structured stored at a player.
-        // Interactive players encrypt the EncryptedShard with their master-key and it thus requires they
+        // Delegate players encrypt the EncryptedShard with their master-key and it thus requires they
         // login to the owner console (where they first decrypt with their master-key, then with the dealer's key)
         // They get the dealer's key from the dealer's server over Peer, but can only get it when it is in recovery mode
         public record ShamirShardPlayerWrapper(ShamirPlayer Player, Guid Id, byte[] DealerEncryptedShard);
@@ -157,8 +158,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Hard delete it from the disk
         }
 
-        // Dealer sends signal to Player that they need their interactive help
-        private void PeerRequestInteractiveShard(OdinId dealer, Guid Id)
+        // Dealer sends signal to Player that they need their Delegate help
+        private void PeerRequestDelegateShard(OdinId dealer, Guid Id)
         {
             if (PeerDealerIsInRecovery(dealer) == false)
                 throw new Exception("Dealer must be in password recovery mode");
@@ -172,17 +173,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (r.Dealer != dealer)
                 throw new Exception("Dealer mismatch");
 
-            if (r.Player.Type != ShardType.Interactive)
-                throw new Exception("Shard type is not set to interactive");
+            if (r.Player.Type != ShardType.Delegate)
+                throw new Exception("Shard type is not set to Delegate");
 
             // Notify the player that Dealer needs their help
         }
 
 
-        // An API the player interactive app can call to reveal the shard
+        // An API the player Delegate app can call to reveal the shard
         // This happens when the player is in the owner console and activates
-        // the recovery sequence to help his friend
-        private string LocalApiResolveInteractiveShard(Guid Id)
+        // the recovery sequence to help his friend. Once approved by the player
+        // the dealer's host will have the shard
+        // The return type is just for the TEST - IRL it should not have a return type
+        private byte[] LocalApiResolveDelegateShard(Guid Id)
         {
             // We load it from the disk
             var r = LoadFromPlayerDisk(Id);
@@ -190,7 +193,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (r == null)
                 throw new Exception("No such record found on disk");
 
-            if (r.Player.Type != ShardType.Interactive)
+            if (r.Player.Type != ShardType.Delegate)
                 throw new Exception("Shard type is not set to automatic");
 
             if (PeerDealerIsInRecovery(r.Dealer) == false)
@@ -203,18 +206,18 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Now we decrypt the doubly encrypted shard
             var dealerEncryptedShard = AesCbc.Decrypt(r.DoubleEncryptedShard, ownerKeyba, r.PlayerIv);
 
-            // Now we call the Dealer and get it decrypted
-            var visualResult = PeerDecryptInteractiveShard(r.Player.player, Id, dealerEncryptedShard);
+            // Now we call the Dealer so he can decrypt it
+            // IRL this should return OK if successful
+            var decryptedShard = PeerPlayerDecryptDelegateShard(r.Player.player, Id, dealerEncryptedShard);
 
-            // We return something human readable - base64? bip39?
-            // Or just mail it to the owner?
-            return visualResult;
+            // Should return OK if the player successfully delivered the shard
+            return decryptedShard;
         }
 
 
         // A Peer API. The Player calls the Dealer requesting to have the shard
         // revealed. 
-        private string PeerDecryptInteractiveShard(OdinId player, Guid Id, byte[] Cipher)
+        private byte[] PeerPlayerDecryptDelegateShard(OdinId player, Guid Id, byte[] Cipher)
         {
             // We load it from the disk
             var r = LoadFromDealerDisk(Id);
@@ -222,7 +225,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (r == null)
                 throw new Exception("No such record found on disk");
 
-            if (r.Player.Type != ShardType.Interactive)
+            if (r.Player.Type != ShardType.Delegate)
                 throw new Exception("Shard type is not set to automatic");
 
             // Assert r.Dealer == this.OdinId
@@ -238,8 +241,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Now we decrypt the doubly encrypted shard
             var decryptedShard = AesCbc.Decrypt(Cipher, r.Key, r.Iv);
 
-            // We return the shard to the dealer which is encrypted by the dealer
-            return Convert.ToBase64String(decryptedShard);
+            // The dealer API should just return OK to the player if successfully decrypted
+            // But we return it here to make the TEST easier
+            return decryptedShard;
         }
 
 
@@ -292,7 +296,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         /// Then we give it to three automatic and two manual (people)
         /// </summary>
         [Test]
-        public void ShamirSecretSharingFlowSetupExample()
+        [TestCase(DatabaseType.Sqlite)]
+        public async Task ShamirSecretSharingFlowSetupExamplee(DatabaseType databaseType)
         {
             var secret = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
             int totalShards = 5;
@@ -306,11 +311,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Sam and Gandalf are humanoids and Frodo must call, text or otherwise contact them to get his share
             var shamirPlayers = new List<ShamirPlayer>()
             {
-                new ShamirPlayer(0, ShardType.Automatic, new OdinId("s0.homebase.id")),
-                new ShamirPlayer(1, ShardType.Automatic, new OdinId("s1.homebase.id")),
-                new ShamirPlayer(2, ShardType.Automatic, new OdinId("s2.homebase.id")),
-                new ShamirPlayer(3, ShardType.Interactive, new OdinId("samwise.me")),
-                new ShamirPlayer(4, ShardType.Interactive, new OdinId("gandalf.me"))
+                new ShamirPlayer(shards[0].Index, ShardType.Automatic, new OdinId("s0.homebase.id")),
+                new ShamirPlayer(shards[1].Index, ShardType.Automatic, new OdinId("s1.homebase.id")),
+                new ShamirPlayer(shards[2].Index, ShardType.Automatic, new OdinId("s2.homebase.id")),
+                new ShamirPlayer(shards[3].Index, ShardType.Delegate, new OdinId("samwise.me")),
+                new ShamirPlayer(shards[4].Index, ShardType.Delegate, new OdinId("gandalf.me"))
             };
 
             // These are the objects stored with each player.
@@ -327,11 +332,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             {
                 ClassicAssert.IsTrue(shards[i].Index == i + 1);
                 var (Iv, CipherText) = AesCbc.Encrypt(shards[i].Shard, keysba);
-                var id = Guid.NewGuid();
-                var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], id, CipherText);
+                var guidId = Guid.NewGuid();
+                var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], guidId, CipherText);
                 shamirShardPlayerWrapper.Add(playerRecord);
 
-                var dealerRecord = new ShamirShardDealerWrapper(id, playerRecord.Player, keyba, Iv);
+                var dealerRecord = new ShamirShardDealerWrapper(guidId, playerRecord.Player, keyba, Iv);
                 SaveToDealerDisk(dealerRecord);
                 shamirShardDealerWrapper.Add(dealerRecord);
 
@@ -368,24 +373,63 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // Signal the player that we need their help
             var ddisk4 = LoadFromDealerDisk(shamirShardDealerWrapper[3].Id);
-            PeerRequestInteractiveShard(DealerOdinId, ddisk4.Id);
+            PeerRequestDelegateShard(DealerOdinId, ddisk4.Id);
             // ... 3 hours later ... the player does it
-            var s = LocalApiResolveInteractiveShard(ddisk4.Id);
-            // So I'm unsure if the player should see it, or if the dealer should receive it and store it on disk... ?
-            var dShard4 = Convert.FromBase64String(s);
+            var dShard4 = LocalApiResolveDelegateShard(ddisk4.Id);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard4, shards[3].Shard) == true);
             var shard4 = new ShamirSecretSharing.ShamirShard(ddisk4.Player.Index, dShard4);
             
             // Signal the player that we need their help
             var ddisk5 = LoadFromDealerDisk(shamirShardDealerWrapper[4].Id);
-            PeerRequestInteractiveShard(DealerOdinId, ddisk5.Id);
+            PeerRequestDelegateShard(DealerOdinId, ddisk5.Id);
             // ... 3 hours later ... the player does it
-            s = LocalApiResolveInteractiveShard(ddisk5.Id);
-            // So I'm unsure if the player should see it, or if the dealer should receive it and store it on disk... ?
-            var dShard5 = Convert.FromBase64String(s);
+            var dShard5 = LocalApiResolveDelegateShard(ddisk5.Id);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard5, shards[4].Shard) == true);
             var shard5 = new ShamirSecretSharing.ShamirShard(ddisk5.Player.Index, dShard5);
-            
+
+            // Now we have the four (five) shards, we can use Shamir to reconstruct the secret
+            var reconstructed = ShamirSecretSharing.ReconstructShamirSecret([shard1, shard2, shard3, shard4]);
+
+            if (!reconstructed.SequenceEqual(secret))
+                Assert.Fail("Reconstruction with min shards failed.");
+
+            // ==========================================================================
+
+            // Now we have the secret, we build and email with a reset link and send it to the dealer
+            // We don't want to store the secret on his server
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tableNonce = scope.Resolve<TableNonce>();
+
+            // Split the secret
+            var (xorkey, randomkey) = XorManagement.XorSplitKey(secret);
+
+            // Generate a Nonce with the xorkey
+            var nonceId = Guid.NewGuid();
+            var r = new NonceRecord()
+            {
+                id = nonceId,
+                identity = "frodo.baggins.me", // myself <--- is this needed?
+                expiration = UnixTimeUtc.Now().AddHours(24*7), // One week expiration
+                data = xorkey.ToBase64()
+            };
+            var n = await tableNonce.InsertAsync(r);
+            ClassicAssert.IsTrue(n == 1);
+
+            // Generate the email link with the other half key
+            var l = EmailLinkHelper.BuildResetUrl("https://frodobaggins.me", nonceId, randomkey.ToBase64());
+
+            // Send the email
+            var (id, Token) = EmailLinkHelper.ParseResetUrl(l);
+
+            var reconstructedSecret = XorManagement.XorDecrypt(Convert.FromBase64String(r.data), Convert.FromBase64String(Token));
+            if (!reconstructedSecret.SequenceEqual(secret))
+                Assert.Fail("Reconstruction from email magic link  failed.");
+
+            // We can now reset the password
+
+            // The nonce is great and all, but what if the suer clicks the link and messes up somehow
+            // and doesn't complete
         }
 
 
