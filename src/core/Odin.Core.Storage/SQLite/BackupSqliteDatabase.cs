@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace Odin.Core.Storage.SQLite.Migrations.Helpers;
+namespace Odin.Core.Storage.SQLite;
 
 public static class BackupSqliteDatabase
 {

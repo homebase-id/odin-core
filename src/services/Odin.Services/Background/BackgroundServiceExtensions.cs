@@ -88,12 +88,12 @@ public static class BackgroundServiceExtensions
 
     public static async Task ShutdownTenantBackgroundServices(this IServiceProvider services)
     {
-        var multitenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>();
+        var multitenantContainer = services.GetRequiredService<IMultiTenantContainer>();
         var registry = services.GetRequiredService<IIdentityRegistry>();
         var registrations = registry.GetList().Result;
         foreach (var registration in registrations.Results)
         {
-            var scope = multitenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+            var scope = multitenantContainer.GetTenantScope(registration.PrimaryDomainName);
             var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
             await backgroundServiceManager.ShutdownAsync();
         }

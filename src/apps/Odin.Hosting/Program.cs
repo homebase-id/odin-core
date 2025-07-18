@@ -54,13 +54,9 @@ namespace Odin.Hosting
                 {
                     Log.Information("Identity-host version: {Version}", Version.VersionText);
                     var host = CreateHostBuilder(args).Build().BeforeApplicationStarting(args);
-                    if (host.ProcessCommandLineArgs(args))
-                    {
-                        Log.Information("Starting web host");
-                        host.Run();
-                        Log.Information("Stopped web host\n\n\n");
-                    }
-                    host.OnApplicationStopping();
+                    Log.Information("Starting web host");
+                    host.Run();
+                    Log.Information("Stopped web host\n\n\n");
                 }
                 catch (Exception ex)
                 {
@@ -144,15 +140,10 @@ namespace Odin.Hosting
             }
 
             Directory.CreateDirectory(odinConfig.Host.SystemDataRootPath);
-            Log.Information($"System root path:{odinConfig.Host.SystemDataRootPath}");
+            Log.Information("System root path: {HostSystemDataRootPath}", odinConfig.Host.SystemDataRootPath);
 
-            var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
-            if (!dataRootDirInfo.Exists)
-            {
-                throw new OdinSystemException($"Could not create tenant root folder at [{odinConfig.Host.TenantDataRootPath}]");
-            }
-
-            Log.Information($"Tenant root path:{odinConfig.Host.TenantDataRootPath}");
+            Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
+            Log.Information("Tenant root path: {HostTenantDataRootPath}", odinConfig.Host.TenantDataRootPath);
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })

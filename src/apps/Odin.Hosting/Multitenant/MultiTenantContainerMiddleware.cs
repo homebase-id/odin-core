@@ -11,7 +11,7 @@ namespace Odin.Hosting.Multitenant;
 
 internal class MultiTenantContainerMiddleware(
     RequestDelegate next,
-    IMultiTenantContainerAccessor container,
+    IMultiTenantContainer container,
     IIdentityRegistry identityRegistry,
     ICorrelationContext correlationContext)
 {
@@ -38,7 +38,7 @@ internal class MultiTenantContainerMiddleware(
         ILifetimeScope? requestScope = null;
         try
         {
-            var tenantScope = container.Container().GetTenantScope(registration.PrimaryDomainName);
+            var tenantScope = container.GetTenantScope(registration.PrimaryDomainName);
             requestScope = tenantScope.BeginLifetimeScope($"Request:{correlationContext.Id}");
             context.RequestServices = new AutofacServiceProvider(requestScope);
             await next(context);

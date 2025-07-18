@@ -21,7 +21,7 @@ using Spectre.Console;
 
 [assembly: InternalsVisibleTo("Odin.SetupHelper.Tests")]
 
-namespace Odin.Hosting.Cli;
+namespace Odin.Hosting.Cli.Commands;
 
 #nullable enable
 public static class DockerSetup
