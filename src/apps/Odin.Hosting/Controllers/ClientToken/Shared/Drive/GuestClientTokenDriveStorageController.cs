@@ -28,6 +28,25 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         private readonly ILogger<GuestClientTokenDriveStorageController> _logger = logger;
 
         /// <summary>
+        /// Retrieves a file's header and metadata by globalTransitId
+        /// </summary>
+        [HttpGet("files/header_byglobaltransitid")]
+        public async Task<IActionResult> GetFileHeaderByGlobalTransitId([FromQuery] Guid globalTransitId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
+        {
+            return await base.GetFileHeaderByGlobalTransitId(
+                new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = globalTransitId,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                });
+        }
+        
+        /// <summary>
         /// Returns the file header
         /// </summary>
         /// <param name="request"></param>
