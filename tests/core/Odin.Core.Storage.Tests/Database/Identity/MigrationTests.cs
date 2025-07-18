@@ -1,6 +1,7 @@
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -29,7 +30,8 @@ public class DatabaseMigrationTests : IocTestBase
         await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigration1");
         //await Migration.DeleteTableAsync(cn, "DriveMainIndex");
 
-        var m1 = new TableDriveMainIndexMigration1(scopedIdentityConnectionFactory);
+        var list = new TableDriveMainIndexMigrationList();
+        var m1 = list.GetByVersion(1);
 
         // Fill in some random data
         var metaIndex = scope.Resolve<MainIndexMeta>();

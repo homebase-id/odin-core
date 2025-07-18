@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 #nullable enable
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database
 {
     public class MigrationException : Exception
     {
@@ -16,11 +16,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class MigrationBase
     {
         public abstract int MigrationVersion { get; }
-        public abstract int PreviousMigrationVersion { get; }
+        public MigrationListBase Container { get; set; }
 
-        public int PreviousVersion()
+        protected MigrationBase(MigrationListBase container)
         {
-            return PreviousMigrationVersion;
+            Container = container;
         }
 
         public static async Task<int> DeleteTableAsync(IConnectionWrapper cn, string tableName)
@@ -67,5 +67,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return n1 == n2;
         }
 
+        public abstract Task DownAsync(IConnectionWrapper cn);
+        public abstract Task UpAsync(IConnectionWrapper cn);
     }
 }
