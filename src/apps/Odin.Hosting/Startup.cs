@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Autofac;
@@ -13,13 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
@@ -27,16 +21,13 @@ using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
-using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 using Odin.Hosting._dev;
 using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Background;
-using Odin.Services.Drives;
 using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting;
@@ -46,11 +37,13 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     private readonly IEnumerable<string> _args = args;
     private readonly OdinConfiguration _config = new(configuration);
 
+    // This method gets called by the runtime. Use this method to add DI services.
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSystemServices(_config);
     }
 
+    // This method gets called by the runtime.
     // ConfigureContainer is where you can register things directly
     // with Autofac. This runs after ConfigureServices so the things
     // here will override registrations made in ConfigureServices.
@@ -327,7 +320,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 config.Host.ShutdownTimeoutSeconds);
 
             var host = app.ApplicationServices.GetRequiredService<IHost>();
-            host.OnApplicationStopping();
+            host.BeforeApplicationStopping();
         });
 
         lifetime.ApplicationStopped.Register(() =>
@@ -410,7 +403,7 @@ public static class HostExtensions
 
     //
 
-    public static IHost OnApplicationStopping(this IHost host)
+    public static IHost BeforeApplicationStopping(this IHost host)
     {
         if (_didCleanUp)
         {
@@ -422,7 +415,7 @@ public static class HostExtensions
         var services = host.Services;
         var logger = services.GetRequiredService<ILogger<Startup>>();
 
-        logger.LogDebug("Starting clean up in {method}", nameof(OnApplicationStopping));
+        logger.LogDebug("Starting clean up in {method}", nameof(BeforeApplicationStopping));
 
         //
         // Shutdown all tenant background services
@@ -440,121 +433,11 @@ public static class HostExtensions
         services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
 
         // DON'T PUT ANY CLEANUP BELOW THIS LINE
-        logger.LogDebug("Finished clean up in {method}", nameof(OnApplicationStopping));
+        logger.LogDebug("Finished clean up in {method}", nameof(BeforeApplicationStopping));
 
         return host;
     }
 
     //
 
-    // Returns true if the web server should be started, false if it should not.
-    public static bool ProcessCommandLineArgs(this IHost host, string[] args)
-    {
-        if (args.Contains("dont-start-the-web-server"))
-        {
-            // This is a one-off command example, don't start the web server.
-            return false;
-        }
-
-        if (args.Length == 2 && args[0] == "defragment")
-        {
-            DefragmentAsync(host.Services, args[1] == "cleanup").BlockingWait();
-            return false;
-        }
-
-        if (args.Length == 1 && args[0] == "reset-feed")
-        {
-            ResetFeedAsync(host.Services).BlockingWait();
-            return false;
-        }
-
-
-        return true;
-    }
-
-    //
-
-    private static async Task DefragmentAsync(IServiceProvider services, bool cleanup)
-    {
-        var config = services.GetRequiredService<OdinConfiguration>();
-        if (config.S3PayloadStorage.Enabled)
-        {
-            throw new OdinSystemException("S3 defragmentation is not supported");
-        }
-
-        var logger = services.GetRequiredService<ILogger<Startup>>();
-        var registry = services.GetRequiredService<IIdentityRegistry>();
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-
-        logger.LogInformation("Starting defragmentation; cleanup mode: {cleanup}", cleanup);
-
-        var allTenants = await registry.GetTenants();
-        foreach (var tenant in allTenants)
-        {
-            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
-            var defragmenter = scope.Resolve<Defragmenter>();
-
-            logger.LogInformation("Defragmenting {tenant}", tenant.PrimaryDomainName);
-            await defragmenter.Defragment(cleanup);
-        }
-    }
-
-    //
-
-    private static async Task ResetFeedAsync(IServiceProvider services)
-    {
-        var logger = services.GetRequiredService<ILogger<Startup>>();
-        var registry = services.GetRequiredService<IIdentityRegistry>();
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
-
-        logger.LogInformation("Starting Feed reset");
-
-        var allTenants = await registry.GetTenants();
-        var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
-        foreach (var tenant in allTenants)
-        {
-            var scope = tenantContainer.GetTenantScope(tenant.PrimaryDomainName);
-            var db = scope.Resolve<IdentityDatabase>();
-            await using var tx = await db.BeginStackedTransactionAsync();
-
-            var results = await GetHeadersInFeedDrive(db);
-
-            var headers = results.Item1;
-            logger.LogDebug("Deleting {items} headers from feed rive for tenant {t}", headers.Count, tenant.PrimaryDomainName);
-
-            foreach (var header in headers)
-            {
-                // because im oddly paranoid
-                if (header.driveId != SystemDriveConstants.FeedDrive.Alias)
-                {
-                    logger.LogError("whoa horsey, you're going to delete something not on the feed " +
-                                    "drive.  the incorrect drive was {d}", header.driveId);
-                    throw new OdinSystemException("invalid drive");
-                }
-
-                await db.MainIndexMeta.DeleteEntryAsync(feedDriveId, header.fileId);
-            }
-
-            var shouldBeAllGoneResults = await GetHeadersInFeedDrive(db);
-            if (shouldBeAllGoneResults.Item1.Count > 0)
-            {
-                throw new OdinSystemException("items still on feed drive");
-            }
-
-            tx.Commit();
-        }
-
-        logger.LogInformation("Feed reset complete");
-
-        async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> GetHeadersInFeedDrive(IdentityDatabase db)
-        {
-            var results = await db.MainIndexMeta.QueryBatchAsync(feedDriveId,
-                Int32.MaxValue,
-                null,
-                QueryBatchSortOrder.Default,
-                requiredSecurityGroup: new IntRange(0, (int)SecurityGroupType.Owner),
-                fileSystemType: (int)FileSystemType.Standard);
-            return results;
-        }
-    }
 }

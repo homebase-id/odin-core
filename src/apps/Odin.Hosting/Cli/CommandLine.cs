@@ -11,6 +11,7 @@ using Odin.Core.Configuration;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
+using Odin.Hosting.Cli.Commands;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
@@ -51,7 +52,7 @@ public class CommandLine
         _logger = _lifetimeScope.Resolve<ILogger<CommandLine>>();
         try
         {
-            return ParseCommandLineArgs(args);
+            return ParseAndExecute(args);
         }
         catch (Exception e)
         {
@@ -90,9 +91,9 @@ public class CommandLine
 
     //
 
-    private static (bool didHandle, int exitCode) ParseCommandLineArgs(string[] args)
+    private static (bool didHandle, int exitCode) ParseAndExecute(string[] args)
     {
-        if (args is ["--dependency-demo"])
+        if (args is ["dependency-demo"])
         {
             _logger.LogInformation("Dependency demo");
 
@@ -119,11 +120,11 @@ public class CommandLine
         // Command line: run docker setup helper
         //
         // Example:
-        //   dotnet run -- --docker-setup foo=bar
+        //   dotnet run -- docker-setup foo=bar
         //
-        // "commandLineArgs": "--docker-setup config-file=appsettings.table-top-defaults.json default-root-dir=/opt/homebase"
+        // "commandLineArgs": "docker-setup config-file=appsettings.table-top-defaults.json default-root-dir=/opt/homebase"
         //
-        if (args.Length > 0 && args[0] == "--docker-setup")
+        if (args.Length > 0 && args[0] == "docker-setup")
         {
             var result = DockerSetup.Execute(args);
             return (true, result);
@@ -134,9 +135,9 @@ public class CommandLine
         //
         //
         // Example:
-        //   dotnet run --no-build -- --export-docker-env
+        //   dotnet run --no-build -- export-docker-env
         //
-        if (args.Length > 0 && args[0] == "--export-docker-env")
+        if (args.Length > 0 && args[0] == "export-docker-env")
         {
             var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
             var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
@@ -153,9 +154,9 @@ public class CommandLine
         //
         //
         // Example:
-        //   dotnet run --no-build -- --export-shell-env
+        //   dotnet run --no-build -- export-shell-env
         //
-        if (args.Length > 0 && args[0] == "--export-shell-env")
+        if (args.Length > 0 && args[0] == "export-shell-env")
         {
             var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
             var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
@@ -172,9 +173,9 @@ public class CommandLine
         //
         //
         // Example:
-        //   dotnet run --no-build -- --export-shell-env
+        //   dotnet run --no-build -- export-shell-env
         //
-        if (args.Length > 0 && args[0] == "--export-bash-array-env")
+        if (args.Length > 0 && args[0] == "export-bash-array-env")
         {
             var (_, appSettingsConfig) = AppSettings.LoadConfig(false);
             var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
@@ -199,12 +200,12 @@ public class CommandLine
         //
         // examples:
         //
-        //   FOO=BAR dotnet run --no-build -- --dump-env
+        //   FOO=BAR dotnet run --no-build -- dump-env
         //
-        //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --dump-env
+        //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting dump-env
         //
         //
-        if (args.Length > 0 && args[0] == "--dump-env")
+        if (args.Length > 0 && args[0] == "dump-env")
         {
             var (_, appSettingsConfig) = AppSettings.LoadConfig(true);
             var envVars = appSettingsConfig.ExportAsEnvironmentVariables();
@@ -221,15 +222,15 @@ public class CommandLine
         //
         // examples:
         //
-        //   dotnet run -- --tcp-connection-test 80 5000
+        //   dotnet run -- tcp-connection-test 80 5000
         //
         //   80: TCP port to listen on
         //   5000: timeout in milliseconds before giving up
         //
-        //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting --tcp-connection-test 80 5000
+        //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting tcp-connection-test 80 5000
         //
         //
-        if (args.Length == 3 && args[0] == "--tcp-connection-test")
+        if (args.Length == 3 && args[0] == "tcp-connection-test")
         {
             var port = int.Parse(args[1]);
             var timeout = int.Parse(args[2]);
@@ -248,35 +249,31 @@ public class CommandLine
             return (true, 1);
         }
 
+
         //
-        // Migration commands from here
+        // Command line: Defragment
         //
-
-        // if (args.Length == 2 && args[0] == "--localapptags")
-        // {
+        // examples:
+        //   dotnet run -- defragment just-looking
+        //   dotnet run -- defragment cleanup
         //
-        //     CreateLocalAppMetadataSchema.Execute(args[1]);
-        //     return (true, 0);
-        // }
+        if (args.Length == 2 && args[0] == "defragment")
+        {
+            Defragment.ExecuteAsync(_serviceProvider, args[1] == "cleanup").BlockingWait();
+            return (true, 0);
+        }
 
-        // if (args.Length == 2 && args[0] == "--rowidstep2")
-        // {
-        //     RowIdStep2.Execute(args[1]);
-        //     return (true, 0);
-        // }
-
-        // if (args.Length == 3 && args[0] == "--create-rowid")
-        // {
-        //     CreateRowId.Execute(args[1], args[2] == "--commit").GetAwaiter().GetResult();
-        //     return (true, 0);
-        // }
-
-        // if (args.Length == 3 && args[0] == "--timefixes")
-        // {
-        //     TimestampFixes.Execute(args[1], args[2]);
-        //     return (true, 0);
-        // }
-
+        //
+        // Command line: Reset Feed
+        //
+        // examples:
+        //   dotnet run -- reset-feed
+        //
+        if (args.Length == 1 && args[0] == "reset-feed")
+        {
+            ResetFeed.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
 
         return (false, 0);
     }
