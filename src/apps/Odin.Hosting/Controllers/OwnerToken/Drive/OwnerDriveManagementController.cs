@@ -39,7 +39,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
                     IsArchived = drive.IsArchived,
-                    Attributes = drive.Attributes
+                    Attributes = drive.Attributes,
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
@@ -108,7 +109,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
                     IsArchived = drive.IsArchived,
-                    Attributes = drive.Attributes
+                    Attributes = drive.Attributes,   
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
