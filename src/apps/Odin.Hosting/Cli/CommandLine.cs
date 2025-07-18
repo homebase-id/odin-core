@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Autofac;
-using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Configuration;
@@ -15,6 +13,7 @@ using Odin.Hosting.Cli.Commands;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Cli;
 
@@ -22,8 +21,9 @@ namespace Odin.Hosting.Cli;
 
 public class CommandLine
 {
-    private static ILifetimeScope _lifetimeScope = null!; // Convenience alternative for the service provider
-    private static IServiceProvider _serviceProvider = null!; // Convenience alternative for the lifetime scope
+    private static ServiceProviders _serviceProviders = null!;
+    private static IServiceProvider _serviceProvider = null!; // Convenience for the root service provider
+    private static MultiTenantContainer _multiTenantContainer = null!; // Convenience for the root Autofac container
     private static OdinConfiguration _config = null!;
     private static ILogger<CommandLine> _logger = null!;
 
@@ -38,18 +38,20 @@ public class CommandLine
         _config.BackgroundServices.SystemBackgroundServicesEnabled = false;
         _config.BackgroundServices.TenantBackgroundServicesEnabled = false;
 
-        var serviceCollection = new ServiceCollection();
-        serviceCollection.AddCommandLineLogging();
-        serviceCollection.AddSystemServices(_config);
+        _serviceProviders = ServiceProviders.Create(
+            sc =>
+            {
+                sc.AddCommandLineLogging();
+                sc.ConfigureSystemServices(_config);
+            },
+            cb =>
+            {
+                cb.ConfigureSystemServices(_config);
+            });
+        _serviceProvider = _serviceProviders.ServiceProvider;
+        _multiTenantContainer = _serviceProviders.MultiTenantContainer;
 
-        var factory = new MultiTenantServiceProviderFactory();
-        var builder = factory.CreateBuilder(serviceCollection);
-        builder.AddSystemServices(_config);
-
-        _serviceProvider = factory.CreateServiceProvider(builder);
-        _lifetimeScope = ((AutofacServiceProvider)_serviceProvider).LifetimeScope;
-
-        _logger = _lifetimeScope.Resolve<ILogger<CommandLine>>();
+        _logger = _serviceProviders.MultiTenantContainer.Resolve<ILogger<CommandLine>>();
         try
         {
             return ParseAndExecute(args);
@@ -61,7 +63,7 @@ public class CommandLine
         }
         finally
         {
-            _lifetimeScope.Dispose();
+            _serviceProviders.Dispose();
         }
     }
 
@@ -78,7 +80,7 @@ public class CommandLine
 
     private static ILifetimeScope GetTenantScope(string tenantId)
     {
-        var tenantContainer = _serviceProvider.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+        var tenantContainer = _multiTenantContainer.Resolve<IMultiTenantContainerAccessor>();
         return tenantContainer.GetTenantScope(tenantId);
     }
 
@@ -106,11 +108,13 @@ public class CommandLine
 
             // Show that we can resolve a tenant service
             {
-                var tenant = LoadTenants().First();
-                var scope = GetTenantScope(tenant);
-                var drives = scope.Resolve<TableDrives>();
-                var driveCount = drives.GetCountAsync().Result;
-                _logger.LogInformation("Found {DriveCount} drives on {tenant}", driveCount, tenant.PrimaryDomainName);
+                foreach (var tenant in LoadTenants())
+                {
+                    var scope = GetTenantScope(tenant);
+                    var drives = scope.Resolve<TableDrives>();
+                    var driveCount = drives.GetCountAsync().Result;
+                    _logger.LogInformation("Found {DriveCount} drives on {tenant}", driveCount, tenant.PrimaryDomainName);
+                }
             }
 
             return (true, 0);
@@ -278,3 +282,4 @@ public class CommandLine
         return (false, 0);
     }
 }
+

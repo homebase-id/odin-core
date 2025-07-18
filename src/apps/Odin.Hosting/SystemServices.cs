@@ -51,7 +51,7 @@ public static class SystemServices
 {
     //
 
-    internal static void AddSystemServices(this IServiceCollection services, OdinConfiguration config)
+    internal static IServiceCollection ConfigureSystemServices(this IServiceCollection services, OdinConfiguration config)
     {
         services.AddSingleton(config);
 
@@ -144,7 +144,7 @@ public static class SystemServices
             sp.GetRequiredService<IDynamicHttpClientFactory>(),
             sp.GetRequiredService<ISystemHttpClient>(),
             sp.GetRequiredService<IMultiTenantContainerAccessor>(),
-            TenantServices.AddTenantServices,
+            TenantServices.ConfigureTenantServices,
             config));
 
         services.AddSingleton(new CertificateStorageKey(config.CertificateRenewal.StorageKey));
@@ -233,11 +233,13 @@ public static class SystemServices
                 config.S3PayloadStorage.ForcePathStyle,
                 config.S3PayloadStorage.BucketName);
         }
+
+        return services;
     }
 
     //
 
-    internal static void AddSystemServices(this ContainerBuilder builder, OdinConfiguration config)
+    internal static ContainerBuilder ConfigureSystemServices(this ContainerBuilder builder, OdinConfiguration config)
     {
         builder.RegisterModule(new LoggingAutofacModule());
         builder.RegisterModule(new MultiTenantAutofacModule());
@@ -264,6 +266,8 @@ public static class SystemServices
 
         // Global cache services
         builder.AddGlobalCaches();
+
+        return builder;
     }
 
     //

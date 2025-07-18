@@ -40,7 +40,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     // This method gets called by the runtime. Use this method to add DI services.
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddSystemServices(_config);
+        services.ConfigureSystemServices(_config);
     }
 
     // This method gets called by the runtime.
@@ -50,7 +50,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     // This will all go in the ROOT CONTAINER and is NOT TENANT SPECIFIC.
     public void ConfigureContainer(ContainerBuilder builder)
     {
-        builder.AddSystemServices(_config);
+        builder.ConfigureSystemServices(_config);
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

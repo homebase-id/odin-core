@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Authentication;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
@@ -46,10 +45,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
     private readonly IMultiTenantContainerAccessor _tenantContainer;
-    private readonly Action<ContainerBuilder, IdentityRegistration, OdinConfiguration> _tenantContainerBuilder;
+    private readonly Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
-    private readonly bool _useCertificateAuthorityProductionServers;
-    private readonly string _tempFolderRoot;
 
     public FileSystemIdentityRegistry(
         ILogger<FileSystemIdentityRegistry> logger,
@@ -57,14 +54,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         IDynamicHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
         IMultiTenantContainerAccessor tenantContainer,
-        Action<ContainerBuilder, IdentityRegistration, OdinConfiguration> tenantContainerBuilder,
+        Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> tenantContainerBuilder,
         OdinConfiguration config
     )
     {
         var tenantDataRootPath = config.Host.TenantDataRootPath;
         RegistrationRoot = Path.Combine(tenantDataRootPath, TenantPathManager.RegistrationsFolder);
         PayloadRoot = Path.Combine(tenantDataRootPath, TenantPathManager.PayloadsFolder);
-        _tempFolderRoot = tenantDataRootPath;
 
         _cache = new ConcurrentDictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
@@ -75,8 +71,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _tenantContainer = tenantContainer;
         _tenantContainerBuilder = tenantContainerBuilder;
         _config = config;
-
-        _useCertificateAuthorityProductionServers = config.CertificateRenewal.UseCertificateAuthorityProductionServers;
     }
 
     public Guid? ResolveId(string domain)
