@@ -19,5 +19,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public bool IsArchived { get; set; }
 
         public Dictionary<string, string> Attributes { get; set; }
+        public bool IsSystemDrive { get; set; }
     }
 }
