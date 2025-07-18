@@ -14,7 +14,7 @@ namespace Odin.Services.Drives
     /// <summary>
     /// Information about a drive
     /// </summary>
-    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
+    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly} Archive={IsArchived}")]
     public sealed class StorageDrive : StorageDriveBase
     {
         private readonly TenantPathManager _tenantPathManager;
@@ -100,6 +100,12 @@ namespace Odin.Services.Drives
         {
             get => _inner.OwnerOnly;
             set { }
+        }
+
+        public override bool IsArchived
+        {
+            get => _inner.IsArchived;
+            set => _inner.IsArchived = value;
         }
 
         public string GetDrivePayloadPath()
@@ -216,5 +222,6 @@ namespace Odin.Services.Drives
         public virtual bool AllowSubscriptions { get; set; }
 
         public virtual Dictionary<string, string> Attributes { get; set; }
+        public virtual bool IsArchived { get; set; }
     }
 }

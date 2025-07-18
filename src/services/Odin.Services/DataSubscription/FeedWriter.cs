@@ -41,7 +41,7 @@ public class FeedWriter(
             throw new OdinSystemException("File is missing a global transit id");
         }
 
-        var file = await _fileSystem.Storage.CreateInternalFileId(feedDriveId);
+        var file = await _fileSystem.Storage.CreateInternalFileId(feedDriveId, odinContext);
 
         // Clearing the UID for any files that go into the feed drive because the feed drive
         // comes from multiple channel drives from many different identities so there could be a clash
