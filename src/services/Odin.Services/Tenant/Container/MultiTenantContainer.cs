@@ -14,7 +14,18 @@ using Odin.Core.Exceptions;
 #nullable enable
 namespace Odin.Services.Tenant.Container;
 
-public sealed class MultiTenantContainer(IContainer applicationContainer) : IContainer
+public interface IMultiTenantContainer : IContainer
+{
+    ILifetimeScope GetOrAddTenantScope(string tenant, Action<ContainerBuilder> configurationAction);
+    ILifetimeScope GetTenantScope(string tenant);
+    ILifetimeScope? LookupTenantScope(string tenant);
+    void RemoveTenantScope(string tenant);
+    List<ILifetimeScope> GetTenantScopesForDiagnostics();
+}
+
+//
+
+public sealed class MultiTenantContainer(IContainer applicationContainer) : IMultiTenantContainer
 {
     // This is the base application container
 
@@ -102,7 +113,7 @@ public sealed class MultiTenantContainer(IContainer applicationContainer) : ICon
                     scope.Value.Dispose();
                 }
             }
-            applicationContainer.Dispose(); // SEB:TODO really? _applicationContainer is injected
+            applicationContainer.Dispose(); // Do it! We own it!
         }
     }
 

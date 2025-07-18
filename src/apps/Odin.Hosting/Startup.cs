@@ -363,7 +363,7 @@ public static class HostExtensions
         // Check for singleton dependencies
         if (Env.IsDevelopment())
         {
-            var root = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+            var root = services.GetRequiredService<IMultiTenantContainer>();
             new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
         }
 

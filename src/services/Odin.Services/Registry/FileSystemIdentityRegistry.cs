@@ -44,7 +44,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ICertificateService _certificateService;
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
-    private readonly IMultiTenantContainerAccessor _tenantContainer;
+    private readonly IMultiTenantContainer _tenantContainer;
     private readonly Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
 
@@ -53,7 +53,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ICertificateService certificateService,
         IDynamicHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
-        IMultiTenantContainerAccessor tenantContainer,
+        IMultiTenantContainer tenantContainer,
         Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> tenantContainerBuilder,
         OdinConfiguration config
     )
@@ -614,7 +614,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         if (_config.Cache.Level2CacheType == Level2CacheType.Redis)
         {
-            var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+            var scope = _tenantContainer.GetTenantScope(registration.PrimaryDomainName);
             var multiplexer = scope.Resolve<IConnectionMultiplexer>();
             var odinContextCache = scope.Resolve<OdinContextCache>();
             await odinContextCache.InitializePubSub(multiplexer);
@@ -625,7 +625,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task StartBackgroundServices(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var scope = _tenantContainer.GetTenantScope(registration.PrimaryDomainName);
         await scope.StartTenantBackgroundServices();
     }
 
@@ -633,7 +633,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task StopBackgroundServices(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.Container().GetTenantScope(registration.PrimaryDomainName);
+        var scope = _tenantContainer.GetTenantScope(registration.PrimaryDomainName);
         var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
         await backgroundServiceManager.ShutdownAsync();
     }
@@ -642,7 +642,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private ILifetimeScope GetOrCreateMultiTenantScope(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.Container().GetOrAddTenantScope(
+        var scope = _tenantContainer.GetOrAddTenantScope(
             registration.PrimaryDomainName,
             cb => _tenantContainerBuilder(cb, registration, _config));
 
@@ -653,7 +653,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private void RemoveMultiTenantScope(string domain)
     {
-        _tenantContainer.Container().RemoveTenantScope(domain);
+        _tenantContainer.RemoveTenantScope(domain);
     }
 
 

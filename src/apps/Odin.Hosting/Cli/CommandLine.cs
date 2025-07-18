@@ -56,11 +56,6 @@ public class CommandLine
         {
             return ParseAndExecute(args);
         }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Unhandled exception");
-            return (true, 1);
-        }
         finally
         {
             _serviceProviders.Dispose();
@@ -80,7 +75,7 @@ public class CommandLine
 
     private static ILifetimeScope GetTenantScope(string tenantId)
     {
-        var tenantContainer = _multiTenantContainer.Resolve<IMultiTenantContainerAccessor>();
+        var tenantContainer = _multiTenantContainer.Resolve<IMultiTenantContainer>();
         return tenantContainer.GetTenantScope(tenantId);
     }
 

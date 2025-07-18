@@ -18,8 +18,8 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
     // The singleton registered types below are verified to not have any (problematic) non-singleton dependencies
     private readonly Dictionary<Type, string> _manualCheckSingletonWhitelist = new()
     {
+        {typeof(Odin.Services.Tenant.Container.MultiTenantContainer), "ee75de5f"},
         {typeof(Odin.Core.Identity.OdinIdentity), "56922cad"},
-        {typeof(Odin.Services.Tenant.Container.MultiTenantContainerAccessor), "1da64787"},
         {typeof(Odin.Core.Storage.CacheHelper), "b6b4e9b2"},
         {typeof(Odin.Core.Storage.Database.DatabaseCounters), "e6f1c919"},
         {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "08513a77"},
@@ -39,7 +39,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
         {typeof(Odin.Services.Drives.DriveCore.Storage.FileReaderWriter), "d78f7501"},
-        {typeof(Odin.Services.Registry.IIdentityRegistry), "7b50e74c"},
+        {typeof(Odin.Services.Registry.IIdentityRegistry), "f94da96c"},
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},
@@ -61,7 +61,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         CheckSingletonDependencies(root, logger);
 
         // Check first available tenant
-        var tenantScope = root.Resolve<IMultiTenantContainerAccessor>().GetTenantScopesForDiagnostics().FirstOrDefault();
+        var tenantScope = root.Resolve<IMultiTenantContainer>().GetTenantScopesForDiagnostics().FirstOrDefault();
         if (tenantScope != null)
         {
             CheckSingletonDependencies(tenantScope, logger);

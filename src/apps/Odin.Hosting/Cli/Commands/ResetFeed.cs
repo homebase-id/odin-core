@@ -23,7 +23,7 @@ public static class ResetFeed
     {
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
         var registry = services.GetRequiredService<IIdentityRegistry>();
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainer>();
 
         logger.LogInformation("Starting Feed reset");
 

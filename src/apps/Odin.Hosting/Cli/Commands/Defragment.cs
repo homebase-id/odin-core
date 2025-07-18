@@ -21,7 +21,7 @@ public static class Defragment
         }
 
         var registry = services.GetRequiredService<IIdentityRegistry>();
-        var tenantContainer = services.GetRequiredService<IMultiTenantContainerAccessor>().Container();
+        var tenantContainer = services.GetRequiredService<IMultiTenantContainer>();
 
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
         logger.LogInformation("Starting defragmentation; cleanup mode: {cleanup}", cleanup);

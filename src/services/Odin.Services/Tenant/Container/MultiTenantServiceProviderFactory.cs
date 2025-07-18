@@ -31,15 +31,10 @@ public class MultiTenantServiceProviderFactory : IServiceProviderFactory<Contain
     {
         MultiTenantContainer container = null!;
 
-        MultiTenantContainer ContainerAccessor()
-        {
-            // ReSharper disable once AccessToModifiedClosure
-            return container!;
-        }
-
         containerBuilder
-            .RegisterInstance(new MultiTenantContainerAccessor(ContainerAccessor))
-            .As<IMultiTenantContainerAccessor>()
+            // ReSharper disable once AccessToModifiedClosure
+            .Register(_ => container)
+            .As<IMultiTenantContainer>()
             .SingleInstance();
 
         container = new MultiTenantContainer(containerBuilder.Build());

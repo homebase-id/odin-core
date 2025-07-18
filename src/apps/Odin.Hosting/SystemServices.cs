@@ -143,7 +143,7 @@ public static class SystemServices
             sp.GetRequiredService<ICertificateService>(),
             sp.GetRequiredService<IDynamicHttpClientFactory>(),
             sp.GetRequiredService<ISystemHttpClient>(),
-            sp.GetRequiredService<IMultiTenantContainerAccessor>(),
+            sp.GetRequiredService<IMultiTenantContainer>(),
             TenantServices.ConfigureTenantServices,
             config));
 

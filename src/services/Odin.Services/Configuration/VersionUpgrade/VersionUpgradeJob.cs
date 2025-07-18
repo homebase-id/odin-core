@@ -19,7 +19,7 @@ namespace Odin.Services.Configuration.VersionUpgrade;
 //
 
 public class VersionUpgradeJob(
-    IMultiTenantContainerAccessor tenantContainerAccessor,
+    IMultiTenantContainer tenantContainer,
     ILogger<VersionUpgradeJob> logger) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("0607585d-6adc-4993-a6e4-11638c7071d6");
@@ -38,7 +38,7 @@ public class VersionUpgradeJob(
             }
 
             // Create a new lifetime scope for the tenant so db connections are isolated
-            await using var scope = tenantContainerAccessor.Container().GetTenantScope(Data.Tenant!)
+            await using var scope = tenantContainer.GetTenantScope(Data.Tenant!)
                 .BeginLifetimeScope($"VersionUpgradeJob:Run:{Data.Tenant}:{Guid.NewGuid()}");
 
             var stickyHostnameContext = scope.Resolve<IStickyHostname>();
