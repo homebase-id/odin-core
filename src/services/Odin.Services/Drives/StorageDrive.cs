@@ -14,7 +14,7 @@ namespace Odin.Services.Drives
     /// <summary>
     /// Information about a drive
     /// </summary>
-    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
+    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly} Archive={IsArchived}")]
     public sealed class StorageDrive : StorageDriveBase
     {
         private readonly TenantPathManager _tenantPathManager;
