@@ -27,7 +27,7 @@ public class DatabaseMigrationTests : IocTestBase
         var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
-        await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigration1");
+        await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigrationV1");
         //await Migration.DeleteTableAsync(cn, "DriveMainIndex");
 
         var list = new TableDriveMainIndexMigrationList();

@@ -159,7 +159,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())
                 {
-                    if (await VerifyRowCount(cn, $"DriveMainIndexMigrations{Container.PreviousVersionInt(this)}", "DriveMainIndex") == false)
+                    if (await VerifyRowCount(cn, $"DriveMainIndexMigrationsV{Container.PreviousVersionInt(this)}", "DriveMainIndex") == false)
                         throw new MigrationException("Mismatching row counts - bad idea to downgrade");
                     await RenameAsync(cn, "DriveMainIndex", "DriveMainIndexMigrationsV1");
                     await RenameAsync(cn, $"DriveMainIndexMigrationsV{Container.PreviousVersionInt(this)}", "DriveMainIndex");
