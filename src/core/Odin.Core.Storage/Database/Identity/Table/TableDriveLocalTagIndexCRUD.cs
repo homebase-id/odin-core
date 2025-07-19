@@ -22,58 +22,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record DriveLocalTagIndexRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _driveId;
-        public Guid driveId
-        {
-           get {
-                   return _driveId;
-               }
-           set {
-                  _driveId = value;
-               }
-        }
-        private Guid _fileId;
-        public Guid fileId
-        {
-           get {
-                   return _fileId;
-               }
-           set {
-                  _fileId = value;
-               }
-        }
-        private Guid _tagId;
-        public Guid tagId
-        {
-           get {
-                   return _tagId;
-               }
-           set {
-                  _tagId = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid driveId { get; set; }
+        public Guid fileId { get; set; }
+        public Guid tagId { get; set; }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
         }
     } // End of record DriveLocalTagIndexRecord
 
@@ -97,7 +56,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -117,10 +76,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(DriveLocalTagIndexRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -159,10 +115,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(DriveLocalTagIndexRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -202,10 +155,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(DriveLocalTagIndexRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -246,10 +196,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(DriveLocalTagIndexRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.tagId.AssertGuidNotEmpty("Guid parameter tagId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -411,13 +358,72 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<DriveLocalTagIndexRecord> PopAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM DriveLocalTagIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId " + 
+                                             "RETURNING rowId";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@driveId";
+                deleteCommand.Parameters.Add(deleteParam2);
+                var deleteParam3 = deleteCommand.CreateParameter();
+                deleteParam3.DbType = DbType.Binary;
+                deleteParam3.ParameterName = "@fileId";
+                deleteCommand.Parameters.Add(deleteParam3);
+                var deleteParam4 = deleteCommand.CreateParameter();
+                deleteParam4.DbType = DbType.Binary;
+                deleteParam4.ParameterName = "@tagId";
+                deleteCommand.Parameters.Add(deleteParam4);
+
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = driveId.ToByteArray();
+                deleteParam3.Value = fileId.ToByteArray();
+                deleteParam4.Value = tagId.ToByteArray();
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,identityId,driveId,fileId,tagId);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
+        protected DriveLocalTagIndexRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,Guid tagId)
+        {
+            var result = new List<DriveLocalTagIndexRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new DriveLocalTagIndexRecord();
+            item.identityId = identityId;
+            item.driveId = driveId;
+            item.fileId = fileId;
+            item.tagId = tagId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            return item;
+       }
+
+        protected virtual async Task<DriveLocalTagIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT tagId FROM DriveLocalTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                get0Command.CommandText = "SELECT rowId FROM DriveLocalTagIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.DbType = DbType.Binary;
@@ -431,12 +437,55 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Param3.DbType = DbType.Binary;
                 get0Param3.ParameterName = "@fileId";
                 get0Command.Parameters.Add(get0Param3);
+                var get0Param4 = get0Command.CreateParameter();
+                get0Param4.DbType = DbType.Binary;
+                get0Param4.ParameterName = "@tagId";
+                get0Command.Parameters.Add(get0Param4);
 
                 get0Param1.Value = identityId.ToByteArray();
                 get0Param2.Value = driveId.ToByteArray();
                 get0Param3.Value = fileId.ToByteArray();
+                get0Param4.Value = tagId.ToByteArray();
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr,identityId,driveId,fileId,tagId);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected virtual async Task<List<Guid>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT tagId FROM DriveLocalTagIndex " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.DbType = DbType.Binary;
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.DbType = DbType.Binary;
+                get1Param2.ParameterName = "@driveId";
+                get1Command.Parameters.Add(get1Param2);
+                var get1Param3 = get1Command.CreateParameter();
+                get1Param3.DbType = DbType.Binary;
+                get1Param3.ParameterName = "@fileId";
+                get1Command.Parameters.Add(get1Param3);
+
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = driveId.ToByteArray();
+                get1Param3.Value = fileId.ToByteArray();
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         Guid result0tmp;
                         var thelistresult = new List<Guid>();
@@ -462,65 +511,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                            break;
                     } // while
                     return thelistresult;
-                    } // using
-                } //
-            } // using
-        }
-
-        protected DriveLocalTagIndexRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,Guid tagId)
-        {
-            var result = new List<DriveLocalTagIndexRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new DriveLocalTagIndexRecord();
-            item.identityId = identityId;
-            item.driveId = driveId;
-            item.fileId = fileId;
-            item.tagId = tagId;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            return item;
-       }
-
-        protected virtual async Task<DriveLocalTagIndexRecord> GetAsync(Guid identityId,Guid driveId,Guid fileId,Guid tagId)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
-            {
-                get1Command.CommandText = "SELECT rowId FROM DriveLocalTagIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND tagId = @tagId LIMIT 1;"+
-                                             ";";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.DbType = DbType.Binary;
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.DbType = DbType.Binary;
-                get1Param2.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.DbType = DbType.Binary;
-                get1Param3.ParameterName = "@fileId";
-                get1Command.Parameters.Add(get1Param3);
-                var get1Param4 = get1Command.CreateParameter();
-                get1Param4.DbType = DbType.Binary;
-                get1Param4.ParameterName = "@tagId";
-                get1Command.Parameters.Add(get1Param4);
-
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
-                get1Param4.Value = tagId.ToByteArray();
-                {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            return null;
-                        }
-                        var r = ReadRecordFromReader1(rdr,identityId,driveId,fileId,tagId);
-                        return r;
                     } // using
                 } //
             } // using

@@ -44,6 +44,7 @@
 
         /// <summary>
         /// Given any secret 'key' split it into a random value and the cipher.
+        /// Use XorDecryptKey to assemble it again
         /// </summary>
         /// <param name="key">The key to split into two halves</param>
         /// <returns>The cipher and the random key needed to decrypt the cipher</returns>

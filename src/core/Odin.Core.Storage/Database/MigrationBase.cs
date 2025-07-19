@@ -1,12 +1,13 @@
-﻿using Odin.Core.Storage.Factory;
+﻿using Odin.Core.Exceptions;
+using Odin.Core.Storage.Factory;
 using System;
 using System.Threading.Tasks;
 
 #nullable enable
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database
 {
-    public class MigrationException : Exception
+    public class MigrationException : OdinSystemException
     {
         public MigrationException(string message, Exception? inner = null)
             : base(message, inner) { }
@@ -16,11 +17,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class MigrationBase
     {
         public abstract int MigrationVersion { get; }
-        public abstract int PreviousMigrationVersion { get; }
+        public MigrationListBase Container { get; set; }
 
-        public int PreviousVersion()
+        protected MigrationBase(MigrationListBase container)
         {
-            return PreviousMigrationVersion;
+            Container = container;
         }
 
         public static async Task<int> DeleteTableAsync(IConnectionWrapper cn, string tableName)
@@ -67,5 +68,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return n1 == n2;
         }
 
+        public abstract Task DownAsync(IConnectionWrapper cn);
+        public abstract Task UpAsync(IConnectionWrapper cn);
     }
 }

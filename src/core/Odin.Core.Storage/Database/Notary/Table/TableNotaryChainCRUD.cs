@@ -22,194 +22,15 @@ namespace Odin.Core.Storage.Database.Notary.Table
 {
     public record NotaryChainRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private byte[] _previousHash;
-        public byte[] previousHash
-        {
-           get {
-                   return _previousHash;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null previousHash");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short previousHash, was {value.Length} (min 16)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long previousHash, was {value.Length} (max 64)");
-                  _previousHash = value;
-               }
-        }
-        internal byte[] previousHashNoLengthCheck
-        {
-           get {
-                   return _previousHash;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null previousHash");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short previousHash, was {value.Length} (min 16)");
-                  _previousHash = value;
-               }
-        }
-        private string _identity;
-        public string identity
-        {
-           get {
-                   return _identity;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null identity");
-                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {value.Length} (min 3)");
-                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long identity, was {value.Length} (max 256)");
-                  _identity = value;
-               }
-        }
-        internal string identityNoLengthCheck
-        {
-           get {
-                   return _identity;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null identity");
-                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {value.Length} (min 3)");
-                  _identity = value;
-               }
-        }
-        private UnixTimeUtc _timestamp;
-        public UnixTimeUtc timestamp
-        {
-           get {
-                   return _timestamp;
-               }
-           set {
-                  _timestamp = value;
-               }
-        }
-        private byte[] _signedPreviousHash;
-        public byte[] signedPreviousHash
-        {
-           get {
-                   return _signedPreviousHash;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null signedPreviousHash");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short signedPreviousHash, was {value.Length} (min 16)");
-                    if (value?.Length > 200) throw new OdinDatabaseValidationException($"Too long signedPreviousHash, was {value.Length} (max 200)");
-                  _signedPreviousHash = value;
-               }
-        }
-        internal byte[] signedPreviousHashNoLengthCheck
-        {
-           get {
-                   return _signedPreviousHash;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null signedPreviousHash");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short signedPreviousHash, was {value.Length} (min 16)");
-                  _signedPreviousHash = value;
-               }
-        }
-        private string _algorithm;
-        public string algorithm
-        {
-           get {
-                   return _algorithm;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null algorithm");
-                    if (value?.Length < 1) throw new OdinDatabaseValidationException($"Too short algorithm, was {value.Length} (min 1)");
-                    if (value?.Length > 40) throw new OdinDatabaseValidationException($"Too long algorithm, was {value.Length} (max 40)");
-                  _algorithm = value;
-               }
-        }
-        internal string algorithmNoLengthCheck
-        {
-           get {
-                   return _algorithm;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null algorithm");
-                    if (value?.Length < 1) throw new OdinDatabaseValidationException($"Too short algorithm, was {value.Length} (min 1)");
-                  _algorithm = value;
-               }
-        }
-        private string _publicKeyJwkBase64Url;
-        public string publicKeyJwkBase64Url
-        {
-           get {
-                   return _publicKeyJwkBase64Url;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null publicKeyJwkBase64Url");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short publicKeyJwkBase64Url, was {value.Length} (min 16)");
-                    if (value?.Length > 600) throw new OdinDatabaseValidationException($"Too long publicKeyJwkBase64Url, was {value.Length} (max 600)");
-                  _publicKeyJwkBase64Url = value;
-               }
-        }
-        internal string publicKeyJwkBase64UrlNoLengthCheck
-        {
-           get {
-                   return _publicKeyJwkBase64Url;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null publicKeyJwkBase64Url");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short publicKeyJwkBase64Url, was {value.Length} (min 16)");
-                  _publicKeyJwkBase64Url = value;
-               }
-        }
-        private byte[] _notarySignature;
-        public byte[] notarySignature
-        {
-           get {
-                   return _notarySignature;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short notarySignature, was {value.Length} (min 16)");
-                    if (value?.Length > 200) throw new OdinDatabaseValidationException($"Too long notarySignature, was {value.Length} (max 200)");
-                  _notarySignature = value;
-               }
-        }
-        internal byte[] notarySignatureNoLengthCheck
-        {
-           get {
-                   return _notarySignature;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short notarySignature, was {value.Length} (min 16)");
-                  _notarySignature = value;
-               }
-        }
-        private byte[] _recordHash;
-        public byte[] recordHash
-        {
-           get {
-                   return _recordHash;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recordHash");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short recordHash, was {value.Length} (min 16)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long recordHash, was {value.Length} (max 64)");
-                  _recordHash = value;
-               }
-        }
-        internal byte[] recordHashNoLengthCheck
-        {
-           get {
-                   return _recordHash;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recordHash");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short recordHash, was {value.Length} (min 16)");
-                  _recordHash = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public byte[] previousHash { get; set; }
+        public string identity { get; set; }
+        public UnixTimeUtc timestamp { get; set; }
+        public byte[] signedPreviousHash { get; set; }
+        public string algorithm { get; set; }
+        public string publicKeyJwkBase64Url { get; set; }
+        public byte[] notarySignature { get; set; }
+        public byte[] recordHash { get; set; }
         public void Validate()
         {
             if (previousHash == null) throw new OdinDatabaseValidationException("Cannot be null previousHash");
@@ -241,7 +62,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
         private readonly CacheHelper _cache;
         private readonly ScopedNotaryConnectionFactory _scopedConnectionFactory;
 
-        protected TableNotaryChainCRUD(CacheHelper cache, ScopedNotaryConnectionFactory scopedConnectionFactory)
+        public TableNotaryChainCRUD(CacheHelper cache, ScopedNotaryConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
@@ -258,7 +79,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -281,6 +102,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<int> InsertAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -340,6 +162,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<bool> TryInsertAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -400,6 +223,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<int> UpsertAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -461,6 +285,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public virtual async Task<int> UpdateAsync(NotaryChainRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -559,20 +384,20 @@ namespace Odin.Core.Storage.Database.Notary.Table
             var guid = new byte[16];
             var item = new NotaryChainRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.previousHashNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.previousHash = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-            item.identityNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.identity = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.timestamp = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.signedPreviousHashNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
+            item.signedPreviousHash = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-            item.algorithmNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.publicKeyJwkBase64UrlNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.notarySignatureNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
+            item.algorithm = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.publicKeyJwkBase64Url = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.notarySignature = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
             if (item.notarySignature?.Length < 16)
                 throw new Exception("Too little data in notarySignature...");
-            item.recordHashNoLengthCheck = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[8]);
+            item.recordHash = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[8]);
             if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;
@@ -601,6 +426,37 @@ namespace Odin.Core.Storage.Database.Notary.Table
             }
         }
 
+        public virtual async Task<NotaryChainRecord> PopAsync(byte[] notarySignature)
+        {
+            if (notarySignature == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
+            if (notarySignature?.Length < 16) throw new OdinDatabaseValidationException($"Too short notarySignature, was {notarySignature.Length} (min 16)");
+            if (notarySignature?.Length > 200) throw new OdinDatabaseValidationException($"Too long notarySignature, was {notarySignature.Length} (max 200)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM NotaryChain " +
+                                             "WHERE notarySignature = @notarySignature " + 
+                                             "RETURNING rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@notarySignature";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = notarySignature;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,notarySignature);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public NotaryChainRecord ReadRecordFromReader0(DbDataReader rdr,byte[] notarySignature)
         {
             if (notarySignature == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
@@ -614,17 +470,17 @@ namespace Odin.Core.Storage.Database.Notary.Table
             var item = new NotaryChainRecord();
             item.notarySignature = notarySignature;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.previousHashNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.previousHash = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.previousHash?.Length < 16)
                 throw new Exception("Too little data in previousHash...");
-            item.identityNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.identity = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.timestamp = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.signedPreviousHashNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
+            item.signedPreviousHash = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
             if (item.signedPreviousHash?.Length < 16)
                 throw new Exception("Too little data in signedPreviousHash...");
-            item.algorithmNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.publicKeyJwkBase64UrlNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.recordHashNoLengthCheck = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
+            item.algorithm = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.publicKeyJwkBase64Url = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.recordHash = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[7]);
             if (item.recordHash?.Length < 16)
                 throw new Exception("Too little data in recordHash...");
             return item;

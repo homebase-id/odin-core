@@ -24,4 +24,12 @@
     <ProjectReference Include="../Odin.Core/Odin.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Database\Attestation\Migrations\" />
+    <Folder Include="Database\Identity\Migrations\" />
+    <Folder Include="Database\KeyChain\Migrations\" />
+    <Folder Include="Database\Notary\Migrations\" />
+    <Folder Include="Database\System\Migrations\" />
+  </ItemGroup>
+
 </Project>

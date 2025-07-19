@@ -1,6 +1,7 @@
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -26,10 +27,16 @@ public class DatabaseMigrationTests : IocTestBase
         var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
-        await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigration1");
-        //await Migration.DeleteTableAsync(cn, "DriveMainIndex");
 
-        var m1 = new TableDriveMainIndexMigration1(scopedIdentityConnectionFactory);
+        var list = new TableDriveMainIndexMigrationList();
+        var m1 = list.GetByVersion(20250719);
+
+        var latest = list.GetLatestVersion();
+
+        ClassicAssert.AreEqual(latest, m1);
+
+        await MigrationBase.DeleteTableAsync(cn, $"DriveMainIndexMigrationV{m1.MigrationVersion}");
+        //await Migration.DeleteTableAsync(cn, "DriveMainIndex");
 
         // Fill in some random data
         var metaIndex = scope.Resolve<MainIndexMeta>();
@@ -46,7 +53,7 @@ public class DatabaseMigrationTests : IocTestBase
         await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
         await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
-        await m1.UpAsync(cn);   // Increase from version 0 to 1
-        await m1.DownAsync(cn); // Rollback version 1 back to 0
+        await m1.UpAsync(cn);   // Increase from version 0 to 20250719
+        await m1.DownAsync(cn); // Rollback version 20250719 back to 0
     }
 }

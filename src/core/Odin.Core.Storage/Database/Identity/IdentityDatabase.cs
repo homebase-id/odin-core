@@ -36,6 +36,7 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
         typeof(TableKeyTwoValue),
         typeof(TableKeyUniqueThreeValue),
         typeof(TableKeyValue),
+        typeof(TableNonce),
         typeof(TableOutbox),
     ];
 
@@ -120,6 +121,10 @@ public class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     // KeyValue
     private Lazy<TableKeyValue> _keyValue;
     public TableKeyValue KeyValue => LazyResolve(ref _keyValue);
+
+    // Nonce
+    private Lazy<TableNonce> _nonce;
+    public TableNonce Nonce => LazyResolve(ref _nonce);
 
     // Outbox
     private Lazy<TableOutbox> _outbox;

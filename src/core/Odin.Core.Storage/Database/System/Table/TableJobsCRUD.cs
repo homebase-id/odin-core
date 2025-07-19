@@ -22,286 +22,29 @@ namespace Odin.Core.Storage.Database.System.Table
 {
     public record JobsRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _id;
-        public Guid id
-        {
-           get {
-                   return _id;
-               }
-           set {
-                  _id = value;
-               }
-        }
-        private string _name;
-        public string name
-        {
-           get {
-                   return _name;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null name");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long name, was {value.Length} (max 64)");
-                  _name = value;
-               }
-        }
-        internal string nameNoLengthCheck
-        {
-           get {
-                   return _name;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null name");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {value.Length} (min 0)");
-                  _name = value;
-               }
-        }
-        private Int32 _state;
-        public Int32 state
-        {
-           get {
-                   return _state;
-               }
-           set {
-                  _state = value;
-               }
-        }
-        private Int32 _priority;
-        public Int32 priority
-        {
-           get {
-                   return _priority;
-               }
-           set {
-                  _priority = value;
-               }
-        }
-        private UnixTimeUtc _nextRun;
-        public UnixTimeUtc nextRun
-        {
-           get {
-                   return _nextRun;
-               }
-           set {
-                  _nextRun = value;
-               }
-        }
-        private UnixTimeUtc? _lastRun;
-        public UnixTimeUtc? lastRun
-        {
-           get {
-                   return _lastRun;
-               }
-           set {
-                  _lastRun = value;
-               }
-        }
-        private Int32 _runCount;
-        public Int32 runCount
-        {
-           get {
-                   return _runCount;
-               }
-           set {
-                  _runCount = value;
-               }
-        }
-        private Int32 _maxAttempts;
-        public Int32 maxAttempts
-        {
-           get {
-                   return _maxAttempts;
-               }
-           set {
-                  _maxAttempts = value;
-               }
-        }
-        private Int64 _retryDelay;
-        public Int64 retryDelay
-        {
-           get {
-                   return _retryDelay;
-               }
-           set {
-                  _retryDelay = value;
-               }
-        }
-        private Int64 _onSuccessDeleteAfter;
-        public Int64 onSuccessDeleteAfter
-        {
-           get {
-                   return _onSuccessDeleteAfter;
-               }
-           set {
-                  _onSuccessDeleteAfter = value;
-               }
-        }
-        private Int64 _onFailureDeleteAfter;
-        public Int64 onFailureDeleteAfter
-        {
-           get {
-                   return _onFailureDeleteAfter;
-               }
-           set {
-                  _onFailureDeleteAfter = value;
-               }
-        }
-        private UnixTimeUtc? _expiresAt;
-        public UnixTimeUtc? expiresAt
-        {
-           get {
-                   return _expiresAt;
-               }
-           set {
-                  _expiresAt = value;
-               }
-        }
-        private string _correlationId;
-        public string correlationId
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
-                  _correlationId = value;
-               }
-        }
-        internal string correlationIdNoLengthCheck
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                  _correlationId = value;
-               }
-        }
-        private string _jobType;
-        public string jobType
-        {
-           get {
-                   return _jobType;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null jobType");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobType, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobType, was {value.Length} (max 65535)");
-                  _jobType = value;
-               }
-        }
-        internal string jobTypeNoLengthCheck
-        {
-           get {
-                   return _jobType;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null jobType");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobType, was {value.Length} (min 0)");
-                  _jobType = value;
-               }
-        }
-        private string _jobData;
-        public string jobData
-        {
-           get {
-                   return _jobData;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobData, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobData, was {value.Length} (max 65535)");
-                  _jobData = value;
-               }
-        }
-        internal string jobDataNoLengthCheck
-        {
-           get {
-                   return _jobData;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobData, was {value.Length} (min 0)");
-                  _jobData = value;
-               }
-        }
-        private string _jobHash;
-        public string jobHash
-        {
-           get {
-                   return _jobHash;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobHash, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobHash, was {value.Length} (max 65535)");
-                  _jobHash = value;
-               }
-        }
-        internal string jobHashNoLengthCheck
-        {
-           get {
-                   return _jobHash;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short jobHash, was {value.Length} (min 0)");
-                  _jobHash = value;
-               }
-        }
-        private string _lastError;
-        public string lastError
-        {
-           get {
-                   return _lastError;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {value.Length} (max 65535)");
-                  _lastError = value;
-               }
-        }
-        internal string lastErrorNoLengthCheck
-        {
-           get {
-                   return _lastError;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
-                  _lastError = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid id { get; set; }
+        public string name { get; set; }
+        public Int32 state { get; set; }
+        public Int32 priority { get; set; }
+        public UnixTimeUtc nextRun { get; set; }
+        public UnixTimeUtc? lastRun { get; set; }
+        public Int32 runCount { get; set; }
+        public Int32 maxAttempts { get; set; }
+        public Int64 retryDelay { get; set; }
+        public Int64 onSuccessDeleteAfter { get; set; }
+        public Int64 onFailureDeleteAfter { get; set; }
+        public UnixTimeUtc? expiresAt { get; set; }
+        public string correlationId { get; set; }
+        public string jobType { get; set; }
+        public string jobData { get; set; }
+        public string jobHash { get; set; }
+        public string lastError { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
+            id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
             if (name == null) throw new OdinDatabaseValidationException("Cannot be null name");
             if (name?.Length < 0) throw new OdinDatabaseValidationException($"Too short name, was {name.Length} (min 0)");
             if (name?.Length > 64) throw new OdinDatabaseValidationException($"Too long name, was {name.Length} (max 64)");
@@ -324,7 +67,7 @@ namespace Odin.Core.Storage.Database.System.Table
     {
         private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
 
-        protected TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        public TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
@@ -340,7 +83,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -377,7 +120,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> InsertAsync(JobsRecord item)
         {
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -475,13 +218,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -491,7 +229,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<bool> TryInsertAsync(JobsRecord item)
         {
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -590,13 +328,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return true;
                 }
@@ -606,7 +339,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpsertAsync(JobsRecord item)
         {
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -706,13 +439,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -722,7 +450,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpdateAsync(JobsRecord item)
         {
-            item.id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -821,13 +549,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -887,7 +610,7 @@ namespace Odin.Core.Storage.Database.System.Table
             var item = new JobsRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.id = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.nameNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.name = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.state = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             item.priority = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.nextRun = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
@@ -898,11 +621,11 @@ namespace Odin.Core.Storage.Database.System.Table
             item.onSuccessDeleteAfter = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
             item.onFailureDeleteAfter = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[11];
             item.expiresAt = (rdr[12] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[12]);
-            item.correlationIdNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-            item.jobTypeNoLengthCheck = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
-            item.jobDataNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
-            item.jobHashNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
-            item.lastErrorNoLengthCheck = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
+            item.correlationId = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.jobType = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[14];
+            item.jobData = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
+            item.jobHash = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
+            item.lastError = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
             item.created = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
             item.modified = (rdr[19] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[19]); // HACK
             return item;
@@ -926,6 +649,34 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
+        public virtual async Task<JobsRecord> PopAsync(Guid id)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Jobs " +
+                                             "WHERE id = @id " + 
+                                             "RETURNING rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@id";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = id.ToByteArray();
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,id);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public JobsRecord ReadRecordFromReader0(DbDataReader rdr,Guid id)
         {
             var result = new List<JobsRecord>();
@@ -936,7 +687,7 @@ namespace Odin.Core.Storage.Database.System.Table
             var item = new JobsRecord();
             item.id = id;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.nameNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.name = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.state = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
             item.nextRun = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
@@ -947,11 +698,11 @@ namespace Odin.Core.Storage.Database.System.Table
             item.onSuccessDeleteAfter = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[9];
             item.onFailureDeleteAfter = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[10];
             item.expiresAt = (rdr[11] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[11]);
-            item.correlationIdNoLengthCheck = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
-            item.jobTypeNoLengthCheck = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
-            item.jobDataNoLengthCheck = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
-            item.jobHashNoLengthCheck = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
-            item.lastErrorNoLengthCheck = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
+            item.correlationId = (rdr[12] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[12];
+            item.jobType = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[13];
+            item.jobData = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
+            item.jobHash = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
+            item.lastError = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
             item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[17]);
             item.modified = (rdr[18] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[18]); // HACK
             return item;

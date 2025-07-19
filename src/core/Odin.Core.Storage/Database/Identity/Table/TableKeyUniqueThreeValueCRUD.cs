@@ -22,122 +22,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record KeyUniqueThreeValueRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private byte[] _key1;
-        public byte[] key1
-        {
-           get {
-                   return _key1;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
-                    if (value?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {value.Length} (max 48)");
-                  _key1 = value;
-               }
-        }
-        internal byte[] key1NoLengthCheck
-        {
-           get {
-                   return _key1;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key1");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {value.Length} (min 16)");
-                  _key1 = value;
-               }
-        }
-        private byte[] _key2;
-        public byte[] key2
-        {
-           get {
-                   return _key2;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key2");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long key2, was {value.Length} (max 256)");
-                  _key2 = value;
-               }
-        }
-        internal byte[] key2NoLengthCheck
-        {
-           get {
-                   return _key2;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key2");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {value.Length} (min 0)");
-                  _key2 = value;
-               }
-        }
-        private byte[] _key3;
-        public byte[] key3
-        {
-           get {
-                   return _key3;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key3");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long key3, was {value.Length} (max 256)");
-                  _key3 = value;
-               }
-        }
-        internal byte[] key3NoLengthCheck
-        {
-           get {
-                   return _key3;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key3");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {value.Length} (min 0)");
-                  _key3 = value;
-               }
-        }
-        private byte[] _data;
-        public byte[] data
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                    if (value?.Length > 1048576) throw new OdinDatabaseValidationException($"Too long data, was {value.Length} (max 1048576)");
-                  _data = value;
-               }
-        }
-        internal byte[] dataNoLengthCheck
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                  _data = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public byte[] key1 { get; set; }
+        public byte[] key2 { get; set; }
+        public byte[] key3 { get; set; }
+        public byte[] data { get; set; }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
             if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
@@ -174,7 +67,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -198,7 +91,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -243,7 +136,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(KeyUniqueThreeValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -289,7 +182,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(KeyUniqueThreeValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -336,7 +229,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(KeyUniqueThreeValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -418,16 +311,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyUniqueThreeValueRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.key1NoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
+            item.key1 = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.key2NoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
+            item.key2 = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[3]);
             if (item.key2?.Length < 0)
                 throw new Exception("Too little data in key2...");
-            item.key3NoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
+            item.key3 = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[4]);
             if (item.key3?.Length < 0)
                 throw new Exception("Too little data in key3...");
-            item.dataNoLengthCheck = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
+            item.data = (rdr[5] == DBNull.Value) ? null : (byte[])(rdr[5]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -461,16 +354,81 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<List<byte[]>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
+        protected virtual async Task<KeyUniqueThreeValueRecord> PopAsync(Guid identityId,byte[] key1)
         {
-            if (key2 == null) throw new OdinDatabaseValidationException("Cannot be null key2");
-            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
-            if (key2?.Length > 256) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 256)");
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM KeyUniqueThreeValue " +
+                                             "WHERE identityId = @identityId AND key1 = @key1 " + 
+                                             "RETURNING rowId,key2,key3,data";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@key1";
+                deleteCommand.Parameters.Add(deleteParam2);
+
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = key1;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,identityId,key1);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
+        protected KeyUniqueThreeValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key1)
+        {
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
+            var result = new List<KeyUniqueThreeValueRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new KeyUniqueThreeValueRecord();
+            item.identityId = identityId;
+            item.key1 = key1;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.key2 = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key2?.Length < 0)
+                throw new Exception("Too little data in key2...");
+            item.key3 = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
+            if (item.key3?.Length < 0)
+                throw new Exception("Too little data in key3...");
+            item.data = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<KeyUniqueThreeValueRecord> GetAsync(Guid identityId,byte[] key1)
+        {
+            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
+            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
+            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
+            var (hit, cacheObject) = _cache.Get("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64());
+            if (hit)
+                return (KeyUniqueThreeValueRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT data FROM KeyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2;"+
+                get0Command.CommandText = "SELECT rowId,key2,key3,data FROM KeyUniqueThreeValue " +
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
                 get0Param1.DbType = DbType.Binary;
@@ -478,13 +436,51 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Command.Parameters.Add(get0Param1);
                 var get0Param2 = get0Command.CreateParameter();
                 get0Param2.DbType = DbType.Binary;
-                get0Param2.ParameterName = "@key2";
+                get0Param2.ParameterName = "@key1";
                 get0Command.Parameters.Add(get0Param2);
 
                 get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = key2;
+                get0Param2.Value = key1;
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), null);
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr,identityId,key1);
+                        _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), r);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected virtual async Task<List<byte[]>> GetByKeyTwoAsync(Guid identityId,byte[] key2)
+        {
+            if (key2 == null) throw new OdinDatabaseValidationException("Cannot be null key2");
+            if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
+            if (key2?.Length > 256) throw new OdinDatabaseValidationException($"Too long key2, was {key2.Length} (max 256)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT data FROM KeyUniqueThreeValue " +
+                                             "WHERE identityId = @identityId AND key2 = @key2;"+
+                                             ";";
+                var get1Param1 = get1Command.CreateParameter();
+                get1Param1.DbType = DbType.Binary;
+                get1Param1.ParameterName = "@identityId";
+                get1Command.Parameters.Add(get1Param1);
+                var get1Param2 = get1Command.CreateParameter();
+                get1Param2.DbType = DbType.Binary;
+                get1Param2.ParameterName = "@key2";
+                get1Command.Parameters.Add(get1Param2);
+
+                get1Param1.Value = identityId.ToByteArray();
+                get1Param2.Value = key2;
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
@@ -522,24 +518,24 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key3?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {key3.Length} (min 0)");
             if (key3?.Length > 256) throw new OdinDatabaseValidationException($"Too long key3, was {key3.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get1Command = cn.CreateCommand();
+            await using var get2Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT data FROM KeyUniqueThreeValue " +
+                get2Command.CommandText = "SELECT data FROM KeyUniqueThreeValue " +
                                              "WHERE identityId = @identityId AND key3 = @key3;"+
                                              ";";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.DbType = DbType.Binary;
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.DbType = DbType.Binary;
-                get1Param2.ParameterName = "@key3";
-                get1Command.Parameters.Add(get1Param2);
+                var get2Param1 = get2Command.CreateParameter();
+                get2Param1.DbType = DbType.Binary;
+                get2Param1.ParameterName = "@identityId";
+                get2Command.Parameters.Add(get2Param1);
+                var get2Param2 = get2Command.CreateParameter();
+                get2Param2.DbType = DbType.Binary;
+                get2Param2.ParameterName = "@key3";
+                get2Command.Parameters.Add(get2Param2);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = key3;
+                get2Param1.Value = identityId.ToByteArray();
+                get2Param2.Value = key3;
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         byte[] result0tmp;
                         var thelistresult = new List<byte[]>();
@@ -571,7 +567,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected KeyUniqueThreeValueRecord ReadRecordFromReader2(DbDataReader rdr,Guid identityId,byte[] key2,byte[] key3)
+        protected KeyUniqueThreeValueRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,byte[] key2,byte[] key3)
         {
             if (key2 == null) throw new OdinDatabaseValidationException("Cannot be null key2");
             if (key2?.Length < 0) throw new OdinDatabaseValidationException($"Too short key2, was {key2.Length} (min 0)");
@@ -589,10 +585,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.key2 = key2;
             item.key3 = key3;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.key1NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.key1 = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.key1?.Length < 16)
                 throw new Exception("Too little data in key1...");
-            item.dataNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            item.data = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -607,29 +603,29 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key3?.Length < 0) throw new OdinDatabaseValidationException($"Too short key3, was {key3.Length} (min 0)");
             if (key3?.Length > 256) throw new OdinDatabaseValidationException($"Too long key3, was {key3.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get2Command = cn.CreateCommand();
+            await using var get3Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT rowId,key1,data FROM KeyUniqueThreeValue " +
+                get3Command.CommandText = "SELECT rowId,key1,data FROM KeyUniqueThreeValue " +
                                              "WHERE identityId = @identityId AND key2 = @key2 AND key3 = @key3;"+
                                              ";";
-                var get2Param1 = get2Command.CreateParameter();
-                get2Param1.DbType = DbType.Binary;
-                get2Param1.ParameterName = "@identityId";
-                get2Command.Parameters.Add(get2Param1);
-                var get2Param2 = get2Command.CreateParameter();
-                get2Param2.DbType = DbType.Binary;
-                get2Param2.ParameterName = "@key2";
-                get2Command.Parameters.Add(get2Param2);
-                var get2Param3 = get2Command.CreateParameter();
-                get2Param3.DbType = DbType.Binary;
-                get2Param3.ParameterName = "@key3";
-                get2Command.Parameters.Add(get2Param3);
+                var get3Param1 = get3Command.CreateParameter();
+                get3Param1.DbType = DbType.Binary;
+                get3Param1.ParameterName = "@identityId";
+                get3Command.Parameters.Add(get3Param1);
+                var get3Param2 = get3Command.CreateParameter();
+                get3Param2.DbType = DbType.Binary;
+                get3Param2.ParameterName = "@key2";
+                get3Command.Parameters.Add(get3Param2);
+                var get3Param3 = get3Command.CreateParameter();
+                get3Param3.DbType = DbType.Binary;
+                get3Param3.ParameterName = "@key3";
+                get3Command.Parameters.Add(get3Param3);
 
-                get2Param1.Value = identityId.ToByteArray();
-                get2Param2.Value = key2;
-                get2Param3.Value = key3;
+                get3Param1.Value = identityId.ToByteArray();
+                get3Param2.Value = key2;
+                get3Param3.Value = key3;
                 {
-                    using (var rdr = await get2Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
@@ -639,78 +635,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         var result = new List<KeyUniqueThreeValueRecord>();
                         while (true)
                         {
-                            result.Add(ReadRecordFromReader2(rdr,identityId,key2,key3));
+                            result.Add(ReadRecordFromReader3(rdr,identityId,key2,key3));
                             if (!await rdr.ReadAsync())
                                 break;
                         }
                         return result;
-                    } // using
-                } //
-            } // using
-        }
-
-        protected KeyUniqueThreeValueRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,byte[] key1)
-        {
-            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
-            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
-            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
-            var result = new List<KeyUniqueThreeValueRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new KeyUniqueThreeValueRecord();
-            item.identityId = identityId;
-            item.key1 = key1;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.key2NoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
-            if (item.key2?.Length < 0)
-                throw new Exception("Too little data in key2...");
-            item.key3NoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
-            if (item.key3?.Length < 0)
-                throw new Exception("Too little data in key3...");
-            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
-            if (item.data?.Length < 0)
-                throw new Exception("Too little data in data...");
-            return item;
-       }
-
-        protected virtual async Task<KeyUniqueThreeValueRecord> GetAsync(Guid identityId,byte[] key1)
-        {
-            if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
-            if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
-            if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
-            var (hit, cacheObject) = _cache.Get("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64());
-            if (hit)
-                return (KeyUniqueThreeValueRecord)cacheObject;
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get3Command = cn.CreateCommand();
-            {
-                get3Command.CommandText = "SELECT rowId,key2,key3,data FROM KeyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
-                                             ";";
-                var get3Param1 = get3Command.CreateParameter();
-                get3Param1.DbType = DbType.Binary;
-                get3Param1.ParameterName = "@identityId";
-                get3Command.Parameters.Add(get3Param1);
-                var get3Param2 = get3Command.CreateParameter();
-                get3Param2.DbType = DbType.Binary;
-                get3Param2.ParameterName = "@key1";
-                get3Command.Parameters.Add(get3Param2);
-
-                get3Param1.Value = identityId.ToByteArray();
-                get3Param2.Value = key1;
-                {
-                    using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
-                    {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), null);
-                            return null;
-                        }
-                        var r = ReadRecordFromReader3(rdr,identityId,key1);
-                        _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), r);
-                        return r;
                     } // using
                 } //
             } // using

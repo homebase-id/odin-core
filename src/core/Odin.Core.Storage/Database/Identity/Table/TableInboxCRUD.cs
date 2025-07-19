@@ -22,144 +22,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record InboxRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _fileId;
-        public Guid fileId
-        {
-           get {
-                   return _fileId;
-               }
-           set {
-                  _fileId = value;
-               }
-        }
-        private Guid _boxId;
-        public Guid boxId
-        {
-           get {
-                   return _boxId;
-               }
-           set {
-                  _boxId = value;
-               }
-        }
-        private Int32 _priority;
-        public Int32 priority
-        {
-           get {
-                   return _priority;
-               }
-           set {
-                  _priority = value;
-               }
-        }
-        private UnixTimeUtc _timeStamp;
-        public UnixTimeUtc timeStamp
-        {
-           get {
-                   return _timeStamp;
-               }
-           set {
-                  _timeStamp = value;
-               }
-        }
-        private byte[] _value;
-        public byte[] value
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
-                  _value = value;
-               }
-        }
-        internal byte[] valueNoLengthCheck
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                  _value = value;
-               }
-        }
-        private Guid? _popStamp;
-        public Guid? popStamp
-        {
-           get {
-                   return _popStamp;
-               }
-           set {
-                  _popStamp = value;
-               }
-        }
-        private string _correlationId;
-        public string correlationId
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
-                  _correlationId = value;
-               }
-        }
-        internal string correlationIdNoLengthCheck
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                  _correlationId = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid fileId { get; set; }
+        public Guid boxId { get; set; }
+        public Int32 priority { get; set; }
+        public UnixTimeUtc timeStamp { get; set; }
+        public byte[] value { get; set; }
+        public Guid? popStamp { get; set; }
+        public string correlationId { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
             if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
             if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
+            popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             if (correlationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {correlationId.Length} (min 0)");
             if (correlationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {correlationId.Length} (max 64)");
         }
@@ -185,7 +66,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -214,10 +95,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(InboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
-            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -270,13 +148,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -286,10 +159,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(InboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
-            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -343,13 +213,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return true;
                 }
@@ -359,10 +224,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(InboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
-            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -417,13 +279,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -433,10 +290,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(InboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
-            item.popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -490,13 +344,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -551,11 +400,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.boxId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.priority = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.timeStamp = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.valueNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
+            item.value = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.popStamp = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
-            item.correlationIdNoLengthCheck = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
+            item.correlationId = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
@@ -584,6 +433,39 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
+        protected virtual async Task<InboxRecord> PopAsync(Guid identityId,Guid fileId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Inbox " +
+                                             "WHERE identityId = @identityId AND fileId = @fileId " + 
+                                             "RETURNING rowId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@fileId";
+                deleteCommand.Parameters.Add(deleteParam2);
+
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = fileId.ToByteArray();
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,identityId,fileId);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         protected InboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid fileId)
         {
             var result = new List<InboxRecord>();
@@ -598,11 +480,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.boxId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.priority = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.timeStamp = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.valueNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
+            item.value = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.popStamp = (rdr[5] == DBNull.Value) ? null : new Guid((byte[])rdr[5]);
-            item.correlationIdNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            item.correlationId = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
             item.modified = (rdr[8] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[8]); // HACK
             return item;
