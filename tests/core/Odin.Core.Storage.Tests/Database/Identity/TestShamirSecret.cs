@@ -408,7 +408,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r = new NonceRecord()
             {
                 id = nonceId,
-                identity = "frodo.baggins.me", // myself <--- is this needed?
                 expiration = UnixTimeUtc.Now().AddHours(24*7), // One week expiration
                 data = xorkey.ToBase64()
             };
@@ -454,7 +453,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var r = new NonceRecord()
             {
                 id = nonceId,
-                identity = "frodo.baggins.me", // myself <--- is this needed?
                 expiration = UnixTimeUtc.Now().AddHours(1), // 1 hour expiration
                 data = ""
             };

@@ -25,11 +25,11 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var now = UnixTimeUtc.Now();
 
             // Expiration in the past
-            var rPast = new NonceRecord { id = Guid.NewGuid(), identity = "frodo.me", data = "hello world", expiration = now.AddSeconds(-1) };
+            var rPast = new NonceRecord { id = Guid.NewGuid(), data = "hello world", expiration = now.AddSeconds(-1) };
             ClassicAssert.ThrowsAsync<ArgumentException>(async () => await table.InsertAsync(rPast));
 
             // Expiration exactly now
-            var rNow = new NonceRecord { id = Guid.NewGuid(), identity = "frodo.me", data = "hello world", expiration = now };
+            var rNow = new NonceRecord { id = Guid.NewGuid(), data = "hello world", expiration = now };
             ClassicAssert.ThrowsAsync<ArgumentException>(async () => await table.InsertAsync(rNow));
         }
 
@@ -44,7 +44,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await using var scope = Services.BeginLifetimeScope();
             var table = scope.Resolve<TableNonce>();
 
-            var r = new NonceRecord { id = Guid.NewGuid(), identity = "frodo.me", data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(60) };
+            var r = new NonceRecord { id = Guid.NewGuid(), data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(60) };
 
             var rows = await table.InsertAsync(r);
             ClassicAssert.AreEqual(1, rows);
@@ -69,7 +69,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await using var scope = Services.BeginLifetimeScope();
             var table = scope.Resolve<TableNonce>();
 
-            var r = new NonceRecord { id = Guid.NewGuid(), identity = "frodo.me", data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(60) };
+            var r = new NonceRecord { id = Guid.NewGuid(), data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(60) };
 
             var rows = await table.InsertAsync(r);
             ClassicAssert.AreEqual(1, rows);
@@ -79,7 +79,6 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.AreEqual(r.id, popped.id);
             ClassicAssert.AreEqual(r.expiration, popped.expiration);
             ClassicAssert.AreEqual(r.data, popped.data);
-            ClassicAssert.AreEqual(r.identity, popped.identity);
 
             // After pop, should not exist
             var existsAfterPop = await table.VerifyAsync(r.id);
@@ -105,7 +104,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await using var scope = Services.BeginLifetimeScope();
             var table = scope.Resolve<TableNonce>();
 
-            var r = new NonceRecord {id = Guid.NewGuid(), identity = "frodo.me", data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(2) }; // Expires in 2 seconds
+            var r = new NonceRecord {id = Guid.NewGuid(), data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(2) }; // Expires in 2 seconds
 
             var rows = await table.InsertAsync(r);
             ClassicAssert.AreEqual(1, rows);
@@ -124,7 +123,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.Null(poppedAfter);
 
             // Separate test for pop on expired without prior verify
-            var r2 = new NonceRecord { id = Guid.NewGuid(), identity = "frodo.me", data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(2) };
+            var r2 = new NonceRecord { id = Guid.NewGuid(), data = "hello world", expiration = UnixTimeUtc.Now().AddSeconds(2) };
 
             rows = await table.InsertAsync(r2);
             ClassicAssert.AreEqual(1, rows);

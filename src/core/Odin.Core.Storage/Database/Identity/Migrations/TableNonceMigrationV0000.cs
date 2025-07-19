@@ -43,7 +43,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"id BYTEA NOT NULL UNIQUE, "
-                   +"identity TEXT NOT NULL, "
                    +"expiration BIGINT NOT NULL, "
                    +"data TEXT NOT NULL, "
                    +"created BIGINT NOT NULL, "
@@ -60,7 +59,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("id");
-            sl.Add("identity");
             sl.Add("expiration");
             sl.Add("data");
             sl.Add("created");
@@ -72,8 +70,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO NonceMigrationsV0 (rowId,identityId,id,identity,expiration,data,created,modified) " +
-               $"SELECT rowId,identityId,id,identity,expiration,data,created,modified "+
+                copyCommand.CommandText = "INSERT INTO NonceMigrationsV0 (rowId,identityId,id,expiration,data,created,modified) " +
+               $"SELECT rowId,identityId,id,expiration,data,created,modified "+
                $"FROM Nonce;";
                return await copyCommand.ExecuteNonQueryAsync();
             }

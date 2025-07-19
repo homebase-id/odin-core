@@ -25,7 +25,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Int64 rowId { get; set; }
         public Guid identityId { get; set; }
         public Guid id { get; set; }
-        public string identity { get; set; }
         public UnixTimeUtc expiration { get; set; }
         public string data { get; set; }
         public UnixTimeUtc created { get; set; }
@@ -34,9 +33,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             id.AssertGuidNotEmpty("Guid parameter id cannot be set to Empty GUID.");
-            if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
-            if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
-            if (identity?.Length > 256) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 256)");
             if (data == null) throw new OdinDatabaseValidationException("Cannot be null data");
             if (data?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {data.Length} (min 0)");
             if (data?.Length > 65000) throw new OdinDatabaseValidationException($"Too long data, was {data.Length} (max 65000)");
@@ -73,7 +69,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"id BYTEA NOT NULL UNIQUE, "
-                   +"identity TEXT NOT NULL, "
                    +"expiration BIGINT NOT NULL, "
                    +"data TEXT NOT NULL, "
                    +"created BIGINT NOT NULL, "
@@ -91,8 +86,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Nonce (identityId,id,identity,expiration,data,created,modified) " +
-                                           $"VALUES (@identityId,@id,@identity,@expiration,@data,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO Nonce (identityId,id,expiration,data,created,modified) " +
+                                           $"VALUES (@identityId,@id,@expiration,@data,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.DbType = DbType.Binary;
@@ -103,22 +98,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.ParameterName = "@id";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.String;
-                insertParam3.ParameterName = "@identity";
+                insertParam3.DbType = DbType.Int64;
+                insertParam3.ParameterName = "@expiration";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Int64;
-                insertParam4.ParameterName = "@expiration";
+                insertParam4.DbType = DbType.String;
+                insertParam4.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.String;
-                insertParam5.ParameterName = "@data";
-                insertCommand.Parameters.Add(insertParam5);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.id.ToByteArray();
-                insertParam3.Value = item.identity;
-                insertParam4.Value = item.expiration.milliseconds;
-                insertParam5.Value = item.data;
+                insertParam3.Value = item.expiration.milliseconds;
+                insertParam4.Value = item.data;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -140,8 +130,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Nonce (identityId,id,identity,expiration,data,created,modified) " +
-                                            $"VALUES (@identityId,@id,@identity,@expiration,@data,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO Nonce (identityId,id,expiration,data,created,modified) " +
+                                            $"VALUES (@identityId,@id,@expiration,@data,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -153,22 +143,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertParam2.ParameterName = "@id";
                 insertCommand.Parameters.Add(insertParam2);
                 var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.String;
-                insertParam3.ParameterName = "@identity";
+                insertParam3.DbType = DbType.Int64;
+                insertParam3.ParameterName = "@expiration";
                 insertCommand.Parameters.Add(insertParam3);
                 var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Int64;
-                insertParam4.ParameterName = "@expiration";
+                insertParam4.DbType = DbType.String;
+                insertParam4.ParameterName = "@data";
                 insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.String;
-                insertParam5.ParameterName = "@data";
-                insertCommand.Parameters.Add(insertParam5);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.id.ToByteArray();
-                insertParam3.Value = item.identity;
-                insertParam4.Value = item.expiration.milliseconds;
-                insertParam5.Value = item.data;
+                insertParam3.Value = item.expiration.milliseconds;
+                insertParam4.Value = item.data;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -190,10 +175,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO Nonce (identityId,id,identity,expiration,data,created,modified) " +
-                                            $"VALUES (@identityId,@id,@identity,@expiration,@data,{sqlNowStr},{sqlNowStr})"+
+                upsertCommand.CommandText = "INSERT INTO Nonce (identityId,id,expiration,data,created,modified) " +
+                                            $"VALUES (@identityId,@id,@expiration,@data,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,id) DO UPDATE "+
-                                            $"SET identity = @identity,expiration = @expiration,data = @data,modified = {upsertCommand.SqlMax()}(Nonce.modified+1,{sqlNowStr}) "+
+                                            $"SET expiration = @expiration,data = @data,modified = {upsertCommand.SqlMax()}(Nonce.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.Binary;
@@ -204,22 +189,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertParam2.ParameterName = "@id";
                 upsertCommand.Parameters.Add(upsertParam2);
                 var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.DbType = DbType.String;
-                upsertParam3.ParameterName = "@identity";
+                upsertParam3.DbType = DbType.Int64;
+                upsertParam3.ParameterName = "@expiration";
                 upsertCommand.Parameters.Add(upsertParam3);
                 var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.DbType = DbType.Int64;
-                upsertParam4.ParameterName = "@expiration";
+                upsertParam4.DbType = DbType.String;
+                upsertParam4.ParameterName = "@data";
                 upsertCommand.Parameters.Add(upsertParam4);
-                var upsertParam5 = upsertCommand.CreateParameter();
-                upsertParam5.DbType = DbType.String;
-                upsertParam5.ParameterName = "@data";
-                upsertCommand.Parameters.Add(upsertParam5);
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.id.ToByteArray();
-                upsertParam3.Value = item.identity;
-                upsertParam4.Value = item.expiration.milliseconds;
-                upsertParam5.Value = item.data;
+                upsertParam3.Value = item.expiration.milliseconds;
+                upsertParam4.Value = item.data;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -242,7 +222,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE Nonce " +
-                                            $"SET identity = @identity,expiration = @expiration,data = @data,modified = {updateCommand.SqlMax()}(Nonce.modified+1,{sqlNowStr}) "+
+                                            $"SET expiration = @expiration,data = @data,modified = {updateCommand.SqlMax()}(Nonce.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND id = @id) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -254,22 +234,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateParam2.ParameterName = "@id";
                 updateCommand.Parameters.Add(updateParam2);
                 var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.DbType = DbType.String;
-                updateParam3.ParameterName = "@identity";
+                updateParam3.DbType = DbType.Int64;
+                updateParam3.ParameterName = "@expiration";
                 updateCommand.Parameters.Add(updateParam3);
                 var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.DbType = DbType.Int64;
-                updateParam4.ParameterName = "@expiration";
+                updateParam4.DbType = DbType.String;
+                updateParam4.ParameterName = "@data";
                 updateCommand.Parameters.Add(updateParam4);
-                var updateParam5 = updateCommand.CreateParameter();
-                updateParam5.DbType = DbType.String;
-                updateParam5.ParameterName = "@data";
-                updateCommand.Parameters.Add(updateParam5);
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.id.ToByteArray();
-                updateParam3.Value = item.identity;
-                updateParam4.Value = item.expiration.milliseconds;
-                updateParam5.Value = item.data;
+                updateParam3.Value = item.expiration.milliseconds;
+                updateParam4.Value = item.data;
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -305,7 +280,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("rowId");
             sl.Add("identityId");
             sl.Add("id");
-            sl.Add("identity");
             sl.Add("expiration");
             sl.Add("data");
             sl.Add("created");
@@ -313,7 +287,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT rowId,identityId,id,identity,expiration,data,created,modified
+        // SELECT rowId,identityId,id,expiration,data,created,modified
         protected NonceRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<NonceRecord>();
@@ -325,11 +299,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.id = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.identity = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
-            item.expiration = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.data = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
-            item.modified = (rdr[7] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[7]); // HACK
+            item.expiration = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.data = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.modified = (rdr[6] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[6]); // HACK
             return item;
        }
 
@@ -363,7 +336,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 deleteCommand.CommandText = "DELETE FROM Nonce " +
                                              "WHERE identityId = @identityId AND id = @id " + 
-                                             "RETURNING rowId,identity,expiration,data,created,modified";
+                                             "RETURNING rowId,expiration,data,created,modified";
                 var deleteParam1 = deleteCommand.CreateParameter();
                 deleteParam1.DbType = DbType.Binary;
                 deleteParam1.ParameterName = "@identityId";
@@ -400,11 +373,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.id = id;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.identity = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.expiration = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.data = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
-            item.created = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.modified = (rdr[5] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[5]); // HACK
+            item.expiration = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
+            item.data = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.modified = (rdr[4] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[4]); // HACK
             return item;
        }
 
@@ -413,7 +385,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,identity,expiration,data,created,modified FROM Nonce " +
+                get0Command.CommandText = "SELECT rowId,expiration,data,created,modified FROM Nonce " +
                                              "WHERE identityId = @identityId AND id = @id LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
