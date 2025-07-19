@@ -10,7 +10,7 @@ public class TableDriveMainIndexMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableDriveMainIndexMigrationV0(this),
-            new TableDriveMainIndexMigrationV1(this),
+            new TableDriveMainIndexMigrationV20250719(this),
             // AUTO-INSERT-MARKER
         };
     }

@@ -83,4 +83,9 @@ public abstract class MigrationListBase
 
         return null;
     }
+
+    public MigrationBase GetLatestVersion()
+    {
+        return Migrations[Migrations.Count - 1];
+    }
 }
