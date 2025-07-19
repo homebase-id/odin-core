@@ -289,8 +289,8 @@ namespace Odin.Services.Configuration
             public int EnsureCertificateProcessorIntervalSeconds { get; init; }
             public int InboxOutboxReconciliationIntervalSeconds { get; init; }
             public int JobCleanUpIntervalSeconds { get; init; }
-            public bool SystemBackgroundServicesEnabled { get; init; }
-            public bool TenantBackgroundServicesEnabled { get; init; }
+            public bool SystemBackgroundServicesEnabled { get; set; }
+            public bool TenantBackgroundServicesEnabled { get; set; }
 
             public BackgroundServicesSection()
             {

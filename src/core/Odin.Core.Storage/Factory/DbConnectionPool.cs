@@ -8,6 +8,8 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Factory;
 
+//
+
 public interface IDbConnectionPool : IDisposable, IAsyncDisposable
 {
     Task<DbConnection> GetConnectionAsync(string connectionString, Func<Task<DbConnection>> creator);
@@ -16,6 +18,8 @@ public interface IDbConnectionPool : IDisposable, IAsyncDisposable
     Task ClearAllAsync();
     int PoolSize { get; }
 }
+
+//
 
 public class DbConnectionPool(
     ILogger<DbConnectionPool> logger,
