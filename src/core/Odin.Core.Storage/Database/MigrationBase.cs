@@ -1,4 +1,5 @@
-﻿using Odin.Core.Storage.Factory;
+﻿using Odin.Core.Exceptions;
+using Odin.Core.Storage.Factory;
 using System;
 using System.Threading.Tasks;
 
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Database
 {
-    public class MigrationException : Exception
+    public class MigrationException : OdinSystemException
     {
         public MigrationException(string message, Exception? inner = null)
             : base(message, inner) { }
