@@ -16,7 +16,7 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Peer.Incoming.Drive.Query
 {
-    public class PeerDriveQueryService(IDriveManager driveManager, IDriveFileSystem fileSystem)
+    public class IncomingPeerDriveQueryService(IDriveManager driveManager, IDriveFileSystem fileSystem)
     {
         public async Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
