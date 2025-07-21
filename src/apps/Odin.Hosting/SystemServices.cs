@@ -265,7 +265,7 @@ public static class SystemServices
         }
 
         // Global cache services
-        builder.AddGlobalCaches();
+        builder.AddSystemCaches();
 
         return builder;
     }

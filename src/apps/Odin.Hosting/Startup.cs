@@ -369,7 +369,7 @@ public static class HostExtensions
 
         // Sanity ping cache
         logger.LogInformation("Level2CacheType: {Level2CacheType}", config.Cache.Level2CacheType);
-        var cache = services.GetRequiredService<IGlobalLevel2Cache>();
+        var cache = services.GetRequiredService<ISystemLevel2Cache>();
         cache.Set("ping", "pong", TimeSpan.FromSeconds(1));
         var pong = cache.TryGet<string>("ping");
         if (pong != "pong")

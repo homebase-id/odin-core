@@ -71,12 +71,12 @@ public static class FusionCacheWrapperExtensions
 
     //
 
-    public static ContainerBuilder AddGlobalCaches(this ContainerBuilder cb)
+    public static ContainerBuilder AddSystemCaches(this ContainerBuilder cb)
     {
-        cb.RegisterType<SystemLevel1Cache>().As<IGlobalLevel1Cache>().SingleInstance();
-        cb.RegisterType<SystemLevel2Cache>().As<IGlobalLevel2Cache>().SingleInstance();
-        cb.RegisterGeneric(typeof(SystemLevel1Cache<>)).As(typeof(IGlobalLevel1Cache<>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SystemLevel2Cache<>)).As(typeof(IGlobalLevel2Cache<>)).SingleInstance();
+        cb.RegisterType<SystemLevel1Cache>().As<ISystemLevel1Cache>().SingleInstance();
+        cb.RegisterType<SystemLevel2Cache>().As<ISystemLevel2Cache>().SingleInstance();
+        cb.RegisterGeneric(typeof(SystemLevel1Cache<>)).As(typeof(ISystemLevel1Cache<>)).SingleInstance();
+        cb.RegisterGeneric(typeof(SystemLevel2Cache<>)).As(typeof(ISystemLevel2Cache<>)).SingleInstance();
         return cb;
     }
 

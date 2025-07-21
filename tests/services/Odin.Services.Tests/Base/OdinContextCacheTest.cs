@@ -79,7 +79,7 @@ public class OdinContextCacheTest
 
         var builder = new ContainerBuilder();
         builder.Populate(services);
-        builder.AddGlobalCaches();
+        builder.AddSystemCaches();
         builder.AddTenantCaches("frodo.me");
 
         builder.RegisterType<OdinContextCache>().SingleInstance();
