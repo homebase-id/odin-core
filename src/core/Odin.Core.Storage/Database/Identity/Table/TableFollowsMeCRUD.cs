@@ -24,82 +24,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record FollowsMeRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private string _identity;
-        public string identity
-        {
-           get {
-                   return _identity;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null identity");
-                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {value.Length} (min 3)");
-                    if (value?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {value.Length} (max 255)");
-                  _identity = value;
-               }
-        }
-        internal string identityNoLengthCheck
-        {
-           get {
-                   return _identity;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null identity");
-                    if (value?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {value.Length} (min 3)");
-                  _identity = value;
-               }
-        }
-        private Guid _driveId;
-        public Guid driveId
-        {
-           get {
-                   return _driveId;
-               }
-           set {
-                  _driveId = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public string identity { get; set; }
+        public Guid driveId { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
@@ -128,7 +61,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -150,7 +83,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(FollowsMeRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -178,13 +111,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
@@ -195,7 +123,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(FollowsMeRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -224,13 +152,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return true;
@@ -241,7 +164,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(FollowsMeRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -271,13 +194,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
@@ -288,7 +206,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(FollowsMeRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -317,13 +235,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
@@ -370,7 +283,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new FollowsMeRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.identityNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.identity = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.driveId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
             item.created = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.modified = (rdr[5] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[5]); // HACK
@@ -410,70 +323,48 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,string identity)
-        {
-            if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
-            if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
-            if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
-            var result = new List<FollowsMeRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new FollowsMeRecord();
-            item.identityId = identityId;
-            item.identity = identity;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
-            return item;
-       }
-
-        protected virtual async Task<List<FollowsMeRecord>> GetAsync(Guid identityId,string identity)
+        protected virtual async Task<FollowsMeRecord> PopAsync(Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var deleteCommand = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,driveId,created,modified FROM FollowsMe " +
-                                             "WHERE identityId = @identityId AND identity = @identity;"+
-                                             ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.String;
-                get0Param2.ParameterName = "@identity";
-                get0Command.Parameters.Add(get0Param2);
+                deleteCommand.CommandText = "DELETE FROM FollowsMe " +
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId " + 
+                                             "RETURNING rowId,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.String;
+                deleteParam2.ParameterName = "@identity";
+                deleteCommand.Parameters.Add(deleteParam2);
+                var deleteParam3 = deleteCommand.CreateParameter();
+                deleteParam3.DbType = DbType.Binary;
+                deleteParam3.ParameterName = "@driveId";
+                deleteCommand.Parameters.Add(deleteParam3);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = identity;
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = identity;
+                deleteParam3.Value = driveId.ToByteArray();
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    if (await rdr.ReadAsync())
                     {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity, null);
-                            return new List<FollowsMeRecord>();
-                        }
-                        var result = new List<FollowsMeRecord>();
-                        while (true)
-                        {
-                            result.Add(ReadRecordFromReader0(rdr,identityId,identity));
-                            if (!await rdr.ReadAsync())
-                                break;
-                        }
-                        return result;
-                    } // using
-                } //
-            } // using
+                       return ReadRecordFromReader0(rdr,identityId,identity,driveId);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
         }
 
-        protected FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,string identity,Guid driveId)
+        protected FollowsMeRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,string identity,Guid driveId)
         {
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
@@ -502,10 +393,73 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (hit)
                 return (FollowsMeRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT rowId,created,modified FROM FollowsMe " +
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
+                                             ";";
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.String;
+                get0Param2.ParameterName = "@identity";
+                get0Command.Parameters.Add(get0Param2);
+                var get0Param3 = get0Command.CreateParameter();
+                get0Param3.DbType = DbType.Binary;
+                get0Param3.ParameterName = "@driveId";
+                get0Command.Parameters.Add(get0Param3);
+
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = identity;
+                get0Param3.Value = driveId.ToByteArray();
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), null);
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr,identityId,identity,driveId);
+                        _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), r);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected FollowsMeRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,string identity)
+        {
+            if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
+            if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
+            var result = new List<FollowsMeRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new FollowsMeRecord();
+            item.identityId = identityId;
+            item.identity = identity;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.driveId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
+            return item;
+       }
+
+        protected virtual async Task<List<FollowsMeRecord>> GetAsync(Guid identityId,string identity)
+        {
+            if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
+            if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
+            if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,created,modified FROM FollowsMe " +
-                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
+                get1Command.CommandText = "SELECT rowId,driveId,created,modified FROM FollowsMe " +
+                                             "WHERE identityId = @identityId AND identity = @identity;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.DbType = DbType.Binary;
@@ -515,25 +469,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Param2.DbType = DbType.String;
                 get1Param2.ParameterName = "@identity";
                 get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.DbType = DbType.Binary;
-                get1Param3.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param3);
 
                 get1Param1.Value = identityId.ToByteArray();
                 get1Param2.Value = identity;
-                get1Param3.Value = driveId.ToByteArray();
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), null);
-                            return null;
+                            _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity, null);
+                            return new List<FollowsMeRecord>();
                         }
-                        var r = ReadRecordFromReader1(rdr,identityId,identity,driveId);
-                        _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), r);
-                        return r;
+                        var result = new List<FollowsMeRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr,identityId,identity));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
                     } // using
                 } //
             } // using

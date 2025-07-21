@@ -22,70 +22,11 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 {
     public record AttestationStatusRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private byte[] _attestationId;
-        public byte[] attestationId
-        {
-           get {
-                   return _attestationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 16)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long attestationId, was {value.Length} (max 64)");
-                  _attestationId = value;
-               }
-        }
-        internal byte[] attestationIdNoLengthCheck
-        {
-           get {
-                   return _attestationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 16)");
-                  _attestationId = value;
-               }
-        }
-        private Int32 _status;
-        public Int32 status
-        {
-           get {
-                   return _status;
-               }
-           set {
-                  _status = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public byte[] attestationId { get; set; }
+        public Int32 status { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
@@ -99,7 +40,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         private readonly CacheHelper _cache;
         private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
 
-        protected TableAttestationStatusCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
+        public TableAttestationStatusCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
@@ -116,7 +57,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -135,6 +76,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> InsertAsync(AttestationStatusRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -157,13 +99,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -174,6 +111,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<bool> TryInsertAsync(AttestationStatusRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -197,13 +135,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return true;
@@ -214,6 +147,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> UpsertAsync(AttestationStatusRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -238,13 +172,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -255,6 +184,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> UpdateAsync(AttestationStatusRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -278,13 +208,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
@@ -329,7 +254,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             var guid = new byte[16];
             var item = new AttestationStatusRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.attestationIdNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            item.attestationId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
             if (item.attestationId?.Length < 16)
                 throw new Exception("Too little data in attestationId...");
             item.status = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
@@ -358,6 +283,37 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 if (count > 0)
                     _cache.Remove("TableAttestationStatusCRUD", attestationId.ToBase64());
                 return count;
+            }
+        }
+
+        public virtual async Task<AttestationStatusRecord> PopAsync(byte[] attestationId)
+        {
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 16)");
+            if (attestationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 64)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM AttestationStatus " +
+                                             "WHERE attestationId = @attestationId " + 
+                                             "RETURNING rowId,status,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@attestationId";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = attestationId;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,attestationId);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
             }
         }
 

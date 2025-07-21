@@ -66,7 +66,7 @@ public class TableDriveMainIndex(
 
     public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
-        return base.ReadRecordFromReader0(rdr, odinIdentity.Id, driveId);
+        return base.ReadRecordFromReader1(rdr, odinIdentity.Id, driveId);
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand

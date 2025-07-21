@@ -22,160 +22,16 @@ namespace Odin.Core.Storage.Database.System.Table
 {
     public record CertificatesRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private OdinId _domain;
-        public OdinId domain
-        {
-           get {
-                   return _domain;
-               }
-           set {
-                  _domain = value;
-               }
-        }
-        private string _privateKey;
-        public string privateKey
-        {
-           get {
-                   return _privateKey;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null privateKey");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short privateKey, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long privateKey, was {value.Length} (max 65535)");
-                  _privateKey = value;
-               }
-        }
-        internal string privateKeyNoLengthCheck
-        {
-           get {
-                   return _privateKey;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null privateKey");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short privateKey, was {value.Length} (min 0)");
-                  _privateKey = value;
-               }
-        }
-        private string _certificate;
-        public string certificate
-        {
-           get {
-                   return _certificate;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null certificate");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short certificate, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long certificate, was {value.Length} (max 65535)");
-                  _certificate = value;
-               }
-        }
-        internal string certificateNoLengthCheck
-        {
-           get {
-                   return _certificate;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null certificate");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short certificate, was {value.Length} (min 0)");
-                  _certificate = value;
-               }
-        }
-        private UnixTimeUtc _expiration;
-        public UnixTimeUtc expiration
-        {
-           get {
-                   return _expiration;
-               }
-           set {
-                  _expiration = value;
-               }
-        }
-        private UnixTimeUtc _lastAttempt;
-        public UnixTimeUtc lastAttempt
-        {
-           get {
-                   return _lastAttempt;
-               }
-           set {
-                  _lastAttempt = value;
-               }
-        }
-        private string _correlationId;
-        public string correlationId
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 65535)");
-                  _correlationId = value;
-               }
-        }
-        internal string correlationIdNoLengthCheck
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null correlationId");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                  _correlationId = value;
-               }
-        }
-        private string _lastError;
-        public string lastError
-        {
-           get {
-                   return _lastError;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {value.Length} (max 65535)");
-                  _lastError = value;
-               }
-        }
-        internal string lastErrorNoLengthCheck
-        {
-           get {
-                   return _lastError;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {value.Length} (min 0)");
-                  _lastError = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public OdinId domain { get; set; }
+        public string privateKey { get; set; }
+        public string certificate { get; set; }
+        public UnixTimeUtc expiration { get; set; }
+        public UnixTimeUtc lastAttempt { get; set; }
+        public string correlationId { get; set; }
+        public string lastError { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             if (privateKey == null) throw new OdinDatabaseValidationException("Cannot be null privateKey");
@@ -196,7 +52,7 @@ namespace Odin.Core.Storage.Database.System.Table
     {
         private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
 
-        protected TableCertificatesCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        public TableCertificatesCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
@@ -212,7 +68,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -236,6 +92,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> InsertAsync(CertificatesRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -283,13 +140,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -299,6 +151,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<bool> TryInsertAsync(CertificatesRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -347,13 +200,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return true;
                 }
@@ -363,6 +211,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpsertAsync(CertificatesRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -412,13 +261,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -428,6 +272,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpdateAsync(CertificatesRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -476,13 +321,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -532,12 +372,12 @@ namespace Odin.Core.Storage.Database.System.Table
             var item = new CertificatesRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.domain = (rdr[1] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
-            item.privateKeyNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
-            item.certificateNoLengthCheck = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
+            item.privateKey = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.certificate = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
             item.expiration = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.lastAttempt = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.correlationIdNoLengthCheck = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
-            item.lastErrorNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
+            item.correlationId = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
+            item.lastError = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
             item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             item.modified = (rdr[9] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[9]); // HACK
             return item;
@@ -561,6 +401,34 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
+        public virtual async Task<CertificatesRecord> PopAsync(OdinId domain)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Certificates " +
+                                             "WHERE domain = @domain " + 
+                                             "RETURNING rowId,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.String;
+                deleteParam1.ParameterName = "@domain";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = domain.DomainName;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,domain);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public CertificatesRecord ReadRecordFromReader0(DbDataReader rdr,OdinId domain)
         {
             var result = new List<CertificatesRecord>();
@@ -571,12 +439,12 @@ namespace Odin.Core.Storage.Database.System.Table
             var item = new CertificatesRecord();
             item.domain = domain;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.privateKeyNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.certificateNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.privateKey = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.certificate = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.expiration = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.lastAttempt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.correlationIdNoLengthCheck = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
-            item.lastErrorNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            item.correlationId = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
+            item.lastError = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
             item.modified = (rdr[8] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[8]); // HACK
             return item;
