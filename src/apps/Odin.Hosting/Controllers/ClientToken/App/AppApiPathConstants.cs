@@ -18,6 +18,8 @@
         
         public const string PeerQueryV1 = PeerV1 + "/query";
         
+        public const string PeerDataCopyV1 = PeerV1 + "/data-copy";
+
         public const string PeerReactionContentV1 = PeerV1 + "/reactions";
         
         public const string CirclesV1 = BasePathV1 + "/circles";

@@ -8,23 +8,50 @@ using Odin.Services.Peer.Outgoing.Drive.Query;
 
 namespace Odin.Services.Peer.DataCopy;
 
-public class PeerDataCopyService(OutgoingPeerDriveQueryService service)
+public class PeerDataCopyService(OutgoingPeerDriveQueryService service, FileSystemResolver fileSystemResolver)
 {
-    public async Task CopyFile(OdinId remoteIdentity, FileIdentifier source, TargetDrive targetDrive,
+    public async Task<FileIdentifier> CopyFile(OdinId remoteIdentity,
+        FileIdentifier source,
+        TargetDrive targetDrive,
         FileSystemType fst,
+        bool overwrite,
         IOdinContext odinContext)
     {
-        var file = source.ToGlobalTransitIdFileIdentifier();
         odinContext.PermissionsContext.AssertCanWriteToDrive(targetDrive.Alias);
+
+        var driveId = targetDrive.Alias;
+        var file = source.ToGlobalTransitIdFileIdentifier();
+
         var header = await service.GetFileHeaderByGlobalTransitIdAsync(remoteIdentity,
             file, fst, odinContext);
 
+        var fileSystem = fileSystemResolver.ResolveFileSystem(fst);
         if (null == header)
         {
             throw new OdinClientException("Remote file does not exist", OdinClientErrorCode.InvalidFile);
         }
 
-        // TODO: handle decryption
+        var existingFile = await fileSystem.Query.GetFileByGlobalTransitId(driveId,
+            source.GlobalTransitId.GetValueOrDefault(),
+            odinContext);
+
+        if (existingFile != null && !overwrite)
+        {
+            throw new OdinClientException("File exists on target drive; overwrite is set to false", 
+                OdinClientErrorCode.IdAlreadyExists);
+        }
+
+        var targetFile = existingFile == null
+            ? await fileSystem.Storage.CreateInternalFileId(driveId)
+            : new InternalDriveFileId(driveId, existingFile.FileId);
+
+        if (existingFile == null)
+        {
+            // write new file
+        }
+
+
+        // TODO: handle decryption / re-encryption
 
         foreach (var payload in header.FileMetadata.Payloads)
         {
@@ -32,7 +59,7 @@ public class PeerDataCopyService(OutgoingPeerDriveQueryService service)
             {
                 var (encryptedPayloadKeyHeader, payloadIsEncrypted, payloadStream) =
                     await service.GetPayloadByGlobalTransitIdAsync(remoteIdentity, file, payload.Key, null, fst, odinContext);
-                
+
                 var (encryptedThumbnailKeyHeader, thumbnailIsEncrypted, decryptedContentType, lastModified, thumbnailStream) =
                     await service.GetThumbnailByGlobalTransitIdAsync(remoteIdentity,
                         file,
@@ -42,12 +69,16 @@ public class PeerDataCopyService(OutgoingPeerDriveQueryService service)
                         false,
                         fst,
                         odinContext);
-                
-                
+
 
                 // handle decryption
-                
             }
         }
+
+        return new FileIdentifier()
+        {
+            FileId = targetFile.FileId,
+            TargetDrive = targetDrive
+        };
     }
 }

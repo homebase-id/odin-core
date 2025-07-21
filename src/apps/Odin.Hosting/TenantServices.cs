@@ -69,6 +69,7 @@ using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
+using Odin.Services.Peer.DataCopy;
 
 namespace Odin.Hosting;
 
@@ -293,6 +294,7 @@ public static class TenantServices
 
         cb.RegisterType<PeerIncomingReactionService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<PeerDataCopyService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<PublicPrivateKeyService>()
             .AsSelf()
@@ -305,7 +307,7 @@ public static class TenantServices
         cb.RegisterType<V2ToV3VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V3ToV4VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V4ToV5VersionMigrationService>().InstancePerLifetimeScope();
-        
+
 
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
@@ -318,12 +320,12 @@ public static class TenantServices
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
 
-        
+
         cb.RegisterType<HomebaseProfileContentService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<HomebaseChannelContentService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
-        
+
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
 
