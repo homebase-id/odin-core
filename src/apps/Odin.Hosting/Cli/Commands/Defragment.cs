@@ -4,6 +4,7 @@ using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Tasks;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
@@ -26,6 +27,7 @@ public static class Defragment
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
         logger.LogInformation("Starting defragmentation; cleanup mode: {cleanup}", cleanup);
 
+        registry.LoadRegistrations().BlockingWait();
         var allTenants = await registry.GetTenants();
         foreach (var tenant in allTenants)
         {
