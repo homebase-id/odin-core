@@ -287,7 +287,7 @@ public static class TenantServices
 
         cb.RegisterType<ExchangeGrantService>().InstancePerLifetimeScope();
 
-        cb.RegisterType<PeerDriveQueryService>().InstancePerLifetimeScope();
+        cb.RegisterType<OutgoingPeerDriveQueryService>().InstancePerLifetimeScope();
 
         cb.RegisterType<PeerReactionSenderService>().AsSelf().InstancePerLifetimeScope();
 

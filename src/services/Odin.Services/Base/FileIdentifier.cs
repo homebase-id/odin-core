@@ -150,6 +150,15 @@ public class FileIdentifier
             GlobalTransitId = this.GlobalTransitId.GetValueOrDefault()
         };
     }
+
+    public ExternalFileIdentifier ToExternalFile()
+    {
+        return new ExternalFileIdentifier()
+        {
+            FileId = this.FileId.GetValueOrDefault(),
+            TargetDrive = this.TargetDrive,
+        };
+    }
 }
 
 public enum FileIdentifierType
