@@ -10,6 +10,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Tasks;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Registry;
@@ -27,6 +28,7 @@ public static class ResetFeed
 
         logger.LogInformation("Starting Feed reset");
 
+        registry.LoadRegistrations().BlockingWait();
         var allTenants = await registry.GetTenants();
         var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
         foreach (var tenant in allTenants)
