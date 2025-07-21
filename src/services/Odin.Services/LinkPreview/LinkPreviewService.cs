@@ -34,7 +34,7 @@ using Odin.Services.Optimization.Cdn;
 namespace Odin.Services.LinkPreview;
 
 public class LinkPreviewService(
-    IGlobalLevel1Cache globalCache,
+    ISystemLevel1Cache globalCache,
     ITenantLevel1Cache<LinkPreviewService> tenantCache,
     StaticFileContentService staticFileContentService,
     IHttpContextAccessor httpContextAccessor,
