@@ -22,84 +22,11 @@ namespace Odin.Core.Storage.Database.System.Table
 {
     public record SettingsRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private string _key;
-        public string key
-        {
-           get {
-                   return _key;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long key, was {value.Length} (max 65535)");
-                  _key = value;
-               }
-        }
-        internal string keyNoLengthCheck
-        {
-           get {
-                   return _key;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short key, was {value.Length} (min 0)");
-                  _key = value;
-               }
-        }
-        private string _value;
-        public string value
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null value");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
-                  _value = value;
-               }
-        }
-        internal string valueNoLengthCheck
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null value");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                  _value = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public string key { get; set; }
+        public string value { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
@@ -115,7 +42,7 @@ namespace Odin.Core.Storage.Database.System.Table
     {
         private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
 
-        protected TableSettingsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        public TableSettingsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }
@@ -131,7 +58,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -150,6 +77,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> InsertAsync(SettingsRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -172,13 +100,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -188,6 +111,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<bool> TryInsertAsync(SettingsRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -211,13 +135,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return true;
                 }
@@ -227,6 +146,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpsertAsync(SettingsRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -251,13 +171,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -267,6 +182,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public virtual async Task<int> UpdateAsync(SettingsRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -290,13 +206,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -340,8 +251,8 @@ namespace Odin.Core.Storage.Database.System.Table
             var guid = new byte[16];
             var item = new SettingsRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.keyNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.valueNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.key = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.value = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.modified = (rdr[4] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[4]); // HACK
             return item;
@@ -368,6 +279,37 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
+        public virtual async Task<SettingsRecord> PopAsync(string key)
+        {
+            if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
+            if (key?.Length < 0) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 0)");
+            if (key?.Length > 65535) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 65535)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM Settings " +
+                                             "WHERE key = @key " + 
+                                             "RETURNING rowId,value,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.String;
+                deleteParam1.ParameterName = "@key";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = key;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,key);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public SettingsRecord ReadRecordFromReader0(DbDataReader rdr,string key)
         {
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
@@ -381,7 +323,7 @@ namespace Odin.Core.Storage.Database.System.Table
             var item = new SettingsRecord();
             item.key = key;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.valueNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.value = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
             return item;

@@ -22,201 +22,33 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record OutboxRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _driveId;
-        public Guid driveId
-        {
-           get {
-                   return _driveId;
-               }
-           set {
-                  _driveId = value;
-               }
-        }
-        private Guid _fileId;
-        public Guid fileId
-        {
-           get {
-                   return _fileId;
-               }
-           set {
-                  _fileId = value;
-               }
-        }
-        private string _recipient;
-        public string recipient
-        {
-           get {
-                   return _recipient;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {value.Length} (max 256)");
-                  _recipient = value;
-               }
-        }
-        internal string recipientNoLengthCheck
-        {
-           get {
-                   return _recipient;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {value.Length} (min 0)");
-                  _recipient = value;
-               }
-        }
-        private Int32 _type;
-        public Int32 type
-        {
-           get {
-                   return _type;
-               }
-           set {
-                  _type = value;
-               }
-        }
-        private Int32 _priority;
-        public Int32 priority
-        {
-           get {
-                   return _priority;
-               }
-           set {
-                  _priority = value;
-               }
-        }
-        private Guid? _dependencyFileId;
-        public Guid? dependencyFileId
-        {
-           get {
-                   return _dependencyFileId;
-               }
-           set {
-                  _dependencyFileId = value;
-               }
-        }
-        private Int32 _checkOutCount;
-        public Int32 checkOutCount
-        {
-           get {
-                   return _checkOutCount;
-               }
-           set {
-                  _checkOutCount = value;
-               }
-        }
-        private UnixTimeUtc _nextRunTime;
-        public UnixTimeUtc nextRunTime
-        {
-           get {
-                   return _nextRunTime;
-               }
-           set {
-                  _nextRunTime = value;
-               }
-        }
-        private byte[] _value;
-        public byte[] value
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
-                  _value = value;
-               }
-        }
-        internal byte[] valueNoLengthCheck
-        {
-           get {
-                   return _value;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-                  _value = value;
-               }
-        }
-        private Guid? _checkOutStamp;
-        public Guid? checkOutStamp
-        {
-           get {
-                   return _checkOutStamp;
-               }
-           set {
-                  _checkOutStamp = value;
-               }
-        }
-        private string _correlationId;
-        public string correlationId
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                    if (value?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {value.Length} (max 64)");
-                  _correlationId = value;
-               }
-        }
-        internal string correlationIdNoLengthCheck
-        {
-           get {
-                   return _correlationId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {value.Length} (min 0)");
-                  _correlationId = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid driveId { get; set; }
+        public Guid fileId { get; set; }
+        public string recipient { get; set; }
+        public Int32 type { get; set; }
+        public Int32 priority { get; set; }
+        public Guid? dependencyFileId { get; set; }
+        public Int32 checkOutCount { get; set; }
+        public UnixTimeUtc nextRunTime { get; set; }
+        public byte[] value { get; set; }
+        public Guid? checkOutStamp { get; set; }
+        public string correlationId { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
             if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
+            dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
             if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
             if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
+            checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
             if (correlationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {correlationId.Length} (min 0)");
             if (correlationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {correlationId.Length} (max 64)");
         }
@@ -242,7 +74,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -273,11 +105,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(OutboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -350,13 +178,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -366,11 +189,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(OutboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -444,13 +263,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return true;
                 }
@@ -460,11 +274,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(OutboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -539,13 +349,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -555,11 +360,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(OutboxRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            item.dependencyFileId.AssertGuidNotEmpty("Guid parameter dependencyFileId cannot be set to Empty GUID.");
-            item.checkOutStamp.AssertGuidNotEmpty("Guid parameter checkOutStamp cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -633,13 +434,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     return 1;
                 }
@@ -696,17 +492,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.driveId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.fileId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[3]);
-            item.recipientNoLengthCheck = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
+            item.recipient = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             item.type = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
             item.priority = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
             item.dependencyFileId = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
             item.checkOutCount = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[8];
             item.nextRunTime = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
-            item.valueNoLengthCheck = (rdr[10] == DBNull.Value) ? null : (byte[])(rdr[10]);
+            item.value = (rdr[10] == DBNull.Value) ? null : (byte[])(rdr[10]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
-            item.correlationIdNoLengthCheck = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
+            item.correlationId = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
             item.created = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[13]);
             item.modified = (rdr[14] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[14]); // HACK
             return item;
@@ -748,79 +544,53 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
+        protected virtual async Task<OutboxRecord> PopAsync(Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
-            var result = new List<OutboxRecord>();
-#pragma warning disable CS0168
-            long bytesRead;
-#pragma warning restore CS0168
-            var guid = new byte[16];
-            var item = new OutboxRecord();
-            item.identityId = identityId;
-            item.driveId = driveId;
-            item.fileId = fileId;
-            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.recipientNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.type = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
-            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.dependencyFileId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
-            item.checkOutCount = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.nextRunTime = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
-            item.valueNoLengthCheck = (rdr[7] == DBNull.Value) ? null : (byte[])(rdr[7]);
-            if (item.value?.Length < 0)
-                throw new Exception("Too little data in value...");
-            item.checkOutStamp = (rdr[8] == DBNull.Value) ? null : new Guid((byte[])rdr[8]);
-            item.correlationIdNoLengthCheck = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
-            item.created = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
-            item.modified = (rdr[11] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[11]); // HACK
-            return item;
-       }
-
-        protected virtual async Task<List<OutboxRecord>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
-        {
+            if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
+            if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
+            if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var get0Command = cn.CreateCommand();
+            await using var deleteCommand = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
-                                             ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.Binary;
-                get0Param2.ParameterName = "@driveId";
-                get0Command.Parameters.Add(get0Param2);
-                var get0Param3 = get0Command.CreateParameter();
-                get0Param3.DbType = DbType.Binary;
-                get0Param3.ParameterName = "@fileId";
-                get0Command.Parameters.Add(get0Param3);
+                deleteCommand.CommandText = "DELETE FROM Outbox " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient " + 
+                                             "RETURNING rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@driveId";
+                deleteCommand.Parameters.Add(deleteParam2);
+                var deleteParam3 = deleteCommand.CreateParameter();
+                deleteParam3.DbType = DbType.Binary;
+                deleteParam3.ParameterName = "@fileId";
+                deleteCommand.Parameters.Add(deleteParam3);
+                var deleteParam4 = deleteCommand.CreateParameter();
+                deleteParam4.DbType = DbType.String;
+                deleteParam4.ParameterName = "@recipient";
+                deleteCommand.Parameters.Add(deleteParam4);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = driveId.ToByteArray();
-                get0Param3.Value = fileId.ToByteArray();
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = driveId.ToByteArray();
+                deleteParam3.Value = fileId.ToByteArray();
+                deleteParam4.Value = recipient;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
-                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    if (await rdr.ReadAsync())
                     {
-                        if (await rdr.ReadAsync() == false)
-                        {
-                            return new List<OutboxRecord>();
-                        }
-                        var result = new List<OutboxRecord>();
-                        while (true)
-                        {
-                            result.Add(ReadRecordFromReader0(rdr,identityId,driveId,fileId));
-                            if (!await rdr.ReadAsync())
-                                break;
-                        }
-                        return result;
-                    } // using
-                } //
-            } // using
+                       return ReadRecordFromReader0(rdr,identityId,driveId,fileId,recipient);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
         }
 
-        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,string recipient)
+        protected OutboxRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId,string recipient)
         {
             if (recipient == null) throw new OdinDatabaseValidationException("Cannot be null recipient");
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
@@ -841,11 +611,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.dependencyFileId = (rdr[3] == DBNull.Value) ? null : new Guid((byte[])rdr[3]);
             item.checkOutCount = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
             item.nextRunTime = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.valueNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
+            item.value = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
             if (item.value?.Length < 0)
                 throw new Exception("Too little data in value...");
             item.checkOutStamp = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
-            item.correlationIdNoLengthCheck = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
+            item.correlationId = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
@@ -857,10 +627,81 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (recipient?.Length < 0) throw new OdinDatabaseValidationException($"Too short recipient, was {recipient.Length} (min 0)");
             if (recipient?.Length > 256) throw new OdinDatabaseValidationException($"Too long recipient, was {recipient.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get0Command = cn.CreateCommand();
+            {
+                get0Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;"+
+                                             ";";
+                var get0Param1 = get0Command.CreateParameter();
+                get0Param1.DbType = DbType.Binary;
+                get0Param1.ParameterName = "@identityId";
+                get0Command.Parameters.Add(get0Param1);
+                var get0Param2 = get0Command.CreateParameter();
+                get0Param2.DbType = DbType.Binary;
+                get0Param2.ParameterName = "@driveId";
+                get0Command.Parameters.Add(get0Param2);
+                var get0Param3 = get0Command.CreateParameter();
+                get0Param3.DbType = DbType.Binary;
+                get0Param3.ParameterName = "@fileId";
+                get0Command.Parameters.Add(get0Param3);
+                var get0Param4 = get0Command.CreateParameter();
+                get0Param4.DbType = DbType.String;
+                get0Param4.ParameterName = "@recipient";
+                get0Command.Parameters.Add(get0Param4);
+
+                get0Param1.Value = identityId.ToByteArray();
+                get0Param2.Value = driveId.ToByteArray();
+                get0Param3.Value = fileId.ToByteArray();
+                get0Param4.Value = recipient;
+                {
+                    using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return null;
+                        }
+                        var r = ReadRecordFromReader0(rdr,identityId,driveId,fileId,recipient);
+                        return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected OutboxRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId,Guid driveId,Guid fileId)
+        {
+            var result = new List<OutboxRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new OutboxRecord();
+            item.identityId = identityId;
+            item.driveId = driveId;
+            item.fileId = fileId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.recipient = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.type = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.priority = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
+            item.dependencyFileId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
+            item.checkOutCount = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.nextRunTime = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.value = (rdr[7] == DBNull.Value) ? null : (byte[])(rdr[7]);
+            if (item.value?.Length < 0)
+                throw new Exception("Too little data in value...");
+            item.checkOutStamp = (rdr[8] == DBNull.Value) ? null : new Guid((byte[])rdr[8]);
+            item.correlationId = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
+            item.created = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
+            item.modified = (rdr[11] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[11]); // HACK
+            return item;
+       }
+
+        protected virtual async Task<List<OutboxRecord>> GetAsync(Guid identityId,Guid driveId,Guid fileId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;"+
+                get1Command.CommandText = "SELECT rowId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
                                              ";";
                 var get1Param1 = get1Command.CreateParameter();
                 get1Param1.DbType = DbType.Binary;
@@ -874,24 +715,25 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Param3.DbType = DbType.Binary;
                 get1Param3.ParameterName = "@fileId";
                 get1Command.Parameters.Add(get1Param3);
-                var get1Param4 = get1Command.CreateParameter();
-                get1Param4.DbType = DbType.String;
-                get1Param4.ParameterName = "@recipient";
-                get1Command.Parameters.Add(get1Param4);
 
                 get1Param1.Value = identityId.ToByteArray();
                 get1Param2.Value = driveId.ToByteArray();
                 get1Param3.Value = fileId.ToByteArray();
-                get1Param4.Value = recipient;
                 {
-                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            return null;
+                            return new List<OutboxRecord>();
                         }
-                        var r = ReadRecordFromReader1(rdr,identityId,driveId,fileId,recipient);
-                        return r;
+                        var result = new List<OutboxRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr,identityId,driveId,fileId));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
                     } // using
                 } //
             } // using

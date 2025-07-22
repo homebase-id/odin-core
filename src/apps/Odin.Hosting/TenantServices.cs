@@ -77,7 +77,7 @@ namespace Odin.Hosting;
 /// </summary>
 public static class TenantServices
 {
-    internal static void ConfigureTenantServices(
+    internal static ContainerBuilder ConfigureTenantServices(
         ContainerBuilder cb,
         IdentityRegistration registration,
         OdinConfiguration odinConfig)
@@ -342,6 +342,8 @@ public static class TenantServices
         {
             cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
         }
+
+        return cb;
     }
 
     //

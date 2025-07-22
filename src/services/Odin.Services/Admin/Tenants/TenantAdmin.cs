@@ -21,7 +21,7 @@ public class TenantAdmin(
     OdinConfiguration config,
     IJobManager jobManager,
     IIdentityRegistry identityRegistry,
-    IMultiTenantContainerAccessor multiTenantContainerAccessor)
+    IMultiTenantContainer multiTenantContainer)
     : ITenantAdmin
 {
     private readonly ILogger<TenantAdmin> _logger = logger;
@@ -135,7 +135,7 @@ public class TenantAdmin(
 
             if (includePayload)
             {
-                var tenantScope = multiTenantContainerAccessor.GetTenantScope(identityRegistration.PrimaryDomainName);
+                var tenantScope = multiTenantContainer.GetTenantScope(identityRegistration.PrimaryDomainName);
                 var driveMainIndex = tenantScope.Resolve<TableDriveMainIndex>();
                 var sizeAllDrives = await driveMainIndex.GetTotalSizeAllDrivesAsync();
 

@@ -50,4 +50,9 @@ public class TableDrives(
         return await base.GetByTargetDriveAsync(odinIdentity, driveAlias, driveType);
     }
 
+    public new async Task<int> GetCountAsync()
+    {
+        return await base.GetCountAsync();
+    }
+
 }

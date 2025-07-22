@@ -25,74 +25,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record KeyValueRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private byte[] _key;
-        public byte[] key
-        {
-           get {
-                   return _key;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {value.Length} (min 16)");
-                    if (value?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {value.Length} (max 48)");
-                  _key = value;
-               }
-        }
-        internal byte[] keyNoLengthCheck
-        {
-           get {
-                   return _key;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null key");
-                    if (value?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {value.Length} (min 16)");
-                  _key = value;
-               }
-        }
-        private byte[] _data;
-        public byte[] data
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                    if (value?.Length > 1048576) throw new OdinDatabaseValidationException($"Too long data, was {value.Length} (max 1048576)");
-                  _data = value;
-               }
-        }
-        internal byte[] dataNoLengthCheck
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                  _data = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public byte[] key { get; set; }
+        public byte[] data { get; set; }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
             if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
             if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
@@ -123,7 +62,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -142,7 +81,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(KeyValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -177,7 +116,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(KeyValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -213,7 +152,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(KeyValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -250,7 +189,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(KeyValueRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -320,10 +259,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var item = new KeyValueRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.keyNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
+            item.key = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[2]);
             if (item.key?.Length < 16)
                 throw new Exception("Too little data in key...");
-            item.dataNoLengthCheck = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
+            item.data = (rdr[3] == DBNull.Value) ? null : (byte[])(rdr[3]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;
@@ -357,6 +296,42 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
+        protected virtual async Task<KeyValueRecord> PopAsync(Guid identityId,byte[] key)
+        {
+            if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
+            if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
+            if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM KeyValue " +
+                                             "WHERE identityId = @identityId AND key = @key " + 
+                                             "RETURNING rowId,data";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@key";
+                deleteCommand.Parameters.Add(deleteParam2);
+
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = key;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,identityId,key);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         protected KeyValueRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,byte[] key)
         {
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
@@ -371,7 +346,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.key = key;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.dataNoLengthCheck = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
+            item.data = (rdr[1] == DBNull.Value) ? null : (byte[])(rdr[1]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             return item;

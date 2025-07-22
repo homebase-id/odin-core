@@ -22,122 +22,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record AppNotificationsRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private Guid _identityId;
-        public Guid identityId
-        {
-           get {
-                   return _identityId;
-               }
-           set {
-                  _identityId = value;
-               }
-        }
-        private Guid _notificationId;
-        public Guid notificationId
-        {
-           get {
-                   return _notificationId;
-               }
-           set {
-                  _notificationId = value;
-               }
-        }
-        private Int32 _unread;
-        public Int32 unread
-        {
-           get {
-                   return _unread;
-               }
-           set {
-                  _unread = value;
-               }
-        }
-        private string _senderId;
-        public string senderId
-        {
-           get {
-                   return _senderId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {value.Length} (min 0)");
-                    if (value?.Length > 256) throw new OdinDatabaseValidationException($"Too long senderId, was {value.Length} (max 256)");
-                  _senderId = value;
-               }
-        }
-        internal string senderIdNoLengthCheck
-        {
-           get {
-                   return _senderId;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {value.Length} (min 0)");
-                  _senderId = value;
-               }
-        }
-        private UnixTimeUtc _timestamp;
-        public UnixTimeUtc timestamp
-        {
-           get {
-                   return _timestamp;
-               }
-           set {
-                  _timestamp = value;
-               }
-        }
-        private byte[] _data;
-        public byte[] data
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                    if (value?.Length > 65000) throw new OdinDatabaseValidationException($"Too long data, was {value.Length} (max 65000)");
-                  _data = value;
-               }
-        }
-        internal byte[] dataNoLengthCheck
-        {
-           get {
-                   return _data;
-               }
-           set {
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {value.Length} (min 0)");
-                  _data = value;
-               }
-        }
-        private UnixTimeUtc _created;
-        public UnixTimeUtc created
-        {
-           get {
-                   return _created;
-               }
-           set {
-                  _created = value;
-               }
-        }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public Guid identityId { get; set; }
+        public Guid notificationId { get; set; }
+        public Int32 unread { get; set; }
+        public string senderId { get; set; }
+        public UnixTimeUtc timestamp { get; set; }
+        public byte[] data { get; set; }
+        public UnixTimeUtc created { get; set; }
+        public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
             if (senderId?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {senderId.Length} (min 0)");
             if (senderId?.Length > 256) throw new OdinDatabaseValidationException($"Too long senderId, was {senderId.Length} (max 256)");
             if (data?.Length < 0) throw new OdinDatabaseValidationException($"Too short data, was {data.Length} (min 0)");
@@ -167,7 +64,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -192,8 +89,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> InsertAsync(AppNotificationsRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -236,13 +132,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                     _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -253,8 +144,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<bool> TryInsertAsync(AppNotificationsRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -298,13 +188,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return true;
@@ -315,8 +200,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpsertAsync(AppNotificationsRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -361,13 +245,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -378,8 +257,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<int> UpdateAsync(AppNotificationsRecord item)
         {
-            item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            item.notificationId.AssertGuidNotEmpty("Guid parameter notificationId cannot be set to Empty GUID.");
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -423,13 +301,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     long created = (long) rdr[0];
                     item.created = new UnixTimeUtc(created);
-                    if (rdr[1] == DBNull.Value)
-                         item.modified = item.created;
-                    else
-                    {
-                         long modified = (long) rdr[1];
-                         item.modified = new UnixTimeUtc((long)modified);
-                    }
+                    long modified = (long) rdr[1];
+                    item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
                    _cache.AddOrUpdate("TableAppNotificationsCRUD", item.identityId.ToString()+item.notificationId.ToString(), item);
                     return 1;
@@ -481,9 +354,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.notificationId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.unread = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.senderIdNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (string)rdr[4];
+            item.senderId = (rdr[4] == DBNull.Value) ? null : (string)rdr[4];
             item.timestamp = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.dataNoLengthCheck = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
+            item.data = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
@@ -516,6 +389,39 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
+        protected virtual async Task<AppNotificationsRecord> PopAsync(Guid identityId,Guid notificationId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM AppNotifications " +
+                                             "WHERE identityId = @identityId AND notificationId = @notificationId " + 
+                                             "RETURNING rowId,unread,senderId,timestamp,data,created,modified";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.Binary;
+                deleteParam1.ParameterName = "@identityId";
+                deleteCommand.Parameters.Add(deleteParam1);
+                var deleteParam2 = deleteCommand.CreateParameter();
+                deleteParam2.DbType = DbType.Binary;
+                deleteParam2.ParameterName = "@notificationId";
+                deleteCommand.Parameters.Add(deleteParam2);
+
+                deleteParam1.Value = identityId.ToByteArray();
+                deleteParam2.Value = notificationId.ToByteArray();
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,identityId,notificationId);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         protected AppNotificationsRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,Guid notificationId)
         {
             var result = new List<AppNotificationsRecord>();
@@ -528,9 +434,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.notificationId = notificationId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.unread = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
-            item.senderIdNoLengthCheck = (rdr[2] == DBNull.Value) ? null : (string)rdr[2];
+            item.senderId = (rdr[2] == DBNull.Value) ? null : (string)rdr[2];
             item.timestamp = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.dataNoLengthCheck = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
+            item.data = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);

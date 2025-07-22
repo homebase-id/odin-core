@@ -1,7 +1,6 @@
 using System;
 using System.Threading.Tasks;
 using Autofac;
-using Autofac.Core.Lifetime;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -34,7 +33,7 @@ public class MultiTenantContainerTest
         var scopedInfo = host.Services.GetRequiredService<SomeScopedData>();
         ClassicAssert.AreEqual("global root 1", scopedInfo.Name);
 
-        var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+        var container = host.Services.GetRequiredService<IMultiTenantContainer>();
 
         mockTenantProvider.Setup(x => x.GetCurrentTenant()).Returns(null as Services.Tenant.Tenant);
         var scope = container.LookupTenantScope("example.com");
@@ -78,7 +77,7 @@ public class MultiTenantContainerTest
 
         const string domain = "example.com";
 
-        var outerContainer = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+        var outerContainer = host.Services.GetRequiredService<IMultiTenantContainer>();
         outerContainer.GetOrAddTenantScope(domain, cb =>
         {
             cb.RegisterInstance(new SomeScopedData {Name = domain}).As<SomeScopedData>().SingleInstance();
@@ -86,7 +85,7 @@ public class MultiTenantContainerTest
 
         await Task.Run(() =>
         {
-            var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+            var container = host.Services.GetRequiredService<IMultiTenantContainer>();
             var scope = container.GetTenantScope(domain);
             ClassicAssert.IsNotNull(scope);
             var scopedInfo = scope.Resolve<SomeScopedData>();
@@ -96,7 +95,7 @@ public class MultiTenantContainerTest
 
         await Task.Run(() =>
         {
-            var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+            var container = host.Services.GetRequiredService<IMultiTenantContainer>();
             var scope = container.GetTenantScope(domain);
             ClassicAssert.IsNotNull(scope);
             var scopedInfo = scope.Resolve<SomeScopedData>();
@@ -104,7 +103,7 @@ public class MultiTenantContainerTest
         });
 
         {
-            var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+            var container = host.Services.GetRequiredService<IMultiTenantContainer>();
             var scope = container.GetTenantScope(domain);
             ClassicAssert.IsNotNull(scope);
             var scopedInfo = scope.Resolve<SomeScopedData>();
@@ -134,7 +133,7 @@ public class MultiTenantContainerTest
 
         const string domain = "example.com";
 
-        var outerContainer = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+        var outerContainer = host.Services.GetRequiredService<IMultiTenantContainer>();
         var outerScope = outerContainer.GetOrAddTenantScope(domain, cb =>
         {
             cb.RegisterType<SomeScopedData>().InstancePerLifetimeScope();
@@ -146,7 +145,7 @@ public class MultiTenantContainerTest
         SomeScopedData? scopedInfo;
         await Task.Run(async () =>
         {
-            var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+            var container = host.Services.GetRequiredService<IMultiTenantContainer>();
             var tenantScope = container.GetTenantScope(domain);
             scopedInfo = tenantScope.Resolve<SomeScopedData>();
             ClassicAssert.AreEqual(domain, scopedInfo.Name);
@@ -200,8 +199,8 @@ public class MultiTenantContainerTest
 
         async Task DemoTenantScopeUsedInTask(string tenant)
         {
-            // Simulate injected IMultiTenantContainerAccessor
-            var container = host.Services.GetRequiredService<IMultiTenantContainerAccessor>();
+            // Simulate injected IMultiTenantContassor
+            var container = host.Services.GetRequiredService<IMultiTenantContainer>();
 
             await Task.Run(() =>
             {

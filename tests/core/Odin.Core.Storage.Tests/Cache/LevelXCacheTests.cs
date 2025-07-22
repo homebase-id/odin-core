@@ -72,7 +72,7 @@ public class LevelXCacheTests
 
         var builder = new ContainerBuilder();
         builder.Populate(services);
-        builder.AddGlobalCaches();
+        builder.AddSystemCaches();
         builder.AddTenantCaches("frodo.me");
 
         _services = builder.Build();
@@ -89,17 +89,17 @@ public class LevelXCacheTests
     {
         await RegisterServicesAsync(level2CacheType);
 
-        var globalLevel1Cache = _services!.Resolve<IGlobalLevel1Cache>();
-        Assert.That(globalLevel1Cache.CacheKeyPrefix, Is.EqualTo("global:L1"));
+        var systemLevel1Cache = _services!.Resolve<ISystemLevel1Cache>();
+        Assert.That(systemLevel1Cache.CacheKeyPrefix, Is.EqualTo("system:L1"));
 
-        var globalLevel2Cache = _services!.Resolve<IGlobalLevel2Cache>();
-        Assert.That(globalLevel2Cache.CacheKeyPrefix, Is.EqualTo("global:L2"));
+        var systemLevel2Cache = _services!.Resolve<ISystemLevel2Cache>();
+        Assert.That(systemLevel2Cache.CacheKeyPrefix, Is.EqualTo("system:L2"));
 
-        var globalLevel1CacheGeneric = _services!.Resolve<IGlobalLevel1Cache<LevelXCacheTests>>();
-        Assert.That(globalLevel1CacheGeneric.CacheKeyPrefix, Is.EqualTo($"global:{GetType().FullName}:L1"));
+        var systemLevel1CacheGeneric = _services!.Resolve<ISystemLevel1Cache<LevelXCacheTests>>();
+        Assert.That(systemLevel1CacheGeneric.CacheKeyPrefix, Is.EqualTo($"system:{GetType().FullName}:L1"));
 
-        var globalLevel2CacheGeneric = _services!.Resolve<IGlobalLevel2Cache<LevelXCacheTests>>();
-        Assert.That(globalLevel2CacheGeneric.CacheKeyPrefix, Is.EqualTo($"global:{GetType().FullName}:L2"));
+        var systemLevel2CacheGeneric = _services!.Resolve<ISystemLevel2Cache<LevelXCacheTests>>();
+        Assert.That(systemLevel2CacheGeneric.CacheKeyPrefix, Is.EqualTo($"system:{GetType().FullName}:L2"));
 
         var tenantLevel1Cache = _services!.Resolve<ITenantLevel1Cache>();
         Assert.That(tenantLevel1Cache.CacheKeyPrefix, Is.EqualTo("frodo.me:L1"));

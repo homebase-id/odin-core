@@ -1,5 +1,5 @@
 using Odin.Core.Cache;
-using Odin.Hosting.Cli;
+using Odin.Hosting.Cli.Commands;
 
 namespace Odin.SetupHelper.Tests;
 

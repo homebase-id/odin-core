@@ -341,6 +341,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     Directory.CreateDirectory(payloadDirectory);
             }
 
+            /* FOR NOW WE AGREED TO CREATE NIBBLE DIRECTORIES ON THE FLY
+
             for (int first = 0; first < 16; first++)
             {
                 var firstNibblePath = Path.Combine(payloadDirectory, first.ToString("x"));
@@ -363,7 +365,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             Directory.CreateDirectory(secondNibblePath);
                     }
                 }
-            }
+            }*/
 
             var uploadPath = _tenantPathManager.GetDriveUploadPath(driveId);
             if (Directory.Exists(uploadPath) == false)

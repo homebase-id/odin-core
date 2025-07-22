@@ -2,24 +2,24 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Core.Storage.Cache;
 
-public interface IGlobalLevel2Cache : ILevel2Cache
+public interface ISystemLevel2Cache : ILevel2Cache
 {
     // This space is intentionally left blank
 }
 
-public interface IGlobalLevel2Cache<T> : ILevel2Cache<T>
+public interface ISystemLevel2Cache<T> : ILevel2Cache<T>
 {
     // This space is intentionally left blank
 }
 
 public class SystemLevel2Cache(IFusionCache cache)
-    : Level2Cache("global", cache), IGlobalLevel2Cache
+    : Level2Cache("system", cache), ISystemLevel2Cache
 {
     // This space is intentionally left blank
 }
 
 public class SystemLevel2Cache<T>(IFusionCache cache)
-    : Level2Cache<T>("global", cache), IGlobalLevel2Cache<T>
+    : Level2Cache<T>("system", cache), ISystemLevel2Cache<T>
 {
     // This space is intentionally left blank
 }

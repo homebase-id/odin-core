@@ -22,74 +22,10 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 {
     public record AttestationRequestRecord
     {
-        private Int64 _rowId;
-        public Int64 rowId
-        {
-           get {
-                   return _rowId;
-               }
-           set {
-                  _rowId = value;
-               }
-        }
-        private string _attestationId;
-        public string attestationId
-        {
-           get {
-                   return _attestationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {value.Length} (max 65535)");
-                  _attestationId = value;
-               }
-        }
-        internal string attestationIdNoLengthCheck
-        {
-           get {
-                   return _attestationId;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {value.Length} (min 0)");
-                  _attestationId = value;
-               }
-        }
-        private string _requestEnvelope;
-        public string requestEnvelope
-        {
-           get {
-                   return _requestEnvelope;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null requestEnvelope");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short requestEnvelope, was {value.Length} (min 0)");
-                    if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long requestEnvelope, was {value.Length} (max 65535)");
-                  _requestEnvelope = value;
-               }
-        }
-        internal string requestEnvelopeNoLengthCheck
-        {
-           get {
-                   return _requestEnvelope;
-               }
-           set {
-                    if (value == null) throw new OdinDatabaseValidationException("Cannot be null requestEnvelope");
-                    if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short requestEnvelope, was {value.Length} (min 0)");
-                  _requestEnvelope = value;
-               }
-        }
-        private UnixTimeUtc _timestamp;
-        public UnixTimeUtc timestamp
-        {
-           get {
-                   return _timestamp;
-               }
-           set {
-                  _timestamp = value;
-               }
-        }
+        public Int64 rowId { get; set; }
+        public string attestationId { get; set; }
+        public string requestEnvelope { get; set; }
+        public UnixTimeUtc timestamp { get; set; }
         public void Validate()
         {
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
@@ -106,7 +42,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         private readonly CacheHelper _cache;
         private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
 
-        protected TableAttestationRequestCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
+        public TableAttestationRequestCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
             _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
@@ -123,7 +59,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 await cmd.ExecuteNonQueryAsync();
             }
             var rowid = "";
-            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Postgres)
+            if (cn.DatabaseType == DatabaseType.Postgres)
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
@@ -141,6 +77,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> InsertAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -175,6 +112,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<bool> TryInsertAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
@@ -210,6 +148,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> UpsertAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
@@ -246,6 +185,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public virtual async Task<int> UpdateAsync(AttestationRequestRecord item)
         {
+            item.Validate();
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var updateCommand = cn.CreateCommand();
             {
@@ -314,8 +254,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             var guid = new byte[16];
             var item = new AttestationRequestRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.attestationIdNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
-            item.requestEnvelopeNoLengthCheck = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
+            item.attestationId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.requestEnvelope = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.timestamp = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             return item;
        }
@@ -343,6 +283,37 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             }
         }
 
+        public virtual async Task<AttestationRequestRecord> PopAsync(string attestationId)
+        {
+            if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
+            if (attestationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 0)");
+            if (attestationId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 65535)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var deleteCommand = cn.CreateCommand();
+            {
+                deleteCommand.CommandText = "DELETE FROM AttestationRequest " +
+                                             "WHERE attestationId = @attestationId " + 
+                                             "RETURNING rowId,requestEnvelope,timestamp";
+                var deleteParam1 = deleteCommand.CreateParameter();
+                deleteParam1.DbType = DbType.String;
+                deleteParam1.ParameterName = "@attestationId";
+                deleteCommand.Parameters.Add(deleteParam1);
+
+                deleteParam1.Value = attestationId;
+                using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                       return ReadRecordFromReader0(rdr,attestationId);
+                    }
+                    else
+                    {
+                       return null;
+                    }
+                }
+            }
+        }
+
         public AttestationRequestRecord ReadRecordFromReader0(DbDataReader rdr,string attestationId)
         {
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
@@ -356,7 +327,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             var item = new AttestationRequestRecord();
             item.attestationId = attestationId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.requestEnvelopeNoLengthCheck = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
+            item.requestEnvelope = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
