@@ -37,7 +37,7 @@ public class PeerDataCopyService(OutgoingPeerDriveQueryService service, FileSyst
 
         if (existingFile != null && !overwrite)
         {
-            throw new OdinClientException("File exists on target drive; overwrite is set to false", 
+            throw new OdinClientException("File exists on target drive; overwrite is set to false",
                 OdinClientErrorCode.IdAlreadyExists);
         }
 
@@ -53,27 +53,32 @@ public class PeerDataCopyService(OutgoingPeerDriveQueryService service, FileSyst
 
         // TODO: handle decryption / re-encryption
 
-        foreach (var payload in header.FileMetadata.Payloads)
-        {
-            foreach (var thumbnailDescriptor in payload.Thumbnails)
-            {
-                var (encryptedPayloadKeyHeader, payloadIsEncrypted, payloadStream) =
-                    await service.GetPayloadByGlobalTransitIdAsync(remoteIdentity, file, payload.Key, null, fst, odinContext);
-
-                var (encryptedThumbnailKeyHeader, thumbnailIsEncrypted, decryptedContentType, lastModified, thumbnailStream) =
-                    await service.GetThumbnailByGlobalTransitIdAsync(remoteIdentity,
-                        file,
-                        payload.Key,
-                        thumbnailDescriptor.PixelWidth,
-                        thumbnailDescriptor.PixelHeight,
-                        false,
-                        fst,
-                        odinContext);
-
-
-                // handle decryption
-            }
-        }
+        // foreach (var payload in header.FileMetadata.Payloads)
+        // {
+        //     var (encryptedPayloadKeyHeader, payloadIsEncrypted, payloadStream) =
+        //         await service.GetPayloadByGlobalTransitIdAsync(remoteIdentity, file, payload.Key, null, fst, odinContext);
+        //
+        //     if (payloadIsEncrypted)
+        //     {
+        //         var keyHeader = encryptedPayloadKeyHeader.DecryptAesToKeyHeader()
+        //     }
+        //
+        //     foreach (var thumbnailDescriptor in payload.Thumbnails)
+        //     {
+        //         var (encryptedThumbnailKeyHeader, thumbnailIsEncrypted, decryptedContentType, lastModified, thumbnailStream) =
+        //             await service.GetThumbnailByGlobalTransitIdAsync(remoteIdentity,
+        //                 file,
+        //                 payload.Key,
+        //                 thumbnailDescriptor.PixelWidth,
+        //                 thumbnailDescriptor.PixelHeight,
+        //                 false,
+        //                 fst,
+        //                 odinContext);
+        //
+        //
+        //         // handle decryption
+        //     }
+        // }
 
         return new FileIdentifier()
         {
