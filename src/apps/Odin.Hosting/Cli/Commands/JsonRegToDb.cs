@@ -22,7 +22,7 @@ public static class JsonRegToDb
         // Migrate
         //
 
-        registry.LoadRegistrations().BlockingWait();
+        registry.DEPRECATED_LoadRegistrations().BlockingWait();
         var allTenants = await registry.GetTenants();
         foreach (var tenant in allTenants)
         {

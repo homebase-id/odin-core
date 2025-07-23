@@ -97,5 +97,8 @@ namespace Odin.Services.Registry
         Task<UnixTimeUtc> MarkForDeletionAsync(string domain);
 
         Task UnmarkForDeletionAsync(string domain);
+
+        // SEB:TODO delete
+        public Task DEPRECATED_LoadRegistrations();
     }
 }

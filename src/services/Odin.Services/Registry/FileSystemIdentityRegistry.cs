@@ -637,5 +637,108 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _serviceProvider.RemoveTenantScope(domain);
     }
 
+    //
+
+    // SEB:TODO delete me
+    public async Task DEPRECATED_LoadRegistrations()
+    {
+        Directory.CreateDirectory(RegistrationRoot);
+        if (!Directory.Exists(RegistrationRoot))
+        {
+            throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
+        }
+
+        Directory.CreateDirectory(PayloadRoot);
+        if (!Directory.Exists(RegistrationRoot))
+        {
+            throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
+        }
+
+        var directories = Directory.GetDirectories(RegistrationRoot);
+
+        foreach (var dir in directories)
+        {
+            try
+            {
+                var path = Path.TrimEndingDirectorySeparator(dir.ToCharArray()).ToString();
+                var potentialId = path.Split(Path.DirectorySeparatorChar).Last();
+                if (!Guid.TryParse(potentialId, out var id))
+                {
+                    _logger.LogWarning(
+                        "Identity Registry: Found invalid folder not in GUID format named [{potentialId}]; moving to next", potentialId);
+                    continue;
+                }
+
+                var registration = DEPRECATED_LoadRegistration(id);
+                if (registration == null)
+                {
+                    _logger.LogWarning("Identity Registry: could not find reg file for Id: [{id}]; moving to next", id.ToString());
+                    continue;
+                }
+
+                var tenantPathManger = new TenantPathManager(_config, registration.Id);
+                tenantPathManger.CreateDirectories();
+                //var storageConfig = GetStorageConfig(registration);
+                //storageConfig.CreateDirectories();
+
+                // Sanity: create database if missing (can be necessary when switching dev from sqlite to postgres)
+                await using var scope = GetOrCreateMultiTenantScope(registration)
+                    .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
+                var identityDatabase = scope.Resolve<IdentityDatabase>();
+                await identityDatabase.CreateDatabaseAsync(false);
+
+                var (requiresUpgrade, tenantVersion, _) = await scope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
+                if (requiresUpgrade)
+                {
+                    _logger.LogDebug("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
+                        registration.PrimaryDomainName,
+                        tenantVersion,
+                        Version.DataVersionNumber);
+                }
+                else
+                {
+                    _logger.LogDebug("{tenant} is on latest data version number v{latestVersion}",
+                        registration.PrimaryDomainName,
+                        Version.DataVersionNumber);
+                }
+
+                _logger.LogInformation("Loaded Identity {identity} ({id})", registration.PrimaryDomainName, registration.Id);
+                await CacheIdentityAsync(registration);
+
+                await CacheCertificateAsync(registration);
+                await InitializeOdinContextCache(registration);
+                if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
+                {
+                    await StartBackgroundServices(registration);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Identity Registry: Failed to load identity at path {dir}", dir);
+            }
+        }
+    }
+
+    // SEB:TODO delete me
+    private IdentityRegistration DEPRECATED_LoadRegistration(Guid id)
+    {
+        var regFile = DEPRECATED_GetRegFilePath(id);
+
+        if (!File.Exists(regFile))
+        {
+            return null;
+        }
+
+        var json = File.ReadAllText(regFile);
+
+        var registration = OdinSystemSerializer.Deserialize<IdentityRegistration>(json);
+        return registration;
+    }
+
+    // SEB:TODO delete me
+    private string DEPRECATED_GetRegFilePath(Guid registrationId)
+    {
+        return Path.Combine(RegistrationRoot, registrationId.ToString(), "reg.json");
+    }
 
 }
