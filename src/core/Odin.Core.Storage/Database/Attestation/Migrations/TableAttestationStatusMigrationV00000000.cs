@@ -24,22 +24,22 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         {
         }
 
-        public virtual async Task<int> EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
-            await using var cmd = cn.CreateCommand();
             if (dropExisting)
-            {
-                cmd.CommandText = "DROP TABLE IF EXISTS AttestationStatusMigrationsV0;";
-                await cmd.ExecuteNonQueryAsync();
-            }
+                await MigrationBase.DeleteTableAsync(cn, "AttestationStatusMigrationsV0");
             var rowid = "";
+            var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
+            {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE AttestationStatusMigrationsV0 IS '{ \"Version\": 0 }';";
+            }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
-            cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS AttestationStatusMigrationsV0("
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS AttestationStatusMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"attestationId BYTEA NOT NULL UNIQUE, "
                    +"status BIGINT NOT NULL, "
@@ -47,7 +47,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            return await cmd.ExecuteNonQueryAsync();
+            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()

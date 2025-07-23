@@ -7,6 +7,24 @@ public abstract class MigrationListBase
 {
     public List<MigrationBase> Migrations;
 
+    public MigrationListBase()
+    {
+    }
+
+    public void ValidateMigrationList()
+    {
+        int prev = -1;
+        foreach (var migration in Migrations)
+        {
+            if (migration.MigrationVersion <= prev)
+            {
+                Migrations = null;
+                throw new Exception("Version numbers not increasing");
+            }
+            prev = migration.MigrationVersion;
+        }
+    }
+
     public MigrationBase PreviousVersion(MigrationBase current)
     {
         if (current == null) throw new ArgumentNullException(nameof(current));
