@@ -106,7 +106,7 @@ public class DriveManager : IDriveManager
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
-            TempOriginalDriveId = id
+            StorageKeyCheckValue = id
         };
 
         try
@@ -364,7 +364,7 @@ public class DriveManager : IDriveManager
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(details),
-            TempOriginalDriveId = storageDrive.TempOriginalDriveId
+            StorageKeyCheckValue = storageDrive.StorageKeyCheckValue
         };
 
         return record;
@@ -419,7 +419,7 @@ public class DriveManager : IDriveManager
         StorageDriveBase sdb = new()
         {
             Id = record.DriveId,
-            TempOriginalDriveId = record.TempOriginalDriveId,
+            StorageKeyCheckValue = record.StorageKeyCheckValue,
             Name = record.DriveName,
             TargetDriveInfo = new TargetDrive()
             {

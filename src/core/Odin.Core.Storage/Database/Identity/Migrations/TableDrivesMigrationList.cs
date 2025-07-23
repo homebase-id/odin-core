@@ -10,6 +10,7 @@ public class TableDrivesMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableDrivesMigrationV0(this),
+            new TableDrivesMigrationV20250723(this),
             // AUTO-INSERT-MARKER
         };
     }
