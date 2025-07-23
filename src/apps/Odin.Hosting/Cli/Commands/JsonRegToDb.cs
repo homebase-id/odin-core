@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Services.Registry;
@@ -21,6 +22,10 @@ public static class JsonRegToDb
         //
         // Migrate
         //
+
+        // Create system database
+        var systemDatabase = services.GetRequiredService<SystemDatabase>();
+        systemDatabase.CreateDatabaseAsync().BlockingWait();
 
         registry.DEPRECATED_LoadRegistrations().BlockingWait();
         var allTenants = await registry.GetTenants();
