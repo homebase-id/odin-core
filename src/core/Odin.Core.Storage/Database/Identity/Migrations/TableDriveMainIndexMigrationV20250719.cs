@@ -24,22 +24,22 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public virtual async Task<int> EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
-            await using var cmd = cn.CreateCommand();
             if (dropExisting)
-            {
-                cmd.CommandText = "DROP TABLE IF EXISTS DriveMainIndexMigrationsV20250719;";
-                await cmd.ExecuteNonQueryAsync();
-            }
+                await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigrationsV20250719");
             var rowid = "";
+            var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
+            {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE DriveMainIndexMigrationsV20250719 IS '{ \"Version\": 20250719 }';";
+            }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
-            cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS DriveMainIndexMigrationsV20250719("
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS DriveMainIndexMigrationsV20250719( -- { \"Version\": 20250719 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -79,7 +79,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX IF NOT EXISTS Idx1DriveMainIndexMigrationsV20250719 ON DriveMainIndexMigrationsV20250719(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
                    +"CREATE INDEX IF NOT EXISTS Idx2DriveMainIndexMigrationsV20250719 ON DriveMainIndexMigrationsV20250719(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
-            return await cmd.ExecuteNonQueryAsync();
+            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -133,6 +133,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         // Will upgrade from the previous version to version 20250719
         public override async Task UpAsync(IConnectionWrapper cn)
         {
+            Container.ValidateMigrationList();
+            await CheckSqlTableVersion(cn, "DriveMainIndex", Container.PreviousVersionInt(this));
             try
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())
@@ -155,6 +157,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
+            Container.ValidateMigrationList();
+            await CheckSqlTableVersion(cn, "DriveMainIndex", this.MigrationVersion);
             try
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())

@@ -55,23 +55,23 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task<int> EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var cmd = cn.CreateCommand();
             if (dropExisting)
-            {
-                cmd.CommandText = "DROP TABLE IF EXISTS KeyThreeValue;";
-                await cmd.ExecuteNonQueryAsync();
-            }
+                await MigrationBase.DeleteTableAsync(cn, "KeyThreeValue");
             var rowid = "";
+            var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
+            {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE KeyThreeValue IS '{ \"Version\": 0 }';";
+            }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
-            cmd.CommandText =
-                "CREATE TABLE IF NOT EXISTS KeyThreeValue("
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS KeyThreeValue( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL, "
@@ -83,7 +83,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX IF NOT EXISTS Idx0KeyThreeValue ON KeyThreeValue(identityId,key2);"
                    +"CREATE INDEX IF NOT EXISTS Idx1KeyThreeValue ON KeyThreeValue(key3);"
                    ;
-            return await cmd.ExecuteNonQueryAsync();
+            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(KeyThreeValueRecord item)
