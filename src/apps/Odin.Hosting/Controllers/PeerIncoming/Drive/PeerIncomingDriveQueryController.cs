@@ -277,10 +277,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return result;
         }
 
-        private PeerDriveQueryService GetPerimeterService()
+        private IncomingPeerDriveQueryService GetPerimeterService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            return new PeerDriveQueryService(driveManager, fileSystem);
+            return new IncomingPeerDriveQueryService(driveManager, fileSystem);
         }
     }
 }

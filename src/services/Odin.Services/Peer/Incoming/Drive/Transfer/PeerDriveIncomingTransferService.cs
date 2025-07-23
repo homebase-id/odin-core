@@ -21,12 +21,14 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 
@@ -44,7 +46,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
         TransitInboxBoxStorage transitInboxBoxStorage,
-        FeedWriter feedWriter
+        FeedWriter feedWriter,
+        PeerOutgoingTransferService peerOutgoingTransferService
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
@@ -101,7 +104,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-
             var shouldExpectPayload = !fileMetadata.PayloadsAreRemote;
 
             // if there are payloads in the descriptor, and they should have been sent
@@ -287,6 +289,60 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 Code = PeerResponseCode.AcceptedIntoInbox
             };
+        }
+
+        /// <summary>
+        /// Enqueues a file to be sent to the caller as requested by the caller
+        /// </summary>
+        public async Task HandleFileRequest(FileIdentifier file,
+            Guid nonce,
+            FileSystemType fileSystemType,
+            TargetDrive remoteTargetDrive,
+            IOdinContext odinContext)
+        {
+            var driveId = file.TargetDrive.Alias;
+            var fs = FileSystemResolver.ResolveFileSystem(fileSystemType);
+            await fs.Storage.AssertCanReadDriveAsync(driveId, odinContext);
+            OdinValidationUtils.AssertNotNull(odinContext.Caller.OdinId, "caller");
+            
+            var recipient = odinContext.Caller.OdinId;
+            
+            var theFile = await fs.Query.GetFileByGlobalTransitId(driveId, file.GlobalTransitId.GetValueOrDefault(), odinContext);
+            if (null == theFile)
+            {
+                throw new OdinClientException("file not found", OdinClientErrorCode.InvalidFile);
+            }
+
+            // send the file
+            var internalFile = new InternalDriveFileId()
+            {
+                FileId = theFile.FileId,
+                DriveId = driveId
+            };
+            
+            var transitOptions = new TransitOptions
+            {
+                IsTransient = false,
+                Recipients = [recipient],
+                UseAppNotification = false,
+                AppNotificationOptions = null,
+                RemoteTargetDrive = remoteTargetDrive,
+                Priority = OutboxPriority.High
+            };
+            
+            var recipientStatus = await peerOutgoingTransferService.SendFile(internalFile,
+                transitOptions,
+                TransferFileType.Normal,
+                fileSystemType, 
+                odinContext);
+
+            if (recipientStatus.TryGetValue(recipient!, out var status))
+            {
+                if (status != TransferStatus.Enqueued)
+                {
+                    //TODO: error?
+                }
+            }
         }
 
         public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)

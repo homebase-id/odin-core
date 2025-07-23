@@ -29,8 +29,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query;
 /// <summary>
 /// Executes query functionality on connected identity hosts
 /// </summary>
-public class PeerDriveQueryService(
-    ILogger<PeerDriveQueryService> logger,
+public class OutgoingPeerDriveQueryService(
+    ILogger<OutgoingPeerDriveQueryService> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration)
