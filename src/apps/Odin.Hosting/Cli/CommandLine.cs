@@ -275,18 +275,6 @@ public class CommandLine
             return (true, 0);
         }
 
-        //
-        // Command line: move reg.json to db
-        //
-        // examples:
-        //   dotnet run -- reg-json-to-db
-        //
-        if (args.Length > 0 && args[0] == "reg-json-to-db")
-        {
-            JsonRegToDb.ExecuteAsync(_serviceProvider).BlockingWait();
-            return (true, 0);
-        }
-
         return (false, 0);
     }
 }
