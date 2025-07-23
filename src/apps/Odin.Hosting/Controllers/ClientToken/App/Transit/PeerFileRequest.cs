@@ -3,7 +3,7 @@ using Odin.Core.Identity;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 
-public class CopyPeerDataRequest
+public class PeerFileRequest
 {
     public OdinId RemoteIdentity { get; set; }
     public FileIdentifier SourceFileIdentifier { get; set; }

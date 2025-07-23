@@ -69,7 +69,7 @@ using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
-using Odin.Services.Peer.DataCopy;
+using Odin.Services.Peer.Outgoing.DataRequestService;
 
 namespace Odin.Hosting;
 
@@ -294,7 +294,7 @@ public static class TenantServices
 
         cb.RegisterType<PeerIncomingReactionService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<PeerIncomingGroupReactionInboxRouterService>().AsSelf().InstancePerLifetimeScope();
-        cb.RegisterType<PeerDataCopyService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<DataRequestService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<PublicPrivateKeyService>()
             .AsSelf()

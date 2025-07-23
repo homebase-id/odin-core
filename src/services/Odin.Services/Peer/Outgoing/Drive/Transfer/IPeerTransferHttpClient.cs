@@ -1,4 +1,6 @@
+using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Services.Peer.Outgoing.DataRequestService;
 using Refit;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer
@@ -29,5 +31,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         [Post(DriveRoot + "/mark-file-read")]
         Task<ApiResponse<PeerTransferResponse>> MarkFileAsRead(MarkFileAsReadRequest markFileAsReadRequest);
+        
+        [Post(DriveRoot + "/request-file")]
+        Task<ApiResponse<HttpContent>> RequestRemoteFile(RemoteFileRequest request);
     }
 }

@@ -23,7 +23,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
@@ -34,6 +33,8 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer.Outgoing.DataRequestService;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -53,6 +54,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly ILogger<PeerIncomingDriveUploadController> _logger;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FeedWriter _feedWriter;
+        private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
         private readonly IDriveManager _driveManager;
 
         private readonly FileSystemResolver _fileSystemResolver;
@@ -73,7 +75,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             OdinConfiguration odinConfiguration,
             ILogger<PeerIncomingDriveUploadController> logger,
             TransitInboxBoxStorage transitInboxBoxStorage,
-            FeedWriter feedWriter)
+            FeedWriter feedWriter,
+            PeerOutgoingTransferService peerOutgoingTransferService)
         {
             _driveManager = driveManager;
 
@@ -88,6 +91,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _logger = logger;
             _transitInboxBoxStorage = transitInboxBoxStorage;
             _feedWriter = feedWriter;
+            _peerOutgoingTransferService = peerOutgoingTransferService;
         }
 
         /// <summary />
@@ -210,7 +214,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
 
-
             return await perimeterService.MarkFileAsReadAsync(
                 request.GlobalTransitIdFileIdentifier.TargetDrive,
                 request.GlobalTransitIdFileIdentifier.GlobalTransitId,
@@ -218,6 +221,24 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 WebOdinContext);
         }
 
+        [HttpPost("remote-file")]
+        public async Task<IActionResult> ReceiveFileRequest(RemoteFileRequest request)
+        {
+            await AssertIsValidCaller();
+            
+            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
+            var perimeterService = GetPerimeterService(fileSystem);
+
+            await perimeterService.HandleFileRequest(
+                request.File,
+                request.Nonce,
+                request.FileSystemType,
+                request.RemoteTargetDrive,
+                WebOdinContext);
+
+            return Ok();
+        }
+        
         private Task AssertIsValidCaller()
         {
             //TODO: later add check to see if this is from an introduction?
@@ -440,7 +461,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _fileSystemResolver,
                 _odinConfiguration,
                 _transitInboxBoxStorage,
-                _feedWriter);
+                _feedWriter,
+                _peerOutgoingTransferService);
         }
     }
 }

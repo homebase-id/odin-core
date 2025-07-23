@@ -1,7 +1,8 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Peer.DataCopy;
+using Odin.Services.Peer.Outgoing.DataRequestService;
 
 namespace Odin.Hosting.Controllers.ClientToken.App.Transit
 {
@@ -9,23 +10,24 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     /// Routes requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.PeerDataCopyV1)]
+    [Route(AppApiPathConstants.PeerDataRequestV1)]
     [AuthorizeValidAppToken]
-    public class AppPeerDataCopyController(PeerDataCopyService dataCopyService) : OdinControllerBase
+    public class AppPeerDataCopyController(DataRequestService dataRequestService) : OdinControllerBase
     {
-        [HttpPost("copy")]
-        public async Task<IActionResult> CopyDataFromPeer(CopyPeerDataRequest request)
+        [HttpPost("send")]
+        public async Task<IActionResult> CopyDataFromPeer(PeerFileRequest request)
         {
+            // 
             var fst = GetHttpFileSystemResolver().GetFileSystemType();
-            var localFile = await dataCopyService.CopyFile(
+            await dataRequestService.RequestRemoteFile(
                 request.RemoteIdentity,
-                request.SourceFileIdentifier, 
+                request.SourceFileIdentifier,
                 request.LocalDrive,
                 fst,
                 request.Overwrite,
                 WebOdinContext);
 
-            return Ok(localFile);
+            return Ok();
         }
     }
 }
