@@ -50,13 +50,15 @@ public static class CommandLineLoggerExtensions
 {
     public static IServiceCollection AddCommandLineLogging(
         this IServiceCollection serviceCollection,
+        bool commandLineOnly = false, // Only show logs from ILogger<CommandLine> and not from other services
         LogLevel minimumLevel = LogLevel.Debug)
     {
         return serviceCollection.AddLogging(builder =>
         {
             builder
                 .ClearProviders()
-                .SetMinimumLevel(minimumLevel)
+                .AddFilter((provider, category, logLevel) =>
+                    (!commandLineOnly || category?.Contains(nameof(CommandLine)) == true) && logLevel >= minimumLevel)
                 .AddConsole(options => options.FormatterName = CommandLineLogFormatter.FormatterName)
                 .AddConsoleFormatter<CommandLineLogFormatter, ConsoleFormatterOptions>();
         });

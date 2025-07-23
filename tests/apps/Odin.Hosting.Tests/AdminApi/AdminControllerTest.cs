@@ -16,6 +16,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
@@ -109,7 +110,12 @@ public class AdminControllerTest
         Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
         Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
-        Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+
+        if (_config.Database.Type == DatabaseType.Sqlite)
+        {
+            Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+        }
+
         Assert.That(tenant.PayloadPath, Is.Null);
         Assert.That(tenant.PayloadSize, Is.Null);
     }
@@ -135,7 +141,11 @@ public class AdminControllerTest
         Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
         Assert.That(Directory.Exists(tenant.RegistrationPath), Is.True);
-        Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+
+        if (_config.Database.Type == DatabaseType.Sqlite)
+        {
+            Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+        }
 
 #if RUN_S3_TESTS
         var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
@@ -171,7 +181,11 @@ public class AdminControllerTest
         Assert.That(tenant.Domain, Is.EqualTo("frodo.dotyou.cloud"));
         Assert.That(tenant.RegistrationPath, Does.StartWith(_tenantDataRootPath));
         Assert.That(tenant.RegistrationPath, Does.EndWith(tenant.Id));
-        Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+
+        if (_config.Database.Type == DatabaseType.Sqlite)
+        {
+            Assert.That(tenant.RegistrationSize, Is.GreaterThan(0));
+        }
 
 #if RUN_S3_TESTS
         var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
