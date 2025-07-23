@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Autofac;
@@ -41,7 +42,7 @@ public class CommandLine
         _serviceProviders = ServiceProviders.Create(
             sc =>
             {
-                sc.AddCommandLineLogging();
+                sc.AddCommandLineLogging(commandLineOnly: !args.Contains("--verbose"), minimumLevel: LogLevel.Debug);
                 sc.ConfigureSystemServices(_config);
             },
             cb =>
@@ -229,7 +230,7 @@ public class CommandLine
         //   ASPNETCORE_ENVIRONMENT=Production ./Odin.Hosting tcp-connection-test 80 5000
         //
         //
-        if (args.Length == 3 && args[0] == "tcp-connection-test")
+        if (args.Length > 2 && args[0] == "tcp-connection-test")
         {
             var port = int.Parse(args[1]);
             var timeout = int.Parse(args[2]);
@@ -256,7 +257,7 @@ public class CommandLine
         //   dotnet run -- defragment just-looking
         //   dotnet run -- defragment cleanup
         //
-        if (args.Length == 2 && args[0] == "defragment")
+        if (args.Length > 1 && args[0] == "defragment")
         {
             Defragment.ExecuteAsync(_serviceProvider, args[1] == "cleanup").BlockingWait();
             return (true, 0);
@@ -268,9 +269,21 @@ public class CommandLine
         // examples:
         //   dotnet run -- reset-feed
         //
-        if (args.Length == 1 && args[0] == "reset-feed")
+        if (args.Length > 0 && args[0] == "reset-feed")
         {
             ResetFeed.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
+        //
+        // Command line: move reg.json to db
+        //
+        // examples:
+        //   dotnet run -- reg-json-to-db
+        //
+        if (args.Length > 0 && args[0] == "reg-json-to-db")
+        {
+            JsonRegToDb.ExecuteAsync(_serviceProvider).BlockingWait();
             return (true, 0);
         }
 

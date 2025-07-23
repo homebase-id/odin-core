@@ -16,10 +16,10 @@ namespace Odin.Services.Tenant.Container;
 
 public interface IMultiTenantContainer : IContainer
 {
-    ILifetimeScope GetOrAddTenantScope(string tenant, Action<ContainerBuilder> configurationAction);
-    ILifetimeScope GetTenantScope(string tenant);
-    ILifetimeScope? LookupTenantScope(string tenant);
-    void RemoveTenantScope(string tenant);
+    ILifetimeScope GetOrAddTenantScope(string domain, Action<ContainerBuilder> configurationAction);
+    ILifetimeScope GetTenantScope(string domain);
+    ILifetimeScope? LookupTenantScope(string domain);
+    void RemoveTenantScope(string domain);
     List<ILifetimeScope> GetTenantScopesForDiagnostics();
 }
 
@@ -36,32 +36,32 @@ public sealed class MultiTenantContainer(IContainer applicationContainer) : IMul
     //
 
     /// <summary>
-    /// Get/create the scope of a tenant
+    /// Get/create the scope of a domain
     /// </summary>
     /// <returns>ILifetimeScope</returns>
-    public ILifetimeScope GetTenantScope(string tenant)
+    public ILifetimeScope GetTenantScope(string domain)
     {
-        return LookupTenantScope(tenant) ?? throw new OdinSystemException($"Tenant scope not found for {tenant}");
+        return LookupTenantScope(domain) ?? throw new OdinSystemException($"Tenant scope not found for {domain}");
     }
 
     /// <summary>
-    /// Look up the scope of a tenant, if it exits
+    /// Look up the scope of a domain, if it exits
     /// </summary>
     /// <returns>ILifetimeScope?</returns>
-    public ILifetimeScope? LookupTenantScope(string tenant)
+    public ILifetimeScope? LookupTenantScope(string domain)
     {
-        return _tenantLifetimeScopes.TryGetValue(tenant, out var lazyScope) ? lazyScope.Value : null;
+        return _tenantLifetimeScopes.TryGetValue(domain, out var lazyScope) ? lazyScope.Value : null;
     }
 
     //
 
     /// <summary>
-    /// Remove scope of tenant
+    /// Remove scope of domain
     /// </summary>
     /// <returns></returns>
-    public void RemoveTenantScope(string tenant)
+    public void RemoveTenantScope(string domain)
     {
-        if (_tenantLifetimeScopes.TryRemove(tenant, out var scope))
+        if (_tenantLifetimeScopes.TryRemove(domain, out var scope))
         {
             scope.Value.Dispose();
         }
@@ -72,10 +72,10 @@ public sealed class MultiTenantContainer(IContainer applicationContainer) : IMul
     /// <summary>
     /// Get or create a tenant scope. The tenant doesn't have to exist.
     /// </summary>
-    /// <param name="tenant"></param>
+    /// <param name="domain"></param>
     /// <param name="configurationAction"></param>
     /// <returns></returns>
-    public ILifetimeScope GetOrAddTenantScope(string tenant, Action<ContainerBuilder> configurationAction)
+    public ILifetimeScope GetOrAddTenantScope(string domain, Action<ContainerBuilder> configurationAction)
     {
         if (_disposed)
         {
@@ -84,8 +84,8 @@ public sealed class MultiTenantContainer(IContainer applicationContainer) : IMul
 
         // SEB:NOTE
         // The valueFactory is not run under lock, so we use Lazy<> to make sure that it is only created once
-        var lazyScope = _tenantLifetimeScopes.GetOrAdd(tenant, _ => new Lazy<ILifetimeScope>(() =>
-            applicationContainer.BeginLifetimeScope(tenant, configurationAction)));
+        var lazyScope = _tenantLifetimeScopes.GetOrAdd(domain, _ => new Lazy<ILifetimeScope>(() =>
+            applicationContainer.BeginLifetimeScope(domain, configurationAction)));
 
         return lazyScope.Value;
     }

@@ -14,6 +14,8 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
@@ -44,7 +46,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ICertificateService _certificateService;
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
-    private readonly IMultiTenantContainer _tenantContainer;
+    private readonly IMultiTenantContainer _serviceProvider;
     private readonly Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> _tenantContainerBuilder;
     private readonly OdinConfiguration _config;
 
@@ -53,7 +55,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ICertificateService certificateService,
         IDynamicHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
-        IMultiTenantContainer tenantContainer,
+        IMultiTenantContainer serviceProvider,
         Func<ContainerBuilder, IdentityRegistration, OdinConfiguration, ContainerBuilder> tenantContainerBuilder,
         OdinConfiguration config
     )
@@ -68,7 +70,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _certificateService = certificateService;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
-        _tenantContainer = tenantContainer;
+        _serviceProvider = serviceProvider;
         _tenantContainerBuilder = tenantContainerBuilder;
         _config = config;
     }
@@ -112,9 +114,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public TenantContext CreateTenantContext(IdentityRegistration idReg, bool updateFileSystem = false)
     {
-        var regIdFolder = idReg.Id.ToString();
-        var rootPath = Path.Combine(RegistrationRoot, regIdFolder);
-
         var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
             StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
@@ -166,13 +165,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         // Create directories
         var tenantPathManager = new TenantPathManager(_config, registration.Id);
         tenantPathManager.CreateDirectories();
-        //var storageConfig = GetStorageConfig(registration);
-        //storageConfig.CreateDirectories();
 
         // Create database on isolated scope
         await using var scope = GetOrCreateMultiTenantScope(registration)
             .BeginLifetimeScope($"AddRegistration:{registration.PrimaryDomainName}");
-
         var identityDatabase = scope.Resolve<IdentityDatabase>();
         await identityDatabase.CreateDatabaseAsync(false);
 
@@ -325,11 +321,22 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task SaveRegistrationInternal(IdentityRegistration registration)
     {
-        var json = OdinSystemSerializer.Serialize(registration);
-        var regFilePath = GetRegFilePath(registration.Id);
-        await File.WriteAllTextAsync(regFilePath, json);
+        await using var scope = GetOrCreateMultiTenantScope(registration)
+            .BeginLifetimeScope($"SaveRegistration:{registration.PrimaryDomainName}");
 
-        _logger.LogInformation("Wrote registration file for [{registrationId}]", registration.Id);
+        var systemDatabase = scope.Resolve<SystemDatabase>();
+        await systemDatabase.Registrations.UpsertAsync(new RegistrationsRecord
+        {
+            identityId = registration.Id,
+            primaryDomainName = registration.PrimaryDomainName.ToLower(),
+            email = registration.Email?.ToLower(),
+            firstRunToken = registration.FirstRunToken?.ToString(),
+            disabled = false,
+            markedForDeletionDate = null,
+            planId = "free"
+        });
+
+        _logger.LogInformation("Wrote registration record for [{registrationId}]", registration.Id);
         await CacheIdentityAsync(registration);
     }
 
@@ -395,59 +402,47 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await SaveRegistrationInternal(reg);
     }
 
-    private string GetRegFilePath(Guid registrationId)
-    {
-        return Path.Combine(RegistrationRoot, registrationId.ToString(), "reg.json");
-    }
-
     public async Task LoadRegistrations()
     {
         Directory.CreateDirectory(RegistrationRoot);
-        if (!Directory.Exists(RegistrationRoot))
-        {
-            throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
-        }
-
         Directory.CreateDirectory(PayloadRoot);
-        if (!Directory.Exists(RegistrationRoot))
-        {
-            throw new OdinSystemException($"Directory does not exist: [{RegistrationRoot}]");
-        }
 
-        var directories = Directory.GetDirectories(RegistrationRoot);
-
-        foreach (var dir in directories)
+        await using var systemScope = _serviceProvider.BeginLifetimeScope();
+        var systemDatabase = systemScope.Resolve<SystemDatabase>();
+        var registrations = await systemDatabase.Registrations.GetAllAsync();
+        foreach (var registrationRecord in registrations)
         {
             try
             {
-                var path = Path.TrimEndingDirectorySeparator(dir.ToCharArray()).ToString();
-                var potentialId = path.Split(Path.DirectorySeparatorChar).Last();
-                if (!Guid.TryParse(potentialId, out var id))
+                var identityId = registrationRecord.identityId.ToString();
+                var registrationPath = Path.Combine(RegistrationRoot, identityId);
+
+                // Scalability: ensure the registration directory exists on all hosts
+                Directory.CreateDirectory(registrationPath);
+
+                var registration = new IdentityRegistration
                 {
-                    _logger.LogWarning(
-                        "Identity Registry: Found invalid folder not in GUID format named [{potentialId}]; moving to next", potentialId);
-                    continue;
-                }
- 
-                var registration = LoadRegistration(id);
-                if (registration == null)
-                {
-                    _logger.LogWarning("Identity Registry: could not find reg file for Id: [{id}]; moving to next", id.ToString());
-                    continue;
-                }
+                    Id = registrationRecord.identityId,
+                    PrimaryDomainName = registrationRecord.primaryDomainName,
+                    Email = registrationRecord.email,
+                    FirstRunToken = string.IsNullOrEmpty(registrationRecord.firstRunToken)
+                        ? null
+                        : Guid.Parse(registrationRecord.firstRunToken),
+                    PlanId = registrationRecord.planId,
+                    Disabled = registrationRecord.disabled,
+                    MarkedForDeletionDate = registrationRecord.markedForDeletionDate,
+                };
 
                 var tenantPathManger = new TenantPathManager(_config, registration.Id);
                 tenantPathManger.CreateDirectories();
-                //var storageConfig = GetStorageConfig(registration);
-                //storageConfig.CreateDirectories();
 
                 // Sanity: create database if missing (can be necessary when switching dev from sqlite to postgres)
-                await using var scope = GetOrCreateMultiTenantScope(registration)
+                await using var tenantScope = GetOrCreateMultiTenantScope(registration)
                     .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
-                var identityDatabase = scope.Resolve<IdentityDatabase>();
+                var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
                 await identityDatabase.CreateDatabaseAsync(false);
 
-                var (requiresUpgrade, tenantVersion, _) = await scope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
+                var (requiresUpgrade, tenantVersion, _) = await tenantScope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
                 if (requiresUpgrade)
                 {
                     _logger.LogDebug("{tenant} is on data-release-version {currentVersion}; latest version is {latestVersion}",
@@ -467,6 +462,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
                 await CacheCertificateAsync(registration);
                 await InitializeOdinContextCache(registration);
+
                 if (_config.BackgroundServices.TenantBackgroundServicesEnabled)
                 {
                     await StartBackgroundServices(registration);
@@ -474,24 +470,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Identity Registry: Failed to load identity at path {dir}", dir);
+                _logger.LogError(e, "Error loading registration {id}: {error}", registrationRecord.identityId, e.Message);
             }
         }
-    }
-
-    private IdentityRegistration LoadRegistration(Guid id)
-    {
-        var regFile = GetRegFilePath(id);
-
-        if (!File.Exists(regFile))
-        {
-            return null;
-        }
-
-        var json = File.ReadAllText(regFile);
-
-        var registration = OdinSystemSerializer.Deserialize<IdentityRegistration>(json);
-        return registration;
     }
 
     private async Task CacheIdentityAsync(IdentityRegistration registration)
@@ -614,7 +595,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         if (_config.Cache.Level2CacheType == Level2CacheType.Redis)
         {
-            var scope = _tenantContainer.GetTenantScope(registration.PrimaryDomainName);
+            var scope = _serviceProvider.GetTenantScope(registration.PrimaryDomainName);
             var multiplexer = scope.Resolve<IConnectionMultiplexer>();
             var odinContextCache = scope.Resolve<OdinContextCache>();
             await odinContextCache.InitializePubSub(multiplexer);
@@ -625,7 +606,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task StartBackgroundServices(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.GetTenantScope(registration.PrimaryDomainName);
+        var scope = _serviceProvider.GetTenantScope(registration.PrimaryDomainName);
         await scope.StartTenantBackgroundServices();
     }
 
@@ -633,7 +614,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task StopBackgroundServices(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.GetTenantScope(registration.PrimaryDomainName);
+        var scope = _serviceProvider.GetTenantScope(registration.PrimaryDomainName);
         var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
         await backgroundServiceManager.ShutdownAsync();
     }
@@ -642,7 +623,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private ILifetimeScope GetOrCreateMultiTenantScope(IdentityRegistration registration)
     {
-        var scope = _tenantContainer.GetOrAddTenantScope(
+        var scope = _serviceProvider.GetOrAddTenantScope(
             registration.PrimaryDomainName,
             cb => _tenantContainerBuilder(cb, registration, _config));
 
@@ -653,7 +634,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private void RemoveMultiTenantScope(string domain)
     {
-        _tenantContainer.RemoveTenantScope(domain);
+        _serviceProvider.RemoveTenantScope(domain);
     }
 
 

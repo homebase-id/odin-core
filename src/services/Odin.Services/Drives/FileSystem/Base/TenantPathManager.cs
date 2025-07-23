@@ -52,7 +52,6 @@ public class TenantPathManager
     public const string FilesFolder = "files";
     public const string PayloadDelimiter = "-";
     public const string TransitThumbnailKeyDelimiter = "|";
-    public const string RegJson = "reg.json";
 
     public readonly string RootPath; // e.g. /data/tenants
     public readonly string RootRegistrationsPath;  // e.g. /data/tenants/registrations
