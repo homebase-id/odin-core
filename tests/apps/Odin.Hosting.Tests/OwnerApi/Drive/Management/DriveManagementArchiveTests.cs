@@ -1,22 +1,12 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
-using Odin.Core;
-using Odin.Core.Cryptography;
-using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
-using Odin.Hosting.Tests._Universal.DriveTests;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
@@ -161,5 +151,19 @@ public class DriveManagementArchiveTests
         ClassicAssert.IsTrue(updatedDrivesList.Results.Any(p => p.TargetDrive == drive2));
 
         await callerContext.Cleanup();
+    }
+
+    [Test]
+    public async Task FailToArchiveSystemDrive()
+    {
+        // Prepare
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+        // Act - set archive on drive 1
+        foreach(var drive in SystemDriveConstants.SystemDrives)
+        {
+            var setFlagResponse = await ownerApiClient.DriveManager.SetArchiveFlag(drive, true);
+            ClassicAssert.IsTrue(setFlagResponse.StatusCode == HttpStatusCode.BadRequest);
+        }
     }
 }
