@@ -14,6 +14,17 @@ namespace Odin.Core.Storage.Database.System.Migrations;
 // It will be instantiated and executed by SystemDatabase everytime the program starts.
 //
 
+// Just for illustration purposes, this is the base class for all TABLE migrations.
+public abstract class TableMigrationBase : MigrationBase
+{
+    // TODO remove this container from the ctor
+    protected TableMigrationBase(MigrationListBase container) : base(container)
+    {
+    }
+
+    public long PrevVersion { get; }
+}
+
 public class SystemMigrator : MigrationListBase
 {
     private enum Direction
@@ -89,14 +100,23 @@ public class SystemMigrator : MigrationListBase
         {
             if (direction == Direction.Up)
             {
-                // MS:TODO do additional table version checks here, if you like
+                if (migration is TableMigrationBase tableMigration)
+                {
+                    // MS:TODO do additional table version checks here
+                    // tableMigration.PrevVersion ...
+                }
                 await migration.UpAsync(connection);
             }
             else
             {
-                // MS:TODO do additional table version checks here, if you like
+                if (migration is TableMigrationBase tableMigration)
+                {
+                    // MS:TODO do additional table version checks here
+                    // tableMigration.PrevVersion ...
+                }
                 await migration.DownAsync(connection);
             }
+
             // SEB:TODO update the VersionInfo table with the new version
         }
 
