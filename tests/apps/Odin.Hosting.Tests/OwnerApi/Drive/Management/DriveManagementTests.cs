@@ -1,14 +1,16 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
-using SQLitePCL;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
@@ -347,117 +349,4 @@ public class DriveManagementTests
         }
     }
 
-    [Test]
-    public async Task CanArchiveDriveAndDriveNotReturnedFromResults()
-    {
-        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
-        {
-            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
-
-            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
-            string name = "test drive 01";
-            string metadata = "{some:'json'}";
-
-            var response = await svc.CreateDrive(new CreateDriveRequest()
-            {
-                TargetDrive = targetDrive,
-                Name = name,
-                Metadata = metadata,
-                AllowAnonymousReads = false
-            });
-
-            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            ClassicAssert.IsNotNull(response.Content);
-
-            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
-            var page = getDrivesResponse.Content;
-
-            ClassicAssert.IsTrue(page.Results.Any());
-            var theDrive = page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias
-                                                                 && drive.TargetDriveInfo.Type == targetDrive.Type);
-            ClassicAssert.NotNull(theDrive);
-            ClassicAssert.IsFalse(theDrive.IsArchived);
-
-            var setArchiveFlagResponse = await svc.SetArchiveDriveFlag(new UpdateDriveArchiveFlag()
-            {
-                TargetDrive = targetDrive,
-                Archived = true
-            });
-
-            ClassicAssert.IsTrue(setArchiveFlagResponse.IsSuccessStatusCode);
-
-            var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            ClassicAssert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
-            var updatedDrivesPage = getUpdatedResponse.Content?.Results;
-            ClassicAssert.IsNotNull(updatedDrivesPage);
-            ClassicAssert.IsFalse(updatedDrivesPage!.Any(d => d.TargetDriveInfo == targetDrive), "archived drive should not be returned");
-        }
-    }
-
-    [Test]
-    public async Task CanUnarchiveDriveAndDriveReturnedFromResults()
-    {
-        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
-        {
-            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
-
-            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
-            string name = "test drive 01";
-            string metadata = "{some:'json'}";
-
-            var response = await svc.CreateDrive(new CreateDriveRequest()
-            {
-                TargetDrive = targetDrive,
-                Name = name,
-                Metadata = metadata,
-                AllowAnonymousReads = false
-            });
-
-            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            ClassicAssert.IsNotNull(response.Content);
-
-            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
-            var page = getDrivesResponse.Content;
-
-            ClassicAssert.IsTrue(page.Results.Any());
-            var theDrive = page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias
-                                                                 && drive.TargetDriveInfo.Type == targetDrive.Type);
-            ClassicAssert.NotNull(theDrive);
-            ClassicAssert.IsFalse(theDrive.IsArchived);
-
-            var setArchiveFlagResponse = await svc.SetArchiveDriveFlag(new UpdateDriveArchiveFlag()
-            {
-                TargetDrive = targetDrive,
-                Archived = true
-            });
-
-            ClassicAssert.IsTrue(setArchiveFlagResponse.IsSuccessStatusCode);
-
-            var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            ClassicAssert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
-            var updatedDrivesPage = getUpdatedResponse.Content?.Results;
-            ClassicAssert.IsNotNull(updatedDrivesPage);
-            ClassicAssert.IsFalse(updatedDrivesPage!.Any(d => d.TargetDriveInfo == targetDrive), "archived drive should not be returned");
-
-            //
-            // now unarchive it
-            //
-
-            var setArchiveFlagResponse2 = await svc.SetArchiveDriveFlag(new UpdateDriveArchiveFlag()
-            {
-                TargetDrive = targetDrive,
-                Archived = false
-            });
-
-            ClassicAssert.IsTrue(setArchiveFlagResponse2.IsSuccessStatusCode);
-
-            var getUpdatedResponse2 = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
-            ClassicAssert.IsTrue(getUpdatedResponse2.IsSuccessStatusCode);
-            var updatedDrivesPage2 = getUpdatedResponse2.Content?.Results;
-            ClassicAssert.IsNotNull(updatedDrivesPage2);
-            ClassicAssert.IsFalse(updatedDrivesPage2!.Any(d => d.TargetDriveInfo == targetDrive), "archived drive should be returned");
-        }
-    }
 }

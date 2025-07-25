@@ -58,6 +58,19 @@ public class DriveManagementApiClient
         return await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = pageNumber, PageSize = pageSize });
     }
 
+    public async Task<ApiResponse<HttpContent>> SetArchiveFlag(TargetDrive drive, bool value)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);
+
+        var driveSvc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, sharedSecret);
+        return await driveSvc.SetArchiveDriveFlag(new UpdateDriveArchiveFlag
+        {
+            TargetDrive = drive,
+            Archived = value
+        });
+    }
+
+
     public async Task<ApiResponse<HttpContent>> Defrag()
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret);

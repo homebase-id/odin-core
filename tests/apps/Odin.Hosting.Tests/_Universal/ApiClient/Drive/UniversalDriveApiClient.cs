@@ -20,6 +20,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -432,7 +433,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
                     Enum.GetName(MultipartUploadParts.Metadata))
-
             ];
 
             foreach (var payloadDefinition in payloads)
@@ -1016,5 +1016,19 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     public async Task WaitForFeedOutboxDistribution(TargetDrive drive, TimeSpan? timeout = null)
     {
         await this.WaitForEmptyOutbox(drive, timeout);
+    }
+
+    public async Task<ApiResponse<PagedResult<ClientDriveData>>> GetDrivesByType(Guid type)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+        var response = await svc.GetDrivesByType(new GetDrivesByTypeRequest
+        {
+            DriveType = type,
+            PageNumber = 1,
+            PageSize = 100
+        });
+
+        return response;
     }
 }

@@ -387,6 +387,13 @@ public class DriveManager : IDriveManager
             _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
+        // only show archived drives to the owner console
+        var shouldFilterArchivedDrive = odinContext?.Caller == null || odinContext.Caller.HasMasterKey == false;
+        if (shouldFilterArchivedDrive)
+        {
+            allDrives = allDrives.Where(d => !d.IsArchived).ToList();
+        }
+
         var caller = odinContext.Caller;
         if (caller?.IsOwner ?? false)
         {
@@ -399,12 +406,12 @@ public class DriveManager : IDriveManager
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
 
-        Func<StorageDrive, bool> predicate = drive => drive.OwnerOnly == false && drive.IsArchived == false;
+        Func<StorageDrive, bool> predicate = drive => drive.OwnerOnly == false;
         if (enforceSecurity)
         {
             if (caller.IsAnonymous) //default to anonymous 
             {
-                predicate = drive => drive.AllowAnonymousReads && drive.OwnerOnly == false && drive.IsArchived == false;
+                predicate = drive => drive.AllowAnonymousReads && drive.OwnerOnly == false;
             }
         }
 
