@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Core;
 using Odin.Services.Drives.Management;
 
@@ -164,4 +165,9 @@ public static class SystemDriveConstants
         TargetDrive = MailDrive,
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
     };
+
+    public static bool IsSystemDrive(Guid driveId)
+    {
+        return SystemDrives.Any(d => d.Alias == driveId);
+    }
 }

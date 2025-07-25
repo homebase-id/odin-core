@@ -28,11 +28,11 @@ public class DatabaseMigrationTests : IocTestBase
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
         // I need to upgrade this code when I am not stress coding.
-        var list = new TableDriveMainIndexMigrationList();
-        var m1 = list.GetByVersion(0);
+        var list = new TableDrivesMigrationList();
+        var migrationLatestVersion = list.GetLatestVersion();
         string version = await MigrationBase.GetTableCommentAsync(cn, "Drives");
         int v = await MigrationBase.GetTableVersionAsync(cn, "Drives");
-        ClassicAssert.IsTrue(v == 0);
+        ClassicAssert.IsTrue(v == migrationLatestVersion.MigrationVersion);
     }
     
     [Test]

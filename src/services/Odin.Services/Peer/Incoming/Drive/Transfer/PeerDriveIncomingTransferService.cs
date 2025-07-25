@@ -61,7 +61,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // Notice here: we always create a new fileId when receiving a new file.
             var file = new TempFile()
             {
-                File = await fileSystem.Storage.CreateInternalFileId(driveId),
+                File = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext),
                 StorageType = canDirectWrite ? TempStorageType.Upload : TempStorageType.Inbox
             };
 
