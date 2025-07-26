@@ -17,29 +17,29 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableDriveMainIndexMigrationV20250719 : MigrationBase
+    public class TableDriveMainIndexMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 20250719;
-        public TableDriveMainIndexMigrationV20250719(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableDriveMainIndexMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigrationsV20250719");
+                await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveMainIndexMigrationsV20250719 IS '{ \"Version\": 20250719 }';";
+               commentSql = "COMMENT ON TABLE DriveMainIndexMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveMainIndexMigrationsV20250719( -- { \"Version\": 20250719 }\n"
+                "CREATE TABLE DriveMainIndexMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -75,9 +75,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,driveId,globalTransitId)"
                    +", UNIQUE(identityId,hdrVersionTag)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0DriveMainIndexMigrationsV20250719 ON DriveMainIndexMigrationsV20250719(identityId,driveId,fileSystemType,requiredSecurityGroup,created,rowId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1DriveMainIndexMigrationsV20250719 ON DriveMainIndexMigrationsV20250719(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2DriveMainIndexMigrationsV20250719 ON DriveMainIndexMigrationsV20250719(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
+                   +"CREATE INDEX Idx0DriveMainIndexMigrationsV0 ON DriveMainIndexMigrationsV0(identityId,driveId,fileSystemType,requiredSecurityGroup,created,rowId);"
+                   +"CREATE INDEX Idx1DriveMainIndexMigrationsV0 ON DriveMainIndexMigrationsV0(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
+                   +"CREATE INDEX Idx2DriveMainIndexMigrationsV0 ON DriveMainIndexMigrationsV0(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -122,7 +122,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO DriveMainIndexMigrationsV20250719 (rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
+                copyCommand.CommandText = "INSERT INTO DriveMainIndexMigrationsV0 (rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
                $"SELECT rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified "+
                $"FROM DriveMainIndex;";
                return await copyCommand.ExecuteNonQueryAsync();
@@ -130,50 +130,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
         // DriveMainIndex is presumed to be the previous version
-        // Will upgrade from the previous version to version 20250719
+        // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            Container.ValidateMigrationList();
-            await CheckSqlTableVersion(cn, "DriveMainIndex", Container.PreviousVersionInt(this));
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    await EnsureTableExistsAsync(cn, dropExisting: true);
-                    if (await CopyDataAsync(cn) < 0)
-                        throw new MigrationException("Unable to copy the data");
-                    if (await VerifyRowCount(cn, "DriveMainIndex", "DriveMainIndexMigrationsV20250719") == false)
-                        throw new MigrationException("Mismatching row counts");
-                    await RenameAsync(cn, "DriveMainIndex", $"DriveMainIndexMigrationsV{Container.PreviousVersionInt(this)}");
-                    await RenameAsync(cn, "DriveMainIndexMigrationsV20250719", "DriveMainIndex");
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
+            await Task.Delay(0);
+            throw new  Exception("You cannot move up from version 0");
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            Container.ValidateMigrationList();
-            await CheckSqlTableVersion(cn, "DriveMainIndex", this.MigrationVersion);
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    if (await VerifyRowCount(cn, $"DriveMainIndexMigrationsV{Container.PreviousVersionInt(this)}", "DriveMainIndex") == false)
-                        throw new MigrationException("Mismatching row counts - bad idea to downgrade");
-                    await RenameAsync(cn, "DriveMainIndex", "DriveMainIndexMigrationsV20250719");
-                    await RenameAsync(cn, $"DriveMainIndexMigrationsV{Container.PreviousVersionInt(this)}", "DriveMainIndex");
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
+            await Task.Delay(0);
+            throw new  Exception("You cannot move down from version 0");
         }
 
     }

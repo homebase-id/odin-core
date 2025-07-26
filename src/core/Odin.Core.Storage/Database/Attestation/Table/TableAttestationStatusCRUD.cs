@@ -63,7 +63,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS AttestationStatus( -- { \"Version\": 0 }\n"
+                "CREATE TABLE AttestationStatus( -- { \"Version\": 0 }\n"
                    +rowid
                    +"attestationId BYTEA NOT NULL UNIQUE, "
                    +"status BIGINT NOT NULL, "

@@ -9,7 +9,7 @@ public class TableDriveReactionsMigrationList : MigrationListBase
     public TableDriveReactionsMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableDriveReactionsMigrationV0(this),
+            new TableDriveReactionsMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

@@ -15,39 +15,37 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-[assembly: InternalsVisibleTo("DatabaseCommitTest")]
-[assembly: InternalsVisibleTo("DatabaseConnectionTests")]
-
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableKeyValueMigrationV0 : MigrationBase
+    public class TableCircleMemberMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableKeyValueMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableCircleMemberMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyValueMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "CircleMemberMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE KeyValueMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE CircleMemberMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyValueMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE CircleMemberMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"key BYTEA NOT NULL, "
+                   +"circleId BYTEA NOT NULL, "
+                   +"memberId BYTEA NOT NULL, "
                    +"data BYTEA  "
-                   +", UNIQUE(identityId,key)"
+                   +", UNIQUE(identityId,circleId,memberId)"
                    +$"){wori};"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
@@ -58,7 +56,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("key");
+            sl.Add("circleId");
+            sl.Add("memberId");
             sl.Add("data");
             return sl;
         }
@@ -67,9 +66,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO KeyValueMigrationsV0 (rowId,identityId,key,data) " +
-               $"SELECT rowId,identityId,key,data "+
-               $"FROM KeyValue;";
+                copyCommand.CommandText = "INSERT INTO CircleMemberMigrationsV0 (rowId,identityId,circleId,memberId,data) " +
+               $"SELECT rowId,identityId,circleId,memberId,data "+
+               $"FROM CircleMember;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

@@ -9,7 +9,7 @@ public class TableDriveLocalTagIndexMigrationList : MigrationListBase
     public TableDriveLocalTagIndexMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableDriveLocalTagIndexMigrationV0(this),
+            new TableDriveLocalTagIndexMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

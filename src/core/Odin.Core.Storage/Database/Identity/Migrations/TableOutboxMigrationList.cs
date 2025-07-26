@@ -9,7 +9,7 @@ public class TableOutboxMigrationList : MigrationListBase
     public TableOutboxMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableOutboxMigrationV0(this),
+            new TableOutboxMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

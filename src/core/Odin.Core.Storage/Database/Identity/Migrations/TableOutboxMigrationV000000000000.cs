@@ -17,36 +17,47 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableCircleMigrationV0 : MigrationBase
+    public class TableOutboxMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableCircleMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableOutboxMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "CircleMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "OutboxMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE CircleMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE OutboxMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS CircleMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE OutboxMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"circleId BYTEA NOT NULL UNIQUE, "
-                   +"circleName TEXT NOT NULL, "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,circleId)"
+                   +"driveId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL, "
+                   +"recipient TEXT NOT NULL, "
+                   +"type BIGINT NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"dependencyFileId BYTEA , "
+                   +"checkOutCount BIGINT NOT NULL, "
+                   +"nextRunTime BIGINT NOT NULL, "
+                   +"value BYTEA , "
+                   +"checkOutStamp BYTEA , "
+                   +"correlationId TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
+                   +", UNIQUE(identityId,driveId,fileId,recipient)"
                    +$"){wori};"
+                   +"CREATE INDEX Idx0OutboxMigrationsV0 ON OutboxMigrationsV0(identityId,nextRunTime);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -56,9 +67,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("circleId");
-            sl.Add("circleName");
-            sl.Add("data");
+            sl.Add("driveId");
+            sl.Add("fileId");
+            sl.Add("recipient");
+            sl.Add("type");
+            sl.Add("priority");
+            sl.Add("dependencyFileId");
+            sl.Add("checkOutCount");
+            sl.Add("nextRunTime");
+            sl.Add("value");
+            sl.Add("checkOutStamp");
+            sl.Add("correlationId");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
@@ -66,9 +87,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO CircleMigrationsV0 (rowId,identityId,circleId,circleName,data) " +
-               $"SELECT rowId,identityId,circleId,circleName,data "+
-               $"FROM Circle;";
+                copyCommand.CommandText = "INSERT INTO OutboxMigrationsV0 (rowId,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
+               $"SELECT rowId,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified "+
+               $"FROM Outbox;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

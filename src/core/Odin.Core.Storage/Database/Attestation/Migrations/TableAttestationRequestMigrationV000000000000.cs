@@ -15,38 +15,35 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Attestation.Table
 {
-    public class TableDriveReactionsMigrationV0 : MigrationBase
+    public class TableAttestationRequestMigrationV0 : MigrationBase
     {
         public override int MigrationVersion => 0;
-        public TableDriveReactionsMigrationV0(MigrationListBase container) : base(container)
+        public TableAttestationRequestMigrationV0(long previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "DriveReactionsMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "AttestationRequestMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveReactionsMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE AttestationRequestMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveReactionsMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE AttestationRequestMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"driveId BYTEA NOT NULL, "
-                   +"postId BYTEA NOT NULL, "
-                   +"identity TEXT NOT NULL, "
-                   +"singleReaction TEXT NOT NULL "
-                   +", UNIQUE(identityId,driveId,postId,identity,singleReaction)"
+                   +"attestationId TEXT NOT NULL UNIQUE, "
+                   +"requestEnvelope TEXT NOT NULL UNIQUE, "
+                   +"timestamp BIGINT NOT NULL "
                    +$"){wori};"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
@@ -56,11 +53,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             var sl = new List<string>();
             sl.Add("rowId");
-            sl.Add("identityId");
-            sl.Add("driveId");
-            sl.Add("postId");
-            sl.Add("identity");
-            sl.Add("singleReaction");
+            sl.Add("attestationId");
+            sl.Add("requestEnvelope");
+            sl.Add("timestamp");
             return sl;
         }
 
@@ -68,9 +63,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO DriveReactionsMigrationsV0 (rowId,identityId,driveId,postId,identity,singleReaction) " +
-               $"SELECT rowId,identityId,driveId,postId,identity,singleReaction "+
-               $"FROM DriveReactions;";
+                copyCommand.CommandText = "INSERT INTO AttestationRequestMigrationsV0 (rowId,attestationId,requestEnvelope,timestamp) " +
+               $"SELECT rowId,attestationId,requestEnvelope,timestamp "+
+               $"FROM AttestationRequest;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

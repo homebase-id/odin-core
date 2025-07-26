@@ -21,16 +21,16 @@ namespace Odin.Core.Storage.Database
 
     public abstract class MigrationBase
     {
-        public abstract int MigrationVersion { get; }
-        public MigrationListBase Container { get; }
+        public abstract Int64 MigrationVersion { get; }
+        public Int64 PreviousVersion { get; }
 
-        protected MigrationBase(MigrationListBase container)
+        protected MigrationBase(Int64 previousVersion)
         {
-            Container = container;
+            PreviousVersion = previousVersion;
         }
 
 
-        public async Task CheckSqlTableVersion(IConnectionWrapper cn, string tableName, int versionMustBe)
+        public async Task CheckSqlTableVersion(IConnectionWrapper cn, string tableName, Int64 versionMustBe)
         {
             var sqlVersion = await MigrationBase.GetTableVersionAsync(cn, tableName);
             if (sqlVersion == -1)

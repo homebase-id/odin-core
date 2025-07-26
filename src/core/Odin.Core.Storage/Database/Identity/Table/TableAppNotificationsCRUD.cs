@@ -70,7 +70,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS AppNotifications( -- { \"Version\": 0 }\n"
+                "CREATE TABLE AppNotifications( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"notificationId BYTEA NOT NULL UNIQUE, "
@@ -82,7 +82,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,notificationId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0AppNotifications ON AppNotifications(identityId,created);"
+                   +"CREATE INDEX Idx0AppNotifications ON AppNotifications(identityId,created);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }

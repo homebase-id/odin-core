@@ -17,41 +17,45 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableDriveTransferHistoryMigrationV0 : MigrationBase
+    public class TableInboxMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableDriveTransferHistoryMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableInboxMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "DriveTransferHistoryMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "InboxMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveTransferHistoryMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE InboxMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveTransferHistoryMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE InboxMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"driveId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL, "
-                   +"remoteIdentityId TEXT NOT NULL, "
-                   +"latestTransferStatus BIGINT NOT NULL, "
-                   +"isInOutbox BOOLEAN NOT NULL, "
-                   +"latestSuccessfullyDeliveredVersionTag BYTEA , "
-                   +"isReadByRecipient BOOLEAN NOT NULL "
-                   +", UNIQUE(identityId,driveId,fileId,remoteIdentityId)"
+                   +"fileId BYTEA NOT NULL UNIQUE, "
+                   +"boxId BYTEA NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"timeStamp BIGINT NOT NULL, "
+                   +"value BYTEA , "
+                   +"popStamp BYTEA , "
+                   +"correlationId TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
+                   +", UNIQUE(identityId,fileId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0DriveTransferHistoryMigrationsV0 ON DriveTransferHistoryMigrationsV0(identityId,driveId,fileId);"
+                   +"CREATE INDEX Idx0InboxMigrationsV0 ON InboxMigrationsV0(identityId,timeStamp);"
+                   +"CREATE INDEX Idx1InboxMigrationsV0 ON InboxMigrationsV0(identityId,boxId);"
+                   +"CREATE INDEX Idx2InboxMigrationsV0 ON InboxMigrationsV0(identityId,popStamp);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -61,13 +65,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("driveId");
             sl.Add("fileId");
-            sl.Add("remoteIdentityId");
-            sl.Add("latestTransferStatus");
-            sl.Add("isInOutbox");
-            sl.Add("latestSuccessfullyDeliveredVersionTag");
-            sl.Add("isReadByRecipient");
+            sl.Add("boxId");
+            sl.Add("priority");
+            sl.Add("timeStamp");
+            sl.Add("value");
+            sl.Add("popStamp");
+            sl.Add("correlationId");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
@@ -75,9 +81,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO DriveTransferHistoryMigrationsV0 (rowId,identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
-               $"SELECT rowId,identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient "+
-               $"FROM DriveTransferHistory;";
+                copyCommand.CommandText = "INSERT INTO InboxMigrationsV0 (rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
+               $"SELECT rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified "+
+               $"FROM Inbox;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

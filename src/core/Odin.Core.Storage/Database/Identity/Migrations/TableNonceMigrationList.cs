@@ -9,7 +9,7 @@ public class TableNonceMigrationList : MigrationListBase
     public TableNonceMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableNonceMigrationV0(this),
+            new TableNonceMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

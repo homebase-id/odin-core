@@ -9,7 +9,7 @@ public class TableCertificatesMigrationList : MigrationListBase
     public TableCertificatesMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableCertificatesMigrationV0(this),
+            new TableCertificatesMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

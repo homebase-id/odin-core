@@ -17,36 +17,41 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableDriveLocalTagIndexMigrationV0 : MigrationBase
+    public class TableConnectionsMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableDriveLocalTagIndexMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableConnectionsMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "DriveLocalTagIndexMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "ConnectionsMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveLocalTagIndexMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE ConnectionsMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveLocalTagIndexMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE ConnectionsMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"driveId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL, "
-                   +"tagId BYTEA NOT NULL "
-                   +", UNIQUE(identityId,driveId,fileId,tagId)"
+                   +"identity TEXT NOT NULL, "
+                   +"displayName TEXT NOT NULL, "
+                   +"status BIGINT NOT NULL, "
+                   +"accessIsRevoked BIGINT NOT NULL, "
+                   +"data BYTEA , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
+                   +", UNIQUE(identityId,identity)"
                    +$"){wori};"
+                   +"CREATE INDEX Idx0ConnectionsMigrationsV0 ON ConnectionsMigrationsV0(identityId,created);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -56,9 +61,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("driveId");
-            sl.Add("fileId");
-            sl.Add("tagId");
+            sl.Add("identity");
+            sl.Add("displayName");
+            sl.Add("status");
+            sl.Add("accessIsRevoked");
+            sl.Add("data");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
@@ -66,9 +75,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO DriveLocalTagIndexMigrationsV0 (rowId,identityId,driveId,fileId,tagId) " +
-               $"SELECT rowId,identityId,driveId,fileId,tagId "+
-               $"FROM DriveLocalTagIndex;";
+                copyCommand.CommandText = "INSERT INTO ConnectionsMigrationsV0 (rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
+               $"SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified "+
+               $"FROM Connections;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

@@ -19,8 +19,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 {
     public class TableKeyUniqueThreeValueMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableKeyUniqueThreeValueMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableKeyUniqueThreeValueMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
@@ -39,7 +39,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyUniqueThreeValueMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE KeyUniqueThreeValueMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL, "
@@ -49,8 +49,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,key1)"
                    +", UNIQUE(identityId,key2,key3)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyUniqueThreeValueMigrationsV0 ON KeyUniqueThreeValueMigrationsV0(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1KeyUniqueThreeValueMigrationsV0 ON KeyUniqueThreeValueMigrationsV0(key3);"
+                   +"CREATE INDEX Idx0KeyUniqueThreeValueMigrationsV0 ON KeyUniqueThreeValueMigrationsV0(identityId,key2);"
+                   +"CREATE INDEX Idx1KeyUniqueThreeValueMigrationsV0 ON KeyUniqueThreeValueMigrationsV0(key3);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }

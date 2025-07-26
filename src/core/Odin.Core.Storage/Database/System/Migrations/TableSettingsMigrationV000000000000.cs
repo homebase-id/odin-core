@@ -15,47 +15,37 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.System.Table
 {
-    public class TableInboxMigrationV0 : MigrationBase
+    public class TableSettingsMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableInboxMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableSettingsMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "InboxMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "SettingsMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE InboxMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE SettingsMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS InboxMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE SettingsMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL UNIQUE, "
-                   +"boxId BYTEA NOT NULL, "
-                   +"priority BIGINT NOT NULL, "
-                   +"timeStamp BIGINT NOT NULL, "
-                   +"value BYTEA , "
-                   +"popStamp BYTEA , "
-                   +"correlationId TEXT , "
+                   +"key TEXT NOT NULL UNIQUE, "
+                   +"value TEXT NOT NULL, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,fileId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0InboxMigrationsV0 ON InboxMigrationsV0(identityId,timeStamp);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1InboxMigrationsV0 ON InboxMigrationsV0(identityId,boxId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2InboxMigrationsV0 ON InboxMigrationsV0(identityId,popStamp);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -64,14 +54,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             var sl = new List<string>();
             sl.Add("rowId");
-            sl.Add("identityId");
-            sl.Add("fileId");
-            sl.Add("boxId");
-            sl.Add("priority");
-            sl.Add("timeStamp");
+            sl.Add("key");
             sl.Add("value");
-            sl.Add("popStamp");
-            sl.Add("correlationId");
             sl.Add("created");
             sl.Add("modified");
             return sl;
@@ -81,9 +65,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO InboxMigrationsV0 (rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
-               $"SELECT rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified "+
-               $"FROM Inbox;";
+                copyCommand.CommandText = "INSERT INTO SettingsMigrationsV0 (rowId,key,value,created,modified) " +
+               $"SELECT rowId,key,value,created,modified "+
+               $"FROM Settings;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

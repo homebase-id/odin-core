@@ -80,7 +80,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Outbox( -- { \"Version\": 0 }\n"
+                "CREATE TABLE Outbox( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -98,7 +98,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,recipient)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0Outbox ON Outbox(identityId,nextRunTime);"
+                   +"CREATE INDEX Idx0Outbox ON Outbox(identityId,nextRunTime);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }

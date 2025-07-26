@@ -9,7 +9,7 @@ public class TableKeyThreeValueMigrationList : MigrationListBase
     public TableKeyThreeValueMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableKeyThreeValueMigrationV0(this),
+            new TableKeyThreeValueMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

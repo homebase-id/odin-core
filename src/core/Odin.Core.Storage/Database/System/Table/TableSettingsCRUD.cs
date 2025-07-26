@@ -64,7 +64,7 @@ namespace Odin.Core.Storage.Database.System.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Settings( -- { \"Version\": 0 }\n"
+                "CREATE TABLE Settings( -- { \"Version\": 0 }\n"
                    +rowid
                    +"key TEXT NOT NULL UNIQUE, "
                    +"value TEXT NOT NULL, "

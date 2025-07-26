@@ -15,42 +15,37 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.System.Table
+namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableRegistrationsMigrationV0 : MigrationBase
+    public class TableCircleMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableRegistrationsMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableCircleMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "RegistrationsMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "CircleMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE RegistrationsMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE CircleMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS RegistrationsMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE CircleMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
-                   +"identityId BYTEA NOT NULL UNIQUE, "
-                   +"email TEXT , "
-                   +"primaryDomainName TEXT NOT NULL UNIQUE, "
-                   +"firstRunToken TEXT , "
-                   +"disabled BOOLEAN NOT NULL, "
-                   +"markedForDeletionDate BIGINT , "
-                   +"planId TEXT , "
-                   +"json TEXT , "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
+                   +"identityId BYTEA NOT NULL, "
+                   +"circleId BYTEA NOT NULL UNIQUE, "
+                   +"circleName TEXT NOT NULL, "
+                   +"data BYTEA  "
+                   +", UNIQUE(identityId,circleId)"
                    +$"){wori};"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
@@ -61,15 +56,9 @@ namespace Odin.Core.Storage.Database.System.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("email");
-            sl.Add("primaryDomainName");
-            sl.Add("firstRunToken");
-            sl.Add("disabled");
-            sl.Add("markedForDeletionDate");
-            sl.Add("planId");
-            sl.Add("json");
-            sl.Add("created");
-            sl.Add("modified");
+            sl.Add("circleId");
+            sl.Add("circleName");
+            sl.Add("data");
             return sl;
         }
 
@@ -77,9 +66,9 @@ namespace Odin.Core.Storage.Database.System.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO RegistrationsMigrationsV0 (rowId,identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified) " +
-               $"SELECT rowId,identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified "+
-               $"FROM Registrations;";
+                copyCommand.CommandText = "INSERT INTO CircleMigrationsV0 (rowId,identityId,circleId,circleName,data) " +
+               $"SELECT rowId,identityId,circleId,circleName,data "+
+               $"FROM Circle;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

@@ -17,37 +17,41 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableKeyTwoValueMigrationV0 : MigrationBase
+    public class TableDriveTransferHistoryMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableKeyTwoValueMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableDriveTransferHistoryMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyTwoValueMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "DriveTransferHistoryMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE KeyTwoValueMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE DriveTransferHistoryMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyTwoValueMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE DriveTransferHistoryMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"key1 BYTEA NOT NULL, "
-                   +"key2 BYTEA , "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,key1)"
+                   +"driveId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL, "
+                   +"remoteIdentityId TEXT NOT NULL, "
+                   +"latestTransferStatus BIGINT NOT NULL, "
+                   +"isInOutbox BOOLEAN NOT NULL, "
+                   +"latestSuccessfullyDeliveredVersionTag BYTEA , "
+                   +"isReadByRecipient BOOLEAN NOT NULL "
+                   +", UNIQUE(identityId,driveId,fileId,remoteIdentityId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyTwoValueMigrationsV0 ON KeyTwoValueMigrationsV0(identityId,key2);"
+                   +"CREATE INDEX Idx0DriveTransferHistoryMigrationsV0 ON DriveTransferHistoryMigrationsV0(identityId,driveId,fileId);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -57,9 +61,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("key1");
-            sl.Add("key2");
-            sl.Add("data");
+            sl.Add("driveId");
+            sl.Add("fileId");
+            sl.Add("remoteIdentityId");
+            sl.Add("latestTransferStatus");
+            sl.Add("isInOutbox");
+            sl.Add("latestSuccessfullyDeliveredVersionTag");
+            sl.Add("isReadByRecipient");
             return sl;
         }
 
@@ -67,9 +75,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO KeyTwoValueMigrationsV0 (rowId,identityId,key1,key2,data) " +
-               $"SELECT rowId,identityId,key1,key2,data "+
-               $"FROM KeyTwoValue;";
+                copyCommand.CommandText = "INSERT INTO DriveTransferHistoryMigrationsV0 (rowId,identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
+               $"SELECT rowId,identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient "+
+               $"FROM DriveTransferHistory;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

@@ -73,7 +73,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyUniqueThreeValue( -- { \"Version\": 0 }\n"
+                "CREATE TABLE KeyUniqueThreeValue( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL, "
@@ -83,8 +83,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,key1)"
                    +", UNIQUE(identityId,key2,key3)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyUniqueThreeValue ON KeyUniqueThreeValue(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1KeyUniqueThreeValue ON KeyUniqueThreeValue(key3);"
+                   +"CREATE INDEX Idx0KeyUniqueThreeValue ON KeyUniqueThreeValue(identityId,key2);"
+                   +"CREATE INDEX Idx1KeyUniqueThreeValue ON KeyUniqueThreeValue(key3);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }

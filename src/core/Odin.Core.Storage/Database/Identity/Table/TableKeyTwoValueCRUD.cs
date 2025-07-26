@@ -68,7 +68,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyTwoValue( -- { \"Version\": 0 }\n"
+                "CREATE TABLE KeyTwoValue( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL, "
@@ -76,7 +76,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA  "
                    +", UNIQUE(identityId,key1)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyTwoValue ON KeyTwoValue(identityId,key2);"
+                   +"CREATE INDEX Idx0KeyTwoValue ON KeyTwoValue(identityId,key2);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }

@@ -17,41 +17,36 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableAppNotificationsMigrationV0 : MigrationBase
+    public class TableDriveAclIndexMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableAppNotificationsMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableDriveAclIndexMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "AppNotificationsMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "DriveAclIndexMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE AppNotificationsMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE DriveAclIndexMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS AppNotificationsMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE DriveAclIndexMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"notificationId BYTEA NOT NULL UNIQUE, "
-                   +"unread BIGINT NOT NULL, "
-                   +"senderId TEXT , "
-                   +"timestamp BIGINT NOT NULL, "
-                   +"data BYTEA , "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,notificationId)"
+                   +"driveId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL, "
+                   +"aclMemberId BYTEA NOT NULL "
+                   +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0AppNotificationsMigrationsV0 ON AppNotificationsMigrationsV0(identityId,created);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -61,13 +56,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("notificationId");
-            sl.Add("unread");
-            sl.Add("senderId");
-            sl.Add("timestamp");
-            sl.Add("data");
-            sl.Add("created");
-            sl.Add("modified");
+            sl.Add("driveId");
+            sl.Add("fileId");
+            sl.Add("aclMemberId");
             return sl;
         }
 
@@ -75,9 +66,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO AppNotificationsMigrationsV0 (rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +
-               $"SELECT rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified "+
-               $"FROM AppNotifications;";
+                copyCommand.CommandText = "INSERT INTO DriveAclIndexMigrationsV0 (rowId,identityId,driveId,fileId,aclMemberId) " +
+               $"SELECT rowId,identityId,driveId,fileId,aclMemberId "+
+               $"FROM DriveAclIndex;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

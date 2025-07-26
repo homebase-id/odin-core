@@ -15,42 +15,39 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-[assembly: InternalsVisibleTo("DatabaseCommitTest")]
-
 namespace Odin.Core.Storage.Database.Identity.Table
 {
-    public class TableFollowsMeMigrationV0 : MigrationBase
+    public class TableDriveReactionsMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableFollowsMeMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableDriveReactionsMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "FollowsMeMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "DriveReactionsMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE FollowsMeMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE DriveReactionsMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS FollowsMeMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE DriveReactionsMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
-                   +"identity TEXT NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,identity,driveId)"
+                   +"postId BYTEA NOT NULL, "
+                   +"identity TEXT NOT NULL, "
+                   +"singleReaction TEXT NOT NULL "
+                   +", UNIQUE(identityId,driveId,postId,identity,singleReaction)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0FollowsMeMigrationsV0 ON FollowsMeMigrationsV0(identityId,identity);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -60,10 +57,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("identityId");
-            sl.Add("identity");
             sl.Add("driveId");
-            sl.Add("created");
-            sl.Add("modified");
+            sl.Add("postId");
+            sl.Add("identity");
+            sl.Add("singleReaction");
             return sl;
         }
 
@@ -71,9 +68,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO FollowsMeMigrationsV0 (rowId,identityId,identity,driveId,created,modified) " +
-               $"SELECT rowId,identityId,identity,driveId,created,modified "+
-               $"FROM FollowsMe;";
+                copyCommand.CommandText = "INSERT INTO DriveReactionsMigrationsV0 (rowId,identityId,driveId,postId,identity,singleReaction) " +
+               $"SELECT rowId,identityId,driveId,postId,identity,singleReaction "+
+               $"FROM DriveReactions;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

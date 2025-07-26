@@ -9,7 +9,7 @@ public class TableSettingsMigrationList : MigrationListBase
     public TableSettingsMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableSettingsMigrationV0(this),
+            new TableSettingsMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

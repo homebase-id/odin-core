@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS CircleMember( -- { \"Version\": 0 }\n"
+                "CREATE TABLE CircleMember( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL, "

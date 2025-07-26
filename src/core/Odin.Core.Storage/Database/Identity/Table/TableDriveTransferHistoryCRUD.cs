@@ -66,7 +66,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveTransferHistory( -- { \"Version\": 0 }\n"
+                "CREATE TABLE DriveTransferHistory( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -78,7 +78,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"isReadByRecipient BOOLEAN NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,remoteIdentityId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0DriveTransferHistory ON DriveTransferHistory(identityId,driveId,fileId);"
+                   +"CREATE INDEX Idx0DriveTransferHistory ON DriveTransferHistory(identityId,driveId,fileId);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }

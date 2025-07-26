@@ -89,7 +89,7 @@ namespace Odin.Core.Storage.Database.System.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Jobs( -- { \"Version\": 0 }\n"
+                "CREATE TABLE Jobs( -- { \"Version\": 0 }\n"
                    +rowid
                    +"id BYTEA NOT NULL UNIQUE, "
                    +"name TEXT NOT NULL, "
@@ -111,9 +111,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0Jobs ON Jobs(state);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1Jobs ON Jobs(expiresAt);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2Jobs ON Jobs(nextRun,priority);"
+                   +"CREATE INDEX Idx0Jobs ON Jobs(state);"
+                   +"CREATE INDEX Idx1Jobs ON Jobs(expiresAt);"
+                   +"CREATE INDEX Idx2Jobs ON Jobs(nextRun,priority);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }

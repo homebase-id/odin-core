@@ -15,41 +15,42 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.System.Table
 {
-    public class TableKeyThreeValueMigrationV0 : MigrationBase
+    public class TableCertificatesMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableKeyThreeValueMigrationV0(MigrationListBase container) : base(container)
+        public override Int64 MigrationVersion => 0;
+        public TableCertificatesMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyThreeValueMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "CertificatesMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE KeyThreeValueMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE CertificatesMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyThreeValueMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE CertificatesMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"key1 BYTEA NOT NULL, "
-                   +"key2 BYTEA , "
-                   +"key3 BYTEA , "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,key1)"
+                   +"domain TEXT NOT NULL UNIQUE, "
+                   +"privateKey TEXT NOT NULL, "
+                   +"certificate TEXT NOT NULL, "
+                   +"expiration BIGINT NOT NULL, "
+                   +"lastAttempt BIGINT NOT NULL, "
+                   +"correlationId TEXT NOT NULL, "
+                   +"lastError TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(key3);"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
         }
@@ -58,11 +59,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             var sl = new List<string>();
             sl.Add("rowId");
-            sl.Add("identityId");
-            sl.Add("key1");
-            sl.Add("key2");
-            sl.Add("key3");
-            sl.Add("data");
+            sl.Add("domain");
+            sl.Add("privateKey");
+            sl.Add("certificate");
+            sl.Add("expiration");
+            sl.Add("lastAttempt");
+            sl.Add("correlationId");
+            sl.Add("lastError");
+            sl.Add("created");
+            sl.Add("modified");
             return sl;
         }
 
@@ -70,9 +75,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO KeyThreeValueMigrationsV0 (rowId,identityId,key1,key2,key3,data) " +
-               $"SELECT rowId,identityId,key1,key2,key3,data "+
-               $"FROM KeyThreeValue;";
+                copyCommand.CommandText = "INSERT INTO CertificatesMigrationsV0 (rowId,domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified) " +
+               $"SELECT rowId,domain,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified "+
+               $"FROM Certificates;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

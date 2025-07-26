@@ -9,7 +9,7 @@ public class TableKeyUniqueThreeValueMigrationList : MigrationListBase
     public TableKeyUniqueThreeValueMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableKeyUniqueThreeValueMigrationV0(this),
+            new TableKeyUniqueThreeValueMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

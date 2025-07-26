@@ -9,7 +9,7 @@ public class TableKeyTwoValueMigrationList : MigrationListBase
     public TableKeyTwoValueMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableKeyTwoValueMigrationV0(this),
+            new TableKeyTwoValueMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

@@ -85,7 +85,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS NotaryChain( -- { \"Version\": 0 }\n"
+                "CREATE TABLE NotaryChain( -- { \"Version\": 0 }\n"
                    +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "

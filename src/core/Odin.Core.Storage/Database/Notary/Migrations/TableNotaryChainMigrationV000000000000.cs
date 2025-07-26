@@ -15,37 +15,40 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Notary.Table
 {
-    public class TableCircleMemberMigrationV0 : MigrationBase
+    public class TableNotaryChainMigrationV0 : MigrationBase
     {
         public override int MigrationVersion => 0;
-        public TableCircleMemberMigrationV0(MigrationListBase container) : base(container)
+        public TableNotaryChainMigrationV0(long previousVersion) : base(previousVersion)
         {
         }
 
         public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
         {
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "CircleMemberMigrationsV0");
+                await MigrationBase.DeleteTableAsync(cn, "NotaryChainMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE CircleMemberMigrationsV0 IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE NotaryChainMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS CircleMemberMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE NotaryChainMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"circleId BYTEA NOT NULL, "
-                   +"memberId BYTEA NOT NULL, "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,circleId,memberId)"
+                   +"previousHash BYTEA NOT NULL UNIQUE, "
+                   +"identity TEXT NOT NULL, "
+                   +"timestamp BIGINT NOT NULL, "
+                   +"signedPreviousHash BYTEA NOT NULL UNIQUE, "
+                   +"algorithm TEXT NOT NULL, "
+                   +"publicKeyJwkBase64Url TEXT NOT NULL, "
+                   +"notarySignature BYTEA NOT NULL UNIQUE, "
+                   +"recordHash BYTEA NOT NULL UNIQUE "
                    +$"){wori};"
                    ;
             await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
@@ -55,10 +58,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             var sl = new List<string>();
             sl.Add("rowId");
-            sl.Add("identityId");
-            sl.Add("circleId");
-            sl.Add("memberId");
-            sl.Add("data");
+            sl.Add("previousHash");
+            sl.Add("identity");
+            sl.Add("timestamp");
+            sl.Add("signedPreviousHash");
+            sl.Add("algorithm");
+            sl.Add("publicKeyJwkBase64Url");
+            sl.Add("notarySignature");
+            sl.Add("recordHash");
             return sl;
         }
 
@@ -66,9 +73,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO CircleMemberMigrationsV0 (rowId,identityId,circleId,memberId,data) " +
-               $"SELECT rowId,identityId,circleId,memberId,data "+
-               $"FROM CircleMember;";
+                copyCommand.CommandText = "INSERT INTO NotaryChainMigrationsV0 (rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +
+               $"SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash "+
+               $"FROM NotaryChain;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }

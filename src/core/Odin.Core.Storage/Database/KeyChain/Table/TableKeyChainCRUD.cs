@@ -81,7 +81,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyChain( -- { \"Version\": 0 }\n"
+                "CREATE TABLE KeyChain( -- { \"Version\": 0 }\n"
                    +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "

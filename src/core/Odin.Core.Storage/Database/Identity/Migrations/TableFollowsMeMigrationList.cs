@@ -9,7 +9,7 @@ public class TableFollowsMeMigrationList : MigrationListBase
     public TableFollowsMeMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableFollowsMeMigrationV0(this),
+            new TableFollowsMeMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }
