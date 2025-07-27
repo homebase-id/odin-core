@@ -48,6 +48,7 @@ public class DatabaseMigrationTests : IocTestBase
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
         var list = new TableDriveMainIndexMigrationList();
+        list.ValidateMigrationList();
 
         // Let's just be sure that the table in the database in the current one
         // This will be wrong when we get a newer table - I will rewrite it when I am not 
