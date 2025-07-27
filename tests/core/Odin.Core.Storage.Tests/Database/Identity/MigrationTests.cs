@@ -31,7 +31,7 @@ public class DatabaseMigrationTests : IocTestBase
         var list = new TableDriveMainIndexMigrationList();
         var m1 = list.GetByVersion(0);
         string version = await MigrationBase.GetTableCommentAsync(cn, "Drives");
-        int v = await MigrationBase.GetTableVersionAsync(cn, "Drives");
+        var v = await MigrationBase.GetTableVersionAsync(cn, "Drives");
         ClassicAssert.IsTrue(v == 0);
     }
     
@@ -53,21 +53,19 @@ public class DatabaseMigrationTests : IocTestBase
         // This will be wrong when we get a newer table - I will rewrite it when I am not 
         // stress coding
         var sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
-        ClassicAssert.IsTrue(sqlVersion == 20250719);
-
-
-        var m0 = list.GetByVersion(0);
-        var m1 = list.GetByVersion(20250719);
         var latest = list.GetLatestVersion();
-        ClassicAssert.AreEqual(latest, m1);
+        ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
 
-        // We need to downgrade to version 0
+        var previous = list.Migrations[list.Migrations.Count - 2];
+        ClassicAssert.IsTrue(latest.PreviousVersion == previous.MigrationVersion);
+
+        // We need to downgrade to the previous version
         await MigrationBase.DeleteTableAsync(cn, "DriveMainIndex");
-        await m0.EnsureTableExistsAsync(cn, true);
-        await MigrationBase.RenameAsync(cn, "DriveMainIndexMigrationsV0", "DriveMainIndex");
+        await previous.CreateTableIfNotExistsAsync(cn);
+        await MigrationBase.RenameAsync(cn, $"DriveMainIndexMigrationsV{previous.MigrationVersion}", "DriveMainIndex");
 
         sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
-        ClassicAssert.IsTrue(sqlVersion == 0);
+        ClassicAssert.IsTrue(sqlVersion == previous.MigrationVersion);
 
         // Fill in some random data
         var metaIndex = scope.Resolve<MainIndexMeta>();
@@ -84,12 +82,12 @@ public class DatabaseMigrationTests : IocTestBase
         await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null, 1);
         await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
-        await m1.UpAsync(cn);   // Increase from version 0 to 20250719
+        await latest.UpAsync(cn);   // Increase from version 0 to 20250719
         sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
-        ClassicAssert.IsTrue(sqlVersion == 20250719);
+        ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
 
-        await m1.DownAsync(cn); // Rollback version 20250719 back to 0
+        await latest.DownAsync(cn); // Rollback version 20250719 back to 0
         sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
-        ClassicAssert.IsTrue(sqlVersion == 0);
+        ClassicAssert.IsTrue(sqlVersion == latest.PreviousVersion);
     }
 }

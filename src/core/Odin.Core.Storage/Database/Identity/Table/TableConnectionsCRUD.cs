@@ -84,7 +84,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX Idx0Connections ON Connections(identityId,created);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(ConnectionsRecord item)

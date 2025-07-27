@@ -97,7 +97,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
                    +"recordHash BYTEA NOT NULL UNIQUE "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(NotaryChainRecord item)

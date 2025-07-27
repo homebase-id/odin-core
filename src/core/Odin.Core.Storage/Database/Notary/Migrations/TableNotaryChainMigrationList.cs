@@ -9,7 +9,7 @@ public class TableNotaryChainMigrationList : MigrationListBase
     public TableNotaryChainMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableNotaryChainMigrationV0(this),
+            new TableNotaryChainMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

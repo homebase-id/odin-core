@@ -24,10 +24,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyTwoValueMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -49,7 +47,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX Idx0KeyTwoValueMigrationsV0 ON KeyTwoValueMigrationsV0(identityId,key2);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -65,6 +63,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "KeyTwoValueMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "KeyTwoValue", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO KeyTwoValueMigrationsV0 (rowId,identityId,key1,key2,data) " +

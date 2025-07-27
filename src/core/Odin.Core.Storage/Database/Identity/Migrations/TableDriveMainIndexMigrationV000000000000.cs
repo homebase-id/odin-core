@@ -24,10 +24,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -79,7 +77,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1DriveMainIndexMigrationsV0 ON DriveMainIndexMigrationsV0(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
                    +"CREATE INDEX Idx2DriveMainIndexMigrationsV0 ON DriveMainIndexMigrationsV0(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -120,6 +118,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "DriveMainIndexMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "DriveMainIndex", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO DriveMainIndexMigrationsV0 (rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +

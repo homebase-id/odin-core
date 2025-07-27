@@ -24,10 +24,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "AppNotificationsMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -53,7 +51,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX Idx0AppNotificationsMigrationsV0 ON AppNotificationsMigrationsV0(identityId,created);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -73,6 +71,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "AppNotificationsMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "AppNotifications", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO AppNotificationsMigrationsV0 (rowId,identityId,notificationId,unread,senderId,timestamp,data,created,modified) " +

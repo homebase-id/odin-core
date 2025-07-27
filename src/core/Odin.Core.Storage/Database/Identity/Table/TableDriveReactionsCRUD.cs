@@ -75,7 +75,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,driveId,postId,identity,singleReaction)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(DriveReactionsRecord item)

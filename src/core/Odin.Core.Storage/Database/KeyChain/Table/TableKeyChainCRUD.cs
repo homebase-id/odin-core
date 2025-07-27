@@ -93,7 +93,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                    +", UNIQUE(identity,publicKeyJwkBase64Url)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(KeyChainRecord item)

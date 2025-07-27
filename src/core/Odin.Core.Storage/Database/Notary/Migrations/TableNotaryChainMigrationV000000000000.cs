@@ -19,15 +19,13 @@ namespace Odin.Core.Storage.Database.Notary.Table
 {
     public class TableNotaryChainMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableNotaryChainMigrationV0(long previousVersion) : base(previousVersion)
+        public override Int64 MigrationVersion => 0;
+        public TableNotaryChainMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "NotaryChainMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -51,7 +49,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
                    +"recordHash BYTEA NOT NULL UNIQUE "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -71,6 +69,8 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "NotaryChainMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "NotaryChain", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO NotaryChainMigrationsV0 (rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,notarySignature,recordHash) " +

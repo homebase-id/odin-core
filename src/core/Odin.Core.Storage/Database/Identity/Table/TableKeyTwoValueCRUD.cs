@@ -78,7 +78,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX Idx0KeyTwoValue ON KeyTwoValue(identityId,key2);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(KeyTwoValueRecord item)

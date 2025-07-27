@@ -90,7 +90,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1Inbox ON Inbox(identityId,boxId);"
                    +"CREATE INDEX Idx2Inbox ON Inbox(identityId,popStamp);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(InboxRecord item)

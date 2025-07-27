@@ -9,7 +9,7 @@ public class TableKeyChainMigrationList : MigrationListBase
     public TableKeyChainMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableKeyChainMigrationV0(this),
+            new TableKeyChainMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

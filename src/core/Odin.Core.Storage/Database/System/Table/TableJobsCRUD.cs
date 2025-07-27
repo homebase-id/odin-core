@@ -115,7 +115,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"CREATE INDEX Idx1Jobs ON Jobs(expiresAt);"
                    +"CREATE INDEX Idx2Jobs ON Jobs(nextRun,priority);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(JobsRecord item)

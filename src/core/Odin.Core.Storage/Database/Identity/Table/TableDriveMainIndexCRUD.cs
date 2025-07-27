@@ -153,7 +153,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
                    +"CREATE INDEX Idx2DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)

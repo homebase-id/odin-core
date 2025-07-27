@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                    +"timestamp BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(AttestationRequestRecord item)

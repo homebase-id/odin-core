@@ -24,10 +24,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "InboxMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -57,7 +55,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1InboxMigrationsV0 ON InboxMigrationsV0(identityId,boxId);"
                    +"CREATE INDEX Idx2InboxMigrationsV0 ON InboxMigrationsV0(identityId,popStamp);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -79,6 +77,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "InboxMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "Inbox", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO InboxMigrationsV0 (rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +

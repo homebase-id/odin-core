@@ -19,15 +19,13 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 {
     public class TableKeyChainMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableKeyChainMigrationV0(long previousVersion) : base(previousVersion)
+        public override Int64 MigrationVersion => 0;
+        public TableKeyChainMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyChainMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -51,7 +49,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                    +", UNIQUE(identity,publicKeyJwkBase64Url)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -70,6 +68,8 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "KeyChainMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "KeyChain", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO KeyChainMigrationsV0 (rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash) " +

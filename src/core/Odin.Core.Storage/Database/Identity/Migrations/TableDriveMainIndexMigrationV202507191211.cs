@@ -24,10 +24,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "DriveMainIndexMigrationsV202507191211");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -79,7 +77,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1DriveMainIndexMigrationsV202507191211 ON DriveMainIndexMigrationsV202507191211(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
                    +"CREATE INDEX Idx2DriveMainIndexMigrationsV202507191211 ON DriveMainIndexMigrationsV202507191211(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -120,6 +118,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "DriveMainIndexMigrationsV202507191211", MigrationVersion);
+            await CheckSqlTableVersion(cn, "DriveMainIndex", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO DriveMainIndexMigrationsV202507191211 (rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified) " +
@@ -138,13 +138,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())
                 {
-                    await EnsureTableExistsAsync(cn, dropExisting: true);
+                    await CreateTableIfNotExistsAsync(cn);
+                    await CheckSqlTableVersion(cn, "DriveMainIndexMigrationsV202507191211", MigrationVersion);
                     if (await CopyDataAsync(cn) < 0)
                         throw new MigrationException("Unable to copy the data");
                     if (await VerifyRowCount(cn, "DriveMainIndex", "DriveMainIndexMigrationsV202507191211") == false)
                         throw new MigrationException("Mismatching row counts");
                     await RenameAsync(cn, "DriveMainIndex", $"DriveMainIndexMigrationsV{PreviousVersion}");
                     await RenameAsync(cn, "DriveMainIndexMigrationsV202507191211", "DriveMainIndex");
+                    await CheckSqlTableVersion(cn, "DriveMainIndex", MigrationVersion);
                     trn.Commit();
                 }
             }
@@ -156,11 +158,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            // ASSERT MigrationVersion >= 0
-            // ASSERT PreviousVersion >= 0
-            // WHAT IF V202507... already exists?
-
-            await CheckSqlTableVersion(cn, "DriveMainIndex", this.MigrationVersion);
+            await CheckSqlTableVersion(cn, "DriveMainIndex", MigrationVersion);
             try
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())
@@ -169,7 +167,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         throw new MigrationException("Mismatching row counts - bad idea to downgrade");
                     await RenameAsync(cn, "DriveMainIndex", "DriveMainIndexMigrationsV202507191211");
                     await RenameAsync(cn, $"DriveMainIndexMigrationsV{PreviousVersion}", "DriveMainIndex");
-                    // ADD await CheckSqlTableVersion(cn, "DriveMainIndex", this.PreviousVersion);
+                    await CheckSqlTableVersion(cn, "DriveMainIndex", PreviousVersion);
                     trn.Commit();
                 }
             }

@@ -24,10 +24,8 @@ namespace Odin.Core.Storage.Database.System.Table
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "JobsMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -65,7 +63,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"CREATE INDEX Idx1JobsMigrationsV0 ON JobsMigrationsV0(expiresAt);"
                    +"CREATE INDEX Idx2JobsMigrationsV0 ON JobsMigrationsV0(nextRun,priority);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -96,6 +94,8 @@ namespace Odin.Core.Storage.Database.System.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "JobsMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "Jobs", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO JobsMigrationsV0 (rowId,id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +

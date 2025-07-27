@@ -9,7 +9,7 @@ public class TableAttestationStatusMigrationList : MigrationListBase
     public TableAttestationStatusMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableAttestationStatusMigrationV0(this),
+            new TableAttestationStatusMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

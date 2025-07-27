@@ -19,15 +19,13 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 {
     public class TableAttestationStatusMigrationV0 : MigrationBase
     {
-        public override int MigrationVersion => 0;
-        public TableAttestationStatusMigrationV0(long previousVersion) : base(previousVersion)
+        public override Int64 MigrationVersion => 0;
+        public TableAttestationStatusMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
-        public override async Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false)
+        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
         {
-            if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "AttestationStatusMigrationsV0");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -47,7 +45,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -63,6 +61,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
+            await CheckSqlTableVersion(cn, "AttestationStatusMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "AttestationStatus", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO AttestationStatusMigrationsV0 (rowId,attestationId,status,created,modified) " +

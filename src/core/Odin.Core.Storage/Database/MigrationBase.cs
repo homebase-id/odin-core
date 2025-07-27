@@ -29,6 +29,10 @@ namespace Odin.Core.Storage.Database
             PreviousVersion = previousVersion;
         }
 
+        public string MigrationTableName(string tableName, Int64 version)
+        {
+            return $"{tableName}MigrationsV{PreviousVersion}";
+        }
 
         public async Task CheckSqlTableVersion(IConnectionWrapper cn, string tableName, Int64 versionMustBe)
         {
@@ -78,7 +82,7 @@ namespace Odin.Core.Storage.Database
 
 
         // -1 means invalid version
-        public static async Task<int> GetTableVersionAsync(IConnectionWrapper cn, string tableName)
+        public static async Task<Int64> GetTableVersionAsync(IConnectionWrapper cn, string tableName)
         {
             var comment = await GetTableCommentAsync(cn, tableName);
 
@@ -86,11 +90,11 @@ namespace Odin.Core.Storage.Database
                 return -1;
             try
             {
-                var json = JsonSerializer.Deserialize<Dictionary<string, int>>(comment);
+                var json = JsonSerializer.Deserialize<Dictionary<string, Int64>>(comment);
                 if (json == null)
                     return -1;
 
-                return json.TryGetValue("Version", out int version) ? version : -1; // Default if "Version" key is missing
+                return json.TryGetValue("Version", out Int64 version) ? version : -1; // Default if "Version" key is missing
             }
             catch (JsonException)
             {
@@ -98,7 +102,7 @@ namespace Odin.Core.Storage.Database
             }
         }
 
-        public static async Task CreateTableAsync(IConnectionWrapper cn, string createSql, string commentSql)
+        public static async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn, string createSql, string commentSql)
         {
             await using var cmd = cn.CreateCommand();
 
@@ -166,7 +170,7 @@ namespace Odin.Core.Storage.Database
             return n1 == n2;
         }
 
-        public abstract Task EnsureTableExistsAsync(IConnectionWrapper cn, bool dropExisting = false);
+        public abstract Task CreateTableIfNotExistsAsync(IConnectionWrapper cn);
         public abstract Task DownAsync(IConnectionWrapper cn);
         public abstract Task UpAsync(IConnectionWrapper cn);
     }

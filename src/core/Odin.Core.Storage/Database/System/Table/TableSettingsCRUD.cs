@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(SettingsRecord item)

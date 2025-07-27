@@ -83,7 +83,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx0KeyThreeValue ON KeyThreeValue(identityId,key2);"
                    +"CREATE INDEX Idx1KeyThreeValue ON KeyThreeValue(key3);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(KeyThreeValueRecord item)
