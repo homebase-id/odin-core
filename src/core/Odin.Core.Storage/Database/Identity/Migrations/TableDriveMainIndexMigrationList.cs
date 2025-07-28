@@ -8,7 +8,8 @@ public class TableDriveMainIndexMigrationList : MigrationListBase
     public TableDriveMainIndexMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableDriveMainIndexMigrationV202507191211(-1),
+            new TableDriveMainIndexMigrationV0(-1),
+            new TableDriveMainIndexMigrationV202507191211(0),
             // AUTO-INSERT-MARKER
         };
     }

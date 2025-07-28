@@ -19,6 +19,36 @@ public class DatabaseMigrationTests : IocTestBase
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
 #endif
+    public async Task IdempotentTest(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+        await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
+
+        // I need to upgrade this code when I am not stress coding.
+        var list = new TableDriveMainIndexMigrationList();
+        var latest = list.GetLatestVersion();
+
+        // Check it's the latest version
+        var metaIndex = scope.Resolve<TableDriveMainIndex>();
+        var sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
+        ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
+
+        var previous = list.Migrations[list.Migrations.Count - 2];
+        await previous.CreateTableWithCommentAsync(cn);
+
+        // Check it's STILL the latest version - must be idempotent
+        sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
+        ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
+    }
+
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
     public async Task TableCommentTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
