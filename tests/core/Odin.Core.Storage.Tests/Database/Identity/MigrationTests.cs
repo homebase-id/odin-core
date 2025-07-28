@@ -15,6 +15,19 @@ namespace Odin.Core.Storage.Tests.Database.Identity;
 public class DatabaseMigrationTests : IocTestBase
 {
     [Test]
+    public void GlobalMigrationListTest()
+    {
+        var list = new Odin.Core.Storage.Database.Identity.Migrations.GlobalMigrationList();
+
+        Int64 prev = -1;
+        foreach (var m in list.SortedMigrations)
+        {
+            ClassicAssert.IsTrue(m.MigrationVersion >= prev);
+            prev = m.MigrationVersion;
+        }            
+    }
+
+    [Test]
     [TestCase(DatabaseType.Sqlite)]
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]

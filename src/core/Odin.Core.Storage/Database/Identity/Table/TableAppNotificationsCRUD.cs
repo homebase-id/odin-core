@@ -83,7 +83,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,notificationId)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0AppNotifications ON AppNotifications(identityId,created);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0AppNotifications ON AppNotifications(identityId,created);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "AppNotifications", createSql, commentSql);
         }
