@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Attestation.Table
+namespace Odin.Core.Storage.Database.Attestation
 {
     public class TableAttestationRequestMigrationV0 : MigrationBase
     {
@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         {
         }
 
-        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
+        public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
         {
             var rowid = "";
             var commentSql = "";
@@ -37,14 +37,14 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE AttestationRequestMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS AttestationRequestMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"attestationId TEXT NOT NULL UNIQUE, "
                    +"requestEnvelope TEXT NOT NULL UNIQUE, "
                    +"timestamp BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "AttestationRequestMigrationsV0", createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()

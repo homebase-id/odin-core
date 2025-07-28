@@ -11,7 +11,7 @@ public abstract class MigrationListBase
     {
     }
 
-    public void ValidateMigrationList()
+    public void Validate()
     {
         long prev = -1;
         foreach (var migration in Migrations)

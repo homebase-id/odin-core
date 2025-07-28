@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.KeyChain.Table
+namespace Odin.Core.Storage.Database.KeyChain
 {
     public class TableKeyChainMigrationV0 : MigrationBase
     {
@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
         {
         }
 
-        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
+        public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
         {
             var rowid = "";
             var commentSql = "";
@@ -37,7 +37,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE KeyChainMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS KeyChainMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "
@@ -49,7 +49,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                    +", UNIQUE(identity,publicKeyJwkBase64Url)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyChainMigrationsV0", createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()

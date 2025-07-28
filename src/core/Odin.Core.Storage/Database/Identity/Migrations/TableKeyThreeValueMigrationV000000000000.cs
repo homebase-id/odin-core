@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public class TableKeyThreeValueMigrationV0 : MigrationBase
     {
@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
+        public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
         {
             var rowid = "";
             var commentSql = "";
@@ -37,7 +37,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE KeyThreeValueMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS KeyThreeValueMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL, "
@@ -49,7 +49,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx0KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(identityId,key2);"
                    +"CREATE INDEX Idx1KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(key3);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyThreeValueMigrationsV0", createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()

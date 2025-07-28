@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Database.System;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Certificate;

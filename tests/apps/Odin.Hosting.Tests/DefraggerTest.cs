@@ -8,7 +8,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;

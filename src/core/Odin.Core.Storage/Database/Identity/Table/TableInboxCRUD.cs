@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public record InboxRecord
     {
@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "Inbox");
+                await SqlHelper.DeleteTableAsync(cn, "Inbox");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE Inbox( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Inbox( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"fileId BYTEA NOT NULL UNIQUE, "
@@ -90,7 +90,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1Inbox ON Inbox(identityId,boxId);"
                    +"CREATE INDEX Idx2Inbox ON Inbox(identityId,popStamp);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Inbox", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(InboxRecord item)

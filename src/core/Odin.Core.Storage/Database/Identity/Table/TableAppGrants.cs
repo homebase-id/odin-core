@@ -4,13 +4,13 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableAppGrants(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableAppGrantsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableAppGrantsCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

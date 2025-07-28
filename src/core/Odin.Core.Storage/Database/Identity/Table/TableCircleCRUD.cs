@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public record CircleRecord
     {
@@ -55,7 +55,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "Circle");
+                await SqlHelper.DeleteTableAsync(cn, "Circle");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -67,7 +67,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE Circle( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Circle( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"circleId BYTEA NOT NULL UNIQUE, "
@@ -76,7 +76,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,circleId)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Circle", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(CircleRecord item)

@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.System.Table
+namespace Odin.Core.Storage.Database.System
 {
     public class TableSettingsMigrationV0 : MigrationBase
     {
@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Database.System.Table
         {
         }
 
-        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
+        public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
         {
             var rowid = "";
             var commentSql = "";
@@ -37,7 +37,7 @@ namespace Odin.Core.Storage.Database.System.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE SettingsMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS SettingsMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"key TEXT NOT NULL UNIQUE, "
                    +"value TEXT NOT NULL, "
@@ -45,7 +45,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "SettingsMigrationsV0", createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()

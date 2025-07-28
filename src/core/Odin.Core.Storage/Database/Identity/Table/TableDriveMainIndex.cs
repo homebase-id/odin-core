@@ -5,19 +5,17 @@ using System.Data.Common;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableDriveMainIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

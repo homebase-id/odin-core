@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Attestation.Table
+namespace Odin.Core.Storage.Database.Attestation
 {
     public record AttestationStatusRecord
     {
@@ -51,7 +51,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "AttestationStatus");
+                await SqlHelper.DeleteTableAsync(cn, "AttestationStatus");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -63,7 +63,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE AttestationStatus( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS AttestationStatus( -- { \"Version\": 0 }\n"
                    +rowid
                    +"attestationId BYTEA NOT NULL UNIQUE, "
                    +"status BIGINT NOT NULL, "
@@ -71,7 +71,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "AttestationStatus", createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(AttestationStatusRecord item)

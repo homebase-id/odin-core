@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;

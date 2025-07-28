@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Database.System;
 using Odin.Core.Time;
 using Odin.Services.Background;
 using Odin.Services.JobManagement.Jobs;

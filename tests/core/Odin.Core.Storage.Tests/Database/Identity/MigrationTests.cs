@@ -1,11 +1,9 @@
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using System;
@@ -30,8 +28,8 @@ public class DatabaseMigrationTests : IocTestBase
         // I need to upgrade this code when I am not stress coding.
         var list = new TableDriveMainIndexMigrationList();
         var m1 = list.GetByVersion(0);
-        string version = await MigrationBase.GetTableCommentAsync(cn, "Drives");
-        var v = await MigrationBase.GetTableVersionAsync(cn, "Drives");
+        string version = await SqlHelper.GetTableCommentAsync(cn, "Drives");
+        var v = await SqlHelper.GetTableVersionAsync(cn, "Drives");
         ClassicAssert.IsTrue(v == 0);
     }
     
@@ -48,12 +46,12 @@ public class DatabaseMigrationTests : IocTestBase
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
         var list = new TableDriveMainIndexMigrationList();
-        list.ValidateMigrationList();
+        list.Validate();
 
         // Let's just be sure that the table in the database in the current one
         // This will be wrong when we get a newer table - I will rewrite it when I am not 
         // stress coding
-        var sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
+        var sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         var latest = list.GetLatestVersion();
         ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
 
@@ -61,11 +59,11 @@ public class DatabaseMigrationTests : IocTestBase
         ClassicAssert.IsTrue(latest.PreviousVersion == previous.MigrationVersion);
 
         // We need to downgrade to the previous version
-        await MigrationBase.DeleteTableAsync(cn, "DriveMainIndex");
-        await previous.CreateTableIfNotExistsAsync(cn);
-        await MigrationBase.RenameAsync(cn, $"DriveMainIndexMigrationsV{previous.MigrationVersion}", "DriveMainIndex");
+        await SqlHelper.DeleteTableAsync(cn, "DriveMainIndex");
+        await previous.CreateTableWithCommentAsync(cn);
+        await SqlHelper.RenameAsync(cn, $"DriveMainIndexMigrationsV{previous.MigrationVersion}", "DriveMainIndex");
 
-        sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
+        sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         ClassicAssert.IsTrue(sqlVersion == previous.MigrationVersion);
 
         // Fill in some random data
@@ -84,11 +82,11 @@ public class DatabaseMigrationTests : IocTestBase
         await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null, 1);
 
         await latest.UpAsync(cn);   // Increase from version 0 to 20250719
-        sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
+        sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
 
         await latest.DownAsync(cn); // Rollback version 20250719 back to 0
-        sqlVersion = await MigrationBase.GetTableVersionAsync(cn, "DriveMainIndex");
+        sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         ClassicAssert.IsTrue(sqlVersion == latest.PreviousVersion);
     }
 }

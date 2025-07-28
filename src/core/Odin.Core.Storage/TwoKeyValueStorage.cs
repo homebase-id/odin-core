@@ -4,9 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage;
+namespace Odin.Core.Storage.Database.Identity;
 
 /// <summary>
 /// Key value storage using 2 keys; serializes as json

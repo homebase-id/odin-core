@@ -1,6 +1,6 @@
 ﻿using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Services.Peer.Encryption;
 using System;

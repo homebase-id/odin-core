@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public record DriveMainIndexRecord
     {
@@ -101,7 +101,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "DriveMainIndex");
+                await SqlHelper.DeleteTableAsync(cn, "DriveMainIndex");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -113,7 +113,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE DriveMainIndex( -- { \"Version\": 202507191211 }\n"
+                "CREATE TABLE IF NOT EXISTS DriveMainIndex( -- { \"Version\": 202507191211 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -153,7 +153,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
                    +"CREATE INDEX Idx2DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "DriveMainIndex", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)

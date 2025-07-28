@@ -1,6 +1,6 @@
 using Odin.Core.Storage.Database.System.Connection;
 
-namespace Odin.Core.Storage.Database.System.Table;
+namespace Odin.Core.Storage.Database.System;
 
 #nullable enable
 

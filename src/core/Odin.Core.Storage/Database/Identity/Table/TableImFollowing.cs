@@ -11,7 +11,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 // I.e. the people I need to notify when I update some content.
 //
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableImFollowing(
     CacheHelper cache,

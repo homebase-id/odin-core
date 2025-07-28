@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public class TableDriveMainIndexMigrationV202507191211 : MigrationBase
     {
@@ -24,7 +24,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
+        public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
         {
             var rowid = "";
             var commentSql = "";
@@ -37,7 +37,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE DriveMainIndexMigrationsV202507191211( -- { \"Version\": 202507191211 }\n"
+                "CREATE TABLE IF NOT EXISTS DriveMainIndexMigrationsV202507191211( -- { \"Version\": 202507191211 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -77,7 +77,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx1DriveMainIndexMigrationsV202507191211 ON DriveMainIndexMigrationsV202507191211(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
                    +"CREATE INDEX Idx2DriveMainIndexMigrationsV202507191211 ON DriveMainIndexMigrationsV202507191211(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "DriveMainIndexMigrationsV202507191211", createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()
@@ -138,14 +138,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())
                 {
-                    await CreateTableIfNotExistsAsync(cn);
+                    await CreateTableWithCommentAsync(cn);
                     await CheckSqlTableVersion(cn, "DriveMainIndexMigrationsV202507191211", MigrationVersion);
                     if (await CopyDataAsync(cn) < 0)
                         throw new MigrationException("Unable to copy the data");
                     if (await VerifyRowCount(cn, "DriveMainIndex", "DriveMainIndexMigrationsV202507191211") == false)
                         throw new MigrationException("Mismatching row counts");
-                    await RenameAsync(cn, "DriveMainIndex", $"DriveMainIndexMigrationsV{PreviousVersion}");
-                    await RenameAsync(cn, "DriveMainIndexMigrationsV202507191211", "DriveMainIndex");
+                    await SqlHelper.RenameAsync(cn, "DriveMainIndex", $"DriveMainIndexMigrationsV{PreviousVersion}");
+                    await SqlHelper.RenameAsync(cn, "DriveMainIndexMigrationsV202507191211", "DriveMainIndex");
                     await CheckSqlTableVersion(cn, "DriveMainIndex", MigrationVersion);
                     trn.Commit();
                 }
@@ -165,8 +165,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 {
                     if (await VerifyRowCount(cn, $"DriveMainIndexMigrationsV{PreviousVersion}", "DriveMainIndex") == false)
                         throw new MigrationException("Mismatching row counts - bad idea to downgrade");
-                    await RenameAsync(cn, "DriveMainIndex", "DriveMainIndexMigrationsV202507191211");
-                    await RenameAsync(cn, $"DriveMainIndexMigrationsV{PreviousVersion}", "DriveMainIndex");
+                    await SqlHelper.RenameAsync(cn, "DriveMainIndex", "DriveMainIndexMigrationsV202507191211");
+                    await SqlHelper.RenameAsync(cn, $"DriveMainIndexMigrationsV{PreviousVersion}", "DriveMainIndex");
                     await CheckSqlTableVersion(cn, "DriveMainIndex", PreviousVersion);
                     trn.Commit();
                 }

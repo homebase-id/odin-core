@@ -6,7 +6,7 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableDriveTransferHistory(
     CacheHelper cache,

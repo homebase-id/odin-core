@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;

@@ -9,7 +9,7 @@ using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableOutbox(
     CacheHelper cache,

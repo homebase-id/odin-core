@@ -8,7 +8,7 @@ using System.Data;
 using System.Runtime.Caching;
 using System.Threading.Tasks;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableNonce(
     CacheHelper cache,

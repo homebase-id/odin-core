@@ -17,7 +17,7 @@ using Odin.Core.Storage.SQLite;
 
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public class TableFollowsMeMigrationV0 : MigrationBase
     {
@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
         }
 
-        public override async Task CreateTableIfNotExistsAsync(IConnectionWrapper cn)
+        public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
         {
             var rowid = "";
             var commentSql = "";
@@ -39,7 +39,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE FollowsMeMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS FollowsMeMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
@@ -50,7 +50,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX Idx0FollowsMeMigrationsV0 ON FollowsMeMigrationsV0(identityId,identity);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "FollowsMeMigrationsV0", createSql, commentSql);
         }
 
         public static List<string> GetColumnNames()

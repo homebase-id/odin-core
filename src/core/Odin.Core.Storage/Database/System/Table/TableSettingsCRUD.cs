@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.System.Table
+namespace Odin.Core.Storage.Database.System
 {
     public record SettingsRecord
     {
@@ -52,7 +52,7 @@ namespace Odin.Core.Storage.Database.System.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "Settings");
+                await SqlHelper.DeleteTableAsync(cn, "Settings");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -64,7 +64,7 @@ namespace Odin.Core.Storage.Database.System.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE Settings( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Settings( -- { \"Version\": 0 }\n"
                    +rowid
                    +"key TEXT NOT NULL UNIQUE, "
                    +"value TEXT NOT NULL, "
@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Settings", createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(SettingsRecord item)

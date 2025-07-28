@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.KeyChain.Table
+namespace Odin.Core.Storage.Database.KeyChain
 {
     public record KeyChainRecord
     {
@@ -69,7 +69,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyChain");
+                await SqlHelper.DeleteTableAsync(cn, "KeyChain");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -81,7 +81,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE KeyChain( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS KeyChain( -- { \"Version\": 0 }\n"
                    +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "
@@ -93,7 +93,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                    +", UNIQUE(identity,publicKeyJwkBase64Url)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyChain", createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(KeyChainRecord item)

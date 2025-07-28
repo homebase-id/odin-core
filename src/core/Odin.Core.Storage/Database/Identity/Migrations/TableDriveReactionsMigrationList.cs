@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableDriveReactionsMigrationList : MigrationListBase
 {

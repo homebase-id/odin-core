@@ -8,7 +8,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 
 [assembly: InternalsVisibleTo("IdentityDatabase")]
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
 public class TableDriveAclIndex(
     CacheHelper cache,

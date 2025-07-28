@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public record KeyUniqueThreeValueRecord
     {
@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyUniqueThreeValue");
+                await SqlHelper.DeleteTableAsync(cn, "KeyUniqueThreeValue");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -73,7 +73,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE KeyUniqueThreeValue( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS KeyUniqueThreeValue( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"key1 BYTEA NOT NULL, "
@@ -86,7 +86,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX Idx0KeyUniqueThreeValue ON KeyUniqueThreeValue(identityId,key2);"
                    +"CREATE INDEX Idx1KeyUniqueThreeValue ON KeyUniqueThreeValue(key3);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyUniqueThreeValue", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)

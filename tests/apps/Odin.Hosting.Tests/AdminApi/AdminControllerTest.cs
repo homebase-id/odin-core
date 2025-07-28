@@ -15,7 +15,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Services.Admin.Tenants.Jobs;

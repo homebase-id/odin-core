@@ -4,7 +4,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.Database.System.Table;
+namespace Odin.Core.Storage.Database.System;
 
 #nullable enable
 
@@ -19,7 +19,7 @@ public enum JobState
 };
 
 public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
-    : TableJobsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableJobsCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedSystemConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

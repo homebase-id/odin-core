@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.System.Table
+namespace Odin.Core.Storage.Database.System
 {
     public record CertificatesRecord
     {
@@ -62,7 +62,7 @@ namespace Odin.Core.Storage.Database.System.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "Certificates");
+                await SqlHelper.DeleteTableAsync(cn, "Certificates");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.Database.System.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE Certificates( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Certificates( -- { \"Version\": 0 }\n"
                    +rowid
                    +"domain TEXT NOT NULL UNIQUE, "
                    +"privateKey TEXT NOT NULL, "
@@ -87,7 +87,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Certificates", createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(CertificatesRecord item)

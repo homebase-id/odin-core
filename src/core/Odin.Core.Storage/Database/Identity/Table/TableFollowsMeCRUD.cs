@@ -20,7 +20,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 
-namespace Odin.Core.Storage.Database.Identity.Table
+namespace Odin.Core.Storage.Database.Identity
 {
     public record FollowsMeRecord
     {
@@ -55,7 +55,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "FollowsMe");
+                await SqlHelper.DeleteTableAsync(cn, "FollowsMe");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -67,7 +67,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE FollowsMe( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS FollowsMe( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
@@ -78,7 +78,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX Idx0FollowsMe ON FollowsMe(identityId,identity);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "FollowsMe", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(FollowsMeRecord item)

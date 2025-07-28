@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Database.System;
 using Odin.Services.Background.BackgroundServices;
 
 namespace Odin.Services.JobManagement;

@@ -6,7 +6,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {

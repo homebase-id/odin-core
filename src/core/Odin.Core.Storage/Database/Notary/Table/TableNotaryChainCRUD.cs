@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Notary.Table
+namespace Odin.Core.Storage.Database.Notary
 {
     public record NotaryChainRecord
     {
@@ -73,7 +73,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "NotaryChain");
+                await SqlHelper.DeleteTableAsync(cn, "NotaryChain");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -85,7 +85,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE NotaryChain( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS NotaryChain( -- { \"Version\": 0 }\n"
                    +rowid
                    +"previousHash BYTEA NOT NULL UNIQUE, "
                    +"identity TEXT NOT NULL, "
@@ -97,7 +97,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
                    +"recordHash BYTEA NOT NULL UNIQUE "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "NotaryChain", createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(NotaryChainRecord item)

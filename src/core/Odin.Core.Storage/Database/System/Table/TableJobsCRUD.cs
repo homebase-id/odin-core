@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.System.Table
+namespace Odin.Core.Storage.Database.System
 {
     public record JobsRecord
     {
@@ -77,7 +77,7 @@ namespace Odin.Core.Storage.Database.System.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "Jobs");
+                await SqlHelper.DeleteTableAsync(cn, "Jobs");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -89,7 +89,7 @@ namespace Odin.Core.Storage.Database.System.Table
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE Jobs( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Jobs( -- { \"Version\": 0 }\n"
                    +rowid
                    +"id BYTEA NOT NULL UNIQUE, "
                    +"name TEXT NOT NULL, "
@@ -115,7 +115,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"CREATE INDEX Idx1Jobs ON Jobs(expiresAt);"
                    +"CREATE INDEX Idx2Jobs ON Jobs(nextRun,priority);"
                    ;
-            await MigrationBase.CreateTableIfNotExistsAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Jobs", createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(JobsRecord item)

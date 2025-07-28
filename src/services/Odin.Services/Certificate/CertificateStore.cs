@@ -11,7 +11,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Database.System;
 using Odin.Core.Time;
 using Odin.Core.Util;
 

@@ -5,7 +5,7 @@ using MediatR;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.Base;
