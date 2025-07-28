@@ -7,7 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Encryption;
 using System;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;

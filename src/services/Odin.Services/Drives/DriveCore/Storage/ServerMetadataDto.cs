@@ -1,7 +1,7 @@
 ﻿using System;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 
 namespace Odin.Services.Drives.DriveCore.Storage

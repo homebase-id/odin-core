@@ -17,7 +17,7 @@ using Odin.Core.Storage.SQLite;
 
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 
-namespace Odin.Core.Storage.Database.Identity
+namespace Odin.Core.Storage.Database.Identity.Migrations
 {
     public class TableFollowsMeMigrationV0 : MigrationBase
     {

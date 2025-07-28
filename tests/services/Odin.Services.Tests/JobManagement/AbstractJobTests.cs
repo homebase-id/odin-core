@@ -8,7 +8,7 @@ using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Tests.JobManagement.Jobs;

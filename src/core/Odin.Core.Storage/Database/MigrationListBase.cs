@@ -1,7 +1,7 @@
-// Base for all container classes (shares prev/next logic).
-using Odin.Core.Storage.Database;
 using System;
 using System.Collections.Generic;
+
+namespace Odin.Core.Storage.Database;
 
 public abstract class MigrationListBase
 {

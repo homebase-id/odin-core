@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity
+namespace Odin.Core.Storage.Database.Identity.Migrations
 {
     public class TableInboxMigrationV0 : MigrationBase
     {

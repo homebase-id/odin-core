@@ -1,6 +1,6 @@
 ﻿using System;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Services.Base;
 

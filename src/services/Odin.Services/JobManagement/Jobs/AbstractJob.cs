@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 
 namespace Odin.Services.JobManagement.Jobs;
 

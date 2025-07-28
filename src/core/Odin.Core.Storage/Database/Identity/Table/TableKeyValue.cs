@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 
-namespace Odin.Core.Storage.Database.Identity;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableKeyValue(
     CacheHelper cache,

@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite;
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 [assembly: InternalsVisibleTo("DatabaseConnectionTests")]
 
-namespace Odin.Core.Storage.Database.Identity
+namespace Odin.Core.Storage.Database.Identity.Migrations
 {
     public class TableKeyValueMigrationV0 : MigrationBase
     {

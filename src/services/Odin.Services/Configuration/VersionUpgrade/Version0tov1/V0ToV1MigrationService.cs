@@ -4,13 +4,14 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
+using Odin.Core.Storage.Database.Identity;
 
 namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 {

@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Storage.Database.Identity;
 
-namespace Odin.Core.Storage.Database.Identity;
+namespace Odin.Core.Storage.Database.Identity.Migrations;
 
 public class TableKeyValueMigrationList : MigrationListBase
 {

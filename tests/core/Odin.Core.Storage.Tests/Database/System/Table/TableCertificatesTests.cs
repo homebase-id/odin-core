@@ -4,7 +4,7 @@ using Autofac;
 using DnsClient;
 using NUnit.Framework;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 

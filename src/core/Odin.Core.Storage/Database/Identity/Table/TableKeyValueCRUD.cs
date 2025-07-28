@@ -21,7 +21,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 [assembly: InternalsVisibleTo("DatabaseCommitTest")]
 [assembly: InternalsVisibleTo("DatabaseConnectionTests")]
 
-namespace Odin.Core.Storage.Database.Identity
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record KeyValueRecord
     {

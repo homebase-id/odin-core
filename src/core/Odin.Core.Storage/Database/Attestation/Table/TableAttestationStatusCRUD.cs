@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Attestation
+namespace Odin.Core.Storage.Database.Attestation.Table
 {
     public record AttestationStatusRecord
     {

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Odin.Core.Storage.Database.System;
+namespace Odin.Core.Storage.Database.System.Migrations;
 
 public class GlobalMigrationList
 {

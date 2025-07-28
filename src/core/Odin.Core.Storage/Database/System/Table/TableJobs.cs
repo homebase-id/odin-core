@@ -4,7 +4,7 @@ using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.Database.System;
+namespace Odin.Core.Storage.Database.System.Table;
 
 #nullable enable
 

@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using Odin.Cli.Commands.Base;
 using Odin.Cli.Factories;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.JobManagement;
 using Spectre.Console;

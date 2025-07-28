@@ -7,7 +7,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 
-namespace Odin.Core.Storage.Database.Identity;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveLocalTagIndex(
     CacheHelper cache,

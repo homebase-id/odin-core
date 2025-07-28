@@ -4,8 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity;
+namespace Odin.Core.Storage;
 
 public class SingleKeyValueStorage
 {

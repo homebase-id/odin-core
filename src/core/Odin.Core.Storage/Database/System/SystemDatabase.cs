@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.System;

@@ -8,13 +8,14 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
+using Odin.Core.Storage.Database.Identity;
 
 namespace Odin.Services.Drives.DriveCore.Query;
 

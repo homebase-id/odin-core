@@ -8,7 +8,7 @@ using DnsClient;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Core.Util;

@@ -18,7 +18,7 @@ using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Identity
+namespace Odin.Core.Storage.Database.Identity.Table
 {
     public record AppGrantsRecord
     {

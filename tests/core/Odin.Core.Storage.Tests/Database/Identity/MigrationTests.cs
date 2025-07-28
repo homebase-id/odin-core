@@ -1,13 +1,14 @@
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Storage.Database.Identity.Migrations;
 
 namespace Odin.Core.Storage.Tests.Database.Identity;
 

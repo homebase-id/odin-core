@@ -1,7 +1,7 @@
 using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 
 namespace Odin.Services.JobManagement;
 

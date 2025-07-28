@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;

@@ -8,7 +8,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.Database.Identity;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDrives(
     CacheHelper cache,

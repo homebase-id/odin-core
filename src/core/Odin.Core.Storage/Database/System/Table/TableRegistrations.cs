@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.System.Connection;
 
-namespace Odin.Core.Storage.Database.System;
+namespace Odin.Core.Storage.Database.System.Table;
 
 #nullable enable
 

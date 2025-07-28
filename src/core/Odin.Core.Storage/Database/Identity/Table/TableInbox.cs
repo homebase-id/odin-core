@@ -11,7 +11,7 @@ using Odin.Core.Time;
 
 [assembly: InternalsVisibleTo("Odin.Services.Drives.DriveCore.Storage")]
 
-namespace Odin.Core.Storage.Database.Identity;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableInbox(
     CacheHelper cache,
