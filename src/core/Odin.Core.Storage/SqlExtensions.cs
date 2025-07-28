@@ -155,11 +155,7 @@ public static class SqlHelper
           $"""
                 DO $$
                 BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1
-                        FROM pg_class
-                        WHERE relname = '{tableName}' AND relkind = 'r'
-                    ) THEN
+                    IF to_regclass('{tableName}') IS NULL THEN
                         {createSql}
                         {commentSql}
                     END IF;
