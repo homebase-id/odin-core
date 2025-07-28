@@ -249,7 +249,6 @@ public class CommandLine
             return (true, 1);
         }
 
-
         //
         // Command line: Defragment
         //
@@ -272,6 +271,19 @@ public class CommandLine
         if (args.Length > 0 && args[0] == "reset-feed")
         {
             ResetFeed.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
+        //
+        // Command line: Create identity FOR TESTING ONLY
+        //
+        // examples:
+        //   dotnet run -- create-test-identity 11111111-1111-1111-1111-111111111111 example.com
+        //
+        //
+        if (args.Length > 0 && args[0] == "create-test-identity")
+        {
+            CreateTestIdentity.ExecuteAsync(_serviceProvider, Guid.Parse(args[1]), args[2]).BlockingWait();
             return (true, 0);
         }
 
