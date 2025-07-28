@@ -117,15 +117,17 @@ namespace Odin.Core.Storage.Database
                     await cmd.ExecuteNonQueryAsync();
                 }
             }
-            catch (SqliteException ex) when (cn.DatabaseType == DatabaseType.Sqlite &&
-                                                ex.SqliteErrorCode == 1 &&
-                                                ex.Message.Contains("table") &&
-                                                ex.Message.Contains("already exists"))
+            catch (OdinDatabaseException ex) when (cn.DatabaseType == DatabaseType.Sqlite &&
+                        ex.InnerException is SqliteException sqliteEx &&
+                        sqliteEx.SqliteErrorCode == 1 &&
+                        sqliteEx.Message.Contains("table") &&
+                        sqliteEx.Message.Contains("already exists"))
             {
                 // Table already exists in SQLite; silently ignore
             }
-            catch (PostgresException ex) when (cn.DatabaseType == DatabaseType.Postgres &&
-                                              ex.SqlState == "42P07")
+            catch (OdinDatabaseException ex) when (cn.DatabaseType == DatabaseType.Postgres &&
+                            ex.InnerException is PostgresException pgEx &&
+                            pgEx.SqlState == "42P07")
             {
                 // Table already exists in PostgreSQL; silently ignore
             }
