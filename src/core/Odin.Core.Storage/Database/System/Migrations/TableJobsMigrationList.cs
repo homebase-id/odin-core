@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.System;
 
-namespace Odin.Core.Storage.Database.Identity;
+namespace Odin.Core.Storage.Database.System;
 
 public class TableJobsMigrationList : MigrationListBase
 {
