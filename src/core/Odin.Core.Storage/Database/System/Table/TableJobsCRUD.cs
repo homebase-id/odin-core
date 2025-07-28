@@ -112,9 +112,9 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
-                   +"CREATE INDEX Idx0Jobs ON Jobs(state);"
-                   +"CREATE INDEX Idx1Jobs ON Jobs(expiresAt);"
-                   +"CREATE INDEX Idx2Jobs ON Jobs(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0Jobs ON Jobs(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1Jobs ON Jobs(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2Jobs ON Jobs(nextRun,priority);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "Jobs", createSql, commentSql);
         }

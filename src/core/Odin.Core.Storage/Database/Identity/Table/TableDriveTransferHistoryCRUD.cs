@@ -79,7 +79,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"isReadByRecipient BOOLEAN NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,remoteIdentityId)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0DriveTransferHistory ON DriveTransferHistory(identityId,driveId,fileId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0DriveTransferHistory ON DriveTransferHistory(identityId,driveId,fileId);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "DriveTransferHistory", createSql, commentSql);
         }

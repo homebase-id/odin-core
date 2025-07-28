@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,identity,driveId)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0ImFollowing ON ImFollowing(identityId,identity);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0ImFollowing ON ImFollowing(identityId,identity);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "ImFollowing", createSql, commentSql);
         }

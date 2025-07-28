@@ -77,7 +77,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"data BYTEA  "
                    +", UNIQUE(identityId,key1)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0KeyTwoValue ON KeyTwoValue(identityId,key2);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0KeyTwoValue ON KeyTwoValue(identityId,key2);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "KeyTwoValue", createSql, commentSql);
         }

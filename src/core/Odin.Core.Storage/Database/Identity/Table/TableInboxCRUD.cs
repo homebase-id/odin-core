@@ -87,9 +87,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,fileId)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0Inbox ON Inbox(identityId,timeStamp);"
-                   +"CREATE INDEX Idx1Inbox ON Inbox(identityId,boxId);"
-                   +"CREATE INDEX Idx2Inbox ON Inbox(identityId,popStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0Inbox ON Inbox(identityId,timeStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1Inbox ON Inbox(identityId,boxId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2Inbox ON Inbox(identityId,popStamp);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "Inbox", createSql, commentSql);
         }

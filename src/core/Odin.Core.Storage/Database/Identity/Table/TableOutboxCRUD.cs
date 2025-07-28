@@ -99,7 +99,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,recipient)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0Outbox ON Outbox(identityId,nextRunTime);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0Outbox ON Outbox(identityId,nextRunTime);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "Outbox", createSql, commentSql);
         }

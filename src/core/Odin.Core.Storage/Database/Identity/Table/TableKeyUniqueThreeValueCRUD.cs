@@ -84,8 +84,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,key1)"
                    +", UNIQUE(identityId,key2,key3)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0KeyUniqueThreeValue ON KeyUniqueThreeValue(identityId,key2);"
-                   +"CREATE INDEX Idx1KeyUniqueThreeValue ON KeyUniqueThreeValue(key3);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0KeyUniqueThreeValue ON KeyUniqueThreeValue(identityId,key2);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1KeyUniqueThreeValue ON KeyUniqueThreeValue(key3);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "KeyUniqueThreeValue", createSql, commentSql);
         }
