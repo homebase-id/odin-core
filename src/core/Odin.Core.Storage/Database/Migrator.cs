@@ -1,20 +1,20 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Factory;
 
+[assembly: InternalsVisibleTo("Odin.Core.Storage.Tests")]
+
 namespace Odin.Core.Storage.Database;
+
+
 
 public interface IGlobalMigrationList
 {
     List<MigrationBase> SortedMigrations { get; init; }
-}
-
-public interface IXGlobalMigrationList
-{
-    List<MigrationBase> SortedMigrations { get; }
 }
 
 public class Migrator
@@ -91,7 +91,7 @@ public class Migrator
                 await migration.DownAsync(cn);
             }
 
-            // SEB:TODO update the VersionInfo table with the new version
+            await SetCurrentVersionAsync(cn, migration.MigrationVersion);
         }
     }
 
