@@ -5,7 +5,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Migrations;
 
 public partial class KeyChainMigrator
 {
-    public List<MigrationBase> SortedMigrations 
+    protected override List<MigrationBase> SortedMigrations
     {
         get {
             var list = new List<MigrationListBase>()

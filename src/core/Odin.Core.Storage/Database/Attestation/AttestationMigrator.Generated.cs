@@ -5,7 +5,7 @@ namespace Odin.Core.Storage.Database.Attestation.Migrations;
 
 public partial class AttestationMigrator
 {
-    public List<MigrationBase> SortedMigrations 
+    protected override List<MigrationBase> SortedMigrations
     {
         get {
             var list = new List<MigrationListBase>()
