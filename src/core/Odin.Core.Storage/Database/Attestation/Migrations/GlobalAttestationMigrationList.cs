@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Odin.Core.Storage.Database.Attestation.Migrations;
 
-public class GlobalMigrationList
+public class GlobalAttestationMigrationList : IGlobalMigrationList
 {
     List<MigrationListBase> MigrationList { get; init; }
     public List<MigrationBase> SortedMigrations { get; init; }
 
-    public GlobalMigrationList()
+    public GlobalAttestationMigrationList()
     {
         MigrationList = new List<MigrationListBase>() {
             new TableAttestationRequestMigrationList(),

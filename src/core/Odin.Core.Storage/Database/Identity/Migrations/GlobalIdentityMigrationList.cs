@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace Odin.Core.Storage.Database.Identity.Migrations;
 
-public class GlobalMigrationList
+public class GlobalIdentityMigrationList : IGlobalMigrationList
 {
     List<MigrationListBase> MigrationList { get; init; }
     public List<MigrationBase> SortedMigrations { get; init; }
 
-    public GlobalMigrationList()
+    public GlobalIdentityMigrationList()
     {
         MigrationList = new List<MigrationListBase>() {
             new TableDrivesMigrationList(),

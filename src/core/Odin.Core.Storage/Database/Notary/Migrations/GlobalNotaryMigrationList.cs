@@ -1,17 +1,17 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.KeyChain.Migrations;
+namespace Odin.Core.Storage.Database.Notary.Migrations;
 
-public class GlobalMigrationList
+public class GlobalNotaryMigrationList : IGlobalMigrationList
 {
     List<MigrationListBase> MigrationList { get; init; }
     public List<MigrationBase> SortedMigrations { get; init; }
 
-    public GlobalMigrationList()
+    public GlobalNotaryMigrationList()
     {
         MigrationList = new List<MigrationListBase>() {
-            new TableKeyChainMigrationList(),
+            new TableNotaryChainMigrationList(),
         };
         foreach (var migration in MigrationList)
             migration.Validate();
