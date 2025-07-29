@@ -17,7 +17,7 @@ public class DatabaseMigrationTests : IocTestBase
     [Test]
     public void GlobalMigrationListTest()
     {
-        var list = new GlobalMigrationList();
+        var list = new GlobalIdentityMigrationList();
 
         long prev = -1;
         foreach (var m in list.SortedMigrations)
