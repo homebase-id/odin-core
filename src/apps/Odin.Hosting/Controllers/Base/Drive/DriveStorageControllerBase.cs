@@ -112,6 +112,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
+            if (header.FileMetadata.PayloadsAreRemote)
+            {
+                throw new OdinClientException("Cannot get payloads when marked as remote");
+            }
+            
             var payloadStream = await fs.Storage.GetPayloadStreamAsync(file, request.Key, request.Chunk, WebOdinContext);
             if (payloadStream == null)
             {
@@ -174,6 +179,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
+            if (header.FileMetadata.PayloadsAreRemote)
+            {
+                throw new OdinClientException("Cannot get remote thumbnails when marked as remote");
+            }
+            
             //Note: this second read of the payload could be going to network storage
 
             var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStreamAsync(file,

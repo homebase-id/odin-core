@@ -116,6 +116,7 @@ public sealed class FileReaderWriter(
         
         byte[] bytes = null;
 
+        bool notFound = false;
         await TryRetry.Create()
             .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
             .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
@@ -125,13 +126,26 @@ public sealed class FileReaderWriter(
                 {
                     bytes = await File.ReadAllBytesAsync(filePath);
                 }
+                catch (DirectoryNotFoundException)
+                {
+                    notFound = true;
+                }
+                catch (FileNotFoundException)
+                {
+                    notFound = true;
+                }
                 catch (Exception e)
                 {
-                    logger.LogDebug(e, "GetAllFileBytes (TryRetry) {message}", e.Message);
+                    logger.LogDebug(e, "Unexpected error reading file {filePath}", filePath);
                     throw;
                 }
             });
 
+        if (notFound)
+        {
+            throw new OdinSystemException($"File or directory does not exist {filePath}");
+        }
+        
         return bytes;
     }
 
@@ -143,27 +157,50 @@ public sealed class FileReaderWriter(
         AssertFileExists(filePath);
 
         byte[] bytes = null;
+        
+        bool notFound = false;
 
         await TryRetry.Create()
             .WithAttempts(odinConfiguration.Host.FileOperationRetryAttempts)
             .WithDelay(odinConfiguration.Host.FileOperationRetryDelayMs)
             .ExecuteAsync(async () =>
             {
-                await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-                // Check if offset is valid
-                if (offset < 0 || offset > fileStream.Length)
+                try
                 {
-                    throw new ArgumentOutOfRangeException(nameof(offset), "Offset is outside the file bounds.");
+                    await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+                    // Check if offset is valid
+                    if (offset < 0 || offset > fileStream.Length)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(offset), "Offset is outside the file bounds.");
+                    }
+
+                    // Calculate the number of bytes to read
+                    var bytesToRead = Math.Min(fileStream.Length - offset, length);
+
+                    bytes = new byte[bytesToRead];
+                    fileStream.Seek(offset, SeekOrigin.Begin);
+                    await fileStream.ReadExactlyAsync(bytes, cancellationToken);
                 }
-
-                // Calculate the number of bytes to read
-                var bytesToRead = Math.Min(fileStream.Length - offset, length);
-
-                bytes = new byte[bytesToRead];
-                fileStream.Seek(offset, SeekOrigin.Begin);
-                await fileStream.ReadExactlyAsync(bytes, cancellationToken);
+                catch (DirectoryNotFoundException)
+                {
+                    notFound = true;
+                }
+                catch (FileNotFoundException)
+                {
+                    notFound = true;
+                }
+                catch (Exception e)
+                {
+                    logger.LogDebug(e, "Unexpected error reading file {filePath}", filePath);
+                    throw;
+                }
             });
+
+        if (notFound)
+        {
+            throw new OdinSystemException($"File or directory does not exist {filePath}");
+        }
 
         return bytes;
     }
