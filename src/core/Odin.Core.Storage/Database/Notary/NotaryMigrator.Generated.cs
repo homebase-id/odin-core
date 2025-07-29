@@ -5,7 +5,7 @@ namespace Odin.Core.Storage.Database.Notary.Migrations;
 
 public partial class NotaryMigrator
 {
-    public List<MigrationBase> SortedMigrations 
+    protected override List<MigrationBase> SortedMigrations
     {
         get {
             var list = new List<MigrationListBase>()

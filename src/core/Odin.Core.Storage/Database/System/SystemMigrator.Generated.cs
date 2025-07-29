@@ -5,7 +5,7 @@ namespace Odin.Core.Storage.Database.System.Migrations;
 
 public partial class SystemMigrator
 {
-    public List<MigrationBase> SortedMigrations 
+    protected override List<MigrationBase> SortedMigrations
     {
         get {
             var list = new List<MigrationListBase>()
