@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.System.Migrations;
+namespace Odin.Core.Storage.Database.System;
 
 public partial class SystemMigrator
 {

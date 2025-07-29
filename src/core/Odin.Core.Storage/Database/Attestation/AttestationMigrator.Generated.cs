@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.Attestation.Migrations;
+namespace Odin.Core.Storage.Database.Attestation;
 
 public partial class AttestationMigrator
 {
