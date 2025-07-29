@@ -112,9 +112,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            if (header.FileMetadata.DataSource.PayloadsAreRemote)
+            if (header.FileMetadata.PayloadsAreRemote)
             {
-                throw new OdinClientException("Cannot get remote thumbnails when marked as remote");
+                throw new OdinClientException("Cannot get payloads when marked as remote");
             }
             
             var payloadStream = await fs.Storage.GetPayloadStreamAsync(file, request.Key, request.Chunk, WebOdinContext);
@@ -179,7 +179,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 return NotFound();
             }
 
-            if (header.FileMetadata.DataSource.PayloadsAreRemote)
+            if (header.FileMetadata.PayloadsAreRemote)
             {
                 throw new OdinClientException("Cannot get remote thumbnails when marked as remote");
             }
