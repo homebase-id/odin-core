@@ -5,7 +5,7 @@ using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -69,6 +69,7 @@ using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
+using Odin.Core.Storage.Database.Identity;
 
 namespace Odin.Hosting;
 

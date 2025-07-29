@@ -1,16 +1,15 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity.Migrations;
 
 public class TableDriveMainIndexMigrationList : MigrationListBase
 {
     public TableDriveMainIndexMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableDriveMainIndexMigrationV0(this),
-            new TableDriveMainIndexMigrationV20250719(this),
+            new TableDriveMainIndexMigrationV0(-1),
+            new TableDriveMainIndexMigrationV202507191211(0),
             // AUTO-INSERT-MARKER
         };
     }
