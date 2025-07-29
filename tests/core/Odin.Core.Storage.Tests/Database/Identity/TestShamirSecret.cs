@@ -289,20 +289,21 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         /// <summary>
         /// Shows how to setup Shamir's secret sharing
-        /// In this example we encrypt our secret (which one? the master key? or another key)
-        /// Then we encrypt it somehow so the manual recipients cannot decrypt them until the 
+        /// In this example we encrypt our secret (a random password encryption key)
+        /// Then we encrypt it with a random key for each recipient, so they cannot decrypt them until the 
         /// dealer server is in "password recovery mode".
         /// Then we give it to three automatic and two manual (people)
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
-        public async Task ShamirSecretSharingFlowSetupExamplee(DatabaseType databaseType)
+        public async Task ShamirSecretSharingFlowSetupExample(DatabaseType databaseType)
         {
+            // A random encryption key that will encrypt the dealer's password
             var secret = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
             int totalShards = 5;
             int minShards = 4;
 
-            // First we split Frodo's secret into 5 parts where 4 of them can reconstruct Frodo's password
+            // First we split dealer Frodo's secret into 5 parts where 4 players can reconstruct Frodo's password
             var shards = ShamirSecretSharing.GenerateShamirShares(totalShards, minShards, secret);
 
             // This is how Frodo has setup his 5 shards.
@@ -324,11 +325,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(shards.Count == 5);
             ClassicAssert.IsTrue(shamirPlayers.Count == 5);
 
-            var keyba = dealerRandomKey;
-            var keysba = new SensitiveByteArray(keyba);
-
             for (int i = 0; i < shards.Count; i++)
             {
+                // Generate a random encryption key for each player / shard
+                var keyba = ByteArrayUtil.GetRandomCryptoGuid().ToByteArray();
+                var keysba = new SensitiveByteArray(keyba);
+
                 ClassicAssert.IsTrue(shards[i].Index == i + 1);
                 var (Iv, CipherText) = AesCbc.Encrypt(shards[i].Shard, keysba);
                 var guidId = Guid.NewGuid();
@@ -418,16 +420,24 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var l = EmailLinkHelper.BuildResetUrl("https://frodobaggins.me", nonceId, randomkey.ToBase64());
 
             // Send the email
+            r = null;
+
+            // Now the user clicks the link, at the server we parse the URL
+            //
             var (id, Token) = EmailLinkHelper.ParseResetUrl(l);
 
+            // Then we get the corresponding NONCE from the DB
+            r = await tableNonce.PopAsync(id);
+
+            // Now we should be able to reconstruct the sercet used to encrypt the user's password
             var reconstructedSecret = XorManagement.XorDecrypt(Convert.FromBase64String(r.data), Convert.FromBase64String(Token));
             if (!reconstructedSecret.SequenceEqual(secret))
                 Assert.Fail("Reconstruction from email magic link  failed.");
 
             // We can now reset the password
 
-            // The nonce is great and all, but what if the suer clicks the link and messes up somehow
-            // and doesn't complete
+            // The nonce is great and all, but what if the user clicks the link and messes up somehow
+            // and doesn't complete. Maybe we insert it back into the table after popping?
         }
 
 

@@ -8,27 +8,9 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Notary;
 
-public class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<INotaryDbConnectionFactory>(lifetimeScope)
+public partial class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<INotaryDbConnectionFactory>(lifetimeScope)
 {
-    //
-    // Put all database tables alphabetically here.
-    // Don't forget to add the table to the lazy properties as well.
-    //
-    public static readonly ImmutableList<Type> TableTypes =
-    [
-        typeof(TableNotaryChain)
-    ];
-
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
-
-    //
-    // Table convenience properties
-    //
-
-    // AppGrants
-    private Lazy<TableNotaryChain> _notaryChain;
-    public TableNotaryChain NotaryChain => LazyResolve(ref _notaryChain);
-
 
     //
     // Connection

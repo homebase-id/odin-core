@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Immutable;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity;
 
-public class GlobalIdentityTableList
+public partial class IdentityDatabase
 {
-    public static readonly ImmutableList<Type> TableList = [
+    public static readonly ImmutableList<Type> TableTypes = [
             typeof(TableDrives),
             typeof(TableDriveMainIndex),
             typeof(TableDriveTransferHistory),
@@ -30,66 +32,66 @@ public class GlobalIdentityTableList
     ];
 
     private Lazy<TableDrives> _drives;
-    public TableDrives => LazyResolve(ref _drives);
+    public TableDrives Drives => LazyResolve(ref _drives);
 
     private Lazy<TableDriveMainIndex> _driveMainIndex;
-    public TableDriveMainIndex => LazyResolve(ref _driveMainIndex);
+    public TableDriveMainIndex DriveMainIndex => LazyResolve(ref _driveMainIndex);
 
     private Lazy<TableDriveTransferHistory> _driveTransferHistory;
-    public TableDriveTransferHistory => LazyResolve(ref _driveTransferHistory);
+    public TableDriveTransferHistory DriveTransferHistory => LazyResolve(ref _driveTransferHistory);
 
     private Lazy<TableDriveAclIndex> _driveAclIndex;
-    public TableDriveAclIndex => LazyResolve(ref _driveAclIndex);
+    public TableDriveAclIndex DriveAclIndex => LazyResolve(ref _driveAclIndex);
 
     private Lazy<TableDriveTagIndex> _driveTagIndex;
-    public TableDriveTagIndex => LazyResolve(ref _driveTagIndex);
+    public TableDriveTagIndex DriveTagIndex => LazyResolve(ref _driveTagIndex);
 
     private Lazy<TableDriveLocalTagIndex> _driveLocalTagIndex;
-    public TableDriveLocalTagIndex => LazyResolve(ref _driveLocalTagIndex);
+    public TableDriveLocalTagIndex DriveLocalTagIndex => LazyResolve(ref _driveLocalTagIndex);
 
     private Lazy<TableDriveReactions> _driveReactions;
-    public TableDriveReactions => LazyResolve(ref _driveReactions);
+    public TableDriveReactions DriveReactions => LazyResolve(ref _driveReactions);
 
     private Lazy<TableAppNotifications> _appNotifications;
-    public TableAppNotifications => LazyResolve(ref _appNotifications);
+    public TableAppNotifications AppNotifications => LazyResolve(ref _appNotifications);
 
     private Lazy<TableCircle> _circle;
-    public TableCircle => LazyResolve(ref _circle);
+    public TableCircle Circle => LazyResolve(ref _circle);
 
     private Lazy<TableCircleMember> _circleMember;
-    public TableCircleMember => LazyResolve(ref _circleMember);
+    public TableCircleMember CircleMember => LazyResolve(ref _circleMember);
 
     private Lazy<TableConnections> _connections;
-    public TableConnections => LazyResolve(ref _connections);
+    public TableConnections Connections => LazyResolve(ref _connections);
 
     private Lazy<TableAppGrants> _appGrants;
-    public TableAppGrants => LazyResolve(ref _appGrants);
+    public TableAppGrants AppGrants => LazyResolve(ref _appGrants);
 
     private Lazy<TableImFollowing> _imFollowing;
-    public TableImFollowing => LazyResolve(ref _imFollowing);
+    public TableImFollowing ImFollowing => LazyResolve(ref _imFollowing);
 
     private Lazy<TableFollowsMe> _followsMe;
-    public TableFollowsMe => LazyResolve(ref _followsMe);
+    public TableFollowsMe FollowsMe => LazyResolve(ref _followsMe);
 
     private Lazy<TableInbox> _inbox;
-    public TableInbox => LazyResolve(ref _inbox);
+    public TableInbox Inbox => LazyResolve(ref _inbox);
 
     private Lazy<TableOutbox> _outbox;
-    public TableOutbox => LazyResolve(ref _outbox);
+    public TableOutbox Outbox => LazyResolve(ref _outbox);
 
     private Lazy<TableKeyValue> _keyValue;
-    public TableKeyValue => LazyResolve(ref _keyValue);
+    public TableKeyValue KeyValue => LazyResolve(ref _keyValue);
 
     private Lazy<TableKeyTwoValue> _keyTwoValue;
-    public TableKeyTwoValue => LazyResolve(ref _keyTwoValue);
+    public TableKeyTwoValue KeyTwoValue => LazyResolve(ref _keyTwoValue);
 
     private Lazy<TableKeyThreeValue> _keyThreeValue;
-    public TableKeyThreeValue => LazyResolve(ref _keyThreeValue);
+    public TableKeyThreeValue KeyThreeValue => LazyResolve(ref _keyThreeValue);
 
     private Lazy<TableKeyUniqueThreeValue> _keyUniqueThreeValue;
-    public TableKeyUniqueThreeValue => LazyResolve(ref _keyUniqueThreeValue);
+    public TableKeyUniqueThreeValue KeyUniqueThreeValue => LazyResolve(ref _keyUniqueThreeValue);
 
     private Lazy<TableNonce> _nonce;
-    public TableNonce => LazyResolve(ref _nonce);
+    public TableNonce Nonce => LazyResolve(ref _nonce);
 
 }
