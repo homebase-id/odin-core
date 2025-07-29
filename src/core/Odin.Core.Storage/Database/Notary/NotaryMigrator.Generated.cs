@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.Notary.Migrations;
+namespace Odin.Core.Storage.Database.Notary;
 
 public partial class GlobalNotaryMigrationList
 {

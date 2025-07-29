@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.KeyChain.Migrations;
+namespace Odin.Core.Storage.Database.KeyChain;
 
 public partial class GlobalKeyChainMigrationList
 {
