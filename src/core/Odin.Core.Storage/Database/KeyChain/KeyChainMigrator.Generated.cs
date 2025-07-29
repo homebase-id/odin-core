@@ -1,21 +1,22 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.KeyChain;
+namespace Odin.Core.Storage.Database.KeyChain.Migrations;
 
-public partial class GlobalKeyChainMigrationList
+public partial class KeyChainMigrator
 {
-    List<MigrationListBase> MigrationList { get; init; }
-    public List<MigrationBase> SortedMigrations { get; init; }
-
-    public GlobalKeyChainMigrationList()
+    public List<MigrationBase> SortedMigrations 
     {
-        MigrationList = new List<MigrationListBase>() {
-            new TableKeyChainMigrationList(),
-        };
-        foreach (var migration in MigrationList)
-            migration.Validate();
+        get {
+            var list = new List<MigrationListBase>()
+            {
+                new TableKeyChainMigrationList(),
+            };
 
-        SortedMigrations = MigrationList.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+            foreach (var migration in list)
+                migration.Validate();
+
+            return list.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+        }
     }
 }

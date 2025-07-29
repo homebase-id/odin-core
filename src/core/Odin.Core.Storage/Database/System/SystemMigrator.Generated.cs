@@ -1,24 +1,25 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.System;
+namespace Odin.Core.Storage.Database.System.Migrations;
 
-public partial class GlobalSystemMigrationList
+public partial class SystemMigrator
 {
-    List<MigrationListBase> MigrationList { get; init; }
-    public List<MigrationBase> SortedMigrations { get; init; }
-
-    public GlobalSystemMigrationList()
+    public List<MigrationBase> SortedMigrations 
     {
-        MigrationList = new List<MigrationListBase>() {
-            new TableJobsMigrationList(),
-            new TableCertificatesMigrationList(),
-            new TableRegistrationsMigrationList(),
-            new TableSettingsMigrationList(),
-        };
-        foreach (var migration in MigrationList)
-            migration.Validate();
+        get {
+            var list = new List<MigrationListBase>()
+            {
+                new TableJobsMigrationList(),
+                new TableCertificatesMigrationList(),
+                new TableRegistrationsMigrationList(),
+                new TableSettingsMigrationList(),
+            };
 
-        SortedMigrations = MigrationList.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+            foreach (var migration in list)
+                migration.Validate();
+
+            return list.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+        }
     }
 }

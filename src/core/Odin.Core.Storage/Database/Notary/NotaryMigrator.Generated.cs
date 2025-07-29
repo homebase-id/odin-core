@@ -1,21 +1,22 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.Notary;
+namespace Odin.Core.Storage.Database.Notary.Migrations;
 
-public partial class GlobalNotaryMigrationList
+public partial class NotaryMigrator
 {
-    List<MigrationListBase> MigrationList { get; init; }
-    public List<MigrationBase> SortedMigrations { get; init; }
-
-    public GlobalNotaryMigrationList()
+    public List<MigrationBase> SortedMigrations 
     {
-        MigrationList = new List<MigrationListBase>() {
-            new TableNotaryChainMigrationList(),
-        };
-        foreach (var migration in MigrationList)
-            migration.Validate();
+        get {
+            var list = new List<MigrationListBase>()
+            {
+                new TableNotaryChainMigrationList(),
+            };
 
-        SortedMigrations = MigrationList.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+            foreach (var migration in list)
+                migration.Validate();
+
+            return list.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+        }
     }
 }

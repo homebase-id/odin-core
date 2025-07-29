@@ -1,22 +1,23 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.Attestation;
+namespace Odin.Core.Storage.Database.Attestation.Migrations;
 
-public partial class GlobalAttestationMigrationList
+public partial class AttestationMigrator
 {
-    List<MigrationListBase> MigrationList { get; init; }
-    public List<MigrationBase> SortedMigrations { get; init; }
-
-    public GlobalAttestationMigrationList()
+    public List<MigrationBase> SortedMigrations 
     {
-        MigrationList = new List<MigrationListBase>() {
-            new TableAttestationRequestMigrationList(),
-            new TableAttestationStatusMigrationList(),
-        };
-        foreach (var migration in MigrationList)
-            migration.Validate();
+        get {
+            var list = new List<MigrationListBase>()
+            {
+                new TableAttestationRequestMigrationList(),
+                new TableAttestationStatusMigrationList(),
+            };
 
-        SortedMigrations = MigrationList.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+            foreach (var migration in list)
+                migration.Validate();
+
+            return list.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
+        }
     }
 }
