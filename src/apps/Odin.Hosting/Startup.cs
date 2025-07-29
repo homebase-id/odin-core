@@ -14,7 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
 using Odin.Core.Util;
@@ -29,6 +29,7 @@ using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
+using Odin.Core.Storage.Database.System;
 
 namespace Odin.Hosting;
 

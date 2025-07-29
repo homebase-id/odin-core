@@ -1,7 +1,7 @@
-// Base for all container classes (shares prev/next logic).
-using Odin.Core.Storage.Database;
 using System;
 using System.Collections.Generic;
+
+namespace Odin.Core.Storage.Database;
 
 public abstract class MigrationListBase
 {
@@ -11,9 +11,9 @@ public abstract class MigrationListBase
     {
     }
 
-    public void ValidateMigrationList()
+    public void Validate()
     {
-        int prev = -1;
+        long prev = -1;
         foreach (var migration in Migrations)
         {
             if (migration.MigrationVersion <= prev)
@@ -21,75 +21,18 @@ public abstract class MigrationListBase
                 Migrations = null;
                 throw new Exception("Version numbers not increasing");
             }
+
+            if (migration.PreviousVersion != prev)
+            {
+                Migrations = null;
+                throw new Exception("Previous version not matching list order");
+            }
+
             prev = migration.MigrationVersion;
         }
     }
 
-    public MigrationBase PreviousVersion(MigrationBase current)
-    {
-        if (current == null) throw new ArgumentNullException(nameof(current));
-
-        int index = -1;
-        for (int i = 0; i < Migrations.Count; i++)
-        {
-            if (Migrations[i] == current)
-            {
-                index = i;
-                break;
-            }
-        }
-
-        if (index == -1)
-        {
-            throw new ArgumentException("The provided migration was not found in the list.");
-        }
-
-        if (index > 0)
-        {
-            return Migrations[index - 1];
-        }
-
-        return null;
-    }
-
-    public int PreviousVersionInt(MigrationBase current)
-    {
-        MigrationBase o = PreviousVersion(current);
-
-        if (o == null)
-            return -1;
-        else
-            return o.MigrationVersion;
-    }
-
-    public MigrationBase NextVersion(MigrationBase current)
-    {
-        if (current == null) throw new ArgumentNullException(nameof(current));
-
-        int index = -1;
-        for (int i = 0; i < Migrations.Count; i++)
-        {
-            if (Migrations[i] == current)
-            {
-                index = i;
-                break;
-            }
-        }
-
-        if (index == -1)
-        {
-            throw new ArgumentException("The provided migration was not found in the list.");
-        }
-
-        if (index < Migrations.Count - 1)
-        {
-            return Migrations[index + 1];
-        }
-
-        return null;
-    }
-
-    public MigrationBase GetByVersion(int version)
+    public MigrationBase GetByVersion(Int64 version)
     {
         foreach (var o in Migrations)
         {
@@ -100,6 +43,11 @@ public abstract class MigrationListBase
         }
 
         return null;
+    }
+
+    public MigrationBase GetFirstVersion()
+    {
+        return Migrations[0];
     }
 
     public MigrationBase GetLatestVersion()

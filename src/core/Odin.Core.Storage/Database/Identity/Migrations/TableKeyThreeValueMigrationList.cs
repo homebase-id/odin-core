@@ -1,15 +1,14 @@
 using System;
 using System.Collections.Generic;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Table;
+namespace Odin.Core.Storage.Database.Identity.Migrations;
 
 public class TableKeyThreeValueMigrationList : MigrationListBase
 {
     public TableKeyThreeValueMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableKeyThreeValueMigrationV0(this),
+            new TableKeyThreeValueMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }

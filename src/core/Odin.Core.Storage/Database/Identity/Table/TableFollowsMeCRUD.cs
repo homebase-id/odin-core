@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.KeyChain.Connection;
 using Odin.Core.Storage.Database.Notary.Connection;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.SQLite; //added for homebase social sync
@@ -55,7 +56,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "FollowsMe");
+                await SqlHelper.DeleteTableAsync(cn, "FollowsMe");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -78,7 +79,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0FollowsMe ON FollowsMe(identityId,identity);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "FollowsMe", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(FollowsMeRecord item)

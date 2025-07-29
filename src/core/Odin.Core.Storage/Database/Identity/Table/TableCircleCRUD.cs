@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.KeyChain.Connection;
 using Odin.Core.Storage.Database.Notary.Connection;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.SQLite; //added for homebase social sync
@@ -55,7 +56,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "Circle");
+                await SqlHelper.DeleteTableAsync(cn, "Circle");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -76,7 +77,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,circleId)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Circle", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(CircleRecord item)

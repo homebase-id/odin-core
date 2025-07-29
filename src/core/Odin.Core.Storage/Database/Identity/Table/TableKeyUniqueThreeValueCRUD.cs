@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.KeyChain.Connection;
 using Odin.Core.Storage.Database.Notary.Connection;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.SQLite; //added for homebase social sync
@@ -61,7 +62,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "KeyUniqueThreeValue");
+                await SqlHelper.DeleteTableAsync(cn, "KeyUniqueThreeValue");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -86,7 +87,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CREATE INDEX IF NOT EXISTS Idx0KeyUniqueThreeValue ON KeyUniqueThreeValue(identityId,key2);"
                    +"CREATE INDEX IF NOT EXISTS Idx1KeyUniqueThreeValue ON KeyUniqueThreeValue(key3);"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyUniqueThreeValue", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)
