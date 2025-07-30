@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Odin.Core.Storage.Database.Identity.Migrations;
+namespace Odin.Core.Storage.Database.Identity;
 
 public partial class IdentityMigrator
 {
