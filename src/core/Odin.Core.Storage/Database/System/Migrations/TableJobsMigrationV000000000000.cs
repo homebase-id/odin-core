@@ -109,14 +109,12 @@ namespace Odin.Core.Storage.Database.System.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
-            throw new  Exception("You cannot move up from version 0");
+            await CreateTableWithCommentAsync(cn);
         }
 
-        public override async Task DownAsync(IConnectionWrapper cn)
+        public override Task DownAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
-            throw new  Exception("You cannot move down from version 0");
+            throw new Exception("You cannot move down from version 0");
         }
 
     }
