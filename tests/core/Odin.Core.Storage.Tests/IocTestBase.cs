@@ -27,7 +27,6 @@ public abstract class IocTestBase
     protected static DatabaseType DatabaseType;
     protected string TempFolder;
     protected ILifetimeScope Services = null!;
-    protected LogEventMemoryStore LogEventMemoryStore = null!;
     protected Guid IdentityId;
     protected PostgreSqlContainer PostgresContainer;
 
@@ -35,21 +34,25 @@ public abstract class IocTestBase
     public virtual void Setup()
     {
         IdentityId = Guid.NewGuid();
-        LogEventMemoryStore = new LogEventMemoryStore();
         TempFolder = TempDirectory.Create();
     }
 
     [TearDown]
     public virtual void TearDown()
     {
+        var logEventMemoryStore = Services?.Resolve<ILogEventMemoryStore>();
+        if (logEventMemoryStore != null)
+        {
+            LogEvents.DumpErrorEvents(logEventMemoryStore.GetLogEvents());
+            LogEvents.AssertEvents(logEventMemoryStore.GetLogEvents());
+        }
+
         Services?.Dispose();
 
         PostgresContainer?.DisposeAsync().AsTask().Wait();
         PostgresContainer = null;
 
         Directory.Delete(TempFolder, true);
-        LogEvents.DumpErrorEvents(LogEventMemoryStore.GetLogEvents());
-        LogEvents.AssertEvents(LogEventMemoryStore.GetLogEvents());
 
         GC.Collect();
         GC.WaitForPendingFinalizers();
