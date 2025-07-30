@@ -455,21 +455,18 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead);
 
+        if(odinContext.AuthContext == "youauth-token")
+        {
+            //Youauth cannot 
+            var authHttpClient = odinHttpClientFactory.CreateClient<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
+            return (null, authHttpClient);
+        }
+
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
         var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
-
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
-        if (authToken == null)
-        {
-            var httpClient = odinHttpClientFactory.CreateClient<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
-            return (icr, httpClient);
-        }
-        else
-        {
-            var httpClient =
-                odinHttpClientFactory.CreateClientUsingAccessToken<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
-            return (icr, httpClient);
-        }
+        var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
+        return (icr, httpClient);
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,
@@ -490,6 +487,12 @@ public class PeerDriveQueryService(
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
+        if(odinContext.AuthContext == "youauth-token")
+        {
+            sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
+            return sharedSecretEncryptedFileHeader;
+        }
+
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.IsEncrypted)
         {
