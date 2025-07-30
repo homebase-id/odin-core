@@ -1,14 +1,12 @@
-using System;
-using System.Data;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using NUnit.Framework.Legacy;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.System.Migrations;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 
@@ -21,11 +19,21 @@ public class MigratorTests : IocTestBase
     #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
     #endif
-    public async Task ItShouldCreateAndUpdateTableVersionInfo(DatabaseType databaseType)
+    public async Task ItShouldCreateAndUpdateTableVersionInfoWithEmptyMigrationList(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType, false);
         await using var scope = Services.BeginLifetimeScope();
-        var migrator  = scope.Resolve<SystemMigrator>();
+        var logger = scope.Resolve<ILogger<SystemMigrator>>();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        // SEB:NOTE we use a mock, so we can create a new, empty SortedMigrations list
+        var mock = new Mock<SystemMigrator>(logger, scopedConnectionFactory)
+        {
+            CallBase = true
+        };
+        mock.Setup(x => x.SortedMigrations).Returns([]);
+
+        var migrator  = mock.Object;
 
         await migrator.MigrateAsync();
 
@@ -61,4 +69,27 @@ public class MigratorTests : IocTestBase
             Assert.That(currentVersion, Is.EqualTo(testVersion2));
         }
     }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldXXXX(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType, false);
+        await using var scope = Services.BeginLifetimeScope();
+        var migrator = scope.Resolve<SystemMigrator>();
+
+        // var tableJobs = scope.Resolve<TableJobs>();
+        // var c = await tableJobs.GetCountAsync();
+
+        await migrator.MigrateAsync();
+
+        Assert.Pass();
+    }
 }
+
+

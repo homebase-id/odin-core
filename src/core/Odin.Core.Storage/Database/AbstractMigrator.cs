@@ -15,7 +15,7 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
 {
     public abstract List<MigrationBase> SortedMigrations { get; }
 
-    private enum Direction
+    internal enum Direction
     {
         Nowhere,
         Up,
@@ -24,7 +24,7 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
 
     public async Task MigrateAsync(long requestedVersion = long.MaxValue)
     {
-        // SEB:TODO distributed lock
+        // SEB:TODO distributed lock (ach... we need to move INodeLock to Odin.Core.Storage first)
 
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
@@ -51,46 +51,78 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
         // Collect all migrations that need to be run
         //
 
-        List<MigrationBase> migrationsToRun;
+        var groupedMigrations = GroupMigrationsByVersion(direction, currentVersion, requestedVersion);
+
+        //
+        // Run collected migrations by version group
+        //
+
+        foreach (var (version, migrations) in groupedMigrations)
+        {
+            logger.LogInformation("Running migrations for version {Version} ({Count})", version, migrations.Count);
+
+            await using var trx = await cn.BeginStackedTransactionAsync();
+            foreach (var migration in migrations)
+            {
+                if (direction == Direction.Up)
+                {
+                    await migration.UpAsync(cn);
+                }
+                else
+                {
+                    await migration.DownAsync(cn);
+                }
+            }
+
+            await SetCurrentVersionAsync(cn, version);
+            trx.Commit();
+        }
+    }
+
+    //
+
+    internal List<KeyValuePair<long, List<MigrationBase>>> GroupMigrationsByVersion(
+        Direction direction,
+        long currentVersion,
+        long requestedVersion)
+    {
         if (direction == Direction.Up)
         {
             // Collect all migrations with
             //  version greater than the current database version and less than or equal to the requested version
-            //  sort OLDEST to NEWEST
-            migrationsToRun = SortedMigrations
+            var filteredMigrations = SortedMigrations
                 .Where(m => m.MigrationVersion > currentVersion && m.MigrationVersion <= requestedVersion)
-                .OrderBy(m => m.MigrationVersion)
                 .ToList();
+
+            // Group by version and order by version ascending
+            var groupedMigrations = filteredMigrations
+                .GroupBy(x => x.MigrationVersion)
+                .OrderBy(g => g.Key)  // or OrderByDescending for reverse
+                .Select(g => new KeyValuePair<long, List<MigrationBase>>(g.Key, g.ToList()))
+                .ToList();
+
+            return groupedMigrations;
         }
-        else
+
+        if (direction == Direction.Down)
         {
             // Collect all migrations with
             //   version greater than the requested version and less than or equal to the current database version
-            //   sort NEWEST to OLDEST
-            migrationsToRun = SortedMigrations
+            var filteredMigrations = SortedMigrations
                 .Where(m => m.MigrationVersion > requestedVersion && m.MigrationVersion <= currentVersion)
-                .OrderBy(m => m.MigrationVersion)
-                .Reverse()
                 .ToList();
+
+            // Group by version and order by version descending
+            var groupedMigrations = filteredMigrations
+                .GroupBy(x => x.MigrationVersion)
+                .OrderByDescending(g => g.Key)
+                .Select(g => new KeyValuePair<long, List<MigrationBase>>(g.Key, g.ToList()))
+                .ToList();
+
+            return groupedMigrations;
         }
 
-        //
-        // Run collected migrations
-        //
-
-        foreach (var migration in migrationsToRun)
-        {
-            if (direction == Direction.Up)
-            {
-                await migration.UpAsync(cn);
-            }
-            else
-            {
-                await migration.DownAsync(cn);
-            }
-
-            await SetCurrentVersionAsync(cn, migration.MigrationVersion);
-        }
+        throw new OdinSystemException("Cannot group migrations by version when direction is Nowhere");
     }
 
     //
