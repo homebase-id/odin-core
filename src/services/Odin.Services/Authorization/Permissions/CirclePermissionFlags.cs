@@ -77,6 +77,7 @@ namespace Odin.Services.Authorization.Permissions
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
                 PermissionKeys.ReadWhoIFollow,
+                PermissionKeys.UseTransitRead,
 
                 //Note: circles can potentially useTransitWrite so feed items can be
                 //distributed when posting to a group channel;  intentionally leaving out UseTransitRead

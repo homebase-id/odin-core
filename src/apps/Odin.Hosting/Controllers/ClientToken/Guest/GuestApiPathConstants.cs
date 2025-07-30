@@ -22,7 +22,8 @@
         public const string PeerV1 = BasePathV1 + "/transit";
 
         public const string PeerSenderV1 = PeerV1 + "/sender";
-        
+        public const string PeerQueryV1 = PeerV1 + "/query";
+
         public const string DriveReactionsV1 = DriveV1 + "/files/reactions";
         public const string CirclesV1 = BasePathV1 + "/circles";
         public const string FollowersV1 = BasePathV1 + "/followers";
