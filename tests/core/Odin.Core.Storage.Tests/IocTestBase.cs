@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Cache;
 using Odin.Core.Identity;
@@ -11,10 +12,6 @@ using Odin.Core.Logging;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.System.Table;
-using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
@@ -29,8 +26,7 @@ public abstract class IocTestBase
 {
     protected static DatabaseType DatabaseType;
     protected string TempFolder;
-    protected ILifetimeScope Services = null!;
-    protected LogEventMemoryStore LogEventMemoryStore = null!;
+    protected ILifetimeScope Services;
     protected Guid IdentityId;
     protected PostgreSqlContainer PostgresContainer;
 
@@ -38,21 +34,26 @@ public abstract class IocTestBase
     public virtual void Setup()
     {
         IdentityId = Guid.NewGuid();
-        LogEventMemoryStore = new LogEventMemoryStore();
         TempFolder = TempDirectory.Create();
     }
 
     [TearDown]
     public virtual void TearDown()
     {
+        var logEventMemoryStore = Services?.Resolve<ILogEventMemoryStore>();
+        if (logEventMemoryStore != null)
+        {
+            LogEvents.DumpErrorEvents(logEventMemoryStore.GetLogEvents());
+            LogEvents.AssertEvents(logEventMemoryStore.GetLogEvents());
+        }
+
         Services?.Dispose();
+        Services = null;
 
         PostgresContainer?.DisposeAsync().AsTask().Wait();
         PostgresContainer = null;
 
         Directory.Delete(TempFolder, true);
-        LogEvents.DumpErrorEvents(LogEventMemoryStore.GetLogEvents());
-        LogEvents.AssertEvents(LogEventMemoryStore.GetLogEvents());
 
         GC.Collect();
         GC.WaitForPendingFinalizers();
@@ -88,17 +89,9 @@ public abstract class IocTestBase
 
         builder.RegisterInstance(new OdinIdentity(IdentityId, "foo.bar")).SingleInstance();
 
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<DbConnectionPool>(LogEventMemoryStore, logEventLevel))
-            .SingleInstance();
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(LogEventMemoryStore, logEventLevel))
-            .SingleInstance();
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, logEventLevel))
-            .SingleInstance();
-
         builder.RegisterModule(new LoggingAutofacModule());
+        builder.RegisterGeneric(typeof(TestConsoleLogger<>)).As(typeof(ILogger<>)).SingleInstance();
+
         builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
 
         builder.AddDatabaseCacheServices();
