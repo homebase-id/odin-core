@@ -26,7 +26,7 @@ public abstract class IocTestBase
 {
     protected static DatabaseType DatabaseType;
     protected string TempFolder;
-    protected ILifetimeScope Services = null!;
+    protected ILifetimeScope Services;
     protected Guid IdentityId;
     protected PostgreSqlContainer PostgresContainer;
 
@@ -48,6 +48,7 @@ public abstract class IocTestBase
         }
 
         Services?.Dispose();
+        Services = null;
 
         PostgresContainer?.DisposeAsync().AsTask().Wait();
         PostgresContainer = null;
