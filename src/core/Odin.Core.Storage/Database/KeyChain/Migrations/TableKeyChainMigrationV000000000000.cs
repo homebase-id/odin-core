@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.KeyChain
+namespace Odin.Core.Storage.Database.KeyChain.Migrations
 {
     public class TableKeyChainMigrationV0 : MigrationBase
     {

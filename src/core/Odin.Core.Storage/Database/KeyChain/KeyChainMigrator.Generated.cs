@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Storage.Database.KeyChain.Migrations;
 
 namespace Odin.Core.Storage.Database.KeyChain;
 
 public partial class KeyChainMigrator
 {
-    protected override List<MigrationBase> SortedMigrations
+    public override List<MigrationBase> SortedMigrations
     {
         get {
             var list = new List<MigrationListBase>()
