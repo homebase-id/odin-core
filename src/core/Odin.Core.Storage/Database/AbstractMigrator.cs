@@ -4,5 +4,5 @@ namespace Odin.Core.Storage.Database;
 
 public abstract class AbstractMigrator
 {
-    protected abstract List<MigrationBase> SortedMigrations { get; }
+    public abstract List<MigrationBase> SortedMigrations { get; }
 }

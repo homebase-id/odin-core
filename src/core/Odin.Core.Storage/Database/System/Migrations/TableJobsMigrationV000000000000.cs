@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.System
+namespace Odin.Core.Storage.Database.System.Migrations
 {
     public class TableJobsMigrationV0 : MigrationBase
     {

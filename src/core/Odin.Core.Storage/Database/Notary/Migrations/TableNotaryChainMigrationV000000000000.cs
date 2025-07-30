@@ -1,6 +1,4 @@
 using System;
-using System.Data;
-using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -15,7 +13,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Notary
+namespace Odin.Core.Storage.Database.Notary.Migrations
 {
     public class TableNotaryChainMigrationV0 : MigrationBase
     {

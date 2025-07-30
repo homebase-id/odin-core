@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Attestation
+namespace Odin.Core.Storage.Database.Attestation.Migrations
 {
     public class TableAttestationRequestMigrationV0 : MigrationBase
     {

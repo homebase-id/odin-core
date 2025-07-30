@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Storage.Database.Identity.Migrations;
 
 namespace Odin.Core.Storage.Database.Identity;
 
 public partial class IdentityMigrator
 {
-    protected override List<MigrationBase> SortedMigrations
+    public override List<MigrationBase> SortedMigrations
     {
         get {
             var list = new List<MigrationListBase>()
