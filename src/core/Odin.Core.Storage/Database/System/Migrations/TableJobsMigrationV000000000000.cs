@@ -59,14 +59,14 @@ namespace Odin.Core.Storage.Database.System.Migrations
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
-                   +"CREATE INDEX Idx0JobsMigrationsV0 ON JobsMigrationsV0(state);"
-                   +"CREATE INDEX Idx1JobsMigrationsV0 ON JobsMigrationsV0(expiresAt);"
-                   +"CREATE INDEX Idx2JobsMigrationsV0 ON JobsMigrationsV0(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0JobsMigrationsV0 ON JobsMigrationsV0(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1JobsMigrationsV0 ON JobsMigrationsV0(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2JobsMigrationsV0 ON JobsMigrationsV0(nextRun,priority);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "JobsMigrationsV0", createSql, commentSql);
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
@@ -109,12 +109,14 @@ namespace Odin.Core.Storage.Database.System.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
+            // Create the initial table
             await CreateTableWithCommentAsync(cn);
         }
 
-        public override Task DownAsync(IConnectionWrapper cn)
+        public override async Task DownAsync(IConnectionWrapper cn)
         {
-            throw new Exception("You cannot move down from version 0");
+            await CheckSqlTableVersion(cn, "Jobs", MigrationVersion);
+            throw new  Exception("You cannot move down from version 0");
         }
 
     }

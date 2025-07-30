@@ -49,12 +49,12 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"isReadByRecipient BOOLEAN NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,remoteIdentityId)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0DriveTransferHistoryMigrationsV0 ON DriveTransferHistoryMigrationsV0(identityId,driveId,fileId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0DriveTransferHistoryMigrationsV0 ON DriveTransferHistoryMigrationsV0(identityId,driveId,fileId);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "DriveTransferHistoryMigrationsV0", createSql, commentSql);
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
@@ -86,13 +86,13 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
-            throw new  Exception("You cannot move up from version 0");
+            // Create the initial table
+            await CreateTableWithCommentAsync(cn);
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
+            await CheckSqlTableVersion(cn, "DriveTransferHistory", MigrationVersion);
             throw new  Exception("You cannot move down from version 0");
         }
 
