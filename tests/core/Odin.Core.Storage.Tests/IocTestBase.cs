@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Cache;
 using Odin.Core.Identity;
@@ -11,10 +12,6 @@ using Odin.Core.Logging;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.System.Table;
-using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
@@ -88,17 +85,9 @@ public abstract class IocTestBase
 
         builder.RegisterInstance(new OdinIdentity(IdentityId, "foo.bar")).SingleInstance();
 
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<DbConnectionPool>(LogEventMemoryStore, logEventLevel))
-            .SingleInstance();
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedSystemConnectionFactory>(LogEventMemoryStore, logEventLevel))
-            .SingleInstance();
-        builder
-            .RegisterInstance(TestLogFactory.CreateConsoleLogger<ScopedIdentityConnectionFactory>(LogEventMemoryStore, logEventLevel))
-            .SingleInstance();
-
         builder.RegisterModule(new LoggingAutofacModule());
+        builder.RegisterGeneric(typeof(TestConsoleLogger<>)).As(typeof(ILogger<>)).SingleInstance();
+
         builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
 
         builder.AddDatabaseCacheServices();
