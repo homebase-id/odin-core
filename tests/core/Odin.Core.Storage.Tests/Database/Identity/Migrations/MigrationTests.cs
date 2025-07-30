@@ -8,6 +8,7 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Migrations;
 
@@ -16,12 +17,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
 public class DatabaseMigrationTests : IocTestBase
 {
     [Test]
-    public void GlobalMigrationListTest()
+    public async Task GlobalMigrationListTest()
     {
-        var list = new IdentityMigrator();
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await using var scope = Services.BeginLifetimeScope();
+        var migrator = scope.Resolve<IdentityMigrator>();
 
         long prev = -1;
-        foreach (var m in list.SortedMigrations)
+        foreach (var m in migrator.SortedMigrations)
         {
             ClassicAssert.IsTrue(m.MigrationVersion >= prev);
             prev = m.MigrationVersion;

@@ -3,6 +3,7 @@ using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Factory;
 
@@ -10,9 +11,9 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database;
 
-public abstract class AbstractMigrator
+public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory scopedConnectionFactory)
 {
-    protected abstract List<MigrationBase> SortedMigrations { get; }
+    public abstract List<MigrationBase> SortedMigrations { get; }
 
     private enum Direction
     {
@@ -21,8 +22,10 @@ public abstract class AbstractMigrator
         Down
     }
 
-    public async Task MigrateAsync(IScopedConnectionFactory scopedConnectionFactory, long requestedVersion = long.MaxValue)
+    public async Task MigrateAsync(long requestedVersion = long.MaxValue)
     {
+        // SEB:TODO distributed lock
+
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await EnsureVersionInfoTable(cn);
@@ -40,6 +43,9 @@ public abstract class AbstractMigrator
         {
             return;
         }
+
+        logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion} ({Direction})",
+            currentVersion, requestedVersion, direction);
 
         //
         // Collect all migrations that need to be run
@@ -89,7 +95,7 @@ public abstract class AbstractMigrator
 
     //
 
-    internal async Task<long> GetCurrentVersionAsync(IScopedConnectionFactory scopedConnectionFactory)
+    internal async Task<long> GetCurrentVersionAsync()
     {
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         return await GetCurrentVersionAsync(cn);
@@ -97,7 +103,7 @@ public abstract class AbstractMigrator
 
     //
 
-    internal async Task<long> GetCurrentVersionAsync(IConnectionWrapper cn)
+    private async Task<long> GetCurrentVersionAsync(IConnectionWrapper cn)
     {
         await using var cmd = cn.CreateCommand();
 
@@ -115,7 +121,7 @@ public abstract class AbstractMigrator
 
     //
 
-    internal async Task SetCurrentVersionAsync(IScopedConnectionFactory scopedConnectionFactory, long version)
+    internal async Task SetCurrentVersionAsync(long version)
     {
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         await SetCurrentVersionAsync(cn, version);
@@ -123,7 +129,7 @@ public abstract class AbstractMigrator
 
     //
 
-    internal async Task SetCurrentVersionAsync(IConnectionWrapper cn, long version)
+    private async Task SetCurrentVersionAsync(IConnectionWrapper cn, long version)
     {
         await using var cmd = cn.CreateCommand();
         cmd.CommandText = SqlUpsertVersion;
@@ -139,12 +145,12 @@ public abstract class AbstractMigrator
 
     //
 
-    public const string SqlGetCurrentVersion =
+    private const string SqlGetCurrentVersion =
         """
         SELECT COALESCE((SELECT version FROM VersionInfo), -1) AS version;
         """;
 
-    public const string SqlUpsertVersion =
+    private const string SqlUpsertVersion =
         """
         INSERT INTO VersionInfo (singleton, version)
         VALUES (1, @version)
@@ -154,18 +160,11 @@ public abstract class AbstractMigrator
 
     //
 
-    private static async Task EnsureVersionInfoTable(IScopedConnectionFactory scopedConnectionFactory)
+    private async Task EnsureVersionInfoTable(IConnectionWrapper cn)
     {
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
-        await EnsureVersionInfoTable(cn);
-    }
+        logger.LogDebug("Ensuring VersionInfo table exists");
 
-    //
-
-    private static async Task EnsureVersionInfoTable(IConnectionWrapper cn)
-    {
         await using var cmd = cn.CreateCommand();
-
         cmd.CommandText =
             """
             CREATE TABLE IF NOT EXISTS VersionInfo (
@@ -173,7 +172,6 @@ public abstract class AbstractMigrator
                 version BIGINT NOT NULL
             );
             """;
-
         await cmd.ExecuteNonQueryAsync();
     }
 

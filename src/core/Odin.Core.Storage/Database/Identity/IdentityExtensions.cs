@@ -59,6 +59,9 @@ public static class IdentityExtensions
         // Database
         cb.RegisterType<IdentityDatabase>().InstancePerDependency();
 
+        // Migrator
+        cb.RegisterType<IdentityMigrator>().InstancePerDependency();
+
         // Connection
         cb.RegisterType<ScopedIdentityConnectionFactory>()
             .InstancePerLifetimeScope(); // Important!
@@ -66,6 +69,8 @@ public static class IdentityExtensions
         // Transaction
         cb.RegisterType<ScopedIdentityTransactionFactory>()
             .InstancePerLifetimeScope(); // Important!
+
+
 
         // Tables
         foreach (var tableType in IdentityDatabase.TableTypes)

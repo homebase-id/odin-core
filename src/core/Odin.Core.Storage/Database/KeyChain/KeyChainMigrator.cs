@@ -1,6 +1,10 @@
+using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.Database.KeyChain.Connection;
+
 namespace Odin.Core.Storage.Database.KeyChain;
 
-public partial class KeyChainMigrator : AbstractMigrator
+public partial class KeyChainMigrator(
+    ILogger<KeyChainMigrator> logger, ScopedKeyChainConnectionFactory scopedConnectionFactory) :
+    AbstractMigrator(logger, scopedConnectionFactory)
 {
-
 }
