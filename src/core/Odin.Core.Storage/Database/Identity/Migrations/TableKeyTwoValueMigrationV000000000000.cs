@@ -45,12 +45,12 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"data BYTEA  "
                    +", UNIQUE(identityId,key1)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0KeyTwoValueMigrationsV0 ON KeyTwoValueMigrationsV0(identityId,key2);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0KeyTwoValueMigrationsV0 ON KeyTwoValueMigrationsV0(identityId,key2);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "KeyTwoValueMigrationsV0", createSql, commentSql);
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
@@ -78,13 +78,13 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
-            throw new  Exception("You cannot move up from version 0");
+            // Create the initial table
+            await CreateTableWithCommentAsync(cn);
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
+            await CheckSqlTableVersion(cn, "KeyTwoValue", MigrationVersion);
             throw new  Exception("You cannot move down from version 0");
         }
 

@@ -76,6 +76,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Store the record
             if (playerRecord.Player.Type == ShardType.Automatic)
             {
+                // Doesn't have to be an identity
+
+                // Make sure my identity is s0-s2.homebase.id or your own configured.
+                // Meaning they are in a configuration file
+
+                // No player encryption for automatic?
+
+                // Maybe this is not possible ... :
                 // Retrieve the drive key for the rescue drive, below we simulate it
                 // The drive key is unavailable when the server is at rest and is only available
                 // when the player in question makes a PEER API request.
@@ -92,6 +100,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             }
             else
             {
+                // Need to support direct write to shakira drive
+                // Encryption key preferably is not obtainable by dealer over peer
+                // Dealer only has write access
+                //
                 // Retrieve an owner console only key, below we simulate it
                 // The player must be in the owner console to decrypt the shard
                 var ownerKeyba = playerOwnerKey;
@@ -186,7 +198,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // The return type is just for the TEST - IRL it should not have a return type
         private byte[] LocalApiResolveDelegateShard(Guid Id)
         {
-            // We load it from the disk
+            // The player loads the shard from the disk
             var r = LoadFromPlayerDisk(Id);
 
             if (r == null)
@@ -301,7 +313,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // A random encryption key that will encrypt the dealer's password
             var secret = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
             int totalShards = 5;
-            int minShards = 4;
+            int minShards = 4; // Default setup is 3:3
 
             // First we split dealer Frodo's secret into 5 parts where 4 players can reconstruct Frodo's password
             var shards = ShamirSecretSharing.GenerateShamirShares(totalShards, minShards, secret);
@@ -309,6 +321,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // This is how Frodo has setup his 5 shards.
             // s0-s2 are run by Homebase and can be requested by Frodo's server
             // Sam and Gandalf are humanoids and Frodo must call, text or otherwise contact them to get his share
+            // Sam and Gandalf are connected to Frodo (delegates must be connected)
+            // The default setup is s0-s2
             var shamirPlayers = new List<ShamirPlayer>()
             {
                 new ShamirPlayer(shards[0].Index, ShardType.Automatic, new OdinId("s0.homebase.id")),
@@ -327,16 +341,20 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             for (int i = 0; i < shards.Count; i++)
             {
-                // Generate a random encryption key for each player / shard
+                // The dealer generates a random encryption key (that he will store) for each player / shard
                 var keyba = ByteArrayUtil.GetRandomCryptoGuid().ToByteArray();
                 var keysba = new SensitiveByteArray(keyba);
 
                 ClassicAssert.IsTrue(shards[i].Index == i + 1);
+                // Deaaler encrypts a player's shard with the random key
                 var (Iv, CipherText) = AesCbc.Encrypt(shards[i].Shard, keysba);
                 var guidId = Guid.NewGuid();
+
+                // We create the player record that we will send to the player
                 var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], guidId, CipherText);
                 shamirShardPlayerWrapper.Add(playerRecord);
 
+                // This record is stored on the dealer's host, for each player
                 var dealerRecord = new ShamirShardDealerWrapper(guidId, playerRecord.Player, keyba, Iv);
                 SaveToDealerDisk(dealerRecord);
                 shamirShardDealerWrapper.Add(dealerRecord);

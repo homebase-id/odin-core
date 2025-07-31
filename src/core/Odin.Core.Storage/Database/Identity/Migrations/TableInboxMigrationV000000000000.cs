@@ -51,14 +51,14 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,fileId)"
                    +$"){wori};"
-                   +"CREATE INDEX Idx0InboxMigrationsV0 ON InboxMigrationsV0(identityId,timeStamp);"
-                   +"CREATE INDEX Idx1InboxMigrationsV0 ON InboxMigrationsV0(identityId,boxId);"
-                   +"CREATE INDEX Idx2InboxMigrationsV0 ON InboxMigrationsV0(identityId,popStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx0InboxMigrationsV0 ON InboxMigrationsV0(identityId,timeStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1InboxMigrationsV0 ON InboxMigrationsV0(identityId,boxId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2InboxMigrationsV0 ON InboxMigrationsV0(identityId,popStamp);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "InboxMigrationsV0", createSql, commentSql);
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
@@ -92,13 +92,13 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
-            throw new  Exception("You cannot move up from version 0");
+            // Create the initial table
+            await CreateTableWithCommentAsync(cn);
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await Task.Delay(0);
+            await CheckSqlTableVersion(cn, "Inbox", MigrationVersion);
             throw new  Exception("You cannot move down from version 0");
         }
 
