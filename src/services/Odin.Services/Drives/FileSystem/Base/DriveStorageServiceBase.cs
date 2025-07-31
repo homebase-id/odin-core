@@ -1238,10 +1238,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             var json = OdinSystemSerializer.Serialize(header);
             var jsonBytes = Encoding.UTF8.GetBytes(json);
 
-            var payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
-            var thumbnailDiskUsage = header.FileMetadata.Payloads?
-                .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
-                .Sum(pp => pp.BytesWritten) ?? 0;
+            long payloadDiskUsage = 0;
+            long thumbnailDiskUsage = 0;
+            if (!header.FileMetadata.PayloadsAreRemote)
+            {
+                 payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
+                 thumbnailDiskUsage = header.FileMetadata.Payloads?
+                    .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
+                    .Sum(pp => pp.BytesWritten) ?? 0;    
+            }
+            
             header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + jsonBytes.Length;
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
