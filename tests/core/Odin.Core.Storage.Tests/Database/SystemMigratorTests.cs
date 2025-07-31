@@ -3,9 +3,9 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database;
@@ -104,29 +104,26 @@ public class MigratorTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var migrator = scope.Resolve<SystemMigrator>();
 
+        // Make sure tables do not exist before migration
+        foreach (var tableType in SystemDatabase.TableTypes)
         {
-            var tableExists = await TableExistsAsync("CertificatesMigrationsV0");
+            var table = (TableBase)scope.Resolve(tableType);
+            var tableExists = await TableExistsAsync(table.TableName);
             Assert.That(tableExists, Is.False);
         }
 
         await migrator.MigrateAsync();
 
+        // Make sure tables exist after migration
+        foreach (var tableType in SystemDatabase.TableTypes)
         {
-            var tableExists = await TableExistsAsync("CertificatesMigrationsV0");
+            var table = (TableBase)scope.Resolve(tableType);
+            var tableExists = await TableExistsAsync(table.TableName);
             Assert.That(tableExists, Is.True);
         }
-
-        // await scope.Resolve<TableJobs>().GetCountAsync();
-        // await scope.Resolve<TableCertificates>().GetCountAsync();
-        // await scope.Resolve<TableRegistrations>().GetCountAsync();
-        // await scope.Resolve<TableSettings>().GetCountAsync();
-
-        Assert.Pass();
     }
 
     //
-
-
 
 }
 
