@@ -58,6 +58,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
     {
         private readonly CacheHelper _cache;
         private ScopedKeyChainConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; init; } = "KeyChain";
 
         public TableKeyChainCRUD(CacheHelper cache, ScopedKeyChainConnectionFactory scopedConnectionFactory)
         {

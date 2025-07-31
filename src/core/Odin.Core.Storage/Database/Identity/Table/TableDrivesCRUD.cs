@@ -64,6 +64,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class TableDrivesCRUD : TableBase
     {
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; init; } = "Drives";
 
         protected TableDrivesCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

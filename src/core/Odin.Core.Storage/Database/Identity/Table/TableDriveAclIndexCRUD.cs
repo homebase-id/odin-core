@@ -40,6 +40,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class TableDriveAclIndexCRUD : TableBase
     {
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; init; } = "DriveAclIndex";
 
         protected TableDriveAclIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

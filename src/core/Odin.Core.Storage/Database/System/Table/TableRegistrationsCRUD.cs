@@ -54,6 +54,7 @@ namespace Odin.Core.Storage.Database.System.Table
     public abstract class TableRegistrationsCRUD : TableBase
     {
         private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; init; } = "Registrations";
 
         public TableRegistrationsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {

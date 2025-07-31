@@ -47,6 +47,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
     {
         private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; init; } = "Connections";
 
         protected TableConnectionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

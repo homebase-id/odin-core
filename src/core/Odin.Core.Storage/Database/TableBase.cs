@@ -9,6 +9,8 @@ public abstract class TableBase
 {
     ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
 
+    public abstract string TableName {  get; init; }
+
     public abstract Task EnsureTableExistsAsync(bool dropExisting);
     public static List<string> GetColumnNames() => throw new NotImplementedException();
     protected virtual Task<int> GetCountAsync() => throw new NotImplementedException();
