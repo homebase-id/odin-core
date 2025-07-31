@@ -42,7 +42,7 @@ namespace Odin.KeyChainTests
         [Test]
         public async Task Test1()
         {
-            await _db.CreateDatabaseAsync();
+            await _db.MigrateDatabaseAsync();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
@@ -70,7 +70,7 @@ namespace Odin.KeyChainTests
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
 
-            await _db.CreateDatabaseAsync();
+            await _db.MigrateDatabaseAsync();
 
             var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
             var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
@@ -101,7 +101,7 @@ namespace Odin.KeyChainTests
         [Test]
         public async Task Test3()
         {
-            await _db.CreateDatabaseAsync();
+            await _db.MigrateDatabaseAsync();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);

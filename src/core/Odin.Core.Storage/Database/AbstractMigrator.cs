@@ -48,7 +48,7 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
             currentVersion, requestedVersion, direction);
 
         //
-        // Collect all migrations that need to be run
+        // Collect and group all migrations that need to be run
         //
 
         var groupedMigrations = GroupMigrationsByVersion(direction, currentVersion, requestedVersion);

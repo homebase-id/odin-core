@@ -118,10 +118,10 @@ public abstract class IocTestBase
         if (createDatabases)
         {
             var systemDatabase = Services.Resolve<SystemDatabase>();
-            await systemDatabase.CreateDatabaseAsync(true);
+            await systemDatabase.MigrateDatabaseAsync();
 
             var identityDatabase = Services.Resolve<IdentityDatabase>();
-            await identityDatabase.CreateDatabaseAsync(true);
+            await identityDatabase.MigrateDatabaseAsync();
         }
     }
 }

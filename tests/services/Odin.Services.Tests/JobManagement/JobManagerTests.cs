@@ -154,7 +154,7 @@ public class JobManagerTests
         _container = builder.Build();
 
         var systemDatabase = _container.Resolve<SystemDatabase>();
-        await systemDatabase.CreateDatabaseAsync(true);
+        await systemDatabase.MigrateDatabaseAsync();
 
         _backgroundServiceManager = _container.Resolve<IBackgroundServiceManager>();
         _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));

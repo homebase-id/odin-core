@@ -107,7 +107,7 @@ public class CertificateStoreTests
         _autofacContainer = cb.Build();
 
         var systemDatabase = _autofacContainer.Resolve<SystemDatabase>();
-        await systemDatabase.CreateDatabaseAsync(true);
+        await systemDatabase.MigrateDatabaseAsync();
 
         _certificateStore = _autofacContainer.Resolve<ICertificateStore>();
     }

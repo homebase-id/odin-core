@@ -77,14 +77,14 @@ public class MigratorTests : IocTestBase
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
 #endif
-    public async Task ItShouldXXXX(DatabaseType databaseType)
+    public async Task ItShouldMigrateTheDatabaseWithRealMigrations(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType, false);
         await using var scope = Services.BeginLifetimeScope();
         var migrator = scope.Resolve<SystemMigrator>();
 
-        // var tableJobs = scope.Resolve<TableJobs>();
-        // var c = await tableJobs.GetCountAsync();
+        var tableJobs = scope.Resolve<TableJobs>();
+        var c = await tableJobs.GetCountAsync();
 
         await migrator.MigrateAsync();
 

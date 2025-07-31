@@ -43,7 +43,7 @@ public class Tests
     [Test]
     public async Task Test1()
     {
-        await _db.CreateDatabaseAsync();
+        await _db.MigrateDatabaseAsync();
 
         var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
         var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);

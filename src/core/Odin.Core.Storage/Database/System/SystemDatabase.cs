@@ -36,16 +36,9 @@ public partial class SystemDatabase(ILifetimeScope lifetimeScope) : AbstractData
     // Migration
     //
 
-    // SEB:NOTE this is temporary until we have a proper migration system
-    public override async Task CreateDatabaseAsync(bool dropExistingTables = false)
+    public override async Task MigrateDatabaseAsync()
     {
-        await using var tx = await BeginStackedTransactionAsync();
-        foreach (var tableType in TableTypes)
-        {
-            var table = (ITableMigrator)_lifetimeScope.Resolve(tableType);
-            await table.EnsureTableExistsAsync(dropExistingTables);
-        }
-        tx.Commit();
+        var migrator = _lifetimeScope.Resolve<SystemMigrator>();
+        await migrator.MigrateAsync();
     }
-
 }
