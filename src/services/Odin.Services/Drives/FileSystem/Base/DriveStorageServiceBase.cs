@@ -1225,6 +1225,23 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        public static (long databaseBytes, long payloadBytes, long thumbBytes) ServerHeaderByteCount(ServerFileHeader header)
+        {
+            var json = OdinSystemSerializer.Serialize(header);
+            var jsonBytes = Encoding.UTF8.GetBytes(json);
+
+            long payloadDiskUsage = 0;
+            long thumbnailDiskUsage = 0;
+            if (!header.FileMetadata.PayloadsAreRemote)
+            {
+                payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
+                thumbnailDiskUsage = header.FileMetadata.Payloads?
+                   .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
+                   .Sum(pp => pp.BytesWritten) ?? 0;
+            }
+
+            return (jsonBytes.Length, payloadDiskUsage, thumbnailDiskUsage);
+        }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
@@ -1235,20 +1252,9 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             header.Validate(odinContext);
 
-            var json = OdinSystemSerializer.Serialize(header);
-            var jsonBytes = Encoding.UTF8.GetBytes(json);
+            var (databaseBytes, payloadBytes, thumbBytes) = ServerHeaderByteCount(header);
 
-            long payloadDiskUsage = 0;
-            long thumbnailDiskUsage = 0;
-            if (!header.FileMetadata.PayloadsAreRemote)
-            {
-                 payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
-                 thumbnailDiskUsage = header.FileMetadata.Payloads?
-                    .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
-                    .Sum(pp => pp.BytesWritten) ?? 0;    
-            }
-            
-            header.ServerMetadata.FileByteCount = payloadDiskUsage + thumbnailDiskUsage + jsonBytes.Length;
+            header.ServerMetadata.FileByteCount = databaseBytes + payloadBytes + thumbBytes;
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
 

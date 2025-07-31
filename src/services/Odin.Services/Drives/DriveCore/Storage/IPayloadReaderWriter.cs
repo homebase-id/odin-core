@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -9,6 +10,7 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 public interface IPayloadReaderWriter
 {
+    Task<long> FileLengthAsync(string filePath, CancellationToken cancellationToken = default);
     Task WriteFileAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default);
     Task DeleteFileAsync(string filePath, CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default);
