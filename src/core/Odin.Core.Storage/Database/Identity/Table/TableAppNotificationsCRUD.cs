@@ -46,8 +46,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class TableAppNotificationsCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; init; } = "AppNotifications";
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        public override string TableName { get; } = "AppNotifications";
 
         protected TableAppNotificationsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

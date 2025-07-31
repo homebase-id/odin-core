@@ -42,8 +42,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableNonceCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; init; } = "Nonce";
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        public override string TableName { get; } = "Nonce";
 
         protected TableNonceCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

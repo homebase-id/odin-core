@@ -90,8 +90,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableDriveMainIndexCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; init; } = "DriveMainIndex";
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        public override string TableName { get; } = "DriveMainIndex";
 
         protected TableDriveMainIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

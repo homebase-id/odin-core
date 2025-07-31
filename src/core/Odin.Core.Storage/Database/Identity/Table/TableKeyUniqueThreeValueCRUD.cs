@@ -49,8 +49,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class TableKeyUniqueThreeValueCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; init; } = "KeyUniqueThreeValue";
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        public override string TableName { get; } = "KeyUniqueThreeValue";
 
         protected TableKeyUniqueThreeValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

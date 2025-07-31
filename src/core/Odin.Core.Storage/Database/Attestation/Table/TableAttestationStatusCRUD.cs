@@ -39,8 +39,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
     public abstract class TableAttestationStatusCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private ScopedAttestationConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; init; } = "AttestationStatus";
+        private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
+        public override string TableName { get; } = "AttestationStatus";
 
         public TableAttestationStatusCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
