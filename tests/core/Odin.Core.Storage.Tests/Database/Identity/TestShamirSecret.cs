@@ -76,6 +76,14 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Store the record
             if (playerRecord.Player.Type == ShardType.Automatic)
             {
+                // Doesn't have to be an identity
+
+                // Make sure my identity is s0-s2.homebase.id or your own configured.
+                // Meaning they are in a configuration file
+
+                // No player encryption for automatic?
+
+                // Maybe this is not possible ... :
                 // Retrieve the drive key for the rescue drive, below we simulate it
                 // The drive key is unavailable when the server is at rest and is only available
                 // when the player in question makes a PEER API request.
@@ -92,6 +100,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             }
             else
             {
+                // Need to support direct write to shakira drive
+                // Encryption key preferably is not obtainable by dealer over peer
+                // Dealer only has write access
+                //
                 // Retrieve an owner console only key, below we simulate it
                 // The player must be in the owner console to decrypt the shard
                 var ownerKeyba = playerOwnerKey;
@@ -186,7 +198,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
         // The return type is just for the TEST - IRL it should not have a return type
         private byte[] LocalApiResolveDelegateShard(Guid Id)
         {
-            // We load it from the disk
+            // The player loads the shard from the disk
             var r = LoadFromPlayerDisk(Id);
 
             if (r == null)
@@ -289,25 +301,28 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         /// <summary>
         /// Shows how to setup Shamir's secret sharing
-        /// In this example we encrypt our secret (which one? the master key? or another key)
-        /// Then we encrypt it somehow so the manual recipients cannot decrypt them until the 
+        /// In this example we encrypt our secret (a random password encryption key)
+        /// Then we encrypt it with a random key for each recipient, so they cannot decrypt them until the 
         /// dealer server is in "password recovery mode".
         /// Then we give it to three automatic and two manual (people)
         /// </summary>
         [Test]
         [TestCase(DatabaseType.Sqlite)]
-        public async Task ShamirSecretSharingFlowSetupExamplee(DatabaseType databaseType)
+        public async Task ShamirSecretSharingFlowSetupExample(DatabaseType databaseType)
         {
+            // A random encryption key that will encrypt the dealer's password
             var secret = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
             int totalShards = 5;
-            int minShards = 4;
+            int minShards = 4; // Default setup is 3:3
 
-            // First we split Frodo's secret into 5 parts where 4 of them can reconstruct Frodo's password
+            // First we split dealer Frodo's secret into 5 parts where 4 players can reconstruct Frodo's password
             var shards = ShamirSecretSharing.GenerateShamirShares(totalShards, minShards, secret);
 
             // This is how Frodo has setup his 5 shards.
             // s0-s2 are run by Homebase and can be requested by Frodo's server
             // Sam and Gandalf are humanoids and Frodo must call, text or otherwise contact them to get his share
+            // Sam and Gandalf are connected to Frodo (delegates must be connected)
+            // The default setup is s0-s2
             var shamirPlayers = new List<ShamirPlayer>()
             {
                 new ShamirPlayer(shards[0].Index, ShardType.Automatic, new OdinId("s0.homebase.id")),
@@ -318,26 +333,31 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             };
 
             // These are the objects stored with each player.
-            var shamirShardPlayerWrapper = new List<ShamirShardPlayerWrapper>();
-            var shamirShardDealerWrapper = new List<ShamirShardDealerWrapper>();
+            var shamirShardPlayerWrappers = new List<ShamirShardPlayerWrapper>();
+            var shamirShardDealerWrappers = new List<ShamirShardDealerWrapper>();
 
             ClassicAssert.IsTrue(shards.Count == 5);
             ClassicAssert.IsTrue(shamirPlayers.Count == 5);
 
-            var keyba = dealerRandomKey;
-            var keysba = new SensitiveByteArray(keyba);
-
             for (int i = 0; i < shards.Count; i++)
             {
+                // The dealer generates a random encryption key (that he will store) for each player / shard
+                var keyba = ByteArrayUtil.GetRandomCryptoGuid().ToByteArray();
+                var keysba = new SensitiveByteArray(keyba);
+
                 ClassicAssert.IsTrue(shards[i].Index == i + 1);
+                // Deaaler encrypts a player's shard with the random key
                 var (Iv, CipherText) = AesCbc.Encrypt(shards[i].Shard, keysba);
                 var guidId = Guid.NewGuid();
-                var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], guidId, CipherText);
-                shamirShardPlayerWrapper.Add(playerRecord);
 
+                // We create the player record that we will send to the player
+                var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], guidId, CipherText);
+                shamirShardPlayerWrappers.Add(playerRecord);
+
+                // This record is stored on the dealer's host, for each player
                 var dealerRecord = new ShamirShardDealerWrapper(guidId, playerRecord.Player, keyba, Iv);
                 SaveToDealerDisk(dealerRecord);
-                shamirShardDealerWrapper.Add(dealerRecord);
+                shamirShardDealerWrappers.Add(dealerRecord);
 
                 if (SendOverPeerD2PSendShard(playerRecord) == false)
                 {
@@ -352,26 +372,26 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // [TEST] ShamirSecretSharingFlowRecoveryExample()
 
             // .. Now we're in recovery mode. Let's get the automatic shards.
-            var peerShard1 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[0].Id);
-            var ddisk1 = LoadFromDealerDisk(shamirShardPlayerWrapper[0].Id);
+            var peerShard1 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrappers[0].Id);
+            var ddisk1 = LoadFromDealerDisk(shamirShardPlayerWrappers[0].Id);
             var dShard1 = AesCbc.Decrypt(peerShard1.DealerEncryptedShard, ddisk1.Key, ddisk1.Iv);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard1, shards[0].Shard) == true);
             var shard1 = new ShamirSecretSharing.ShamirShard(ddisk1.Player.Index, dShard1);
             
-            var peerShard2 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[1].Id);
-            var ddisk2 = LoadFromDealerDisk(shamirShardPlayerWrapper[1].Id);
+            var peerShard2 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrappers[1].Id);
+            var ddisk2 = LoadFromDealerDisk(shamirShardPlayerWrappers[1].Id);
             var dShard2 = AesCbc.Decrypt(peerShard2.DealerEncryptedShard, ddisk2.Key, ddisk2.Iv);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard2, shards[1].Shard) == true);
             var shard2 = new ShamirSecretSharing.ShamirShard(ddisk2.Player.Index, dShard2);
             
-            var peerShard3 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[2].Id);
-            var ddisk3 = LoadFromDealerDisk(shamirShardPlayerWrapper[2].Id);
+            var peerShard3 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrappers[2].Id);
+            var ddisk3 = LoadFromDealerDisk(shamirShardPlayerWrappers[2].Id);
             var dShard3 = AesCbc.Decrypt(peerShard3.DealerEncryptedShard, ddisk3.Key, ddisk3.Iv);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard3, shards[2].Shard) == true);
             var shard3 = new ShamirSecretSharing.ShamirShard(ddisk3.Player.Index, dShard3);
 
             // Signal the player that we need their help
-            var ddisk4 = LoadFromDealerDisk(shamirShardDealerWrapper[3].Id);
+            var ddisk4 = LoadFromDealerDisk(shamirShardDealerWrappers[3].Id);
             PeerRequestDelegateShard(DealerOdinId, ddisk4.Id);
             // ... 3 hours later ... the player does it
             var dShard4 = LocalApiResolveDelegateShard(ddisk4.Id);
@@ -379,7 +399,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var shard4 = new ShamirSecretSharing.ShamirShard(ddisk4.Player.Index, dShard4);
             
             // Signal the player that we need their help
-            var ddisk5 = LoadFromDealerDisk(shamirShardDealerWrapper[4].Id);
+            var ddisk5 = LoadFromDealerDisk(shamirShardDealerWrappers[4].Id);
             PeerRequestDelegateShard(DealerOdinId, ddisk5.Id);
             // ... 3 hours later ... the player does it
             var dShard5 = LocalApiResolveDelegateShard(ddisk5.Id);
@@ -418,16 +438,24 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var l = EmailLinkHelper.BuildResetUrl("https://frodobaggins.me", nonceId, randomkey.ToBase64());
 
             // Send the email
+            r = null;
+
+            // Now the user clicks the link, at the server we parse the URL
+            //
             var (id, Token) = EmailLinkHelper.ParseResetUrl(l);
 
+            // Then we get the corresponding NONCE from the DB
+            r = await tableNonce.PopAsync(id);
+
+            // Now we should be able to reconstruct the sercet used to encrypt the user's password
             var reconstructedSecret = XorManagement.XorDecrypt(Convert.FromBase64String(r.data), Convert.FromBase64String(Token));
             if (!reconstructedSecret.SequenceEqual(secret))
                 Assert.Fail("Reconstruction from email magic link  failed.");
 
             // We can now reset the password
 
-            // The nonce is great and all, but what if the suer clicks the link and messes up somehow
-            // and doesn't complete
+            // The nonce is great and all, but what if the user clicks the link and messes up somehow
+            // and doesn't complete. Maybe we insert it back into the table after popping?
         }
 
 

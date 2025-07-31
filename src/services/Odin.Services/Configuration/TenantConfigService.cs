@@ -38,7 +38,7 @@ public class TenantConfigService
     private readonly IIdentityRegistry _registry;
     private readonly IDriveManager _driveManager;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
-    private readonly RecoveryService _recoverService;
+    private readonly PasswordKeyRecoveryService _recoverService;
     private readonly IcrKeyService _icrKeyService;
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
@@ -51,7 +51,7 @@ public class TenantConfigService
         IDriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         IcrKeyService icrKeyService,
-        RecoveryService recoverService,
+        PasswordKeyRecoveryService recoverService,
         CircleMembershipService circleMembershipService,
         IAppRegistrationService appRegistrationService,
         IdentityDatabase identityDatabase)

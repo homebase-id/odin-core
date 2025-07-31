@@ -15,13 +15,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class OwnerSecurityController : OdinControllerBase
 {
-    private readonly RecoveryService _recoveryService;
+    private readonly PasswordKeyRecoveryService _recoveryService;
     private readonly OwnerSecretService _ss;
     private readonly OwnerAuthenticationService _ownerAuthenticationService;
 
 
     /// <summary />
-    public OwnerSecurityController(RecoveryService recoveryService, OwnerSecretService ss,
+    public OwnerSecurityController(PasswordKeyRecoveryService recoveryService, OwnerSecretService ss,
         OwnerAuthenticationService ownerAuthenticationService)
     {
         _recoveryService = recoveryService;
