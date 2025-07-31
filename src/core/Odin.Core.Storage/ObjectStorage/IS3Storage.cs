@@ -19,5 +19,6 @@ public interface IS3Storage
     Task MoveFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task DownloadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
+    Task<long> FileLengthAsync(string filePath, CancellationToken cancellationToken = default);
 }
 

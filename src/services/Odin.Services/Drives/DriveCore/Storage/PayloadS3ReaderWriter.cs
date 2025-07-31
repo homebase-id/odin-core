@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Storage.ObjectStorage;
@@ -44,6 +43,7 @@ public class PayloadS3ReaderWriter(
         }
     }
 
+    //
 
     public async Task<long> FileLengthAsync(string filePath, CancellationToken cancellationToken = default)
     {
@@ -56,6 +56,8 @@ public class PayloadS3ReaderWriter(
             throw new PayloadReaderWriterException(e.Message, e);
         }
     }
+
+    //
 
     public async Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
     {
