@@ -4,17 +4,19 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database;
 
-public class MigratorTests : IocTestBase
+public class AbstractMigratorTests : IocTestBase
 {
-    private async Task<bool> TableExistsAsync(string tableName)
+    private async Task<bool> TableExistsAsync<T>(string tableName) where T : IScopedConnectionFactory
     {
-        var scopedConnectionFactory = Services.Resolve<ScopedSystemConnectionFactory>();
+        var scopedConnectionFactory = Services.Resolve<T>();
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
         return await cn.TableExistsAsync(tableName);
     }
@@ -28,11 +30,11 @@ public class MigratorTests : IocTestBase
     {
         await RegisterServicesAsync(databaseType, false);
         await using var scope = Services.BeginLifetimeScope();
-        var logger = scope.Resolve<ILogger<SystemMigrator>>();
-        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+        var logger = scope.Resolve<ILogger<IdentityMigrator>>();
+        var scopedConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
 
         // SEB:NOTE we use a mock, so we can create a new, empty SortedMigrations list
-        var mock = new Mock<SystemMigrator>(logger, scopedConnectionFactory)
+        var mock = new Mock<IdentityMigrator>(logger, scopedConnectionFactory)
         {
             CallBase = true
         };
@@ -44,7 +46,7 @@ public class MigratorTests : IocTestBase
         // Make sure the VersionInfo table DOES NOT exist
         //
         {
-            var tableExists = await TableExistsAsync("VersionInfo");
+            var tableExists = await TableExistsAsync<ScopedIdentityConnectionFactory>("VersionInfo");
             Assert.That(tableExists, Is.False);
         }
 
@@ -54,7 +56,7 @@ public class MigratorTests : IocTestBase
         // Make sure the VersionInfo table exists
         //
         {
-            var tableExists = await TableExistsAsync("VersionInfo");
+            var tableExists = await TableExistsAsync<ScopedIdentityConnectionFactory>("VersionInfo");
             Assert.That(tableExists, Is.True);
         }
 
@@ -100,26 +102,45 @@ public class MigratorTests : IocTestBase
 #endif
     public async Task ItShouldMigrateTheDatabaseWithRealMigrations(DatabaseType databaseType)
     {
+        // NOTE: we migrate both system and identity here.
+        // This is to check that there isn't a conflict between the two on postgres, since all
+        // tables are in the same database here.
+
         await RegisterServicesAsync(databaseType, false);
         await using var scope = Services.BeginLifetimeScope();
-        var migrator = scope.Resolve<SystemMigrator>();
+
+        var systemMigrator = scope.Resolve<SystemMigrator>();
+        var identityMigrator = scope.Resolve<IdentityMigrator>();
 
         // Make sure tables do not exist before migration
         foreach (var tableType in SystemDatabase.TableTypes)
         {
             var table = (TableBase)scope.Resolve(tableType);
-            var tableExists = await TableExistsAsync(table.TableName);
+            var tableExists = await TableExistsAsync<ScopedSystemConnectionFactory>(table.TableName);
+            Assert.That(tableExists, Is.False);
+        }
+        foreach (var tableType in IdentityDatabase.TableTypes)
+        {
+            var table = (TableBase)scope.Resolve(tableType);
+            var tableExists = await TableExistsAsync<ScopedIdentityConnectionFactory>(table.TableName);
             Assert.That(tableExists, Is.False);
         }
 
-        await migrator.MigrateAsync();
+        await systemMigrator.MigrateAsync();
+        await identityMigrator.MigrateAsync();
 
         // Make sure tables exist after migration
         foreach (var tableType in SystemDatabase.TableTypes)
         {
             var table = (TableBase)scope.Resolve(tableType);
-            var tableExists = await TableExistsAsync(table.TableName);
-            Assert.That(tableExists, Is.True);
+            var tableExists = await TableExistsAsync<ScopedSystemConnectionFactory>(table.TableName);
+            Assert.That(tableExists, Is.True, $"Table {table.TableName} does not exist after migration.");
+        }
+        foreach (var tableType in IdentityDatabase.TableTypes)
+        {
+            var table = (TableBase)scope.Resolve(tableType);
+            var tableExists = await TableExistsAsync<ScopedIdentityConnectionFactory>(table.TableName);
+            Assert.That(tableExists, Is.True, $"Table {table.TableName} does not exist after migration.");
         }
     }
 

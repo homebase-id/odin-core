@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -11,10 +12,8 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database;
 
-public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory scopedConnectionFactory)
+public abstract class AbstractMigrator
 {
-    public abstract List<MigrationBase> SortedMigrations { get; }
-
     internal enum Direction
     {
         Nowhere,
@@ -22,11 +21,31 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
         Down
     }
 
+    public abstract List<MigrationBase> SortedMigrations { get; }
+
+    private readonly string _migratorId;
+    private readonly ILogger _logger;
+    private readonly IScopedConnectionFactory _scopedConnectionFactory;
+
+    //
+
+    protected AbstractMigrator(ILogger logger, IScopedConnectionFactory scopedConnectionFactory)
+    {
+        _logger = logger;
+        _scopedConnectionFactory = scopedConnectionFactory;
+        _migratorId = GetType().FullName;
+
+        // Sanity
+        ArgumentException.ThrowIfNullOrWhiteSpace(_migratorId);
+    }
+
+    //
+
     public async Task MigrateAsync(long requestedVersion = long.MaxValue)
     {
         // SEB:TODO distributed lock (ach... we need to move INodeLock to Odin.Core.Storage first)
 
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await EnsureVersionInfoTable(cn);
 
@@ -44,7 +63,7 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
             return;
         }
 
-        logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion} ({Direction})",
+        _logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion} ({Direction})",
             currentVersion, requestedVersion, direction);
 
         //
@@ -59,7 +78,7 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
 
         foreach (var (version, migrations) in groupedMigrations)
         {
-            logger.LogInformation("Running migrations for version {Version} ({Count})", version, migrations.Count);
+            _logger.LogInformation("Running {Count} migration(s) for version {Version}", migrations.Count, version);
 
             await using var trx = await cn.BeginStackedTransactionAsync();
             foreach (var migration in migrations)
@@ -129,7 +148,7 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
 
     internal async Task<long> GetCurrentVersionAsync()
     {
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         return await GetCurrentVersionAsync(cn);
     }
 
@@ -137,25 +156,30 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
 
     private async Task<long> GetCurrentVersionAsync(IConnectionWrapper cn)
     {
+        const string sql =
+            """
+            SELECT COALESCE((
+                SELECT version FROM VersionInfo
+                WHERE id = @id), -1) AS version;
+            """;
+
         await using var cmd = cn.CreateCommand();
+        cmd.CommandText = sql;
+        var idParam = cmd.CreateParameter();
+        idParam.DbType = DbType.String;
+        idParam.ParameterName = "@id";
+        idParam.Value = _migratorId;
+        cmd.Parameters.Add(idParam);
 
-        cmd.CommandText = SqlGetCurrentVersion;
-        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.SingleRow);
-
-        // Sanity
-        if (await rdr.ReadAsync() == false)
-        {
-            throw new OdinSystemException("Failed to read current version from VersionInfo table.");
-        }
-
-        return (long)rdr[0];
+        var rs = await cmd.ExecuteScalarAsync();
+        return Convert.ToInt64(rs);
     }
 
     //
 
     internal async Task SetCurrentVersionAsync(long version)
     {
-        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await SetCurrentVersionAsync(cn, version);
     }
 
@@ -163,8 +187,16 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
 
     private async Task SetCurrentVersionAsync(IConnectionWrapper cn, long version)
     {
+        const string sql =
+            """
+            INSERT INTO VersionInfo (id, version)
+            VALUES (@id, @version)
+            ON CONFLICT (id) DO UPDATE
+            SET version = EXCLUDED.version;
+            """;
+
         await using var cmd = cn.CreateCommand();
-        cmd.CommandText = SqlUpsertVersion;
+        cmd.CommandText = sql;
 
         var versionParam = cmd.CreateParameter();
         versionParam.DbType = DbType.Int64;
@@ -172,35 +204,26 @@ public abstract class AbstractMigrator(ILogger logger, IScopedConnectionFactory 
         versionParam.Value = version;
         cmd.Parameters.Add(versionParam);
 
+        var idParam = cmd.CreateParameter();
+        idParam.DbType = DbType.String;
+        idParam.ParameterName = "@id";
+        idParam.Value = _migratorId;
+        cmd.Parameters.Add(idParam);
+
         await cmd.ExecuteNonQueryAsync();
     }
 
     //
 
-    private const string SqlGetCurrentVersion =
-        """
-        SELECT COALESCE((SELECT version FROM VersionInfo), -1) AS version;
-        """;
-
-    private const string SqlUpsertVersion =
-        """
-        INSERT INTO VersionInfo (singleton, version)
-        VALUES (1, @version)
-        ON CONFLICT (singleton) DO UPDATE
-        SET version = EXCLUDED.version;
-        """;
-
-    //
-
     private async Task EnsureVersionInfoTable(IConnectionWrapper cn)
     {
-        logger.LogDebug("Ensuring VersionInfo table exists");
+        _logger.LogDebug("Ensuring VersionInfo table exists");
 
         await using var cmd = cn.CreateCommand();
         cmd.CommandText =
             """
             CREATE TABLE IF NOT EXISTS VersionInfo (
-                singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                id TEXT PRIMARY KEY,
                 version BIGINT NOT NULL
             );
             """;
