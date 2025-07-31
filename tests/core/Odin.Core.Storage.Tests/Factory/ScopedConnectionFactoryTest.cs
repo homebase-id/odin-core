@@ -503,8 +503,9 @@ public class ScopedConnectionFactoryTest : IocTestBase
             var ex = Assert.ThrowsAsync<OdinDatabaseException>(async () => await task2);
             Assert.That(ex!.Message, Does.StartWith("Parallelism detected (ExecuteScalarAsync)"));
 
-            var errorLogs = LogEventMemoryStore.GetLogEvents()[LogEventLevel.Error];
-            LogEventMemoryStore.Clear(LogEventLevel.Error);
+            var logEventMemoryStore = Services!.Resolve<ILogEventMemoryStore>();
+            var errorLogs = logEventMemoryStore.GetLogEvents()[LogEventLevel.Error];
+            logEventMemoryStore.Clear(LogEventLevel.Error);
 
             Assert.That(errorLogs.Count, Is.EqualTo(1));
             var found = errorLogs.Any(e => e.RenderMessage().Contains("Parallelism detected (ExecuteScalarAsync)"));

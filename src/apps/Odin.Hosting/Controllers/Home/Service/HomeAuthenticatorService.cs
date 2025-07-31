@@ -12,6 +12,7 @@ using Odin.Core.Identity;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections;
@@ -146,6 +147,9 @@ namespace Odin.Hosting.Controllers.Home.Service
             var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
             var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
 
+            // added to allow reading of images for reposted content
+            permissionKeys.Add(PermissionKeys.UseTransitRead);
+            
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(
                 authToken: authToken,
                 grants: grants,
@@ -215,7 +219,10 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
             var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
-
+            
+            // added to support repost
+            permissionKeys.Add(PermissionKeys.UseTransitRead);
+            
             var grants = new Dictionary<Guid, ExchangeGrant>()
             {
                 //no additional grants for authenticated
