@@ -49,7 +49,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableInboxCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        public override string TableName { get; } = "Inbox";
 
         protected TableInboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

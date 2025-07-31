@@ -39,7 +39,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableDriveTagIndexCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        public override string TableName { get; } = "DriveTagIndex";
 
         protected TableDriveTagIndexCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

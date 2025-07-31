@@ -76,8 +76,20 @@ namespace Odin.Core.Storage.Database.Attestation.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            // Create the initial table
-            await CreateTableWithCommentAsync(cn);
+            try
+            {
+                using (var trn = await cn.BeginStackedTransactionAsync())
+                {
+                    // Create the initial table
+                    await CreateTableWithCommentAsync(cn);
+                    await SqlHelper.RenameAsync(cn, "AttestationStatusMigrationsV0", "AttestationStatus");
+                    trn.Commit();
+                }
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
