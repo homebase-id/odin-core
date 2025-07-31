@@ -40,10 +40,26 @@ public class MigratorTests : IocTestBase
 
         var migrator  = mock.Object;
 
+        //
+        // Make sure the VersionInfo table DOES NOT exist
+        //
+        {
+            var tableExists = await TableExistsAsync("VersionInfo");
+            Assert.That(tableExists, Is.False);
+        }
+
         await migrator.MigrateAsync();
 
         //
-        // Make sure the VersionInfo table exists but is empty (version is -1)
+        // Make sure the VersionInfo table exists
+        //
+        {
+            var tableExists = await TableExistsAsync("VersionInfo");
+            Assert.That(tableExists, Is.True);
+        }
+
+        //
+        // Make sure the VersionInfo is empty (version is -1)
         //
         {
             var currentVersion = await migrator.GetCurrentVersionAsync();
@@ -104,8 +120,8 @@ public class MigratorTests : IocTestBase
         // await scope.Resolve<TableCertificates>().GetCountAsync();
         // await scope.Resolve<TableRegistrations>().GetCountAsync();
         // await scope.Resolve<TableSettings>().GetCountAsync();
-        //
-        // Assert.Pass();
+
+        Assert.Pass();
     }
 
     //
