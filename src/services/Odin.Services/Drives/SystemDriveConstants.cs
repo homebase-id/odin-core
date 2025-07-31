@@ -15,7 +15,13 @@ public static class SystemDriveConstants
     //
 
     public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
-
+    
+    public static readonly TargetDrive ShardRecoveryDrive = new()
+    {
+        Alias = Guid.Parse("46242d0d-6760-4b2a-a683-f05cd48d4aef"),
+        Type = Guid.Parse("43138ae9-0206-480b-9ff4-93580ca147ee")
+    };
+    
     public static readonly TargetDrive TransientTempDrive = new()
     {
         Alias = GuidId.FromString("transit_temp_drive"),
@@ -80,9 +86,19 @@ public static class SystemDriveConstants
         FeedDrive,
         HomePageConfigDrive,
         MailDrive,
-        PublicPostsChannelDrive
+        PublicPostsChannelDrive,
+        ShardRecoveryDrive
     ];
-
+    
+    public static readonly CreateDriveRequest CreateShardRecoveryDriveRequest = new()
+    {
+        Name = "Shard Recovery Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = ShardRecoveryDrive,
+        OwnerOnly = false
+    };
+    
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
     {
         Name = "Transient temp drive",
