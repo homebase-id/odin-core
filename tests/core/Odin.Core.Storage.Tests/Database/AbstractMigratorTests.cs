@@ -145,7 +145,117 @@ public class AbstractMigratorTests : IocTestBase
     }
 
     //
+    
+    [Test]
+    public async Task ItShouldGroupMigrationsCorrectly()
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite, false);
+        await using var scope = Services.BeginLifetimeScope();
+        var logger = scope.Resolve<ILogger<IdentityMigrator>>();
+        var scopedConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
 
+        // NOTE we use a mock, so we can create a new, empty SortedMigrations list
+        var mock = new Mock<IdentityMigrator>(logger, scopedConnectionFactory)
+        {
+            CallBase = true
+        };
+        mock.Setup(x => x.SortedMigrations).Returns([
+            new SomeMigration(-1, 0),
+            new SomeMigration(-1, 0),
+            new SomeMigration(-1, 0),
+            new SomeMigration(0, 1),
+            new SomeMigration(0, 1),
+            new SomeMigration(1, 2),
+        ]);
+
+        var migrator  = mock.Object;
+
+        //
+        // UP
+        //
+
+        {
+            var groupedMigrations = migrator.GroupMigrationsByVersion(AbstractMigrator.Direction.Up, -1, 1000);
+            Assert.That(groupedMigrations.Count, Is.EqualTo(3));
+            Assert.That(groupedMigrations[0].Key, Is.EqualTo(0));
+            Assert.That(groupedMigrations[0].Value.Count, Is.EqualTo(3));
+            Assert.That(groupedMigrations[0].Value[0].MigrationVersion, Is.EqualTo(0));
+            Assert.That(groupedMigrations[0].Value[1].MigrationVersion, Is.EqualTo(0));
+            Assert.That(groupedMigrations[0].Value[2].MigrationVersion, Is.EqualTo(0));
+            Assert.That(groupedMigrations[1].Key, Is.EqualTo(1));
+            Assert.That(groupedMigrations[1].Value.Count, Is.EqualTo(2));
+            Assert.That(groupedMigrations[1].Value[0].MigrationVersion, Is.EqualTo(1));
+            Assert.That(groupedMigrations[1].Value[1].MigrationVersion, Is.EqualTo(1));
+            Assert.That(groupedMigrations[2].Key, Is.EqualTo(2));
+            Assert.That(groupedMigrations[2].Value.Count, Is.EqualTo(1));
+            Assert.That(groupedMigrations[2].Value[0].MigrationVersion, Is.EqualTo(2));
+        }
+
+        {
+            var groupedMigrations = migrator.GroupMigrationsByVersion(AbstractMigrator.Direction.Up, 1, 1000);
+            Assert.That(groupedMigrations.Count, Is.EqualTo(1));
+            Assert.That(groupedMigrations[0].Key, Is.EqualTo(2));
+            Assert.That(groupedMigrations[0].Value.Count, Is.EqualTo(1));
+            Assert.That(groupedMigrations[0].Value[0].MigrationVersion, Is.EqualTo(2));
+        }
+
+        {
+            var groupedMigrations = migrator.GroupMigrationsByVersion(AbstractMigrator.Direction.Up, 10, 1000);
+            Assert.That(groupedMigrations.Count, Is.EqualTo(0));
+        }
+
+        //
+        // DOWN
+        //
+
+        {
+            var groupedMigrations = migrator.GroupMigrationsByVersion(AbstractMigrator.Direction.Down, 100, 10);
+            Assert.That(groupedMigrations.Count, Is.EqualTo(0));
+        }
+
+        {
+            var groupedMigrations = migrator.GroupMigrationsByVersion(AbstractMigrator.Direction.Down, 100, 1);
+            Assert.That(groupedMigrations.Count, Is.EqualTo(1));
+            Assert.That(groupedMigrations[0].Key, Is.EqualTo(2));
+            Assert.That(groupedMigrations[0].Value.Count, Is.EqualTo(1));
+            Assert.That(groupedMigrations[0].Value[0].MigrationVersion, Is.EqualTo(2));
+        }
+
+        {
+            var groupedMigrations = migrator.GroupMigrationsByVersion(AbstractMigrator.Direction.Down, 100, -1);
+            Assert.That(groupedMigrations.Count, Is.EqualTo(3));
+            Assert.That(groupedMigrations[0].Key, Is.EqualTo(2));
+            Assert.That(groupedMigrations[0].Value.Count, Is.EqualTo(1));
+            Assert.That(groupedMigrations[0].Value[0].MigrationVersion, Is.EqualTo(2));
+            Assert.That(groupedMigrations[1].Key, Is.EqualTo(1));
+            Assert.That(groupedMigrations[1].Value.Count, Is.EqualTo(2));
+            Assert.That(groupedMigrations[1].Value[0].MigrationVersion, Is.EqualTo(1));
+            Assert.That(groupedMigrations[1].Value[1].MigrationVersion, Is.EqualTo(1));
+            Assert.That(groupedMigrations[2].Value.Count, Is.EqualTo(3));
+            Assert.That(groupedMigrations[2].Value[0].MigrationVersion, Is.EqualTo(0));
+            Assert.That(groupedMigrations[2].Value[1].MigrationVersion, Is.EqualTo(0));
+            Assert.That(groupedMigrations[2].Value[2].MigrationVersion, Is.EqualTo(0));
+        }
+    }
+}
+
+class SomeMigration(long previousVersion, long version) : MigrationBase(previousVersion)
+{
+    public override long MigrationVersion => version;
+    public override Task CreateTableWithCommentAsync(IConnectionWrapper cn)
+    {
+        return Task.CompletedTask;
+    }
+
+    public override Task DownAsync(IConnectionWrapper cn)
+    {
+        return Task.CompletedTask;
+    }
+
+    public override Task UpAsync(IConnectionWrapper cn)
+    {
+        return Task.CompletedTask;
+    }
 }
 
 
