@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
@@ -14,6 +12,13 @@ namespace Odin.Core.Storage.Tests.Database;
 
 public class MigratorTests : IocTestBase
 {
+    private async Task<bool> TableExistsAsync(string tableName)
+    {
+        var scopedConnectionFactory = Services.Resolve<ScopedSystemConnectionFactory>();
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        return await cn.TableExistsAsync(tableName);
+    }
+
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     #if RUN_POSTGRES_TESTS
@@ -83,13 +88,30 @@ public class MigratorTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var migrator = scope.Resolve<SystemMigrator>();
 
-        var tableJobs = scope.Resolve<TableJobs>();
-        var c = await tableJobs.GetCountAsync();
+        {
+            var tableExists = await TableExistsAsync("CertificatesMigrationsV0");
+            Assert.That(tableExists, Is.False);
+        }
 
         await migrator.MigrateAsync();
 
-        Assert.Pass();
+        {
+            var tableExists = await TableExistsAsync("CertificatesMigrationsV0");
+            Assert.That(tableExists, Is.True);
+        }
+
+        // await scope.Resolve<TableJobs>().GetCountAsync();
+        // await scope.Resolve<TableCertificates>().GetCountAsync();
+        // await scope.Resolve<TableRegistrations>().GetCountAsync();
+        // await scope.Resolve<TableSettings>().GetCountAsync();
+        //
+        // Assert.Pass();
     }
+
+    //
+
+
+
 }
 
 
