@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using StackExchange.Redis;
 
-namespace Odin.Services.Concurrency;
+namespace Odin.Core.Storage.Concurrency;
 
 #nullable enable
 
