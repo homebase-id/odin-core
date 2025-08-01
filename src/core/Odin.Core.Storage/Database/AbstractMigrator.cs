@@ -144,9 +144,9 @@ public abstract class AbstractMigrator
         if (direction == Direction.Down)
         {
             // Collect all migrations with
-            //   version greater than the requested version
+            //   version greater than the requested version and less than or equal to the current database version
             var filteredMigrations = SortedMigrations
-                .Where(m => m.MigrationVersion > requestedVersion)
+                .Where(m => m.MigrationVersion > requestedVersion && m.MigrationVersion <= currentVersion)
                 .ToList();
 
             // Group by version and order by version descending
