@@ -528,17 +528,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var payloads = header.FileMetadata?.Payloads ?? [];
             var sl = new List<string>();
 
-            var (hdrDatabaseBytes, hdrPayloadBytes, hdrThumbBytes) = DriveStorageServiceBase.ServerHeaderByteCount(header);
-
-            var hdrSumBytes = hdrDatabaseBytes + hdrPayloadBytes + hdrThumbBytes;
-
             long diskPayloadBytes = 0;
             long diskThumbBytes = 0;
+
+            bool payloadAdjustments = false;
 
             // If the payloads are not remote, check the disk
             if (header?.FileMetadata?.DataSource?.PayloadsAreRemote == true)
             {
-
+                // ?
             }
             else
             {
@@ -553,7 +551,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             logger.LogError($"{logPrefix} BYTESIZE - payload file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} key {payload.Key} uid {payload.Uid} on disk = {l} header {payload.BytesWritten}");
 
                             if (cleanup)
+                            {
                                 payload.BytesWritten = l;
+                                payloadAdjustments = true;
+                            }
                         }
 
                         diskPayloadBytes += l;
@@ -578,7 +579,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
                                 }
 
                                 if (cleanup)
+                                {
                                     thumb.BytesWritten = (uint)l;
+                                    payloadAdjustments = true;
+                                }
                             }
                             diskThumbBytes += l;
                         }
@@ -590,26 +594,50 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
             }
 
-            if (hdrDatabaseBytes + diskPayloadBytes + diskThumbBytes != hdrSumBytes)
+            bool headerAdjustment = false;
+
+            var (hdrDatabaseBytes, hdrPayloadBytes, hdrThumbBytes) = 
+                DriveStorageServiceBase.ServerHeaderByteCount(header);
+
+            // Calculate the sum of bytes spent according to the header
+            var hdrPayloadThumbBytes = hdrPayloadBytes + hdrThumbBytes;
+            var diskPayloadThumbBytes = diskPayloadBytes + diskThumbBytes;
+
+            if (diskPayloadThumbBytes != hdrPayloadThumbBytes)
             {
-                logger.LogError($"{logPrefix} BYTESIZE - header bytes and disk bytes not matching {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrSumBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
+                logger.LogError($"{logPrefix} BYTESIZE - size of payloads + thumbs DIFFERENT between DISK and HEADER {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrPayloadThumbBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
+                headerAdjustment = true;
+                if (cleanup)
+                    header.ServerMetadata.FileByteCount = hdrPayloadThumbBytes;
             }
 
 
             // So the size of the hdrDatabaseBytes can vary slightly due to a few attributes being
             // set by the database (time, tagid, etc). So we check for a range. Maybe we should separate
             // it out...
-            if (IsInRange(header.ServerMetadata.FileByteCount, hdrSumBytes - 50, hdrSumBytes + 50))
+            if (IsInRange(header.ServerMetadata.FileByteCount, hdrPayloadThumbBytes - 50, hdrPayloadThumbBytes + 50))
             {
-                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrSumBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
+                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrPayloadThumbBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
 
                 if (cleanup)
-                    header.ServerMetadata.FileByteCount = hdrSumBytes;
+                    header.ServerMetadata.FileByteCount = hdrPayloadThumbBytes;
+                headerAdjustment = true;
             }
 
             if (cleanup)
             {
-                // If we updated any values in the header we should save it again
+                if (payloadAdjustments)
+                {
+                    // We'd have to write the whole header, we'd need to consider that carefully
+                }
+                else if (headerAdjustment)
+                {
+                    // We just need to update the DB row byteCount
+                    // The ServerFileHeader.FromDriveMainIndexRecord() DTO 
+                    // will overwrite the ServerMetadata.FileByteCount with 
+                    // the byteCount value
+                    await identityDatabase.DriveMainIndex.UpdateByteCountAsync(drive.Id, fileId,  hdrPayloadThumbBytes);
+                }
             }
 
 

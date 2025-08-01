@@ -1225,6 +1225,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        /// <summary>
+        /// Sums the number of bytes spent, according to the header, 
+        /// for each payload, for each payload's thumbs,
+        /// and the number of bytes for the json of the header 
+        /// Note the json header size can vary slightly in the DB from here
+        /// due to the DB controlling the value of fields like TAGs and created / modified
+        /// </summary>
+        /// <returns>Number of bytes by header JSON plus all payloads and thumbs</returns>
         public static (long databaseBytes, long payloadBytes, long thumbBytes) ServerHeaderByteCount(ServerFileHeader header)
         {
             var json = OdinSystemSerializer.Serialize(header);
@@ -1254,6 +1262,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var (databaseBytes, payloadBytes, thumbBytes) = ServerHeaderByteCount(header);
 
+            // The .FileByteCount will also end up in the Table column "bytes" for quick summing.
             header.ServerMetadata.FileByteCount = databaseBytes + payloadBytes + thumbBytes;
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
