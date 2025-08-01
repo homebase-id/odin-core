@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.KeyChain;
 using Odin.Core.Storage.Database.KeyChain.Table;
@@ -21,6 +22,7 @@ namespace Odin.KeyChainTests
         {
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddLogging(builder => builder.AddConsole());
+            serviceCollection.AddSingleton<INodeLock, NodeLock>();
 
             var builder = new ContainerBuilder();
             builder.Populate(serviceCollection);
