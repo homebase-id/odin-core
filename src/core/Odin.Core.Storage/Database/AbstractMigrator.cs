@@ -79,8 +79,15 @@ public abstract class AbstractMigrator
         var groupedMigrations = GroupMigrationsByVersion(direction, currentVersion, requestedVersion);
         if (groupedMigrations.Count > 0)
         {
-            _logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion}",
-                currentVersion, requestedVersion);
+            if (requestedVersion < long.MaxValue)
+            {
+                _logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion}",
+                    currentVersion, requestedVersion);
+            }
+            else
+            {
+                _logger.LogInformation("Migrating database from version {CurrentVersion}", currentVersion);
+            }
         }
 
         //
@@ -91,7 +98,7 @@ public abstract class AbstractMigrator
         {
             _logger.LogInformation("Running {Count} migration(s) for version {Version}", migrations.Count, version);
 
-            await using var trx = await cn.BeginStackedTransactionAsync();
+            await using var tx = await cn.BeginStackedTransactionAsync();
             foreach (var migration in migrations)
             {
                 if (direction == Direction.Up)
@@ -105,7 +112,7 @@ public abstract class AbstractMigrator
             }
 
             await SetCurrentVersionAsync(cn, version);
-            trx.Commit();
+            tx.Commit();
         }
     }
 
@@ -127,7 +134,7 @@ public abstract class AbstractMigrator
             // Group by version and order by version ascending
             var groupedMigrations = filteredMigrations
                 .GroupBy(x => x.MigrationVersion)
-                .OrderBy(g => g.Key)  // or OrderByDescending for reverse
+                .OrderBy(g => g.Key)
                 .Select(g => new KeyValuePair<long, List<MigrationBase>>(g.Key, g.ToList()))
                 .ToList();
 
@@ -137,9 +144,9 @@ public abstract class AbstractMigrator
         if (direction == Direction.Down)
         {
             // Collect all migrations with
-            //   version greater than the requested version and less than or equal to the current database version
+            //   version greater than the requested version
             var filteredMigrations = SortedMigrations
-                .Where(m => m.MigrationVersion > requestedVersion && m.MigrationVersion <= currentVersion)
+                .Where(m => m.MigrationVersion > requestedVersion)
                 .ToList();
 
             // Group by version and order by version descending
