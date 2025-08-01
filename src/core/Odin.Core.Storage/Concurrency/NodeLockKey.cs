@@ -1,6 +1,6 @@
 using System;
 
-namespace Odin.Services.Concurrency;
+namespace Odin.Core.Storage.Concurrency;
 
 #nullable enable
 

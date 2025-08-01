@@ -6,11 +6,13 @@ using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Odin.Services.Concurrency;
+using Odin.Core.Storage.Concurrency;
 using StackExchange.Redis;
 using Testcontainers.Redis;
 
-namespace Odin.Services.Tests.Concurrency;
+namespace Odin.Core.Storage.Tests.Concurrency;
+
+#nullable enable
 
 #if RUN_REDIS_TESTS
 
