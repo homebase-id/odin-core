@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Factory;
 
 [assembly: InternalsVisibleTo("Odin.Core.Storage.Tests")]
@@ -26,13 +27,15 @@ public abstract class AbstractMigrator
     private readonly string _migratorId;
     private readonly ILogger _logger;
     private readonly IScopedConnectionFactory _scopedConnectionFactory;
+    private readonly INodeLock _nodeLock;
 
     //
 
-    protected AbstractMigrator(ILogger logger, IScopedConnectionFactory scopedConnectionFactory)
+    protected AbstractMigrator(ILogger logger, IScopedConnectionFactory scopedConnectionFactory, INodeLock nodeLock)
     {
         _logger = logger;
         _scopedConnectionFactory = scopedConnectionFactory;
+        _nodeLock = nodeLock;
         _migratorId = GetType().FullName;
 
         // Sanity
@@ -43,7 +46,13 @@ public abstract class AbstractMigrator
 
     public async Task MigrateAsync(long requestedVersion = long.MaxValue)
     {
-        // SEB:TODO distributed lock (ach... we need to move INodeLock to Odin.Core.Storage first)
+        _logger.LogDebug("Acquiring lock for database migration with ID {MigratorId}", _migratorId);
+
+        await using var _ = await _nodeLock.LockAsync(
+            NodeLockKey.Create("database-migrator"),
+            timeout: TimeSpan.FromMinutes(5));
+
+        _logger.LogDebug("Starting database migration with ID {MigratorId}", _migratorId);
 
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
@@ -63,14 +72,16 @@ public abstract class AbstractMigrator
             return;
         }
 
-        _logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion} ({Direction})",
-            currentVersion, requestedVersion, direction);
-
         //
         // Collect and group all migrations that need to be run
         //
 
         var groupedMigrations = GroupMigrationsByVersion(direction, currentVersion, requestedVersion);
+        if (groupedMigrations.Count > 0)
+        {
+            _logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion}",
+                currentVersion, requestedVersion);
+        }
 
         //
         // Run collected migrations by version group

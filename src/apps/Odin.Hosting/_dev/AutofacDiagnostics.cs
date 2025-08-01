@@ -49,6 +49,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Services.Certificate.CertificateStore), "3d5de885"},
         {typeof(Odin.Services.Certificate.CertificateStorageKey), "4bbcfd3f"},
         {typeof(Odin.Core.Http.DynamicHttpClientFactory), "f7ffd4c4"},
+        {typeof(Odin.Core.Storage.Concurrency.RedisLock), "45a850b2"},
     };
 
     //

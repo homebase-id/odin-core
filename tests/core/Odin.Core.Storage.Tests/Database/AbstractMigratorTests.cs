@@ -3,6 +3,7 @@ using Autofac;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -22,19 +23,20 @@ public class AbstractMigratorTests : IocTestBase
     }
 
     [Test]
-    [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Sqlite, false)]
     #if RUN_POSTGRES_TESTS
-    [TestCase(DatabaseType.Postgres)]
+    [TestCase(DatabaseType.Postgres, true)]
     #endif
-    public async Task ItShouldCreateAndUpdateTableVersionInfoWithEmptyMigrationList(DatabaseType databaseType)
+    public async Task ItShouldCreateAndUpdateTableVersionInfoWithEmptyMigrationList(DatabaseType databaseType, bool redisEnabled)
     {
-        await RegisterServicesAsync(databaseType, false);
+        await RegisterServicesAsync(databaseType, createDatabases: false, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var logger = scope.Resolve<ILogger<IdentityMigrator>>();
         var scopedConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+        var nodeLock = scope.Resolve<INodeLock>();
 
         // SEB:NOTE we use a mock, so we can create a new, empty SortedMigrations list
-        var mock = new Mock<IdentityMigrator>(logger, scopedConnectionFactory)
+        var mock = new Mock<IdentityMigrator>(logger, scopedConnectionFactory, nodeLock)
         {
             CallBase = true
         };
@@ -96,17 +98,17 @@ public class AbstractMigratorTests : IocTestBase
     //
 
     [Test]
-    [TestCase(DatabaseType.Sqlite)]
+    [TestCase(DatabaseType.Sqlite, false)]
 #if RUN_POSTGRES_TESTS
-    [TestCase(DatabaseType.Postgres)]
+    [TestCase(DatabaseType.Postgres, true)]
 #endif
-    public async Task ItShouldMigrateTheDatabaseWithRealMigrations(DatabaseType databaseType)
+    public async Task ItShouldMigrateTheDatabaseWithRealMigrations(DatabaseType databaseType, bool redisEnabled)
     {
         // NOTE: we migrate both system and identity here.
         // This is to check that there isn't a conflict between the two on postgres, since all
         // tables are in the same database here.
 
-        await RegisterServicesAsync(databaseType, false);
+        await RegisterServicesAsync(databaseType, createDatabases: false, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
 
         var systemMigrator = scope.Resolve<SystemMigrator>();
@@ -149,13 +151,14 @@ public class AbstractMigratorTests : IocTestBase
     [Test]
     public async Task ItShouldGroupMigrationsCorrectly()
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite, false);
+        await RegisterServicesAsync(DatabaseType.Sqlite, createDatabases: false);
         await using var scope = Services.BeginLifetimeScope();
         var logger = scope.Resolve<ILogger<IdentityMigrator>>();
         var scopedConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
+        var nodeLock = scope.Resolve<INodeLock>();
 
         // NOTE we use a mock, so we can create a new, empty SortedMigrations list
-        var mock = new Mock<IdentityMigrator>(logger, scopedConnectionFactory)
+        var mock = new Mock<IdentityMigrator>(logger, scopedConnectionFactory, nodeLock)
         {
             CallBase = true
         };
