@@ -18,7 +18,7 @@ public class TableInbox(
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity,
     ICorrelationContext correlationContext)
-    : TableInboxCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableInboxCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

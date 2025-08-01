@@ -80,7 +80,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await SqlHelper.CreateTableWithCommentAsync(cn, "DriveMainIndexMigrationsV202507191211", createSql, commentSql);
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");

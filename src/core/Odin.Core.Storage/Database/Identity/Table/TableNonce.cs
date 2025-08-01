@@ -14,7 +14,7 @@ public class TableNonce(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableNonceCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableNonceCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

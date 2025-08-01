@@ -12,7 +12,7 @@ public class TableDriveTransferHistory(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory: scopedConnectionFactory), ITableMigrator
+    : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory: scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

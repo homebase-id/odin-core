@@ -57,6 +57,9 @@ public static class AttestationExtensions
         // Database
         cb.RegisterType<AttestationDatabase>().InstancePerDependency();
 
+        // Migrator
+        cb.RegisterType<AbstractMigrator>().InstancePerDependency();
+
         // Connection
         cb.RegisterType<ScopedAttestationConnectionFactory>()
             .InstancePerLifetimeScope(); // Important!

@@ -130,8 +130,6 @@ public class DatabaseConnectionTests : IocTestBase
             Assert.Fail();
     }
 
-
-
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     #if RUN_POSTGRES_TESTS
