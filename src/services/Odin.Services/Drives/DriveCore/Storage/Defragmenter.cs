@@ -509,6 +509,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return null;
         }
 
+        private bool IsInRange(long value, long lower, long upper)
+        {
+            return value >= lower && value <= upper;
+        }
+
         /// <summary>
         /// Checks the  given header from the database.
         /// Ensures the required payloads and thumbnails are on disk.
@@ -531,7 +536,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
             long diskThumbBytes = 0;
 
             // If the payloads are not remote, check the disk
-            if (header?.FileMetadata?.DataSource?.PayloadsAreRemote == false)
+            if (header?.FileMetadata?.DataSource?.PayloadsAreRemote == true)
+            {
+
+            }
+            else
             {
                 foreach (var payload in payloads)
                 {
@@ -563,13 +572,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             {
                                 logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {l} thumb {thumb.BytesWritten}");
 
-                                if (l > 1024*1024*10)
+                                if (l > 1024 * 1024 * 10)
                                 {
                                     logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk too large {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {l} thumb {thumb.BytesWritten}");
                                 }
 
                                 if (cleanup)
-                                    thumb.BytesWritten = (uint) l;
+                                    thumb.BytesWritten = (uint)l;
                             }
                             diskThumbBytes += l;
                         }
@@ -586,7 +595,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 logger.LogError($"{logPrefix} BYTESIZE - header bytes and disk bytes not matching {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrSumBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
             }
 
-            if (hdrSumBytes != header.ServerMetadata.FileByteCount)
+
+            // So the size of the hdrDatabaseBytes can vary slightly due to a few attributes being
+            // set by the database (time, tagid, etc). So we check for a range. Maybe we should separate
+            // it out...
+            if (IsInRange(header.ServerMetadata.FileByteCount, hdrSumBytes - 50, hdrSumBytes + 50))
             {
                 logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrSumBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
 
