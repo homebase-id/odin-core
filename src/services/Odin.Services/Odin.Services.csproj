@@ -29,8 +29,4 @@
     <ProjectReference Include="../../core/Odin.Core/Odin.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="ShamiraPasswordRecovery\" />
-  </ItemGroup>
-
 </Project>

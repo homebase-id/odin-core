@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.Authentication.Owner.Shamira;
 using Odin.Services.Peer;
+using Odin.Services.ShamiraPasswordRecovery;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
 {
@@ -16,15 +16,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
     [Route(PeerApiPathConstants.PasswordRecoveryV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
     public class ShamirPasswordRecoveryPeerController(
-        ShamiraRecoveryService shamiraRecoveryService,
+        ShamiraVerificationService verificationService,
         ILogger<ShamirPasswordRecoveryPeerController> logger) : OdinControllerBase
     {
-        [HttpPost("accept-shard")]
-        public async Task<IActionResult> GetRsaKey(SendShardRequest request)
+        [HttpPost("verify-shard")]
+        public async Task<IActionResult> VerifyShard(VerifyShardRequest request)
         {
-            var caller = WebOdinContext.Caller.OdinId;
-            //TODO: need to store the player shard request.DealerEncryptedShard
-            return Ok();
+            var result = await verificationService.VerifyShard(request.ShardId, request.VersionTag, WebOdinContext);
+            return Ok(result);
         }
     }
 }

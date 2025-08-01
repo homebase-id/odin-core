@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Odin.Services.Authentication.Owner.Shamira;
+namespace Odin.Services.ShamiraPasswordRecovery;
 
 public class ShardEnvelop
 {

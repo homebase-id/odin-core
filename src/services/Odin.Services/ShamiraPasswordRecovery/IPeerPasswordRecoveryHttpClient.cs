@@ -3,14 +3,14 @@ using System.Threading.Tasks;
 using Odin.Services.Peer;
 using Refit;
 
-namespace Odin.Services.Authentication.Owner.Shamira
+namespace Odin.Services.ShamiraPasswordRecovery
 {
     public interface IPeerPasswordRecoveryHttpClient
     {
         private const string PasswdRoot = PeerApiPathConstants.PasswordRecoveryV1;
 
-        [Post(PasswdRoot + "/accept-shard")]
-        Task<ApiResponse<HttpContent>> SendShard([Body] SendShardRequest request);
+        [Post(PasswdRoot + "/verify-shard")]
+        Task<ApiResponse<ShardVerificationResult>> VerifyShard([Body] VerifyShardRequest request);
        
     }
 }

@@ -5,7 +5,6 @@ using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -70,8 +69,8 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Services.Authentication.Owner.Shamira;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
+using Odin.Services.ShamiraPasswordRecovery;
 
 namespace Odin.Hosting;
 
@@ -186,6 +185,7 @@ public static class TenantServices
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<ShamiraRecoveryService>().InstancePerLifetimeScope();
+        cb.RegisterType<ShamiraVerificationService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
 

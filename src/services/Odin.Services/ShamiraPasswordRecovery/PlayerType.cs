@@ -1,4 +1,4 @@
-namespace Odin.Services.Authentication.Owner.Shamira;
+namespace Odin.Services.ShamiraPasswordRecovery;
 
 public enum PlayerType
 {
