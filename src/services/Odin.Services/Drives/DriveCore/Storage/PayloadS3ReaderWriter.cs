@@ -42,7 +42,21 @@ public class PayloadS3ReaderWriter(
             throw new PayloadReaderWriterException(e.Message, e);
         }
     }
-    
+
+    //
+
+    public async Task<long> FileLengthAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await s3PayloadsStorage.FileLengthAsync(filePath, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
+    }
+
     //
 
     public async Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)

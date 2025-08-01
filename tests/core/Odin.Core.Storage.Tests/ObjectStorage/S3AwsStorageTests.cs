@@ -387,6 +387,41 @@ public class S3AwsStorageTests
         var content = await File.ReadAllTextAsync(dstFile);
         Assert.That(content, Is.EqualTo(text));
     }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldGetTheFileSize()
+    {
+        const string srcPath = "the-src-file";
+        const string text = "hello";
+
+        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+
+        // Write to bucket
+        await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
+
+        // Get the file size
+        var fileSize = await bucket.FileLengthAsync(srcPath);
+        Assert.That(fileSize, Is.EqualTo(text.Length));
+    }
+
+    //
+
+    [Test]
+    public void S3AwsStorage_ItShouldThrow_WhenGettingTheFileSize_OfMissingFile()
+    {
+        var srcPath = Guid.NewGuid().ToString("N");
+
+        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+
+        var exception = Assert.ThrowsAsync<S3StorageException>(() => bucket.FileLengthAsync(srcPath));
+        var inner = exception!.InnerException as AmazonS3Exception;
+        Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
+    }
+
+    //
+
 }
 
 #endif

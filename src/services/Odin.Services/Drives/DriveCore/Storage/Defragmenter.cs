@@ -411,7 +411,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 ValidateDriveDirectories(drive.DriveId, cleanup);
 
                 var td = new TargetDrive() { Alias = drive.DriveId, Type = drive.DriveType };
-                await CheckDrivePayloadsIntegrity(td);
+                await CheckDrivePayloadsIntegrity(td, cleanup);
                 await VerifyInboxEntiresIntegrity(drive.DriveId, cleanup);
 
                 await VerifyPayloadsFilesInDiskFolder(drive.DriveId, cleanup);
@@ -421,7 +421,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Queries all files on the drive and ensures payloads and thumbnails are as they should be
         /// </summary>
-        public async Task CheckDrivePayloadsIntegrity(TargetDrive targetDrive)
+        public async Task CheckDrivePayloadsIntegrity(TargetDrive targetDrive, bool cleanup)
         {
             var query = new FileQueryParams
             {
@@ -464,7 +464,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             foreach (var header in batch)
             {
-                var missing = await this.VerifyFileAsync(storageDrive, header);
+                var missing = await this.VerifyFilesAsync(storageDrive, header, cleanup);
                 if (missing != null)
                 {
                     logger.LogDebug(missing);
@@ -481,7 +481,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Checks a file for payload integrity.
         /// </summary>
         /// <returns>null if file is complete, otherwise returns string of missing payloads / thumbnails</returns>
-        public async Task<string> VerifyFileAsync(StorageDrive drive, DriveMainIndexRecord record)
+        public async Task<string> VerifyFilesAsync(StorageDrive drive, DriveMainIndexRecord record, bool cleanup)
         {
             var file = new InternalDriveFileId(drive.Id, record.fileId);
             var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
@@ -498,7 +498,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             //    }
             //}
 
-            var sl = await CheckPayloadsIntegrity(drive, serverFileHeader);
+            var sl = await CheckPayloadsIntegrity(drive, serverFileHeader, cleanup);
 
             if (sl != null)
             {
@@ -509,6 +509,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return null;
         }
 
+        private bool IsInRange(long value, long lower, long upper)
+        {
+            return value >= lower && value <= upper;
+        }
+
         /// <summary>
         /// Checks the  given header from the database.
         /// Ensures the required payloads and thumbnails are on disk.
@@ -516,29 +521,125 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Otherwise returns the list of missing payloads / thumbnails as full filename plus directory
         /// If payloads are remote, skips check (caught in VerifyDriveDirectoriesPayloads())
         /// </summary>
-        private async Task<List<string>> CheckPayloadsIntegrity(StorageDrive drive, ServerFileHeader header)
+        private async Task<List<string>> CheckPayloadsIntegrity(StorageDrive drive, ServerFileHeader header, bool cleanup)
         {
+            const string logPrefix = "PayloadIntegrity";
             var fileId = header.FileMetadata.File.FileId;
             var payloads = header.FileMetadata?.Payloads ?? [];
             var sl = new List<string>();
 
-            // If the payloads are remote, skip the disk check
+            long diskPayloadBytes = 0;
+            long diskThumbBytes = 0;
+
+            bool payloadAdjustments = false;
+
+            // If the payloads are not remote, check the disk
             if (header?.FileMetadata?.DataSource?.PayloadsAreRemote == true)
-                 return null;
-            
-            // Future improvement: Compare byte-sizes in header to bytes on disk
-
-            foreach (var payload in payloads)
             {
-                if (!await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payload))
-                    sl.Add(tenantContext.TenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid));
-
-                foreach (var thumb in payload.Thumbnails ?? [])
+                // ?
+            }
+            else
+            {
+                foreach (var payload in payloads)
                 {
-                    if (!await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payload, thumb))
-                        sl.Add(tenantContext.TenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid, thumb.PixelWidth, thumb.PixelHeight));
+                    if (await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payload))
+                    {
+                        var l = await longTermStorageManager.PayloadLengthAsync(drive, fileId, payload);
+
+                        if (l != payload.BytesWritten)
+                        {
+                            logger.LogError($"{logPrefix} BYTESIZE - payload file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} key {payload.Key} uid {payload.Uid} on disk = {l} header {payload.BytesWritten}");
+
+                            if (cleanup)
+                            {
+                                payload.BytesWritten = l;
+                                payloadAdjustments = true;
+                            }
+                        }
+
+                        diskPayloadBytes += l;
+                    }
+                    else
+                    {
+                        sl.Add(tenantContext.TenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid));
+                    }
+
+                    foreach (var thumb in payload.Thumbnails ?? [])
+                    {
+                        if (await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payload, thumb))
+                        {
+                            var l = await longTermStorageManager.ThumbnailLengthAsync(drive, fileId, payload, thumb);
+                            if (l != thumb.BytesWritten)
+                            {
+                                logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {l} thumb {thumb.BytesWritten}");
+
+                                if (l > 1024 * 1024 * 10)
+                                {
+                                    logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk too large {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {l} thumb {thumb.BytesWritten}");
+                                }
+
+                                if (cleanup)
+                                {
+                                    thumb.BytesWritten = (uint)l;
+                                    payloadAdjustments = true;
+                                }
+                            }
+                            diskThumbBytes += l;
+                        }
+                        else
+                        {
+                            sl.Add(tenantContext.TenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payload.Key, payload.Uid, thumb.PixelWidth, thumb.PixelHeight));
+                        }
+                    }
                 }
             }
+
+            bool headerAdjustment = false;
+
+            var (hdrDatabaseBytes, hdrPayloadBytes, hdrThumbBytes) = 
+                DriveStorageServiceBase.ServerHeaderByteCount(header);
+
+            // Calculate the sum of bytes spent according to the header
+            var hdrPayloadThumbBytes = hdrPayloadBytes + hdrThumbBytes;
+            var diskPayloadThumbBytes = diskPayloadBytes + diskThumbBytes;
+
+            if (diskPayloadThumbBytes != hdrPayloadThumbBytes)
+            {
+                logger.LogError($"{logPrefix} BYTESIZE - size of payloads + thumbs DIFFERENT between DISK and HEADER {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrPayloadThumbBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
+                headerAdjustment = true;
+                if (cleanup)
+                    header.ServerMetadata.FileByteCount = hdrPayloadThumbBytes;
+            }
+
+
+            // So the size of the hdrDatabaseBytes can vary slightly due to a few attributes being
+            // set by the database (time, tagid, etc). So we check for a range. Maybe we should separate
+            // it out...
+            if (IsInRange(header.ServerMetadata.FileByteCount, hdrPayloadThumbBytes - 50, hdrPayloadThumbBytes + 50))
+            {
+                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrPayloadThumbBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
+
+                if (cleanup)
+                    header.ServerMetadata.FileByteCount = hdrPayloadThumbBytes;
+                headerAdjustment = true;
+            }
+
+            if (cleanup)
+            {
+                if (payloadAdjustments)
+                {
+                    // We'd have to write the whole header, we'd need to consider that carefully
+                }
+                else if (headerAdjustment)
+                {
+                    // We just need to update the DB row byteCount
+                    // The ServerFileHeader.FromDriveMainIndexRecord() DTO 
+                    // will overwrite the ServerMetadata.FileByteCount with 
+                    // the byteCount value
+                    await identityDatabase.DriveMainIndex.UpdateByteCountAsync(drive.Id, fileId,  hdrPayloadThumbBytes);
+                }
+            }
+
 
             if (sl.Count > 0)
                 return sl;

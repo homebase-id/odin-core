@@ -271,6 +271,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return exists;
         }
 
+        public async Task<long> PayloadLengthAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
+        {
+            var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
+            var bytes = await payloadReaderWriter.FileLengthAsync(path);
+            return bytes;
+        }
+
+
         public async Task<bool> ThumbnailExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor,
             ThumbnailDescriptor thumbnailDescriptor)
         {
@@ -278,6 +286,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
             return await payloadReaderWriter.FileExistsAsync(path);
+        }
+
+        public async Task<long> ThumbnailLengthAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, ThumbnailDescriptor thumbnailDescriptor)
+        {
+            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid, 
+                thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
+            var bytes = await payloadReaderWriter.FileLengthAsync(path);
+            return bytes;
         }
 
         public async Task<Stream> GetPayloadStreamAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)

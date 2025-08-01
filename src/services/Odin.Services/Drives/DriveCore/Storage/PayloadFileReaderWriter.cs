@@ -54,7 +54,22 @@ public class PayloadFileReaderWriter(
             throw new PayloadReaderWriterException(e.Message, e);
         }
     }
-    
+
+    //
+    public Task<long> FileLengthAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            var fi = new FileInfo(filePath);
+            return Task.FromResult(fi.Length);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new PayloadReaderWriterException(e.Message, e);
+        }
+    }
+
     //
 
     public Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
