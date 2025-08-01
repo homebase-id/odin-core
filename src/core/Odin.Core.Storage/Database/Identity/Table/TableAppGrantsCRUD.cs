@@ -43,8 +43,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class TableAppGrantsCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
-        public override string TableName => "AppGrants";
+        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; } = "AppGrants";
 
         protected TableAppGrantsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {

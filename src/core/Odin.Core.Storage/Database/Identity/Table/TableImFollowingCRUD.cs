@@ -38,7 +38,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
     public abstract class TableImFollowingCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "ImFollowing";
 
         protected TableImFollowingCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)

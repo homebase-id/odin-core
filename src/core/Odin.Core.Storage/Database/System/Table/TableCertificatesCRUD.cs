@@ -51,7 +51,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableCertificatesCRUD : TableBase
     {
-        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
+        private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "Certificates";
 
         public TableCertificatesCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)

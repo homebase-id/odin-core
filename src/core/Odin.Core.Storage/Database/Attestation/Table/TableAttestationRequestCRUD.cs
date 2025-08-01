@@ -41,7 +41,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
     public abstract class TableAttestationRequestCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
+        private ScopedAttestationConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "AttestationRequest";
 
         public TableAttestationRequestCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
