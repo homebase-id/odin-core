@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Services.Concurrency;
+using Odin.Core.Storage.Concurrency;
 
-namespace Odin.Services.Tests.Concurrency;
+namespace Odin.Core.Storage.Tests.Concurrency;
 
 public class NodeLockTests
 {
