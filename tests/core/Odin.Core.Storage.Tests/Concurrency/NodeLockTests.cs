@@ -4,8 +4,6 @@ using Odin.Core.Storage.Concurrency;
 
 namespace Odin.Core.Storage.Tests.Concurrency;
 
-#nullable enable
-
 public class NodeLockTests
 {
     [Test]
