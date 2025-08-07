@@ -8,27 +8,13 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.KeyChain;
 
-public class KeyChainDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IKeyChainDbConnectionFactory>(lifetimeScope)
+public partial class KeyChainDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IKeyChainDbConnectionFactory>(lifetimeScope)
 {
-    //
-    // Put all database tables alphabetically here.
-    // Don't forget to add the table to the lazy properties as well.
-    //
-    public static readonly ImmutableList<Type> TableTypes =
-    [
-        typeof(TableKeyChain)
-    ];
-
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
 
     //
     // Table convenience properties
     //
-
-    // KeyChain
-    private Lazy<TableKeyChain> _keyChain;
-    public TableKeyChain KeyChain => LazyResolve(ref _keyChain);
-
 
     //
     // Connection
@@ -54,16 +40,9 @@ public class KeyChainDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<I
     // Migration
     //
 
-    // SEB:NOTE this is temporary until we have a proper migration system
-    public override async Task CreateDatabaseAsync(bool dropExistingTables = false)
+    public override async Task MigrateDatabaseAsync()
     {
-        await using var tx = await BeginStackedTransactionAsync();
-        foreach (var tableType in TableTypes)
-        {
-            var table = (ITableMigrator)_lifetimeScope.Resolve(tableType);
-            await table.EnsureTableExistsAsync(dropExistingTables);
-        }
-        tx.Commit();
+        var migrator = _lifetimeScope.Resolve<KeyChainMigrator>();
+        await migrator.MigrateAsync();
     }
-
 }

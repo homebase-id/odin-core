@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Notary;
 using Odin.Core.Storage.Database.Notary.Table;
@@ -22,9 +23,11 @@ public class Tests
     {
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddLogging(builder => builder.AddConsole());
+        serviceCollection.AddSingleton<INodeLock, NodeLock>();
 
         var builder = new ContainerBuilder();
         builder.Populate(serviceCollection);
+
 
         builder.AddDatabaseCacheServices();
         builder.AddDatabaseCounterServices();
@@ -43,7 +46,7 @@ public class Tests
     [Test]
     public async Task Test1()
     {
-        await _db.CreateDatabaseAsync();
+        await _db.MigrateDatabaseAsync();
 
         var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
         var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);

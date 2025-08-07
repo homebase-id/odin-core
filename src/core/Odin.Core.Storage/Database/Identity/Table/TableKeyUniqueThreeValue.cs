@@ -9,7 +9,7 @@ public class TableKeyUniqueThreeValue(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyUniqueThreeValueCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableKeyUniqueThreeValueCRUD(cache, scopedConnectionFactory)
 {
     public new async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)
     {

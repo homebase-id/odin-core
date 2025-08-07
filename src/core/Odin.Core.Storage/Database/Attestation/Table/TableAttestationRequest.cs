@@ -5,6 +5,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table;
 public class TableAttestationRequest(
     CacheHelper cache,
     ScopedAttestationConnectionFactory scopedConnectionFactory)
-    : TableAttestationRequestCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableAttestationRequestCRUD(cache, scopedConnectionFactory)
 {
 }

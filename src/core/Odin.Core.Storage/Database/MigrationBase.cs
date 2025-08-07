@@ -1,6 +1,7 @@
 ﻿using Odin.Core.Exceptions;
 using Odin.Core.Storage.Factory;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 #nullable enable
@@ -60,6 +61,7 @@ namespace Odin.Core.Storage.Database
             return n1 == n2;
         }
 
+        public static List<string> GetColumnNames() => throw new Exception("Not implemented");
         public abstract Task CreateTableWithCommentAsync(IConnectionWrapper cn);
         public abstract Task DownAsync(IConnectionWrapper cn);
         public abstract Task UpAsync(IConnectionWrapper cn);

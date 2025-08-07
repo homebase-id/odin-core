@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.KeyChain;
 using Odin.Core.Storage.Database.KeyChain.Table;
@@ -21,6 +22,7 @@ namespace Odin.KeyChainTests
         {
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddLogging(builder => builder.AddConsole());
+            serviceCollection.AddSingleton<INodeLock, NodeLock>();
 
             var builder = new ContainerBuilder();
             builder.Populate(serviceCollection);
@@ -42,7 +44,7 @@ namespace Odin.KeyChainTests
         [Test]
         public async Task Test1()
         {
-            await _db.CreateDatabaseAsync();
+            await _db.MigrateDatabaseAsync();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
@@ -70,7 +72,7 @@ namespace Odin.KeyChainTests
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);
 
-            await _db.CreateDatabaseAsync();
+            await _db.MigrateDatabaseAsync();
 
             var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
             var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
@@ -101,7 +103,7 @@ namespace Odin.KeyChainTests
         [Test]
         public async Task Test3()
         {
-            await _db.CreateDatabaseAsync();
+            await _db.MigrateDatabaseAsync();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, EccKeySize.P384, 1);

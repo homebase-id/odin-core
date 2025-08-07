@@ -144,7 +144,7 @@ public class CertificateServiceTests
 
         _autofacContainer = _webServer.Services.GetAutofacRoot();
         var systemDatabase = _autofacContainer.Resolve<SystemDatabase>();
-        await systemDatabase.CreateDatabaseAsync(true);
+        await systemDatabase.MigrateDatabaseAsync();
 
         var lifetime = _autofacContainer.Resolve<IHostApplicationLifetime>();
         var serverStartedTcs = new TaskCompletionSource();

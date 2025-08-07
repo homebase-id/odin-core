@@ -57,6 +57,9 @@ public static class NotaryExtensions
         // Database
         cb.RegisterType<NotaryDatabase>().InstancePerDependency();
 
+        // Migrator
+        cb.RegisterType<NotaryMigrator>().InstancePerDependency();
+
         // Connection
         cb.RegisterType<ScopedNotaryConnectionFactory>()
             .InstancePerLifetimeScope(); // Important!

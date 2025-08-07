@@ -13,7 +13,7 @@ public class TableCircleMember(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableCircleMemberCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableCircleMemberCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
