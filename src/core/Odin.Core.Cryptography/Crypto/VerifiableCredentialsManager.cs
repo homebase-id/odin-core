@@ -1,17 +1,20 @@
 ﻿using JsonLd.Normalization;
+using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Org.BouncyCastle.Security;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Cryptography.Crypto;
 
-public class CredentialsResponse
+// Eventually test with
+// didkit vc-verify-credential -v EcdsaSecp384r1Signature2019 credential.json
+
+public class VCCredentialsResponse
 {
     [JsonPropertyName("@context")]
     public List<object> Context { get; set; } = new List<object> { "https://www.w3.org/2018/credentials/v1" };
@@ -29,14 +32,14 @@ public class CredentialsResponse
     public string IssuanceDate { get; set; }
 
     [JsonPropertyName("credentialSubject")]
-    public CredentialSubject Subject { get; set; }
+    public VCCredentialSubject Subject { get; set; }
 
     [JsonPropertyName("proof")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Proof Proof { get; set; }
+    public VCProof Proof { get; set; }
 }
 
-public class CredentialSubject
+public class VCCredentialSubject
 {
     [JsonPropertyName("id")]
     public string Id { get; set; }
@@ -45,7 +48,7 @@ public class CredentialSubject
     public Dictionary<string, object> Attributes { get; set; } = new Dictionary<string, object>();
 }
 
-public class Proof
+public class VCProof
 {
     [JsonPropertyName("type")]
     public string Type { get; set; }
@@ -62,6 +65,8 @@ public class Proof
     [JsonPropertyName("jws")]
     public string Jws { get; set; }
 }
+
+
 public static class VerifiableCredentialsManager
 {
     /// <summary>
@@ -71,33 +76,27 @@ public static class VerifiableCredentialsManager
     /// <param name="attributes">Dictionary of key-value pairs for credentialSubject (e.g., fullName, firstName).</param>
     /// <param name="credentialType">The specific type of the VC (e.g., IdentityCredential).</param>
     /// <returns>The VC as a JsonObject without proof.</returns>
-    public static JsonObject CreateVerifiableCredential(
-        OdinId odinId,
-        List<(string Key, string Value, string ContextUri)> attributes,
-        string credentialType = "IdentityCredential")
+    public static VCCredentialsResponse CreateVerifiableCredential(
+            OdinId odinId,
+            List<(string Key, string Value, string ContextUri)> attributes,
+            string credentialType = "IdentityCredential")
     {
         var did = "did:web:" + odinId.DomainName;
-        var credentialSubject = new JsonObject { ["id"] = did };
-        var contextObject = new JsonObject
-        {
-            [credentialType] = "https://schema.org/Person"
-        };
+        var contextObject = new Dictionary<string, string> { [credentialType] = "https://schema.org/Person" };
+        var subject = new VCCredentialSubject { Id = did };
         foreach (var (key, value, contextUri) in attributes)
         {
-            credentialSubject[key] = value;
+            subject.Attributes[key] = value;
             contextObject[key] = contextUri;
         }
-        var credential = new JsonObject
+        var credential = new VCCredentialsResponse
         {
-            ["@context"] = new JsonArray(
-                "https://www.w3.org/2018/credentials/v1",
-                contextObject
-            ),
-            ["id"] = $"urn:uuid:{Guid.NewGuid()}",
-            ["type"] = new JsonArray("VerifiableCredential", credentialType),
-            ["issuer"] = did,
-            ["issuanceDate"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["credentialSubject"] = credentialSubject
+            Context = new List<object> { "https://www.w3.org/2018/credentials/v1", contextObject },
+            Id = $"urn:uuid:{Guid.NewGuid()}",
+            Type = new List<string> { "VerifiableCredential", credentialType },
+            Issuer = did,
+            IssuanceDate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            Subject = subject
         };
         return credential;
     }
@@ -116,13 +115,13 @@ public static class VerifiableCredentialsManager
     /// The resulting byte array is signed to produce the jws for the proof.
     /// </remarks>
 
-    public async static Task<byte[]> CreateDataToSign(JsonObject credential, JsonObject proof)
+    public async static Task<byte[]> CreateDataToSignAsync(VCCredentialsResponse credential, VCProof proof)
     {
-        string credentialJson = credential.ToJsonString();
-        string docNQuads = await JsonLdHandler.Normalize(credentialJson);
+        string credentialJson = System.Text.Json.JsonSerializer.Serialize(credential);
+        string docNQuads = await JsonLdHandler.NormalizeAsync(credentialJson);
         byte[] docHash = DigestUtilities.CalculateDigest("SHA-256", Encoding.UTF8.GetBytes(docNQuads));
-        string proofJson = proof.ToJsonString();
-        string proofNQuads = await JsonLdHandler.Normalize(proofJson);
+        string proofJson = System.Text.Json.JsonSerializer.Serialize(proof);
+        string proofNQuads = await JsonLdHandler.NormalizeAsync(proofJson);
         byte[] proofHash = DigestUtilities.CalculateDigest("SHA-256", Encoding.UTF8.GetBytes(proofNQuads));
         byte[] toSign = new byte[proofHash.Length + docHash.Length];
         Array.Copy(proofHash, toSign, proofHash.Length);
@@ -139,39 +138,26 @@ public static class VerifiableCredentialsManager
     /// <param name="encryptionKey">The SensitiveByteArray used to decrypt the private key.</param>
     /// <param name="verificationMethodId">The verification method ID (e.g., DID URL for the signing key).</param>
     /// <returns>The signed VC as a JSON string with proof added.</returns>
-    public async static Task<string> SignVerifiableCredential(
-        JsonObject credential,
-        EccFullKeyData keyData,
-        SensitiveByteArray encryptionKey,
-        string verificationMethodId)
+    public async static Task<string> SignVerifiableCredentialAsync(
+            VCCredentialsResponse credential,
+            EccFullKeyData keyData,
+            SensitiveByteArray encryptionKey,
+            string verificationMethodId)
     {
-        var proof = new JsonObject
+        var proof = new VCProof
         {
-            ["type"] = "EcdsaSecp384r1Signature2019",
-            ["created"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-            ["proofPurpose"] = "assertionMethod",
-            ["verificationMethod"] = verificationMethodId
+            Type = "EcdsaSecp384r1Signature2019",
+            Created = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            ProofPurpose = "assertionMethod",
+            VerificationMethod = verificationMethodId
         };
-
-        // Create data to sign
-        byte[] toSign = await CreateDataToSign(credential, proof);
-
-        // Sign with EccFullKeyData
+        byte[] toSign = await CreateDataToSignAsync(credential, proof);
         byte[] signature = keyData.Sign(encryptionKey, toSign);
-
-        // Create base64url JWS
-        string jws = Convert.ToBase64String(signature)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
-        proof["jws"] = jws;
-
-        // Add proof to credential
-        credential["proof"] = proof;
-
-        // Return signed VC JSON
-        return credential.ToJsonString();
+        proof.Jws = WebEncoders.Base64UrlEncode(signature);
+        credential.Proof = proof;
+        return System.Text.Json.JsonSerializer.Serialize(credential);
     }
+
 
     /// <summary>
     /// Extracts the original signature bytes from the jws in the credential's proof.
@@ -180,24 +166,34 @@ public static class VerifiableCredentialsManager
     /// <returns>The original signature bytes produced by EccFullKeyData.Sign.</returns>
     /// <exception cref="ArgumentNullException">Thrown if proof or jws is null.</exception>
     /// <exception cref="FormatException">Thrown if jws is not a valid base64url string.</exception>
-    public static byte[] ExtractSignatureFromProof(JsonObject proof)
+    public static byte[] ExtractSignatureFromProof(VCProof proof)
     {
         if (proof == null)
             throw new ArgumentNullException(nameof(proof));
-
-        string jws = proof["jws"]?.ToString();
+        string jws = proof.Jws;
         if (string.IsNullOrEmpty(jws))
             throw new ArgumentNullException(nameof(jws), "jws field is missing or empty in proof");
 
-        // Convert base64url to base64 (add padding if needed)
-        string base64 = jws.Replace('-', '+').Replace('_', '/');
-        int mod4 = base64.Length % 4;
-        if (mod4 > 0)
-        {
-            base64 += new string('=', 4 - mod4);
-        }
+        return WebEncoders.Base64UrlDecode(jws);
+    }
 
-        // Decode base64 to original signature bytes
-        return Convert.FromBase64String(base64);
+
+    public async static Task<bool> VerifySignatureAsync(string vcJson, EccPublicKeyData publicKeyData)
+    {
+        var credential = System.Text.Json.JsonSerializer.Deserialize<VCCredentialsResponse>(vcJson);
+        var proof = credential.Proof;
+        var signature = ExtractSignatureFromProof(proof);
+
+        credential.Proof = null;
+        var proofNoJws = new VCProof
+        {
+            Type = proof.Type,
+            Created = proof.Created,
+            ProofPurpose = proof.ProofPurpose,
+            VerificationMethod = proof.VerificationMethod
+        };
+
+        var toVerify = await CreateDataToSignAsync(credential, proofNoJws);
+        return publicKeyData.VerifySignature(toVerify, signature);
     }
 }

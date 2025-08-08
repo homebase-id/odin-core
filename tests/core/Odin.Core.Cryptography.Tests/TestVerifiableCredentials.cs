@@ -10,7 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json.Nodes;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Cryptography.Tests
@@ -26,7 +26,7 @@ namespace Odin.Core.Cryptography.Tests
         public void Setup()
         {
             // Setup test data
-            _odinId = new OdinId("frodobaggins.me");
+            _odinId = new OdinId("frodo.baggins.demo.rocks");
             _encryptionKey = new SensitiveByteArray(ByteArrayUtil.GetRandomCryptoGuid().ToByteArray());
             _keyData = new EccFullKeyData(_encryptionKey, EccKeySize.P384, hours: 24);
         }
@@ -39,183 +39,172 @@ namespace Odin.Core.Cryptography.Tests
             var attributes = new List<(string Key, string Value, string ContextUri)>
             {
                 ("fullName", "Frodo Baggins", "https://schema.org/name"),
-                ("email", "frodo.baggins@frodobaggins.me", "https://schema.org/email")
+                ("email", "mail@frodo.baggins.demo.rocks", "https://schema.org/email")
             };
-            // Act
-            JsonObject vc = VerifiableCredentialsManager.CreateVerifiableCredential(_odinId, attributes, "IdentityCredential");
-
+            var vc = VerifiableCredentialsManager.CreateVerifiableCredential(_odinId, attributes, "IdentityCredential");
             string verificationMethod = "did:web:frodobaggins.me#signing-key";
-            string signedVcJson = await VerifiableCredentialsManager.SignVerifiableCredential(vc, _keyData, _encryptionKey, verificationMethod);
-            var parsedVc = JsonNode.Parse(signedVcJson).AsObject();
-            Assert.That(parsedVc["@context"]?.ToJsonString(), Is.EqualTo(new JsonArray(
-                "https://www.w3.org/2018/credentials/v1",
-                new JsonObject
-                {
-                    ["IdentityCredential"] = "https://schema.org/Person",
-                    ["fullName"] = "https://schema.org/name",
-                    ["email"] = "https://schema.org/email"
-                }
-            ).ToJsonString()));
-
-            Assert.That(parsedVc["id"]?.ToString(), Does.StartWith("urn:uuid:"));
-            Assert.That(parsedVc["type"]?.AsArray().ToJsonString(), Is.EqualTo(new JsonArray("VerifiableCredential", "IdentityCredential").ToJsonString()));
-            Assert.That(parsedVc["issuer"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            Assert.That(parsedVc["issuanceDate"], Is.Not.Null);
-            var subject = parsedVc["credentialSubject"].AsObject();
-            Assert.That(subject["id"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            Assert.That(subject["fullName"]?.ToString(), Is.EqualTo("Frodo Baggins"));
-            Assert.That(subject["email"]?.ToString(), Is.EqualTo("frodo.baggins@frodobaggins.me"));
-            var proof = parsedVc["proof"].AsObject();
-            Assert.That(proof["type"]?.ToString(), Is.EqualTo("EcdsaSecp384r1Signature2019"));
-            Assert.That(proof["jws"], Is.Not.Null);
+            string signedVcJson = await VerifiableCredentialsManager.SignVerifiableCredentialAsync(vc, _keyData, _encryptionKey, verificationMethod);
+            var parsedVc = System.Text.Json.JsonSerializer.Deserialize<VCCredentialsResponse>(signedVcJson);
+            ClassicAssert.That(System.Text.Json.JsonSerializer.Serialize(parsedVc.Context), Is.EqualTo(System.Text.Json.JsonSerializer.Serialize(new List<object>
+                    {
+                        "https://www.w3.org/2018/credentials/v1",
+                        new Dictionary<string, string>
+                        {
+                            ["IdentityCredential"] = "https://schema.org/Person",
+                            ["fullName"] = "https://schema.org/name",
+                            ["email"] = "https://schema.org/email"
+                        }
+                    })));
+            
+            ClassicAssert.That(parsedVc.Id, Does.StartWith("urn:uuid:"), "ID should be a UUID");
+            ClassicAssert.That(parsedVc.Type, Is.EquivalentTo(new List<string> { "VerifiableCredential", "IdentityCredential" }), "Type should match");
+            ClassicAssert.That(parsedVc.Issuer, Is.EqualTo("did:web:frodo.baggins.demo.rocks"), "Issuer should match DID");
+            ClassicAssert.That(parsedVc.IssuanceDate, Is.Not.Null, "Issuance date should be set");
+            ClassicAssert.That(parsedVc.Subject.Id, Is.EqualTo("did:web:frodo.baggins.demo.rocks"), "Subject ID should match DID");
+            ClassicAssert.That(parsedVc.Subject.Attributes["fullName"]?.ToString(), Is.EqualTo("Frodo Baggins"), "Full name should match");
+            ClassicAssert.That(parsedVc.Subject.Attributes["email"]?.ToString(), Is.EqualTo("mail@frodo.baggins.demo.rocks"), "Email should match");
+            ClassicAssert.That(parsedVc.Proof, Is.Not.Null, "Proof should exist");
+            ClassicAssert.That(parsedVc.Proof.Type, Is.EqualTo("EcdsaSecp384r1Signature2019"), "Proof type should match");
+            ClassicAssert.That(parsedVc.Proof.Jws, Is.Not.Null, "JWS should be set");
 
             // Verify URDNA2015 compliance
-            var credentialNoProof = parsedVc.DeepClone().AsObject();
-            credentialNoProof.Remove("proof");
-            var proofNoJws = new JsonObject
+            var credentialNoProof = JsonSerializer.Deserialize<VCCredentialsResponse>(signedVcJson);
+            credentialNoProof.Proof = null;
+            var proofNoJws = new VCProof
             {
-                ["type"] = proof["type"]?.ToString(),
-                ["created"] = proof["created"]?.ToString(),
-                ["proofPurpose"] = proof["proofPurpose"]?.ToString(),
-                ["verificationMethod"] = proof["verificationMethod"]?.ToString()
+                Type = parsedVc.Proof.Type,
+                Created = parsedVc.Proof.Created,
+                ProofPurpose = parsedVc.Proof.ProofPurpose,
+                VerificationMethod = parsedVc.Proof.VerificationMethod
             };
-            string credentialNQuads = await JsonLdHandler.Normalize(credentialNoProof.ToJsonString());
-            string proofNQuads = await JsonLdHandler.Normalize(proofNoJws.ToJsonString());
+
+            string credentialNQuads = await JsonLdHandler.NormalizeAsync(JsonSerializer.Serialize(credentialNoProof));
+            string proofNQuads = await JsonLdHandler.NormalizeAsync(JsonSerializer.Serialize(proofNoJws));
             byte[] docHash = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(credentialNQuads));
             byte[] proofHash = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(proofNQuads));
             byte[] toVerify = new byte[proofHash.Length + docHash.Length];
             Array.Copy(proofHash, toVerify, proofHash.Length);
             Array.Copy(docHash, 0, toVerify, proofHash.Length, docHash.Length);
-            var signature = VerifiableCredentialsManager.ExtractSignatureFromProof(proof);
+            var signature = VerifiableCredentialsManager.ExtractSignatureFromProof(parsedVc.Proof);
             var publicKeyData = new EccPublicKeyData { publicKey = _keyData.publicKey };
-            Assert.That(publicKeyData.VerifySignature(toVerify, signature), Is.True);
-        }
-    
-        /*
-        [Test]
-        public async Task CreateAndSignIdentityVc_ShouldProduceValidVc()
-        {
-            // Arrange
-            var attributes = new Dictionary<string, string>
-            {
-                { "fullName", "Frodo Baggins" },
-                { "email", "frodo.baggins@frodobaggins.me" }
-            };
-            string verificationMethod = "did:web:frodobaggins.me#signing-key";
-
-            // Act
-            JsonObject vc = VerifiableCredentialsManager.CreateVerifiableCredential(_odinId, attributes, "IdentityCredential");
-            string signedVcJson = await VerifiableCredentialsManager.SignVerifiableCredential(vc, _keyData, _encryptionKey, verificationMethod);
-
-            var mystring = signedVcJson.ToString();
-
-            // Assert
-            var parsedVc = JsonNode.Parse(signedVcJson).AsObject();
-            ClassicAssert.That(parsedVc["@context"]?.ToJsonString(), Is.EqualTo(new JsonArray("https://www.w3.org/2018/credentials/v1").ToJsonString()));
-            ClassicAssert.That(parsedVc["id"]?.ToString(), Does.StartWith("urn:uuid:"));
-            ClassicAssert.That(parsedVc["type"]?.AsArray().ToJsonString(), Is.EqualTo(new JsonArray("VerifiableCredential", "IdentityCredential").ToJsonString()));
-            ClassicAssert.That(parsedVc["issuer"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            ClassicAssert.That(parsedVc["issuanceDate"], Is.Not.Null);
-            var subject = parsedVc["credentialSubject"].AsObject();
-            ClassicAssert.That(subject["id"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            ClassicAssert.That(subject["fullName"]?.ToString(), Is.EqualTo("Frodo Baggins"));
-            ClassicAssert.That(subject["email"]?.ToString(), Is.EqualTo("frodo.baggins@frodobaggins.me"));
-            var proof = parsedVc["proof"].AsObject();
-            ClassicAssert.That(proof["type"]?.ToString(), Is.EqualTo("EcdsaSecp384r1Signature2019"));
-            ClassicAssert.That(proof["jws"], Is.Not.Null);
-
-            // Verify signature
-            var publicKeyData = new EccPublicKeyData { publicKey = _keyData.publicKey };
-
-            var originalByteArraySignature = VerifiableCredentialsManager.ExtractSignatureFromProof(proof);
-            ClassicAssert.That(VerifySignature(signedVcJson, publicKeyData), Is.True);
+            ClassicAssert.That(publicKeyData.VerifySignature(toVerify, signature), Is.True, "Signature should be URDNA2015 compliant");
         }
 
         [Test]
-        public async Task CreateAndSignSshKeyVc_ShouldProduceValidVc()
+        public async Task CreateAndSignSshKeyVc_ShouldProduceURDNA2015CompliantVc()
         {
             // Arrange
-            var attributes = new Dictionary<string, string>
+            var attributes = new List<(string Key, string Value, string ContextUri)>
             {
-                { "sshPublicKey", "ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBL3... frodo.baggins@frodobaggins.me" }
+                ("sshPublicKey", "ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBL3... frodo.baggins@demo.rocks", "https://schema.org/identifier")
             };
-            string verificationMethod = "did:web:frodobaggins.me#signing-key";
+            string verificationMethod = "did:web:frodo.baggins.demo.rocks#key-authentication";
 
             // Act
-            JsonObject vc = VerifiableCredentialsManager.CreateVerifiableCredential(_odinId, attributes, "SSHKeyCredential");
-            string signedVcJson = await VerifiableCredentialsManager.SignVerifiableCredential(vc, _keyData, _encryptionKey, verificationMethod);
+            VCCredentialsResponse vc = VerifiableCredentialsManager.CreateVerifiableCredential(_odinId, attributes, "SSHKeyCredential");
+            string signedVcJson = await VerifiableCredentialsManager.SignVerifiableCredentialAsync(vc, _keyData, _encryptionKey, verificationMethod);
+            var parsedVc = JsonSerializer.Deserialize<VCCredentialsResponse>(signedVcJson);
 
-            // Assert
-            var parsedVc = JsonNode.Parse(signedVcJson).AsObject();
-            ClassicAssert.That(parsedVc["@context"]?.ToJsonString(), Is.EqualTo(new JsonArray("https://www.w3.org/2018/credentials/v1").ToJsonString()));
-            ClassicAssert.That(parsedVc["id"]?.ToString(), Does.StartWith("urn:uuid:"));
-            ClassicAssert.That(parsedVc["type"]?.AsArray().ToJsonString(), Is.EqualTo(new JsonArray("VerifiableCredential", "SSHKeyCredential").ToJsonString()));
-            ClassicAssert.That(parsedVc["issuer"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            ClassicAssert.That(parsedVc["issuanceDate"], Is.Not.Null);
-            var subject = parsedVc["credentialSubject"].AsObject();
-            ClassicAssert.That(subject["id"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            ClassicAssert.That(subject["sshPublicKey"]?.ToString(), Does.StartWith("ecdsa-sha2-nistp384"));
-            var proof = parsedVc["proof"].AsObject();
-            ClassicAssert.That(proof["type"]?.ToString(), Is.EqualTo("EcdsaSecp384r1Signature2019"));
-            ClassicAssert.That(proof["jws"], Is.Not.Null);
+            // Assert VC structure
+            ClassicAssert.That(parsedVc, Is.Not.Null, "VC should not be null");
+            ClassicAssert.That(JsonSerializer.Serialize(parsedVc.Context), Is.EqualTo(JsonSerializer.Serialize(new List<object>
+                {
+                    "https://www.w3.org/2018/credentials/v1",
+                    new Dictionary<string, string>
+                    {
+                        ["SSHKeyCredential"] = "https://schema.org/Person",
+                        ["sshPublicKey"] = "https://schema.org/identifier"
+                    }
+                    })), "Context should match");
+                        ClassicAssert.That(parsedVc.Id, Does.StartWith("urn:uuid:"), "ID should be a UUID");
+            ClassicAssert.That(parsedVc.Type, Is.EquivalentTo(new List<string> { "VerifiableCredential", "SSHKeyCredential" }), "Type should match");
+            ClassicAssert.That(parsedVc.Issuer, Is.EqualTo("did:web:frodo.baggins.demo.rocks"), "Issuer should match DID");
+            ClassicAssert.That(parsedVc.IssuanceDate, Is.Not.Null, "Issuance date should be set");
+            ClassicAssert.That(parsedVc.Subject.Id, Is.EqualTo("did:web:frodo.baggins.demo.rocks"), "Subject ID should match DID");
+            ClassicAssert.That(parsedVc.Subject.Attributes["sshPublicKey"]?.ToString(), Does.StartWith("ecdsa-sha2-nistp384"), "SSH public key should match");
+            ClassicAssert.That(parsedVc.Proof, Is.Not.Null, "Proof should exist");
+            ClassicAssert.That(parsedVc.Proof.Type, Is.EqualTo("EcdsaSecp384r1Signature2019"), "Proof type should match");
+            ClassicAssert.That(parsedVc.Proof.Jws, Is.Not.Null, "JWS should be set");
 
-            // Verify signature
+            // Verify URDNA2015 compliance
+            var credentialNoProof = JsonSerializer.Deserialize<VCCredentialsResponse>(signedVcJson);
+            credentialNoProof.Proof = null;
+            var proofNoJws = new VCProof
+            {
+                Type = parsedVc.Proof.Type,
+                Created = parsedVc.Proof.Created,
+                ProofPurpose = parsedVc.Proof.ProofPurpose,
+                VerificationMethod = parsedVc.Proof.VerificationMethod
+            };
+            string credentialNQuads = await JsonLdHandler.NormalizeAsync(JsonSerializer.Serialize(credentialNoProof));
+            string proofNQuads = await JsonLdHandler.NormalizeAsync(JsonSerializer.Serialize(proofNoJws));
+            byte[] docHash = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(credentialNQuads));
+            byte[] proofHash = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(proofNQuads));
+            byte[] toVerify = new byte[proofHash.Length + docHash.Length];
+            Array.Copy(proofHash, toVerify, proofHash.Length);
+            Array.Copy(docHash, 0, toVerify, proofHash.Length, docHash.Length);
+            var signature = VerifiableCredentialsManager.ExtractSignatureFromProof(parsedVc.Proof);
             var publicKeyData = new EccPublicKeyData { publicKey = _keyData.publicKey };
-            ClassicAssert.That(VerifySignature(signedVcJson, publicKeyData), Is.True);
+            ClassicAssert.That(publicKeyData.VerifySignature(toVerify, signature), Is.True, "Signature should be URDNA2015 compliant");
         }
 
         [Test]
-        public async Task CreateAndSignMixedAttributesVc_ShouldProduceValidVc()
+        public async Task CreateAndSignPublicKeyVc_ShouldProduceURDNA2015CompliantVc()
         {
             // Arrange
-            var attributes = new Dictionary<string, string>
+            var publicKeyJwk = _keyData.PublicKeyJwk();
+            var attributes = new List<(string Key, string Value, string ContextUri)>
             {
-                { "firstName", "Frodo" },
-                { "lastName", "Baggins" },
-                { "sshPublicKey", "ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBL3... frodo.baggins@frodobaggins.me" }
+                ("publicKeyJwk", publicKeyJwk, "https://w3id.org/security#publicKeyJwk")
             };
-            string verificationMethod = "did:web:frodobaggins.me#signing-key";
+            string verificationMethod = "did:web:frodo.baggins.demo.rocks#key-authentication";
 
             // Act
-            JsonObject vc = VerifiableCredentialsManager.CreateVerifiableCredential(_odinId, attributes, "IdentityCredential");
-            string signedVcJson = await VerifiableCredentialsManager.SignVerifiableCredential(vc, _keyData, _encryptionKey, verificationMethod);
+            VCCredentialsResponse vc = VerifiableCredentialsManager.CreateVerifiableCredential(_odinId, attributes, "PublicKeyCredential");
+            string signedVcJson = await VerifiableCredentialsManager.SignVerifiableCredentialAsync(vc, _keyData, _encryptionKey, verificationMethod);
+            var parsedVc = JsonSerializer.Deserialize<VCCredentialsResponse>(signedVcJson);
 
-            // Assert
-            var parsedVc = JsonNode.Parse(signedVcJson).AsObject();
-            ClassicAssert.That(parsedVc["@context"]?.ToJsonString(), Is.EqualTo(new JsonArray("https://www.w3.org/2018/credentials/v1").ToJsonString()));
-            ClassicAssert.That(parsedVc["id"]?.ToString(), Does.StartWith("urn:uuid:"));
-            ClassicAssert.That(parsedVc["type"]?.AsArray().ToJsonString(), Is.EqualTo(new JsonArray("VerifiableCredential", "IdentityCredential").ToJsonString()));
-            ClassicAssert.That(parsedVc["issuer"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            ClassicAssert.That(parsedVc["issuanceDate"], Is.Not.Null);
-            var subject = parsedVc["credentialSubject"].AsObject();
-            ClassicAssert.That(subject["id"]?.ToString(), Is.EqualTo("did:web:frodobaggins.me"));
-            ClassicAssert.That(subject["firstName"]?.ToString(), Is.EqualTo("Frodo"));
-            ClassicAssert.That(subject["lastName"]?.ToString(), Is.EqualTo("Baggins"));
-            ClassicAssert.That(subject["sshPublicKey"]?.ToString(), Does.StartWith("ecdsa-sha2-nistp384"));
-            var proof = parsedVc["proof"].AsObject();
-            ClassicAssert.That(proof["type"]?.ToString(), Is.EqualTo("EcdsaSecp384r1Signature2019"));
-            ClassicAssert.That(proof["jws"], Is.Not.Null);
+            // Assert VC structure
+            ClassicAssert.That(parsedVc, Is.Not.Null, "VC should not be null");
+            ClassicAssert.That(JsonSerializer.Serialize(parsedVc.Context), Is.EqualTo(JsonSerializer.Serialize(new List<object>
+            {
+                "https://www.w3.org/2018/credentials/v1",
+                new Dictionary<string, string>
+                {
+                    ["PublicKeyCredential"] = "https://schema.org/Person",
+                    ["publicKeyJwk"] = "https://w3id.org/security#publicKeyJwk"
+                }
+            })), "Context should match");
+            ClassicAssert.That(parsedVc.Id, Does.StartWith("urn:uuid:"), "ID should be a UUID");
+            ClassicAssert.That(parsedVc.Type, Is.EquivalentTo(new List<string> { "VerifiableCredential", "PublicKeyCredential" }), "Type should match");
+            ClassicAssert.That(parsedVc.Issuer, Is.EqualTo("did:web:frodo.baggins.demo.rocks"), "Issuer should match DID");
+            ClassicAssert.That(parsedVc.IssuanceDate, Is.Not.Null, "Issuance date should be set");
+            ClassicAssert.That(parsedVc.Subject.Id, Is.EqualTo("did:web:frodo.baggins.demo.rocks"), "Subject ID should match DID");
+            ClassicAssert.That(parsedVc.Subject.Attributes["publicKeyJwk"]?.ToString(), Is.EqualTo(publicKeyJwk), "Public key JWK should match");
+            ClassicAssert.That(parsedVc.Proof, Is.Not.Null, "Proof should exist");
+            ClassicAssert.That(parsedVc.Proof.Type, Is.EqualTo("EcdsaSecp384r1Signature2019"), "Proof type should match");
+            ClassicAssert.That(parsedVc.Proof.Jws, Is.Not.Null, "JWS should be set");
 
-            // Verify signature
+            // Verify URDNA2015 compliance
+            var credentialNoProof = JsonSerializer.Deserialize<VCCredentialsResponse>(signedVcJson);
+            credentialNoProof.Proof = null;
+            var proofNoJws = new VCProof
+            {
+                Type = parsedVc.Proof.Type,
+                Created = parsedVc.Proof.Created,
+                ProofPurpose = parsedVc.Proof.ProofPurpose,
+                VerificationMethod = parsedVc.Proof.VerificationMethod
+            };
+            string credentialNQuads = await JsonLdHandler.NormalizeAsync(JsonSerializer.Serialize(credentialNoProof));
+            string proofNQuads = await JsonLdHandler.NormalizeAsync(JsonSerializer.Serialize(proofNoJws));
+            byte[] docHash = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(credentialNQuads));
+            byte[] proofHash = SHA256.Create().ComputeHash(Encoding.UTF8.GetBytes(proofNQuads));
+            byte[] toVerify = new byte[proofHash.Length + docHash.Length];
+            Array.Copy(proofHash, toVerify, proofHash.Length);
+            Array.Copy(docHash, 0, toVerify, proofHash.Length, docHash.Length);
+            var signature = VerifiableCredentialsManager.ExtractSignatureFromProof(parsedVc.Proof);
             var publicKeyData = new EccPublicKeyData { publicKey = _keyData.publicKey };
-            ClassicAssert.That(VerifySignature(signedVcJson, publicKeyData), Is.True);
-        }*/
-
-        private async Task<bool> VerifySignature(string vcJson, EccPublicKeyData publicKeyData)
-        {
-            var vc = JsonNode.Parse(vcJson).AsObject();
-            var proof = vc["proof"].DeepClone().AsObject();
-
-            var signature = VerifiableCredentialsManager.ExtractSignatureFromProof(proof);
-            
-            var credentialNoProof = vc.DeepClone().AsObject();
-
-            credentialNoProof.Remove("proof");
-            proof.Remove("jws");
-
-            var toVerify = await VerifiableCredentialsManager.CreateDataToSign(credentialNoProof, proof);
-
-            return publicKeyData.VerifySignature(toVerify, signature);
+            ClassicAssert.That(publicKeyData.VerifySignature(toVerify, signature), Is.True, "Signature should be URDNA2015 compliant");
         }
     }
 }

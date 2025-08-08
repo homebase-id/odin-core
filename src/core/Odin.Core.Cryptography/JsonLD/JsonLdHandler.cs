@@ -20,7 +20,7 @@ namespace JsonLd.Normalization
         /// <returns>normalized n-quads document as string</returns>
         public static async Task<string> Canonize(string json, ExpandOptions options = null)
         {
-            return await Normalize(json, options);
+            return await NormalizeAsync(json, options);
         }
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace JsonLd.Normalization
         /// <param name="json">serialized json document</param>
         /// <param name="options">options to be used during the document expansion process</param>
         /// <returns>normalized n-quads document as string</returns>
-        public static async Task<string> Normalize(string json, ExpandOptions options = null)
+        public static async Task<string> NormalizeAsync(string json, ExpandOptions options = null)
         {
             var dataset = await ToRDF(json, options);
             return URDNA2015.Normalize(dataset);
