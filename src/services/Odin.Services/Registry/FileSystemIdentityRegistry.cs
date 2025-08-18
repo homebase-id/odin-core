@@ -13,6 +13,7 @@ using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
@@ -169,7 +170,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await using var scope = GetOrCreateMultiTenantScope(registration)
             .BeginLifetimeScope($"AddRegistration:{registration.PrimaryDomainName}");
         var identityDatabase = scope.Resolve<IdentityDatabase>();
-        await identityDatabase.MigrateDatabaseAsync();
+        await identityDatabase.CreateDatabaseAsync(false);
 
         await SaveRegistrationInternal(registration);
 
@@ -439,7 +440,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 await using var tenantScope = GetOrCreateMultiTenantScope(registration)
                     .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
                 var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
-                await identityDatabase.MigrateDatabaseAsync();
+                await identityDatabase.CreateDatabaseAsync(false);
 
                 var (requiresUpgrade, tenantVersion, _) = await tenantScope.Resolve<VersionUpgradeScheduler>().RequiresUpgradeAsync();
                 if (requiresUpgrade)

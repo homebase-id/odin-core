@@ -12,7 +12,7 @@ public class TableDriveReactions(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveReactionsCRUD(cache, scopedConnectionFactory)
+    : TableDriveReactionsCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

@@ -13,7 +13,7 @@ public class TableDriveLocalTagIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveLocalTagIndexCRUD(cache, scopedConnectionFactory: scopedConnectionFactory)
+    : TableDriveLocalTagIndexCRUD(cache, scopedConnectionFactory: scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

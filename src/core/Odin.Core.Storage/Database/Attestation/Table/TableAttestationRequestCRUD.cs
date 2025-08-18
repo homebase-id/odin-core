@@ -38,11 +38,10 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         }
     } // End of record AttestationRequestRecord
 
-    public abstract class TableAttestationRequestCRUD : TableBase
+    public abstract class TableAttestationRequestCRUD
     {
         private readonly CacheHelper _cache;
-        private ScopedAttestationConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; } = "AttestationRequest";
+        private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
 
         public TableAttestationRequestCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
@@ -51,7 +50,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
@@ -221,7 +220,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             }
         }
 
-        public new async Task<int> GetCountAsync()
+        public virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -236,7 +235,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             }
         }
 
-        public new static List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");

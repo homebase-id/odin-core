@@ -8,7 +8,6 @@ using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging;
-using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
@@ -79,7 +78,6 @@ public class CertificateStoreTests
 
         var services = new ServiceCollection(); // we need this to make IServiceProvider available through Autofac
         services.AddLogging();
-        services.AddSingleton<INodeLock, NodeLock>();
 
         var cb = new ContainerBuilder();
         cb.Populate(services);
@@ -109,7 +107,7 @@ public class CertificateStoreTests
         _autofacContainer = cb.Build();
 
         var systemDatabase = _autofacContainer.Resolve<SystemDatabase>();
-        await systemDatabase.MigrateDatabaseAsync();
+        await systemDatabase.CreateDatabaseAsync(true);
 
         _certificateStore = _autofacContainer.Resolve<ICertificateStore>();
     }

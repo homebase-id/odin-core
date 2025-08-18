@@ -58,11 +58,10 @@ namespace Odin.Core.Storage.Database.Notary.Table
         }
     } // End of record NotaryChainRecord
 
-    public abstract class TableNotaryChainCRUD : TableBase
+    public abstract class TableNotaryChainCRUD
     {
         private readonly CacheHelper _cache;
-        private ScopedNotaryConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; } = "NotaryChain";
+        private readonly ScopedNotaryConnectionFactory _scopedConnectionFactory;
 
         public TableNotaryChainCRUD(CacheHelper cache, ScopedNotaryConnectionFactory scopedConnectionFactory)
         {
@@ -71,7 +70,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
@@ -346,7 +345,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
             }
         }
 
-        public new async Task<int> GetCountAsync()
+        public virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -361,7 +360,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
             }
         }
 
-        public new static List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");

@@ -12,7 +12,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Statistics.Serilog;
-using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
@@ -108,7 +107,6 @@ public class JobManagerTests
         builder.RegisterType<CorrelationContext>().As<ICorrelationContext>().SingleInstance();
         builder.RegisterType<StickyHostnameGenerator>().As<IStickyHostnameGenerator>().SingleInstance();
         builder.RegisterType<StickyHostname>().As<IStickyHostname>().SingleInstance();
-        builder.RegisterType<NodeLock>().As<INodeLock>().SingleInstance();
 
         builder.RegisterType<BackgroundServiceManager>()
             .WithParameter(new TypedParameter(typeof(string), "system"))
@@ -156,7 +154,7 @@ public class JobManagerTests
         _container = builder.Build();
 
         var systemDatabase = _container.Resolve<SystemDatabase>();
-        await systemDatabase.MigrateDatabaseAsync();
+        await systemDatabase.CreateDatabaseAsync(true);
 
         _backgroundServiceManager = _container.Resolve<IBackgroundServiceManager>();
         _jobCleanUpBackgroundService = _backgroundServiceManager.Create<JobCleanUpBackgroundService>(nameof(JobCleanUpBackgroundService));

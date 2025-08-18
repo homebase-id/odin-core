@@ -57,9 +57,6 @@ public static class KeyChainExtensions
         // Database
         cb.RegisterType<KeyChainDatabase>().InstancePerDependency();
 
-        // Migrator
-        cb.RegisterType<KeyChainMigrator>().InstancePerDependency();
-
         // Connection
         cb.RegisterType<ScopedKeyChainConnectionFactory>()
             .InstancePerLifetimeScope(); // Important!

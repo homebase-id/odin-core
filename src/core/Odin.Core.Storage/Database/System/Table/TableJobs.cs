@@ -19,7 +19,7 @@ public enum JobState
 };
 
 public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
-    : TableJobsCRUD(cache, scopedConnectionFactory)
+    : TableJobsCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedSystemConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

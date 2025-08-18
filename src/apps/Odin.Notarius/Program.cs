@@ -4,7 +4,6 @@ using Odin.KeyChain;
 using System.Collections.Concurrent;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
-using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Notary;
 using Odin.Notarius;
@@ -21,7 +20,6 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
     containerBuilder.AddDatabaseCounterServices();
 });
 
-builder.Services.AddSingleton<INodeLock, NodeLock>();
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 

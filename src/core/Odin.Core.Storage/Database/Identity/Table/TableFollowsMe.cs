@@ -17,7 +17,7 @@ public class TableFollowsMe(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableFollowsMeCRUD(cache, scopedConnectionFactory)
+    : TableFollowsMeCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     public const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;

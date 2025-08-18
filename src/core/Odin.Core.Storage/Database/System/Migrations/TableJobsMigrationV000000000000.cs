@@ -15,7 +15,7 @@ using Odin.Core.Storage.SQLite;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.System.Migrations
+namespace Odin.Core.Storage.Database.System
 {
     public class TableJobsMigrationV0 : MigrationBase
     {
@@ -59,14 +59,14 @@ namespace Odin.Core.Storage.Database.System.Migrations
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0JobsMigrationsV0 ON JobsMigrationsV0(state);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1JobsMigrationsV0 ON JobsMigrationsV0(expiresAt);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2JobsMigrationsV0 ON JobsMigrationsV0(nextRun,priority);"
+                   +"CREATE INDEX Idx0JobsMigrationsV0 ON JobsMigrationsV0(state);"
+                   +"CREATE INDEX Idx1JobsMigrationsV0 ON JobsMigrationsV0(expiresAt);"
+                   +"CREATE INDEX Idx2JobsMigrationsV0 ON JobsMigrationsV0(nextRun,priority);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "JobsMigrationsV0", createSql, commentSql);
         }
 
-        public new static List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
@@ -109,25 +109,13 @@ namespace Odin.Core.Storage.Database.System.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    // Create the initial table
-                    await CreateTableWithCommentAsync(cn);
-                    await SqlHelper.RenameAsync(cn, "JobsMigrationsV0", "Jobs");
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
+            await Task.Delay(0);
+            throw new  Exception("You cannot move up from version 0");
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "Jobs", MigrationVersion);
+            await Task.Delay(0);
             throw new  Exception("You cannot move down from version 0");
         }
 

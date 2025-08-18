@@ -57,9 +57,6 @@ public static class SystemExtensions
         // Database
         cb.RegisterType<SystemDatabase>().InstancePerDependency();
 
-        // Migrator
-        cb.RegisterType<SystemMigrator>().InstancePerDependency();
-
         // Connection
         cb.RegisterType<ScopedSystemConnectionFactory>()
             .InstancePerLifetimeScope(); // Important!
