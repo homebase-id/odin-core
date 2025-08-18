@@ -166,6 +166,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         tenantPathManager.CreateDirectories();
 
         // Create database on isolated scope
+        _logger.LogInformation("Migrating database for {tenant}", registration.PrimaryDomainName);
         await using var scope = GetOrCreateMultiTenantScope(registration)
             .BeginLifetimeScope($"AddRegistration:{registration.PrimaryDomainName}");
         var identityDatabase = scope.Resolve<IdentityDatabase>();
@@ -436,6 +437,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 tenantPathManger.CreateDirectories();
 
                 // Sanity: create database if missing (can be necessary when switching dev from sqlite to postgres)
+                _logger.LogInformation("Migrating database for {tenant}", registration.PrimaryDomainName);
                 await using var tenantScope = GetOrCreateMultiTenantScope(registration)
                     .BeginLifetimeScope($"LoadRegistrations:{registration.PrimaryDomainName}");
                 var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
