@@ -287,6 +287,20 @@ public class CommandLine
             return (true, 0);
         }
 
+        //
+        // Command line: baseline migration version info !!!!DANGEROUS!!!!!
+        //
+        // examples:
+        //   dotnet run -- baseline-migration-version
+        //
+        //
+        if (args.Length > 0 && args[0] == "baseline-migration-version")
+        {
+            BaselineMigrationVersion.ExecuteAsync(_multiTenantContainer).BlockingWait();
+            return (true, 0);
+        }
+
+
         return (false, 0);
     }
 }
