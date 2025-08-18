@@ -12,7 +12,7 @@ public class TableAppNotifications(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableAppNotificationsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableAppNotificationsCRUD(cache, scopedConnectionFactory)
 {
     public async Task<AppNotificationsRecord> GetAsync(Guid notificationId)
     {

@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Database.Notary.Table;
 public class TableNotaryChain(
     CacheHelper cache,
     ScopedNotaryConnectionFactory scopedConnectionFactory)
-    : TableNotaryChainCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableNotaryChainCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedNotaryConnectionFactory _scopedConnectionFactory1 = scopedConnectionFactory;
 

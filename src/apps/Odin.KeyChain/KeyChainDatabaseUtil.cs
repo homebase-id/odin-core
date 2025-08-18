@@ -17,7 +17,7 @@ public static class KeyChainDatabaseUtil
     /// <param name="db"></param>
     public static async Task InitializeDatabaseAsync(KeyChainDatabase db)
     {
-        await db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
+        await db.MigrateDatabaseAsync();
 
         var r = await db.KeyChain.GetLastLinkAsync();
 
