@@ -2,7 +2,10 @@ using System.Collections.Generic;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
-public class ShardEnvelop
+/// <summary>
+/// Contains shard information retained by the dealer
+/// </summary>
+public class DealerShardPackage
 {
     public List<DealerShardEnvelope> Envelopes { get; set; }
 }

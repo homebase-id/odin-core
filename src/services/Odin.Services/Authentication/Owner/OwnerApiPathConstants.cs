@@ -57,5 +57,7 @@
         public const string ConfigurationV1 = BasePathV1 + "/config";
 
         public const string SecurityV1 = BasePathV1 + "/security";
+        
+        public const string ShamirRecoveryV1 = BasePathV1 + "/security/recovery";
     }
 }
