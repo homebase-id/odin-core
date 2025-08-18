@@ -69,34 +69,60 @@ public abstract class AbstractMigrator
 
         if (direction == Direction.Nowhere)
         {
+            _logger.LogDebug("Nothing to migrate for ID {MigratorId}", _migratorId);
             return;
         }
 
         //
-        // Collect and group all migrations that need to be run
+        // Collect migrations by version
         //
 
-        var groupedMigrations = GroupMigrationsByVersion(direction, currentVersion, requestedVersion);
-        if (groupedMigrations.Count > 0)
+        var groupedMigrations = GroupMigrationsByVersion();
+        if (groupedMigrations.Count == 0)
         {
-            if (requestedVersion < long.MaxValue)
-            {
-                _logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion}",
-                    currentVersion, requestedVersion);
-            }
-            else
-            {
-                _logger.LogInformation("Migrating database from version {CurrentVersion}", currentVersion);
-            }
+            _logger.LogDebug("Nothing to migrate for ID {MigratorId}", _migratorId);
+            return;
         }
+
+        //
+        // Adjust requested version
+        //
+
+        if (requestedVersion is < 0 or long.MaxValue)
+        {
+            requestedVersion = direction == Direction.Up ? groupedMigrations.Last().Key : groupedMigrations.First().Key;
+        }
+
+        // Sanity
+        if (!groupedMigrations.Exists(x => x.Key == requestedVersion))
+        {
+            throw new MigrationException(
+                $"Requested migration version {requestedVersion} does not exist in the migration set.");
+        }
+
+        //
+        // Filter and order migrations by version according to the direction
+        //
+
+        var filteredMigrations = FilterMigrationsByVersion(
+            groupedMigrations, direction, currentVersion, requestedVersion);
+        if (filteredMigrations.Count == 0)
+        {
+            _logger.LogDebug("Nothing to migrate for ID {MigratorId}", _migratorId);
+            return;
+        }
+
+        _logger.LogInformation("Migrating database from version {CurrentVersion} to {RequestedVersion}",
+            currentVersion, requestedVersion);
 
         //
         // Run collected migrations by version group
         //
 
-        foreach (var (version, migrations) in groupedMigrations)
+        foreach (var (version, migrations) in filteredMigrations)
         {
-            _logger.LogInformation("Running {Count} migration(s) for version {Version}", migrations.Count, version);
+            _logger.LogInformation("Running {Count} migration(s) for version {Version} ({Direction})",
+                migrations.Count, version, direction == Direction.Up ? "UP" : "DOWN");
 
             await using var tx = await cn.BeginStackedTransactionAsync();
             foreach (var migration in migrations)
@@ -114,52 +140,52 @@ public abstract class AbstractMigrator
             await SetCurrentVersionAsync(cn, version);
             tx.Commit();
         }
+
+        // One final update to the current version in case we're migrating down
+        await SetCurrentVersionAsync(cn, requestedVersion);
     }
 
     //
 
-    internal List<KeyValuePair<long, List<MigrationBase>>> GroupMigrationsByVersion(
+    internal List<KeyValuePair<long, List<MigrationBase>>> GroupMigrationsByVersion()
+    {
+        // Group and order by version
+        return SortedMigrations
+            .GroupBy(x => x.MigrationVersion)
+            .OrderBy(g => g.Key)
+            .Select(g => new KeyValuePair<long, List<MigrationBase>>(g.Key, g.ToList()))
+            .ToList();
+    }
+
+    //
+
+    internal List<KeyValuePair<long, List<MigrationBase>>> FilterMigrationsByVersion(
+        List<KeyValuePair<long, List<MigrationBase>>> groupMigrations,
         Direction direction,
         long currentVersion,
         long requestedVersion)
     {
         if (direction == Direction.Up)
         {
-            // Collect all migrations with
-            //  version greater than the current database version and less than or equal to the requested version
-            var filteredMigrations = SortedMigrations
-                .Where(m => m.MigrationVersion > currentVersion && m.MigrationVersion <= requestedVersion)
-                .ToList();
-
-            // Group by version and order by version ascending
-            var groupedMigrations = filteredMigrations
-                .GroupBy(x => x.MigrationVersion)
+            // Filter migrations with version greater than the current version and less than or equal to the requested version
+            // Order by ascending version
+            return groupMigrations
+                .Where(g => g.Key > currentVersion && g.Key <= requestedVersion)
                 .OrderBy(g => g.Key)
-                .Select(g => new KeyValuePair<long, List<MigrationBase>>(g.Key, g.ToList()))
                 .ToList();
-
-            return groupedMigrations;
         }
 
         if (direction == Direction.Down)
         {
-            // Collect all migrations with
-            //   version greater than the requested version and less than or equal to the current database version
-            var filteredMigrations = SortedMigrations
-                .Where(m => m.MigrationVersion > requestedVersion && m.MigrationVersion <= currentVersion)
-                .ToList();
-
-            // Group by version and order by version descending
-            var groupedMigrations = filteredMigrations
-                .GroupBy(x => x.MigrationVersion)
+            // Filter migrations with version greater than the requested version and less than or equal to the current database version
+            // Order by descending version
+            return groupMigrations
+                .Where(g => g.Key > requestedVersion && g.Key <= currentVersion)
                 .OrderByDescending(g => g.Key)
-                .Select(g => new KeyValuePair<long, List<MigrationBase>>(g.Key, g.ToList()))
                 .ToList();
-
-            return groupedMigrations;
         }
 
-        throw new OdinSystemException("Cannot group migrations by version when direction is Nowhere");
+        throw new MigrationException("Cannot filter migrations by version when direction is Nowhere");
     }
 
     //
@@ -251,3 +277,6 @@ public abstract class AbstractMigrator
     //
 
 }
+
+//
+
