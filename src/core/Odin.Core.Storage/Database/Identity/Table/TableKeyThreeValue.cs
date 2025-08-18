@@ -11,7 +11,7 @@ public class TableKeyThreeValue(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyThreeValueCRUD(cache, scopedConnectionFactory)
+    : TableKeyThreeValueCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     public async Task<KeyThreeValueRecord> GetAsync(byte[] key1)
     {

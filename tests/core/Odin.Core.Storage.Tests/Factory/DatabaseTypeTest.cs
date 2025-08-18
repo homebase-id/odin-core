@@ -16,7 +16,7 @@ public class DatabaseTypeTest : IocTestBase
     #endif
     public async Task ItShouldReturnCorrectDatabaseType(DatabaseType databaseType)
     {
-        await RegisterServicesAsync(databaseType, createDatabases: false);
+        await RegisterServicesAsync(databaseType, false);
 
         await using var scope = Services.BeginLifetimeScope();
 

@@ -11,7 +11,7 @@ public class TableDriveTagIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveTagIndexCRUD(cache, scopedConnectionFactory)
+    : TableDriveTagIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

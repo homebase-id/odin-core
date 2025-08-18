@@ -51,14 +51,14 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,fileId)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0InboxMigrationsV0 ON InboxMigrationsV0(identityId,timeStamp);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1InboxMigrationsV0 ON InboxMigrationsV0(identityId,boxId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2InboxMigrationsV0 ON InboxMigrationsV0(identityId,popStamp);"
+                   +"CREATE INDEX Idx0InboxMigrationsV0 ON InboxMigrationsV0(identityId,timeStamp);"
+                   +"CREATE INDEX Idx1InboxMigrationsV0 ON InboxMigrationsV0(identityId,boxId);"
+                   +"CREATE INDEX Idx2InboxMigrationsV0 ON InboxMigrationsV0(identityId,popStamp);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "InboxMigrationsV0", createSql, commentSql);
         }
 
-        public new static List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
@@ -92,25 +92,13 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    // Create the initial table
-                    await CreateTableWithCommentAsync(cn);
-                    await SqlHelper.RenameAsync(cn, "InboxMigrationsV0", "Inbox");
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
+            await Task.Delay(0);
+            throw new  Exception("You cannot move up from version 0");
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "Inbox", MigrationVersion);
+            await Task.Delay(0);
             throw new  Exception("You cannot move down from version 0");
         }
 

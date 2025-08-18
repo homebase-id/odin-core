@@ -17,7 +17,7 @@ namespace Odin.Notarius
         /// <param name="db"></param>
         public static async Task InitializeDatabaseAsync(NotaryDatabase db)
         {
-            await db.MigrateDatabaseAsync();
+            await db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
 
             var r = await db.NotaryChain.GetLastLinkAsync();
 

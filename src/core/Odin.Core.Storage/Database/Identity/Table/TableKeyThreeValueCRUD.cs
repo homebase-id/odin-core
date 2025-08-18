@@ -44,11 +44,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of record KeyThreeValueRecord
 
-    public abstract class TableKeyThreeValueCRUD : TableBase
+    public abstract class TableKeyThreeValueCRUD
     {
         private readonly CacheHelper _cache;
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
-        public override string TableName { get; } = "KeyThreeValue";
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
         protected TableKeyThreeValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
@@ -57,7 +56,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
@@ -272,7 +271,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected new async Task<int> GetCountAsync()
+        protected virtual async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -287,7 +286,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public new static List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");

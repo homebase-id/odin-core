@@ -46,13 +46,13 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"data BYTEA  "
                    +", UNIQUE(identityId,key1)"
                    +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(key3);"
+                   +"CREATE INDEX Idx0KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(identityId,key2);"
+                   +"CREATE INDEX Idx1KeyThreeValueMigrationsV0 ON KeyThreeValueMigrationsV0(key3);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "KeyThreeValueMigrationsV0", createSql, commentSql);
         }
 
-        public new static List<string> GetColumnNames()
+        public static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
@@ -81,25 +81,13 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    // Create the initial table
-                    await CreateTableWithCommentAsync(cn);
-                    await SqlHelper.RenameAsync(cn, "KeyThreeValueMigrationsV0", "KeyThreeValue");
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
+            await Task.Delay(0);
+            throw new  Exception("You cannot move up from version 0");
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "KeyThreeValue", MigrationVersion);
+            await Task.Delay(0);
             throw new  Exception("You cannot move down from version 0");
         }
 

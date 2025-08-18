@@ -9,7 +9,9 @@ public abstract class AbstractDatabase<T>(ILifetimeScope lifetimeScope) where T 
 {
     public abstract Task<IConnectionWrapper> CreateScopedConnectionAsync();
     public abstract Task<IScopedTransaction> BeginStackedTransactionAsync();
-    public abstract Task MigrateDatabaseAsync();
+
+    // SEB:NOTE this is temporary until we have a proper migration system
+    public abstract Task CreateDatabaseAsync(bool dropExistingTables = false);
 
     protected TLazyType LazyResolve<TLazyType>(ref Lazy<TLazyType> lazyField) where TLazyType : class
     {

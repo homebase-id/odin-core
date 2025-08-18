@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table;
 public class TableKeyChain(
     CacheHelper cache,
     ScopedKeyChainConnectionFactory scopedConnectionFactory)
-    : TableKeyChainCRUD(cache, scopedConnectionFactory)
+    : TableKeyChainCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedKeyChainConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

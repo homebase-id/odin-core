@@ -31,7 +31,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         public void FileLineTest()
         {
             IdentityDatabase _testDatabase = new IdentityDatabase(Guid.NewGuid(), $"");
-            await MigrateDatabaseAsync();
+            await CreateDatabaseAsync();
             _testDatabase = null;
         }*/
 

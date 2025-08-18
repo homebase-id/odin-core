@@ -133,7 +133,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             //
             // using (var myc = CreateDisposableConnection())
             // {
-            //     await MigrateDatabaseAsync();
+            //     await CreateDatabaseAsync();
             //
             //     for (int i = 0; i < 10000; i++)
             //     {
@@ -165,7 +165,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             //
             // using (var myc = db1.CreateDisposableConnection())
             // {
-            //     await db1.MigrateDatabaseAsync();
+            //     await db1.CreateDatabaseAsync();
             //     try
             //     {
             //         using var db2 = new IdentityDatabase(Guid.NewGuid(), "DataSource=mansi.db");

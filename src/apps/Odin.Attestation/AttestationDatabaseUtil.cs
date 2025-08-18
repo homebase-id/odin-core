@@ -11,7 +11,7 @@ namespace Odin.Attestation
         /// <param name="db"></param>
         public static async Task InitializeDatabaseAsync(AttestationDatabase db)
         {
-            await db.MigrateDatabaseAsync();
+            await db.CreateDatabaseAsync(dropExistingTables: true); // Remove "true" for production
         }
     }
 }

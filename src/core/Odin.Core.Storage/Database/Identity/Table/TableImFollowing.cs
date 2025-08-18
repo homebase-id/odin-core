@@ -17,7 +17,7 @@ public class TableImFollowing(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableImFollowingCRUD(cache, scopedConnectionFactory)
+    : TableImFollowingCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

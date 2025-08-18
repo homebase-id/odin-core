@@ -11,7 +11,7 @@ public class TableCircle(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableCircleCRUD(cache, scopedConnectionFactory)
+    : TableCircleCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     public async Task<CircleRecord> GetAsync(Guid circleId)
     {

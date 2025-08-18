@@ -16,7 +16,7 @@ public class TableOutbox(
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity,
     ICorrelationContext correlationContext)
-    : TableOutboxCRUD(cache, scopedConnectionFactory)
+    : TableOutboxCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

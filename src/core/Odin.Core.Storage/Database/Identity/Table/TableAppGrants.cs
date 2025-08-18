@@ -10,7 +10,7 @@ public class TableAppGrants(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableAppGrantsCRUD(cache, scopedConnectionFactory)
+    : TableAppGrantsCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

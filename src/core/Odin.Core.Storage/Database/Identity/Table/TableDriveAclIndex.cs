@@ -14,7 +14,7 @@ public class TableDriveAclIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveAclIndexCRUD(cache, scopedConnectionFactory)
+    : TableDriveAclIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
     

@@ -8,9 +8,27 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Notary;
 
-public partial class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<INotaryDbConnectionFactory>(lifetimeScope)
+public class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<INotaryDbConnectionFactory>(lifetimeScope)
 {
+    //
+    // Put all database tables alphabetically here.
+    // Don't forget to add the table to the lazy properties as well.
+    //
+    public static readonly ImmutableList<Type> TableTypes =
+    [
+        typeof(TableNotaryChain)
+    ];
+
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
+
+    //
+    // Table convenience properties
+    //
+
+    // AppGrants
+    private Lazy<TableNotaryChain> _notaryChain;
+    public TableNotaryChain NotaryChain => LazyResolve(ref _notaryChain);
+
 
     //
     // Connection
@@ -36,10 +54,16 @@ public partial class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractData
     // Migration
     //
 
-    public override async Task MigrateDatabaseAsync()
+    // SEB:NOTE this is temporary until we have a proper migration system
+    public override async Task CreateDatabaseAsync(bool dropExistingTables = false)
     {
-        var migrator = _lifetimeScope.Resolve<NotaryMigrator>();
-        await migrator.MigrateAsync();
+        await using var tx = await BeginStackedTransactionAsync();
+        foreach (var tableType in TableTypes)
+        {
+            var table = (ITableMigrator)_lifetimeScope.Resolve(tableType);
+            await table.EnsureTableExistsAsync(dropExistingTables);
+        }
+        tx.Commit();
     }
 
 }

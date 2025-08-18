@@ -353,7 +353,7 @@ public static class HostExtensions
 
         // Create system database
         var systemDatabase = services.GetRequiredService<SystemDatabase>();
-        systemDatabase.MigrateDatabaseAsync().BlockingWait();
+        systemDatabase.CreateDatabaseAsync().BlockingWait();
 
         // Load identity registry
         var registry = services.GetRequiredService<IIdentityRegistry>();

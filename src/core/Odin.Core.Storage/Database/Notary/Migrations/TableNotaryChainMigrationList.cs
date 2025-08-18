@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Storage.Database.Notary;
 
-namespace Odin.Core.Storage.Database.Notary.Migrations;
+namespace Odin.Core.Storage.Database.Notary;
 
 public class TableNotaryChainMigrationList : MigrationListBase
 {
