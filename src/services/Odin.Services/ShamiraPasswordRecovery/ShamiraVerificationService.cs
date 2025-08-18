@@ -9,15 +9,12 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
 public class ShamiraVerificationService(
-    TableKeyValue tblKeyValue,
     CircleNetworkService circleNetworkService,
     OdinHttpClientFactory odinHttpClientFactory,
-    PeerOutgoingTransferService transferService,
     StandardFileSystem fileSystem)
 {
     private static readonly Guid RecordStorageId = Guid.Parse("2fd6e22e-77a2-4f9b-8024-0d037ffbaba1");
@@ -37,8 +34,7 @@ public class ShamiraVerificationService(
             var (_, client) = await CreateClientAsync(shard.Player.OdinId, FileSystemType.Standard, odinContext);
             var response = await client.VerifyShard(new VerifyShardRequest()
             {
-                ShardId = shard.Id,
-                VersionTag = shard.VersionTag
+                ShardId = shard.Id
             });
 
             //TODO: expand on this
@@ -49,7 +45,7 @@ public class ShamiraVerificationService(
         return results;
     }
 
-    public async Task<ShardVerificationResult> VerifyShard(Guid shardId, Guid versionTag, IOdinContext odinContext)
+    public async Task<ShardVerificationResult> VerifyShard(Guid shardId, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var dealer = odinContext.Caller.OdinId;
@@ -74,9 +70,7 @@ public class ShamiraVerificationService(
         }
 
         //TODO: what else to verify?
-
-        var isValid = file.FileMetadata.SenderOdinId == dealer &&
-                      file.FileMetadata.VersionTag == versionTag;
+        var isValid = file.FileMetadata.SenderOdinId == dealer;
         return new ShardVerificationResult()
         {
             IsValid = isValid

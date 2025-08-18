@@ -5,7 +5,6 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 public class VerifyShardRequest
 {
     public Guid ShardId { get; set; }
-    public Guid VersionTag { get; set; }
 }
 
 public class ShardVerificationResult

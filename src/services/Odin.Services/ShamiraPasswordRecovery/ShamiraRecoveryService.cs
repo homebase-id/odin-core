@@ -5,8 +5,6 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -21,7 +19,6 @@ using Odin.Services.Util;
 namespace Odin.Services.ShamiraPasswordRecovery;
 
 public class ShamiraRecoveryService(
-    TableKeyValue tblKeyValue,
     PeerOutgoingTransferService transferService,
     StandardFileSystem fileSystem)
 {
@@ -76,7 +73,18 @@ public class ShamiraRecoveryService(
 
     public async Task SaveDealerEnvelop(ShardEnvelop envelope, IOdinContext odinContext)
     {
-        await WriteDealerEnvelope(envelope, odinContext);
+        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var uid = Guid.Parse(DealerShardConfigUid);
+
+        var existingFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
+        if (existingFile == null)
+        {
+            await WriteNewDealerEnvelopeFile(envelope, odinContext);
+        }
+        else
+        {
+            await OverwriteDealerEnvelopeFile(envelope, existingFile.FileId, odinContext);
+        }
     }
 
     /// <summary>
@@ -90,32 +98,38 @@ public class ShamiraRecoveryService(
 
         foreach (var shard in shards)
         {
-            var header = await WritePlayerEncryptedShardToTempDrive(shard, odinContext);
-            var transitOptions = new TransitOptions
-            {
-                IsTransient = true,
-                Recipients = [shard.Player.OdinId.DomainName],
-                DisableTransferHistory = true,
-                UseAppNotification = false,
-                AppNotificationOptions = null,
-                RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
-                Priority = OutboxPriority.High
-            };
-
-            var transferStatusMap = await transferService.SendFile(
-                header.FileMetadata.File,
-                transitOptions,
-                TransferFileType.Normal,
-                header.ServerMetadata.FileSystemType,
-                odinContext);
-
-            results.Add(shard.Player.OdinId, transferStatusMap[shard.Player.OdinId]);
+            var result = await DistributeShard(odinContext, shard);
+            results.Add(shard.Player.OdinId, result);
         }
 
         return results;
     }
 
-    private async Task<ServerFileHeader> WriteDealerEnvelope(ShardEnvelop shard, IOdinContext odinContext)
+    private async Task<TransferStatus> DistributeShard(IOdinContext odinContext, PlayerEncryptedShard shard)
+    {
+        var header = await WritePlayerEncryptedShardToTempDrive(shard, odinContext);
+        var transitOptions = new TransitOptions
+        {
+            IsTransient = true,
+            Recipients = [shard.Player.OdinId.DomainName],
+            DisableTransferHistory = true,
+            UseAppNotification = false,
+            AppNotificationOptions = null,
+            RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
+            Priority = OutboxPriority.High
+        };
+
+        var transferStatusMap = await transferService.SendFile(
+            header.FileMetadata.File,
+            transitOptions,
+            TransferFileType.Normal,
+            header.ServerMetadata.FileSystemType,
+            odinContext);
+        
+        return transferStatusMap[shard.Player.OdinId];
+    }
+
+    private async Task<ServerFileHeader> WriteNewDealerEnvelopeFile(ShardEnvelop shard, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
@@ -141,16 +155,40 @@ public class ShamiraRecoveryService(
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = AccessControlList.OwnerOnly,
-            AllowDistribution = true
+            AllowDistribution = false
         };
 
-        fileSystem.Storage.OverwriteMetadata()
         var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata, odinContext);
         await fileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
 
         return serverFileHeader;
     }
+    
+    private async Task<ServerFileHeader> OverwriteDealerEnvelopeFile(ShardEnvelop shard, Guid existingFileId,
+        IOdinContext odinContext)
+    {
+        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var file = new InternalDriveFileId()
+        {
+            FileId = existingFileId,
+            DriveId = driveId
+        };
 
+        var header = await fileSystem.Storage.GetServerFileHeaderForWriting(file, odinContext);
+
+        // todo: should I rotate the key? 
+        // header.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(file.DriveId, keyHeader, odinContext);
+
+        // decrypt the key header so we can encrypt the content
+        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+
+        var encryptedContent = keyHeader.EncryptDataAes(OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray());
+
+        header.FileMetadata.AppData.Content = encryptedContent.ToBase64();
+        await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
+        return header;
+    }
 
     private async Task<ServerFileHeader> WritePlayerEncryptedShardToTempDrive(PlayerEncryptedShard shard, IOdinContext odinContext)
     {
