@@ -1,3 +1,5 @@
+// THIS FILE HAS BEEN AUTO GENERATED
+
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Storage.Database.Identity.Migrations;
@@ -35,7 +37,9 @@ public partial class IdentityMigrator
             };
 
             foreach (var migration in list)
+            {
                 migration.Validate();
+            }
 
             return list.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
         }

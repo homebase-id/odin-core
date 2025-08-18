@@ -1,3 +1,5 @@
+// THIS FILE HAS BEEN AUTO GENERATED
+
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Storage.Database.Attestation.Migrations;
@@ -16,7 +18,9 @@ public partial class AttestationMigrator
             };
 
             foreach (var migration in list)
+            {
                 migration.Validate();
+            }
 
             return list.SelectMany(migrationList => migrationList.Migrations).OrderBy(migration => migration.MigrationVersion).ToList();
         }
