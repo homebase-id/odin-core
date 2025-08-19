@@ -531,12 +531,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             long diskPayloadBytes = 0;
             long diskThumbBytes = 0;
 
-            bool payloadAdjustments = false;
+            // This bool indicates if we need to write back the DriveMainIndexRecord 
+            // (we need to if some of their fields change)
+            bool driveRecordAdjustments = false;
 
-            // If the payloads are not remote, check the disk
             if (header?.FileMetadata?.DataSource?.PayloadsAreRemote == true)
             {
-                // ?
+                // The payloads are remote, there's nothing to check for now
             }
             else
             {
@@ -544,20 +545,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 {
                     if (await longTermStorageManager.PayloadExistsOnDiskAsync(drive, fileId, payload))
                     {
-                        var l = await longTermStorageManager.PayloadLengthAsync(drive, fileId, payload);
+                        var len = await longTermStorageManager.PayloadLengthAsync(drive, fileId, payload);
 
-                        if (l != payload.BytesWritten)
+                        if (len != payload.BytesWritten)
                         {
-                            logger.LogError($"{logPrefix} BYTESIZE - payload file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} key {payload.Key} uid {payload.Uid} on disk = {l} header {payload.BytesWritten}");
+                            logger.LogError($"{logPrefix} BYTESIZE - payload file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} key {payload.Key} uid {payload.Uid} on disk = {len} header {payload.BytesWritten}");
 
                             if (cleanup)
                             {
-                                payload.BytesWritten = l;
-                                payloadAdjustments = true;
+                                payload.BytesWritten = len;
+                                driveRecordAdjustments = true;
                             }
                         }
 
-                        diskPayloadBytes += l;
+                        diskPayloadBytes += len;
                     }
                     else
                     {
@@ -568,23 +569,23 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     {
                         if (await longTermStorageManager.ThumbnailExistsOnDiskAsync(drive, fileId, payload, thumb))
                         {
-                            var l = await longTermStorageManager.ThumbnailLengthAsync(drive, fileId, payload, thumb);
-                            if (l != thumb.BytesWritten)
+                            var len = await longTermStorageManager.ThumbnailLengthAsync(drive, fileId, payload, thumb);
+                            if (len != thumb.BytesWritten)
                             {
-                                logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {l} thumb {thumb.BytesWritten}");
+                                logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk doesn't match header {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {len} thumb {thumb.BytesWritten}");
 
-                                if (l > 1024 * 1024 * 10)
+                                if (len > 1024 * 1024 * 10)
                                 {
-                                    logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk too large {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {l} thumb {thumb.BytesWritten}");
+                                    logger.LogError($"{logPrefix} BYTESIZE - thumbnnail file on disk too large {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} Key {payload.Key} Uid {payload.Uid} Width {thumb.PixelWidth} height {thumb.PixelHeight} on disk = {len} thumb {thumb.BytesWritten}");
                                 }
 
                                 if (cleanup)
                                 {
-                                    thumb.BytesWritten = (uint)l;
-                                    payloadAdjustments = true;
+                                    thumb.BytesWritten = (uint)len;
+                                    driveRecordAdjustments = true;
                                 }
                             }
-                            diskThumbBytes += l;
+                            diskThumbBytes += len;
                         }
                         else
                         {
@@ -594,7 +595,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 }
             }
 
-            bool headerAdjustment = false;
+            // This bool indicates if we need to update DriveMainIndex.ByteCount
+            bool databaseRowByteCountAdjustment = false;
 
             var (hdrDatabaseBytes, hdrPayloadBytes, hdrThumbBytes) = 
                 DriveStorageServiceBase.ServerHeaderByteCount(header);
@@ -606,7 +608,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (diskPayloadThumbBytes != hdrPayloadThumbBytes)
             {
                 logger.LogError($"{logPrefix} BYTESIZE - size of payloads + thumbs DIFFERENT between DISK and HEADER {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} reports a total of {hdrPayloadThumbBytes} but has DB header {hdrDatabaseBytes} payload {hdrPayloadBytes} thumb {hdrThumbBytes}");
-                headerAdjustment = true;
+                databaseRowByteCountAdjustment = true;
                 if (cleanup)
                     header.ServerMetadata.FileByteCount = hdrPayloadThumbBytes;
             }
@@ -621,16 +623,19 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
                 if (cleanup)
                     header.ServerMetadata.FileByteCount = hdrPayloadThumbBytes;
-                headerAdjustment = true;
+                databaseRowByteCountAdjustment = true;
             }
 
             if (cleanup)
             {
-                if (payloadAdjustments)
+                if (driveRecordAdjustments)
                 {
-                    // We'd have to write the whole header, we'd need to consider that carefully
+                    var r = header.ToDriveMainIndexRecord(drive.TargetDriveInfo);
+
+                    // We have to write the header r back to the DB
+
                 }
-                else if (headerAdjustment)
+                else if (databaseRowByteCountAdjustment)
                 {
                     // We just need to update the DB row byteCount
                     // The ServerFileHeader.FromDriveMainIndexRecord() DTO 
@@ -639,7 +644,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     await identityDatabase.DriveMainIndex.UpdateByteCountAsync(drive.Id, fileId,  hdrPayloadThumbBytes);
                 }
             }
-
 
             if (sl.Count > 0)
                 return sl;
