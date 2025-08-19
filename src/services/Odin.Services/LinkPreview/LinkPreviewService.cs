@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
@@ -16,10 +15,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -117,10 +113,9 @@ public class LinkPreviewService(
                 description,
                 person,
                 siteType: "website",
-                robotsTag: "index, follow",
-                context.RequestAborted);
+                robotsTag: "index, follow");
 
-            await WriteAsync(content, context.RequestAborted);
+            await WriteAsync(content);
             return true;
         }
         catch (Exception e)
@@ -380,30 +375,27 @@ public class LinkPreviewService(
 
     private async Task WriteGenericPreview(string indexFilePath)
     {
-        var context = httpContextAccessor.HttpContext;
-        var data = await PrepareGenericPreview(indexFilePath, context.RequestAborted);
-        await WriteAsync(data, context.RequestAborted);
+        var data = await PrepareGenericPreview(indexFilePath);
+        await WriteAsync(data);
     }
 
     private async Task WriteFallbackIndex(string indexFilePath)
     {
-        var context = httpContextAccessor.HttpContext;
-
         var cache = await tenantCache.GetOrSetAsync(
             GenericLinkPreviewCacheKey,
-            _ => PrepareIndex(indexFilePath, context.RequestAborted),
+            _ => PrepareIndex(indexFilePath),
             TimeSpan.FromSeconds(30)
         );
 
-        await WriteAsync(cache, context.RequestAborted);
+        await WriteAsync(cache);
     }
 
-    private async Task<string> PrepareIndex(string indexFilePath, CancellationToken cancellationToken)
+    private async Task<string> PrepareIndex(string indexFilePath)
     {
         var indexTemplate = await globalCache.GetOrSetAsync(
             IndexFileKey,
-            _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
-            TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
+            _ => LoadIndexFileTemplate(indexFilePath),
+            TimeSpan.FromSeconds(30));
 
         if (string.IsNullOrEmpty(indexTemplate))
         {
@@ -465,7 +457,7 @@ public class LinkPreviewService(
         return b;
     }
 
-    private async Task<string> PrepareGenericPreview(string indexFilePath, CancellationToken cancellationToken)
+    private async Task<string> PrepareGenericPreview(string indexFilePath)
     {
         var context = httpContextAccessor.HttpContext;
         string odinId = context.Request.Host.Host;
@@ -500,7 +492,7 @@ public class LinkPreviewService(
 
         var title = $"{person?.Name ?? odinId} | {suffix}";
         var description = DataOrNull(person?.BioSummary) ?? Truncate(DataOrNull(person?.Bio)) ?? LinkPreviewDefaults.DefaultDescription;
-        return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, robotsTag, cancellationToken);
+        return await PrepareIndexHtml(indexFilePath, title, imageUrl, description, person, siteType, robotsTag);
     }
 
     private string DataOrNull(string data)
@@ -520,7 +512,7 @@ public class LinkPreviewService(
 
     
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
-        PersonSchema person, string siteType, string robotsTag, CancellationToken cancellationToken)
+        PersonSchema person, string siteType, string robotsTag)
     {
         var builder = PrepareHeadBuilder(title, description, siteType);
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
@@ -532,8 +524,8 @@ public class LinkPreviewService(
 
         var indexTemplate = await globalCache.GetOrSetAsync(
             IndexFileKey,
-            _ => LoadIndexFileTemplate(indexFilePath, cancellationToken),
-            TimeSpan.FromSeconds(30), cancellationToken: cancellationToken);
+            _ => LoadIndexFileTemplate(indexFilePath),
+            TimeSpan.FromSeconds(30));
 
         var noScriptContent = PrepareNoscriptBuilder(title, description, siteType, imageUrl, person);
         var updatedContent = indexTemplate.Replace(IndexPlaceholder, builder.ToString())
@@ -646,17 +638,24 @@ public class LinkPreviewService(
         return person;
     }
 
-    private async Task<string> LoadIndexFileTemplate(string path, CancellationToken cancellationToken)
+    private async Task<string> LoadIndexFileTemplate(string path)
     {
-        var content = await File.ReadAllTextAsync(path, cancellationToken);
+        var content = await File.ReadAllTextAsync(path);
         return content;
     }
 
-    private async Task WriteAsync(string content, CancellationToken cancellationToken)
+    private async Task WriteAsync(string content)
     {
         var context = httpContextAccessor.HttpContext;
         context.Response.Headers[HeaderNames.ContentType] = MediaTypeNames.Text.Html;
-        await context.Response.WriteAsync(content, cancellationToken);
+        try
+        {
+            await context.Response.WriteAsync(content);
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore
+        }
     }
 
     private static Guid ToGuidId(string input)
