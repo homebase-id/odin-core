@@ -22,9 +22,12 @@ public static class BaselineMigrationVersion
         // SYSTEM
         //
         {
+            logger.LogInformation("Baselining {database}", "system");
             var migrator = services.Resolve<SystemMigrator>();
             await migrator.EnsureVersionInfoTable();
             await migrator.DANGEROUS_SetCurrentVersionAsync(0);
+
+            logger.LogInformation("Migrating {database}", "system");
             await systemDatabase.MigrateDatabaseAsync();
         }
 
@@ -53,10 +56,13 @@ public static class BaselineMigrationVersion
                     cb => TenantServices.ConfigureTenantServices(cb, registration, config))
                 .BeginLifetimeScope();
 
+            Console.WriteLine();
+            logger.LogInformation("Baselining {database}", registration.PrimaryDomainName);
             var migrator = tenantScope.Resolve<IdentityMigrator>();
             await migrator.EnsureVersionInfoTable();
             await migrator.DANGEROUS_SetCurrentVersionAsync(202507191211); // TableDriveMainIndexMigrationV202507191211
 
+            logger.LogInformation("Migrating {database}", registration.PrimaryDomainName);
             var identityDatabase = tenantScope.Resolve<IdentityDatabase>();
             await identityDatabase.MigrateDatabaseAsync();
         }

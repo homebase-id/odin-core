@@ -351,7 +351,7 @@ public static class HostExtensions
         logger.LogDebug("Starting initialization in {method}", nameof(BeforeApplicationStarting));
 
         // Create system database
-        logger.LogInformation("Migrating database for system");
+        logger.LogInformation("Migrating database for {database}", "system");
         var systemDatabase = services.GetRequiredService<SystemDatabase>();
         systemDatabase.MigrateDatabaseAsync().BlockingWait();
 
