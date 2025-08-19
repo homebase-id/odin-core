@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Org.BouncyCastle.Security;
 using System;
 using System.Collections.Generic;
@@ -11,8 +12,10 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Cryptography.Crypto;
 
-// Eventually test with
+// When it is live, eventually test with
+//
 // didkit vc-verify-credential -v EcdsaSecp384r1Signature2019 credential.json
+//
 
 public class VCCredentialsResponse
 {
@@ -134,25 +137,25 @@ public static class VerifiableCredentialsManager
     /// Signs a Verifiable Credential (VC) using ECC-384 with EccFullKeyData and adds the proof to it.
     /// </summary>
     /// <param name="credential">The VC JsonObject without proof.</param>
-    /// <param name="keyData">The EccFullKeyData containing the ECC-384 private key.</param>
-    /// <param name="encryptionKey">The SensitiveByteArray used to decrypt the private key.</param>
+    /// <param name="eccFullKey">The EccFullKeyData containing the ECC-384 private key.</param>
+    /// <param name="secret">The SensitiveByteArray used to decrypt the private key.</param>
     /// <param name="verificationMethodId">The verification method ID (e.g., DID URL for the signing key).</param>
     /// <returns>The signed VC as a JSON string with proof added.</returns>
     public async static Task<string> SignVerifiableCredentialAsync(
             VCCredentialsResponse credential,
-            EccFullKeyData keyData,
-            SensitiveByteArray encryptionKey,
+            EccFullKeyData eccFullKey,
+            SensitiveByteArray secret,
             string verificationMethodId)
     {
         var proof = new VCProof
         {
             Type = "EcdsaSecp384r1Signature2019",
-            Created = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            Created = UnixTimeUtc.Now().Iso9441(),
             ProofPurpose = "assertionMethod",
             VerificationMethod = verificationMethodId
         };
         byte[] toSign = await CreateDataToSignAsync(credential, proof);
-        byte[] signature = keyData.Sign(encryptionKey, toSign);
+        byte[] signature = eccFullKey.Sign(secret, toSign);
         proof.Jws = WebEncoders.Base64UrlEncode(signature);
         credential.Proof = proof;
         return System.Text.Json.JsonSerializer.Serialize(credential);
@@ -178,7 +181,7 @@ public static class VerifiableCredentialsManager
     }
 
 
-    public async static Task<bool> VerifySignatureAsync(string vcJson, EccPublicKeyData publicKeyData)
+    public async static Task<bool> VerifySignatureAsync(string vcJson, EccPublicKeyData eccPublicKey)
     {
         var credential = System.Text.Json.JsonSerializer.Deserialize<VCCredentialsResponse>(vcJson);
         var proof = credential.Proof;
@@ -194,6 +197,6 @@ public static class VerifiableCredentialsManager
         };
 
         var toVerify = await CreateDataToSignAsync(credential, proofNoJws);
-        return publicKeyData.VerifySignature(toVerify, signature);
+        return eccPublicKey.VerifySignature(toVerify, signature);
     }
 }
