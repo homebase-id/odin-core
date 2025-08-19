@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.KeyChain.Connection;
 using Odin.Core.Storage.Database.Notary.Connection;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.SQLite; //added for homebase social sync
@@ -39,10 +40,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
     } // End of record CircleRecord
 
-    public abstract class TableCircleCRUD
+    public abstract class TableCircleCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
+        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; } = "Circle";
 
         protected TableCircleCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
@@ -51,11 +53,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "Circle");
+                await SqlHelper.DeleteTableAsync(cn, "Circle");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -76,7 +78,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +", UNIQUE(identityId,circleId)"
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Circle", createSql, commentSql);
         }
 
         protected virtual async Task<int> InsertAsync(CircleRecord item)
@@ -243,7 +245,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> GetCountAsync()
+        protected new async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -258,7 +260,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");

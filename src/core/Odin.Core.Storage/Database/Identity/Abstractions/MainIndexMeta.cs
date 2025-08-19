@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
+using Odin.Core.Storage.Database.Identity.Table;
 
 [assembly: InternalsVisibleTo("Odin.Core.Storage.Tests")]
 

@@ -308,6 +308,34 @@ public class S3AwsStorage : IS3Storage
 
     //
 
+    public async Task<long> FileLengthAsync(string path, CancellationToken cancellationToken = default)
+    {
+        S3Path.AssertFileName(path);
+        path = S3Path.Combine(path);
+
+        try
+        {
+            var request = new GetObjectMetadataRequest
+            {
+                BucketName = BucketName,
+                Key = path
+            };
+
+            var metadata = await _s3Client.GetObjectMetadataAsync(request, cancellationToken);
+            return metadata.ContentLength;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            throw CreateS3StorageException(ex, $"File '{path}' does not exist in bucket '{BucketName}'");
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed to get file size of '{path}' in bucket '{BucketName}'");
+        }
+    }
+
+    //
+
     private S3StorageException CreateS3StorageException(Exception exception, string message)
     {
         var error = exception.Message;

@@ -73,6 +73,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.SetupHelper", "src\app
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.SetupHelper.Tests", "tests\apps\Odin.SetupHelper.Tests\Odin.SetupHelper.Tests.csproj", "{61F2E98E-8E36-4E62-93F4-25271508F804}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Test.Helpers.Tests", "tests\helpers\Odin.Test.Helpers.Tests\Odin.Test.Helpers.Tests.csproj", "{1A21B791-E16B-4396-B378-D37F62547EE2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -171,6 +173,10 @@ Global
 		{61F2E98E-8E36-4E62-93F4-25271508F804}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{61F2E98E-8E36-4E62-93F4-25271508F804}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{61F2E98E-8E36-4E62-93F4-25271508F804}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A21B791-E16B-4396-B378-D37F62547EE2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A21B791-E16B-4396-B378-D37F62547EE2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A21B791-E16B-4396-B378-D37F62547EE2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A21B791-E16B-4396-B378-D37F62547EE2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -206,6 +212,7 @@ Global
 		{EE9428D3-1BBD-4E81-9EB2-0CC75716D630} = {49702A0E-286C-4700-AC99-C5841C224E00}
 		{6EF6F818-5D83-4892-B94D-A2EA62B8FB48} = {6FA858C3-D738-476B-B5ED-475D83CF5ECB}
 		{61F2E98E-8E36-4E62-93F4-25271508F804} = {49702A0E-286C-4700-AC99-C5841C224E00}
+		{1A21B791-E16B-4396-B378-D37F62547EE2} = {7E1B3640-7EED-45EA-B410-882F803F6A00}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

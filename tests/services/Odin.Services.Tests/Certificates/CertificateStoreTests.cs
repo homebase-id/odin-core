@@ -1,15 +1,14 @@
 using System;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
@@ -80,6 +79,7 @@ public class CertificateStoreTests
 
         var services = new ServiceCollection(); // we need this to make IServiceProvider available through Autofac
         services.AddLogging();
+        services.AddSingleton<INodeLock, NodeLock>();
 
         var cb = new ContainerBuilder();
         cb.Populate(services);
@@ -109,7 +109,7 @@ public class CertificateStoreTests
         _autofacContainer = cb.Build();
 
         var systemDatabase = _autofacContainer.Resolve<SystemDatabase>();
-        await systemDatabase.CreateDatabaseAsync(true);
+        await systemDatabase.MigrateDatabaseAsync();
 
         _certificateStore = _autofacContainer.Resolve<ICertificateStore>();
     }

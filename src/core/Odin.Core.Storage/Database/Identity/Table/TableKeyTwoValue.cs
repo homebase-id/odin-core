@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -11,7 +9,7 @@ public class TableKeyTwoValue(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyTwoValueCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableKeyTwoValueCRUD(cache, scopedConnectionFactory)
 {
     public async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(byte[] key2)
     {

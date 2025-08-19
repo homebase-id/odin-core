@@ -1,12 +1,13 @@
 using Serilog.Events;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace Odin.Core.Logging.Statistics.Serilog;
 
 public sealed class LogEventMemoryStore : ILogEventMemoryStore
 {
-    private readonly object _mutex = new();
+    private readonly Lock _mutex = new();
     private readonly Dictionary<LogEventLevel, List<LogEvent>> _logEvents;
 
     //

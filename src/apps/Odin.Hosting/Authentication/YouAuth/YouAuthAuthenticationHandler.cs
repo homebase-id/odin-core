@@ -231,6 +231,8 @@ namespace Odin.Hosting.Authentication.YouAuth
                 anonPerms.Add(PermissionKeys.ReadWhoIFollow);
             }
 
+            anonPerms.Add(PermissionKeys.UseTransitRead);
+            
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
                 { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },

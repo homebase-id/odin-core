@@ -13,13 +13,14 @@ using Odin.Core.Dns;
 using Odin.Core.Http;
 using Odin.Core.Logging;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Factory;
 using Odin.Core.X509;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 using Testcontainers.PostgreSql;
+using Odin.Core.Storage.Database.System;
 
 namespace Odin.Services.Tests.Certificates;
 
@@ -143,7 +144,7 @@ public class CertificateServiceTests
 
         _autofacContainer = _webServer.Services.GetAutofacRoot();
         var systemDatabase = _autofacContainer.Resolve<SystemDatabase>();
-        await systemDatabase.CreateDatabaseAsync(true);
+        await systemDatabase.MigrateDatabaseAsync();
 
         var lifetime = _autofacContainer.Resolve<IHostApplicationLifetime>();
         var serverStartedTcs = new TaskCompletionSource();

@@ -12,6 +12,7 @@ using Odin.Core.Storage.Database.KeyChain.Connection;
 using Odin.Core.Storage.Database.Notary.Connection;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.SQLite; //added for homebase social sync
@@ -35,10 +36,11 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         }
     } // End of record AttestationStatusRecord
 
-    public abstract class TableAttestationStatusCRUD
+    public abstract class TableAttestationStatusCRUD : TableBase
     {
         private readonly CacheHelper _cache;
-        private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
+        private ScopedAttestationConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; } = "AttestationStatus";
 
         public TableAttestationStatusCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
@@ -47,11 +49,11 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
-                await MigrationBase.DeleteTableAsync(cn, "AttestationStatus");
+                await SqlHelper.DeleteTableAsync(cn, "AttestationStatus");
             var rowid = "";
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
@@ -71,7 +73,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await MigrationBase.CreateTableAsync(cn, createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "AttestationStatus", createSql, commentSql);
         }
 
         public virtual async Task<int> InsertAsync(AttestationStatusRecord item)
@@ -218,7 +220,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             }
         }
 
-        public virtual async Task<int> GetCountAsync()
+        public new async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -233,7 +235,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             }
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
