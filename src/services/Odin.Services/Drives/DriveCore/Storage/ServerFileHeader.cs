@@ -39,6 +39,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var serverMetadataDto = OdinSystemSerializer.Deserialize<ServerMetadataDto>(record.hdrServerData);
             header.ServerMetadata = new ServerMetadata(serverMetadataDto, record);
 
+            // The database column is the master record. Function DriveMainIndex.UpdateByteCountAsync()
+            // is called by the defragmenter to correct incorrect sizes. So that's the master value.
+            header.ServerMetadata.FileByteCount = record.byteCount;
+
             // Set the FileMetadata
             var fileMetadataDto = OdinSystemSerializer.Deserialize<FileMetadataDto>(record.hdrFileMetaData);
             header.FileMetadata = new FileMetadata(fileMetadataDto, record);

@@ -8,30 +8,39 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Migrations;
 
-namespace Odin.Core.Storage.Tests.Database.Identity;
+namespace Odin.Core.Storage.Tests.Database.Identity.Migrations;
 
 public class DatabaseMigrationTests : IocTestBase
 {
     [Test]
-    public void GlobalMigrationListTest()
+    public async Task GlobalMigrationListTest()
     {
-        var list = new Odin.Core.Storage.Database.Identity.Migrations.GlobalMigrationList();
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await using var scope = Services.BeginLifetimeScope();
+        var migrator = scope.Resolve<IdentityMigrator>();
 
-        Int64 prev = -1;
-        foreach (var m in list.SortedMigrations)
+        long prev = -1;
+        foreach (var m in migrator.SortedMigrations)
         {
             ClassicAssert.IsTrue(m.MigrationVersion >= prev);
             prev = m.MigrationVersion;
         }            
     }
 
+
     [Test]
     [TestCase(DatabaseType.Sqlite)]
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
 #endif
+    /// <summary>
+    /// Making sure that running Create table on an already created table doesn't affect the 
+    /// table's embedded version number (much harder than it sounds)
+    /// </summary>
     public async Task IdempotentTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);

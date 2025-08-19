@@ -9,7 +9,7 @@ public class TableKeyTwoValue(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyTwoValueCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableKeyTwoValueCRUD(cache, scopedConnectionFactory)
 {
     public async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(byte[] key2)
     {

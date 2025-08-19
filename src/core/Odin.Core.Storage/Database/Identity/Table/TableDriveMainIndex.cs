@@ -15,7 +15,7 @@ public class TableDriveMainIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -388,7 +388,42 @@ public class TableDriveMainIndex(
         return size;
     }
 
-    
+
+    /// <summary>
+    /// For defragmenter only. Updates the byteCount column in the DB.
+    /// </summary>
+    public async Task<int> UpdateByteCountAsync(Guid driveId, Guid fileId, long byteCount)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText =
+            $"UPDATE drivemainindex SET byteCount=@bcount WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid;";
+
+        var tparam1 = cmd.CreateParameter();
+        var tparam2 = cmd.CreateParameter();
+        var tparam3 = cmd.CreateParameter();
+        var tparam4 = cmd.CreateParameter();
+
+        tparam1.ParameterName = "@fileid";
+        tparam2.ParameterName = "@driveId";
+        tparam3.ParameterName = "@identityId";
+        tparam3.ParameterName = "@bcount";
+
+        cmd.Parameters.Add(tparam1);
+        cmd.Parameters.Add(tparam2);
+        cmd.Parameters.Add(tparam3);
+        cmd.Parameters.Add(tparam4);
+
+        tparam1.Value = fileId.ToByteArray();
+        tparam2.Value = driveId.ToByteArray();
+        tparam3.Value = odinIdentity.IdAsByteArray();
+        tparam4.Value = byteCount;
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+
     /// <summary>
     /// For testing only. Updates the updatedTimestamp for the supplied item.
     /// </summary>
