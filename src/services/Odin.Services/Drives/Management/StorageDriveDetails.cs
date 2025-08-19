@@ -23,6 +23,8 @@ public class StorageDriveDetails
     /// Specifies the drive can only be written to by the owner while in the OwnerAuth context
     /// </summary>
     public virtual bool IsReadonly { get; set; }
+    
+    public virtual bool IsArchived { get; set; }
 
     /// <summary>
     /// Specifies if anonymous callers can read this drive.

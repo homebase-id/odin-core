@@ -49,6 +49,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<SharedSecretEncryptedFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file,
             IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
             if (serverFileHeader == null)
             {
@@ -66,6 +67,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 fileExists)>
             GetPayloadSharedSecretEncryptedKeyHeaderAsync(InternalDriveFileId file, string payloadKey, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
             if (serverFileHeader == null)
             {
@@ -86,20 +88,23 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (serverFileHeader, payloadDescriptor, payloadEncryptedKeyHeader, true);
         }
 
-        public Task<InternalDriveFileId> CreateInternalFileId(Guid driveId)
+        public async Task<InternalDriveFileId> CreateInternalFileId(Guid driveId, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(driveId, odinContext);
+
             var df = new InternalDriveFileId()
             {
                 FileId = longTermStorageManager.CreateFileId(),
                 DriveId = driveId,
             };
 
-            return Task.FromResult(df);
+            return df;
         }
 
         public async Task<(int originalRecipientCount, PagedResult<RecipientTransferHistoryItem> results)> GetTransferHistory(
             InternalDriveFileId file, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             var serverFileHeader = await this.GetServerFileHeader(file, odinContext);
             if (serverFileHeader == null)
             {
@@ -122,6 +127,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     "An invalid header was passed to the update header method.  You need more checks in place before getting here");
             }
 
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             //short circuit
@@ -179,6 +185,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                     "An invalid header was passed to the update header method.  You need more checks in place before getting here");
             }
 
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var metadata = header.FileMetadata;
@@ -206,6 +213,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<uint> WriteTempStream(TempFile tempFile, string extension, Stream stream, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
             await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
             return await uploadStorageManager.WriteStream(tempFile, extension, stream);
         }
@@ -216,6 +224,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <returns></returns>
         public async Task<byte[]> GetAllFileBytesFromTempFile(TempFile tempFile, string extension, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
             await AssertCanReadDriveAsync(tempFile.File.DriveId, odinContext);
             var bytes = await uploadStorageManager.GetAllFileBytes(tempFile, extension);
             return bytes;
@@ -223,6 +232,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<bool> TempFileExists(TempFile tempFile, string extension, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
             odinContext.Caller.AssertCallerIsOwner();
             return await uploadStorageManager.TempFileExists(tempFile, extension);
         }
@@ -242,6 +252,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
             IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
             await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
             return await uploadStorageManager.GetAllFileBytes(tempFile, extension);
         }
@@ -251,6 +262,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             int height,
             string payloadKey, UnixTimeUtcUnique payloadUid, IOdinContext odinContext, bool directMatchOnly = false)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
 
             TenantPathManager.AssertValidPayloadKey(payloadKey);
@@ -314,6 +326,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<Guid> DeletePayload(InternalDriveFileId file, string key, Guid targetVersionTag, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             //Note: calling to get the file header, so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file, odinContext);
 
@@ -342,11 +355,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata,
             ServerMetadata serverMetadata, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             return await CreateServerHeaderInternal(file, keyHeader, metadata, serverMetadata, odinContext);
         }
 
         public async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(driveId, odinContext);
             var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
 
             (await this.DriveManager.GetDriveAsync(driveId)).AssertValidStorageKey(storageKey);
@@ -363,11 +378,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return false;
             }
 
+            await AssertDriveIsNotArchived(header.FileMetadata.File.DriveId, odinContext);
             return await driveAclAuthorizationService.CallerHasPermission(header.ServerMetadata.AccessControlList, odinContext);
         }
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
             var header = await GetServerFileHeaderInternal(file, odinContext);
 
@@ -382,6 +399,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<ServerFileHeader> GetServerFileHeaderForWriting(InternalDriveFileId file, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderInternal(file, odinContext);
 
@@ -414,6 +432,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<PayloadStream> GetPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk,
             IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
             TenantPathManager.AssertValidPayloadKey(key);
 
@@ -451,6 +470,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<bool> FileExists(InternalDriveFileId file, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
             return await longTermStorageManager.HeaderFileExists(drive, file.FileId, GetFileSystemType());
@@ -459,15 +479,15 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<bool> SoftDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-
             var existingHeader = await this.GetServerFileHeaderInternal(file, odinContext);
-
             return await WriteDeletedFileHeader(existingHeader, odinContext, markComplete);
         }
 
         public async Task HardDeleteLongTermFile(InternalDriveFileId file, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(file.DriveId);
@@ -498,6 +518,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             FileMetadata newMetadata, ServerMetadata serverMetadata,
             bool? ignorePayload, IOdinContext odinContext, Guid? useThisVersionTag = null, WriteSecondDatabaseRowBase markComplete = null)
         {
+            await AssertDriveIsNotArchived(originFile.File.DriveId, odinContext);
             await AssertCanWriteToDrive(originFile.File.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(originFile.File.DriveId);
 
@@ -564,6 +585,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
             ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
@@ -673,6 +695,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             Guid expectedVersionTag)
         {
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(targetFile.DriveId);
@@ -740,6 +763,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             ServerMetadata newServerMetadata,
             IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile, odinContext);
@@ -759,6 +783,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task UpdateReactionSummary(InternalDriveFileId targetFile, ReactionSummary summary, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             odinContext.PermissionsContext.AssertHasAtLeastOneDrivePermission(targetFile.DriveId,
                 DrivePermission.React,
                 DrivePermission.Comment,
@@ -786,6 +811,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task InitiateTransferHistoryAsync(InternalDriveFileId file, OdinId recipient, IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
 
             //
@@ -819,6 +845,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<bool> UpdateTransferHistory(InternalDriveFileId file, OdinId recipient, UpdateTransferHistoryData updateData,
             IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
 
             bool success = false;
@@ -893,6 +920,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task UpdateActiveFileHeader(InternalDriveFileId targetFile, ServerFileHeader header, IOdinContext odinContext,
             bool raiseEvent = false)
         {
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await UpdateActiveFileHeaderInternal(targetFile, header, odinContext, raiseEvent);
         }
 
@@ -905,6 +933,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             bool success = false;
 
+            await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             var existingHeader = await this.GetServerFileHeaderInternal(targetFile, odinContext);
             if (existingHeader.FileMetadata.DataSource != manifest.FileMetadata.DataSource)
             {
@@ -1118,6 +1147,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             OdinValidationUtils.AssertIsTrue(newTags.Count <= 50, "max local tags is 50");
 
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
@@ -1162,6 +1192,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
             // DriveFileUtility.AssertValidLocalAppContentLength(newContent); REPLACED WITH mergedMetadata.Validate();
 
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var header = await GetServerFileHeaderForWriting(file, odinContext);
             if (null == header)
@@ -1209,6 +1240,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task CleanupUploadTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors,
             IOdinContext odinContext)
         {
+            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
             if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
             {
                 await uploadStorageManager.CleanupUploadedTempFiles(tempFile, descriptors);
@@ -1219,6 +1251,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task CleanupInboxTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors, IOdinContext odinContext,
             string[] additionalFiles = null)
         {
+            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
             if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
             {
                 await uploadStorageManager.CleanupInboxFiles(tempFile, descriptors);
@@ -1283,6 +1316,18 @@ namespace Odin.Services.Drives.FileSystem.Base
                 //just in case the caller used the wrong drive service instance
                 throw new OdinClientException(
                     $"Invalid SystemFileCategory.  This service only handles the FileSystemType of {GetFileSystemType()}");
+            }
+        }
+
+        private async Task AssertDriveIsNotArchived(Guid driveId, IOdinContext odinContext)
+        {
+            var theDrive = await DriveManager.GetDriveAsync(driveId);
+            if (theDrive.IsArchived)
+            {
+                if (!odinContext.Caller.HasMasterKey)
+                {
+                    throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
+                }
             }
         }
 

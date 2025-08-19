@@ -19,6 +19,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement
         [Post(RootEndpoint)]
         Task<ApiResponse<PagedResult<OwnerClientDriveData>>> GetDrives([Body] GetDrivesRequest request);
 
+        [Post(RootEndpoint + "/set-archive-drive")]
+        Task<ApiResponse<HttpContent>> SetArchiveDriveFlag([Body] UpdateDriveArchiveFlag request);
+        
         [Post(RootEndpoint + "/defrag")]
         Task<ApiResponse<HttpContent>> DefragDrive(); // This should be moved to the identity, not on the drive
     }

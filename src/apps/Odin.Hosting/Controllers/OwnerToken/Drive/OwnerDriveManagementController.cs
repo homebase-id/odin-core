@@ -38,7 +38,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes
+                    IsArchived = drive.IsArchived,
+                    Attributes = drive.Attributes,
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
@@ -82,8 +84,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             await driveManager.SetDriveAllowSubscriptionsAsync(request.TargetDrive.Alias, request.AllowSubscriptions, WebOdinContext);
             return Ok();
         }
+        
+        [HttpPost("set-archive-drive")]
+        public async Task<IActionResult> SetArchiveDriveFlag([FromBody] UpdateDriveArchiveFlag request)
+        {
+            await driveManager.SetArchiveDriveFlagAsync(request.TargetDrive.Alias, request.Archived, WebOdinContext);
+            return Ok();
+        }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [SwaggerOperation(Tags = [ControllerConstants.OwnerDrive])]
         [HttpGet("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
@@ -99,7 +108,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes
+                    IsArchived = drive.IsArchived,
+                    Attributes = drive.Attributes,   
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
@@ -130,6 +141,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public bool AllowAnonymousReads { get; set; }
     }
     
+    public class UpdateDriveArchiveFlag
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool Archived { get; set; }
+    }
+
     public class UpdateDriveAllowSubscriptionsRequest
     {
         public TargetDrive TargetDrive { get; set; }
