@@ -7,7 +7,7 @@ namespace Odin.Core.Storage.Database.System.Table;
 #nullable enable
 
 public class TableRegistrations(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
-    : TableRegistrationsCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableRegistrationsCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedSystemConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

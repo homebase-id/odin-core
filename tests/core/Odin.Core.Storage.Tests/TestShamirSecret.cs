@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
@@ -6,12 +10,8 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
-namespace Odin.Core.Storage.Tests.Database.Identity.Table
+namespace Odin.Core.Storage.Tests
 {
     public class TestShamirSecretSharing : IocTestBase
     {
@@ -353,7 +353,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
                 // We create the player record that we will send to the player
                 var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], guidId, CipherText);
                 shamirShardPlayerWrappers.Add(playerRecord);
-
+                
                 // This record is stored on the dealer's host, for each player
                 var dealerRecord = new ShamirShardDealerWrapper(guidId, playerRecord.Player, keyba, Iv);
                 SaveToDealerDisk(dealerRecord);

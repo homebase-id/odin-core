@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Odin.Services.Concurrency;
+namespace Odin.Core.Storage.Concurrency;
 
 #nullable enable
 

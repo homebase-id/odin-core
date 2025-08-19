@@ -64,9 +64,10 @@ namespace Odin.Core.Storage.Database.System.Table
         }
     } // End of record JobsRecord
 
-    public abstract class TableJobsCRUD
+    public abstract class TableJobsCRUD : TableBase
     {
-        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
+        private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
+        public override string TableName { get; } = "Jobs";
 
         public TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
         {
@@ -74,7 +75,7 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
-        public virtual async Task EnsureTableExistsAsync(bool dropExisting = false)
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             if (dropExisting)
@@ -559,7 +560,7 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public virtual async Task<int> GetCountAsync()
+        public new async Task<int> GetCountAsync()
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getCountCommand = cn.CreateCommand();
@@ -574,7 +575,7 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public static List<string> GetColumnNames()
+        public new static List<string> GetColumnNames()
         {
             var sl = new List<string>();
             sl.Add("rowId");
