@@ -14,7 +14,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
 using Odin.Core.Util;
@@ -352,8 +351,9 @@ public static class HostExtensions
         logger.LogDebug("Starting initialization in {method}", nameof(BeforeApplicationStarting));
 
         // Create system database
+        logger.LogInformation("Migrating database for {database}", "system");
         var systemDatabase = services.GetRequiredService<SystemDatabase>();
-        systemDatabase.CreateDatabaseAsync().BlockingWait();
+        systemDatabase.MigrateDatabaseAsync().BlockingWait();
 
         // Load identity registry
         var registry = services.GetRequiredService<IIdentityRegistry>();

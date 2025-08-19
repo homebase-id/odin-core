@@ -1,7 +1,6 @@
 using Odin.Core.Storage.Factory;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -9,6 +8,50 @@ using System.Threading.Tasks;
 namespace Odin.Core.Storage;
 
 #nullable enable
+
+//
+
+public static class ConnectionWrapperExtensions
+{
+    public static async Task<bool> TableExistsAsync(
+        this IConnectionWrapper connectionWrapper,
+        string tableName,
+        string schema = "public")
+    {
+        var sql = connectionWrapper.DatabaseType switch
+        {
+            DatabaseType.Sqlite => $"""
+                                    SELECT EXISTS (
+                                      SELECT 1 FROM sqlite_master
+                                      WHERE type = 'table' 
+                                      AND LOWER(name) = LOWER('{tableName}')
+                                    );
+                                    """,
+            DatabaseType.Postgres => $"""
+                                      SELECT EXISTS (
+                                        SELECT 1 FROM pg_tables 
+                                        WHERE LOWER(schemaname) = LOWER('{schema}') 
+                                        AND LOWER(tablename) = LOWER('{tableName}')
+                                      );
+                                      """,
+            _ => throw new NotSupportedException($"Database type {connectionWrapper.DatabaseType} not supported")
+        };
+
+        await using var cmd = connectionWrapper.CreateCommand();
+        cmd.CommandText = sql;
+
+        var rs = await cmd.ExecuteScalarAsync();
+
+        return connectionWrapper.DatabaseType switch
+        {
+            DatabaseType.Sqlite => Convert.ToInt32(rs) > 0,
+            DatabaseType.Postgres => Convert.ToBoolean(rs),
+            _ => false
+        };
+    }
+}
+
+//
 
 public static class CommandWrapperExtensions
 {
@@ -51,6 +94,8 @@ public static class SqlExtensions
         return guid.ToByteArray().ToSql(databaseType);
     }
 }
+
+//
 
 public static class SqlHelper
 {
@@ -164,4 +209,6 @@ public static class SqlHelper
         cmd.CommandText = sql;
         await cmd.ExecuteNonQueryAsync();
     }
+
+
 }
