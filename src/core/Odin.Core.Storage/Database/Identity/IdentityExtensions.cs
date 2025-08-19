@@ -2,7 +2,6 @@ using System;
 using Autofac;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
@@ -69,8 +68,6 @@ public static class IdentityExtensions
         // Transaction
         cb.RegisterType<ScopedIdentityTransactionFactory>()
             .InstancePerLifetimeScope(); // Important!
-
-
 
         // Tables
         foreach (var tableType in IdentityDatabase.TableTypes)

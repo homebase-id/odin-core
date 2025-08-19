@@ -1,19 +1,15 @@
 using System;
-using System.Collections.Immutable;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity;
 
 public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IIdentityDbConnectionFactory>(lifetimeScope)
 {
-
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
-
 
     // MainIndexMeta
     private Lazy<MainIndexMeta> _mainIndexMeta;
