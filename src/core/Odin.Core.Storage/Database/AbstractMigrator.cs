@@ -230,6 +230,8 @@ public abstract class AbstractMigrator
 
     private async Task SetCurrentVersionAsync(IConnectionWrapper cn, long version)
     {
+        _logger.LogDebug("Setting current version to {Version} for migrator ID {MigratorId}", version, _migratorId);
+
         const string sql =
             """
             INSERT INTO VersionInfo (id, version)
