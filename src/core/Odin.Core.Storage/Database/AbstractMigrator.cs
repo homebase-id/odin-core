@@ -260,14 +260,6 @@ public abstract class AbstractMigrator
 
     //
 
-    public async Task DANGEROUS_SetCurrentVersionAsync(long version)
-    {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-        await SetCurrentVersionAsync(cn, version);
-    }
-
-    //
-
     public async Task EnsureVersionInfoTable()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

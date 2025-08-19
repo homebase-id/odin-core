@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": "XXbaseline-migration-version --verbose"
+      "commandLineArgs": ""
     }
   }
 }
