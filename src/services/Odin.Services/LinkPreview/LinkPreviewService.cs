@@ -652,9 +652,13 @@ public class LinkPreviewService(
         {
             await context.Response.WriteAsync(content);
         }
+        catch (IOException)
+        {
+            // ignore - socket closed
+        }
         catch (OperationCanceledException)
         {
-            // ignore
+            // ignore - cancelled
         }
     }
 
