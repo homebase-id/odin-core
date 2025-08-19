@@ -1,3 +1,5 @@
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
+
 using System;
 using System.Collections.Immutable;
 using Odin.Core.Storage.Database.KeyChain;

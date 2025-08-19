@@ -1,4 +1,4 @@
-// THIS FILE HAS BEEN AUTO GENERATED
+// THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
 using System.Collections.Generic;
 using System.Linq;
