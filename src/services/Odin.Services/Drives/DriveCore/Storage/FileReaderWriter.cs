@@ -442,11 +442,11 @@ public sealed class FileReaderWriter(
         logger.LogDebug("Created Directory [{dir}]", dir);
     }
     
-    public void AssertFileExists(string filePath)
+    private static void AssertFileExists(string filePath)
     {
-        if (!DirectoryExists(Path.GetDirectoryName(filePath)) && !FileExists(filePath))
+        if (!File.Exists(filePath))
         {
-            throw new OdinSystemException($"File or directory does not exist {filePath}");
+            throw new OdinSystemException($"File does not exist {filePath}");
         }
     }
 
