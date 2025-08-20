@@ -545,7 +545,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // size on disk, adjust each entry if needed, and return the list of any missing files
             // We always modify the header with correct values, even if not cleaning up, because
             // the header is loaded and discarded by the caller for just this function
-            if (header?.FileMetadata?.DataSource?.PayloadsAreRemote == false)
+            if (!(header?.FileMetadata?.DataSource?.PayloadsAreRemote == true))
             {
                 var payloads = header.FileMetadata?.Payloads ?? [];
 
@@ -692,6 +692,5 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 .ToArray();
             return files;
         }
-
     }
 }
