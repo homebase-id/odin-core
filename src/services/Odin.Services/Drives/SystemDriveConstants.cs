@@ -90,15 +90,6 @@ public static class SystemDriveConstants
         ShardRecoveryDrive
     ];
     
-    public static readonly CreateDriveRequest CreateShardRecoveryDriveRequest = new()
-    {
-        Name = "Shard Recovery Drive",
-        AllowAnonymousReads = false,
-        Metadata = "",
-        TargetDrive = ShardRecoveryDrive,
-        OwnerOnly = false
-    };
-    
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
     {
         Name = "Transient temp drive",
@@ -172,6 +163,16 @@ public static class SystemDriveConstants
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
     };
 
+    public static readonly CreateDriveRequest CreateShardRecoveryDriveRequest = new()
+    {
+        Name = "Shard Recovery Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = ShardRecoveryDrive,
+        OwnerOnly = false
+    };
+
+    
     public static readonly CreateDriveRequest CreateMailDriveRequest = new()
     {
         Name = "Mail Drive",

@@ -6,28 +6,25 @@ using Odin.Services.ShamiraPasswordRecovery;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
-/// <summary>
-/// Security information for the current user
-/// </summary>
 [ApiController]
 [Route(OwnerApiPathConstants.ShamirRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class OwnerShamirRecoveryController(ShamiraRecoveryService recoveryService, ShamiraVerificationService verificationService)
+public class OwnerShamirRecoveryController(ShamirConfigurationService shamirConfigurationService)
     : OdinControllerBase
 {
-    [HttpPost("create")]
-    public async Task<IActionResult> CreateShards([FromBody] CreateShardRequest request)
+    [HttpPost("configure-shards")]
+    public async Task<IActionResult> ConfigureShards([FromBody] ConfigureShardsRequest request)
     {
-        await recoveryService.UpdateShards(request.Players,
+        await shamirConfigurationService.ConfigureShards(request.Players,
             request.TotalShards, request.MinMatchingShards, WebOdinContext);
 
         return Ok();
     }
 
-    [HttpPost("verify")]
-    public async Task<IActionResult> Verify()
+    [HttpPost("verify-remote-shards")]
+    public async Task<RemoteShardVerificationResult> Verify()
     {
-        var results = await verificationService.VerifyRemotePlayerShards(WebOdinContext);
-        return Ok(results);
+        var results = await shamirConfigurationService.VerifyRemotePlayerShards(WebOdinContext);
+        return results;
     }
 }

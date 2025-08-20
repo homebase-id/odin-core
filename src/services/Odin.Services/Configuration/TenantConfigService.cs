@@ -264,6 +264,7 @@ public class TenantConfigService
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
     {
         // Note - if the drive attributes was changed, they will be applied by this
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateShardRecoveryDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
@@ -274,7 +275,6 @@ public class TenantConfigService
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateWalletDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateTransientTempDriveRequest, odinContext);
-        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateShardRecoveryDriveRequest, odinContext);
     }
 
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)

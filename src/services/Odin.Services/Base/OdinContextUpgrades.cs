@@ -12,6 +12,13 @@ namespace Odin.Services.Base;
 
 public static class OdinContextUpgrades
 {
+    public static IOdinContext UpgradeToByPassAclCheck(IOdinContext odinContext)
+    {
+        var patchedContext = odinContext.Clone();
+        patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
+        return patchedContext;
+    }
+    
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
