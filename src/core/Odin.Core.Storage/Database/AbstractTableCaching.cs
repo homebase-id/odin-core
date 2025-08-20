@@ -151,11 +151,11 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected async ValueTask RemoveAllAsync()
+    public async ValueTask InvalidateAllAsync(CancellationToken cancellationToken = default)
     {
         await Cache.RemoveByTagAsync(
             _tags,
-            CancellationToken.None);
+            cancellationToken);
     }
 
     //
