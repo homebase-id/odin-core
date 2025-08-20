@@ -24,6 +24,12 @@ public class TableKeyValue(
         return await base.InsertAsync(item);
     }
 
+    public new async Task<bool> TryInsertAsync(KeyValueRecord item)
+    {
+        item.identityId = odinIdentity;
+        return await base.TryInsertAsync(item);
+    }
+
     public async Task<int> DeleteAsync(byte[] key)
     {
         return await base.DeleteAsync(odinIdentity, key);
