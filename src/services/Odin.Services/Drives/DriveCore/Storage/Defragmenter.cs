@@ -650,12 +650,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 {
                     var r = header.ToDriveMainIndexRecord(drive.TargetDriveInfo);
 
-                    // TODO Implement the internal DriveMainIndex.RawUpdateAsync() method
-
                     // We have to write the header r back to the DB
                     // This will also update the byteCount row, so we 
                     // don't need to call UpdateByteCountAsync() below
-
+                    await identityDatabase.DriveMainIndex.RawUpdateAsync(r);
                 }
                 else if (databaseRowByteCountAdjustment)
                 {
