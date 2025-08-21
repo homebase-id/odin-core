@@ -9,6 +9,8 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;
 
+#nullable enable
+
 public static class IdentityExtensions
 {
     public static ContainerBuilder AddSqliteIdentityDatabaseServices(this ContainerBuilder cb, Guid identityId, string databasePath)
@@ -84,6 +86,7 @@ public static class IdentityExtensions
         // Caches
         cb.RegisterType<TableAppGrantsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableAppNotificationsCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableCircleCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyValueCached>().InstancePerLifetimeScope();
 
         return cb;
