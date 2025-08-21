@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -16,15 +17,18 @@ public abstract class AbstractTableCaching
     private long _misses;
     public long Misses => _misses;
 
-    protected readonly ILevel1Cache Cache;
-    private readonly string[] _tags;
+    protected readonly ILevel2Cache Cache;
+
+    private readonly string _tagAllItems;
+    private readonly List<string> _tagsAllItems;
 
     //
 
-    protected AbstractTableCaching(ILevel1Cache cache)
+    protected AbstractTableCaching(ILevel2Cache cache)
     {
         Cache = cache;
-        _tags = [Cache.CacheKeyPrefix + ":" + GetType().Name];
+        _tagAllItems = Cache.CacheKeyPrefix + ":" + GetType().Name;
+        _tagsAllItems = [_tagAllItems];
     }
 
     //
@@ -36,10 +40,57 @@ public abstract class AbstractTableCaching
 
     //
 
+    private List<string> BuildTags(List<string> tags)
+    {
+        if (tags.Count == 0)
+        {
+            return tags;
+        }
+
+        var result = new List<string>(tags.Count);
+        foreach (var tag in tags)
+        {
+            result.Add(_tagAllItems + ":" + tag);
+        }
+        return result;
+    }
+
+    //
+
+    private List<string> CombineAllTags(List<string>? tags)
+    {
+        if (tags == null || tags.Count == 0)
+        {
+            return _tagsAllItems;
+        }
+
+        var result = new List<string>(_tagsAllItems.Count + tags.Count);
+        result.AddRange(_tagsAllItems);
+        result.AddRange(BuildTags(tags));
+        return result;
+    }
+
+    //
+
+    private List<string> CombineExplicitTags(List<string> tags)
+    {
+        if (tags == null || tags.Count == 0)
+        {
+            throw new OdinSystemException("Tags cannot be null or empty.");
+        }
+
+        var result = new List<string>(tags.Count);
+        result.AddRange(BuildTags(tags));
+        return result;
+    }
+
+    //
+
     protected virtual async ValueTask<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
+        List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         if (ttl <= TimeSpan.Zero)
@@ -56,7 +107,7 @@ public abstract class AbstractTableCaching
                 return factory(cancellationToken);
             },
             ttl,
-            _tags,
+            CombineAllTags(tags),
             cancellationToken);
 
         if (hit)
@@ -77,18 +128,10 @@ public abstract class AbstractTableCaching
         byte[] key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
+        List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        if (ttl <= TimeSpan.Zero)
-        {
-            throw new OdinSystemException("TTL must be positive.");            
-        }
-        
-        return await GetOrSetAsync(
-            key.ToHexString(),
-            factory,
-            ttl,
-            cancellationToken);
+        return await GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTags(tags), cancellationToken);
     }
 
     //
@@ -97,6 +140,7 @@ public abstract class AbstractTableCaching
         string key,
         TValue value,
         TimeSpan ttl,
+        List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         if (ttl <= TimeSpan.Zero)
@@ -108,7 +152,7 @@ public abstract class AbstractTableCaching
             BuildCacheKey(key),
             value,
             ttl,
-            _tags,
+            CombineAllTags(tags),
             cancellationToken);
     }
 
@@ -118,13 +162,10 @@ public abstract class AbstractTableCaching
         byte[] key,
         TValue value,
         TimeSpan ttl,
+        List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        await SetAsync(
-            key.ToHexString(),
-            value,
-            ttl,
-            cancellationToken);
+        await SetAsync(key.ToHexString(), value, ttl, CombineAllTags(tags), cancellationToken);
     }
 
     //
@@ -144,8 +185,18 @@ public abstract class AbstractTableCaching
         byte[] key,
         CancellationToken cancellationToken = default)
     {
-        await RemoveAsync(
-            key.ToHexString(),
+        await RemoveAsync(key.ToHexString(), cancellationToken);
+    }
+
+    //
+
+    protected virtual async ValueTask RemoveByTagAsync(
+        List<string> tags,
+        CancellationToken cancellationToken = default)
+    {
+
+        await Cache.RemoveByTagAsync(
+            CombineExplicitTags(tags),
             cancellationToken);
     }
 
@@ -154,7 +205,7 @@ public abstract class AbstractTableCaching
     public virtual async ValueTask InvalidateAllAsync(CancellationToken cancellationToken = default)
     {
         await Cache.RemoveByTagAsync(
-            _tags,
+            _tagsAllItems,
             cancellationToken);
     }
 

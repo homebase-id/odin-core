@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableAppGrantsCached(TableAppGrants table, ITenantLevel1Cache cache) : AbstractTableCaching(cache)
+public class TableAppGrantsCached(TableAppGrants table, ITenantLevel2Cache cache) : AbstractTableCaching(cache)
 {
     private const string CacheKeyAll = "all:all:all";
 

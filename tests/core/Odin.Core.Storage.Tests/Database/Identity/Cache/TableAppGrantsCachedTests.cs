@@ -139,6 +139,27 @@ public class TableAppGrantsCachedTests : IocTestBase
             Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(4));
         }
 
+        await tableAppGrantsCached.InsertAsync(
+            new AppGrantsRecord { appId = appId1, circleId = circleId1, data = data1, odinHashId = odinHashId1 },
+            TimeSpan.FromMilliseconds(100));
+
+        await tableAppGrantsCached.InvalidateAllAsync();
+
+        // Single record miss
+        {
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(100));
+            Assert.That(records.Count, Is.EqualTo(1));
+            Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(4));
+            Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(5));
+        }
+
+        // Single record miss
+        {
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId2, TimeSpan.FromMilliseconds(100));
+            Assert.That(records.Count, Is.EqualTo(1));
+            Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(4));
+            Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(6));
+        }
     }
 
 }
