@@ -68,7 +68,7 @@ public class ShamirConfigurationService(
 
         await using var tx = await db.BeginStackedTransactionAsync();
 
-        await SaveDealerEnvelop(package, odinContext);
+        await SaveDealerPackage(package, odinContext);
 
         var enqueueResults = await EnqueueShardsForDistribution(r.PlayerShards, odinContext);
         var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
@@ -90,7 +90,7 @@ public class ShamirConfigurationService(
     public async Task<RemoteShardVerificationResult> VerifyRemotePlayerShards(IOdinContext odinContext)
     {
         // get the preconfigured package
-        var package = await this.GetDealerEnvelop(odinContext);
+        var package = await this.GetDealerShardPackage(odinContext);
 
         if (package == null)
         {
@@ -153,7 +153,27 @@ public class ShamirConfigurationService(
         };
     }
 
-    private async Task<DealerShardPackage> GetDealerEnvelop(IOdinContext odinContext)
+    public async Task<DealerShardConfig> GetConfig(IOdinContext odinContext)
+    {
+        var package = await this.GetDealerShardPackage(odinContext);
+        
+        if (package == null)
+        {
+            return new DealerShardConfig();
+        }
+
+        return new DealerShardConfig()
+        {
+            Envelopes = package.Envelopes.Select(e => new DealerShardEnvelopeRedacted()
+            {
+                ShardId = e.ShardId,
+                Player = e.Player
+            }).ToList(),
+            Created = package.Created
+        };
+    }
+
+    private async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -182,6 +202,8 @@ public class ShamirConfigurationService(
         var json = bytes.ToStringFromUtf8Bytes();
 
         var package = OdinSystemSerializer.Deserialize<DealerShardPackage>(json);
+        package.Created = existingFile.FileMetadata.Created;
+        
         return package;
     }
 
@@ -238,7 +260,7 @@ public class ShamirConfigurationService(
         return Task.FromResult((dealerRecords, playerRecords));
     }
 
-    private async Task SaveDealerEnvelop(DealerShardPackage envelope, IOdinContext odinContext)
+    private async Task SaveDealerPackage(DealerShardPackage envelope, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var uid = Guid.Parse(DealerShardConfigUid);

@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
@@ -12,6 +13,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 public class OwnerShamirRecoveryController(ShamirConfigurationService shamirConfigurationService)
     : OdinControllerBase
 {
+    [HttpGet("config")]
+    public async Task<DealerShardConfig> GetConfig()
+    {
+        return await shamirConfigurationService.GetConfig(WebOdinContext);
+    }
+
     [HttpPost("configure-shards")]
     public async Task<IActionResult> ConfigureShards([FromBody] ConfigureShardsRequest request)
     {

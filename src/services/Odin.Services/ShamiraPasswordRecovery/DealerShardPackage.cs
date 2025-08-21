@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Odin.Core.Time;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
@@ -8,4 +9,5 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 public class DealerShardPackage
 {
     public List<DealerShardEnvelope> Envelopes { get; set; }
+    public UnixTimeUtc Created { get; set; }
 }
