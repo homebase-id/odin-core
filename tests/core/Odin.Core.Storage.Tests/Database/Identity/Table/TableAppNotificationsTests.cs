@@ -74,5 +74,35 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(results.Count == 1);
             ClassicAssert.IsTrue(cursor == null);
         }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task PagingProblem(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblAppNotificationsTable = scope.Resolve<TableAppNotifications>();
+
+            var nid = SequentialGuid.CreateGuid();
+            var nid2 = SequentialGuid.CreateGuid();
+            var d1 = Guid.NewGuid().ToByteArray();
+
+            var i = await tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord { notificationId = nid, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
+            ClassicAssert.IsTrue(i == 1);
+            i = await tblAppNotificationsTable.InsertAsync(new AppNotificationsRecord { notificationId = nid2, senderId = (OdinId)"frodo.com", unread = 1, data = d1 });
+            ClassicAssert.IsTrue(i == 1);
+
+            var (results, _) = await tblAppNotificationsTable.PagingByCreatedAsync(1, null);
+
+            Assert.That(results.Count, Is.EqualTo(1));
+            Assert.That(results[0].notificationId, Is.EqualTo(nid2)); // NO! THIS IS WRONG! IT SHOULD BE nid, NOT nid2
+            Assert.That(results[0].notificationId, Is.EqualTo(nid));
+        }
+
     }
+
+
 }
