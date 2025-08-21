@@ -29,14 +29,14 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected string GetCacheKey(string key)
+    private string BuildCacheKey(string key)
     {
         return GetType().FullName + ":" + key;
     }
 
     //
 
-    protected async ValueTask<TValue> GetOrSetAsync<TValue>(
+    protected virtual async ValueTask<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
@@ -49,7 +49,7 @@ public abstract class AbstractTableCaching
 
         var hit = true;
         var result = await Cache.GetOrSetAsync(
-            GetCacheKey(key),
+            BuildCacheKey(key),
             _ =>
             {
                 hit = false;
@@ -73,7 +73,7 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected async ValueTask<TValue> GetOrSetAsync<TValue>(
+    protected virtual async ValueTask<TValue> GetOrSetAsync<TValue>(
         byte[] key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
@@ -93,7 +93,7 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected async ValueTask SetAsync<TValue>(
+    protected virtual async ValueTask SetAsync<TValue>(
         string key,
         TValue value,
         TimeSpan ttl,
@@ -105,7 +105,7 @@ public abstract class AbstractTableCaching
         }
         
         await Cache.SetAsync(
-            GetCacheKey(key),
+            BuildCacheKey(key),
             value,
             ttl,
             _tags,
@@ -114,7 +114,7 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected async ValueTask SetAsync<TValue>(
+    protected virtual async ValueTask SetAsync<TValue>(
         byte[] key,
         TValue value,
         TimeSpan ttl,
@@ -129,18 +129,18 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected async ValueTask RemoveAsync(
+    protected virtual async ValueTask RemoveAsync(
         string key,
         CancellationToken cancellationToken = default)
     {
         await Cache.RemoveAsync(
-            GetCacheKey(key),
+            BuildCacheKey(key),
             cancellationToken);
     }
 
     //
 
-    protected async ValueTask RemoveAsync(
+    protected virtual async ValueTask RemoveAsync(
         byte[] key,
         CancellationToken cancellationToken = default)
     {
@@ -151,7 +151,7 @@ public abstract class AbstractTableCaching
 
     //
 
-    public async ValueTask InvalidateAllAsync(CancellationToken cancellationToken = default)
+    public virtual async ValueTask InvalidateAllAsync(CancellationToken cancellationToken = default)
     {
         await Cache.RemoveByTagAsync(
             _tags,

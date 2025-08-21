@@ -82,6 +82,7 @@ public static class IdentityExtensions
         cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
 
         // Caches
+        cb.RegisterType<TableAppGrantsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyValueCached>().InstancePerLifetimeScope();
 
         return cb;

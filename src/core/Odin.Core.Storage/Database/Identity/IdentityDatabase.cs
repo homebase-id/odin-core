@@ -38,7 +38,6 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
     //
     // Migration
     //
-
     public override async Task MigrateDatabaseAsync()
     {
         var migrator = _lifetimeScope.Resolve<IdentityMigrator>();
