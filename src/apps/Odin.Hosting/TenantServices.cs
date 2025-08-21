@@ -70,6 +70,7 @@ using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
+using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
 using Odin.Services.ShamiraPasswordRecovery;
 
 namespace Odin.Hosting;
@@ -310,6 +311,7 @@ public static class TenantServices
         cb.RegisterType<V3ToV4VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V4ToV5VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V5ToV6VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V6ToV7VersionMigrationService>().InstancePerLifetimeScope();
         
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();

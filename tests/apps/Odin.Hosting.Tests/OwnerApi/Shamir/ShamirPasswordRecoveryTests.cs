@@ -77,6 +77,47 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(results.Players.Count, Is.EqualTo(shardRequest.TotalShards), "mismatch number of shards in verified results");
             Assert.That(results.Players.All(p => p.Value == true), "one or more players not verified");
         }
+        
+        [Test]
+        public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
+        {
+            List<OdinId> connectedIdentities =
+            [
+                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId
+            ];
+
+            await PrepareConnections(connectedIdentities);
+
+            // add one who is not connected
+            List<OdinId> peerIdentities = connectedIdentities.Concat([TestIdentities.TomBombadil.OdinId]).ToList();
+            
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+            var shardRequest = new ConfigureShardsRequest
+            {
+                Players = peerIdentities.Select(d => new ShamiraPlayer()
+                {
+                    OdinId = d,
+                    Type = PlayerType.Delegate
+                }).ToList(),
+                TotalShards = connectedIdentities.Count,
+                MinMatchingShards = 2
+            };
+
+            var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
+            Assert.That(configureShardsResponse.IsSuccessful, Is.True);
+
+            await frodo.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+
+            var verifyShardsResponse = await frodo.Security.VerifyShards();
+            Assert.That(verifyShardsResponse.IsSuccessful, Is.False);
+
+            var results = verifyShardsResponse.Content;
+            Assert.That(results, Is.Not.Null);
+            Assert.That(results.Players, Is.Not.Null);
+            Assert.That(results.Players.Count, Is.EqualTo(shardRequest.TotalShards), "mismatch number of shards in verified results");
+            Assert.That(results.Players.All(p => p.Value == true), "one or more players not verified");
+        }
 
         private async Task PrepareConnections(List<OdinId> peers)
         {

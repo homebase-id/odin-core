@@ -48,7 +48,7 @@ public class ShamirConfigurationService(
     public async Task ConfigureShards(List<ShamiraPlayer> players, int totalShards, int minShards, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(players, nameof(players));
-        OdinValidationUtils.AssertIsTrue(totalShards > 3, "you need at least 3 total shards");
+        OdinValidationUtils.AssertIsTrue(totalShards >= 3, "you need at least 3 total shards");
         OdinValidationUtils.AssertIsTrue(players.Count == totalShards, "The total number of shards must be equal to the number of players");
         OdinValidationUtils.AssertIsTrue(totalShards >= minShards, "total shards must be greater than min shards");
         OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
