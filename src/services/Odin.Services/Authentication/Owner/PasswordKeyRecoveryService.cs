@@ -46,7 +46,7 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
         await SaveKeyAsync(keyBytes.ToSensitiveByteArray(), odinContext);
     }
 
-    public async Task<DecryptedRecoveryKey> GetKeyAsync(IOdinContext odinContext)
+    public async Task<DecryptedRecoveryKey> GetKeyAsync(bool byPassWaitingPeriod, IOdinContext odinContext)
     {
         var ctx = odinContext;
         ctx.Caller.AssertHasMasterKey();
@@ -56,15 +56,18 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
             throw new OdinSecurityException("Could not validate token creation date");
         }
 
-        var recoveryKeyWaitingPeriod = TimeSpan.FromDays(14);
+        if (!byPassWaitingPeriod)
+        {
+            var recoveryKeyWaitingPeriod = TimeSpan.FromDays(14);
 
 #if DEBUG
-        recoveryKeyWaitingPeriod = TimeSpan.FromSeconds(odinConfiguration.Development!.RecoveryKeyWaitingPeriodSeconds);
+            recoveryKeyWaitingPeriod = TimeSpan.FromSeconds(odinConfiguration.Development!.RecoveryKeyWaitingPeriodSeconds);
 #endif
 
-        if (UnixTimeUtc.Now() > ctx.AuthTokenCreated!.Value.AddMilliseconds((Int64)recoveryKeyWaitingPeriod.TotalMilliseconds))
-        {
-            throw new OdinSecurityException($"Cannot reveal token before {recoveryKeyWaitingPeriod.Days} days from creation");
+            if (UnixTimeUtc.Now() > ctx.AuthTokenCreated!.Value.AddMilliseconds((Int64)recoveryKeyWaitingPeriod.TotalMilliseconds))
+            {
+                throw new OdinSecurityException($"Cannot reveal token before {recoveryKeyWaitingPeriod.Days} days from creation");
+            }
         }
 
         var keyRecord = await GetKeyInternalAsync();
@@ -103,6 +106,4 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
 
         await Storage.UpsertAsync(tblKeyValue, RecordStorageId, record);
     }
-    
-    
 }

@@ -27,7 +27,6 @@ public class OwnerSecurityController : OdinControllerBase
         _recoveryService = recoveryService;
         _ss = ss;
         _ownerAuthenticationService = ownerAuthenticationService;
-        
     }
 
     /// <summary>
@@ -43,14 +42,12 @@ public class OwnerSecurityController : OdinControllerBase
     [HttpGet("recovery-key")]
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
-        
-        return await _recoveryService.GetKeyAsync(WebOdinContext);
+        return await _recoveryService.GetKeyAsync(byPassWaitingPeriod: false, WebOdinContext);
     }
 
     [HttpPost("resetpasswd")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        
         await _ss.ResetPasswordAsync(request, WebOdinContext);
         return new OkResult();
     }

@@ -59,7 +59,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                     OdinId = d,
                     Type = PlayerType.Delegate
                 }).ToList(),
-                TotalShards = peerIdentities.Count,
                 MinMatchingShards = 2
             };
 
@@ -74,8 +73,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             var results = verifyShardsResponse.Content;
             Assert.That(results, Is.Not.Null);
             Assert.That(results.Players, Is.Not.Null);
-            Assert.That(results.Players.Count, Is.EqualTo(shardRequest.TotalShards), "mismatch number of shards in verified results");
-            Assert.That(results.Players.All(p => p.Value == true), "one or more players not verified");
+            Assert.That(results.Players.Count, Is.EqualTo(shardRequest), "mismatch number of shards in verified results");
+            Assert.That(results.Players.All(p => p.Value.IsValid), "one or more players not verified");
         }
         
         [Test]
@@ -100,7 +99,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                     OdinId = d,
                     Type = PlayerType.Delegate
                 }).ToList(),
-                TotalShards = connectedIdentities.Count,
                 MinMatchingShards = 2
             };
 
@@ -115,8 +113,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             var results = verifyShardsResponse.Content;
             Assert.That(results, Is.Not.Null);
             Assert.That(results.Players, Is.Not.Null);
-            Assert.That(results.Players.Count, Is.EqualTo(shardRequest.TotalShards), "mismatch number of shards in verified results");
-            Assert.That(results.Players.All(p => p.Value == true), "one or more players not verified");
+            Assert.That(results.Players.All(p => p.Value.IsValid), "one or more players not verified");
         }
 
         private async Task PrepareConnections(List<OdinId> peers)

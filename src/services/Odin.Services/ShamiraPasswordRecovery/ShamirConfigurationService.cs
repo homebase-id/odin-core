@@ -45,24 +45,23 @@ public class ShamirConfigurationService(
     private const string ContextKey = "078e018e-e6b3-4349-b635-721b43d35241";
     private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
 
-    public async Task ConfigureShards(List<ShamiraPlayer> players, int totalShards, int minShards, IOdinContext odinContext)
+    public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(players, nameof(players));
-        OdinValidationUtils.AssertIsTrue(totalShards >= 3, "you need at least 3 total shards");
-        OdinValidationUtils.AssertIsTrue(players.Count == totalShards, "The total number of shards must be equal to the number of players");
-        OdinValidationUtils.AssertIsTrue(totalShards >= minShards, "total shards must be greater than min shards");
+        OdinValidationUtils.AssertIsTrue(players.Count >= 3, "You need at least 3 players");
+        OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
         OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
 
         var distributionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
         var r = await CreateShards(players,
-            totalShards,
             minShards,
             distributionKey,
             odinContext);
 
         var package = new DealerShardPackage
         {
+            MinMatchingShards = minShards,
             Envelopes = r.DealerEnvelops
         };
 
@@ -94,21 +93,14 @@ public class ShamirConfigurationService(
 
         if (package == null)
         {
-            return new RemoteShardVerificationResult();
+            throw new OdinClientException("Sharding not configured");
         }
 
-        var results = new Dictionary<string, bool>();
+        var results = new Dictionary<string, ShardVerificationResult>();
         foreach (var envelope in package.Envelopes)
         {
-            var (_, client) = await CreateClientAsync(envelope.Player.OdinId, FileSystemType.Standard, odinContext);
-            var response = await client.VerifyShard(new VerifyShardRequest()
-            {
-                ShardId = envelope.ShardId
-            });
-
-            //TODO: expand on this
-            var isValid = response.IsSuccessStatusCode && response.Content.IsValid;
-            results.Add(envelope.Player.OdinId, isValid);
+            var result = await VerifyRemotePlayer(envelope.Player.OdinId, envelope.ShardId, odinContext);
+            results.Add(envelope.Player.OdinId, result);
         }
 
         return new RemoteShardVerificationResult()
@@ -116,6 +108,26 @@ public class ShamirConfigurationService(
             Players = results
         };
     }
+
+    public async Task<ShardVerificationResult> VerifyRemotePlayer(OdinId player, Guid shardId, IOdinContext odinContext)
+    {
+        var (_, client) = await CreateClientAsync(player, FileSystemType.Standard, odinContext);
+        var response = await client.VerifyShard(new VerifyShardRequest()
+        {
+            ShardId = shardId
+        });
+
+        if (response.IsSuccessStatusCode)
+        {
+            return response.Content;
+        }
+
+        return new ShardVerificationResult()
+        {
+            IsValid = false
+        };
+    }
+
 
     /// <summary>
     /// Verifies the shard given to this identity from a dealer
@@ -146,7 +158,9 @@ public class ShamirConfigurationService(
         }
 
         //TODO: what else to verify?
-        var isValid = file.FileMetadata.SenderOdinId == dealer;
+        var isValid = file.FileMetadata.SenderOdinId == dealer &&
+                      !string.IsNullOrEmpty(file.FileMetadata.AppData.Content);
+
         return new ShardVerificationResult()
         {
             IsValid = isValid
@@ -156,14 +170,15 @@ public class ShamirConfigurationService(
     public async Task<DealerShardConfig> GetConfig(IOdinContext odinContext)
     {
         var package = await this.GetDealerShardPackage(odinContext);
-        
+
         if (package == null)
         {
-            return new DealerShardConfig();
+            return null;
         }
 
         return new DealerShardConfig()
         {
+            MinMatchingShards = package.MinMatchingShards,
             Envelopes = package.Envelopes.Select(e => new DealerShardEnvelopeRedacted()
             {
                 ShardId = e.ShardId,
@@ -203,7 +218,7 @@ public class ShamirConfigurationService(
 
         var package = OdinSystemSerializer.Deserialize<DealerShardPackage>(json);
         package.Created = existingFile.FileMetadata.Created;
-        
+
         return package;
     }
 
@@ -223,13 +238,12 @@ public class ShamirConfigurationService(
     /// </summary>
     private Task<(List<DealerShardEnvelope> DealerEnvelops, List<PlayerEncryptedShard> PlayerShards)> CreateShards(
         List<ShamiraPlayer> players,
-        int totalShards,
         int minShards,
         SensitiveByteArray secret,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var shards = ShamirSecretSharing.GenerateShamirShares(totalShards, minShards, secret.GetKey());
+        var shards = ShamirSecretSharing.GenerateShamirShares(players.Count, minShards, secret.GetKey());
 
         OdinValidationUtils.AssertIsTrue(players.TrueForAll(p => p.Type == PlayerType.Delegate), "Only Delegate player type is supported");
         OdinValidationUtils.AssertIsTrue(shards.Count == players.Count, "Player and shard count do not match");
@@ -418,7 +432,7 @@ public class ShamirConfigurationService(
         odinContext.Caller.AssertHasMasterKey();
 
         // encrypt the recover key w/ distribution key
-        var k = await passwordKeyRecoveryService.GetKeyAsync(odinContext);
+        var k = await passwordKeyRecoveryService.GetKeyAsync(byPassWaitingPeriod: true, odinContext);
         var recoveryKey = BIP39Util.DecodeBIP39(k.Key);
 
         var masterKey = odinContext.Caller.GetMasterKey();

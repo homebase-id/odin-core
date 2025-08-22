@@ -8,6 +8,7 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 /// </summary>
 public class DealerShardPackage
 {
-    public List<DealerShardEnvelope> Envelopes { get; set; }
+    public int MinMatchingShards { get; init; }
+    public List<DealerShardEnvelope> Envelopes { get; init; }
     public UnixTimeUtc Created { get; set; }
 }
