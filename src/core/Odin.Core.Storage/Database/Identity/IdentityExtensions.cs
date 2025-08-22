@@ -87,6 +87,7 @@ public static class IdentityExtensions
         cb.RegisterType<TableAppGrantsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableAppNotificationsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableCircleCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableCircleMemberCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyValueCached>().InstancePerLifetimeScope();
 
         return cb;
