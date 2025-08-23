@@ -86,7 +86,6 @@ public class TableFollowsMeCachedTests : IocTestBase
         }
 
         List<string> followers;
-        string cursor;
         {
             (followers, _) = await tableFollowsMeCached.GetAllFollowersAsync(100, null, TimeSpan.FromMilliseconds(100));
             Assert.That(followers.Count, Is.EqualTo(5));
