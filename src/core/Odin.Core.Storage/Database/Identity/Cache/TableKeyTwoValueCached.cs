@@ -19,14 +19,14 @@ public class TableKeyTwoValueCached(TableKeyTwoValue table, ITenantLevel2Cache c
 
     private static string GetCacheKey1(byte[] key1)
     {
-        return "key1" + ":" + key1.ToHexString();
+        return "key1:" + key1.ToHexString();
     }
 
     //
 
     private static string GetCacheKey2(byte[] key2)
     {
-        return "key2" + ":" + key2.ToHexString();
+        return "key2:" + key2.ToHexString();
     }
 
     //

@@ -19,21 +19,28 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, ITenantLevel2Cac
 
     private static string GetCacheKey1(byte[] key1)
     {
-        return "key1" + ":" + key1.ToHexString();
+        return "key1:" + key1.ToHexString();
     }
 
     //
 
     private static string GetCacheKey2(byte[] key2)
     {
-        return "key2" + ":" + key2.ToHexString();
+        return "key2:" + key2.ToHexString();
     }
 
     //
 
     private static string GetCacheKey3(byte[] key3)
     {
-        return "key3" + ":" + key3.ToHexString();
+        return "key3:" + key3.ToHexString();
+    }
+
+    //
+
+    private static string GetCacheKey23(byte[] key2, byte[] key3)
+    {
+        return "key2:" + key2.ToHexString() + ":key3:" + key3.ToHexString();
     }
 
     //
@@ -57,6 +64,14 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, ITenantLevel2Cac
     public async Task<List<byte[]>> GetByKeyThreeAsync(byte[] key3, TimeSpan ttl)
     {
         var result = await GetOrSetAsync(GetCacheKey3(key3), _ => table.GetByKeyThreeAsync(key3), ttl);
+        return result;
+    }
+
+    //
+
+    public async Task<List<KeyThreeValueRecord>> GetByKeyTwoThreeAsync(byte[] key2, byte[] key3, TimeSpan ttl)
+    {
+        var result = await GetOrSetAsync(GetCacheKey23(key2, key3), _ => table.GetByKeyTwoThreeAsync(key2, key3), ttl);
         return result;
     }
 
