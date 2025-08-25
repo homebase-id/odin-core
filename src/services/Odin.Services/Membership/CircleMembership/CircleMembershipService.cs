@@ -57,7 +57,7 @@ public class CircleMembershipService(
         }
 
         logger.LogInformation("Migrating App Grants");
-        var allAppGrants = await db.AppGrants.GetAllAsync();
+        var allAppGrants = await db.AppGrantsCached.GetAllAsync(TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
         foreach (var appGrant in allAppGrants)
         {
             var storageData = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
@@ -72,7 +72,7 @@ public class CircleMembershipService(
             storageData.KeyStoreKeyEncryptedDriveGrants= updatedAppGrantDriveIdList.ToList();
             appGrant.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
 
-            await db.AppGrants.UpsertAsync(appGrant);
+            await db.AppGrantsCached.UpsertAsync(appGrant, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
         }
 
         tx.Commit();

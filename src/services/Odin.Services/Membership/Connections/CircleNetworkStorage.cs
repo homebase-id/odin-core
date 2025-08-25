@@ -77,20 +77,20 @@ public class CircleNetworkStorage
         }
 
         // remove all app grants,
-        await _db.AppGrants.DeleteByIdentityAsync(odinHashId);
+        await _db.AppGrantsCached.DeleteByIdentityAsync(odinHashId);
 
         // Now write the latest
         foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
         {
             foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
             {
-                await _db.AppGrants.UpsertAsync(new AppGrantsRecord()
+                await _db.AppGrantsCached.UpsertAsync(new AppGrantsRecord()
                 {
                     odinHashId = odinHashId,
                     appId = appId,
                     circleId = circleId,
                     data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
-                });
+                }, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             }
         }
 
@@ -139,7 +139,7 @@ public class CircleNetworkStorage
         await using var tx = await _db.BeginStackedTransactionAsync();
 
         await _db.Connections.DeleteAsync(odinId);
-        await _db.AppGrants.DeleteByIdentityAsync(odinId.ToHashId());
+        await _db.AppGrantsCached.DeleteByIdentityAsync(odinId.ToHashId());
         await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
 
         tx.Commit();
@@ -216,7 +216,7 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = await _db.AppGrants.GetByOdinHashIdAsync(odinHashId) ?? new List<AppGrantsRecord>();
+        var allAppGrants = await _db.AppGrantsCached.GetByOdinHashIdAsync(odinHashId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         foreach (var appGrantRecord in allAppGrants)
         {
