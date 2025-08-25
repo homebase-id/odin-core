@@ -59,9 +59,9 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
         if (!byPassWaitingPeriod)
         {
             var recoveryKeyWaitingPeriod = TimeSpan.FromDays(14);
-
+            var recoveryKeyWaitingPeriodSeconds = odinConfiguration.Development!.RecoveryKeyWaitingPeriodSeconds;
 #if DEBUG
-            recoveryKeyWaitingPeriod = TimeSpan.FromSeconds(odinConfiguration.Development!.RecoveryKeyWaitingPeriodSeconds);
+            recoveryKeyWaitingPeriod = TimeSpan.FromSeconds(recoveryKeyWaitingPeriodSeconds);
 #endif
 
             if (UnixTimeUtc.Now() > ctx.AuthTokenCreated!.Value.AddMilliseconds((Int64)recoveryKeyWaitingPeriod.TotalMilliseconds))
