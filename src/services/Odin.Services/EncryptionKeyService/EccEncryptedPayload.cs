@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Odin.Core;
 
 namespace Odin.Services.EncryptionKeyService;
@@ -20,8 +21,16 @@ public class EccEncryptedPayload
     /// <summary>
     /// Remote public key used to generate the shared secret for encrypting the EncryptedData
     /// </summary>
+    [JsonPropertyName("RemotePublicKeyJwk")]
     public string RemotePublicKeyJwk { get; set; }
-
+    
+    // Old name alias: maps "publickey" -> RemotePublicKeyJwk on deserialization
+    [JsonPropertyName("publickey")]
+    public string LegacyPublicKey
+    {
+        set => RemotePublicKeyJwk = value;
+    }
+    
     /// <summary>
     /// Salt used for generating the shared secret for encrypted the EncryptedData
     /// </summary>

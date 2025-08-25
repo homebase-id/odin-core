@@ -81,7 +81,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultOptions.Duplicate(duration);
 
         return cache.GetOrSet(
             AddPrefix(key),
@@ -100,7 +100,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultOptions.Duplicate(duration);
 
         return cache.GetOrSetAsync(
             AddPrefix(key),
@@ -119,7 +119,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultOptions.Duplicate(duration);
 
         return cache.GetOrSet<TValue>(
             AddPrefix(key),
@@ -138,7 +138,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultOptions.Duplicate(duration);
 
         return cache.GetOrSetAsync<TValue>(
             AddPrefix(key),
