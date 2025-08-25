@@ -12,10 +12,10 @@ namespace Odin.Core.Storage.Database;
 public abstract class AbstractTableCaching
 {
     private long _hits;
-    public long Hits => _hits;
+    public long Hits => Interlocked.Read(ref _hits);
 
     private long _misses;
-    public long Misses => _misses;
+    public long Misses => Interlocked.Read(ref _misses);
 
     protected readonly ILevel2Cache Cache;
 
