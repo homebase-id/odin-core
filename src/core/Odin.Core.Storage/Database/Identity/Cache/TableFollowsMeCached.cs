@@ -3,13 +3,17 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableFollowsMeCached(TableFollowsMe table, ITenantLevel2Cache cache) : AbstractTableCaching(cache)
+public class TableFollowsMeCached(
+    TableFollowsMe table,
+    ITenantLevel2Cache cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
 {
     // SEB:NOTE some advanced queries are used in this table, so instead of trying to remove specific keys,
     // we use InvalidateAllAsync() to clear the cache whenever data changes are made

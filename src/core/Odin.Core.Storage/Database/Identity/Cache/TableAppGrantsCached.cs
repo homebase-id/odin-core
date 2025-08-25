@@ -2,13 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableAppGrantsCached(TableAppGrants table, ITenantLevel2Cache cache) : AbstractTableCaching(cache)
+public class TableAppGrantsCached(
+    TableAppGrants table,
+    ITenantLevel2Cache cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
 {
     private const string CacheKeyAll = "all:all:all";
 

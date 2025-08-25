@@ -3,13 +3,17 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableConnectionsCached(TableConnections table, ITenantLevel2Cache cache) : AbstractTableCaching(cache)
+public class TableConnectionsCached(
+    TableConnections table,
+    ITenantLevel2Cache cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
 {
     private static readonly List<string> PagingByTags = ["PagingBy"];
 

@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database;
 
@@ -17,6 +18,7 @@ public abstract class AbstractTableCaching
     private long _misses;
     public long Misses => Interlocked.Read(ref _misses);
 
+    private readonly IScopedConnectionFactory _scopedConnectionFactory;
     protected readonly ILevel2Cache Cache;
 
     private readonly string _tagAllItems;
@@ -24,9 +26,10 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected AbstractTableCaching(ILevel2Cache cache)
+    protected AbstractTableCaching(ILevel2Cache cache, IScopedConnectionFactory scopedConnectionFactory)
     {
         Cache = cache;
+        _scopedConnectionFactory = scopedConnectionFactory;
         _tagAllItems = Cache.CacheKeyPrefix + ":" + GetType().Name;
         _tagsAllItems = [_tagAllItems];
     }
@@ -86,6 +89,10 @@ public abstract class AbstractTableCaching
 
     //
 
+    protected virtual bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
+
+    //
+
     protected virtual async ValueTask<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
@@ -96,6 +103,12 @@ public abstract class AbstractTableCaching
         if (ttl <= TimeSpan.Zero)
         {
             throw new OdinSystemException("TTL must be positive.");            
+        }
+
+        // No cache updates if connection is in a transaction
+        if (InDatabaseTransaction)
+        {
+            return await factory(cancellationToken);
         }
 
         var hit = true;
@@ -148,6 +161,12 @@ public abstract class AbstractTableCaching
             throw new OdinSystemException("TTL must be positive.");            
         }
         
+        // No cache update if connection is in a transaction
+        if (InDatabaseTransaction)
+        {
+            return;
+        }
+
         await Cache.SetAsync(
             BuildCacheKey(key),
             value,
@@ -174,6 +193,7 @@ public abstract class AbstractTableCaching
         string key,
         CancellationToken cancellationToken = default)
     {
+        // It's OK to remove cache entries while in a transaction
         await Cache.RemoveAsync(
             BuildCacheKey(key),
             cancellationToken);
@@ -194,7 +214,7 @@ public abstract class AbstractTableCaching
         List<string> tags,
         CancellationToken cancellationToken = default)
     {
-
+        // It's OK to remove cache entries while in a transaction
         await Cache.RemoveByTagAsync(
             CombineExplicitTags(tags),
             cancellationToken);
@@ -204,6 +224,7 @@ public abstract class AbstractTableCaching
 
     public virtual async ValueTask InvalidateAllAsync(CancellationToken cancellationToken = default)
     {
+        // It's OK to remove cache entries while in a transaction
         await Cache.RemoveByTagAsync(
             _tagsAllItems,
             cancellationToken);

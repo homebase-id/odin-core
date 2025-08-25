@@ -2,13 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableKeyTwoValueCached(TableKeyTwoValue table, ITenantLevel2Cache cache) : AbstractTableCaching(cache)
+public class TableKeyTwoValueCached(
+    TableKeyTwoValue table,
+    ITenantLevel2Cache cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
 {
     private static string GetCacheKey(KeyTwoValueRecord item)
     {
