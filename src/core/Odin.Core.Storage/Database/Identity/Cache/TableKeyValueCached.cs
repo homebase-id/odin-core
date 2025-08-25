@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
@@ -74,6 +75,15 @@ public class TableKeyValueCached(TableKeyValue table, ITenantLevel2Cache cache) 
     {
         var result = await table.DeleteAsync(key);
         await RemoveAsync(GetCacheKey(key));
+        return result;
+    }
+
+    //
+
+    public async Task<int> UpsertManyAsync(List<KeyValueRecord> items)
+    {
+        var result = await table.UpsertManyAsync(items);
+        await InvalidateAllAsync();
         return result;
     }
 

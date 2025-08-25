@@ -81,8 +81,8 @@ public class TenantConfigService
             LastUpgraded = UnixTimeUtc.Now().milliseconds
         };
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, TenantVersionInfo.Key, newVersion);
-        await ConfigStorage.DeleteAsync(_identityDatabase.KeyValue, FailedUpgradeVersionInfo.Key);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
+        await ConfigStorage.DeleteAsync(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
 
         return newVersion;
     }
@@ -92,7 +92,7 @@ public class TenantConfigService
     /// </summary>
     public async Task<TenantVersionInfo> IncrementVersionAsync()
     {
-        var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key) ?? new TenantVersionInfo()
+        var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValueCached, TenantVersionInfo.Key) ?? new TenantVersionInfo()
         {
             DataVersionNumber = 0,
             LastUpgraded = 0
@@ -104,7 +104,7 @@ public class TenantConfigService
             LastUpgraded = UnixTimeUtc.Now().milliseconds
         };
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, TenantVersionInfo.Key, newVersion);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
 
         return newVersion;
     }
@@ -121,18 +121,18 @@ public class TenantConfigService
             LastAttempted = UnixTimeUtc.Now().milliseconds
         };
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, FailedUpgradeVersionInfo.Key, info);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key, info);
     }
 
     public async Task<FailedUpgradeVersionInfo> GetVersionFailureInfoAsync()
     {
-        return await ConfigStorage.GetAsync<FailedUpgradeVersionInfo>(_identityDatabase.KeyValue, FailedUpgradeVersionInfo.Key);
+        return await ConfigStorage.GetAsync<FailedUpgradeVersionInfo>(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
     }
 
     public async Task<TenantVersionInfo> GetVersionInfoAsync()
     {
 
-        var info = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValue, TenantVersionInfo.Key);
+        var info = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValueCached, TenantVersionInfo.Key);
         return info ?? new TenantVersionInfo
         {
             DataVersionNumber = 0,
@@ -143,7 +143,7 @@ public class TenantConfigService
     public async Task<bool> IsIdentityServerConfiguredAsync()
     {
         //ok for anonymous to query this as long as we're only returning a bool
-        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValue, FirstRunInfo.Key);
+        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValueCached, FirstRunInfo.Key);
         return firstRunInfo != null;
     }
 
@@ -153,7 +153,7 @@ public class TenantConfigService
 
         odinContext.Caller.AssertHasMasterKey();
 
-        var info = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey);
+        var info = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey);
         if (info == null || !info.Any())
         {
             return true;
@@ -178,7 +178,7 @@ public class TenantConfigService
 
         odinContext.Caller.AssertHasMasterKey();
 
-        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
 
         return signatures;
     }
@@ -197,7 +197,7 @@ public class TenantConfigService
             throw new OdinClientException("Invalid Eula version");
         }
 
-        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValue, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
 
         signatures.Add(new EulaSignature()
         {
@@ -206,7 +206,7 @@ public class TenantConfigService
             SignatureBytes = request.SignatureBytes
         });
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, Eula.EulaSystemInfo.StorageKey, signatures);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, Eula.EulaSystemInfo.StorageKey, signatures);
     }
 
     public async Task CreateInitialKeysAsync(IOdinContext odinContext)
@@ -256,7 +256,7 @@ public class TenantConfigService
             (FirstRunInfo.Key, new FirstRunInfo() { FirstRunDate = UnixTimeUtc.Now().milliseconds })
         };
 
-        await ConfigStorage.UpsertManyAsync(_identityDatabase.KeyValue, keyValuePairs);
+        await ConfigStorage.UpsertManyAsync(_identityDatabase.KeyValueCached, keyValuePairs);
 
         tx.Commit();
     }
@@ -287,7 +287,7 @@ public class TenantConfigService
             throw new OdinClientException("Invalid flag name", OdinClientErrorCode.InvalidFlagName);
         }
 
-        var cfg = await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValue, TenantSettings.ConfigKey) ?? new TenantSettings();
+        var cfg = await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ?? new TenantSettings();
 
         switch (flag)
         {
@@ -344,7 +344,7 @@ public class TenantConfigService
                     OdinClientErrorCode.UnknownFlagName);
         }
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, TenantSettings.ConfigKey, cfg);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, TenantSettings.ConfigKey, cfg);
 
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
@@ -354,7 +354,7 @@ public class TenantConfigService
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {
 
-        return await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValue, TenantSettings.ConfigKey) ?? TenantSettings.Default;
+        return await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
     public async Task<OwnerAppSettings> GetOwnerAppSettingsAsync(IOdinContext odinContext)
@@ -362,14 +362,14 @@ public class TenantConfigService
 
 
         odinContext.Caller.AssertHasMasterKey();
-        return await ConfigStorage.GetAsync<OwnerAppSettings>(_identityDatabase.KeyValue, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
+        return await ConfigStorage.GetAsync<OwnerAppSettings>(_identityDatabase.KeyValueCached, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
     }
 
     public async Task UpdateOwnerAppSettingsAsync(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
 
         odinContext.Caller.AssertHasMasterKey();
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValue, OwnerAppSettings.ConfigKey, newSettings);
+        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, OwnerAppSettings.ConfigKey, newSettings);
     }
 
     //

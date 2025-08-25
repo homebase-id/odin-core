@@ -169,7 +169,7 @@ public class CircleNetworkStorage
     /// <exception cref="OdinClientException"></exception>
     public async Task CreateIcrKeyAsync(SensitiveByteArray masterKey)
     {
-        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
+        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValueCached, _icrKeyStorageId);
         if (null != existingKey)
         {
             throw new OdinClientException("IcrKey already exists");
@@ -183,24 +183,24 @@ public class CircleNetworkStorage
             Created = UnixTimeUtc.Now()
         };
 
-        await _icrKeyStorage.UpsertAsync(_db.KeyValue, _icrKeyStorageId, record);
+        await _icrKeyStorage.UpsertAsync(_db.KeyValueCached, _icrKeyStorageId, record);
     }
 
     public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()
     {
-        var key = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
+        var key = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValueCached, _icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }
 
 
     public async Task SavePeerIcrClientAsync(PeerIcrClient client)
     {
-        await _peerIcrClientStorage.UpsertAsync(_db.KeyValue, client.AccessRegistration.Id, client);
+        await _peerIcrClientStorage.UpsertAsync(_db.KeyValueCached, client.AccessRegistration.Id, client);
     }
 
     public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
-        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_db.KeyValue, accessRegId);
+        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_db.KeyValueCached, accessRegId);
     }
     
     private async Task<IdentityConnectionRegistration> MapFromStorageAsync(ConnectionsRecord record)
