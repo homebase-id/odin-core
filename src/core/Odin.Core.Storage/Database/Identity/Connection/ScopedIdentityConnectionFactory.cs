@@ -10,8 +10,7 @@ public class ScopedIdentityConnectionFactory(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedIdentityConnectionFactory> logger,
     IIdentityDbConnectionFactory connectionFactory,
-    CacheHelper cache,
     DatabaseCounters counters)
-    : ScopedConnectionFactory<IIdentityDbConnectionFactory>(lifetimeScope, logger, connectionFactory, cache, counters)
+    : ScopedConnectionFactory<IIdentityDbConnectionFactory>(lifetimeScope, logger, connectionFactory, counters)
 {
 }

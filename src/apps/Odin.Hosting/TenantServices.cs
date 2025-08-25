@@ -354,7 +354,6 @@ public static class TenantServices
         IdentityRegistration registration,
         OdinConfiguration config)
     {
-        cb.AddDatabaseCacheServices();
         switch (config.Database.Type)
         {
             case DatabaseType.Sqlite:

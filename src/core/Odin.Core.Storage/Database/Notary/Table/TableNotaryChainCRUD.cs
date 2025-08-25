@@ -60,13 +60,11 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
     public abstract class TableNotaryChainCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedNotaryConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "NotaryChain";
 
-        public TableNotaryChainCRUD(CacheHelper cache, ScopedNotaryConnectionFactory scopedConnectionFactory)
+        public TableNotaryChainCRUD(ScopedNotaryConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -155,7 +153,6 @@ namespace Odin.Core.Storage.Database.Notary.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -216,7 +213,6 @@ namespace Odin.Core.Storage.Database.Notary.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                     return true;
                 }
                 return false;
@@ -278,7 +274,6 @@ namespace Odin.Core.Storage.Database.Notary.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -339,7 +334,6 @@ namespace Odin.Core.Storage.Database.Notary.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableNotaryChainCRUD", item.notarySignature.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -422,8 +416,6 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
                 delete0Param1.Value = notarySignature;
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableNotaryChainCRUD", notarySignature.ToBase64());
                 return count;
             }
         }
@@ -493,9 +485,6 @@ namespace Odin.Core.Storage.Database.Notary.Table
             if (notarySignature == null) throw new OdinDatabaseValidationException("Cannot be null notarySignature");
             if (notarySignature?.Length < 16) throw new OdinDatabaseValidationException($"Too short notarySignature, was {notarySignature.Length} (min 16)");
             if (notarySignature?.Length > 200) throw new OdinDatabaseValidationException($"Too long notarySignature, was {notarySignature.Length} (max 200)");
-            var (hit, cacheObject) = _cache.Get("TableNotaryChainCRUD", notarySignature.ToBase64());
-            if (hit)
-                return (NotaryChainRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -513,11 +502,9 @@ namespace Odin.Core.Storage.Database.Notary.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToBase64(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,notarySignature);
-                        _cache.AddOrUpdate("TableNotaryChainCRUD", notarySignature.ToBase64(), r);
                         return r;
                     } // using
                 } //

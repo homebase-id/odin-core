@@ -40,13 +40,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableCircleMemberCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "CircleMember";
 
-        protected TableCircleMemberCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableCircleMemberCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -112,7 +110,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -153,7 +150,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
                     return true;
                 }
                 return false;
@@ -195,7 +191,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -236,7 +231,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableCircleMemberCRUD", item.identityId.ToString()+item.circleId.ToString()+item.memberId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -312,8 +306,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param2.Value = circleId.ToByteArray();
                 delete0Param3.Value = memberId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString());
                 return count;
             }
         }
@@ -376,9 +368,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<CircleMemberRecord> GetAsync(Guid identityId,Guid circleId,Guid memberId)
         {
-            var (hit, cacheObject) = _cache.Get("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString());
-            if (hit)
-                return (CircleMemberRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -406,11 +395,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,circleId,memberId);
-                        _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString()+memberId.ToString(), r);
                         return r;
                     } // using
                 } //
@@ -454,7 +441,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString(), null);
                             return new List<CircleMemberRecord>();
                         }
                         var result = new List<CircleMemberRecord>();
@@ -512,7 +498,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+circleId.ToString(), null);
                             return new List<CircleMemberRecord>();
                         }
                         var result = new List<CircleMemberRecord>();
@@ -570,7 +555,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableCircleMemberCRUD", identityId.ToString()+memberId.ToString(), null);
                             return new List<CircleMemberRecord>();
                         }
                         var result = new List<CircleMemberRecord>();

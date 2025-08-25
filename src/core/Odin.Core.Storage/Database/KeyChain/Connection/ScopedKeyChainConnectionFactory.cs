@@ -10,8 +10,7 @@ public class ScopedKeyChainConnectionFactory(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedKeyChainConnectionFactory> logger,
     IKeyChainDbConnectionFactory connectionFactory,
-    CacheHelper cache,
     DatabaseCounters counters)
-    : ScopedConnectionFactory<IKeyChainDbConnectionFactory>(lifetimeScope, logger, connectionFactory, cache, counters)
+    : ScopedConnectionFactory<IKeyChainDbConnectionFactory>(lifetimeScope, logger, connectionFactory, counters)
 {
 }

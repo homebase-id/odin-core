@@ -5,18 +5,16 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableOutbox(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity,
     ICorrelationContext correlationContext)
-    : TableOutboxCRUD(cache, scopedConnectionFactory)
+    : TableOutboxCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

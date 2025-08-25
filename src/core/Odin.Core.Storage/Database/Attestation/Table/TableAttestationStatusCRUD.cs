@@ -38,13 +38,11 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
     public abstract class TableAttestationStatusCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedAttestationConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "AttestationStatus";
 
-        public TableAttestationStatusCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
+        public TableAttestationStatusCRUD(ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -104,7 +102,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -140,7 +137,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return true;
                 }
                 return false;
@@ -177,7 +173,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -213,7 +208,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAttestationStatusCRUD", item.attestationId.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -282,8 +276,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
                 delete0Param1.Value = attestationId;
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableAttestationStatusCRUD", attestationId.ToBase64());
                 return count;
             }
         }
@@ -343,9 +335,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
             if (attestationId?.Length < 16) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 16)");
             if (attestationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 64)");
-            var (hit, cacheObject) = _cache.Get("TableAttestationStatusCRUD", attestationId.ToBase64());
-            if (hit)
-                return (AttestationStatusRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -363,11 +352,9 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,attestationId);
-                        _cache.AddOrUpdate("TableAttestationStatusCRUD", attestationId.ToBase64(), r);
                         return r;
                     } // using
                 } //

@@ -3,10 +3,13 @@ using Autofac;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;
+
+#nullable enable
 
 public static class IdentityExtensions
 {
@@ -79,6 +82,19 @@ public static class IdentityExtensions
 
         // Abstractions
         cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
+
+        // Caches
+        cb.RegisterType<TableAppGrantsCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableAppNotificationsCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableCircleCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableCircleMemberCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableConnectionsCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableFollowsMeCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableImFollowingCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableKeyThreeValueCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableKeyTwoValueCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableKeyValueCached>().InstancePerLifetimeScope();
+
         return cb;
     }
     

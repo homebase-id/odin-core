@@ -38,7 +38,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        await db.AppNotifications.InsertAsync(record);
+        await db.AppNotificationsCached.InsertAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -59,7 +59,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var (results, cursor) = await db.AppNotifications.PagingByCreatedAsync(request.Count, request.Cursor);
+        var (results, cursor) = await db.AppNotificationsCached.PagingByCreatedAsync(request.Count, request.Cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         var list = results.Select(r => new AppNotification()
         {
@@ -99,7 +99,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var (results, _) = await db.AppNotifications.PagingByCreatedAsync(int.MaxValue, null);
+        var (results, _) = await db.AppNotificationsCached.PagingByCreatedAsync(int.MaxValue, null, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         var list = results.Select(r => new AppNotification()
         {
@@ -124,7 +124,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         foreach (var id in request.IdList)
         {
-            await db.AppNotifications.DeleteAsync(id);
+            await db.AppNotificationsCached.DeleteAsync(id);
         }
 
         trx.Commit();
@@ -138,11 +138,11 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         foreach (var update in request.Updates)
         {
-            var record = await db.AppNotifications.GetAsync(update.Id);
+            var record = await db.AppNotificationsCached.GetAsync(update.Id, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                await db.AppNotifications.UpdateAsync(record);
+                await db.AppNotificationsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             }
         }
 

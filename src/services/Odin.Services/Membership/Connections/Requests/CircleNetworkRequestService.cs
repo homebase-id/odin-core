@@ -15,7 +15,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -52,7 +52,7 @@ namespace Odin.Services.Membership.Connections.Requests
         FileSystemResolver fileSystemResolver,
         CircleNetworkVerificationService verificationService,
         OdinConfiguration odinConfiguration,
-        TableKeyThreeValue tblKeyThreeValue,
+        TableKeyThreeValueCached tblKeyThreeValue,
         ITenantLevel2Cache<CircleNetworkRequestService> cache)
         : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {

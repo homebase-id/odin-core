@@ -40,13 +40,11 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
     public abstract class TableAttestationRequestCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedAttestationConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "AttestationRequest";
 
-        public TableAttestationRequestCRUD(CacheHelper cache, ScopedAttestationConnectionFactory scopedConnectionFactory)
+        public TableAttestationRequestCRUD(ScopedAttestationConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -105,7 +103,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                     return 1;
                 }
                 return 0;
@@ -141,7 +138,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                     return true;
                 }
                 return false;
@@ -178,7 +174,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                     return 1;
                 }
                 return 0;
@@ -214,7 +209,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAttestationRequestCRUD", item.attestationId, item);
                     return 1;
                 }
                 return 0;
@@ -279,8 +273,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
                 delete0Param1.Value = attestationId;
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableAttestationRequestCRUD", attestationId);
                 return count;
             }
         }
@@ -339,9 +331,6 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             if (attestationId == null) throw new OdinDatabaseValidationException("Cannot be null attestationId");
             if (attestationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short attestationId, was {attestationId.Length} (min 0)");
             if (attestationId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long attestationId, was {attestationId.Length} (max 65535)");
-            var (hit, cacheObject) = _cache.Get("TableAttestationRequestCRUD", attestationId);
-            if (hit)
-                return (AttestationRequestRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -359,11 +348,9 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableAttestationRequestCRUD", attestationId, null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,attestationId);
-                        _cache.AddOrUpdate("TableAttestationRequestCRUD", attestationId, r);
                         return r;
                     } // using
                 } //

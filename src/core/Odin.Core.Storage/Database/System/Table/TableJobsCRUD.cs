@@ -69,7 +69,7 @@ namespace Odin.Core.Storage.Database.System.Table
         private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "Jobs";
 
-        public TableJobsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        public TableJobsCRUD(ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

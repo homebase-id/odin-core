@@ -139,7 +139,6 @@ public class JobManagerTests
         jobTypeRegistry.RegisterJobType<ChainedJobTest>(builder, ChainedJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<ScopedJobTest>(builder, ScopedJobTest.JobTypeId);
 
-        builder.AddDatabaseCacheServices();
         builder.AddDatabaseCounterServices();
         switch (databaseType)
         {

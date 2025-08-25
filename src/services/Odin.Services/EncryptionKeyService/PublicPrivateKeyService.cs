@@ -8,7 +8,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
@@ -38,7 +38,7 @@ namespace Odin.Services.EncryptionKeyService
         private readonly IcrKeyService _icrKeyService;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly ILogger<PublicPrivateKeyService> _logger;
-        private readonly TableKeyValue _tblKeyValue;
+        private readonly TableKeyValueCached _tblKeyValue;
 
         private static readonly SemaphoreSlim EccRecipientOnlinePublicKeyCacheLock = new(1, 1);
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
@@ -50,7 +50,7 @@ namespace Odin.Services.EncryptionKeyService
             IcrKeyService icrKeyService,
             IOdinHttpClientFactory odinHttpClientFactory,
             ILogger<PublicPrivateKeyService> logger,
-            TableKeyValue tblKeyValue)
+            TableKeyValueCached tblKeyValue)
         {
             _icrKeyService = icrKeyService;
             _odinHttpClientFactory = odinHttpClientFactory;

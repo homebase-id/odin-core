@@ -45,13 +45,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableConnectionsCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "Connections";
 
-        protected TableConnectionsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableConnectionsCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -137,7 +135,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                     return 1;
                 }
                 return 0;
@@ -193,7 +190,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                     return true;
                 }
                 return false;
@@ -250,7 +246,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                     return 1;
                 }
                 return 0;
@@ -306,7 +301,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableConnectionsCRUD", item.identityId.ToString()+item.identity.DomainName, item);
                     return 1;
                 }
                 return 0;
@@ -385,8 +379,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = identity.DomainName;
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableConnectionsCRUD", identityId.ToString()+identity.DomainName);
                 return count;
             }
         }
@@ -448,9 +440,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<ConnectionsRecord> GetAsync(Guid identityId,OdinId identity)
         {
-            var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identityId.ToString()+identity.DomainName);
-            if (hit)
-                return (ConnectionsRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -473,11 +462,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableConnectionsCRUD", identityId.ToString()+identity.DomainName, null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,identity);
-                        _cache.AddOrUpdate("TableConnectionsCRUD", identityId.ToString()+identity.DomainName, r);
                         return r;
                     } // using
                 } //

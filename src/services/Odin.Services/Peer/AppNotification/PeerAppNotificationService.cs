@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -28,7 +27,7 @@ public class PeerAppNotificationService : PeerServiceBase
 {
     private readonly OdinContextCache _cache;
     private readonly OdinConfiguration _odinConfiguration;
-    private readonly TableKeyThreeValue _tableKeyThreeValue;
+    private readonly TableKeyThreeValueCached _tableKeyThreeValue;
     private readonly PushNotificationService _pushNotificationService;
     private readonly ThreeKeyValueStorage _notificationSubscriptionStorage;
 
@@ -37,7 +36,7 @@ public class PeerAppNotificationService : PeerServiceBase
     public PeerAppNotificationService(IOdinHttpClientFactory odinHttpClientFactory,
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
-        TableKeyThreeValue tableKeyThreeValue,
+        TableKeyThreeValueCached tableKeyThreeValue,
         OdinConfiguration config,
         PushNotificationService pushNotificationService,
         FileSystemResolver fileSystemResolver,

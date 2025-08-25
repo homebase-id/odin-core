@@ -6,7 +6,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 
@@ -35,14 +35,14 @@ namespace Odin.Services.Authentication.Owner
         private readonly TenantContext _tenantContext;
 
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
-        private readonly TableKeyValue _tblKeyValue;
+        private readonly TableKeyValueCached _tblKeyValue;
         private readonly RecoveryService _recoveryService;
 
         public OwnerSecretService(
             TenantContext tenantContext,
             RecoveryService recoveryService,
             PublicPrivateKeyService publicPrivateKeyService,
-            TableKeyValue tblKeyValue)
+            TableKeyValueCached tblKeyValue)
         {
             _tenantContext = tenantContext;
             _recoveryService = recoveryService;

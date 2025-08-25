@@ -5,7 +5,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -19,9 +19,9 @@ public class RecoveryService
     private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
 
     private readonly OdinConfiguration _odinConfiguration;
-    private readonly TableKeyValue _tblKeyValue;
+    private readonly TableKeyValueCached _tblKeyValue;
 
-    public RecoveryService(OdinConfiguration odinConfiguration, TableKeyValue tblKeyValue)
+    public RecoveryService(OdinConfiguration odinConfiguration, TableKeyValueCached tblKeyValue)
     {
         _odinConfiguration = odinConfiguration;
         _tblKeyValue = tblKeyValue;

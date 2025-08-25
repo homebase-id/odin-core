@@ -37,13 +37,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableImFollowingCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "ImFollowing";
 
-        protected TableImFollowingCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableImFollowingCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -111,7 +109,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -152,7 +149,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return true;
                 }
                 return false;
@@ -194,7 +190,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -235,7 +230,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableImFollowingCRUD", item.identityId.ToString()+item.identity.DomainName+item.driveId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -311,8 +305,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param2.Value = identity.DomainName;
                 delete0Param3.Value = driveId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString());
                 return count;
             }
         }
@@ -374,9 +366,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<ImFollowingRecord> GetAsync(Guid identityId,OdinId identity,Guid driveId)
         {
-            var (hit, cacheObject) = _cache.Get("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString());
-            if (hit)
-                return (ImFollowingRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -404,11 +393,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,identity,driveId);
-                        _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName+driveId.ToString(), r);
                         return r;
                     } // using
                 } //
@@ -456,7 +443,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableImFollowingCRUD", identityId.ToString()+identity.DomainName, null);
                             return new List<ImFollowingRecord>();
                         }
                         var result = new List<ImFollowingRecord>();

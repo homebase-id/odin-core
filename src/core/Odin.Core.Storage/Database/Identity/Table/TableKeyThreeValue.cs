@@ -1,17 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableKeyThreeValue(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyThreeValueCRUD(cache, scopedConnectionFactory)
+    : TableKeyThreeValueCRUD(scopedConnectionFactory)
 {
     public async Task<KeyThreeValueRecord> GetAsync(byte[] key1)
     {

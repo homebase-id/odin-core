@@ -1,20 +1,16 @@
 ﻿using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Runtime.Caching;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableNonce(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableNonceCRUD(cache, scopedConnectionFactory)
+    : TableNonceCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

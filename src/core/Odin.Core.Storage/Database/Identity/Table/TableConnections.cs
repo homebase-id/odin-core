@@ -2,17 +2,14 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableConnections(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableConnectionsCRUD(cache, scopedConnectionFactory)
+    : TableConnectionsCRUD(scopedConnectionFactory)
 {
     public async Task<ConnectionsRecord> GetAsync(OdinId identity)
     {

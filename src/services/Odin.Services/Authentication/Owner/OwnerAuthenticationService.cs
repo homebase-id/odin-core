@@ -11,7 +11,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -51,7 +51,7 @@ namespace Odin.Services.Authentication.Owner
         private readonly OwnerSecretService _secretService;
 
         private readonly OdinConfiguration _configuration;
-        private readonly TableKeyValue _tblKeyValue;
+        private readonly TableKeyValueCached _tblKeyValue;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -71,7 +71,7 @@ namespace Odin.Services.Authentication.Owner
             TenantConfigService tenantConfigService,
             IIdentityRegistry identityRegistry,
             OdinConfiguration configuration,
-            TableKeyValue tblKeyValue,
+            TableKeyValueCached tblKeyValue,
             OdinContextCache cache)
         {
             _logger = logger;

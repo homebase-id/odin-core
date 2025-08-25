@@ -7,6 +7,7 @@ using StackExchange.Redis;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.NeueccMessagePack;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace Odin.Core.Storage.Cache;
 
@@ -41,8 +42,8 @@ public static class FusionCacheWrapperExtensions
                 IsFailSafeEnabled = false,
             })
             .WithSerializer(
-                new FusionCacheNeueccMessagePackSerializer()
-                // new FusionCacheSystemTextJsonSerializer()
+                // new FusionCacheNeueccMessagePackSerializer()
+                new FusionCacheSystemTextJsonSerializer() // SEB:TODO switch to FusionCacheNeueccMessagePackSerializer?
             );
 
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)

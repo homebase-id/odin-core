@@ -1,20 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDrives(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDrivesCRUD(cache, scopedConnectionFactory)
+    : TableDrivesCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
