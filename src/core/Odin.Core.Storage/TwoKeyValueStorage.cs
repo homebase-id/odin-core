@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage;
@@ -25,9 +26,9 @@ public class TwoKeyValueStorage
         _contextKey = contextKey;
     }
 
-    public async Task<T> GetAsync<T>(TableKeyTwoValue tblKeyTwoValue, Guid key) where T : class
+    public async Task<T> GetAsync<T>(TableKeyTwoValueCached tblKeyTwoValue, Guid key) where T : class
     {
-        var record = await tblKeyTwoValue.GetAsync(MakeStorageKey(key));
+        var record = await tblKeyTwoValue.GetAsync(MakeStorageKey(key), TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         if (null == record)
         {
@@ -37,9 +38,9 @@ public class TwoKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
-    public async Task<IEnumerable<T>> GetByDataTypeAsync<T>(TableKeyTwoValue tblKeyTwoValue, byte[] key2) where T : class
+    public async Task<IEnumerable<T>> GetByDataTypeAsync<T>(TableKeyTwoValueCached tblKeyTwoValue, byte[] key2) where T : class
     {
-        var list = await tblKeyTwoValue.GetByKeyTwoAsync(key2);
+        var list = await tblKeyTwoValue.GetByKeyTwoAsync(key2, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
         if (null == list)
         {
             return new List<T>();
@@ -48,13 +49,14 @@ public class TwoKeyValueStorage
         return list.Select(r => this.Deserialize<T>(r.data));
     }
 
-    public async Task UpsertAsync<T>(TableKeyTwoValue tblKeyTwoValue, Guid key1, byte[] dataTypeKey, T value)
+    public async Task UpsertAsync<T>(TableKeyTwoValueCached tblKeyTwoValue, Guid key1, byte[] dataTypeKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        await tblKeyTwoValue.UpsertAsync(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
+        await tblKeyTwoValue.UpsertAsync(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() },
+            TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL);
     }
 
-    public async Task DeleteAsync(TableKeyTwoValue tblKeyTwoValue, Guid id)
+    public async Task DeleteAsync(TableKeyTwoValueCached tblKeyTwoValue, Guid id)
     {
         await tblKeyTwoValue.DeleteAsync(MakeStorageKey(id));
     }
