@@ -45,7 +45,7 @@ public class CircleNetworkStorage
 
     public async Task<IdentityConnectionRegistration> GetAsync(OdinId odinId)
     {
-        var record = await _db.Connections.GetAsync(odinId);
+        var record = await _db.ConnectionsCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         if (null == record)
         {
@@ -95,7 +95,7 @@ public class CircleNetworkStorage
         }
 
         var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
-        await _db.Connections.UpsertAsync(record);
+        await _db.ConnectionsCached.UpsertAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         tx.Commit();
     }
@@ -109,7 +109,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakKeyStoreKey = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.Connections.UpdateAsync(record);
+        await _db.ConnectionsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
     }
 
     public async Task UpdateClientAccessTokenAsync(OdinId identity, ConnectionStatus status, EncryptedClientAccessToken encryptedCat)
@@ -121,7 +121,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakClientAccessToken = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.Connections.UpdateAsync(record);
+        await _db.ConnectionsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
     }
 
     public async Task UpdateVerificationHashAsync(OdinId identity, ConnectionStatus status, byte[] hash)
@@ -131,14 +131,14 @@ public class CircleNetworkStorage
 
         icrAccessRecord.VerificationHash64 = hash.ToBase64();
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.Connections.UpdateAsync(record);
+        await _db.ConnectionsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
     }
 
     public async Task DeleteAsync(OdinId odinId)
     {
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        await _db.Connections.DeleteAsync(odinId);
+        await _db.ConnectionsCached.DeleteAsync(odinId);
         await _db.AppGrantsCached.DeleteByIdentityAsync(odinId.ToHashId());
         await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
 
@@ -149,7 +149,7 @@ public class CircleNetworkStorage
         string cursor,
         ConnectionStatus connectionStatus)
     {
-        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, cursor);
+        var (records, nextCursor) = await _db.ConnectionsCached.PagingByCreatedAsync(count, (int)connectionStatus, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
         // single db connection that is not thread safe.
