@@ -8,9 +8,9 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableKeyThreeValueCached(TableKeyThreeValue table, ITenantLevel2Cache cache) : AbstractTableCaching(cache)
+public class TableKeyTwoValueCached(TableKeyTwoValue table, ITenantLevel2Cache cache) : AbstractTableCaching(cache)
 {
-    private static string GetCacheKey(KeyThreeValueRecord item)
+    private static string GetCacheKey(KeyTwoValueRecord item)
     {
         return GetCacheKey1(item.key1);
     }
@@ -31,22 +31,7 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, ITenantLevel2Cac
 
     //
 
-    private static string GetCacheKey3(byte[] key3)
-    {
-        return "key3" + ":" + key3.ToHexString();
-    }
-
-    //
-
-    public async Task<KeyThreeValueRecord?> GetAsync(byte[] key1, TimeSpan ttl)
-    {
-        var result = await GetOrSetAsync(GetCacheKey1(key1), _ => table.GetAsync(key1), ttl);
-        return result;
-    }
-
-    //
-
-    public async Task<List<byte[]>> GetByKeyTwoAsync(byte[] key2, TimeSpan ttl)
+    public async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(byte[] key2, TimeSpan ttl)
     {
         var result = await GetOrSetAsync(GetCacheKey2(key2), _ => table.GetByKeyTwoAsync(key2), ttl);
         return result;
@@ -54,34 +39,13 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, ITenantLevel2Cac
 
     //
 
-    public async Task<List<byte[]>> GetByKeyThreeAsync(byte[] key3, TimeSpan ttl)
+    public async Task<KeyTwoValueRecord?> GetAsync(byte[] key1, TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(GetCacheKey3(key3), _ => table.GetByKeyThreeAsync(key3), ttl);
+        var result = await GetOrSetAsync(GetCacheKey1(key1), _ => table.GetAsync(key1), ttl);
         return result;
     }
 
     //
-
-    public async Task<int> UpsertAsync(KeyThreeValueRecord item, TimeSpan ttl)
-    {
-        var result = await table.UpsertAsync(item);
-        await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
-        return result;
-    }
-
-    //
-
-    public async Task<int> InsertAsync(KeyThreeValueRecord item, TimeSpan ttl)
-    {
-        var result = await table.InsertAsync(item);
-        await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
-        return result;
-    }
-
-    //
-
 
     public async Task<int> DeleteAsync(byte[] key1)
     {
@@ -92,7 +56,27 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, ITenantLevel2Cac
 
     //
 
-    public async Task<int> UpdateAsync(KeyThreeValueRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(KeyTwoValueRecord item, TimeSpan ttl)
+    {
+        var result = await table.InsertAsync(item);
+        await InvalidateAllAsync();
+        await SetAsync(GetCacheKey(item), item, ttl);
+        return result;
+    }
+
+    //
+
+    public async Task<int> UpsertAsync(KeyTwoValueRecord item, TimeSpan ttl)
+    {
+        var result = await table.UpsertAsync(item);
+        await InvalidateAllAsync();
+        await SetAsync(GetCacheKey(item), item, ttl);
+        return result;
+    }
+
+    //
+
+    public async Task<int> UpdateAsync(KeyTwoValueRecord item, TimeSpan ttl)
     {
         var result = await table.UpdateAsync(item);
         await InvalidateAllAsync();

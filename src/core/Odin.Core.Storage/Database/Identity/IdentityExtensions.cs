@@ -92,6 +92,7 @@ public static class IdentityExtensions
         cb.RegisterType<TableFollowsMeCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableImFollowingCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyThreeValueCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableKeyTwoValueCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyValueCached>().InstancePerLifetimeScope();
 
         return cb;
