@@ -133,14 +133,14 @@ public class ShamirRecoveryService(
 
     private async Task<Guid> EnqueueEmail(List<OdinId> players, RecoveryEmailType emailType)
     {
-        var mailEnabled = configuration.Mailgun.Enabled;
-        logger.LogDebug("Email enabled: {e}", mailEnabled);
-#if !DEBUG
-        if (mailEnabled)
+        if (!configuration.Mailgun.Enabled)
         {
+#if DEBUG
+            return Guid.Empty;
+#else
             throw new OdinClientException("Cannot enter into recovery mode when email is disabled");
-        }
 #endif
+        }
 
         var nonceId = Guid.NewGuid();
         var r = new NonceRecord()
