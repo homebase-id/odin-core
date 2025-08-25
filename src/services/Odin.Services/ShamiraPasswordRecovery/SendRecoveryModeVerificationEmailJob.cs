@@ -16,6 +16,7 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 public class SendRecoveryModeVerificationEmailJobData
 {
     public string Domain { get; init; } = "";
+    public string Path { get; init; } = "";
     public string Email { get; init; } = "";
     public Guid NonceId { get; init; }
 }
@@ -34,7 +35,7 @@ public class SendRecoveryModeVerificationEmailJob(
 
     public string CreateLink()
     {
-        return EmailLinkHelper.BuildResetUrl($"https://{Data.Domain}/api/owner/v1/security/recovery/verify", Data.NonceId, "");
+        return EmailLinkHelper.BuildResetUrl($"https://{Data.Domain}/api/owner/v1/security/recovery/{Data.Path}", Data.NonceId, "");
     }
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)

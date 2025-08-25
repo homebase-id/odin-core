@@ -29,17 +29,28 @@ public class ShamirRecoveryService(
     /// <summary>
     /// Sets the identity into recovery mode so peer shard holders can give the parts
     /// </summary>
-    public async Task EnterRecoveryMode(IOdinContext odinContext)
+    public async Task InitiateRecoveryMode(IOdinContext odinContext)
     {
-        await EnqueueEmail();
+        await EnqueueEmail("verify-enter");
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {
             Updated = UnixTimeUtc.Now(),
-            State = ShamirRecoveryState.AwaitingOwnerEmailVerification
+            State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode
         });
     }
 
+    public async Task InitiateExitRecoveryMode(IOdinContext odinContext)
+    {
+        await EnqueueEmail("verify-exit");
+
+        await UpdateStatus(new ShamirRecoveryStatusRecord
+        {
+            Updated = UnixTimeUtc.Now(),
+            State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToExitRecoveryMode
+        });
+    }
+    
     public async Task<ShamirRecoveryStatusRedacted> GetStatus(IOdinContext odinContext)
     {
         var status = await GetStatusRecordInternal();
@@ -83,7 +94,7 @@ public class ShamirRecoveryService(
         {
             throw new OdinClientException("Invalid id");
         }
-        
+
         // notify all players this identity needs their password shards
 
         await UpdateStatus(new ShamirRecoveryStatusRecord()
@@ -92,7 +103,19 @@ public class ShamirRecoveryService(
             State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation
         });
     }
-    
+
+    public async Task ExitRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
+    {
+        var record = await nonceTable.PopAsync(nonceId);
+
+        if (record == null)
+        {
+            throw new OdinClientException("Invalid id");
+        }
+
+        await Storage.DeleteAsync(keyValueTable, ShamirStatusStorageId);
+    }
+
     private async Task<ShamirRecoveryStatusRecord> GetStatusRecordInternal()
     {
         var record = await Storage.GetAsync<ShamirRecoveryStatusRecord>(keyValueTable, ShamirStatusStorageId);
@@ -104,7 +127,7 @@ public class ShamirRecoveryService(
         await Storage.UpsertAsync(keyValueTable, ShamirStatusStorageId, statusRecord);
     }
 
-    private async Task<Guid> EnqueueEmail()
+    private async Task<Guid> EnqueueEmail(string path)
     {
         var mailEnabled = configuration.Mailgun.Enabled;
         logger.LogDebug("Email enabled: {e}", mailEnabled);
@@ -122,7 +145,7 @@ public class ShamirRecoveryService(
             expiration = UnixTimeUtc.Now().AddHours(1), // 1 hour expiration
             data = ""
         };
-        
+
         await nonceTable.InsertAsync(r);
 
         var job = jobManager.NewJob<SendRecoveryModeVerificationEmailJob>();
@@ -131,13 +154,14 @@ public class ShamirRecoveryService(
             Domain = tenantContext.HostOdinId,
             Email = tenantContext.Email,
             NonceId = nonceId,
+            Path = path
         };
 
 #if DEBUG
         var link = job.CreateLink();
         logger.LogInformation(link);
 #endif
-        
+
         await jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             RunAt = DateTimeOffset.Now.AddSeconds(1),
@@ -149,5 +173,4 @@ public class ShamirRecoveryService(
 
         return nonceId;
     }
-
 }

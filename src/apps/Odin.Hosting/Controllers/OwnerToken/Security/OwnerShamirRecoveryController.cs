@@ -30,8 +30,15 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         return status;
     }
 
-    [HttpGet("verify")]
-    public async Task<IActionResult> VerifyEmail([FromQuery] string id, [FromQuery] string token)
+    [HttpPost("initiate-recovery-mode")]
+    public async Task<IActionResult> InitiateRecoveryMode()
+    {
+        await _recoveryService.InitiateRecoveryMode(WebOdinContext);
+        return Ok();
+    }
+    
+    [HttpGet("verify-enter")]
+    public async Task<IActionResult> VerifyEnterRecoveryMode([FromQuery] string id, [FromQuery] string token)
     {
         OdinValidationUtils.AssertNotNullOrEmpty(id, nameof(id));
         // OdinValidationUtils.AssertNotNullOrEmpty(redirect, nameof(redirect));
@@ -41,11 +48,21 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         const string redirect = "/owner/shamir-account-recovery?fv=1";
         return Redirect(redirect);
     }
-
-    [HttpPost("initiate-recovery-mode")]
-    public async Task<IActionResult> InitiateRecoveryMode()
+    
+    [HttpPost("exit-recovery-mode")]
+    public async Task<IActionResult> InitiateExitRecoveryMode()
     {
-        await _recoveryService.EnterRecoveryMode(WebOdinContext);
+        await _recoveryService.InitiateExitRecoveryMode(WebOdinContext);
         return Ok();
+    }
+    
+    [HttpGet("verify-exit")]
+    public async Task<IActionResult> VerifyExitRecoveryMode([FromQuery] string id, [FromQuery] string token)
+    {
+        OdinValidationUtils.AssertNotNullOrEmpty(id, nameof(id));
+        await _recoveryService.ExitRecoveryMode(Guid.Parse(id), token, WebOdinContext);
+        
+        const string redirect = "/owner/login";
+        return Redirect(redirect);
     }
 }

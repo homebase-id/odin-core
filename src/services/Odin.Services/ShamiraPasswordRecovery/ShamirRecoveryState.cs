@@ -5,10 +5,15 @@ public enum ShamirRecoveryState
     None,
     
     /// <summary>
-    /// Email was sent to owner; we are waiting for the owner to click the email link to verify
+    /// Email was sent to owner; we are waiting for the owner to click the email link to verify and enter recovery mode
     /// </summary>
-    AwaitingOwnerEmailVerification,
-    
+    AwaitingOwnerEmailVerificationToEnterRecoveryMode,
+
+    /// <summary>
+    /// Email was sent to owner; we are waiting for the owner to click the email link to verify and exit recovery mode
+    /// </summary>
+    AwaitingOwnerEmailVerificationToExitRecoveryMode,
+
     /// <summary>
     /// Players have been notified this owner needs their shards.  We are waiting
     /// for enough players to send their shard to this owner
