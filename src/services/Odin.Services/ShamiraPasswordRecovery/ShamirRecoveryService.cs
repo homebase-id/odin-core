@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
@@ -15,6 +17,7 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 /// Handles scenarios where the Owner has lost their master password and need to get shards from their peer network
 /// </summary>
 public class ShamirRecoveryService(
+    ShamirConfigurationService configurationService,
     TenantContext tenantContext,
     TableKeyValue keyValueTable,
     TableNonce nonceTable,
@@ -31,7 +34,8 @@ public class ShamirRecoveryService(
     /// </summary>
     public async Task InitiateRecoveryMode(IOdinContext odinContext)
     {
-        await EnqueueEmail("verify-enter");
+        var players = await configurationService.GetPlayers(odinContext);
+        await EnqueueEmail(players, RecoveryEmailType.EnterRecoveryMode);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {
@@ -42,7 +46,7 @@ public class ShamirRecoveryService(
 
     public async Task InitiateExitRecoveryMode(IOdinContext odinContext)
     {
-        await EnqueueEmail("verify-exit");
+        await EnqueueEmail([], RecoveryEmailType.ExitRecoveryMode);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {
@@ -50,7 +54,7 @@ public class ShamirRecoveryService(
             State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToExitRecoveryMode
         });
     }
-    
+
     public async Task<ShamirRecoveryStatusRedacted> GetStatus(IOdinContext odinContext)
     {
         var status = await GetStatusRecordInternal();
@@ -127,7 +131,7 @@ public class ShamirRecoveryService(
         await Storage.UpsertAsync(keyValueTable, ShamirStatusStorageId, statusRecord);
     }
 
-    private async Task<Guid> EnqueueEmail(string path)
+    private async Task<Guid> EnqueueEmail(List<OdinId> players, RecoveryEmailType emailType)
     {
         var mailEnabled = configuration.Mailgun.Enabled;
         logger.LogDebug("Email enabled: {e}", mailEnabled);
@@ -153,8 +157,10 @@ public class ShamirRecoveryService(
         {
             Domain = tenantContext.HostOdinId,
             Email = tenantContext.Email,
+            Players = players,
             NonceId = nonceId,
-            Path = path
+            EmailType = emailType,
+            Path = emailType == RecoveryEmailType.EnterRecoveryMode ? "verify-enter" : "verify-exit"
         };
 
 #if DEBUG

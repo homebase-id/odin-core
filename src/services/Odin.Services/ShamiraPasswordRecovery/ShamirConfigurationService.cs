@@ -188,6 +188,19 @@ public class ShamirConfigurationService(
         };
     }
 
+    public async Task<List<OdinId>> GetPlayers(IOdinContext odinContext)
+    {
+        var package = await this.GetDealerShardPackage(odinContext);
+
+        if (package == null)
+        {
+            return [];
+        }
+
+        return package.Envelopes.Select(e => e.Player.OdinId).ToList();
+
+    }
+
     private async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();

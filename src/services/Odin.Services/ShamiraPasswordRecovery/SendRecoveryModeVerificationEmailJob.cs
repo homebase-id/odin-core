@@ -1,24 +1,37 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
+using Org.BouncyCastle.Crypto.Tls;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
 #nullable enable
+
+public enum RecoveryEmailType
+{
+    EnterRecoveryMode,
+    ExitRecoveryMode
+}
 
 public class SendRecoveryModeVerificationEmailJobData
 {
     public string Domain { get; init; } = "";
     public string Path { get; init; } = "";
     public string Email { get; init; } = "";
+    public List<OdinId> Players { get; init; } = [];
     public Guid NonceId { get; init; }
+    public RecoveryEmailType EmailType { get; init; }
 }
 
 //
@@ -27,11 +40,10 @@ public class SendRecoveryModeVerificationEmailJob(
     ILogger<SendRecoveryModeVerificationEmailJob> logger,
     IEmailSender emailSender) : AbstractJob
 {
-    
     public static readonly Guid JobTypeId = Guid.Parse("b864bf5b-1f4c-4b23-afc1-98c623e23017");
     public override string JobType => JobTypeId.ToString();
 
-    public SendRecoveryModeVerificationEmailJobData Data { get; set; } = new ();
+    public SendRecoveryModeVerificationEmailJobData Data { get; set; } = new();
 
     public string CreateLink()
     {
@@ -42,19 +54,36 @@ public class SendRecoveryModeVerificationEmailJob(
     {
         ValidateJobData();
 
-        logger.LogInformation("Send password recovery verification email: identity '{domain}' completed to {email}", Data.Domain, Data.Email);
+        logger.LogInformation("Send password recovery verification email: identity '{domain}' completed to {email}", Data.Domain,
+            Data.Email);
 
         const string subject = "Homebase Password Recovery - Verify your email";
 
         var link = CreateLink();
 
-        var envelope = new Envelope
+        Envelope envelope;
+        if (Data.EmailType == RecoveryEmailType.EnterRecoveryMode)
         {
-            To = [new NameAndEmailAddress { Email = Data.Email }],
-            Subject = subject,
-            TextMessage = RecoveryEmails.VerifyEmailText(Data.Email, Data.Domain, link),
-            HtmlMessage = RecoveryEmails.VerifyEmailHtml(Data.Domain, link)
-        };
+            var players = Data.Players.Select(p => p.DomainName).ToList();
+            envelope = new Envelope
+            {
+                To = [new NameAndEmailAddress { Email = Data.Email }],
+                Subject = subject,
+                TextMessage =
+                    RecoveryEmails.VerifyEmailText(Data.Email, Data.Domain, link, players),
+                HtmlMessage = RecoveryEmails.VerifyEmailHtml(Data.Domain, link, players)
+            };
+        }
+        else
+        {
+            envelope = new Envelope
+            {
+                To = [new NameAndEmailAddress { Email = Data.Email }],
+                Subject = subject,
+                TextMessage = RecoveryEmails.ExitRecoveryModeEmailText(Data.Email, Data.Domain, link),
+                HtmlMessage = RecoveryEmails.ExitRecoveryModeEmailHtml(Data.Domain, link)
+            };
+        }
 
         await emailSender.SendAsync(envelope);
 
@@ -83,6 +112,7 @@ public class SendRecoveryModeVerificationEmailJob(
         {
             throw new OdinSystemException($"{nameof(Data.Domain)} is missing");
         }
+
         if (string.IsNullOrEmpty(Data.Email))
         {
             throw new OdinSystemException($"{nameof(Data.Email)} is missing");
