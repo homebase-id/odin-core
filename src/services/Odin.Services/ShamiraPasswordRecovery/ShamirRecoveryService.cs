@@ -34,6 +34,8 @@ public class ShamirRecoveryService(
     /// </summary>
     public async Task InitiateRecoveryMode(IOdinContext odinContext)
     {
+        logger.LogDebug("Initiating recovery mode");
+
         var players = await configurationService.GetPlayers(odinContext);
         await EnqueueEmail(players, RecoveryEmailType.EnterRecoveryMode);
 
