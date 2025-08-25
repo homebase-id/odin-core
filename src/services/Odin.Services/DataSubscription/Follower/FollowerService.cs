@@ -102,11 +102,12 @@ namespace Odin.Services.DataSubscription.Follower
 
             await using (var tx = await db.BeginStackedTransactionAsync())
             {
-                await db.ImFollowing.DeleteByIdentityAsync(identityToFollow);
+                await db.ImFollowingCached.DeleteByIdentityAsync(identityToFollow);
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    await db.ImFollowing.InsertAsync(new ImFollowingRecord()
-                        { identity = identityToFollow, driveId = Guid.Empty });
+                    await db.ImFollowingCached.InsertAsync(new ImFollowingRecord()
+                        { identity = identityToFollow, driveId = Guid.Empty },
+                        TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL);
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -120,8 +121,9 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        await db.ImFollowing.InsertAsync(new ImFollowingRecord()
-                            { identity = identityToFollow, driveId = channel.Alias });
+                        await db.ImFollowingCached.InsertAsync(new ImFollowingRecord()
+                            { identity = identityToFollow, driveId = channel.Alias },
+                            TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL);
                     }
                 }
 
@@ -150,7 +152,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinRemoteIdentityException("Failed to unfollow");
             }
 
-            await db.ImFollowing.DeleteByIdentityAsync(recipient);
+            await db.ImFollowingCached.DeleteByIdentityAsync(recipient);
         }
 
         public async Task<FollowerDefinition> GetFollowerAsync(OdinId odinId, IOdinContext odinContext)
@@ -236,7 +238,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var (dbResults, nextCursor) = await db.ImFollowing.GetAllFollowersAsync(DefaultMax(max), cursor);
+            var (dbResults, nextCursor) = await db.ImFollowingCached.GetAllFollowersAsync(DefaultMax(max), cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -256,7 +258,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await db.ImFollowing.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
+            var (dbResults, nextCursor) = await db.ImFollowingCached.GetFollowersAsync(DefaultMax(max), driveAlias, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -560,7 +562,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetIdentityIFollowInternalAsync(OdinId odinId)
         {
-            var dbRecords = await db.ImFollowing.GetAsync(odinId);
+            var dbRecords = await db.ImFollowingCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
