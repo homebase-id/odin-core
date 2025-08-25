@@ -21,6 +21,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
         TenantConfigService tenantConfigService,
         CircleNetworkService circleNetworkService,
         AppRegistrationService appRegistrationService,
+        CircleDefinitionService circleDefinitionService,
         IdentityDatabase db,
         IDriveManager driveManager)
     {
@@ -29,6 +30,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             logger.LogDebug("Preparing Shamira release 1 on identity: [{identity}]", odinContext.Tenant);
             await tenantConfigService.EnsureSystemDrivesExist(odinContext);
 
+            //
+            // Create new circles, rename existing ones
+            //
+            logger.LogDebug("Creating new circles; renaming existing ones");
+            await circleDefinitionService.EnsureSystemCirclesExistAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+            
             await EnsureShardRecoveryDriveIsConfiguredForConnectedIdentitiesCircle(odinContext, cancellationToken);
         }
 
