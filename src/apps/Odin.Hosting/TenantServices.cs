@@ -5,7 +5,6 @@ using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -70,6 +69,8 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
+using Odin.Services.ShamiraPasswordRecovery;
 
 namespace Odin.Hosting;
 
@@ -183,7 +184,9 @@ public static class TenantServices
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
 
-        cb.RegisterType<RecoveryService>().InstancePerLifetimeScope();
+        cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
+        cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
+        cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
 
         cb.RegisterType<OwnerAuthenticationService>()
@@ -306,8 +309,8 @@ public static class TenantServices
         cb.RegisterType<V2ToV3VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V3ToV4VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V4ToV5VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V5ToV6VersionMigrationService>().InstancePerLifetimeScope();
         
-
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 

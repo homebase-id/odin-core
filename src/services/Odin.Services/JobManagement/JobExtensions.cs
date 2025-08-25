@@ -4,6 +4,7 @@ using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry.Registration;
+using Odin.Services.ShamiraPasswordRecovery;
 
 namespace Odin.Services.JobManagement;
 
@@ -28,6 +29,7 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<DeleteTenantJob>(cb, DeleteTenantJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<SendProvisioningCompleteEmailJob>(cb, SendProvisioningCompleteEmailJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<VersionUpgradeJob>(cb, VersionUpgradeJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<SendRecoveryModeVerificationEmailJob>(cb, SendRecoveryModeVerificationEmailJob.JobTypeId);
 
         //
         // Deprecated job types here.

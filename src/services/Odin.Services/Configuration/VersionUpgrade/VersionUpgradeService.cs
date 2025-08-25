@@ -11,6 +11,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version1tov2;
 using Odin.Services.Configuration.VersionUpgrade.Version2tov3;
 using Odin.Services.Configuration.VersionUpgrade.Version3tov4;
 using Odin.Services.Configuration.VersionUpgrade.Version4tov5;
+using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
 
@@ -22,6 +23,7 @@ public class VersionUpgradeService(
     V2ToV3VersionMigrationService v3,
     V3ToV4VersionMigrationService v4,
     V4ToV5VersionMigrationService v5,
+    V5ToV6VersionMigrationService v6,
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
@@ -144,12 +146,26 @@ public class VersionUpgradeService(
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
             
+            if (currentVersion == 5)
+            {
+                _isRunning = true;
+                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                
+                await v6.UpgradeAsync(odinContext, cancellationToken);
+            
+                await v6.ValidateUpgradeAsync(odinContext, cancellationToken);
+            
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+            
+                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+            }
+            
             // do this after each version upgrade
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
-            
+
             // ...
         }
         catch (Exception ex)
