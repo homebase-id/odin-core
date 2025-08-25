@@ -42,13 +42,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableFollowsMeCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "FollowsMe";
 
-        protected TableFollowsMeCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableFollowsMeCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -116,7 +114,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -157,7 +154,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return true;
                 }
                 return false;
@@ -199,7 +195,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -240,7 +235,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     long modified = (long) rdr[1];
                     item.modified = new UnixTimeUtc((long)modified);
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableFollowsMeCRUD", item.identityId.ToString()+item.identity+item.driveId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -319,8 +313,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param2.Value = identity;
                 delete0Param3.Value = driveId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
                 return count;
             }
         }
@@ -391,9 +383,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (identity == null) throw new OdinDatabaseValidationException("Cannot be null identity");
             if (identity?.Length < 3) throw new OdinDatabaseValidationException($"Too short identity, was {identity.Length} (min 3)");
             if (identity?.Length > 255) throw new OdinDatabaseValidationException($"Too long identity, was {identity.Length} (max 255)");
-            var (hit, cacheObject) = _cache.Get("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString());
-            if (hit)
-                return (FollowsMeRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -421,11 +410,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,identity,driveId);
-                        _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity+driveId.ToString(), r);
                         return r;
                     } // using
                 } //
@@ -479,7 +466,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableFollowsMeCRUD", identityId.ToString()+identity, null);
                             return new List<FollowsMeRecord>();
                         }
                         var result = new List<FollowsMeRecord>();

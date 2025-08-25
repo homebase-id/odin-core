@@ -10,8 +10,7 @@ public class ScopedAttestationConnectionFactory(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedAttestationConnectionFactory> logger,
     IAttestationDbConnectionFactory connectionFactory,
-    CacheHelper cache,
     DatabaseCounters counters)
-    : ScopedConnectionFactory<IAttestationDbConnectionFactory>(lifetimeScope, logger, connectionFactory, cache, counters)
+    : ScopedConnectionFactory<IAttestationDbConnectionFactory>(lifetimeScope, logger, connectionFactory, counters)
 {
 }

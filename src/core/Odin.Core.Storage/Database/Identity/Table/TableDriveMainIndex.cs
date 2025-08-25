@@ -15,10 +15,9 @@ using Odin.Core.Util;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveMainIndex(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory)
+    : TableDriveMainIndexCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

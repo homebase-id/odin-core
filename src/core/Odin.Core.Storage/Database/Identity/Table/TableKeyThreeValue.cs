@@ -6,10 +6,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableKeyThreeValue(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyThreeValueCRUD(cache, scopedConnectionFactory)
+    : TableKeyThreeValueCRUD(scopedConnectionFactory)
 {
     public async Task<KeyThreeValueRecord> GetAsync(byte[] key1)
     {

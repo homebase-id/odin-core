@@ -7,10 +7,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableConnections(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableConnectionsCRUD(cache, scopedConnectionFactory)
+    : TableConnectionsCRUD(scopedConnectionFactory)
 {
     public async Task<ConnectionsRecord> GetAsync(OdinId identity)
     {

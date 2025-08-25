@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 
@@ -14,11 +13,10 @@ using Odin.Core.Time;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableInbox(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity,
     ICorrelationContext correlationContext)
-    : TableInboxCRUD(cache, scopedConnectionFactory)
+    : TableInboxCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

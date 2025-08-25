@@ -46,7 +46,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "DriveTransferHistory";
 
-        protected TableDriveTransferHistoryCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableDriveTransferHistoryCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

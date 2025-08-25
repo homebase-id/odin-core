@@ -7,10 +7,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableAppNotifications(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableAppNotificationsCRUD(cache, scopedConnectionFactory)
+    : TableAppNotificationsCRUD(scopedConnectionFactory)
 {
     public async Task<AppNotificationsRecord> GetAsync(Guid notificationId)
     {

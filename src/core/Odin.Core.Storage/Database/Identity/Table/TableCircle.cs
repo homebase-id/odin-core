@@ -7,10 +7,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableCircle(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableCircleCRUD(cache, scopedConnectionFactory)
+    : TableCircleCRUD(scopedConnectionFactory)
 {
     public async Task<CircleRecord> GetAsync(Guid circleId)
     {

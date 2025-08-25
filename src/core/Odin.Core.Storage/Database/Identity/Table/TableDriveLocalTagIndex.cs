@@ -10,10 +10,9 @@ using Odin.Core.Util;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveLocalTagIndex(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveLocalTagIndexCRUD(cache, scopedConnectionFactory: scopedConnectionFactory)
+    : TableDriveLocalTagIndexCRUD(scopedConnectionFactory: scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

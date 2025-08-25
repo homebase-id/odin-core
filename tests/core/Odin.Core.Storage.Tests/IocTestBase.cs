@@ -125,7 +125,6 @@ public abstract class IocTestBase
 
         builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
 
-        builder.AddDatabaseCacheServices();
         builder.AddDatabaseCounterServices();
         switch (databaseType)
         {

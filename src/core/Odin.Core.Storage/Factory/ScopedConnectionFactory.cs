@@ -171,7 +171,6 @@ public class ScopedConnectionFactory<T>(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedConnectionFactory<T>> logger,
     T connectionFactory,
-    CacheHelper cache,
     DatabaseCounters counters) : IScopedConnectionFactory where T : IDbConnectionFactory
 {
     // ReSharper disable once StaticMemberInGenericType
@@ -179,7 +178,6 @@ public class ScopedConnectionFactory<T>(
 
     private readonly ILogger<ScopedConnectionFactory<T>> _logger = logger;
     private readonly T _connectionFactory = connectionFactory;
-    private readonly CacheHelper _cache = cache; // SEB:NOTE ported from earlier db code, cache needs redesign
     private readonly DatabaseCounters _counters = counters;
     private int _parallelDetectionRefCount;
     private DbConnection? _connection;
@@ -468,7 +466,6 @@ public class ScopedConnectionFactory<T>(
                     {
                         instance._logger.LogDebug("Rolling back transaction");
                         await instance._transaction!.RollbackAsync();
-                        instance._cache.ClearCache();
                     }
                 }
                 finally
