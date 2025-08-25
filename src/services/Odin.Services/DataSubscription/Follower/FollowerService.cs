@@ -177,7 +177,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await db.FollowsMe.GetAllFollowersAsync(DefaultMax(max), cursor);
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetAllFollowersAsync(DefaultMax(max), cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
             var result = new CursoredResult<string>()
             {
@@ -201,7 +201,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await db.FollowsMe.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             var result = new CursoredResult<OdinId>
             {
                 Cursor = nextCursor,
@@ -218,7 +218,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await db.FollowsMe.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
             var result = new CursoredResult<OdinId>()
             {
@@ -599,7 +599,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternalAsync(OdinId odinId)
         {
-            var dbRecords = await db.FollowsMe.GetAsync(odinId);
+            var dbRecords = await db.FollowsMeCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
