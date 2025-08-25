@@ -46,7 +46,8 @@ public class PayloadFileReaderWriterTests : PayloadReaderWriterBaseTestFixture
             new TenantPathManager(_config, tenantId),
             firstRunToken: null,
             isPreconfigured: true,
-            markedForDeletionDate: null
+            markedForDeletionDate: null,
+            email:null
         );
         _tenantPathManager = _tenantContext.TenantPathManager;
 

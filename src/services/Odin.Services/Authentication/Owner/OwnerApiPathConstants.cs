@@ -6,7 +6,7 @@
         public const string BasePathV1 = "/api/owner/v1";
 
         public const string AuthV1 = BasePathV1 + "/authentication";
-
+        
         public const string AppManagementV1 = BasePathV1 + "/appmanagement";
         public const string YouAuthDomainManagementV1 = BasePathV1 + "/youauthdomain";
 
@@ -57,7 +57,7 @@
         public const string ConfigurationV1 = BasePathV1 + "/config";
 
         public const string SecurityV1 = BasePathV1 + "/security";
-        
+       
         public const string ShamirRecoveryV1 = BasePathV1 + "/security/recovery";
     }
 }

@@ -1,42 +1,51 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
+/// <summary>
+/// Security information for the current user
+/// </summary>
 [ApiController]
 [Route(OwnerApiPathConstants.ShamirRecoveryV1)]
-[AuthorizeValidOwnerToken]
-public class OwnerShamirRecoveryController(ShamirConfigurationService shamirConfigurationService)
-    : OdinControllerBase
+public class OwnerShamirRecoveryController : OdinControllerBase
 {
-    [HttpGet("config")]
-    public async Task<DealerShardConfig> GetConfig()
+    private readonly ShamirRecoveryService _recoveryService;
+
+    /// <summary />
+    public OwnerShamirRecoveryController(ShamirRecoveryService recoveryService)
     {
-        return await shamirConfigurationService.GetConfig(WebOdinContext);
+        _recoveryService = recoveryService;
     }
 
-    [HttpPost("configure-shards")]
-    public async Task<IActionResult> ConfigureShards([FromBody] ConfigureShardsRequest request)
+    [HttpGet("status")]
+    public async Task<ShamirRecoveryStatusRedacted> GetRecoveryStatus()
     {
-        await shamirConfigurationService.ConfigureShards(request.Players, request.MinMatchingShards, WebOdinContext);
+        var status = await _recoveryService.GetStatus(WebOdinContext);
+        return status;
+    }
 
+    [HttpGet("verify")]
+    public async Task<IActionResult> VerifyEmail([FromQuery] string id, [FromQuery] string token)
+    {
+        OdinValidationUtils.AssertNotNullOrEmpty(id, nameof(id));
+        // OdinValidationUtils.AssertNotNullOrEmpty(redirect, nameof(redirect));
+
+        await _recoveryService.EnterRecoveryMode(Guid.Parse(id), token, WebOdinContext);
+        
+        const string redirect = "/owner/shamir-account-recovery?fv=1";
+        return Redirect(redirect);
+    }
+
+    [HttpPost("initiate-recovery-mode")]
+    public async Task<IActionResult> InitiateRecoveryMode()
+    {
+        await _recoveryService.EnterRecoveryMode(WebOdinContext);
         return Ok();
-    }
-
-    [HttpPost("verify-remote-shards")]
-    public async Task<RemoteShardVerificationResult> Verify()
-    {
-        var results = await shamirConfigurationService.VerifyRemotePlayerShards(WebOdinContext);
-        return results;
-    }
-    
-    [HttpPost("verify-remote-player-shard")]
-    public async Task<ShardVerificationResult> VerifyRemotePlayer([FromBody] VerifyRemotePlayerShardRequest request )
-    {
-        var results = await shamirConfigurationService.VerifyRemotePlayer(request.OdinId, request.ShardId, WebOdinContext);
-        return results;
     }
 }
