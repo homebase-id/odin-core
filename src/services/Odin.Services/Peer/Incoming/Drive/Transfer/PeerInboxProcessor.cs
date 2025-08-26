@@ -318,10 +318,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogError(e,
                     "Processing Inbox -> Inbox InstructionType: {instructionType}. " +
                     "Catch-all Exception: Failed with Temp File:{f}. " +
+                    "FileId has timestamp: {ft} (is this before the inbox purge)? " +
                     "Inbox item gtid: {gtid} (gtid as hex x'{gtidHex}'). " +
                     "PopStamp (hex): {marker} for drive (hex): {driveId}  Action: Marking Complete",
                     inboxItem.InstructionType,
                     tempFile,
+                    SequentialGuid.ToUnixTimeUtc(inboxItem.FileId).ToDateTime(),
                     inboxItem.GlobalTransitId,
                     Convert.ToHexString(inboxItem.GlobalTransitId.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),

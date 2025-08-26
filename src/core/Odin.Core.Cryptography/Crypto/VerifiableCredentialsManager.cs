@@ -16,6 +16,8 @@ namespace Odin.Core.Cryptography.Crypto;
 //
 // didkit vc-verify-credential -v EcdsaSecp384r1Signature2019 credential.json
 //
+// Eventually test with
+// didkit vc-verify-credential -v EcdsaSecp384r1Signature2019 credential.json
 
 public class VCCredentialsResponse
 {

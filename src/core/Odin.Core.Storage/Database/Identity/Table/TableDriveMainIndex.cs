@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -9,13 +10,15 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
+[assembly: InternalsVisibleTo("Odin.Services.Drives.DriveCore.Storage")]
+
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveMainIndex(
     CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory), ITableMigrator
+    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -50,18 +53,6 @@ public class TableDriveMainIndex(
         return await base.DeleteAsync(odinIdentity, driveId, fileId);
     }
 
-    //public new async Task<int> UpdateAsync(DriveMainIndexRecord item)
-    //{
-    //    item.identityId = odinIdentity;
-    //    return await base.UpdateAsync(item);
-    //}
-
-    //public new async Task<int> UpsertAsync(DriveMainIndexRecord item)
-    //{
-    //    item.identityId = odinIdentity;
-    //    return await base.UpsertAsync(item);
-    //}
-
     public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
         return base.ReadRecordFromReader1(rdr, odinIdentity.Id, driveId);
@@ -70,6 +61,8 @@ public class TableDriveMainIndex(
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
     public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null)
     {
+        // Oi - we need to insert this!! item.Validate();
+
         item.identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
         item.driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
         item.fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
@@ -81,7 +74,6 @@ public class TableDriveMainIndex(
             useThisNewVersionTag = SequentialGuid.CreateGuid();
         else if (useThisNewVersionTag == Guid.Empty)
             throw new ArgumentException("useThisNewVersionTag not allowed to be an empty guid");
-
 
         if (item.hdrVersionTag == useThisNewVersionTag)
             throw new ArgumentException("useThisNewVersionTag==item.hdrVersionTag : Fy fy, skamme skamme, man må ikke snyde");
@@ -247,7 +239,7 @@ public class TableDriveMainIndex(
 
         // Unreachable return 0;
     }
-    
+
     public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -388,7 +380,42 @@ public class TableDriveMainIndex(
         return size;
     }
 
-    
+
+    /// <summary>
+    /// For defragmenter only. Updates the byteCount column in the DB.
+    /// </summary>
+    public async Task<int> UpdateByteCountAsync(Guid driveId, Guid fileId, long byteCount)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText =
+            $"UPDATE drivemainindex SET byteCount=@bcount WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid;";
+
+        var tparam1 = cmd.CreateParameter();
+        var tparam2 = cmd.CreateParameter();
+        var tparam3 = cmd.CreateParameter();
+        var tparam4 = cmd.CreateParameter();
+
+        tparam1.ParameterName = "@fileid";
+        tparam2.ParameterName = "@driveId";
+        tparam3.ParameterName = "@identityId";
+        tparam3.ParameterName = "@bcount";
+
+        cmd.Parameters.Add(tparam1);
+        cmd.Parameters.Add(tparam2);
+        cmd.Parameters.Add(tparam3);
+        cmd.Parameters.Add(tparam4);
+
+        tparam1.Value = fileId.ToByteArray();
+        tparam2.Value = driveId.ToByteArray();
+        tparam3.Value = odinIdentity.IdAsByteArray();
+        tparam4.Value = byteCount;
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+
     /// <summary>
     /// For testing only. Updates the updatedTimestamp for the supplied item.
     /// </summary>
@@ -429,5 +456,167 @@ public class TableDriveMainIndex(
         }
 
         return (0, 0);
+    }
+
+    // For defragmenter only (that's why it's internal)
+    // Copy of UpdateAsync with Validation() and modified time removed
+    public async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
+    {
+        // Skip vaildation deliberately: item.Validate();
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var updateCommand = cn.CreateCommand();
+        {
+            string sqlNowStr = updateCommand.SqlNow();
+            updateCommand.CommandText = "UPDATE DriveMainIndex " +
+                                        $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType " +
+                                        "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId) " +
+                                        "RETURNING created,modified,rowId;";
+            var updateParam1 = updateCommand.CreateParameter();
+            updateParam1.DbType = DbType.Binary;
+            updateParam1.ParameterName = "@identityId";
+            updateCommand.Parameters.Add(updateParam1);
+            var updateParam2 = updateCommand.CreateParameter();
+            updateParam2.DbType = DbType.Binary;
+            updateParam2.ParameterName = "@driveId";
+            updateCommand.Parameters.Add(updateParam2);
+            var updateParam3 = updateCommand.CreateParameter();
+            updateParam3.DbType = DbType.Binary;
+            updateParam3.ParameterName = "@fileId";
+            updateCommand.Parameters.Add(updateParam3);
+            var updateParam4 = updateCommand.CreateParameter();
+            updateParam4.DbType = DbType.Binary;
+            updateParam4.ParameterName = "@globalTransitId";
+            updateCommand.Parameters.Add(updateParam4);
+            var updateParam5 = updateCommand.CreateParameter();
+            updateParam5.DbType = DbType.Int32;
+            updateParam5.ParameterName = "@fileState";
+            updateCommand.Parameters.Add(updateParam5);
+            var updateParam6 = updateCommand.CreateParameter();
+            updateParam6.DbType = DbType.Int32;
+            updateParam6.ParameterName = "@requiredSecurityGroup";
+            updateCommand.Parameters.Add(updateParam6);
+            var updateParam7 = updateCommand.CreateParameter();
+            updateParam7.DbType = DbType.Int32;
+            updateParam7.ParameterName = "@fileSystemType";
+            updateCommand.Parameters.Add(updateParam7);
+            var updateParam8 = updateCommand.CreateParameter();
+            updateParam8.DbType = DbType.Int64;
+            updateParam8.ParameterName = "@userDate";
+            updateCommand.Parameters.Add(updateParam8);
+            var updateParam9 = updateCommand.CreateParameter();
+            updateParam9.DbType = DbType.Int32;
+            updateParam9.ParameterName = "@fileType";
+            updateCommand.Parameters.Add(updateParam9);
+            var updateParam10 = updateCommand.CreateParameter();
+            updateParam10.DbType = DbType.Int32;
+            updateParam10.ParameterName = "@dataType";
+            updateCommand.Parameters.Add(updateParam10);
+            var updateParam11 = updateCommand.CreateParameter();
+            updateParam11.DbType = DbType.Int32;
+            updateParam11.ParameterName = "@archivalStatus";
+            updateCommand.Parameters.Add(updateParam11);
+            var updateParam12 = updateCommand.CreateParameter();
+            updateParam12.DbType = DbType.Int32;
+            updateParam12.ParameterName = "@historyStatus";
+            updateCommand.Parameters.Add(updateParam12);
+            var updateParam13 = updateCommand.CreateParameter();
+            updateParam13.DbType = DbType.String;
+            updateParam13.ParameterName = "@senderId";
+            updateCommand.Parameters.Add(updateParam13);
+            var updateParam14 = updateCommand.CreateParameter();
+            updateParam14.DbType = DbType.Binary;
+            updateParam14.ParameterName = "@groupId";
+            updateCommand.Parameters.Add(updateParam14);
+            var updateParam15 = updateCommand.CreateParameter();
+            updateParam15.DbType = DbType.Binary;
+            updateParam15.ParameterName = "@uniqueId";
+            updateCommand.Parameters.Add(updateParam15);
+            var updateParam16 = updateCommand.CreateParameter();
+            updateParam16.DbType = DbType.Int64;
+            updateParam16.ParameterName = "@byteCount";
+            updateCommand.Parameters.Add(updateParam16);
+            var updateParam17 = updateCommand.CreateParameter();
+            updateParam17.DbType = DbType.String;
+            updateParam17.ParameterName = "@hdrEncryptedKeyHeader";
+            updateCommand.Parameters.Add(updateParam17);
+            var updateParam18 = updateCommand.CreateParameter();
+            updateParam18.DbType = DbType.Binary;
+            updateParam18.ParameterName = "@hdrVersionTag";
+            updateCommand.Parameters.Add(updateParam18);
+            var updateParam19 = updateCommand.CreateParameter();
+            updateParam19.DbType = DbType.String;
+            updateParam19.ParameterName = "@hdrAppData";
+            updateCommand.Parameters.Add(updateParam19);
+            var updateParam20 = updateCommand.CreateParameter();
+            updateParam20.DbType = DbType.Binary;
+            updateParam20.ParameterName = "@hdrLocalVersionTag";
+            updateCommand.Parameters.Add(updateParam20);
+            var updateParam21 = updateCommand.CreateParameter();
+            updateParam21.DbType = DbType.String;
+            updateParam21.ParameterName = "@hdrLocalAppData";
+            updateCommand.Parameters.Add(updateParam21);
+            var updateParam22 = updateCommand.CreateParameter();
+            updateParam22.DbType = DbType.String;
+            updateParam22.ParameterName = "@hdrReactionSummary";
+            updateCommand.Parameters.Add(updateParam22);
+            var updateParam23 = updateCommand.CreateParameter();
+            updateParam23.DbType = DbType.String;
+            updateParam23.ParameterName = "@hdrServerData";
+            updateCommand.Parameters.Add(updateParam23);
+            var updateParam24 = updateCommand.CreateParameter();
+            updateParam24.DbType = DbType.String;
+            updateParam24.ParameterName = "@hdrTransferHistory";
+            updateCommand.Parameters.Add(updateParam24);
+            var updateParam25 = updateCommand.CreateParameter();
+            updateParam25.DbType = DbType.String;
+            updateParam25.ParameterName = "@hdrFileMetaData";
+            updateCommand.Parameters.Add(updateParam25);
+            var updateParam26 = updateCommand.CreateParameter();
+            updateParam26.DbType = DbType.Binary;
+            updateParam26.ParameterName = "@hdrTmpDriveAlias";
+            updateCommand.Parameters.Add(updateParam26);
+            var updateParam27 = updateCommand.CreateParameter();
+            updateParam27.DbType = DbType.Binary;
+            updateParam27.ParameterName = "@hdrTmpDriveType";
+            updateCommand.Parameters.Add(updateParam27);
+            updateParam1.Value = item.identityId.ToByteArray();
+            updateParam2.Value = item.driveId.ToByteArray();
+            updateParam3.Value = item.fileId.ToByteArray();
+            updateParam4.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
+            updateParam5.Value = item.fileState;
+            updateParam6.Value = item.requiredSecurityGroup;
+            updateParam7.Value = item.fileSystemType;
+            updateParam8.Value = item.userDate.milliseconds;
+            updateParam9.Value = item.fileType;
+            updateParam10.Value = item.dataType;
+            updateParam11.Value = item.archivalStatus;
+            updateParam12.Value = item.historyStatus;
+            updateParam13.Value = item.senderId ?? (object)DBNull.Value;
+            updateParam14.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+            updateParam15.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+            updateParam16.Value = item.byteCount;
+            updateParam17.Value = item.hdrEncryptedKeyHeader;
+            updateParam18.Value = item.hdrVersionTag.ToByteArray();
+            updateParam19.Value = item.hdrAppData;
+            updateParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+            updateParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+            updateParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+            updateParam23.Value = item.hdrServerData;
+            updateParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+            updateParam25.Value = item.hdrFileMetaData;
+            updateParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
+            updateParam27.Value = item.hdrTmpDriveType.ToByteArray();
+            await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
+            if (await rdr.ReadAsync())
+            {
+                long created = (long)rdr[0];
+                item.created = new UnixTimeUtc(created);
+                long modified = (long)rdr[1];
+                item.modified = new UnixTimeUtc((long)modified);
+                item.rowId = (long)rdr[2];
+                return 1;
+            }
+            return 0;
+        }
     }
 }

@@ -2,7 +2,6 @@ using System;
 using Autofac;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
@@ -58,6 +57,9 @@ public static class IdentityExtensions
     {
         // Database
         cb.RegisterType<IdentityDatabase>().InstancePerDependency();
+
+        // Migrator
+        cb.RegisterType<IdentityMigrator>().InstancePerDependency();
 
         // Connection
         cb.RegisterType<ScopedIdentityConnectionFactory>()
