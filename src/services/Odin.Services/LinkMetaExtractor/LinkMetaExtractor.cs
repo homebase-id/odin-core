@@ -57,7 +57,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
         [JsonPropertyName("version")]
         public string Version { get; set; }
 
-        public async Task<string> ToHTMLAsync()
+        public Task<string> ToHtml()
         {
             var description = ExtractPostText();
 
@@ -85,7 +85,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
 <meta name=""twitter:card"" content=""{(string.IsNullOrEmpty(imageUrl) ? "summary" : "summary_large_image")}"" />
 </head>
 </html>";
-            return syntheticHtml;
+            return Task.FromResult(syntheticHtml);
         }
 
         private string ExtractPostText()
@@ -354,7 +354,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
                     var oembed = JsonSerializer.Deserialize<OEmbed>(content);
                     oembed.logger = logger; // Not ideal...
                     oembed.clientFactory = clientFactory;
-                    var syntheticHtml = await oembed.ToHTMLAsync();
+                    var syntheticHtml = await oembed.ToHtml();
                     return syntheticHtml;
                 }
                 catch (Exception ex)
