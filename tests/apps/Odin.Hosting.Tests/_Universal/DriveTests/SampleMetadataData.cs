@@ -13,10 +13,11 @@ public static class SampleMetadataData
             AppData = new UploadAppFileMetaData()
             {
                 FileType = fileType,
-                GroupId = groupId
+                GroupId = groupId,
             },
             AllowDistribution = allowDistribution,
-            AccessControlList = acl ?? AccessControlList.OwnerOnly
+            AccessControlList = acl ?? AccessControlList.OwnerOnly,
+            VersionTag = Guid.NewGuid()
         };
     }
 
@@ -30,7 +31,8 @@ public static class SampleMetadataData
                 Content = content
             },
 
-            AccessControlList = acl ?? AccessControlList.OwnerOnly
+            AccessControlList = acl ?? AccessControlList.OwnerOnly,
+            VersionTag = Guid.NewGuid()
         };
     }
 }
