@@ -1,22 +1,179 @@
+using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
-using Odin.Core.Http;
 
 namespace Odin.Services.LinkMetaExtractor;
 
 
 public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<LinkMetaExtractor> logger) : ILinkMetaExtractor
 {
+    private class OEmbed
+    {
+        public IDynamicHttpClientFactory clientFactory = null;
+        public ILogger<LinkMetaExtractor> logger = null;
+
+        [JsonPropertyName("url")]
+        public string Url { get; set; }
+
+        [JsonPropertyName("title")]
+        public string Title { get; set; }
+
+        [JsonPropertyName("author_name")]
+        public string AuthorName { get; set; }
+
+        [JsonPropertyName("author_url")]
+        public string AuthorUrl { get; set; }
+
+        [JsonPropertyName("html")]
+        public string Html { get; set; }
+
+        [JsonPropertyName("width")]
+        public int? Width { get; set; }
+
+        [JsonPropertyName("height")]
+        public int? Height { get; set; }
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; }
+
+        [JsonPropertyName("cache_age")]
+        public string CacheAge { get; set; }
+
+        [JsonPropertyName("provider_name")]
+        public string ProviderName { get; set; }
+
+        [JsonPropertyName("provider_url")]
+        public string ProviderUrl { get; set; }
+
+        [JsonPropertyName("version")]
+        public string Version { get; set; }
+
+        public Task<string> ToHtml()
+        {
+            var description = ExtractPostText();
+
+            /*
+             * this isn't working, X is blocking thumb downloads because they want to track...
+            var mediaId = ExtractMediaUrl();
+            string imageUrl = null;
+            if (mediaId != null)
+            {
+                imageUrl = await GetImageUrlFromMediaAsync(mediaId);
+            }
+            */
+
+            var imageUrl = "";
+
+            var syntheticHtml = $@"
+<html>
+<head>
+<meta property=""og:site_name"" content=""X"" />
+<meta property=""og:title"" content=""{WebUtility.HtmlEncode(AuthorName ?? Title ?? "Post")} on X"" />
+<meta property=""og:description"" content=""{WebUtility.HtmlEncode(description)}"" />
+{(string.IsNullOrEmpty(imageUrl) ? "" : $"<meta property=\"og:image\" content=\"{WebUtility.HtmlEncode(imageUrl)}\" />")}
+<meta property=""og:url"" content=""{WebUtility.HtmlEncode(Url)}"" />
+<meta property=""og:type"" content=""article"" />
+<meta name=""twitter:card"" content=""{(string.IsNullOrEmpty(imageUrl) ? "summary" : "summary_large_image")}"" />
+</head>
+</html>";
+            return Task.FromResult(syntheticHtml);
+        }
+
+        private string ExtractPostText()
+        {
+            if (string.IsNullOrEmpty(Html)) return "";
+
+            var match = Regex.Match(Html, @"<p[^>]*>(.*?)</p>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            if (!match.Success) return "";
+
+            var inner = match.Groups[1].Value;
+            // Strip HTML tags
+            inner = Regex.Replace(inner, @"<[^>]+>", "");
+            // Remove pic.twitter.com links if present
+            inner = Regex.Replace(inner, @"pic\.twitter\.com\/\w+", "", RegexOptions.IgnoreCase).Trim();
+            // Decode HTML entities
+            return WebUtility.HtmlDecode(inner.Trim());
+        }
+
+        private string ExtractMediaUrl()
+        {
+            if (string.IsNullOrEmpty(Html)) return null;
+
+            // Step 1: Extract the entire <a href...></a> tag if it matches the overall structure
+            var tagMatch = Regex.Match(Html, @"<a\s+(href\s*=\s*[""']https://t.co/\w+[""']\s*>pic\.twitter\.com/\w+)</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (!tagMatch.Success) return null;
+            var fullTag = tagMatch.Groups[0].Value;
+
+            // Step 2: From the full tag, extract the t.co URL (the href value)
+            // <a href="https://t.co/FKPXyzGtCF">pic.twitter.com/FKPXyzGtCF</a>
+            var hrefMatch = Regex.Match(fullTag, @"href\s*=\s*[""'](https://t.co/\w+)[""']", RegexOptions.IgnoreCase);
+            if (!hrefMatch.Success) return null;
+            var mediaUrl = hrefMatch.Groups[1].Value;
+
+            // Step 3: From the full tag, extract the contents between > and </a> (the inner text)
+            var mediaIdMatch = Regex.Match(fullTag, @">\s*pic\.twitter\.com/([^<]+)</a>", RegexOptions.IgnoreCase);
+            if (!mediaIdMatch.Success) return null;
+            var mediaId = mediaIdMatch.Groups[1].Value.Trim();
+
+            return mediaId;
+        }
+
+        private async Task<string> GetImageUrlFromMediaAsync(string mediaId)
+        {
+            if (string.IsNullOrEmpty(mediaId)) return null;
+
+            try
+            {
+                var formats = new[] { "jpg", "png", "gif" }; // Common Twitter image formats; jpg is 95%+ of cases
+                foreach (var format in formats)
+                {
+                    var candidateUrl = $"https://pbs.twimg.com/media/{mediaId}.{format}:orig"; // Use :orig for full quality (:large is smaller)
+
+                    var request = new HttpRequestMessage(HttpMethod.Head, candidateUrl);
+                    request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
+                    request.Headers.Add("Accept", "*/*"); // Simpler for HEAD
+
+                    var response = await clientFactory.SendWithRedirectsAsync(
+                        request,
+                        timeout: TimeSpan.FromSeconds(10), // Shorter timeout since HEAD is fast
+                        httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
+
+                    if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        logger.LogDebug("OEmbed: Found valid image URL: {ImageUrl}", candidateUrl);
+                        return candidateUrl;
+                    }
+                    else
+                    {
+                        logger.LogDebug("OEmbed: Tried {CandidateUrl} but got status {StatusCode}", candidateUrl, response.StatusCode);
+                    }
+                }
+
+                // Fallback: If no direct match, use the original HTML-fetch method with t.co (you'd need to pass t.co separately or extract it here if needed)
+                logger.LogDebug("OEmbed: Direct URL construction failed; falling back to original method if implemented");
+                return null; // Or implement fallback here
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug("OEmbed: Error resolving image from ID {MediaId}. Error: {Error}", mediaId, ex.Message);
+                return null;
+            }
+        }
+    }
+
     /// <summary>
     /// List of sites that needs bot headers to be fetched CSR website
     /// </summary>
-    private static readonly List<string> SiteThatNeedsBotHeaders = ["x.com", "twitter.com"];
+    private static readonly List<string> SiteThatNeedsOEmbed = ["x.com", "twitter.com"];
     private static readonly List<string> SiteThatNeedsMozillaHeaders = [];
 
     public static bool IsUrlSafe(string url)
@@ -128,21 +285,27 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
     private async Task<string> FetchHtmlContentAsync(string url)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Add("Accept", "text/html");
+
+        bool isOEmbed = SiteThatNeedsOEmbed.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase));
 
         // Use specific User-Agent based on the URL
-        if (SiteThatNeedsBotHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
+        if (isOEmbed)
         {
-            request.Headers.Add("User-Agent", "grapeshot|googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
+            var oEmbedUrl = $"https://publish.x.com/oembed?url={Uri.EscapeDataString(url.Replace("x.com", "twitter.com"))}";
+            request.RequestUri = new Uri(oEmbedUrl);
+            request.Headers.Add("Accept", "application/json");
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         }
         else if (SiteThatNeedsMozillaHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
         {
             // Use a modern browser-like User-Agent for general requests
+            request.Headers.Add("Accept", "text/html");
             request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         }
         else
         {
             // Use facebookexternalhit for Open Graph previews
+            request.Headers.Add("Accept", "text/html");
             request.Headers.Add("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)");
         }
 
@@ -184,7 +347,22 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
                     content.Length, maxContentLength, url);
                 return null;
             }
-
+            if (isOEmbed)
+            {
+                try
+                {
+                    var oembed = JsonSerializer.Deserialize<OEmbed>(content);
+                    oembed.logger = logger; // Not ideal...
+                    oembed.clientFactory = clientFactory;
+                    var syntheticHtml = await oembed.ToHtml();
+                    return syntheticHtml;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug("LinkExtractor: Failed to process oEmbed for {Url}. Error: {Error}", url, ex.Message);
+                    return null;
+                }
+            }
             // Do NOT decode the HTML content. The chat client and stuff reliably handles unsafe "html".
             return content;
         }
@@ -294,4 +472,5 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
             return null;
         }
     }
+
 }
