@@ -29,7 +29,7 @@ public class SendRecoveryModeVerificationEmailJobData
     public string Domain { get; init; } = "";
     public string Path { get; init; } = "";
     public string Email { get; init; } = "";
-    public List<OdinId> Players { get; init; } = [];
+    public List<ShamiraPlayer> Players { get; init; } = [];
     public Guid NonceId { get; init; }
     public RecoveryEmailType EmailType { get; init; }
 }
@@ -64,14 +64,13 @@ public class SendRecoveryModeVerificationEmailJob(
         Envelope envelope;
         if (Data.EmailType == RecoveryEmailType.EnterRecoveryMode)
         {
-            var players = Data.Players.Select(p => p.DomainName).ToList();
             envelope = new Envelope
             {
                 To = [new NameAndEmailAddress { Email = Data.Email }],
                 Subject = subject,
                 TextMessage =
-                    RecoveryEmails.VerifyEmailText(Data.Email, Data.Domain, link, players),
-                HtmlMessage = RecoveryEmails.VerifyEmailHtml(Data.Domain, link, players)
+                    RecoveryEmails.VerifyEmailText(Data.Email, Data.Domain, link, Data.Players),
+                HtmlMessage = RecoveryEmails.VerifyEmailHtml(Data.Domain, link, Data.Players)
             };
         }
         else

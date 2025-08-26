@@ -76,7 +76,7 @@ public class ShamirConfigurationService(
             throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
         }
 
-        await SaveDistributableKey(distributionKey, odinContext);
+        await SaveDistributableKey(distributionKey, package, odinContext);
 
         tx.Commit();
 
@@ -88,6 +88,8 @@ public class ShamirConfigurationService(
     /// </summary>
     public async Task<RemoteShardVerificationResult> VerifyRemotePlayerShards(IOdinContext odinContext)
     {
+        odinContext.Caller.AssertHasMasterKey();
+
         // get the preconfigured package
         var package = await this.GetDealerShardPackage(odinContext);
 
@@ -128,46 +130,16 @@ public class ShamirConfigurationService(
         };
     }
 
-
     /// <summary>
     /// Verifies the shard given to this identity from a dealer
     /// </summary>
     public async Task<ShardVerificationResult> VerifyDealerShard(Guid shardId, IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        var dealer = odinContext.Caller.OdinId;
-
-        var options = new ResultOptions
-        {
-            MaxRecords = 1,
-            IncludeHeaderContent = true,
-            ExcludePreviewThumbnail = true,
-            ExcludeServerMetaData = false,
-            IncludeTransferHistory = false
-        };
-
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(odinContext);
-        var file = await fileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
-
-        if (null == file)
-        {
-            return new ShardVerificationResult()
-            {
-                IsValid = false
-            };
-        }
-
-        //TODO: what else to verify?
-        var isValid = file.FileMetadata.SenderOdinId == dealer &&
-                      !string.IsNullOrEmpty(file.FileMetadata.AppData.Content);
-
-        return new ShardVerificationResult()
-        {
-            IsValid = isValid
-        };
+        var (_, _, verifyDealerShard) = await GetDealerShard(shardId, odinContext);
+        return verifyDealerShard;
     }
 
-    public async Task<DealerShardConfig> GetConfig(IOdinContext odinContext)
+    public async Task<DealerShardConfig> GetRedactedConfig(IOdinContext odinContext)
     {
         var package = await this.GetDealerShardPackage(odinContext);
 
@@ -188,23 +160,60 @@ public class ShamirConfigurationService(
         };
     }
 
-    public async Task<List<OdinId>> GetPlayers(IOdinContext odinContext)
+    public async Task<List<ShamiraPlayer>> GetPlayers(IOdinContext odinContext)
     {
-        var package = await this.GetDealerShardPackage(odinContext);
-
-        if (package == null)
+        var key = await this.GetKeyInternalAsync();
+        if (key == null)
         {
             return [];
         }
 
-        return package.Envelopes.Select(e => e.Player.OdinId).ToList();
-
+        return key.Players;
     }
 
-    private async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
+    public async Task<(OdinId dealer, PlayerEncryptedShard shard, ShardVerificationResult verificationResult)> GetDealerShard(Guid shardId,
+        IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
+        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var dealer = odinContext.Caller.OdinId.GetValueOrDefault();
 
+        var options = new ResultOptions
+        {
+            MaxRecords = 1,
+            IncludeHeaderContent = true,
+            ExcludePreviewThumbnail = true,
+            ExcludeServerMetaData = false,
+            IncludeTransferHistory = false
+        };
+
+        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive, odinContext);
+        var file = await fileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
+
+
+        var isValid = file != null &&
+                      !string.IsNullOrEmpty(file.FileMetadata.AppData.Content) &&
+                      file.FileMetadata.SenderOdinId == dealer;
+
+        if (!isValid)
+        {
+            return (dealer, null, new ShardVerificationResult()
+            {
+                IsValid = false
+            });
+        }
+
+        var json = file.FileMetadata.AppData.Content.FromBase64().ToStringFromUtf8Bytes();
+        var shard = OdinSystemSerializer.Deserialize<PlayerEncryptedShard>(json);
+
+        return (dealer, shard, new ShardVerificationResult()
+        {
+            Created = shard.Created,
+            IsValid = true
+        });
+    }
+
+    public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
+    {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var uid = Guid.Parse(DealerShardConfigUid);
         var options = new ResultOptions
@@ -274,9 +283,18 @@ public class ShamirConfigurationService(
             var (iv, cipher) = AesCbc.Encrypt(shards[i].Shard, playerEncryptionKey);
 
             var playerShardId = Guid.NewGuid();
-            playerRecords.Add(new PlayerEncryptedShard(playerShardId, player, cipher));
+            playerRecords.Add(new PlayerEncryptedShard()
+            {
+                Index = i,
+                Id = playerShardId,
+                Player = player,
+                Created = UnixTimeUtc.Now(),
+                DealerEncryptedShard = cipher
+            });
+            
             dealerRecords.Add(new DealerShardEnvelope()
             {
+                Index = i,
                 Player = player,
                 ShardId = playerShardId,
                 EncryptionKey = playerEncryptionKey.GetKey(),
@@ -305,14 +323,13 @@ public class ShamirConfigurationService(
     /// <summary>
     /// Sends the shards to the list identities
     /// </summary>
-    /// <param name="shards"></param>
-    /// <param name="odinContext"></param>
-    private async Task<Dictionary<OdinId, TransferStatus>> EnqueueShardsForDistribution(List<PlayerEncryptedShard> shards,
+    private async Task<Dictionary<OdinId, TransferStatus>> EnqueueShardsForDistribution(
+        List<PlayerEncryptedShard> shards,
         IOdinContext odinContext)
     {
         var results = new Dictionary<OdinId, TransferStatus>();
 
-        foreach (var shard in shards)
+        foreach (PlayerEncryptedShard shard in shards)
         {
             var header = await WritePlayerEncryptedShardToTempDrive(shard, odinContext);
             var transitOptions = new TransitOptions
@@ -320,8 +337,17 @@ public class ShamirConfigurationService(
                 IsTransient = true,
                 Recipients = [shard.Player.OdinId.DomainName],
                 DisableTransferHistory = true,
-                UseAppNotification = false,
-                AppNotificationOptions = null,
+                UseAppNotification = true,
+                AppNotificationOptions = new AppNotificationOptions
+                {
+                    AppId = default,
+                    TypeId = default,
+                    TagId = default,
+                    Silent = false,
+                    PeerSubscriptionId = default,
+                    Recipients = null,
+                    UnEncryptedMessage = $"{odinContext.Tenant.DomainName} has added you as part of their password recovery process."
+                },
                 RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
                 Priority = OutboxPriority.High
             };
@@ -340,7 +366,7 @@ public class ShamirConfigurationService(
         return results;
     }
 
-    private async Task<ServerFileHeader> WriteNewDealerEnvelopeFile(DealerShardPackage dealerShard, IOdinContext odinContext)
+    private async Task WriteNewDealerEnvelopeFile(DealerShardPackage dealerShard, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
@@ -371,11 +397,9 @@ public class ShamirConfigurationService(
 
         var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata, odinContext);
         await fileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
-
-        return serverFileHeader;
     }
 
-    private async Task<ServerFileHeader> OverwriteDealerEnvelopeFile(DealerShardPackage dealerShard, Guid existingFileId,
+    private async Task OverwriteDealerEnvelopeFile(DealerShardPackage dealerShard, Guid existingFileId,
         IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
@@ -398,7 +422,6 @@ public class ShamirConfigurationService(
 
         header.FileMetadata.AppData.Content = encryptedContent.ToBase64();
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
-        return header;
     }
 
     private async Task<ServerFileHeader> WritePlayerEncryptedShardToTempDrive(PlayerEncryptedShard shard, IOdinContext odinContext)
@@ -407,7 +430,7 @@ public class ShamirConfigurationService(
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
 
         var keyHeader = KeyHeader.Empty();
-        var shardData = shard.DealerEncryptedShard;
+        var shardData = OdinSystemSerializer.Serialize(shard);
 
         var fileMetadata = new FileMetadata(file)
         {
@@ -415,7 +438,7 @@ public class ShamirConfigurationService(
             AppData = new AppFileMetaData()
             {
                 FileType = PlayerEncryptedShardFileType,
-                Content = shardData.ToBase64(),
+                Content = shardData,
                 UniqueId = shard.Id
             },
 
@@ -440,7 +463,7 @@ public class ShamirConfigurationService(
     /// <summary>
     /// Creates the key we will split and distribute to players
     /// </summary>
-    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, IOdinContext odinContext)
+    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, DealerShardPackage package, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -456,6 +479,7 @@ public class ShamirConfigurationService(
             MasterKeyEncryptedShamirDistributionKey = new SymmetricKeyEncryptedAes(secret: masterKey, dataToEncrypt: recoveryKey),
             Created = UnixTimeUtc.Now(),
             ShamirDistributionKeyEncryptedRecoveryKey = new SymmetricKeyEncryptedAes(secret: distributionKey, dataToEncrypt: recoveryKey),
+            Players = package.Envelopes.Select(e => e.Player).ToList()
         };
 
         await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);

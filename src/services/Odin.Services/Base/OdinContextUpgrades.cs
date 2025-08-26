@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authorization.Acl;
@@ -12,13 +11,39 @@ namespace Odin.Services.Base;
 
 public static class OdinContextUpgrades
 {
-    public static IOdinContext UpgradeToByPassAclCheck(IOdinContext odinContext)
+    public static IOdinContext UpgradeToByPassAclCheck(TargetDrive drive, IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
         patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
+
+        var driveGrants = new List<DriveGrant>()
+        {
+            new DriveGrant
+            {
+                DriveId = drive.Alias,
+                PermissionedDrive = new PermissionedDrive
+                {
+                    Drive = drive,
+                    Permission = DrivePermission.Read
+                },
+                KeyStoreKeyEncryptedStorageKey = null
+            }
+        };
+
+        var pg = new PermissionGroup(new PermissionSet([]), driveGrants, null, null);
+        if (patchedContext.PermissionsContext == null)
+        {
+            var dict = new Dictionary<string, PermissionGroup>() { { "patched-read-drive", pg } };
+            patchedContext.SetPermissionContext(new PermissionContext(dict, null));
+        }
+        else
+        {
+            patchedContext.PermissionsContext.PermissionGroups.TryAdd("patched-read-drive", pg);
+        }
+
         return patchedContext;
     }
-    
+
     public static IOdinContext UpgradeToPeerTransferContext(IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
@@ -31,7 +56,7 @@ public static class OdinContextUpgrades
 
         return patchedContext;
     }
-    
+
     public static IOdinContext PrepForSynchronizeChannelFiles(
         IOdinContext odinContext,
         Guid feedDriveId,

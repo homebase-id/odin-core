@@ -1,4 +1,3 @@
-using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Services.Peer;
 using Refit;
@@ -11,6 +10,8 @@ namespace Odin.Services.ShamiraPasswordRecovery
 
         [Post(PasswdRoot + "/verify-shard")]
         Task<ApiResponse<ShardVerificationResult>> VerifyShard([Body] VerifyShardRequest request);
-       
+        
+        [Post(PasswdRoot + "/request-shard")]
+        Task<ApiResponse<RetrieveShardResult>> RequestShard([Body] RetrieveShardRequest request);
     }
 }

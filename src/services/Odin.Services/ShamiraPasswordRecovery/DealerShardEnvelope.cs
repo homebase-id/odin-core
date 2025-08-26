@@ -9,8 +9,9 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 /// </summary>
 public class DealerShardEnvelope
 {
-    public ShamiraPlayer Player { get; set; }
-    public byte[] EncryptionKey { get; set; }
-    public byte[] EncryptionIv { get; set; }
-    public Guid ShardId { get; set; }
+    public ShamiraPlayer Player { get; init; }
+    public byte[] EncryptionKey { get; init; }
+    public byte[] EncryptionIv { get; init; }
+    public Guid ShardId { get; init; }
+    public int Index { get; init; }
 }

@@ -15,7 +15,7 @@ public class OwnerShamirConfigurationController(ShamirConfigurationService shami
     [HttpGet("config")]
     public async Task<DealerShardConfig> GetConfig()
     {
-        return await shamirConfigurationService.GetConfig(WebOdinContext);
+        return await shamirConfigurationService.GetRedactedConfig(WebOdinContext);
     }
 
     [HttpPost("configure-shards")]

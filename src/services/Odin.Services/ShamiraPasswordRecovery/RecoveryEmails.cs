@@ -5,6 +5,7 @@
 //
 
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
@@ -13,7 +14,7 @@ public static class RecoveryEmails
     //
     // Enter recovery mode
     //
-    public static string VerifyEmailText(string email, string domain, string link, List<string> players)
+    public static string VerifyEmailText(string email, string domain, string link, List<ShamiraPlayer> players)
     {
         return @$"
             Hi {email},
@@ -23,16 +24,17 @@ public static class RecoveryEmails
             If you did not do this, delete this email.
 
             The following connections have a portion of your recovery key.  They will receive a notification when you verify using 
-            the link below: {string.Join(",", players)}
+            the link below: {string.Join(",", players.Select(p => $"{p.OdinId} ({p.Type})"))}
+                To continue putting your identity into recovery mode open this link in your browser: {
+                    link
+                }
 
-            To continue putting your identity into recovery mode open this link in your browser: {link}
-
-            --
+        --
             Team Homebase
         ";
     }
 
-    public static string VerifyEmailHtml(string domain, string link, List<string> players)
+    public static string VerifyEmailHtml(string domain, string link, List<ShamiraPlayer> players)
     {
         return @$"
             <!DOCTYPE html>
@@ -196,7 +198,7 @@ public static class RecoveryEmails
 
                                                             <p style='margin-bottom: 15px'>
                                                                 The following connections have a portion of your recovery key.  They will receive a notification when you verify using 
-                                                                the link below: {string.Join(",", players)}
+                                                                the link below: {string.Join(",", players.Select(p => $"{p.OdinId} ({p.Type})"))}
                                                             </p>
 
                                                             <p style='margin-bottom: 15px'>
