@@ -65,8 +65,7 @@ public class TableKeyValueCachedTests : IocTestBase
 
         {
             var r = await tableKeyValueCached.InsertAsync(
-                new KeyValueRecord { key = k1, data = v1 },
-                TimeSpan.FromMilliseconds(100));
+                new KeyValueRecord { key = k1, data = v1 });
             Assert.That(r, Is.EqualTo(1));
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
@@ -77,8 +76,8 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
         await Task.Delay(200);
@@ -88,8 +87,8 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(3));
         }
     }
 
@@ -114,8 +113,7 @@ public class TableKeyValueCachedTests : IocTestBase
 
         {
             var r = await tableKeyValueCached.InsertAsync(
-                new KeyValueRecord { key = k1, data = v1 },
-                TimeSpan.FromMilliseconds(100));
+                new KeyValueRecord { key = k1, data = v1 });
             Assert.That(r, Is.EqualTo(1));
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
@@ -126,21 +124,21 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
         {
             await tableKeyValueCached.DeleteAsync(k1);
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
         {
             var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
             Assert.That(r, Is.Null);
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(3));
         }
     }
 
@@ -165,8 +163,7 @@ public class TableKeyValueCachedTests : IocTestBase
 
         {
             var r = await tableKeyValueCached.InsertAsync(
-                new KeyValueRecord { key = k1, data = v1 },
-                TimeSpan.FromMilliseconds(100));
+                new KeyValueRecord { key = k1, data = v1 });
             Assert.That(r, Is.EqualTo(1));
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
@@ -177,14 +174,14 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
         {
             await tableKeyValueCached.InvalidateAllAsync();
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
         {
@@ -192,8 +189,8 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
-            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
-            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
+            Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
+            Assert.That(tableKeyValueCached.Misses, Is.EqualTo(3));
         }
     }
 
@@ -210,7 +207,7 @@ public class TableKeyValueCachedTests : IocTestBase
 
         {
             await using var tx = await db.BeginStackedTransactionAsync();
-            await db.KeyValueCached.InsertAsync(item, TimeSpan.FromMilliseconds(100));
+            await db.KeyValueCached.InsertAsync(item);
 
             {
                 // We're in a transaction, so cache was not updated in above INSERT

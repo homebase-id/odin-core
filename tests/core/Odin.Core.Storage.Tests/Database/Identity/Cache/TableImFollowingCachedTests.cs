@@ -42,17 +42,17 @@ public class TableImFollowingCachedTests : IocTestBase
         }
 
         // Odin follows d1
-        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i1), driveId = d1 }, TimeSpan.FromMilliseconds(100));
+        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i1), driveId = d1 });
 
         // Thor follows d1
-        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i2), driveId = d1 }, TimeSpan.FromMilliseconds(100));
+        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i2), driveId = d1 });
 
         // Freja follows d1 & d2
-        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i3), driveId = d1 }, TimeSpan.FromMilliseconds(100));
-        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i3), driveId = d2 }, TimeSpan.FromMilliseconds(100));
+        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i3), driveId = d1 });
+        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i3), driveId = d2 });
 
         // Heimdal follows d2
-        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i4), driveId = d2 }, TimeSpan.FromMilliseconds(100));
+        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i4), driveId = d2 });
 
         {
             var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
@@ -69,7 +69,7 @@ public class TableImFollowingCachedTests : IocTestBase
         }
 
         // Loke follows everything
-        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i5), driveId = Guid.Empty }, TimeSpan.FromMilliseconds(100));
+        await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i5), driveId = Guid.Empty });
 
         {
             var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));

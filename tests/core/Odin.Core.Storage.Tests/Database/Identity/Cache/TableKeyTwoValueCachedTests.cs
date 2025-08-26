@@ -49,34 +49,34 @@ public class TableKeyTwoValueCachedTests : IocTestBase
         }
 
         var item = new KeyTwoValueRecord { key1 = k1, key2 = k2, data = Guid.NewGuid().ToByteArray() };
-        await tableKeyTwoValueCached.UpsertAsync(item, TimeSpan.FromMilliseconds(100));
+        await tableKeyTwoValueCached.UpsertAsync(item);
+
+        {
+            var record = await tableKeyTwoValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            Assert.That(record, Is.Not.Null);
+            Assert.That(tableKeyTwoValueCached.Hits, Is.EqualTo(2));
+            Assert.That(tableKeyTwoValueCached.Misses, Is.EqualTo(3));
+        }
 
         {
             var record = await tableKeyTwoValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableKeyTwoValueCached.Hits, Is.EqualTo(3));
-            Assert.That(tableKeyTwoValueCached.Misses, Is.EqualTo(2));
-        }
-
-        {
-            var record = await tableKeyTwoValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
-            Assert.That(record, Is.Not.Null);
-            Assert.That(tableKeyTwoValueCached.Hits, Is.EqualTo(4));
-            Assert.That(tableKeyTwoValueCached.Misses, Is.EqualTo(2));
-        }
-
-        {
-            var records = await tableKeyTwoValueCached.GetByKeyTwoAsync(k2, TimeSpan.FromMilliseconds(100));
-            Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableKeyTwoValueCached.Hits, Is.EqualTo(4));
             Assert.That(tableKeyTwoValueCached.Misses, Is.EqualTo(3));
         }
 
         {
             var records = await tableKeyTwoValueCached.GetByKeyTwoAsync(k2, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableKeyTwoValueCached.Hits, Is.EqualTo(5));
-            Assert.That(tableKeyTwoValueCached.Misses, Is.EqualTo(3));
+            Assert.That(tableKeyTwoValueCached.Hits, Is.EqualTo(3));
+            Assert.That(tableKeyTwoValueCached.Misses, Is.EqualTo(4));
+        }
+
+        {
+            var records = await tableKeyTwoValueCached.GetByKeyTwoAsync(k2, TimeSpan.FromMilliseconds(100));
+            Assert.That(records.Count, Is.EqualTo(1));
+            Assert.That(tableKeyTwoValueCached.Hits, Is.EqualTo(4));
+            Assert.That(tableKeyTwoValueCached.Misses, Is.EqualTo(4));
         }
 
     }

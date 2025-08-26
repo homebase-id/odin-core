@@ -56,16 +56,13 @@ public class TableCircleMemberCachedTests : IocTestBase
         }
 
         await tableCircleMemberCached.InsertAsync(
-            new CircleMemberRecord { circleId = c1, memberId = m1, data = d1 },
-            TimeSpan.FromMilliseconds(100));
+            new CircleMemberRecord { circleId = c1, memberId = m1, data = d1 });
 
         await tableCircleMemberCached.InsertAsync(
-            new CircleMemberRecord { circleId = c1, memberId = m2, data = d2 },
-            TimeSpan.FromMilliseconds(100));
+            new CircleMemberRecord { circleId = c1, memberId = m2, data = d2 });
 
         await tableCircleMemberCached.InsertAsync(
-            new CircleMemberRecord { circleId = c3, memberId = m3, data = d3 },
-            TimeSpan.FromMilliseconds(100));
+            new CircleMemberRecord { circleId = c3, memberId = m3, data = d3 });
 
         {
             var records = await tableCircleMemberCached.GetAllCirclesAsync(TimeSpan.FromMilliseconds(100));

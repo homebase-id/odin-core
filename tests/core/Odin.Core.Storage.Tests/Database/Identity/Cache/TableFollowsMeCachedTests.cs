@@ -42,17 +42,17 @@ public class TableFollowsMeCachedTests : IocTestBase
         }
 
         // Odin follows d1
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i1, driveId = d1 }, TimeSpan.FromMilliseconds(100));
+        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i1, driveId = d1 });
 
         // Thor follows d1
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i2, driveId = d1 }, TimeSpan.FromMilliseconds(100));
+        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i2, driveId = d1 });
 
         // Freja follows d1 & d2
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i3, driveId = d1 }, TimeSpan.FromMilliseconds(100));
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i3, driveId = d2 }, TimeSpan.FromMilliseconds(100));
+        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i3, driveId = d1 });
+        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i3, driveId = d2 });
 
         // Heimdal follows d2
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i4, driveId = d2 }, TimeSpan.FromMilliseconds(100));
+        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i4, driveId = d2 });
 
         {
             var records = await tableFollowsMeCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
@@ -69,7 +69,7 @@ public class TableFollowsMeCachedTests : IocTestBase
         }
 
         // Loke follows everything
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i5, driveId = Guid.Empty }, TimeSpan.FromMilliseconds(100));
+        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i5, driveId = Guid.Empty });
 
         {
             var records = await tableFollowsMeCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));

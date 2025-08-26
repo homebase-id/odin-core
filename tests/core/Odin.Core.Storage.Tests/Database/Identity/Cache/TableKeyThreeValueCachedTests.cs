@@ -64,48 +64,48 @@ public class TableKeyThreeValueCachedTests : IocTestBase
         }
 
         var item = new KeyThreeValueRecord { key1 = k1, key2 = k2, key3 = k3, data = Guid.NewGuid().ToByteArray() };
-        await tableKeyThreeValueCached.UpsertAsync(item, TimeSpan.FromMilliseconds(100));
+        await tableKeyThreeValueCached.UpsertAsync(item);
+
+        {
+            var record = await tableKeyThreeValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            Assert.That(record, Is.Not.Null);
+            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(3));
+            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(4));
+        }
 
         {
             var record = await tableKeyThreeValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(4));
-            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(3));
-        }
-
-        {
-            var record = await tableKeyThreeValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
-            Assert.That(record, Is.Not.Null);
-            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(5));
-            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(3));
-        }
-
-        {
-            var records = await tableKeyThreeValueCached.GetByKeyTwoAsync(k2, TimeSpan.FromMilliseconds(100));
-            Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(5));
             Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(4));
         }
 
         {
             var records = await tableKeyThreeValueCached.GetByKeyTwoAsync(k2, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(6));
-            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(4));
+            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(4));
+            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(5));
         }
 
         {
-            var records = await tableKeyThreeValueCached.GetByKeyThreeAsync(k3, TimeSpan.FromMilliseconds(100));
+            var records = await tableKeyThreeValueCached.GetByKeyTwoAsync(k2, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(6));
+            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(5));
             Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(5));
         }
 
         {
             var records = await tableKeyThreeValueCached.GetByKeyThreeAsync(k3, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(7));
-            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(5));
+            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(5));
+            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(6));
+        }
+
+        {
+            var records = await tableKeyThreeValueCached.GetByKeyThreeAsync(k3, TimeSpan.FromMilliseconds(100));
+            Assert.That(records.Count, Is.EqualTo(1));
+            Assert.That(tableKeyThreeValueCached.Hits, Is.EqualTo(6));
+            Assert.That(tableKeyThreeValueCached.Misses, Is.EqualTo(6));
         }
 
 

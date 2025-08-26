@@ -23,8 +23,7 @@ public class TableAppGrantsCachedTests : IocTestBase
         var odinHashId = SequentialGuid.CreateGuid();
 
         var i = await tableAppGrantsCached.InsertAsync(
-            new AppGrantsRecord { appId = appId, circleId = circleId, data = data, odinHashId = odinHashId },
-            TimeSpan.FromMilliseconds(100));
+            new AppGrantsRecord { appId = appId, circleId = circleId, data = data, odinHashId = odinHashId });
 
         Assert.That(i, Is.EqualTo(1));
         Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(0));
@@ -51,12 +50,10 @@ public class TableAppGrantsCachedTests : IocTestBase
         var data2 = Guid.Parse( "22222222-DDDD-0000-0000-000000000000").ToByteArray();
 
         await tableAppGrantsCached.InsertAsync(
-            new AppGrantsRecord { appId = appId1, circleId = circleId1, data = data1, odinHashId = odinHashId1 },
-            TimeSpan.FromMilliseconds(100));
+            new AppGrantsRecord { appId = appId1, circleId = circleId1, data = data1, odinHashId = odinHashId1 });
 
         await tableAppGrantsCached.InsertAsync(
-            new AppGrantsRecord { appId = appId2, circleId = circleId2, data = data2, odinHashId = odinHashId2 },
-            TimeSpan.FromMilliseconds(100));
+            new AppGrantsRecord { appId = appId2, circleId = circleId2, data = data2, odinHashId = odinHashId2 });
 
         Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(0));
         Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(0));
@@ -96,8 +93,7 @@ public class TableAppGrantsCachedTests : IocTestBase
         }
 
         await tableAppGrantsCached.UpsertAsync(
-            new AppGrantsRecord { appId = appId1, circleId = circleId1, data = data2, odinHashId = odinHashId1 },
-            TimeSpan.FromMilliseconds(100));
+            new AppGrantsRecord { appId = appId1, circleId = circleId1, data = data2, odinHashId = odinHashId1 });
 
         // Single record miss (upsert has invalidated GetByOdinHashIdAsync)
         {
@@ -140,8 +136,7 @@ public class TableAppGrantsCachedTests : IocTestBase
         }
 
         await tableAppGrantsCached.InsertAsync(
-            new AppGrantsRecord { appId = appId1, circleId = circleId1, data = data1, odinHashId = odinHashId1 },
-            TimeSpan.FromMilliseconds(100));
+            new AppGrantsRecord { appId = appId1, circleId = circleId1, data = data1, odinHashId = odinHashId1 });
 
         await tableAppGrantsCached.InvalidateAllAsync();
 

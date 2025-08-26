@@ -60,15 +60,15 @@ public class TableConnectionsCachedTests : IocTestBase
             Assert.That(tableConnectionsCached.Misses, Is.EqualTo(1));
         }
 
-        await tableConnectionsCached.UpsertAsync(item1, TimeSpan.FromMilliseconds(100));
-        await tableConnectionsCached.UpsertAsync(item2, TimeSpan.FromMilliseconds(100));
-        await tableConnectionsCached.UpsertAsync(item3, TimeSpan.FromMilliseconds(100));
+        await tableConnectionsCached.UpsertAsync(item1);
+        await tableConnectionsCached.UpsertAsync(item2);
+        await tableConnectionsCached.UpsertAsync(item3);
 
         {
             var record = await tableConnectionsCached.GetAsync(item1.identity, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(2));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(1));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(1));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(2));
         }
 
         List<ConnectionsRecord> records;
@@ -77,71 +77,71 @@ public class TableConnectionsCachedTests : IocTestBase
         {
             (records, _) = await tableConnectionsCached.PagingByIdentityAsync(2, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(2));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(2));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(2));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(1));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(3));
         }
 
         {
             (records, cursor) = await tableConnectionsCached.PagingByIdentityAsync(2, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(2));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(3));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(2));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(2));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(3));
         }
 
         {
             (records, _) = await tableConnectionsCached.PagingByIdentityAsync(2, cursor, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(3));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(3));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(2));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(4));
         }
 
         {
             (records, cursor) = await tableConnectionsCached.PagingByIdentityAsync(2, cursor, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(4));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(3));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(3));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(4));
         }
 
         {
             (records, _) = await tableConnectionsCached.PagingByIdentityAsync(2, 42, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(4));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(4));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(3));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(5));
         }
 
         {
             (records, cursor) = await tableConnectionsCached.PagingByIdentityAsync(2, 42, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(5));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(4));
-        }
-
-        {
-            (records, _) = await tableConnectionsCached.PagingByCreatedAsync(2, cursor, TimeSpan.FromMilliseconds(100));
-            Assert.That(records.Count, Is.EqualTo(2));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(5));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(4));
             Assert.That(tableConnectionsCached.Misses, Is.EqualTo(5));
         }
 
         {
             (records, _) = await tableConnectionsCached.PagingByCreatedAsync(2, cursor, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(2));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(6));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(5));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(4));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(6));
         }
 
         {
-            (records, _) = await tableConnectionsCached.PagingByCreatedAsync(2, 42, cursor, TimeSpan.FromMilliseconds(100));
-            Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(6));
+            (records, _) = await tableConnectionsCached.PagingByCreatedAsync(2, cursor, TimeSpan.FromMilliseconds(100));
+            Assert.That(records.Count, Is.EqualTo(2));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(5));
             Assert.That(tableConnectionsCached.Misses, Is.EqualTo(6));
         }
 
         {
             (records, _) = await tableConnectionsCached.PagingByCreatedAsync(2, 42, cursor, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(7));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(6));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(5));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(7));
+        }
+
+        {
+            (records, _) = await tableConnectionsCached.PagingByCreatedAsync(2, 42, cursor, TimeSpan.FromMilliseconds(100));
+            Assert.That(records.Count, Is.EqualTo(1));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(6));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(7));
         }
 
         await tableConnectionsCached.DeleteAsync(item2.identity);
@@ -150,15 +150,15 @@ public class TableConnectionsCachedTests : IocTestBase
         {
             (records, _) = await tableConnectionsCached.PagingByIdentityAsync(2, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(7));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(7));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(6));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(8));
         }
 
         {
             (records, _) = await tableConnectionsCached.PagingByCreatedAsync(2, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(7));
-            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(8));
+            Assert.That(tableConnectionsCached.Hits, Is.EqualTo(6));
+            Assert.That(tableConnectionsCached.Misses, Is.EqualTo(9));
         }
 
     }

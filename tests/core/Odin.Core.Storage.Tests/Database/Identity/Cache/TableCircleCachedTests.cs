@@ -36,20 +36,17 @@ public class TableCircleCachedTests : IocTestBase
         }
 
         await tableCircleCached.InsertAsync(
-            new CircleRecord { circleId = circleId1, circleName = circleName1, data = circleData1 },
-            TimeSpan.FromMilliseconds(100));
+            new CircleRecord { circleId = circleId1, circleName = circleName1, data = circleData1 });
         await tableCircleCached.InsertAsync(
-            new CircleRecord { circleId = circleId2, circleName = circleName2, data = circleData2 },
-            TimeSpan.FromMilliseconds(100));
+            new CircleRecord { circleId = circleId2, circleName = circleName2, data = circleData2 });
         await tableCircleCached.InsertAsync(
-            new CircleRecord { circleId = circleId3, circleName = circleName3, data = circleData3 },
-            TimeSpan.FromMilliseconds(100));
+            new CircleRecord { circleId = circleId3, circleName = circleName3, data = circleData3 });
 
         {
             var record = await tableCircleCached.GetAsync(circleId1, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(1));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(1));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(0));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(2));
         }
 
 
@@ -61,29 +58,29 @@ public class TableCircleCachedTests : IocTestBase
             (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(1));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(2));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(0));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(3));
 
             // Record 1 HIT
             (records, cursor) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(2));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(1));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(3));
 
             // Record 1 MISS
             (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, cursor, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId2));
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(3));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(1));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(4));
 
             // Record 1 HIT
             (records, cursor) = await tableCircleCached.PagingByCircleIdAsync(1, cursor, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId2));
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(3));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(3));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(4));
         }
 
         await tableCircleCached.DeleteAsync(circleId3);
@@ -91,8 +88,8 @@ public class TableCircleCachedTests : IocTestBase
         {
             var record = await tableCircleCached.GetAsync(circleId3, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Null);
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(3));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(4));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(5));
         }
 
         {
@@ -102,18 +99,17 @@ public class TableCircleCachedTests : IocTestBase
             (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(3));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(5));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(6));
 
             // Record 1 HIT
             (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
-            Assert.That(tableCircleCached.Hits, Is.EqualTo(4));
-            Assert.That(tableCircleCached.Misses, Is.EqualTo(5));
+            Assert.That(tableCircleCached.Hits, Is.EqualTo(3));
+            Assert.That(tableCircleCached.Misses, Is.EqualTo(6));
         }
     }
-
 
     //
 
