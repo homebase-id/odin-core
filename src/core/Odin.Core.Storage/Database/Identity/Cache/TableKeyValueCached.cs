@@ -36,40 +36,40 @@ public class TableKeyValueCached(
 
     //
 
-    public async Task<int> InsertAsync(KeyValueRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(KeyValueRecord item)
     {
         var result = await table.InsertAsync(item);
-        await SetAsync(GetCacheKey(item), item, ttl);
+        await InvalidateAsync(item.key);
         return result;
     }
 
     //
 
-    public async Task<bool> TryInsertAsync(KeyValueRecord item, TimeSpan ttl)
+    public async Task<bool> TryInsertAsync(KeyValueRecord item)
     {
         var result = await table.TryInsertAsync(item);
         if (result)
         {
-            await SetAsync(GetCacheKey(item), item, ttl);
+            await InvalidateAsync(item.key);
         }
         return result;
     }
 
     //
 
-    public async Task<int> UpsertAsync(KeyValueRecord item, TimeSpan ttl)
+    public async Task<int> UpsertAsync(KeyValueRecord item)
     {
         var result = await table.UpsertAsync(item);
-        await SetAsync(GetCacheKey(item), item, ttl);
+        await InvalidateAsync(item.key);
         return result;
     }
 
     //
 
-    public async Task<int> UpdateAsync(KeyValueRecord item, TimeSpan ttl)
+    public async Task<int> UpdateAsync(KeyValueRecord item)
     {
         var result = await table.UpdateAsync(item);
-        await SetAsync(GetCacheKey(item), item, ttl);
+        await InvalidateAsync(item.key);
         return result;
     }
 
@@ -78,7 +78,7 @@ public class TableKeyValueCached(
     public async Task<int> DeleteAsync(byte[] key)
     {
         var result = await table.DeleteAsync(key);
-        await RemoveAsync(GetCacheKey(key));
+        await InvalidateAsync(key);
         return result;
     }
 
@@ -87,7 +87,12 @@ public class TableKeyValueCached(
     public async Task<int> UpsertManyAsync(List<KeyValueRecord> items)
     {
         var result = await table.UpsertManyAsync(items);
-        await InvalidateAllAsync();
+        var keys = new List<string>(items.Count);
+        foreach (var item in items)
+        {
+            keys.Add(GetCacheKey(item));
+        }
+        await InvalidateAsync(keys);
         return result;
     }
 

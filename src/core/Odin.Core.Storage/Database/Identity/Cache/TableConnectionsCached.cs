@@ -61,7 +61,7 @@ public class TableConnectionsCached(
 
     //
 
-    public async Task<int> InsertAsync(ConnectionsRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(ConnectionsRecord item)
     {
         var result = await table.InsertAsync(item);
         await InvalidateAsync(item);
@@ -70,7 +70,7 @@ public class TableConnectionsCached(
 
     //
 
-    public async Task<int> UpsertAsync(ConnectionsRecord item, TimeSpan ttl)
+    public async Task<int> UpsertAsync(ConnectionsRecord item)
     {
         var result = await table.UpsertAsync(item);
         await InvalidateAsync(item);
@@ -79,7 +79,7 @@ public class TableConnectionsCached(
 
     //
 
-    public async Task<int> UpdateAsync(ConnectionsRecord item, TimeSpan ttl)
+    public async Task<int> UpdateAsync(ConnectionsRecord item)
     {
         var result = await table.UpdateAsync(item);
         await InvalidateAsync(item);

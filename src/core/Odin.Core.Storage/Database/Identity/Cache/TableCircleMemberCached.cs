@@ -76,7 +76,7 @@ public class TableCircleMemberCached(
 
     //
 
-    public async Task<int> InsertAsync(CircleMemberRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(CircleMemberRecord item)
     {
         var result = await table.InsertAsync(item);
 
@@ -87,7 +87,7 @@ public class TableCircleMemberCached(
 
     //
 
-    public async Task<int> UpsertAsync(CircleMemberRecord item, TimeSpan ttl)
+    public async Task<int> UpsertAsync(CircleMemberRecord item)
     {
         var result = await table.UpsertAsync(item);
 

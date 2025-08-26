@@ -90,12 +90,12 @@ public class CircleNetworkStorage
                     appId = appId,
                     circleId = circleId,
                     data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
-                }, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+                });
             }
         }
 
         var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
-        await _db.ConnectionsCached.UpsertAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await _db.ConnectionsCached.UpsertAsync(record);
 
         tx.Commit();
     }
@@ -109,7 +109,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakKeyStoreKey = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.ConnectionsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await _db.ConnectionsCached.UpdateAsync(record);
     }
 
     public async Task UpdateClientAccessTokenAsync(OdinId identity, ConnectionStatus status, EncryptedClientAccessToken encryptedCat)
@@ -121,7 +121,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakClientAccessToken = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.ConnectionsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await _db.ConnectionsCached.UpdateAsync(record);
     }
 
     public async Task UpdateVerificationHashAsync(OdinId identity, ConnectionStatus status, byte[] hash)
@@ -131,7 +131,7 @@ public class CircleNetworkStorage
 
         icrAccessRecord.VerificationHash64 = hash.ToBase64();
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.ConnectionsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await _db.ConnectionsCached.UpdateAsync(record);
     }
 
     public async Task DeleteAsync(OdinId odinId)

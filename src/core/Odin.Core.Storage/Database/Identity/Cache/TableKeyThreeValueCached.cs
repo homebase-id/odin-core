@@ -83,7 +83,7 @@ public class TableKeyThreeValueCached(
 
     //
 
-    public async Task<int> UpsertAsync(KeyThreeValueRecord item, TimeSpan ttl)
+    public async Task<int> UpsertAsync(KeyThreeValueRecord item)
     {
         var result = await table.UpsertAsync(item);
         await InvalidateAllAsync();
@@ -92,7 +92,7 @@ public class TableKeyThreeValueCached(
 
     //
 
-    public async Task<int> InsertAsync(KeyThreeValueRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(KeyThreeValueRecord item)
     {
         var result = await table.InsertAsync(item);
         await InvalidateAllAsync();
@@ -111,7 +111,7 @@ public class TableKeyThreeValueCached(
 
     //
 
-    public async Task<int> UpdateAsync(KeyThreeValueRecord item, TimeSpan ttl)
+    public async Task<int> UpdateAsync(KeyThreeValueRecord item)
     {
         var result = await table.UpdateAsync(item);
         await InvalidateAllAsync();

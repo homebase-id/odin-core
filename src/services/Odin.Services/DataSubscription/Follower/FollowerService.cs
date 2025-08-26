@@ -106,8 +106,7 @@ namespace Odin.Services.DataSubscription.Follower
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
                     await db.ImFollowingCached.InsertAsync(new ImFollowingRecord()
-                        { identity = identityToFollow, driveId = Guid.Empty },
-                        TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL);
+                        { identity = identityToFollow, driveId = Guid.Empty });
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -121,9 +120,8 @@ namespace Odin.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        await db.ImFollowingCached.InsertAsync(new ImFollowingRecord()
-                            { identity = identityToFollow, driveId = channel.Alias },
-                            TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL);
+                        await db.ImFollowingCached.InsertAsync(new ImFollowingRecord
+                            { identity = identityToFollow, driveId = channel.Alias });
                     }
                 }
 

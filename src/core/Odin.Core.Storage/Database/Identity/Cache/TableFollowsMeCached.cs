@@ -59,7 +59,7 @@ public class TableFollowsMeCached(
 
     //
 
-    public async Task<int> InsertAsync(FollowsMeRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(FollowsMeRecord item)
     {
         var result = await table.InsertAsync(item);
         await InvalidateAllAsync();
@@ -68,7 +68,7 @@ public class TableFollowsMeCached(
 
     //
 
-    public async Task<bool> TryInsertAsync(FollowsMeRecord item, TimeSpan ttl)
+    public async Task<bool> TryInsertAsync(FollowsMeRecord item)
     {
         var result = await table.TryInsertAsync(item);
         if (result)
@@ -80,7 +80,7 @@ public class TableFollowsMeCached(
 
     //
 
-    public async Task<int> UpsertAsync(FollowsMeRecord item, TimeSpan ttl)
+    public async Task<int> UpsertAsync(FollowsMeRecord item)
     {
         var result = await table.UpsertAsync(item);
         await InvalidateAllAsync();

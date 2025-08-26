@@ -42,7 +42,7 @@ public class ThreeKeyValueStorage
     {
         var json = OdinSystemSerializer.Serialize(value);
 
-        await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() }, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, key3 = categoryKey, data = json.ToUtf8ByteArray() });
     }
 
     public async Task DeleteAsync(TableKeyThreeValueCached tblKeyThreeValue, Guid id)

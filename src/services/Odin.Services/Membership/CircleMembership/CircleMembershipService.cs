@@ -53,7 +53,7 @@ public class CircleMembershipService(
             
             storageData.CircleGrant.KeyStoreKeyEncryptedDriveGrants = updatedDriveIdList.ToList();
             cmr.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
-            await db.CircleMemberCached.UpsertAsync(cmr, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            await db.CircleMemberCached.UpsertAsync(cmr);
         }
 
         logger.LogInformation("Migrating App Grants");
@@ -72,7 +72,7 @@ public class CircleMembershipService(
             storageData.KeyStoreKeyEncryptedDriveGrants= updatedAppGrantDriveIdList.ToList();
             appGrant.data = OdinSystemSerializer.Serialize(storageData).ToUtf8ByteArray();
 
-            await db.AppGrantsCached.UpsertAsync(appGrant, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            await db.AppGrantsCached.UpsertAsync(appGrant);
         }
 
         tx.Commit();
@@ -154,7 +154,7 @@ public class CircleMembershipService(
         };
 
         // db.CircleMember.Insert(circleMemberRecord);
-        await db.CircleMemberCached.UpsertAsync(circleMemberRecord, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await db.CircleMemberCached.UpsertAsync(circleMemberRecord);
         // db.CircleMember.UpsertCircleMembers([circleMemberRecord]);
     }
 

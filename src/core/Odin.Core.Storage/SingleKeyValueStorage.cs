@@ -61,7 +61,7 @@ public class SingleKeyValueStorage
     public async Task UpsertAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() }, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
     public async Task DeleteAsync(TableKeyValueCached tblKeyValue, Guid key)

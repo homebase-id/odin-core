@@ -60,7 +60,7 @@ public class TableCircleCached(
 
     //
 
-    public async Task<int> InsertAsync(CircleRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(CircleRecord item)
     {
         var result = await table.InsertAsync(item);
 

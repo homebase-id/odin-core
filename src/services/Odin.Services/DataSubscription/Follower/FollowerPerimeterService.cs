@@ -32,7 +32,7 @@ namespace Odin.Services.DataSubscription.Follower
                 // Created sample DeleteAndAddFollower() - take a look
                 await using var trx = await db.BeginStackedTransactionAsync();
                 await db.FollowsMeCached.DeleteByIdentityAsync(new OdinId(request.OdinId));
-                await db.FollowsMeCached.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty }, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+                await db.FollowsMeCached.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = Guid.Empty });
                 trx.Commit();
             }
 

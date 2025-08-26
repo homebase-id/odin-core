@@ -38,7 +38,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             data = OdinSystemSerializer.Serialize(request.AppNotificationOptions).ToUtf8ByteArray()
         };
 
-        await db.AppNotificationsCached.InsertAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        await db.AppNotificationsCached.InsertAsync(record);
 
         await mediator.Publish(new AppNotificationAddedNotification(request.AppNotificationOptions.TypeId)
         {
@@ -142,7 +142,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;
-                await db.AppNotificationsCached.UpdateAsync(record, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+                await db.AppNotificationsCached.UpdateAsync(record);
             }
         }
 

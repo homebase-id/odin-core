@@ -52,8 +52,7 @@ public class TwoKeyValueStorage
     public async Task UpsertAsync<T>(TableKeyTwoValueCached tblKeyTwoValue, Guid key1, byte[] dataTypeKey, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        await tblKeyTwoValue.UpsertAsync(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() },
-            TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL);
+        await tblKeyTwoValue.UpsertAsync(new KeyTwoValueRecord() { key1 = MakeStorageKey(key1), key2 = dataTypeKey, data = json.ToUtf8ByteArray() });
     }
 
     public async Task DeleteAsync(TableKeyTwoValueCached tblKeyTwoValue, Guid id)

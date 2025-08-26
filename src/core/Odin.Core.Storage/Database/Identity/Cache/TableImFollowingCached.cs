@@ -41,7 +41,7 @@ public class TableImFollowingCached(
 
     //
 
-    public async Task<int> InsertAsync(ImFollowingRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(ImFollowingRecord item)
     {
         var result = await table.InsertAsync(item);
         await InvalidateAllAsync();
