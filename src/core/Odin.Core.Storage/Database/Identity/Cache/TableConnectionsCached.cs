@@ -33,6 +33,23 @@ public class TableConnectionsCached(
 
     //
 
+    private Task InvalidateAsync(ConnectionsRecord item)
+    {
+        return InvalidateAsync(item.identity);
+    }
+
+    //
+
+    private async Task InvalidateAsync(OdinId identity)
+    {
+        await InvalidateAsync([
+            () => InvalidateAsync(GetCacheKey(identity)),
+            () => InvalidateByTagAsync(PagingByTags)
+        ]);
+    }
+
+    //
+
     public async Task<ConnectionsRecord?> GetAsync(OdinId identity, TimeSpan ttl)
     {
         var result = await GetOrSetAsync(
@@ -47,8 +64,7 @@ public class TableConnectionsCached(
     public async Task<int> InsertAsync(ConnectionsRecord item, TimeSpan ttl)
     {
         var result = await table.InsertAsync(item);
-        await SetAsync(GetCacheKey(item), item, ttl);
-        await RemoveByTagAsync(PagingByTags);
+        await InvalidateAsync(item);
         return result;
     }
 
@@ -57,8 +73,7 @@ public class TableConnectionsCached(
     public async Task<int> UpsertAsync(ConnectionsRecord item, TimeSpan ttl)
     {
         var result = await table.UpsertAsync(item);
-        await SetAsync(GetCacheKey(item), item, ttl);
-        await RemoveByTagAsync(PagingByTags);
+        await InvalidateAsync(item);
         return result;
     }
 
@@ -67,8 +82,7 @@ public class TableConnectionsCached(
     public async Task<int> UpdateAsync(ConnectionsRecord item, TimeSpan ttl)
     {
         var result = await table.UpdateAsync(item);
-        await SetAsync(GetCacheKey(item), item, ttl);
-        await RemoveByTagAsync(PagingByTags);
+        await InvalidateAsync(item);
         return result;
     }
 
@@ -77,8 +91,7 @@ public class TableConnectionsCached(
     public async Task<int> DeleteAsync(OdinId identity)
     {
         var result = await table.DeleteAsync(identity);
-        await RemoveAsync(GetCacheKey(identity));
-        await RemoveByTagAsync(PagingByTags);
+        await InvalidateAsync(identity);
         return result;
     }
 

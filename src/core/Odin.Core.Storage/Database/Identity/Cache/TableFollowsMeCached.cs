@@ -63,7 +63,6 @@ public class TableFollowsMeCached(
     {
         var result = await table.InsertAsync(item);
         await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
         return result;
     }
 
@@ -75,7 +74,6 @@ public class TableFollowsMeCached(
         if (result)
         {
             await InvalidateAllAsync();
-            await SetAsync(GetCacheKey(item), item, ttl);
         }
         return result;
     }
@@ -86,7 +84,6 @@ public class TableFollowsMeCached(
     {
         var result = await table.UpsertAsync(item);
         await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
         return result;
     }
 

@@ -32,50 +32,52 @@ public class TableAppGrantsCached(
 
     //
 
-    public async Task<int> InsertAsync(AppGrantsRecord item, TimeSpan ttl)
+    private Task InvalidateAsync(AppGrantsRecord item)
+    {
+        return InvalidateAsync(item.odinHashId, item.appId, item.circleId);
+    }
+
+    //
+
+    private Task InvalidateAsync(Guid? odinHashId, Guid? appId, Guid? circleId)
+    {
+        return InvalidateAsync([
+            GetCacheKey(odinHashId, null, null),
+            GetCacheKey(odinHashId, appId, circleId),
+            CacheKeyAll,
+        ]);
+    }
+
+    //
+
+    public async Task<int> InsertAsync(AppGrantsRecord item)
     {
         var result = await table.InsertAsync(item);
 
-        await SetAsync(
-            GetCacheKey(item),
-            item,
-            ttl);
-
-        await RemoveAsync(CacheKeyAll);
+        await InvalidateAsync(item);
 
         return result;
     }
 
     //
 
-    public async Task<bool> TryInsertAsync(AppGrantsRecord item, TimeSpan ttl)
+    public async Task<bool> TryInsertAsync(AppGrantsRecord item)
     {
         var result = await table.TryInsertAsync(item);
         if (result)
         {
-            await SetAsync(
-                GetCacheKey(item),
-                item,
-                ttl);
-
-            await RemoveAsync(CacheKeyAll);
+            await InvalidateAsync(item);
         }
         return result;
     }
 
     //
 
-    public async Task<int> UpsertAsync(AppGrantsRecord item, TimeSpan ttl)
+    public async Task<int> UpsertAsync(AppGrantsRecord item)
     {
         var result = await table.UpsertAsync(item);
 
-        await SetAsync(
-            GetCacheKey(item),
-            item,
-            ttl);
-
-        await RemoveAsync(CacheKeyAll);
-        await RemoveAsync(GetCacheKey(item.odinHashId, null, null));
+        await InvalidateAsync(item);
 
         return result;
     }
@@ -108,7 +110,7 @@ public class TableAppGrantsCached(
     {
         await table.DeleteByIdentityAsync(odinHashId);
         // There's no easy way to invalidate all records for a specific identity,
-        // so we'll just invalidate all records instead.
+        // so we'll have to invalidate all records instead.
         await InvalidateAllAsync();
     }
 

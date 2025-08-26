@@ -14,6 +14,8 @@ public class TableKeyThreeValueCached(
     ITenantLevel2Cache cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
 {
+    // SEB:NOTE some funky cache keys here. We'll invalidate everything on any change. Might be worth refining later.
+
     private static string GetCacheKey(KeyThreeValueRecord item)
     {
         return GetCacheKey1(item.key1);
@@ -85,7 +87,6 @@ public class TableKeyThreeValueCached(
     {
         var result = await table.UpsertAsync(item);
         await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
         return result;
     }
 
@@ -95,7 +96,6 @@ public class TableKeyThreeValueCached(
     {
         var result = await table.InsertAsync(item);
         await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
         return result;
     }
 
@@ -115,7 +115,6 @@ public class TableKeyThreeValueCached(
     {
         var result = await table.UpdateAsync(item);
         await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
         return result;
     }
 

@@ -32,6 +32,23 @@ public class TableAppNotificationsCached(
 
     //
 
+    private Task InvalidateAsync(AppNotificationsRecord item)
+    {
+        return InvalidateAsync(item.notificationId);
+    }
+
+    //
+
+    private Task InvalidateAsync(Guid notificationId)
+    {
+        return InvalidateAsync([
+            () => InvalidateAsync(GetCacheKey(notificationId)),
+            () => InvalidateByTagAsync(PagingByCreateTags)
+        ]);
+    }
+
+    //
+
     public async Task<AppNotificationsRecord?> GetAsync(Guid notificationId, TimeSpan ttl)
     {
         var result = await GetOrSetAsync(
@@ -43,33 +60,22 @@ public class TableAppNotificationsCached(
 
     //
 
-    public async Task<int> InsertAsync(AppNotificationsRecord item, TimeSpan ttl)
+    public async Task<int> InsertAsync(AppNotificationsRecord item)
     {
         var result = await table.InsertAsync(item);
 
-        await SetAsync(
-            GetCacheKey(item),
-            item,
-            ttl);
-
-        await RemoveByTagAsync(PagingByCreateTags);
+        await InvalidateAsync(item);
 
         return result;
-
     }
 
     //
 
-    public async Task<int> UpdateAsync(AppNotificationsRecord item, TimeSpan ttl)
+    public async Task<int> UpdateAsync(AppNotificationsRecord item)
     {
         var result = await table.UpdateAsync(item);
 
-        await SetAsync(
-            GetCacheKey(item),
-            item,
-            ttl);
-
-        await RemoveByTagAsync(PagingByCreateTags);
+        await InvalidateAsync(item);
 
         return result;
     }
@@ -95,8 +101,9 @@ public class TableAppNotificationsCached(
     public async Task<int> DeleteAsync(Guid notificationId)
     {
         var result = await table.DeleteAsync(notificationId);
-        await RemoveAsync(GetCacheKey(notificationId));
-        await RemoveByTagAsync(PagingByCreateTags);
+
+        await InvalidateAsync(notificationId);
+
         return result;
     }
 

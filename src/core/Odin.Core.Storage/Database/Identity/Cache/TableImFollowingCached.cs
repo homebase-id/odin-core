@@ -45,7 +45,6 @@ public class TableImFollowingCached(
     {
         var result = await table.InsertAsync(item);
         await InvalidateAllAsync();
-        await SetAsync(GetCacheKey(item), item, ttl);
         return result;
     }
 

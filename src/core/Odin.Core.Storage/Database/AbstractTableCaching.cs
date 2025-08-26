@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
@@ -9,6 +10,14 @@ using Odin.Core.Storage.Factory;
 namespace Odin.Core.Storage.Database;
 
 #nullable enable
+
+//
+// Cache-aside/invalidate-only pattern used below.
+// This means that if there is a cache miss, we go to the database,
+// and we only update the cache when we have a new/updated item.
+// If an item is deleted or updated, we invalidate
+// (aka remove) the cache entry.
+//
 
 public abstract class AbstractTableCaching
 {
@@ -23,6 +32,8 @@ public abstract class AbstractTableCaching
 
     private readonly string _tagAllItems;
     private readonly List<string> _tagsAllItems;
+
+    protected virtual bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
 
     //
 
@@ -89,11 +100,7 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected virtual bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
-
-    //
-
-    protected virtual async ValueTask<TValue> GetOrSetAsync<TValue>(
+    protected virtual async Task<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
@@ -105,7 +112,7 @@ public abstract class AbstractTableCaching
             throw new OdinSystemException("TTL must be positive.");            
         }
 
-        // No cache updates if connection is in a transaction
+        // Bypass cache if connection is in a transaction
         if (InDatabaseTransaction)
         {
             return await factory(cancellationToken);
@@ -114,10 +121,10 @@ public abstract class AbstractTableCaching
         var hit = true;
         var result = await Cache.GetOrSetAsync(
             BuildCacheKey(key),
-            _ =>
+            async _ =>
             {
                 hit = false;
-                return factory(cancellationToken);
+                return await factory(cancellationToken);
             },
             ttl,
             CombineAllTags(tags),
@@ -137,7 +144,7 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected virtual async ValueTask<TValue> GetOrSetAsync<TValue>(
+    protected virtual async Task<TValue> GetOrSetAsync<TValue>(
         byte[] key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
@@ -149,85 +156,107 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected virtual async ValueTask SetAsync<TValue>(
-        string key,
-        TValue value,
-        TimeSpan ttl,
-        List<string>? tags = null,
-        CancellationToken cancellationToken = default)
+    public virtual async Task InvalidateAllAsync()
     {
-        if (ttl <= TimeSpan.Zero)
-        {
-            throw new OdinSystemException("TTL must be positive.");            
-        }
-        
-        // No cache update if connection is in a transaction
         if (InDatabaseTransaction)
+        {
+            _scopedConnectionFactory.AddPostCommitAction(async () => await Cache.RemoveByTagAsync(_tagsAllItems));
+        }
+        else
+        {
+            await Cache.RemoveByTagAsync(_tagsAllItems);
+        }
+    }
+
+    //
+
+    protected virtual async Task InvalidateAsync(string key)
+    {
+        if (InDatabaseTransaction)
+        {
+            _scopedConnectionFactory.AddPostCommitAction(async () => await Cache.RemoveAsync(BuildCacheKey(key)));
+        }
+        else
+        {
+            await Cache.RemoveAsync(BuildCacheKey(key));
+        }
+    }
+
+    //
+
+    protected virtual async Task InvalidateAsync(byte[] key)
+    {
+        await InvalidateAsync(key.ToHexString());
+    }
+
+    //
+
+    protected virtual async Task InvalidateAsync(IEnumerable<Func<Task>> invalidateActions)
+    {
+        var actionsArray = invalidateActions.ToArray();
+
+        if (actionsArray.Length == 0)
         {
             return;
         }
 
-        await Cache.SetAsync(
-            BuildCacheKey(key),
-            value,
-            ttl,
-            CombineAllTags(tags),
-            cancellationToken);
+        if (InDatabaseTransaction)
+        {
+            _scopedConnectionFactory.AddPostCommitAction(async () =>
+            {
+                await Task.WhenAll(actionsArray.Select(a => a()));
+            });
+        }
+        else
+        {
+            await Task.WhenAll(actionsArray.Select(a => a()));
+        }
     }
 
     //
 
-    protected virtual async ValueTask SetAsync<TValue>(
-        byte[] key,
-        TValue value,
-        TimeSpan ttl,
-        List<string>? tags = null,
-        CancellationToken cancellationToken = default)
+    protected virtual Task InvalidateAsync(IEnumerable<string> keys)
     {
-        await SetAsync(key.ToHexString(), value, ttl, CombineAllTags(tags), cancellationToken);
+        var uniqueKeys = new HashSet<string>(keys);
+
+        if (uniqueKeys.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var actions = uniqueKeys.Select(key => new Func<Task>(() => Cache.RemoveAsync(BuildCacheKey(key)).AsTask()));
+
+        return InvalidateAsync(actions);
     }
 
     //
 
-    protected virtual async ValueTask RemoveAsync(
-        string key,
-        CancellationToken cancellationToken = default)
+    protected virtual Task InvalidateAsync(IEnumerable<byte[]> keys)
     {
-        // It's OK to remove cache entries while in a transaction
-        await Cache.RemoveAsync(
-            BuildCacheKey(key),
-            cancellationToken);
+        return InvalidateAsync(keys.Select(k => k.ToHexString()));
     }
 
     //
 
-    protected virtual async ValueTask RemoveAsync(
-        byte[] key,
-        CancellationToken cancellationToken = default)
+    protected virtual Task InvalidateByTagAsync(string tag)
     {
-        await RemoveAsync(key.ToHexString(), cancellationToken);
+        return InvalidateByTagAsync([tag]);
     }
 
     //
 
-    protected virtual async ValueTask RemoveByTagAsync(
-        List<string> tags,
-        CancellationToken cancellationToken = default)
+    protected virtual Task InvalidateByTagAsync(IEnumerable<string> tags)
     {
-        // It's OK to remove cache entries while in a transaction
-        await Cache.RemoveByTagAsync(
-            CombineExplicitTags(tags),
-            cancellationToken);
-    }
+        var uniqueTags = new HashSet<string>(tags);
+        if (uniqueTags.Count == 0)
+        {
+            return Task.CompletedTask;
+        };
 
-    //
+        var actions = uniqueTags.Select(tag =>
+            new Func<Task>(() => Cache.RemoveByTagAsync(CombineExplicitTags([tag])).AsTask()));
 
-    public virtual async ValueTask InvalidateAllAsync(CancellationToken cancellationToken = default)
-    {
-        // It's OK to remove cache entries while in a transaction
-        await Cache.RemoveByTagAsync(
-            _tagsAllItems,
-            cancellationToken);
+        return InvalidateAsync(actions);
     }
 
     //

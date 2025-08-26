@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
@@ -117,6 +118,7 @@ public interface IScopedConnectionFactory
 
     DatabaseType DatabaseType { get; }
     bool HasTransaction { get; }
+    public void AddPostCommitAction(Func<Task> action); // SEB:TODO unit test this thing
 }
 
 //
@@ -179,6 +181,7 @@ public class ScopedConnectionFactory<T>(
     private readonly ILogger<ScopedConnectionFactory<T>> _logger = logger;
     private readonly T _connectionFactory = connectionFactory;
     private readonly DatabaseCounters _counters = counters;
+    private readonly List<Func<Task>> _postCommitActions = [];
     private int _parallelDetectionRefCount;
     private DbConnection? _connection;
     private int _connectionRefCount;
@@ -219,6 +222,22 @@ public class ScopedConnectionFactory<T>(
         }
 
         return new ConnectionWrapper(this);
+    }
+
+    //
+
+    public void AddPostCommitAction(Func<Task> action)
+    {
+        using var _ = NoParallelism(nameof(AddPostCommitAction));
+
+        if (_transaction == null)
+        {
+            const string message = "Must be in a transaction to add a post transaction commit action";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
+        }
+
+        _postCommitActions.Add(action);
     }
 
     //
@@ -461,6 +480,18 @@ public class ScopedConnectionFactory<T>(
                     {
                         instance.LogTrace("Committing transaction");
                         await instance._transaction!.CommitAsync();
+                        foreach (var action in instance._postCommitActions)
+                        {
+                            try
+                            {
+                                instance.LogTrace("Running post-commit action");
+                                await action();
+                            }
+                            catch (Exception e)
+                            {
+                                instance.LogException("Post-commit action failed", e);
+                            }
+                        }
                     }
                     else
                     {
@@ -470,6 +501,8 @@ public class ScopedConnectionFactory<T>(
                 }
                 finally
                 {
+                    instance._postCommitActions.Clear();
+
                     await instance._transaction!.DisposeAsync();
                     instance._transaction = null!;
                     instance._commit = false;

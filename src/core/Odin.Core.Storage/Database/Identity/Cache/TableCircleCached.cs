@@ -32,6 +32,23 @@ public class TableCircleCached(
 
     //
 
+    private Task InvalidateAsync(CircleRecord item)
+    {
+        return InvalidateAsync(item.circleId);
+    }
+
+    //
+
+    private Task InvalidateAsync(Guid circleId)
+    {
+        return InvalidateAsync([
+            () => InvalidateAsync(GetCacheKey(circleId)),
+            () => InvalidateByTagAsync(PagingByCircleIdTags)
+        ]);
+    }
+
+    //
+
     public async Task<CircleRecord?> GetAsync(Guid circleId, TimeSpan ttl)
     {
         var result = await GetOrSetAsync(
@@ -47,12 +64,7 @@ public class TableCircleCached(
     {
         var result = await table.InsertAsync(item);
 
-        await SetAsync(
-            GetCacheKey(item),
-            item,
-            ttl);
-
-        await RemoveByTagAsync(PagingByCircleIdTags);
+        await InvalidateAsync(item);
 
         return result;
 
@@ -63,8 +75,9 @@ public class TableCircleCached(
     public async Task<int> DeleteAsync(Guid circleId)
     {
         var result = await table.DeleteAsync(circleId);
-        await RemoveAsync(GetCacheKey(circleId));
-        await RemoveByTagAsync(PagingByCircleIdTags);
+
+        await InvalidateAsync(circleId);
+
         return result;
     }
 
@@ -85,6 +98,5 @@ public class TableCircleCached(
     }
 
     //
-
 
 }

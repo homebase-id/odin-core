@@ -46,12 +46,21 @@ public class TableCircleMemberCached(
 
     //
 
+    private Task InvalidateAsync(CircleMemberRecord item)
+    {
+        return InvalidateAsync(item.circleId, item.memberId);
+    }
+
+    //
+
     private async Task InvalidateAsync(Guid circleId, Guid memberId)
     {
-        await RemoveAsync(GetCacheKey(circleId, memberId));
-        await RemoveAsync(GetCircleCacheKey(circleId));
-        await RemoveAsync(GetMemberCacheKey(memberId));
-        await RemoveAsync(CacheKeyAll);
+        await InvalidateAsync([
+            GetCacheKey(circleId, memberId),
+            GetCircleCacheKey(circleId),
+            GetMemberCacheKey(memberId),
+            CacheKeyAll
+        ]);
     }
 
     //
@@ -59,7 +68,9 @@ public class TableCircleMemberCached(
     public async Task<int> DeleteAsync(Guid circleId, Guid memberId)
     {
         var result = await table.DeleteAsync(circleId, memberId);
+
         await InvalidateAsync(circleId, memberId);
+
         return result;
     }
 
@@ -69,12 +80,7 @@ public class TableCircleMemberCached(
     {
         var result = await table.InsertAsync(item);
 
-        await InvalidateAsync(item.circleId, item.memberId);
-
-        await SetAsync(
-            GetCacheKey(item),
-            item,
-            ttl);
+        await InvalidateAsync(item);
 
         return result;
     }
@@ -85,12 +91,7 @@ public class TableCircleMemberCached(
     {
         var result = await table.UpsertAsync(item);
 
-        await InvalidateAsync(item.circleId, item.memberId);
-
-        await SetAsync(
-            GetCacheKey(item),
-            item,
-            ttl);
+        await InvalidateAsync(item);
 
         return result;
     }
@@ -122,8 +123,8 @@ public class TableCircleMemberCached(
     public async Task UpsertCircleMembersAsync(List<CircleMemberRecord> circleMemberRecordList)
     {
         await table.UpsertCircleMembersAsync(circleMemberRecordList);
-        // SEB:NOTE We could iterate the list here and SET each item individually,
-        // but that would probably be slower, so we just invalidate all.
+        // SEB:NOTE We could iterate the list here and invalidate each item individually,
+        // but that would probably be slow, so for now we just invalidate all.
         await InvalidateAllAsync();
     }
 
@@ -132,8 +133,8 @@ public class TableCircleMemberCached(
     public async Task RemoveCircleMembersAsync(Guid circleId, List<Guid> members)
     {
         await table.RemoveCircleMembersAsync(circleId, members);
-        // SEB:NOTE We could iterate the list here and REMOVE each item individually,
-        // but that would probably be slower, so we just invalidate all.
+        // SEB:NOTE We could iterate the list here and invalidate each item individually,
+        // but that would probably be slow, so for now we just invalidate all.
         await InvalidateAllAsync();
     }
 
@@ -142,8 +143,8 @@ public class TableCircleMemberCached(
     public async Task DeleteMembersFromAllCirclesAsync(List<Guid> members)
     {
         await table.DeleteMembersFromAllCirclesAsync(members);
-        // SEB:NOTE We could iterate the list here and REMOVE each item individually,
-        // but that would probably be slower, so we just invalidate all.
+        // SEB:NOTE We could iterate the list here and invalidate each item individually,
+        // but that would probably be slow, so for now we just invalidate all.
         await InvalidateAllAsync();
     }
 
@@ -159,6 +160,5 @@ public class TableCircleMemberCached(
     }
 
     //
-
 
 }
