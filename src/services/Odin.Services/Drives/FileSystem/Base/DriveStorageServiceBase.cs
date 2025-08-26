@@ -1261,11 +1261,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <summary>
         /// Sums the number of bytes spent, according to the header, 
         /// for each payload, for each payload's thumbs,
-        /// and the number of bytes for the json of the header 
+        /// and the number of bytes for the json of the header.
+        /// If payloads are remote only the header size is returned.
         /// Note the json header size can vary slightly in the DB from here
         /// due to the DB controlling the value of fields like TAGs and created / modified
         /// </summary>
-        /// <returns>Number of bytes by header JSON plus all payloads and thumbs</returns>
+        /// <returns>Number of bytes by header JSON plus all payloads and thumbs (zero if they are remote)</returns>
         public static (long databaseBytes, long payloadBytes, long thumbBytes) ServerHeaderByteCount(ServerFileHeader header)
         {
             var json = OdinSystemSerializer.Serialize(header);
