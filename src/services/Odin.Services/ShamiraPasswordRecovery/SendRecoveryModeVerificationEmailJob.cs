@@ -1,18 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Services.Configuration;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
-using Org.BouncyCastle.Crypto.Tls;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
@@ -38,7 +35,8 @@ public class SendRecoveryModeVerificationEmailJobData
 
 public class SendRecoveryModeVerificationEmailJob(
     ILogger<SendRecoveryModeVerificationEmailJob> logger,
-    IEmailSender emailSender) : AbstractJob
+    IEmailSender emailSender,
+    OdinConfiguration configuration) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("b864bf5b-1f4c-4b23-afc1-98c623e23017");
     public override string JobType => JobTypeId.ToString();
@@ -52,6 +50,11 @@ public class SendRecoveryModeVerificationEmailJob(
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
+        if (!configuration.Mailgun.Enabled)
+        {
+            return JobExecutionResult.Abort();
+        }
+        
         ValidateJobData();
 
         logger.LogInformation("Send password recovery verification email: identity '{domain}' completed to {email}", Data.Domain,
@@ -68,8 +71,7 @@ public class SendRecoveryModeVerificationEmailJob(
             {
                 To = [new NameAndEmailAddress { Email = Data.Email }],
                 Subject = subject,
-                TextMessage =
-                    RecoveryEmails.VerifyEmailText(Data.Email, Data.Domain, link, Data.Players),
+                TextMessage = RecoveryEmails.VerifyEmailText(Data.Email, Data.Domain, link, Data.Players),
                 HtmlMessage = RecoveryEmails.VerifyEmailHtml(Data.Domain, link, Data.Players)
             };
         }

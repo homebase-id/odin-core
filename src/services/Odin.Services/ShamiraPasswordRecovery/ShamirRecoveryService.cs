@@ -188,7 +188,6 @@ public class ShamirRecoveryService(
             throw new OdinClientException("Invalid result type");
         }
 
-
         var status = await GetStatusRecordInternal();
         status.CollectedShards.Add(result.Shard);
         await UpdateStatus(status);
@@ -283,13 +282,16 @@ public class ShamirRecoveryService(
         logger.LogInformation(link);
 #endif
 
-        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        if (!configuration.Mailgun.Enabled)
         {
-            RunAt = DateTimeOffset.Now.AddSeconds(1),
-            MaxAttempts = 20,
-            RetryDelay = TimeSpan.FromMinutes(1),
-            OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-            OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
-        });
+            await jobManager.ScheduleJobAsync(job, new JobSchedule
+            {
+                RunAt = DateTimeOffset.Now.AddSeconds(1),
+                MaxAttempts = 20,
+                RetryDelay = TimeSpan.FromMinutes(1),
+                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+            });
+        }
     }
 }

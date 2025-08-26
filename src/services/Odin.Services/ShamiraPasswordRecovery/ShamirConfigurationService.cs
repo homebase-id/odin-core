@@ -188,8 +188,7 @@ public class ShamirConfigurationService(
 
         var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive, odinContext);
         var file = await fileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
-
-
+        
         var isValid = file != null &&
                       !string.IsNullOrEmpty(file.FileMetadata.AppData.Content) &&
                       file.FileMetadata.SenderOdinId == dealer;
@@ -202,7 +201,7 @@ public class ShamirConfigurationService(
             });
         }
 
-        var json = file.FileMetadata.AppData.Content.FromBase64().ToStringFromUtf8Bytes();
+        var json = file.FileMetadata.AppData.Content;
         var shard = OdinSystemSerializer.Deserialize<PlayerEncryptedShard>(json);
 
         return (dealer, shard, new ShardVerificationResult()
