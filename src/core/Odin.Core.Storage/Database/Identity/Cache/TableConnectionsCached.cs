@@ -43,8 +43,8 @@ public class TableConnectionsCached(
     private async Task InvalidateAsync(OdinId identity)
     {
         await InvalidateAsync([
-            () => InvalidateAsync(GetCacheKey(identity)),
-            () => InvalidateByTagAsync(PagingByTags)
+            CreateRemoveByKeyAction(GetCacheKey(identity)),
+            CreateRemoveByTagAction(PagingByTags)
         ]);
     }
 

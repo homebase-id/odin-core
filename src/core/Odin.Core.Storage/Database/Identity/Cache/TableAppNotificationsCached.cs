@@ -42,8 +42,8 @@ public class TableAppNotificationsCached(
     private Task InvalidateAsync(Guid notificationId)
     {
         return InvalidateAsync([
-            () => InvalidateAsync(GetCacheKey(notificationId)),
-            () => InvalidateByTagAsync(PagingByCreateTags)
+            CreateRemoveByKeyAction(GetCacheKey(notificationId)),  
+            CreateRemoveByTagAction(PagingByCreateTags)
         ]);
     }
 

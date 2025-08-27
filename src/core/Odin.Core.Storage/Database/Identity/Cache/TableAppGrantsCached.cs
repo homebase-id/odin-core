@@ -42,9 +42,9 @@ public class TableAppGrantsCached(
     private Task InvalidateAsync(Guid? odinHashId, Guid? appId, Guid? circleId)
     {
         return InvalidateAsync([
-            GetCacheKey(odinHashId, null, null),
-            GetCacheKey(odinHashId, appId, circleId),
-            CacheKeyAll,
+            CreateRemoveByKeyAction(GetCacheKey(odinHashId, null, null)),
+            CreateRemoveByKeyAction(GetCacheKey(odinHashId, appId, circleId)),
+            CreateRemoveByKeyAction(CacheKeyAll),
         ]);
     }
 

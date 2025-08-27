@@ -56,10 +56,10 @@ public class TableCircleMemberCached(
     private async Task InvalidateAsync(Guid circleId, Guid memberId)
     {
         await InvalidateAsync([
-            GetCacheKey(circleId, memberId),
-            GetCircleCacheKey(circleId),
-            GetMemberCacheKey(memberId),
-            CacheKeyAll
+            CreateRemoveByKeyAction(GetCacheKey(circleId, memberId)),
+            CreateRemoveByKeyAction(GetCircleCacheKey(circleId)),
+            CreateRemoveByKeyAction(GetMemberCacheKey(memberId)),
+            CreateRemoveByKeyAction(CacheKeyAll)
         ]);
     }
 

@@ -156,6 +156,35 @@ public abstract class AbstractTableCaching
 
     //
 
+    protected virtual Func<Task> CreateRemoveByKeyAction(string key)
+    {
+        return () => Cache.RemoveAsync(BuildCacheKey(key)).AsTask();
+    }
+
+    //
+
+    protected virtual Func<Task> CreateRemoveByKeyAction(byte[] key)
+    {
+        return CreateRemoveByKeyAction(key.ToHexString());
+    }
+
+    //
+
+    protected Func<Task> MakeRemoveByTagAction(string tag)
+    {
+        return () => Cache.RemoveByTagAsync(CombineExplicitTags([tag])).AsTask();
+    }
+
+    //
+
+    protected Func<Task> CreateRemoveByTagAction(IEnumerable<string> tags)
+    {
+        var explicitTags = CombineExplicitTags(tags.ToList());
+        return () => Cache.RemoveByTagAsync(explicitTags).AsTask();
+    }
+    
+    //
+
     public virtual async Task InvalidateAllAsync()
     {
         if (InDatabaseTransaction)
@@ -166,27 +195,6 @@ public abstract class AbstractTableCaching
         {
             await Cache.RemoveByTagAsync(_tagsAllItems);
         }
-    }
-
-    //
-
-    protected virtual async Task InvalidateAsync(string key)
-    {
-        if (InDatabaseTransaction)
-        {
-            _scopedConnectionFactory.AddPostCommitAction(async () => await Cache.RemoveAsync(BuildCacheKey(key)));
-        }
-        else
-        {
-            await Cache.RemoveAsync(BuildCacheKey(key));
-        }
-    }
-
-    //
-
-    protected virtual async Task InvalidateAsync(byte[] key)
-    {
-        await InvalidateAsync(key.ToHexString());
     }
 
     //
@@ -211,52 +219,6 @@ public abstract class AbstractTableCaching
         {
             await Task.WhenAll(actionsArray.Select(a => a()));
         }
-    }
-
-    //
-
-    protected virtual Task InvalidateAsync(IEnumerable<string> keys)
-    {
-        var uniqueKeys = new HashSet<string>(keys);
-
-        if (uniqueKeys.Count == 0)
-        {
-            return Task.CompletedTask;
-        }
-
-        var actions = uniqueKeys.Select(key => new Func<Task>(() => Cache.RemoveAsync(BuildCacheKey(key)).AsTask()));
-
-        return InvalidateAsync(actions);
-    }
-
-    //
-
-    protected virtual Task InvalidateAsync(IEnumerable<byte[]> keys)
-    {
-        return InvalidateAsync(keys.Select(k => k.ToHexString()));
-    }
-
-    //
-
-    protected virtual Task InvalidateByTagAsync(string tag)
-    {
-        return InvalidateByTagAsync([tag]);
-    }
-
-    //
-
-    protected virtual Task InvalidateByTagAsync(IEnumerable<string> tags)
-    {
-        var uniqueTags = new HashSet<string>(tags);
-        if (uniqueTags.Count == 0)
-        {
-            return Task.CompletedTask;
-        };
-
-        var actions = uniqueTags.Select(tag =>
-            new Func<Task>(() => Cache.RemoveByTagAsync(CombineExplicitTags([tag])).AsTask()));
-
-        return InvalidateAsync(actions);
     }
 
     //

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -24,6 +25,31 @@ public class TableKeyValueCached(
     private static string GetCacheKey(byte[] key)
     {
         return key.ToHexString();
+    }
+
+    //
+
+    private Task InvalidateAsync(KeyValueRecord item)
+    {
+        return InvalidateAsync(item.key);
+    }
+
+    //
+
+    private async Task InvalidateAsync(List<KeyValueRecord> items)
+    {
+        var keys = items.Select(i => i.key).Distinct();
+        var actions = keys.Select(key => CreateRemoveByKeyAction(GetCacheKey(key))).ToList();
+        await InvalidateAsync(actions);
+    }
+
+    //
+
+    private async Task InvalidateAsync(byte[] key)
+    {
+        await InvalidateAsync([
+            CreateRemoveByKeyAction(GetCacheKey(key)),
+        ]);
     }
 
     //
@@ -87,12 +113,7 @@ public class TableKeyValueCached(
     public async Task<int> UpsertManyAsync(List<KeyValueRecord> items)
     {
         var result = await table.UpsertManyAsync(items);
-        var keys = new List<string>(items.Count);
-        foreach (var item in items)
-        {
-            keys.Add(GetCacheKey(item));
-        }
-        await InvalidateAsync(keys);
+        await InvalidateAsync(items);
         return result;
     }
 

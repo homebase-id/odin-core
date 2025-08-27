@@ -42,8 +42,8 @@ public class TableCircleCached(
     private Task InvalidateAsync(Guid circleId)
     {
         return InvalidateAsync([
-            () => InvalidateAsync(GetCacheKey(circleId)),
-            () => InvalidateByTagAsync(PagingByCircleIdTags)
+            CreateRemoveByKeyAction(GetCacheKey(circleId)),
+            CreateRemoveByTagAction(PagingByCircleIdTags)
         ]);
     }
 
