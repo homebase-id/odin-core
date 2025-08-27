@@ -257,6 +257,18 @@ namespace Odin.Core.Time
         {
             get { return _milliseconds / 1000; }
         }
+
+        /// <summary>
+        /// TODO ISO name
+        /// TODO I don't think I need to convert to DateTime first
+        /// Outputs time as ISO ... "yyyy-MM-ddTHH:mm:ssZ"
+        /// </summary>
+        /// <returns>ISO ... string</returns>
+        public string Iso9441()
+        {
+            return ToDateTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+        }
+
         public override string ToString()
         {
             return _milliseconds.ToString();

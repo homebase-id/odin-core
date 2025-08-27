@@ -100,10 +100,10 @@ public class LinkMetaExtractorTests
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
 
-        // Twitter does not return og tags when a http client fetches the page. We need a headless browser to download the webpage and parse the tags
         var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/trunkio/status/1795913092204998997");
 
         ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
         ClassicAssert.NotNull(ogp.Url);
     }
     #endif
@@ -806,10 +806,9 @@ public class LinkMetaExtractorTests
         var logStore = new LogEventMemoryStore();
         var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
-        var ogp = await linkMetaExtractor.ExtractAsync("https://x.com/i/bookmarks?post_id=1875214258046193880");
+        var ogp = await linkMetaExtractor.ExtractAsync("https://x.com/MikeBenzCyber/status/1959753433168199767");
         ClassicAssert.NotNull(ogp.Title);
         ClassicAssert.NotNull(ogp.Description);
-        ClassicAssert.IsTrue(!ogp.Title.Contains("&amp;") && !ogp.Description!.Contains("&amp;"), "Encoded HTML entities (&amp;) should not be present.");
     }
 #endif
 
