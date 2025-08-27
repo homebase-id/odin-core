@@ -140,7 +140,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
                     {
                         // It's jsut a preview, we want it small
                         // If Thumb turns out to be too small, we can upgrade it to "small"
-                        return $"{urlProp.GetString()}:thumb";
+                        return $"{urlProp.GetString()}:small";
                     }
                 }
                 return null;
