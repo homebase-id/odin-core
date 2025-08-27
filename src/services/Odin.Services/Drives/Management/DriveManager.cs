@@ -102,12 +102,11 @@ public class DriveManager : IDriveManager
             DriveId = id,
             DriveName = request.Name,
             DriveType = request.TargetDrive.Type.Value,
-            DriveAlias = request.TargetDrive.Alias.Value,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(driveKey),
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
-            TempOriginalDriveId = id
+            StorageKeyCheckValue = id
         };
 
         try
@@ -176,6 +175,35 @@ public class DriveManager : IDriveManager
         }
     }
 
+    public async Task SetArchiveDriveFlagAsync(Guid driveId, bool value, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        StorageDrive storageDrive = await GetDriveAsync(driveId);
+
+        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinClientException("Cannot archive system drive");
+        }
+
+        //only change if needed
+        if (storageDrive.IsArchived != value)
+        {
+            storageDrive.IsArchived = value;
+
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+
+            CacheDrive(storageDrive);
+
+            await _mediator.Publish(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext,
+            });
+        }
+    }
+
     public async Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -218,6 +246,7 @@ public class DriveManager : IDriveManager
         {
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
+
         storageDrive.Metadata = metadata;
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
 
@@ -228,12 +257,12 @@ public class DriveManager : IDriveManager
     {
         odinContext.Caller.AssertHasMasterKey();
         StorageDrive storageDrive = await GetDriveInternal(driveId);
-        
+
         if (null == storageDrive)
         {
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
-        
+
         storageDrive.Attributes = attributes;
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
@@ -323,6 +352,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
             Attributes = storageDrive.Attributes,
+            IsArchived = storageDrive.IsArchived
         };
 
         var record = new DrivesRecord
@@ -330,12 +360,11 @@ public class DriveManager : IDriveManager
             DriveId = storageDrive.Id,
             DriveName = storageDrive.Name,
             DriveType = storageDrive.TargetDriveInfo.Type.Value,
-            DriveAlias = storageDrive.TargetDriveInfo.Alias.Value,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDrive.MasterKeyEncryptedStorageKey),
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(details),
-            TempOriginalDriveId = storageDrive.TempOriginalDriveId
+            StorageKeyCheckValue = storageDrive.StorageKeyCheckValue
         };
 
         return record;
@@ -356,6 +385,13 @@ public class DriveManager : IDriveManager
             var (storageDrives, _, _) = await _tableDrives.GetList(Int32.MaxValue, null);
             allDrives = storageDrives.Select(ToStorageDrive).ToList();
             _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
+        }
+
+        // only show archived drives to the owner console
+        var shouldFilterArchivedDrive = odinContext?.Caller == null || odinContext.Caller.HasMasterKey == false;
+        if (shouldFilterArchivedDrive)
+        {
+            allDrives = allDrives.Where(d => !d.IsArchived).ToList();
         }
 
         var caller = odinContext.Caller;
@@ -390,7 +426,7 @@ public class DriveManager : IDriveManager
         StorageDriveBase sdb = new()
         {
             Id = record.DriveId,
-            TempOriginalDriveId = record.TempOriginalDriveId,
+            StorageKeyCheckValue = record.StorageKeyCheckValue,
             Name = record.DriveName,
             TargetDriveInfo = new TargetDrive()
             {
@@ -409,7 +445,8 @@ public class DriveManager : IDriveManager
             IsReadonly = driveDetails.IsReadonly,
             AllowAnonymousReads = driveDetails.AllowAnonymousReads,
             AllowSubscriptions = driveDetails.AllowSubscriptions,
-            Attributes = driveDetails.Attributes
+            Attributes = driveDetails.Attributes,
+            IsArchived = driveDetails.IsArchived
         };
 
         return new StorageDrive(_tenantContext.TenantPathManager, sdb);

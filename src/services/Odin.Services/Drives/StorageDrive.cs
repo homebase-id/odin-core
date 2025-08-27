@@ -14,7 +14,7 @@ namespace Odin.Services.Drives
     /// <summary>
     /// Information about a drive
     /// </summary>
-    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
+    [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly} Archive={IsArchived}")]
     public sealed class StorageDrive : StorageDriveBase
     {
         private readonly TenantPathManager _tenantPathManager;
@@ -45,7 +45,7 @@ namespace Odin.Services.Drives
             set { }
         }
 
-        public override Guid TempOriginalDriveId => _inner.TempOriginalDriveId;
+        public override Guid StorageKeyCheckValue => _inner.StorageKeyCheckValue;
 
         public override string Metadata
         {
@@ -102,6 +102,12 @@ namespace Odin.Services.Drives
             set { }
         }
 
+        public override bool IsArchived
+        {
+            get => _inner.IsArchived;
+            set => _inner.IsArchived = value;
+        }
+
         public string GetDrivePayloadPath()
         {
             return _tenantPathManager.GetDrivePayloadPath(Id);
@@ -145,7 +151,7 @@ namespace Odin.Services.Drives
         public void AssertValidStorageKey(SensitiveByteArray storageKey)
         {
             var decryptedDriveId = AesCbc.Decrypt(this.EncryptedIdValue, storageKey, this.EncryptedIdIv);
-            if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, this.TempOriginalDriveId.ToByteArray()))
+            if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, this.StorageKeyCheckValue.ToByteArray()))
             {
                 throw new OdinSecurityException("Invalid key storage attempted to encrypt data");
             }
@@ -174,7 +180,7 @@ namespace Odin.Services.Drives
     {
         public virtual Guid Id { get; init; }
 
-        public virtual Guid TempOriginalDriveId { get; init; }
+        public virtual Guid StorageKeyCheckValue { get; init; }
         
         public virtual string Name { get; set; }
 
@@ -216,5 +222,6 @@ namespace Odin.Services.Drives
         public virtual bool AllowSubscriptions { get; set; }
 
         public virtual Dictionary<string, string> Attributes { get; set; }
+        public virtual bool IsArchived { get; set; }
     }
 }

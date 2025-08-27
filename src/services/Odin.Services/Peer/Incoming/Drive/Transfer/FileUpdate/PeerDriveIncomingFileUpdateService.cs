@@ -49,7 +49,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             // Notice here: we always create a new fileId when receiving a new file.
             _tempFile = new TempFile()
             {
-                File = await fileSystem.Storage.CreateInternalFileId(driveId),
+                File = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext),
                 StorageType = canDirectWrite ? TempStorageType.Upload : TempStorageType.Inbox
             };
 
@@ -62,9 +62,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(metadata)));
             await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
-            
         }
-        
+
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
