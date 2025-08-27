@@ -118,7 +118,8 @@ public interface IScopedConnectionFactory
 
     DatabaseType DatabaseType { get; }
     bool HasTransaction { get; }
-    public void AddPostCommitAction(Func<Task> action); // SEB:TODO unit test this thing
+    void AddPostCommitAction(Func<Task> action);
+    void AddPostRollbackAction(Func<Task> action);
 }
 
 //
@@ -132,6 +133,8 @@ public interface IConnectionWrapper : IDisposable, IAsyncDisposable
     Task<ITransactionWrapper> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
         CancellationToken cancellationToken = default);
+    void AddPostCommitAction(Func<Task> action);
+    void AddPostRollbackAction(Func<Task> action);
     ICommandWrapper CreateCommand([CallerFilePath] string? filePath = null, [CallerLineNumber] int lineNumber = 0);
 }
 
@@ -142,6 +145,8 @@ public interface ITransactionWrapper : IDisposable, IAsyncDisposable
     DbTransaction DangerousInstance { get; }
     DatabaseType DatabaseType { get; }
     int RefCount { get; }
+    void AddPostCommitAction(Func<Task> action);
+    void AddPostRollbackAction(Func<Task> action);
     void Commit();
 }
 
@@ -182,6 +187,7 @@ public class ScopedConnectionFactory<T>(
     private readonly T _connectionFactory = connectionFactory;
     private readonly DatabaseCounters _counters = counters;
     private readonly List<Func<Task>> _postCommitActions = [];
+    private readonly List<Func<Task>> _postRollbackActions = [];
     private int _parallelDetectionRefCount;
     private DbConnection? _connection;
     private int _connectionRefCount;
@@ -230,6 +236,7 @@ public class ScopedConnectionFactory<T>(
     {
         using var _ = NoParallelism(nameof(AddPostCommitAction));
 
+        // Sanity #1
         if (_transaction == null)
         {
             const string message = "Must be in a transaction to add a post transaction commit action";
@@ -237,7 +244,44 @@ public class ScopedConnectionFactory<T>(
             throw new OdinDatabaseException(DatabaseType, message);
         }
 
+        // Sanity #2
+        if (_transactionRefCount == 0)
+        {
+            const string message =
+                "Transaction ref count is zero. " +
+                "Probably you tried to add a post transaction commit while the transaction is being disposed.";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
+        }
+
         _postCommitActions.Add(action);
+    }
+
+    //
+
+    public void AddPostRollbackAction(Func<Task> action)
+    {
+        using var _ = NoParallelism(nameof(AddPostCommitAction));
+
+        // Sanity #1
+        if (_transaction == null)
+        {
+            const string message = "Must be in a transaction to add a post transaction rollback action";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
+        }
+
+        // Sanity #2
+        if (_transactionRefCount == 0)
+        {
+            const string message =
+                "Transaction ref count is zero. " +
+                "Probably you tried to add a post transaction rollback while the transaction is being disposed.";
+            LogError(message);
+            throw new OdinDatabaseException(DatabaseType, message);
+        }
+
+        _postRollbackActions.Add(action);
     }
 
     //
@@ -296,6 +340,20 @@ public class ScopedConnectionFactory<T>(
             }
 
             return new TransactionWrapper(instance);
+        }
+
+        //
+
+        public void AddPostCommitAction(Func<Task> action)
+        {
+            instance.AddPostCommitAction(action);
+        }
+
+        //
+
+        public void AddPostRollbackAction(Func<Task> action)
+        {
+            instance.AddPostRollbackAction(action);
         }
 
         //
@@ -404,6 +462,20 @@ public class ScopedConnectionFactory<T>(
 
         //
 
+        public void AddPostCommitAction(Func<Task> action)
+        {
+            instance.AddPostCommitAction(action);
+        }
+
+        //
+
+        public void AddPostRollbackAction(Func<Task> action)
+        {
+            instance.AddPostRollbackAction(action);
+        }
+
+        //
+
         // Note that only outermost transaction is marked as commit.
         // The disposer takes care of the actual commit (or rollback).
         // The reason we don't do an explicit commit here is because it leaves the internal
@@ -497,13 +569,25 @@ public class ScopedConnectionFactory<T>(
                     {
                         instance._logger.LogDebug("Rolling back transaction");
                         await instance._transaction!.RollbackAsync();
+                        foreach (var action in instance._postRollbackActions)
+                        {
+                            try
+                            {
+                                instance.LogTrace("Running post-rollback action");
+                                await action();
+                            }
+                            catch (Exception e)
+                            {
+                                instance.LogException("Post-rollback action failed", e);
+                            }
+                        }
                     }
                 }
                 finally
                 {
-                    instance._postCommitActions.Clear();
-
                     await instance._transaction!.DisposeAsync();
+                    instance._postCommitActions.Clear();
+                    instance._postRollbackActions.Clear();
                     instance._transaction = null!;
                     instance._commit = false;
                     _disposed = true;
