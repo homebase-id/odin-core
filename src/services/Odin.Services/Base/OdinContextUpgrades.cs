@@ -30,7 +30,7 @@ public static class OdinContextUpgrades
             }
         };
 
-        var pg = new PermissionGroup(new PermissionSet([]), driveGrants, null, null);
+        var pg = new PermissionGroup(new PermissionSet([PermissionKeys.SendPushNotifications]), driveGrants, null, null);
         if (patchedContext.PermissionsContext == null)
         {
             var dict = new Dictionary<string, PermissionGroup>() { { "patched-read-drive", pg } };

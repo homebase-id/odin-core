@@ -113,7 +113,7 @@ public class ShamirConfigurationService(
 
     public async Task<ShardVerificationResult> VerifyRemotePlayer(OdinId player, Guid shardId, IOdinContext odinContext)
     {
-        var (_, client) = await CreateClientAsync(player, FileSystemType.Standard, odinContext);
+        var (_, client) = await CreateClientAsync(player, odinContext);
         var response = await client.VerifyShard(new VerifyShardRequest()
         {
             ShardId = shardId
@@ -231,10 +231,11 @@ public class ShamirConfigurationService(
             return null;
         }
 
-        var key = odinContext.PermissionsContext.SharedSecretKey;
-        var decryptedKeyHeader = existingFile.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
+        // var key = odinContext.PermissionsContext.SharedSecretKey;
+        // var decryptedKeyHeader = existingFile.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
+        // var bytes = decryptedKeyHeader.Decrypt(existingFile.FileMetadata.AppData.Content.FromBase64());
 
-        var bytes = decryptedKeyHeader.Decrypt(existingFile.FileMetadata.AppData.Content.FromBase64());
+        var bytes = existingFile.FileMetadata.AppData.Content.FromBase64();
         var json = bytes.ToStringFromUtf8Bytes();
 
         var package = OdinSystemSerializer.Deserialize<DealerShardPackage>(json);
@@ -260,13 +261,12 @@ public class ShamirConfigurationService(
     }
 
     private async Task<(IdentityConnectionRegistration, IPeerPasswordRecoveryHttpClient)> CreateClientAsync(OdinId odinId,
-        FileSystemType? fileSystemType,
         IOdinContext odinContext)
     {
         var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
         var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerPasswordRecoveryHttpClient>(
-            odinId, authToken, fileSystemType);
+            odinId, authToken, FileSystemType.Standard);
         return (icr, httpClient);
     }
 
@@ -386,8 +386,10 @@ public class ShamirConfigurationService(
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
 
-        var keyHeader = KeyHeader.NewRandom16();
-        var encryptedContent = keyHeader.EncryptDataAes(OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray());
+        // var keyHeader = KeyHeader.NewRandom16();
+        // var encryptedContent = keyHeader.EncryptDataAes(OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray());
+        var keyHeader = KeyHeader.Empty();
+        var encryptedContent = OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray();
 
         var fileMetadata = new FileMetadata(file)
         {
@@ -399,7 +401,7 @@ public class ShamirConfigurationService(
                 UniqueId = Guid.Parse(DealerShardConfigUid)
             },
 
-            IsEncrypted = true,
+            IsEncrypted = false,
             VersionTag = SequentialGuid.CreateGuid(),
             Payloads = []
         };
@@ -430,10 +432,11 @@ public class ShamirConfigurationService(
         // header.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(file.DriveId, keyHeader, odinContext);
 
         // decrypt the key header so we can encrypt the content
-        var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
-        var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        // var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
+        // var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        // var encryptedContent = keyHeader.EncryptDataAes(OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray());
 
-        var encryptedContent = keyHeader.EncryptDataAes(OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray());
+        var encryptedContent = OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray();
 
         header.FileMetadata.AppData.Content = encryptedContent.ToBase64();
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
@@ -499,7 +502,7 @@ public class ShamirConfigurationService(
 
         await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);
     }
-    
+
     private async Task<ShamirKeyRecord> GetKeyInternalAsync()
     {
         var existingKey = await Storage.GetAsync<ShamirKeyRecord>(tblKeyValue, ShamirRecordStorageId);
