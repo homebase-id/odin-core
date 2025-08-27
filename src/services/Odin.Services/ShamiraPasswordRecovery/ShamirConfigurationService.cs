@@ -188,7 +188,7 @@ public class ShamirConfigurationService(
 
         var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive, odinContext);
         var file = await fileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
-        
+
         var isValid = file != null &&
                       !string.IsNullOrEmpty(file.FileMetadata.AppData.Content) &&
                       file.FileMetadata.SenderOdinId == dealer;
@@ -243,6 +243,22 @@ public class ShamirConfigurationService(
         return package;
     }
 
+    public async Task<string> DecryptRecoveryKey(SensitiveByteArray distributionKey, IOdinContext odinContext)
+    {
+        var key = await GetKeyInternalAsync();
+        if (key == null)
+        {
+            throw new OdinClientException("No key found");
+        }
+
+        var recoveryKey = key.ShamirDistributionKeyEncryptedRecoveryKey.DecryptKeyClone(distributionKey);
+
+        var text = BIP39Util.GenerateBIP39(recoveryKey.GetKey());
+        recoveryKey.Wipe();
+
+        return text;
+    }
+
     private async Task<(IdentityConnectionRegistration, IPeerPasswordRecoveryHttpClient)> CreateClientAsync(OdinId odinId,
         FileSystemType? fileSystemType,
         IOdinContext odinContext)
@@ -290,7 +306,7 @@ public class ShamirConfigurationService(
                 Created = UnixTimeUtc.Now(),
                 DealerEncryptedShard = cipher
             });
-            
+
             dealerRecords.Add(new DealerShardEnvelope()
             {
                 Index = i,
@@ -483,7 +499,7 @@ public class ShamirConfigurationService(
 
         await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);
     }
-
+    
     private async Task<ShamirKeyRecord> GetKeyInternalAsync()
     {
         var existingKey = await Storage.GetAsync<ShamirKeyRecord>(tblKeyValue, ShamirRecordStorageId);

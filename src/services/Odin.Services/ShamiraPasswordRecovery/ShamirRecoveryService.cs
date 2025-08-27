@@ -6,12 +6,15 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -37,12 +40,12 @@ public class ShamirRecoveryService(
     /// <summary>
     /// Sets the identity into recovery mode so peer shard holders can give the parts
     /// </summary>
-    public async Task InitiateRecoveryMode(IOdinContext odinContext)
+    public async Task InitiateRecoveryModeEntry(IOdinContext odinContext)
     {
         logger.LogDebug("Initiating recovery mode");
 
         var players = await configurationService.GetPlayers(odinContext);
-        await EnqueueEmail(players, RecoveryEmailType.EnterRecoveryMode);
+        await EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {
@@ -51,9 +54,9 @@ public class ShamirRecoveryService(
         });
     }
 
-    public async Task InitiateExitRecoveryMode(IOdinContext odinContext)
+    public async Task InitiateRecoveryModeExit(IOdinContext odinContext)
     {
-        await EnqueueEmail([], RecoveryEmailType.ExitRecoveryMode);
+        await EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {
@@ -81,17 +84,6 @@ public class ShamirRecoveryService(
             State = status.State,
             Email = maskedEmail
         };
-    }
-
-    public async Task<bool> IsInRecoveryMode(IOdinContext odinContext)
-    {
-        var status = await GetStatusRecordInternal();
-        if (status == null)
-        {
-            return false;
-        }
-
-        return status.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation;
     }
 
     /// <summary>
@@ -150,19 +142,7 @@ public class ShamirRecoveryService(
             };
         }
 
-        // send app notification
-        var options = new AppNotificationOptions
-        {
-            AppId = default,
-            TypeId = default,
-            TagId = default,
-            Silent = false,
-            PeerSubscriptionId = default,
-            Recipients = [],
-            UnEncryptedMessage = $"{requester} has requested your assistance in recovering their identity"
-        };
-
-        await pushNotificationService.EnqueueNotification(requester, options, odinContext);
+        await SendPushNotification(requester, $"{requester} has requested your assistance in recovering their identity", odinContext);
 
         shard.DealerEncryptedShard.Wipe();
         return new RetrieveShardResult
@@ -195,45 +175,118 @@ public class ShamirRecoveryService(
         var package = await configurationService.GetDealerShardPackage(odinContext);
         if (status.CollectedShards.Count >= package.MinMatchingShards)
         {
-            var decryptedShards = new List<ShamirSecretSharing.ShamirShard>();
-            foreach (var shard in status.CollectedShards)
+            var (finalRecoveryKey, finalInfo) = await PrepareFinalKeys(status.CollectedShards, package, odinContext);
+
+            await UpdateStatus(new ShamirRecoveryStatusRecord
             {
-                var envelope = package.Envelopes.FirstOrDefault(e => e.Player.OdinId == shard.Player.OdinId);
-                if (null == envelope?.EncryptionKey)
-                {
-                    logger.LogWarning("Missing key for player: [{player}] for shardId: [{sid}]; continuing.", shard.Player.OdinId,
-                        shard.Id);
-                    continue;
-                }
+                Updated = UnixTimeUtc.Now(),
+                State = ShamirRecoveryState.AwaitingOwnerFinalization,
+                CollectedShards = status.CollectedShards
+            });
 
-                var decryptedShard = AesCbc.Decrypt(shard.DealerEncryptedShard, envelope.EncryptionKey, envelope.EncryptionIv);
-                var shamirShard = new ShamirSecretSharing.ShamirShard(shard.Index, decryptedShard);
-                decryptedShards.Add(shamirShard);
-            }
+            await EnqueueFinalizeRecoveryEmail(await MakeNonce(OdinSystemSerializer.Serialize(finalInfo)), finalRecoveryKey);
 
-            // decrypt all the shards
-            var secret = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards);
+            await SendPushNotification(player, "🎉 We have gathered enough shards to recover your identity and " +
+                                               "emailed your next steps", odinContext);
         }
         else
         {
+            // collect the shards, so I can piece together my password
             int remainingRequired = package.MinMatchingShards - status.CollectedShards.Count;
-            // collect the shard, so I can piece together my password
-            // send app notification
-            var options = new AppNotificationOptions
-            {
-                AppId = default,
-                TypeId = default,
-                TagId = default,
-                Silent = false,
-                PeerSubscriptionId = default,
-                Recipients = [],
-                UnEncryptedMessage = $"{player} has sent a shard to assist in recovering your " +
-                                     $"identity.  You need {remainingRequired} more shards to recover " +
-                                     $"your identity"
-            };
-
-            await pushNotificationService.EnqueueNotification(player, options, odinContext);
+            await SendPushNotification(player,
+                $"{player} has sent a shard to assist in recovering your " +
+                $"identity.  You need {remainingRequired} more shards to recover " +
+                $"your identity.",
+                odinContext);
         }
+    }
+
+    public async Task<FinalRecoveryResult> FinalizeRecovery(Guid nonceId, Guid finalKey, IOdinContext odinContext)
+    {
+        // get nonce
+        var record = await nonceTable.PopAsync(nonceId);
+        if (record == null)
+        {
+            throw new OdinClientException("Invalid Id");
+        }
+
+        // decrypt the nonce
+        var recoveryInfo = OdinSystemSerializer.DeserializeOrThrow<FinalRecoveryInfo>(record.data);
+        var finalKeyBytes = finalKey.ToByteArray().ToSensitiveByteArray();
+        var recoveryTextBytes = AesCbc.Decrypt(recoveryInfo.Cipher, finalKeyBytes, recoveryInfo.Iv);
+        var recoveryText = recoveryTextBytes.ToStringFromUtf8Bytes();
+
+        return new FinalRecoveryResult()
+        {
+            RecoveryText = recoveryText
+        };
+    }
+
+    private async Task<(Guid finalRecoveryKey, FinalRecoveryInfo finalInfo)> PrepareFinalKeys(
+        List<PlayerEncryptedShard> collectedShards,
+        DealerShardPackage package,
+        IOdinContext odinContext)
+    {
+        var decryptedShards = new List<ShamirSecretSharing.ShamirShard>();
+        foreach (var shard in collectedShards)
+        {
+            var envelope = package.Envelopes.FirstOrDefault(e => e.Player.OdinId == shard.Player.OdinId);
+            if (null == envelope?.EncryptionKey)
+            {
+                logger.LogWarning("Missing key for player: [{player}] for shardId: [{sid}]; continuing.",
+                    shard.Player.OdinId,
+                    shard.Id);
+
+                continue;
+            }
+
+            var decryptedShard = AesCbc.Decrypt(shard.DealerEncryptedShard, envelope.EncryptionKey, envelope.EncryptionIv);
+            var shamirShard = new ShamirSecretSharing.ShamirShard(shard.Index, decryptedShard);
+            decryptedShards.Add(shamirShard);
+        }
+
+        // decrypt all the shards
+        var distributionKey = ShamirSecretSharing.ReconstructShamirSecret(decryptedShards);
+
+        // put the recovery text in the nonce
+        var recoveryText = await configurationService.DecryptRecoveryKey(distributionKey.ToSensitiveByteArray(), odinContext);
+        var finalRecoveryKey = ByteArrayUtil.GetRandomCryptoGuid();
+
+        var (iv, cipher) = AesCbc.Encrypt(recoveryText.ToUtf8ByteArray(), finalRecoveryKey.ToByteArray().ToSensitiveByteArray());
+        var finalInfo = new FinalRecoveryInfo()
+        {
+            Iv = iv,
+            Cipher = cipher
+        };
+
+        return (finalRecoveryKey, finalInfo);
+    }
+
+    private async Task SendPushNotification(OdinId player, string message, IOdinContext odinContext)
+    {
+        var options = new AppNotificationOptions
+        {
+            AppId = default,
+            TypeId = default,
+            TagId = default,
+            Silent = false,
+            PeerSubscriptionId = default,
+            Recipients = [],
+            UnEncryptedMessage = message
+        };
+
+        await pushNotificationService.EnqueueNotification(player, options, odinContext);
+    }
+
+    private async Task<bool> IsInRecoveryMode(IOdinContext odinContext)
+    {
+        var status = await GetStatusRecordInternal();
+        if (status == null)
+        {
+            return false;
+        }
+
+        return status.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation;
     }
 
     private async Task<ShamirRecoveryStatusRecord> GetStatusRecordInternal()
@@ -247,7 +300,7 @@ public class ShamirRecoveryService(
         await Storage.UpsertAsync(keyValueTable, ShamirStatusStorageId, statusRecord);
     }
 
-    private async Task EnqueueEmail(List<ShamiraPlayer> players, RecoveryEmailType emailType)
+    private async Task EnqueueVerificationEmail(List<ShamiraPlayer> players, RecoveryEmailType emailType)
     {
         if (!configuration.Mailgun.Enabled)
         {
@@ -256,23 +309,13 @@ public class ShamirRecoveryService(
 #endif
         }
 
-        var nonceId = Guid.NewGuid();
-        var r = new NonceRecord()
-        {
-            id = nonceId,
-            expiration = UnixTimeUtc.Now().AddHours(1), // 1 hour expiration
-            data = ""
-        };
-
-        await nonceTable.InsertAsync(r);
-
         var job = jobManager.NewJob<SendRecoveryModeVerificationEmailJob>();
         job.Data = new SendRecoveryModeVerificationEmailJobData()
         {
             Domain = tenantContext.HostOdinId,
             Email = tenantContext.Email,
             Players = players,
-            NonceId = nonceId,
+            NonceId = await MakeNonce(),
             EmailType = emailType,
             Path = emailType == RecoveryEmailType.EnterRecoveryMode ? "verify-enter" : "verify-exit"
         };
@@ -293,5 +336,60 @@ public class ShamirRecoveryService(
                 OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
             });
         }
+    }
+
+    private async Task EnqueueFinalizeRecoveryEmail(Guid nonceId, Guid finalRecoveryKey)
+    {
+        var tenant = tenantContext.HostOdinId;
+        var link = EmailLinkHelper.BuildResetUrl($"https://{tenant}/owner/shamir-account-recovery", nonceId,
+            finalRecoveryKey.ToString());
+
+#if DEBUG
+        logger.LogInformation(link);
+#endif
+
+        if (!configuration.Mailgun.Enabled)
+        {
+#if !DEBUG
+            throw new OdinClientException("Cannot enter into recovery mode when email is disabled");
+#else
+            return;
+#endif
+        }
+
+        var job = jobManager.NewJob<SendEmailJob>();
+        job.Data = new SendEmailJobData()
+        {
+            Envelope = new Envelope
+            {
+                To = [new NameAndEmailAddress { Email = tenantContext.Email }],
+                Subject = "We have assembled your recovery key!",
+                TextMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyText(tenant, link),
+                HtmlMessage = RecoveryEmails.FinalizeRecoveryUsingRecoveryKeyHtml(tenant, link)
+            },
+        };
+
+        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now.AddSeconds(1),
+            MaxAttempts = 20,
+            RetryDelay = TimeSpan.FromMinutes(1),
+            OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+            OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+        });
+    }
+
+    private async Task<Guid> MakeNonce(string data = null)
+    {
+        var nonceId = Guid.NewGuid();
+        var r = new NonceRecord()
+        {
+            id = nonceId,
+            expiration = UnixTimeUtc.Now().AddHours(1), // 1 hour expiration
+            data = data
+        };
+
+        await nonceTable.InsertAsync(r);
+        return nonceId;
     }
 }

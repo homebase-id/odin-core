@@ -17,8 +17,8 @@ public enum RetrieveShardResultType
 
 public class RetrieveShardResult
 {
-    public RetrieveShardResultType ResultType { get; set; }
-    public PlayerEncryptedShard Shard { get; set; }
+    public RetrieveShardResultType ResultType { get; init; }
+    public PlayerEncryptedShard Shard { get; init; }
 }
 
 public class RetrieveShardRequest

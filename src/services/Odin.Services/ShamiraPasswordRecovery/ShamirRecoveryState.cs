@@ -19,4 +19,9 @@ public enum ShamirRecoveryState
     /// for enough players to send their shard to this owner
     /// </summary>
     AwaitingSufficientDelegateConfirmation,
+    
+    /// <summary>
+    /// Owner has all things needed to recover their password.  They just need click the email link and reset their password
+    /// </summary>
+    AwaitingOwnerFinalization
 }
