@@ -144,7 +144,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
 
                         if (!string.IsNullOrEmpty(s))
                         {
-                            return $"{}:small";
+                            return $"{s}:small";
                         }
                     }
                 }
