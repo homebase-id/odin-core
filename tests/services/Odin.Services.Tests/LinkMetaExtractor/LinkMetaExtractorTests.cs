@@ -105,8 +105,9 @@ public class LinkMetaExtractorTests
         ClassicAssert.NotNull(ogp.Title);
         ClassicAssert.NotNull(ogp.Description);
         ClassicAssert.NotNull(ogp.Url);
+        ClassicAssert.NotNull(ogp.ImageUrl);
     }
-    #endif
+#endif
 
 #if !CI_GITHUB
     [Test]

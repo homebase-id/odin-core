@@ -16,6 +16,14 @@ namespace Odin.Services.LinkMetaExtractor;
 
 public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<LinkMetaExtractor> logger) : ILinkMetaExtractor
 {
+    private const long maxContentLength = 3 * 1024 * 1024;
+
+    /// <summary>
+    /// List of sites that needs bot headers to be fetched CSR website
+    /// </summary>
+    private static readonly List<string> SiteThatNeedsOEmbed = ["x.com", "twitter.com"];
+    private static readonly List<string> SiteThatNeedsMozillaHeaders = [];
+
     private class OEmbed
     {
         public IDynamicHttpClientFactory clientFactory = null;
@@ -57,21 +65,11 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
         [JsonPropertyName("version")]
         public string Version { get; set; }
 
-        public Task<string> ToHtml()
+        public async Task<string> ToHtml()
         {
             var description = ExtractPostText();
-
-            /*
-             * this isn't working, X is blocking thumb downloads because they want to track...
-            var mediaId = ExtractMediaUrl();
-            string imageUrl = null;
-            if (mediaId != null)
-            {
-                imageUrl = await GetImageUrlFromMediaAsync(mediaId);
-            }
-            */
-
-            var imageUrl = "";
+            var tweetId = ExtractTweetId();
+            var imageUrl = await GetImageUrlFromMediaAsync(tweetId);
 
             var syntheticHtml = $@"
 <html>
@@ -85,8 +83,18 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
 <meta name=""twitter:card"" content=""{(string.IsNullOrEmpty(imageUrl) ? "summary" : "summary_large_image")}"" />
 </head>
 </html>";
-            return Task.FromResult(syntheticHtml);
+            return syntheticHtml;
         }
+
+        private string ExtractTweetId()
+        {
+            if (string.IsNullOrEmpty(Html)) return "";
+            // Match the href containing the status URL, capturing the numeric ID
+            var match = Regex.Match(Html, @"<a\s+[^>]*href=""https?://(?:twitter\.com|x\.com)/(?:[^/]+/)?(?:i/web/)?status/(\d+)(?:\?[^""]*)?""", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            if (!match.Success) return "";
+            return match.Groups[1].Value;
+        }
+
 
         private string ExtractPostText()
         {
@@ -104,77 +112,94 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
             return WebUtility.HtmlDecode(inner.Trim());
         }
 
-        private string ExtractMediaUrl()
+
+        private async Task<string> GetImageUrlFromMediaAsync(string tweetId)
         {
-            if (string.IsNullOrEmpty(Html)) return null;
-
-            // Step 1: Extract the entire <a href...></a> tag if it matches the overall structure
-            var tagMatch = Regex.Match(Html, @"<a\s+(href\s*=\s*[""']https://t.co/\w+[""']\s*>pic\.twitter\.com/\w+)</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            if (!tagMatch.Success) return null;
-            var fullTag = tagMatch.Groups[0].Value;
-
-            // Step 2: From the full tag, extract the t.co URL (the href value)
-            // <a href="https://t.co/FKPXyzGtCF">pic.twitter.com/FKPXyzGtCF</a>
-            var hrefMatch = Regex.Match(fullTag, @"href\s*=\s*[""'](https://t.co/\w+)[""']", RegexOptions.IgnoreCase);
-            if (!hrefMatch.Success) return null;
-            var mediaUrl = hrefMatch.Groups[1].Value;
-
-            // Step 3: From the full tag, extract the contents between > and </a> (the inner text)
-            var mediaIdMatch = Regex.Match(fullTag, @">\s*pic\.twitter\.com/([^<]+)</a>", RegexOptions.IgnoreCase);
-            if (!mediaIdMatch.Success) return null;
-            var mediaId = mediaIdMatch.Groups[1].Value.Trim();
-
-            return mediaId;
-        }
-
-        private async Task<string> GetImageUrlFromMediaAsync(string mediaId)
-        {
-            if (string.IsNullOrEmpty(mediaId)) return null;
-
+            if (string.IsNullOrEmpty(tweetId)) return null;
             try
             {
-                var formats = new[] { "jpg", "png", "gif" }; // Common Twitter image formats; jpg is 95%+ of cases
-                foreach (var format in formats)
+                // Compute token for the syndication API
+                string token = ComputeToken(tweetId);
+                var url = $"https://cdn.syndication.twimg.com/tweet-result?id={tweetId}&lang=en&token={token}";
+                // Alternatively: var url = $"https://react-tweet.vercel.app/api/tweet/{tweetId}";
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Add("Accept", "application/json");
+                request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
+                var content = await LinkHttpRequestHelper.HttpRequestStringAsync(request, clientFactory, logger, maxContentLength);
+                if (string.IsNullOrEmpty(content)) return "";
+
+                // Deserialize the JSON
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("mediaDetails", out var mediaDetails) &&
+                mediaDetails.ValueKind == JsonValueKind.Array &&
+                mediaDetails.GetArrayLength() > 0)
                 {
-                    var candidateUrl = $"https://pbs.twimg.com/media/{mediaId}.{format}:orig"; // Use :orig for full quality (:large is smaller)
-
-                    var request = new HttpRequestMessage(HttpMethod.Head, candidateUrl);
-                    request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
-                    request.Headers.Add("Accept", "*/*"); // Simpler for HEAD
-
-                    var response = await clientFactory.SendWithRedirectsAsync(
-                        request,
-                        timeout: TimeSpan.FromSeconds(10), // Shorter timeout since HEAD is fast
-                        httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
-
-                    if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
+                    var firstMedia = mediaDetails[0];
+                    if (firstMedia.TryGetProperty("media_url_https", out var urlProp) &&
+                    urlProp.ValueKind == JsonValueKind.String)
                     {
-                        logger.LogDebug("OEmbed: Found valid image URL: {ImageUrl}", candidateUrl);
-                        return candidateUrl;
-                    }
-                    else
-                    {
-                        logger.LogDebug("OEmbed: Tried {CandidateUrl} but got status {StatusCode}", candidateUrl, response.StatusCode);
+                        // It's jsut a preview, we want it small
+                        // If Thumb turns out to be too small, we can upgrade it to "small"
+                        return $"{urlProp.GetString()}:small";
                     }
                 }
-
-                // Fallback: If no direct match, use the original HTML-fetch method with t.co (you'd need to pass t.co separately or extract it here if needed)
-                logger.LogDebug("OEmbed: Direct URL construction failed; falling back to original method if implemented");
-                return null; // Or implement fallback here
+                return null;
             }
             catch (Exception ex)
             {
-                logger.LogDebug("OEmbed: Error resolving image from ID {MediaId}. Error: {Error}", mediaId, ex.Message);
-                return null;
+                logger.LogDebug("OEmbed: Error resolving image from ID {MediaId}. Error: {Error}", tweetId, ex.Message);
+                return "";
             }
         }
-    }
 
-    /// <summary>
-    /// List of sites that needs bot headers to be fetched CSR website
-    /// </summary>
-    private static readonly List<string> SiteThatNeedsOEmbed = ["x.com", "twitter.com"];
-    private static readonly List<string> SiteThatNeedsMozillaHeaders = [];
+        private string ComputeToken(string tweetId)
+        {
+            if (!double.TryParse(tweetId, out double id)) return "";
+            double val = (id / 1_000_000_000_000_000.0) * Math.PI;
+            string base36 = ToBase36(val);
+            return base36.Replace("0", "").Replace(".", "");
+        }
+        private string ToBase36(double value)
+        {
+            if (value == 0) return "0";
+            bool isNegative = value < 0;
+            if (isNegative) value = -value;
+            long intPart = (long)Math.Floor(value);
+            double fracPart = value - intPart;
+            var result = new System.Text.StringBuilder();
+            if (intPart == 0)
+            {
+                result.Append('0');
+            }
+            else
+            {
+                while (intPart > 0)
+                {
+                    long remainder = intPart % 36;
+                    result.Insert(0, CharForDigit(remainder));
+                    intPart /= 36;
+                }
+            }
+            result.Append('.');
+            const int maxPrecision = 12; // Sufficient precision
+            for (int i = 0; i < maxPrecision; i++)
+            {
+                fracPart *= 36;
+                long digit = (long)Math.Floor(fracPart);
+                result.Append(CharForDigit(digit));
+                fracPart -= digit;
+                if (fracPart == 0) break;
+            }
+            string str = result.ToString();
+            if (isNegative) str = "-" + str;
+            return str;
+        }
+        private char CharForDigit(long digit)
+        {
+            if (digit >= 0 && digit <= 9) return (char)('0' + digit);
+            return (char)('a' + (digit - 10));
+        }
+    }
 
     public static bool IsUrlSafe(string url)
     {
@@ -284,7 +309,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
 
     private async Task<string> FetchHtmlContentAsync(string url)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
 
         bool isOEmbed = SiteThatNeedsOEmbed.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase));
 
@@ -309,44 +334,11 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
             request.Headers.Add("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)");
         }
 
-        const long maxContentLength = 3 * 1024 * 1024;
-
         try
         {
-            var response = await clientFactory.SendWithRedirectsAsync(
-                request,
-                timeout: TimeSpan.FromSeconds(20),
-                httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
+            var content = await LinkHttpRequestHelper.HttpRequestStringAsync(request, clientFactory, logger, maxContentLength);
+            if (string.IsNullOrEmpty(content)) return null;
 
-            if (response.StatusCode == HttpStatusCode.Forbidden)
-            {
-                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url, response.StatusCode);
-                return null;
-            }
-
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                logger.LogDebug("LinkExtractor: Not OK {Url}. Status code: {StatusCode}", url, response.StatusCode);
-                return null;
-            }
-
-            // Check content length
-            var contentLength = response.Content.Headers.ContentLength;
-            if (contentLength.HasValue && contentLength.Value > maxContentLength)
-            {
-                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
-                    contentLength.Value, maxContentLength, url);
-                return null;
-            }
-
-            // Read the content with a limited buffer
-            var content = await response.Content.ReadAsStringAsync();
-            if (content.Length > maxContentLength)
-            {
-                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
-                    content.Length, maxContentLength, url);
-                return null;
-            }
             if (isOEmbed)
             {
                 try
@@ -423,42 +415,10 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
         try
         {
             var cleanedUrl = WebUtility.HtmlDecode(imageUrl);
-            var request = new HttpRequestMessage(HttpMethod.Get, cleanedUrl);
-            request.Headers.Add("User-Agent", "*");
+            using var request = new HttpRequestMessage(HttpMethod.Get, cleanedUrl);
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
 
-            var response = await clientFactory.SendWithRedirectsAsync(
-                request,
-                timeout: TimeSpan.FromSeconds(10),
-                httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogDebug("LinkExtractor: Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
-                return null;
-            }
-            // Check content length
-            var contentLength = response.Content.Headers.ContentLength;
-            if (contentLength.HasValue && contentLength.Value > maxImageSize)
-            {
-                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", contentLength.Value, maxImageSize,imageUrl);
-                return null;
-            }
-            var image = await response.Content.ReadAsByteArrayAsync();
-            if (image.Length > maxImageSize)
-            {
-                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize,imageUrl);
-                return null;
-            }
-            var mimeType = response.Content.Headers.ContentType?.ToString();
-            if (string.IsNullOrEmpty(mimeType))
-                mimeType = "image/png";
-            var imageBase64 = Convert.ToBase64String(image);
-            if (string.IsNullOrWhiteSpace(imageBase64))
-            {
-                logger.LogDebug("LinkExtractor: No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", imageUrl, originalUrl);
-                return null;
-            }
-            var imageUri = $"data:{mimeType};base64,{imageBase64}";
+            var imageUri = await LinkHttpRequestHelper.HttpRequestImageAsync(request, clientFactory, logger, maxImageSize, originalUrl);
             return imageUri;
         }
         catch (OperationCanceledException)
