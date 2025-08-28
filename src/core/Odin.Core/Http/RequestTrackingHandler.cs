@@ -1,3 +1,4 @@
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,10 +11,16 @@ namespace Odin.Core.Http;
 internal sealed class RequestTrackingHandler(ILogger logger, HttpMessageHandler innerHandler, HandlerEntry entry)
     : DelegatingHandler(innerHandler)
 {
+    private volatile bool _disposed;
+
+    //
+
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
         entry.IncrementActiveRequests();
         try
         {
@@ -38,6 +45,8 @@ internal sealed class RequestTrackingHandler(ILogger logger, HttpMessageHandler 
 
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
         entry.IncrementActiveRequests();
         try
         {
@@ -58,4 +67,18 @@ internal sealed class RequestTrackingHandler(ILogger logger, HttpMessageHandler 
             }
         }
     }
+
+    //
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && !_disposed)
+        {
+            _disposed = true;
+        }
+        base.Dispose(disposing);
+    }
+
+    //
+
 }
