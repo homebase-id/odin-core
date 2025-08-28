@@ -136,11 +136,16 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
                 {
                     var firstMedia = mediaDetails[0];
                     if (firstMedia.TryGetProperty("media_url_https", out var urlProp) &&
-                    urlProp.ValueKind == JsonValueKind.String)
+                        urlProp.ValueKind == JsonValueKind.String)
                     {
                         // It's just a preview, we want it small
                         // If Thumb turns out to be too small, we can upgrade it to "small"
-                        return $"{urlProp.GetString()}:small";
+                        var s = urlProp.GetString();
+
+                        if (!string.IsNullOrEmpty(s))
+                        {
+                            return $"{}:small";
+                        }
                     }
                 }
 
@@ -150,8 +155,12 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
                     profileUrlProp.ValueKind == JsonValueKind.String)
                 {
                     var s = profileUrlProp.GetString();
-                    s = s.Replace("_normal", "");
-                    return s;
+
+                    if (!string.IsNullOrEmpty(s))
+                    {
+                        s = s.Replace("_normal", "");
+                        return s;
+                    }
                 }
                 return null;
             }
