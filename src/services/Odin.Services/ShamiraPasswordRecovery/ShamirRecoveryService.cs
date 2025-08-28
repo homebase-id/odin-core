@@ -10,6 +10,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
@@ -32,7 +33,7 @@ public class ShamirRecoveryService
     public Guid AppId = Guid.Parse("c30b0581-56a8-4c1f-97b0-bca10ef943d9");
     private readonly ShamirConfigurationService _configurationService;
     private readonly TenantContext _tenantContext;
-    private readonly TableKeyValue _keyValueTable;
+    private readonly TableKeyValueCached _keyValueTable;
     private readonly TableNonce _nonceTable;
     private readonly OdinConfiguration _configuration;
     private readonly IJobManager _jobManager;
@@ -47,7 +48,7 @@ public class ShamirRecoveryService
     /// </summary>
     public ShamirRecoveryService(ShamirConfigurationService configurationService,
         TenantContext tenantContext,
-        TableKeyValue keyValueTable,
+        TableKeyValueCached keyValueTable,
         TableNonce nonceTable,
         OdinConfiguration configuration,
         IJobManager jobManager,

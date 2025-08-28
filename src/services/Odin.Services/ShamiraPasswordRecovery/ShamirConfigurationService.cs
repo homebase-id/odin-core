@@ -10,7 +10,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
@@ -33,7 +33,7 @@ public class ShamirConfigurationService(
     PeerOutgoingTransferService transferService,
     CircleNetworkService circleNetworkService,
     IOdinHttpClientFactory odinHttpClientFactory,
-    TableKeyValue tblKeyValue,
+    TableKeyValueCached tblKeyValue,
     IdentityDatabase db,
     StandardFileSystem fileSystem)
 {

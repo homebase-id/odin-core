@@ -29,7 +29,6 @@ public class Tests
         builder.Populate(serviceCollection);
 
 
-        builder.AddDatabaseCacheServices();
         builder.AddDatabaseCounterServices();
         builder.AddSqliteNotaryDatabaseServices(":memory:");
 

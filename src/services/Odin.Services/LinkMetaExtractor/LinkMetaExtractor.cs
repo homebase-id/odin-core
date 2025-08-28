@@ -1,23 +1,224 @@
+using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
-using Odin.Core.Http;
 
 namespace Odin.Services.LinkMetaExtractor;
 
 
 public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<LinkMetaExtractor> logger) : ILinkMetaExtractor
 {
+    private const long maxContentLength = 3 * 1024 * 1024;
+
     /// <summary>
     /// List of sites that needs bot headers to be fetched CSR website
     /// </summary>
-    private static readonly List<string> SiteThatNeedsBotHeaders = ["x.com", "twitter.com"];
+    private static readonly List<string> SiteThatNeedsOEmbed = ["x.com", "twitter.com"];
     private static readonly List<string> SiteThatNeedsMozillaHeaders = [];
+
+    private class OEmbed
+    {
+        public IDynamicHttpClientFactory clientFactory = null;
+        public ILogger<LinkMetaExtractor> logger = null;
+
+        [JsonPropertyName("url")]
+        public string Url { get; set; }
+
+        [JsonPropertyName("title")]
+        public string Title { get; set; }
+
+        [JsonPropertyName("author_name")]
+        public string AuthorName { get; set; }
+
+        [JsonPropertyName("author_url")]
+        public string AuthorUrl { get; set; }
+
+        [JsonPropertyName("html")]
+        public string Html { get; set; }
+
+        [JsonPropertyName("width")]
+        public int? Width { get; set; }
+
+        [JsonPropertyName("height")]
+        public int? Height { get; set; }
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; }
+
+        [JsonPropertyName("cache_age")]
+        public string CacheAge { get; set; }
+
+        [JsonPropertyName("provider_name")]
+        public string ProviderName { get; set; }
+
+        [JsonPropertyName("provider_url")]
+        public string ProviderUrl { get; set; }
+
+        [JsonPropertyName("version")]
+        public string Version { get; set; }
+
+        public async Task<string> ToHtml()
+        {
+            var description = ExtractPostText();
+            var tweetId = ExtractTweetId();
+            var imageUrl = await GetTwitterPostImageAsync(tweetId);
+
+            var syntheticHtml = $@"
+<html>
+<head>
+<meta property=""og:site_name"" content=""X"" />
+<meta property=""og:title"" content=""{WebUtility.HtmlEncode(AuthorName ?? Title ?? "Post")} on X"" />
+<meta property=""og:description"" content=""{WebUtility.HtmlEncode(description)}"" />
+{(string.IsNullOrEmpty(imageUrl) ? "" : $"<meta property=\"og:image\" content=\"{WebUtility.HtmlEncode(imageUrl)}\" />")}
+<meta property=""og:url"" content=""{WebUtility.HtmlEncode(Url)}"" />
+<meta property=""og:type"" content=""article"" />
+<meta name=""twitter:card"" content=""{(string.IsNullOrEmpty(imageUrl) ? "summary" : "summary_large_image")}"" />
+</head>
+</html>";
+            return syntheticHtml;
+        }
+
+        private string ExtractTweetId()
+        {
+            if (string.IsNullOrEmpty(Html)) return "";
+            // Match the href containing the status URL, capturing the numeric ID
+            var match = Regex.Match(Html, @"<a\s+[^>]*href=""https?://(?:twitter\.com|x\.com)/(?:[^/]+/)?(?:i/web/)?status/(\d+)(?:\?[^""]*)?""", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            if (!match.Success) return "";
+            return match.Groups[1].Value;
+        }
+
+
+        private string ExtractPostText()
+        {
+            if (string.IsNullOrEmpty(Html)) return "";
+
+            var match = Regex.Match(Html, @"<p[^>]*>(.*?)</p>", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            if (!match.Success) return "";
+
+            var inner = match.Groups[1].Value;
+            // Strip HTML tags
+            inner = Regex.Replace(inner, @"<[^>]+>", "");
+            // Remove pic.twitter.com links if present
+            inner = Regex.Replace(inner, @"pic\.twitter\.com\/\w+", "", RegexOptions.IgnoreCase).Trim();
+            // Decode HTML entities
+            return WebUtility.HtmlDecode(inner.Trim());
+        }
+
+
+        private async Task<string> GetTwitterPostImageAsync(string tweetId)
+        {
+            if (string.IsNullOrEmpty(tweetId)) return null;
+            try
+            {
+                // Compute token for the syndication API
+                string token = ComputeToken(tweetId);
+                var url = $"https://cdn.syndication.twimg.com/tweet-result?id={tweetId}&lang=en&token={token}";
+                // Alternatively: var url = $"https://react-tweet.vercel.app/api/tweet/{tweetId}";
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Add("Accept", "application/json");
+                request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
+                var content = await LinkHttpRequestHelper.HttpRequestStringAsync(request, clientFactory, logger, maxContentLength);
+                if (string.IsNullOrEmpty(content)) return "";
+
+                // Deserialize the JSON
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("mediaDetails", out var mediaDetails) &&
+                    mediaDetails.ValueKind == JsonValueKind.Array &&
+                    mediaDetails.GetArrayLength() > 0)
+                {
+                    var firstMedia = mediaDetails[0];
+                    if (firstMedia.TryGetProperty("media_url_https", out var urlProp) &&
+                        urlProp.ValueKind == JsonValueKind.String)
+                    {
+                        // It's just a preview, we want it small
+                        // If Thumb turns out to be too small, we can upgrade it to "small"
+                        var s = urlProp.GetString();
+
+                        if (!string.IsNullOrEmpty(s))
+                        {
+                            return $"{s}:small";
+                        }
+                    }
+                }
+
+                // Fallback to profile picture if no media
+                if (doc.RootElement.TryGetProperty("user", out var user) &&
+                    user.TryGetProperty("profile_image_url_https", out var profileUrlProp) &&
+                    profileUrlProp.ValueKind == JsonValueKind.String)
+                {
+                    var s = profileUrlProp.GetString();
+
+                    if (!string.IsNullOrEmpty(s))
+                    {
+                        s = s.Replace("_normal", "");
+                        return s;
+                    }
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug("OEmbed: Error resolving image from ID {MediaId}. Error: {Error}", tweetId, ex.Message);
+                return "";
+            }
+        }
+
+        private string ComputeToken(string tweetId)
+        {
+            if (!double.TryParse(tweetId, out double id)) return "";
+            double val = (id / 1_000_000_000_000_000.0) * Math.PI;
+            string base36 = ToBase36(val);
+            return base36.Replace("0", "").Replace(".", "");
+        }
+        private string ToBase36(double value)
+        {
+            if (value == 0) return "0";
+            bool isNegative = value < 0;
+            if (isNegative) value = -value;
+            long intPart = (long)Math.Floor(value);
+            double fracPart = value - intPart;
+            var result = new System.Text.StringBuilder();
+            if (intPart == 0)
+            {
+                result.Append('0');
+            }
+            else
+            {
+                while (intPart > 0)
+                {
+                    long remainder = intPart % 36;
+                    result.Insert(0, CharForDigit(remainder));
+                    intPart /= 36;
+                }
+            }
+            result.Append('.');
+            const int maxPrecision = 12; // Sufficient precision
+            for (int i = 0; i < maxPrecision; i++)
+            {
+                fracPart *= 36;
+                long digit = (long)Math.Floor(fracPart);
+                result.Append(CharForDigit(digit));
+                fracPart -= digit;
+                if (fracPart == 0) break;
+            }
+            string str = result.ToString();
+            if (isNegative) str = "-" + str;
+            return str;
+        }
+        private char CharForDigit(long digit)
+        {
+            if (digit >= 0 && digit <= 9) return (char)('0' + digit);
+            return (char)('a' + (digit - 10));
+        }
+    }
 
     public static bool IsUrlSafe(string url)
     {
@@ -127,64 +328,52 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
 
     private async Task<string> FetchHtmlContentAsync(string url)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Add("Accept", "text/html");
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        bool isOEmbed = SiteThatNeedsOEmbed.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase));
 
         // Use specific User-Agent based on the URL
-        if (SiteThatNeedsBotHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
+        if (isOEmbed)
         {
-            request.Headers.Add("User-Agent", "grapeshot|googlebot|bingbot|msnbot|yahoo|Baidu|aolbuild|facebookexternalhit|iaskspider|DuckDuckBot|Applebot|Almaden|iarchive|archive.org_bot");
+            var oEmbedUrl = $"https://publish.x.com/oembed?url={Uri.EscapeDataString(url.Replace("x.com", "twitter.com"))}";
+            request.RequestUri = new Uri(oEmbedUrl);
+            request.Headers.Add("Accept", "application/json");
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         }
         else if (SiteThatNeedsMozillaHeaders.Any(site => url.Contains(site, StringComparison.OrdinalIgnoreCase)))
         {
             // Use a modern browser-like User-Agent for general requests
+            request.Headers.Add("Accept", "text/html");
             request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
         }
         else
         {
             // Use facebookexternalhit for Open Graph previews
+            request.Headers.Add("Accept", "text/html");
             request.Headers.Add("User-Agent", "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)");
         }
 
-        const long maxContentLength = 3 * 1024 * 1024;
-
         try
         {
-            var response = await clientFactory.SendWithRedirectsAsync(
-                request,
-                timeout: TimeSpan.FromSeconds(20),
-                httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
+            var content = await LinkHttpRequestHelper.HttpRequestStringAsync(request, clientFactory, logger, maxContentLength);
+            if (string.IsNullOrEmpty(content)) return null;
 
-            if (response.StatusCode == HttpStatusCode.Forbidden)
+            if (isOEmbed)
             {
-                logger.LogDebug("LinkExtractor: Forbidden to fetch information from {Url}. Status code: {StatusCode}", url, response.StatusCode);
-                return null;
+                try
+                {
+                    var oembed = JsonSerializer.Deserialize<OEmbed>(content);
+                    oembed.logger = logger; // Not ideal...
+                    oembed.clientFactory = clientFactory;
+                    var syntheticHtml = await oembed.ToHtml();
+                    return syntheticHtml;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug("LinkExtractor: Failed to process oEmbed for {Url}. Error: {Error}", url, ex.Message);
+                    return null;
+                }
             }
-
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                logger.LogDebug("LinkExtractor: Not OK {Url}. Status code: {StatusCode}", url, response.StatusCode);
-                return null;
-            }
-
-            // Check content length
-            var contentLength = response.Content.Headers.ContentLength;
-            if (contentLength.HasValue && contentLength.Value > maxContentLength)
-            {
-                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
-                    contentLength.Value, maxContentLength, url);
-                return null;
-            }
-
-            // Read the content with a limited buffer
-            var content = await response.Content.ReadAsStringAsync();
-            if (content.Length > maxContentLength)
-            {
-                logger.LogDebug("LinkExtractor: Content length {ContentLength} exceeds maximum allowed size {MaxSize} for url {Url}",
-                    content.Length, maxContentLength, url);
-                return null;
-            }
-
             // Do NOT decode the HTML content. The chat client and stuff reliably handles unsafe "html".
             return content;
         }
@@ -245,42 +434,10 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
         try
         {
             var cleanedUrl = WebUtility.HtmlDecode(imageUrl);
-            var request = new HttpRequestMessage(HttpMethod.Get, cleanedUrl);
-            request.Headers.Add("User-Agent", "*");
+            using var request = new HttpRequestMessage(HttpMethod.Get, cleanedUrl);
+            request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36");
 
-            var response = await clientFactory.SendWithRedirectsAsync(
-                request,
-                timeout: TimeSpan.FromSeconds(10),
-                httpCompletionOption: HttpCompletionOption.ResponseHeadersRead);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogDebug("LinkExtractor: Something went wrong when downloading the image from {Url}. Status code: {StatusCode}", imageUrl, response.StatusCode);
-                return null;
-            }
-            // Check content length
-            var contentLength = response.Content.Headers.ContentLength;
-            if (contentLength.HasValue && contentLength.Value > maxImageSize)
-            {
-                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", contentLength.Value, maxImageSize,imageUrl);
-                return null;
-            }
-            var image = await response.Content.ReadAsByteArrayAsync();
-            if (image.Length > maxImageSize)
-            {
-                logger.LogDebug("LinkExtractor: Image size {ContentLength} exceeds maximum allowed size {MaxSize} for url: {Url}", image.Length, maxImageSize,imageUrl);
-                return null;
-            }
-            var mimeType = response.Content.Headers.ContentType?.ToString();
-            if (string.IsNullOrEmpty(mimeType))
-                mimeType = "image/png";
-            var imageBase64 = Convert.ToBase64String(image);
-            if (string.IsNullOrWhiteSpace(imageBase64))
-            {
-                logger.LogDebug("LinkExtractor: No image Data from imageUrl {Url}. Original Link URL {OriginalUrl}", imageUrl, originalUrl);
-                return null;
-            }
-            var imageUri = $"data:{mimeType};base64,{imageBase64}";
+            var imageUri = await LinkHttpRequestHelper.HttpRequestImageAsync(request, clientFactory, logger, maxImageSize, originalUrl);
             return imageUri;
         }
         catch (OperationCanceledException)
@@ -294,4 +451,5 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
             return null;
         }
     }
+
 }

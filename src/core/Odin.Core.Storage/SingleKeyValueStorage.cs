@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage;
@@ -29,9 +30,9 @@ public class SingleKeyValueStorage
     /// <param name="key">The Id or key of the record to retrieve</param>
     /// <typeparam name="T">The Type of the data</typeparam>
     /// <returns></returns>
-    public async Task<T> GetAsync<T>(TableKeyValue tblKeyValue, Guid key) where T : class
+    public async Task<T> GetAsync<T>(TableKeyValueCached tblKeyValue, Guid key) where T : class
     {
-        var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
+        var item = await tblKeyValue.GetAsync(MakeStorageKey(key), TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         if (null == item)
         {
@@ -46,7 +47,7 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
-    public async Task UpsertManyAsync<T>(TableKeyValue tblKeyValue, List<(Guid key, T value)> keyValuePairs)
+    public async Task UpsertManyAsync<T>(TableKeyValueCached tblKeyValue, List<(Guid key, T value)> keyValuePairs)
     {
         var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
         {
@@ -57,13 +58,13 @@ public class SingleKeyValueStorage
         await tblKeyValue.UpsertManyAsync(keyValueRecords);
     }
 
-    public async Task UpsertAsync<T>(TableKeyValue tblKeyValue, Guid key, T value)
+    public async Task UpsertAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
         await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
-    public async Task DeleteAsync(TableKeyValue tblKeyValue, Guid key)
+    public async Task DeleteAsync(TableKeyValueCached tblKeyValue, Guid key)
     {
         await tblKeyValue.DeleteAsync(MakeStorageKey(key));
     }

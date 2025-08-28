@@ -5,6 +5,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
@@ -12,7 +13,7 @@ using Odin.Services.Configuration;
 
 namespace Odin.Services.Authentication.Owner;
 
-public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, TableKeyValue tblKeyValue)
+public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, TableKeyValueCached tblKeyValue)
 {
     private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private const string ContextKey = "3780295a-5bc6-4e0f-8334-4b5c063099c4";

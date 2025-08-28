@@ -42,13 +42,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableAppGrantsCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "AppGrants";
 
-        protected TableAppGrantsCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableAppGrantsCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -120,7 +118,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -166,7 +163,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                     return true;
                 }
                 return false;
@@ -213,7 +209,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -259,7 +254,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableAppGrantsCRUD", item.identityId.ToString()+item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
                     return 1;
                 }
                 return 0;
@@ -342,8 +336,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param3.Value = appId.ToByteArray();
                 delete0Param4.Value = circleId.ToByteArray();
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString());
                 return count;
             }
         }
@@ -412,9 +404,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<AppGrantsRecord> GetAsync(Guid identityId,Guid odinHashId,Guid appId,Guid circleId)
         {
-            var (hit, cacheObject) = _cache.Get("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString());
-            if (hit)
-                return (AppGrantsRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -447,11 +436,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,odinHashId,appId,circleId);
-                        _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString()+appId.ToString()+circleId.ToString(), r);
                         return r;
                     } // using
                 } //
@@ -501,7 +488,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString()+odinHashId.ToString(), null);
                             return new List<AppGrantsRecord>();
                         }
                         var result = new List<AppGrantsRecord>();
@@ -555,7 +541,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableAppGrantsCRUD", identityId.ToString(), null);
                             return new List<AppGrantsRecord>();
                         }
                         var result = new List<AppGrantsRecord>();

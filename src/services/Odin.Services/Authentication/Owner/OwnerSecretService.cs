@@ -6,7 +6,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 
@@ -16,7 +16,7 @@ namespace Odin.Services.Authentication.Owner
         TenantContext tenantContext,
         PasswordKeyRecoveryService recoveryService,
         PublicPrivateKeyService publicPrivateKeyService,
-        TableKeyValue tblKeyValue)
+        TableKeyValueCached tblKeyValue)
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
         // private static readonly Guid RsaKeyStorageId = Guid.Parse("b5e1e0d0-2f27-429a-9c44-34cbcc71745e");
@@ -30,7 +30,8 @@ namespace Odin.Services.Authentication.Owner
         
         private const string EccKeyContextKey = "fb8d351e-2c4f-4f1d-9b84-aefe7bc11ee1";
         private static readonly SingleKeyValueStorage EccStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(EccKeyContextKey));
-        
+
+
         /// <summary>
         /// Generates two 16 byte crypto-random numbers used for salting passwords
         /// </summary>

@@ -6,7 +6,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {
@@ -15,9 +15,9 @@ namespace Odin.Hosting.Controllers.Home.Service
         private const string HomeClientContextKey = "7daac4aa-5088-4b46-96bd-47f03704dab4";
         private static readonly SingleKeyValueStorage ClientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(HomeClientContextKey));
 
-        private readonly TableKeyValue _tblKeyValue;
+        private readonly TableKeyValueCached _tblKeyValue;
 
-        public HomeRegistrationStorage(TableKeyValue tblKeyValue)
+        public HomeRegistrationStorage(TableKeyValueCached tblKeyValue)
         {
             _tblKeyValue = tblKeyValue;
         }

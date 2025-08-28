@@ -15,10 +15,9 @@ using Odin.Core.Util;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveMainIndex(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveMainIndexCRUD(cache, scopedConnectionFactory)
+    : TableDriveMainIndexCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -400,7 +399,7 @@ public class TableDriveMainIndex(
         tparam1.ParameterName = "@fileid";
         tparam2.ParameterName = "@driveId";
         tparam3.ParameterName = "@identityId";
-        tparam3.ParameterName = "@bcount";
+        tparam4.ParameterName = "@bcount";
 
         cmd.Parameters.Add(tparam1);
         cmd.Parameters.Add(tparam2);

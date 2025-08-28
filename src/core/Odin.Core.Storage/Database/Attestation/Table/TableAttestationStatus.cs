@@ -3,8 +3,7 @@
 namespace Odin.Core.Storage.Database.Attestation.Table;
 
 public class TableAttestationStatus(
-    CacheHelper cache,
     ScopedAttestationConnectionFactory scopedConnectionFactory)
-    : TableAttestationStatusCRUD(cache, scopedConnectionFactory)
+    : TableAttestationStatusCRUD(scopedConnectionFactory)
 {
 }
