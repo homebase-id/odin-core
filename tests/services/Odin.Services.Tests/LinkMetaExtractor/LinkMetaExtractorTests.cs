@@ -94,13 +94,13 @@ public class LinkMetaExtractorTests
 #if !CI_GITHUB
     [Explicit]
     [Test]
-    public async Task TestTwitterUrl()
+    public async Task TestTwitterWithImageUrl()
     {
         var logStore = new LogEventMemoryStore();
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
 
-        var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/trunkio/status/1795913092204998997");
+        var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/battleforeurope/status/1927693899868303855");
 
         ClassicAssert.NotNull(ogp.Title);
         ClassicAssert.NotNull(ogp.Description);

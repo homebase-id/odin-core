@@ -69,7 +69,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
         {
             var description = ExtractPostText();
             var tweetId = ExtractTweetId();
-            var imageUrl = await GetImageUrlFromMediaAsync(tweetId);
+            var imageUrl = await GetTwitterPostImageAsync(tweetId);
 
             var syntheticHtml = $@"
 <html>
@@ -113,7 +113,7 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
         }
 
 
-        private async Task<string> GetImageUrlFromMediaAsync(string tweetId)
+        private async Task<string> GetTwitterPostImageAsync(string tweetId)
         {
             if (string.IsNullOrEmpty(tweetId)) return null;
             try

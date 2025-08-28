@@ -399,7 +399,7 @@ public class TableDriveMainIndex(
         tparam1.ParameterName = "@fileid";
         tparam2.ParameterName = "@driveId";
         tparam3.ParameterName = "@identityId";
-        tparam3.ParameterName = "@bcount";
+        tparam4.ParameterName = "@bcount";
 
         cmd.Parameters.Add(tparam1);
         cmd.Parameters.Add(tparam2);
