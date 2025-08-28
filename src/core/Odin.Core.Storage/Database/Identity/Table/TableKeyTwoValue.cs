@@ -6,10 +6,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableKeyTwoValue(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyTwoValueCRUD(cache, scopedConnectionFactory)
+    : TableKeyTwoValueCRUD(scopedConnectionFactory)
 {
     public async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(byte[] key2)
     {
