@@ -66,7 +66,7 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         return Redirect(redirect);
     }
 
-    [HttpGet("finalize")]
+    [HttpPost("finalize")]
     public async Task<FinalRecoveryResult> FinalizeRecovery([FromBody] FinalRecoveryRequest request)
     {
         OdinValidationUtils.AssertNotNullOrEmpty(request.Id, nameof(request.Id));

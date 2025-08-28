@@ -186,7 +186,8 @@ public class ShamirConfigurationService(
             IncludeTransferHistory = false
         };
 
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive, odinContext);
+        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
+            DrivePermission.Read, odinContext);
         var file = await fileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
 
         var isValid = file != null &&
@@ -292,15 +293,17 @@ public class ShamirConfigurationService(
         for (int i = 0; i < players.Count; i++)
         {
             var player = players[i];
-            var playerEncryptionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var s = shards[i];
 
             // Dealer encrypts a player's shard with the random key
-            var (iv, cipher) = AesCbc.Encrypt(shards[i].Shard, playerEncryptionKey);
+            var playerEncryptionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var (iv, cipher) = AesCbc.Encrypt(s.Shard, playerEncryptionKey);
+
 
             var playerShardId = Guid.NewGuid();
             playerRecords.Add(new PlayerEncryptedShard()
             {
-                Index = i,
+                Index = s.Index,
                 Id = playerShardId,
                 Player = player,
                 Created = UnixTimeUtc.Now(),

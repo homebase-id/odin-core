@@ -11,7 +11,7 @@ namespace Odin.Services.Base;
 
 public static class OdinContextUpgrades
 {
-    public static IOdinContext UpgradeToByPassAclCheck(TargetDrive drive, IOdinContext odinContext)
+    public static IOdinContext UpgradeToByPassAclCheck(TargetDrive drive, DrivePermission drivePermission, IOdinContext odinContext)
     {
         var patchedContext = odinContext.Clone();
         patchedContext.Caller.SecurityLevel = SecurityGroupType.Owner;
@@ -24,7 +24,7 @@ public static class OdinContextUpgrades
                 PermissionedDrive = new PermissionedDrive
                 {
                     Drive = drive,
-                    Permission = DrivePermission.Read
+                    Permission = drivePermission
                 },
                 KeyStoreKeyEncryptedStorageKey = null
             }
@@ -33,7 +33,7 @@ public static class OdinContextUpgrades
         var pg = new PermissionGroup(new PermissionSet([PermissionKeys.SendPushNotifications]), driveGrants, null, null);
         if (patchedContext.PermissionsContext == null)
         {
-            var dict = new Dictionary<string, PermissionGroup>() { { "patched-read-drive", pg } };
+            var dict = new Dictionary<string, PermissionGroup>() { { $"patched-drive-permission-{Guid.NewGuid()}", pg } };
             patchedContext.SetPermissionContext(new PermissionContext(dict, null));
         }
         else
