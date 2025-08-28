@@ -60,7 +60,7 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
         if (!byPassWaitingPeriod)
         {
             var recoveryKeyWaitingPeriod = TimeSpan.FromDays(14);
-            var recoveryKeyWaitingPeriodSeconds = odinConfiguration.Development!.RecoveryKeyWaitingPeriodSeconds;
+            var recoveryKeyWaitingPeriodSeconds = odinConfiguration.Development?.RecoveryKeyWaitingPeriodSeconds ?? 10;
 #if DEBUG
             recoveryKeyWaitingPeriod = TimeSpan.FromSeconds(recoveryKeyWaitingPeriodSeconds);
 #endif
