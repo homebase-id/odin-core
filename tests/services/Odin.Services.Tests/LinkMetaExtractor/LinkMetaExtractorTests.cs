@@ -110,6 +110,26 @@ public class LinkMetaExtractorTests
 #endif
 
 #if !CI_GITHUB
+    [Explicit]
+    [Test]
+    public async Task TestTwitterWithNoImageUrl()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+
+        // This post doesn't have an image, so it should fall back to the profile picture
+        var ogp = await linkMetaExtractor.ExtractAsync("https://x.com/shellenberger/status/1955272838434144377");
+
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.Url);
+        ClassicAssert.NotNull(ogp.ImageUrl);
+    }
+#endif
+
+
+#if !CI_GITHUB
     [Test]
     public async Task TestGoogleMeet()
     {
