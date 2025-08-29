@@ -6,9 +6,8 @@ using Odin.Core.Storage.Database.Notary.Connection;
 namespace Odin.Core.Storage.Database.Notary.Table;
 
 public class TableNotaryChain(
-    CacheHelper cache,
     ScopedNotaryConnectionFactory scopedConnectionFactory)
-    : TableNotaryChainCRUD(cache, scopedConnectionFactory)
+    : TableNotaryChainCRUD(scopedConnectionFactory)
 {
     private readonly ScopedNotaryConnectionFactory _scopedConnectionFactory1 = scopedConnectionFactory;
 

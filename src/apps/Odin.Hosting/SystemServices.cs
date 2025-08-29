@@ -250,7 +250,6 @@ public static class SystemServices
         builder.AddJobManagerServices();
 
         // Global database services
-        builder.AddDatabaseCacheServices();
         builder.AddDatabaseCounterServices();
 
         // System database services

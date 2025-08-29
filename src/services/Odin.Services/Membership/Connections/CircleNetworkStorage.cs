@@ -45,7 +45,7 @@ public class CircleNetworkStorage
 
     public async Task<IdentityConnectionRegistration> GetAsync(OdinId odinId)
     {
-        var record = await _db.Connections.GetAsync(odinId);
+        var record = await _db.ConnectionsCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         if (null == record)
         {
@@ -77,14 +77,14 @@ public class CircleNetworkStorage
         }
 
         // remove all app grants,
-        await _db.AppGrants.DeleteByIdentityAsync(odinHashId);
+        await _db.AppGrantsCached.DeleteByIdentityAsync(odinHashId);
 
         // Now write the latest
         foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
         {
             foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
             {
-                await _db.AppGrants.UpsertAsync(new AppGrantsRecord()
+                await _db.AppGrantsCached.UpsertAsync(new AppGrantsRecord()
                 {
                     odinHashId = odinHashId,
                     appId = appId,
@@ -95,7 +95,7 @@ public class CircleNetworkStorage
         }
 
         var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
-        await _db.Connections.UpsertAsync(record);
+        await _db.ConnectionsCached.UpsertAsync(record);
 
         tx.Commit();
     }
@@ -109,7 +109,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakKeyStoreKey = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.Connections.UpdateAsync(record);
+        await _db.ConnectionsCached.UpdateAsync(record);
     }
 
     public async Task UpdateClientAccessTokenAsync(OdinId identity, ConnectionStatus status, EncryptedClientAccessToken encryptedCat)
@@ -121,7 +121,7 @@ public class CircleNetworkStorage
         icrAccessRecord.WeakClientAccessToken = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.Connections.UpdateAsync(record);
+        await _db.ConnectionsCached.UpdateAsync(record);
     }
 
     public async Task UpdateVerificationHashAsync(OdinId identity, ConnectionStatus status, byte[] hash)
@@ -131,15 +131,15 @@ public class CircleNetworkStorage
 
         icrAccessRecord.VerificationHash64 = hash.ToBase64();
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
-        await _db.Connections.UpdateAsync(record);
+        await _db.ConnectionsCached.UpdateAsync(record);
     }
 
     public async Task DeleteAsync(OdinId odinId)
     {
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        await _db.Connections.DeleteAsync(odinId);
-        await _db.AppGrants.DeleteByIdentityAsync(odinId.ToHashId());
+        await _db.ConnectionsCached.DeleteAsync(odinId);
+        await _db.AppGrantsCached.DeleteByIdentityAsync(odinId.ToHashId());
         await _circleMembershipService.DeleteMemberFromAllCirclesAsync(odinId, DomainType.Identity);
 
         tx.Commit();
@@ -149,7 +149,7 @@ public class CircleNetworkStorage
         string cursor,
         ConnectionStatus connectionStatus)
     {
-        var (records, nextCursor) = await _db.Connections.PagingByCreatedAsync(count, (int)connectionStatus, cursor);
+        var (records, nextCursor) = await _db.ConnectionsCached.PagingByCreatedAsync(count, (int)connectionStatus, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
         // single db connection that is not thread safe.
@@ -169,7 +169,7 @@ public class CircleNetworkStorage
     /// <exception cref="OdinClientException"></exception>
     public async Task CreateIcrKeyAsync(SensitiveByteArray masterKey)
     {
-        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
+        var existingKey = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValueCached, _icrKeyStorageId);
         if (null != existingKey)
         {
             throw new OdinClientException("IcrKey already exists");
@@ -183,24 +183,24 @@ public class CircleNetworkStorage
             Created = UnixTimeUtc.Now()
         };
 
-        await _icrKeyStorage.UpsertAsync(_db.KeyValue, _icrKeyStorageId, record);
+        await _icrKeyStorage.UpsertAsync(_db.KeyValueCached, _icrKeyStorageId, record);
     }
 
     public async Task<SymmetricKeyEncryptedAes> GetMasterKeyEncryptedIcrKeyAsync()
     {
-        var key = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValue, _icrKeyStorageId);
+        var key = await _icrKeyStorage.GetAsync<IcrKeyRecord>(_db.KeyValueCached, _icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }
 
 
     public async Task SavePeerIcrClientAsync(PeerIcrClient client)
     {
-        await _peerIcrClientStorage.UpsertAsync(_db.KeyValue, client.AccessRegistration.Id, client);
+        await _peerIcrClientStorage.UpsertAsync(_db.KeyValueCached, client.AccessRegistration.Id, client);
     }
 
     public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
-        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_db.KeyValue, accessRegId);
+        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_db.KeyValueCached, accessRegId);
     }
     
     private async Task<IdentityConnectionRegistration> MapFromStorageAsync(ConnectionsRecord record)
@@ -216,7 +216,7 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = await _db.AppGrants.GetByOdinHashIdAsync(odinHashId) ?? new List<AppGrantsRecord>();
+        var allAppGrants = await _db.AppGrantsCached.GetByOdinHashIdAsync(odinHashId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
 
         foreach (var appGrantRecord in allAppGrants)
         {
