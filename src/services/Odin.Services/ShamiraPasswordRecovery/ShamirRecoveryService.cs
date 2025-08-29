@@ -369,10 +369,11 @@ public class ShamirRecoveryService
         if (!_configuration.Mailgun.Enabled)
         {
 #if !DEBUG
-            throw new OdinClientException("Cannot enter into recovery mode when email is disabled");
+            throw new OdinSystemException("Cannot enter into recovery mode when email is disabled");
 #endif
         }
 
+        _logger.LogDebug("Enqueueing verification email");
         var job = _jobManager.NewJob<SendRecoveryModeVerificationEmailJob>();
         job.Data = new SendRecoveryModeVerificationEmailJobData()
         {
@@ -389,7 +390,7 @@ public class ShamirRecoveryService
         _logger.LogInformation("\n\n\n{link}\n\n\n", link);
 #endif
 
-        if (!_configuration.Mailgun.Enabled)
+        if (_configuration.Mailgun.Enabled)
         {
             await _jobManager.ScheduleJobAsync(job, new JobSchedule
             {
@@ -415,7 +416,7 @@ public class ShamirRecoveryService
         if (!_configuration.Mailgun.Enabled)
         {
 #if !DEBUG
-            throw new OdinClientException("Cannot enter into recovery mode when email is disabled");
+            throw new OdinSystemException("Cannot enter into recovery mode when email is disabled");
 #else
             return;
 #endif

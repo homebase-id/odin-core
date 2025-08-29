@@ -85,7 +85,8 @@ public class SendRecoveryModeVerificationEmailJob(
                 HtmlMessage = RecoveryEmails.ExitRecoveryModeEmailHtml(Data.Domain, link)
             };
         }
-
+        
+        logger.LogDebug($"Sending verification email: {Data.EmailType}");
         await emailSender.SendAsync(envelope);
 
         return JobExecutionResult.Success();
