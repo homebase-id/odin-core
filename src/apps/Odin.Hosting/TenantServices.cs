@@ -4,7 +4,6 @@ using MediatR;
 using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
@@ -109,8 +108,8 @@ public static class TenantServices
         cb.RegisterType<PushNotificationService>()
             .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
             .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
-            .As<ShamirPasswordRecoverySufficientShardsCollectedNotification>()
-            .As<ShamirPasswordRecoveryShardCollectedNotification>()
+            .As<INotificationHandler<ShamirPasswordRecoverySufficientShardsCollectedNotification>>()
+            .As<INotificationHandler<ShamirPasswordRecoveryShardCollectedNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
 
