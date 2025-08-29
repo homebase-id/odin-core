@@ -22,8 +22,8 @@ public sealed class LastSeenBackgroundService(
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await SaveAsync(); // Save right away => fail fast!
                 await SleepAsync(saveInterval, stoppingToken);
+                await SaveAsync();
             }
         }
         finally
@@ -43,12 +43,12 @@ public sealed class LastSeenBackgroundService(
             var records = await tableRegistrations.GetAllAsync();
             foreach (var record in records)
             {
-                // lastSeenService.PutLastSeen(record.identityId, ); // SEB:TODO
+                lastSeenService.PutLastSeen(record);
             }
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error while loading last seen identities");
+            logger.LogError(e, "Error loading last seen identities");
         }
     }
 
@@ -59,15 +59,11 @@ public sealed class LastSeenBackgroundService(
         try
         {
             logger.LogDebug("Saving last seen identities");
-            var lastSeen = lastSeenService.All;
-            foreach (var record in lastSeen)
-            {
-                // tableRegistrations.UpsertLastSeen(record.Key, record.Value); // SEB:TODO
-            }
+            await tableRegistrations.UpdateLastSeen(lastSeenService.AllByIdentityId);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error while saving last seen identities");
+            logger.LogError(e, "Error saving last seen identities");
         }
     }
 }
