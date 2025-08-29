@@ -54,7 +54,7 @@ public class TableDriveMainIndex(
 
     public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
-        return base.ReadRecordFromReader1(rdr, odinIdentity.Id, driveId);
+        return base.ReadRecordFromReader1(rdr, odinIdentity.IdentityId, driveId);
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
@@ -263,7 +263,7 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam3);
         updateCommand.Parameters.Add(sparam4);
 
-        sparam1.Value = odinIdentity.IdAsByteArray();
+        sparam1.Value = odinIdentity.IdentityIdAsByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = reactionSummary;
@@ -296,7 +296,7 @@ public class TableDriveMainIndex(
         updateCommand.Parameters.Add(sparam3);
         updateCommand.Parameters.Add(sparam4);
 
-        sparam1.Value = odinIdentity.IdAsByteArray();
+        sparam1.Value = odinIdentity.IdentityIdAsByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = transferHistory;
@@ -335,7 +335,7 @@ public class TableDriveMainIndex(
         sizeCommand.Parameters.Add(sparam2);
 
         sparam1.Value = driveId.ToByteArray();
-        sparam2.Value = odinIdentity.IdAsByteArray();
+        sparam2.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await sizeCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -364,7 +364,7 @@ public class TableDriveMainIndex(
 
         var identityId = cmd.CreateParameter();
         identityId.ParameterName = "@identityId";
-        identityId.Value = odinIdentity.IdAsByteArray();
+        identityId.Value = odinIdentity.IdentityIdAsByteArray();
         cmd.Parameters.Add(identityId);
 
         var size = 0L;
@@ -408,7 +408,7 @@ public class TableDriveMainIndex(
 
         tparam1.Value = fileId.ToByteArray();
         tparam2.Value = driveId.ToByteArray();
-        tparam3.Value = odinIdentity.IdAsByteArray();
+        tparam3.Value = odinIdentity.IdentityIdAsByteArray();
         tparam4.Value = byteCount;
 
         return await cmd.ExecuteNonQueryAsync();
@@ -443,7 +443,7 @@ public class TableDriveMainIndex(
 
         tparam1.Value = fileId.ToByteArray();
         tparam3.Value = driveId.ToByteArray();
-        tparam4.Value = odinIdentity.IdAsByteArray();
+        tparam4.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await touchCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {

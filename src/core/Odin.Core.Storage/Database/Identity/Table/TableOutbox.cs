@@ -106,7 +106,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param3);
 
         param1.Value = SequentialGuid.CreateGuid().ToByteArray();
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
         param3.Value = UnixTimeUtc.Now().milliseconds;
 
         var result = new List<OutboxRecord>();
@@ -178,7 +178,7 @@ public class TableOutbox(
             cmd.Parameters.Add(param2);
         }
 
-        param1.Value = odinIdentity.IdAsByteArray();
+        param1.Value = odinIdentity.IdentityIdAsByteArray();
         if (driveId != null)
             param2.Value = driveId?.ToByteArray();
 
@@ -221,7 +221,7 @@ public class TableOutbox(
 
         param1.Value = checkOutStamp.ToByteArray();
         param2.Value = nextRunTime.milliseconds;
-        param3.Value = odinIdentity.IdAsByteArray();
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -249,7 +249,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = checkOutStamp.ToByteArray();
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -281,7 +281,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = SequentialGuid.CreateGuid(pastThreshold).ToByteArray(); // UnixTimeMiliseconds
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -306,7 +306,7 @@ public class TableOutbox(
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
-        param1.Value = odinIdentity.IdAsByteArray();
+        param1.Value = odinIdentity.IdentityIdAsByteArray();
 
         int totalCount = 0;
         int poppedCount = 0;
@@ -357,7 +357,7 @@ public class TableOutbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = driveId.ToByteArray();
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
 
         int totalCount = 0;
         int poppedCount = 0;

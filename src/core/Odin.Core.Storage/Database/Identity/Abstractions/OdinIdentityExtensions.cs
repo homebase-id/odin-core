@@ -7,6 +7,6 @@ public static class OdinIdentityExtensions
 {
     public static string BytesToSql(this OdinIdentity odinIdentity, DatabaseType databaseType)
     {
-        return odinIdentity.IdAsByteArray().ToSql(databaseType);
+        return odinIdentity.IdentityIdAsByteArray().ToSql(databaseType);
     }
 }

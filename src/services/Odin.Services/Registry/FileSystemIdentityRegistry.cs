@@ -432,6 +432,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     PlanId = registrationRecord.planId,
                     Disabled = registrationRecord.disabled,
                     MarkedForDeletionDate = registrationRecord.markedForDeletionDate,
+                    // LastSeen = registrationRecord.lastSeen // SEB:TODO
                 };
 
                 var tenantPathManger = new TenantPathManager(_config, registration.Id);

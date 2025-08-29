@@ -62,6 +62,8 @@ namespace Odin.Services.Base
 
         public UnixTimeUtc? MarkedForDeletionDate { get; private set; }
 
+        public UnixTimeUtc? LastSeen { get; private set; }
+
         public void Update(TenantContext source)
         {
             this.DotYouRegistryId = source.DotYouRegistryId;
@@ -70,6 +72,7 @@ namespace Odin.Services.Base
             this.IsPreconfigured = source.IsPreconfigured;
             this.TenantPathManager = source.TenantPathManager;
             this.Email = source.Email;
+            this.LastSeen = source.LastSeen;
         }
         
         public void UpdateSystemConfig(TenantSettings newConfig)
