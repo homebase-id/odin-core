@@ -71,8 +71,8 @@ public class SendRecoveryModeVerificationEmailJob(
             {
                 To = [new NameAndEmailAddress { Email = Data.Email }],
                 Subject = subject,
-                TextMessage = RecoveryEmails.VerifyEmailText(Data.Email, Data.Domain, link, Data.Players),
-                HtmlMessage = RecoveryEmails.VerifyEmailHtml(Data.Domain, link, Data.Players)
+                TextMessage = RecoveryEmails.EnterRecoveryModeVerifyEmailText(Data.Email, Data.Domain, link, Data.Players),
+                HtmlMessage = RecoveryEmails.EnterRecoveryModeVerifyEmailHtml(Data.Domain, link, Data.Players)
             };
         }
         else

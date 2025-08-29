@@ -6,6 +6,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
@@ -14,7 +15,7 @@ public static class RecoveryEmails
     //
     // Enter recovery mode
     //
-    public static string VerifyEmailText(string email, string domain, string link, List<ShamiraPlayer> players)
+    public static string EnterRecoveryModeVerifyEmailText(string email, string domain, string link, List<ShamiraPlayer> players)
     {
         return @$"
             Hi {email},
@@ -34,8 +35,19 @@ public static class RecoveryEmails
         ";
     }
 
-    public static string VerifyEmailHtml(string domain, string link, List<ShamiraPlayer> players)
+    public static string EnterRecoveryModeVerifyEmailHtml(string domain, string link, List<ShamiraPlayer> players)
     {
+        var builder = new StringBuilder();
+        builder.AppendLine("<ul>");
+        foreach (var player in players)
+        {
+            builder.Append("<li>");
+            builder.Append($"{player.OdinId} ({player.Type})");
+            builder.Append("</li>");
+        }
+        builder.AppendLine("</ul>");
+        var playersList = builder.ToString();
+
         return @$"
             <!DOCTYPE html>
             <html>
@@ -198,9 +210,11 @@ public static class RecoveryEmails
 
                                                             <p style='margin-bottom: 15px'>
                                                                 The following connections have a portion of your recovery key.  They will receive a notification when you verify using 
-                                                                the link below: {string.Join(",", players.Select(p => $"{p.OdinId} ({p.Type})"))}
+                                                                the link below.
                                                             </p>
-
+                                                            <p style='margin-bottom: 15px'>
+                                                                {playersList}
+                                                            </p>
                                                             <p style='margin-bottom: 15px'>
                                                                 To continue putting your identity into recovery mode, click <a href='{link}' style='text-decoration:underline;'>here</a>.
                                                             </p>

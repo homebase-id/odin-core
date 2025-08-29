@@ -30,6 +30,7 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<SendProvisioningCompleteEmailJob>(cb, SendProvisioningCompleteEmailJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<VersionUpgradeJob>(cb, VersionUpgradeJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<SendRecoveryModeVerificationEmailJob>(cb, SendRecoveryModeVerificationEmailJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<SendEmailJob>(cb, SendEmailJob.JobTypeId);
 
         //
         // Deprecated job types here.
