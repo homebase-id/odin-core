@@ -141,10 +141,7 @@ public abstract class AbstractMigrator
         }
 
         // One final update to the current version in case we're migrating down
-        if (direction == Direction.Down)
-        {
-            await SetCurrentVersionAsync(cn, requestedVersion);
-        }
+        await SetCurrentVersionAsync(cn, requestedVersion);
     }
 
     //
