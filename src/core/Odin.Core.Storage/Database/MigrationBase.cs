@@ -36,7 +36,7 @@ namespace Odin.Core.Storage.Database
             if (sqlVersion == -1)
             {
                 // Old tables - which are version 0 - don't have an embedded version
-                if (MigrationVersion != 0)
+                if (versionMustBe != 0)
                     throw new Exception("Table version not found and table version not zero");
             }
             else
