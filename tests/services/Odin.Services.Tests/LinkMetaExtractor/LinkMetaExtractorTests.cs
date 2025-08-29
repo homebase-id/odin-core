@@ -216,6 +216,24 @@ public class LinkMetaExtractorTests
     }
 #endif
 
+#if !CI_GITHUB
+    // !CI_GITHUB because it sometimes instagram blocks the request and does not send a static website
+    // The main cause are user-agent headers, but sometimes it does not send an SSR page
+    [Test]
+    public async Task TestInstagramOtherUrl()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/reel/DMGW7MBsNzz/?igsh=YzlieXQ4djFxMmlh");
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
+    }
+#endif
+
+    
+
     [Test]
     public async Task TestHtmlUrl()
     {

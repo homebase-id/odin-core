@@ -94,7 +94,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(sfh.ServerMetadata.TransferHistory != null);
 
             var targetDrive = new TargetDrive() { Alias = driveMainRecord.hdrTmpDriveAlias, Type = driveMainRecord.hdrTmpDriveType };
-            var dmr2 = sfh.ToDriveMainIndexRecord(targetDrive);
+            var dmr2 = sfh.ToDriveMainIndexRecord(targetDrive, driveMainRecord.identityId);
 
             ClassicAssert.IsTrue(driveMainRecord.archivalStatus == dmr2.archivalStatus);
             ClassicAssert.IsTrue(driveMainRecord.byteCount == dmr2.byteCount);
@@ -205,7 +205,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 ServerMetadata = shdr
             };
 
-            var dr = hdr.ToDriveMainIndexRecord(targetDrive);
+            var identityId = Guid.NewGuid();
+            var dr = hdr.ToDriveMainIndexRecord(targetDrive, identityId);
             var sfh = ServerFileHeader.FromDriveMainIndexRecord(dr);
 
             // Ensure that the fields we only read in from the DB are in fact there

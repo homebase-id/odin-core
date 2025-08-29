@@ -105,7 +105,7 @@ public class TableImFollowing(
 
         param1.Value = inCursor;
         param2.Value = count + 1; // +1 because we want to see if there are more records to set the nextCursor correctly
-        param3.Value = odinIdentity.IdAsByteArray();
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -183,7 +183,7 @@ public class TableImFollowing(
         param1.Value = driveId.ToByteArray();
         param2.Value = inCursor;
         param3.Value = count + 1; // +1 to check for EOD on nextCursor
-        param4.Value = odinIdentity.IdAsByteArray();
+        param4.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
