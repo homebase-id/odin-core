@@ -217,7 +217,6 @@ public class ShamirRecoveryService
     /// </summary>
     public async Task HandleAcceptRecoveryShard(RetrieveShardResult result, IOdinContext odinContext)
     {
-        // var player = odinContext.Caller.OdinId.GetValueOrDefault();
         if (!await IsInRecoveryMode())
         {
             throw new OdinClientException("Not in recovery mode");
@@ -237,6 +236,7 @@ public class ShamirRecoveryService
         await UpdateStatus(status);
         var collectedShards = await _playerShardCollector.GetCollectShards(odinContext);
 
+        var player = odinContext.Caller.OdinId.GetValueOrDefault();
         var package = await _configurationService.GetDealerShardPackage(odinContext);
         if (collectedShards.Count >= package.MinMatchingShards)
         {
@@ -250,18 +250,18 @@ public class ShamirRecoveryService
 
             await EnqueueFinalizeRecoveryEmail(await MakeNonce(OdinSystemSerializer.Serialize(finalInfo)), finalRecoveryKey);
 
-            // await SendPushNotification(player, "🎉 We have gathered enough shards to recover your identity and " +
-            // "emailed your next steps", odinContext);
+            await SendPushNotification(player, "🎉 We have gathered enough shards to recover your identity and " +
+            "emailed your next steps", odinContext);
         }
         else
         {
             // collect the shards, so I can piece together my password
             int remainingRequired = package.MinMatchingShards - collectedShards.Count;
-            // await SendPushNotification(player,
-            //     $"{player} has sent a shard to assist in recovering your " +
-            //     $"identity.  You need {remainingRequired} more shards to recover " +
-            //     $"your identity.",
-            //     odinContext);
+            await SendPushNotification(player,
+                $"{player} has sent a shard to assist in recovering your " +
+                $"identity.  You need {remainingRequired} more shards to recover " +
+                $"your identity.",
+                odinContext);
         }
 
         tx.Commit();
@@ -333,18 +333,25 @@ public class ShamirRecoveryService
 
     private async Task SendPushNotification(OdinId player, string message, IOdinContext odinContext)
     {
-        var options = new AppNotificationOptions
+        try
         {
-            AppId = AppId,
-            TypeId = default,
-            TagId = default,
-            Silent = false,
-            PeerSubscriptionId = default,
-            Recipients = [],
-            UnEncryptedMessage = message
-        };
+            var options = new AppNotificationOptions
+            {
+                AppId = AppId,
+                TypeId = default,
+                TagId = default,
+                Silent = false,
+                PeerSubscriptionId = default,
+                Recipients = [],
+                UnEncryptedMessage = message
+            };
 
-        await _pushNotificationService.EnqueueNotification(player, options, odinContext);
+            await _pushNotificationService.EnqueueNotification(player, options, odinContext);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to send push notification during shamir password recovery");
+        }
     }
 
     private async Task<bool> IsInRecoveryMode()

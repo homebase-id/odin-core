@@ -33,8 +33,9 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             //
             // Create new circles, rename existing ones
             //
-            logger.LogDebug("Creating new circles; renaming existing ones");
+            logger.LogDebug("Creating new circles; update existing ones");
             await circleDefinitionService.EnsureSystemCirclesExistAsync();
+
             cancellationToken.ThrowIfCancellationRequested();
             
             await EnsureShardRecoveryDriveIsConfiguredForConnectedIdentitiesCircle(odinContext, cancellationToken);
@@ -85,13 +86,13 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
 
             await using var tx = await db.BeginStackedTransactionAsync();
 
+            var circleId = SystemCircleConstants.ConfirmedConnectionsCircleId;
             foreach (var identity in allIdentities.Results)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 logger.LogDebug("Reconciling confirmed connections circle on Identity {odinId}", identity.OdinId);
 
-                var circleId = SystemCircleConstants.ConfirmedConnectionsCircleId;
                 await circleNetworkService.RevokeCircleAccessAsync(circleId, identity.OdinId, odinContext);
                 await circleNetworkService.GrantCircleAsync(circleId, identity.OdinId, odinContext);
             }

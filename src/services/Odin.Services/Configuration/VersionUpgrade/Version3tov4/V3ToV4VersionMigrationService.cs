@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Circles;
@@ -45,6 +45,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
             var confirmedCircle = await circleDefinitionService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsDefinition.Id);
             foreach (var dg in SystemCircleConstants.ConfirmedConnectionsDefinition.DriveGrants)
             {
+                if (dg.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive)
+                {
+                    // skipping in the v4 upgrade because this was added in v6 and will be handled there
+                    continue;
+                }
+                
                 if (null == confirmedCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
                 {
                     logger.LogError("Failed {cn} is missing drive grant {dg}", confirmedCircle.Name, dg.PermissionedDrive);
@@ -57,6 +63,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
             var autoCircle = await circleDefinitionService.GetCircleAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition.Id);
             foreach (var dg in SystemCircleConstants.AutoConnectionsSystemCircleDefinition.DriveGrants)
             {
+                if (dg.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive)
+                {
+                    // skipping in the v4 upgrade because this was added in v6 and will be handled there
+                    continue;
+                }
+                
                 if (null == autoCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
                 {
                     logger.LogError("Failed {cn} is missing drive grant {dg}", autoCircle.Name, dg.PermissionedDrive);

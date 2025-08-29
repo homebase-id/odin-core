@@ -62,4 +62,11 @@ public class PermissionedDrive : IEquatable<PermissionedDrive>, IGenericCloneabl
     {
         return HashCode.Combine(Drive, (int)Permission);
     }
+    
+    public override string ToString()
+    {
+        var alias = Drive?.Alias;
+        var type = Drive?.Type?.ToString() ?? "<no-type>";
+        return $"PermissionedDrive [Alias={alias}, Type={type}, Permission={Permission}]";
+    }
 }
