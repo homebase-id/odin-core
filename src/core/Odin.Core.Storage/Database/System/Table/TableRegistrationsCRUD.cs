@@ -31,7 +31,6 @@ namespace Odin.Core.Storage.Database.System.Table
         public Boolean disabled { get; set; }
         public UnixTimeUtc? markedForDeletionDate { get; set; }
         public string planId { get; set; }
-        public UnixTimeUtc? lastSeen { get; set; }
         public string json { get; set; }
         public UnixTimeUtc created { get; set; }
         public UnixTimeUtc modified { get; set; }
@@ -73,13 +72,13 @@ namespace Odin.Core.Storage.Database.System.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Registrations IS '{ \"Version\": 202508281508 }';";
+               commentSql = "COMMENT ON TABLE Registrations IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Registrations( -- { \"Version\": 202508281508 }\n"
+                "CREATE TABLE IF NOT EXISTS Registrations( -- { \"Version\": 0 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL UNIQUE, "
                    +"email TEXT , "
@@ -88,7 +87,6 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"disabled BOOLEAN NOT NULL, "
                    +"markedForDeletionDate BIGINT , "
                    +"planId TEXT , "
-                   +"lastSeen BIGINT , "
                    +"json TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
@@ -104,8 +102,8 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified) " +
-                                           $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@lastSeen,@json,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified) " +
+                                           $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@json,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
                 insertParam1.DbType = DbType.Binary;
@@ -136,13 +134,9 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam7.ParameterName = "@planId";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.Int64;
-                insertParam8.ParameterName = "@lastSeen";
+                insertParam8.DbType = DbType.String;
+                insertParam8.ParameterName = "@json";
                 insertCommand.Parameters.Add(insertParam8);
-                var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.DbType = DbType.String;
-                insertParam9.ParameterName = "@json";
-                insertCommand.Parameters.Add(insertParam9);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.email ?? (object)DBNull.Value;
                 insertParam3.Value = item.primaryDomainName;
@@ -150,8 +144,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam5.Value = item.disabled;
                 insertParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
                 insertParam7.Value = item.planId ?? (object)DBNull.Value;
-                insertParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                insertParam9.Value = item.json ?? (object)DBNull.Value;
+                insertParam8.Value = item.json ?? (object)DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -173,8 +166,8 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified) " +
-                                            $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@lastSeen,@json,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified) " +
+                                            $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@json,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 var insertParam1 = insertCommand.CreateParameter();
@@ -206,13 +199,9 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam7.ParameterName = "@planId";
                 insertCommand.Parameters.Add(insertParam7);
                 var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.Int64;
-                insertParam8.ParameterName = "@lastSeen";
+                insertParam8.DbType = DbType.String;
+                insertParam8.ParameterName = "@json";
                 insertCommand.Parameters.Add(insertParam8);
-                var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.DbType = DbType.String;
-                insertParam9.ParameterName = "@json";
-                insertCommand.Parameters.Add(insertParam9);
                 insertParam1.Value = item.identityId.ToByteArray();
                 insertParam2.Value = item.email ?? (object)DBNull.Value;
                 insertParam3.Value = item.primaryDomainName;
@@ -220,8 +209,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertParam5.Value = item.disabled;
                 insertParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
                 insertParam7.Value = item.planId ?? (object)DBNull.Value;
-                insertParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                insertParam9.Value = item.json ?? (object)DBNull.Value;
+                insertParam8.Value = item.json ?? (object)DBNull.Value;
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -243,10 +231,10 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified) " +
-                                            $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@lastSeen,@json,{sqlNowStr},{sqlNowStr})"+
+                upsertCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified) " +
+                                            $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@json,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId) DO UPDATE "+
-                                            $"SET email = @email,primaryDomainName = @primaryDomainName,firstRunToken = @firstRunToken,disabled = @disabled,markedForDeletionDate = @markedForDeletionDate,planId = @planId,lastSeen = @lastSeen,json = @json,modified = {upsertCommand.SqlMax()}(Registrations.modified+1,{sqlNowStr}) "+
+                                            $"SET email = @email,primaryDomainName = @primaryDomainName,firstRunToken = @firstRunToken,disabled = @disabled,markedForDeletionDate = @markedForDeletionDate,planId = @planId,json = @json,modified = {upsertCommand.SqlMax()}(Registrations.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 var upsertParam1 = upsertCommand.CreateParameter();
                 upsertParam1.DbType = DbType.Binary;
@@ -277,13 +265,9 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertParam7.ParameterName = "@planId";
                 upsertCommand.Parameters.Add(upsertParam7);
                 var upsertParam8 = upsertCommand.CreateParameter();
-                upsertParam8.DbType = DbType.Int64;
-                upsertParam8.ParameterName = "@lastSeen";
+                upsertParam8.DbType = DbType.String;
+                upsertParam8.ParameterName = "@json";
                 upsertCommand.Parameters.Add(upsertParam8);
-                var upsertParam9 = upsertCommand.CreateParameter();
-                upsertParam9.DbType = DbType.String;
-                upsertParam9.ParameterName = "@json";
-                upsertCommand.Parameters.Add(upsertParam9);
                 upsertParam1.Value = item.identityId.ToByteArray();
                 upsertParam2.Value = item.email ?? (object)DBNull.Value;
                 upsertParam3.Value = item.primaryDomainName;
@@ -291,8 +275,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertParam5.Value = item.disabled;
                 upsertParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
                 upsertParam7.Value = item.planId ?? (object)DBNull.Value;
-                upsertParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                upsertParam9.Value = item.json ?? (object)DBNull.Value;
+                upsertParam8.Value = item.json ?? (object)DBNull.Value;
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -315,7 +298,7 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE Registrations " +
-                                            $"SET email = @email,primaryDomainName = @primaryDomainName,firstRunToken = @firstRunToken,disabled = @disabled,markedForDeletionDate = @markedForDeletionDate,planId = @planId,lastSeen = @lastSeen,json = @json,modified = {updateCommand.SqlMax()}(Registrations.modified+1,{sqlNowStr}) "+
+                                            $"SET email = @email,primaryDomainName = @primaryDomainName,firstRunToken = @firstRunToken,disabled = @disabled,markedForDeletionDate = @markedForDeletionDate,planId = @planId,json = @json,modified = {updateCommand.SqlMax()}(Registrations.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId) "+
                                             "RETURNING created,modified,rowId;";
                 var updateParam1 = updateCommand.CreateParameter();
@@ -347,13 +330,9 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateParam7.ParameterName = "@planId";
                 updateCommand.Parameters.Add(updateParam7);
                 var updateParam8 = updateCommand.CreateParameter();
-                updateParam8.DbType = DbType.Int64;
-                updateParam8.ParameterName = "@lastSeen";
+                updateParam8.DbType = DbType.String;
+                updateParam8.ParameterName = "@json";
                 updateCommand.Parameters.Add(updateParam8);
-                var updateParam9 = updateCommand.CreateParameter();
-                updateParam9.DbType = DbType.String;
-                updateParam9.ParameterName = "@json";
-                updateCommand.Parameters.Add(updateParam9);
                 updateParam1.Value = item.identityId.ToByteArray();
                 updateParam2.Value = item.email ?? (object)DBNull.Value;
                 updateParam3.Value = item.primaryDomainName;
@@ -361,8 +340,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateParam5.Value = item.disabled;
                 updateParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
                 updateParam7.Value = item.planId ?? (object)DBNull.Value;
-                updateParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                updateParam9.Value = item.json ?? (object)DBNull.Value;
+                updateParam8.Value = item.json ?? (object)DBNull.Value;
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -403,14 +381,13 @@ namespace Odin.Core.Storage.Database.System.Table
             sl.Add("disabled");
             sl.Add("markedForDeletionDate");
             sl.Add("planId");
-            sl.Add("lastSeen");
             sl.Add("json");
             sl.Add("created");
             sl.Add("modified");
             return sl;
         }
 
-        // SELECT rowId,identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified
+        // SELECT rowId,identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified
         public RegistrationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<RegistrationsRecord>();
@@ -427,10 +404,9 @@ namespace Odin.Core.Storage.Database.System.Table
             item.disabled = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[5]);
             item.markedForDeletionDate = (rdr[6] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[6]);
             item.planId = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
-            item.lastSeen = (rdr[8] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[8]);
-            item.json = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
-            item.created = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
-            item.modified = (rdr[11] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[11]); // HACK
+            item.json = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
+            item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
+            item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
             return item;
        }
 
@@ -459,7 +435,7 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 deleteCommand.CommandText = "DELETE FROM Registrations " +
                                              "WHERE identityId = @identityId " + 
-                                             "RETURNING rowId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified";
+                                             "RETURNING rowId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified";
                 var deleteParam1 = deleteCommand.CreateParameter();
                 deleteParam1.DbType = DbType.Binary;
                 deleteParam1.ParameterName = "@identityId";
@@ -496,10 +472,9 @@ namespace Odin.Core.Storage.Database.System.Table
             item.disabled = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[4]);
             item.markedForDeletionDate = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
             item.planId = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
-            item.lastSeen = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[7]);
-            item.json = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
-            item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
-            item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
+            item.json = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[9]); // HACK
             return item;
        }
 
@@ -508,7 +483,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified FROM Registrations " +
+                get0Command.CommandText = "SELECT rowId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified FROM Registrations " +
                                              "WHERE identityId = @identityId LIMIT 1;"+
                                              ";";
                 var get0Param1 = get0Command.CreateParameter();
