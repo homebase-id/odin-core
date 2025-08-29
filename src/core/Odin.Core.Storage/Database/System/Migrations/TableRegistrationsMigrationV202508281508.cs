@@ -97,10 +97,6 @@ namespace Odin.Core.Storage.Database.System.Migrations
                 {
                     await CreateTableWithCommentAsync(cn);
                     await CheckSqlTableVersion(cn, "RegistrationsMigrationsV202508281508", MigrationVersion);
-                    if (await CopyDataAsync(cn) < 0)
-                        throw new MigrationException("Unable to copy the data");
-                    if (await VerifyRowCount(cn, "Registrations", "RegistrationsMigrationsV202508281508") == false)
-                        throw new MigrationException("Mismatching row counts");
                     await SqlHelper.RenameAsync(cn, "Registrations", $"RegistrationsMigrationsV{PreviousVersion}");
                     await SqlHelper.RenameAsync(cn, "RegistrationsMigrationsV202508281508", "Registrations");
                     await CheckSqlTableVersion(cn, "Registrations", MigrationVersion);
@@ -120,8 +116,6 @@ namespace Odin.Core.Storage.Database.System.Migrations
             {
                 using (var trn = await cn.BeginStackedTransactionAsync())
                 {
-                    if (await VerifyRowCount(cn, $"RegistrationsMigrationsV{PreviousVersion}", "Registrations") == false)
-                        throw new MigrationException("Mismatching row counts - bad idea to downgrade");
                     await SqlHelper.RenameAsync(cn, "Registrations", "RegistrationsMigrationsV202508281508");
                     await SqlHelper.RenameAsync(cn, $"RegistrationsMigrationsV{PreviousVersion}", "Registrations");
                     await CheckSqlTableVersion(cn, "Registrations", PreviousVersion);
