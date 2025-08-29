@@ -8,6 +8,7 @@ using Odin.Services.Background.BackgroundServices.Tenant;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
+using Odin.Services.Registry.LastSeen;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Background;
@@ -26,6 +27,7 @@ public static class BackgroundServiceExtensions
         cb.RegisterBackgroundService<JobCleanUpBackgroundService>();
         cb.RegisterBackgroundService<JobRunnerBackgroundService>();
         cb.RegisterBackgroundService<UpdateCertificatesBackgroundService>();
+        cb.RegisterBackgroundService<LastSeenBackgroundService>();
 
         // Add more system background services here
         // ...
@@ -42,7 +44,7 @@ public static class BackgroundServiceExtensions
         await bsm.StartAsync<JobCleanUpBackgroundService>();
         await bsm.StartAsync<JobRunnerBackgroundService>();
         await bsm.StartAsync<UpdateCertificatesBackgroundService>();
-
+        await bsm.StartAsync<LastSeenBackgroundService>();
     }
 
     //
