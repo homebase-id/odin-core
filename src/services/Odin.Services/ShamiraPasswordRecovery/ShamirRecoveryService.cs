@@ -16,14 +16,12 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
-using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.ShamiraPasswordRecovery.ShardCollection;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
@@ -39,7 +37,6 @@ public class ShamirRecoveryService
     private readonly TableNonce _nonceTable;
     private readonly OdinConfiguration _configuration;
     private readonly IJobManager _jobManager;
-    private readonly PushNotificationService _pushNotificationService;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly IdentityDatabase _db;
     private readonly IMediator _mediator;
@@ -55,7 +52,6 @@ public class ShamirRecoveryService
         TableNonce nonceTable,
         OdinConfiguration configuration,
         IJobManager jobManager,
-        PushNotificationService pushNotificationService,
         IOdinHttpClientFactory odinHttpClientFactory,
         StandardFileSystem fileSystem,
         IdentityDatabase db,
@@ -68,7 +64,6 @@ public class ShamirRecoveryService
         _nonceTable = nonceTable;
         _configuration = configuration;
         _jobManager = jobManager;
-        _pushNotificationService = pushNotificationService;
         _odinHttpClientFactory = odinHttpClientFactory;
         _db = db;
         _mediator = mediator;
