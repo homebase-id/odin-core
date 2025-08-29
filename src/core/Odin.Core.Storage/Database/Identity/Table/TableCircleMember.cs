@@ -120,6 +120,6 @@ public class TableCircleMember(
 
     public Task<List<CircleMemberRecord>> GetAllCirclesAsync()
     {
-        return base.GetAllCirclesAsync(odinIdentity.Id);
+        return base.GetAllCirclesAsync(odinIdentity.IdentityId);
     }
 }

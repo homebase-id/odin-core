@@ -88,7 +88,7 @@ public class TableInbox(
         param1.Value = SequentialGuid.CreateGuid().ToByteArray();
         param2.Value = count;
         param3.Value = boxId.ToByteArray();
-        param4.Value = odinIdentity.IdAsByteArray();
+        param4.Value = odinIdentity.IdentityIdAsByteArray();
 
         var result = new List<InboxRecord>();
 
@@ -124,7 +124,7 @@ public class TableInbox(
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
-        param1.Value = odinIdentity.IdAsByteArray();
+        param1.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -191,7 +191,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = boxId.ToByteArray();
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -258,7 +258,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = popstamp.ToByteArray();
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -284,7 +284,7 @@ public class TableInbox(
         cmd.Parameters.Add(param3);
 
         param1.Value = popstamp.ToByteArray();
-        param3.Value = odinIdentity.IdAsByteArray();
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
 
         int n = 0;
 
@@ -321,7 +321,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = popstamp.ToByteArray();
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -352,7 +352,7 @@ public class TableInbox(
         cmd.Parameters.Add(param3);
 
         param1.Value = popstamp.ToByteArray();
-        param3.Value = odinIdentity.IdAsByteArray();
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
 
         int n = 0;
 
@@ -391,7 +391,7 @@ public class TableInbox(
         cmd.Parameters.Add(param2);
 
         param1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMilliseconds
-        param2.Value = odinIdentity.IdAsByteArray();
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
 
         return await cmd.ExecuteNonQueryAsync();
     }
