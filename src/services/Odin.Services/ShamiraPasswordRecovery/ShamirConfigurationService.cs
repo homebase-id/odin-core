@@ -12,6 +12,8 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
+using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -358,13 +360,13 @@ public class ShamirConfigurationService(
                 UseAppNotification = true,
                 AppNotificationOptions = new AppNotificationOptions
                 {
-                    AppId = default,
-                    TypeId = default,
+                    AppId = SystemAppConstants.OwnerAppId,
+                    TypeId = OwnerAppConstants.PasswordRecoveryRecruitedTypeId,
                     TagId = default,
                     Silent = false,
                     PeerSubscriptionId = default,
                     Recipients = null,
-                    UnEncryptedMessage = $"{odinContext.Tenant.DomainName} has added you as part of their password recovery process."
+                    UnEncryptedMessage = $"{odinContext.Tenant.DomainName} has added you as part of their password recovery process. "
                 },
                 RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
                 Priority = OutboxPriority.High

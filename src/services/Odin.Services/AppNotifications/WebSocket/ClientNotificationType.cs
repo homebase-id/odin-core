@@ -24,5 +24,10 @@ public enum ClientNotificationType
     IntroductionsReceived = 4001,
     IntroductionAccepted = 4002,
     ConnectionFinalized = 4003,
+    /// <summary>
+    /// Indicates the notification doesnt need this value.  Note: this implies we might be able to dorp this field all together
+    /// </summary>
+    Unused = 8001,
     Error = 0xBADBEEF,
+    
 }

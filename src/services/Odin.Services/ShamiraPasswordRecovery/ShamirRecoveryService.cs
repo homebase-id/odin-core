@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
@@ -13,7 +14,9 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
+using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
+using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -30,7 +33,6 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 /// </summary>
 public class ShamirRecoveryService
 {
-    public Guid AppId = Guid.Parse("c30b0581-56a8-4c1f-97b0-bca10ef943d9");
     private readonly ShamirConfigurationService _configurationService;
     private readonly TenantContext _tenantContext;
     private readonly TableKeyValueCached _keyValueTable;
@@ -40,6 +42,7 @@ public class ShamirRecoveryService
     private readonly PushNotificationService _pushNotificationService;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly IdentityDatabase _db;
+    private readonly IMediator _mediator;
     private readonly ILogger<ShamirRecoveryService> _logger;
     private readonly PlayerShardCollector _playerShardCollector;
 
@@ -56,6 +59,7 @@ public class ShamirRecoveryService
         IOdinHttpClientFactory odinHttpClientFactory,
         StandardFileSystem fileSystem,
         IdentityDatabase db,
+        IMediator mediator,
         ILogger<ShamirRecoveryService> logger)
     {
         _configurationService = configurationService;
@@ -67,6 +71,7 @@ public class ShamirRecoveryService
         _pushNotificationService = pushNotificationService;
         _odinHttpClientFactory = odinHttpClientFactory;
         _db = db;
+        _mediator = mediator;
         _logger = logger;
 
         _playerShardCollector = new PlayerShardCollector(fileSystem);
@@ -227,13 +232,14 @@ public class ShamirRecoveryService
             throw new OdinClientException("Invalid result type");
         }
 
-        odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive, DrivePermission.Read,
+        odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
+            SystemDriveConstants.ShardRecoveryDrive,
+            DrivePermission.Read,
             odinContext);
+        
         await using var tx = await _db.BeginStackedTransactionAsync();
 
-        var status = await GetStatusRecordInternal();
         await _playerShardCollector.SavePlayerShard(result.Shard, odinContext);
-        await UpdateStatus(status);
         var collectedShards = await _playerShardCollector.GetCollectShards(odinContext);
 
         var player = odinContext.Caller.OdinId.GetValueOrDefault();
@@ -241,27 +247,30 @@ public class ShamirRecoveryService
         if (collectedShards.Count >= package.MinMatchingShards)
         {
             var (finalRecoveryKey, finalInfo) = await PrepareFinalKeys(collectedShards, package, odinContext);
+            await EnqueueFinalizeRecoveryEmail(await MakeNonce(OdinSystemSerializer.Serialize(finalInfo)), finalRecoveryKey);
 
             await UpdateStatus(new ShamirRecoveryStatusRecord
             {
                 Updated = UnixTimeUtc.Now(),
                 State = ShamirRecoveryState.AwaitingOwnerFinalization,
             });
-
-            await EnqueueFinalizeRecoveryEmail(await MakeNonce(OdinSystemSerializer.Serialize(finalInfo)), finalRecoveryKey);
-
-            await SendPushNotification(player, "🎉 We have gathered enough shards to recover your identity and " +
-            "emailed your next steps", odinContext);
+            
+            await _mediator.Publish(new ShamirPasswordRecoverySufficientShardsCollectedNotification()
+            {
+                OdinContext = odinContext
+            });
         }
         else
         {
             // collect the shards, so I can piece together my password
             int remainingRequired = package.MinMatchingShards - collectedShards.Count;
-            await SendPushNotification(player,
-                $"{player} has sent a shard to assist in recovering your " +
-                $"identity.  You need {remainingRequired} more shards to recover " +
-                $"your identity.",
-                odinContext);
+            await _mediator.Publish(new ShamirPasswordRecoveryShardCollectedNotification
+            {
+                OdinContext = odinContext,
+                Sender = player,
+                AdditionalMessage = $"You need {remainingRequired} more shards to recover your identity."
+            });
+
         }
 
         tx.Commit();
@@ -329,29 +338,6 @@ public class ShamirRecoveryService
         };
 
         return (finalRecoveryKey, finalInfo);
-    }
-
-    private async Task SendPushNotification(OdinId player, string message, IOdinContext odinContext)
-    {
-        try
-        {
-            var options = new AppNotificationOptions
-            {
-                AppId = AppId,
-                TypeId = default,
-                TagId = default,
-                Silent = false,
-                PeerSubscriptionId = default,
-                Recipients = [],
-                UnEncryptedMessage = message
-            };
-
-            await _pushNotificationService.EnqueueNotification(player, options, odinContext);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError(e, "Failed to send push notification during shamir password recovery");
-        }
     }
 
     private async Task<bool> IsInRecoveryMode()

@@ -109,6 +109,8 @@ public static class TenantServices
         cb.RegisterType<PushNotificationService>()
             .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
             .As<INotificationHandler<ConnectionRequestAcceptedNotification>>()
+            .As<ShamirPasswordRecoverySufficientShardsCollectedNotification>()
+            .As<ShamirPasswordRecoveryShardCollectedNotification>()
             .AsSelf()
             .InstancePerLifetimeScope();
 
@@ -310,7 +312,7 @@ public static class TenantServices
         cb.RegisterType<V3ToV4VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V4ToV5VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V5ToV6VersionMigrationService>().InstancePerLifetimeScope();
-        
+
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 
@@ -322,12 +324,12 @@ public static class TenantServices
         cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
 
-        
+
         cb.RegisterType<HomebaseProfileContentService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<HomebaseChannelContentService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
-        
+
         // Tenant background services
         cb.AddTenantBackgroundServices(registration);
 
