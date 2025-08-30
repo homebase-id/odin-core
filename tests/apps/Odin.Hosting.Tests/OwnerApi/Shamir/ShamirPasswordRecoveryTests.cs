@@ -19,6 +19,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests(initializeIdentity: true, setupOwnerAccounts: true);
+
+            _scaffold.AssertLogEvents();
         }
 
         [OneTimeTearDown]
@@ -73,13 +75,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             var results = verifyShardsResponse.Content;
             Assert.That(results, Is.Not.Null);
             Assert.That(results.Players, Is.Not.Null);
-            Assert.That(results.Players.Count, Is.EqualTo(shardRequest), "mismatch number of shards in verified results");
+            Assert.That(results.Players.Count, Is.EqualTo(shardRequest.Players.Count), "mismatch number of shards in verified results");
             Assert.That(results.Players.All(p => p.Value.IsValid), "one or more players not verified");
+
+            await CleanupConnections(peerIdentities);
         }
-        
+
         [Test]
         public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
         {
+            _scaffold.SetAssertLogEventsAction(logEvents =>
+            {
+                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
+                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
+                var error = errorLogs.First();
+                Assert.That(error.MessageTemplate.Text.StartsWith("Failed while creating outbox item"), Is.True);
+            });
+
             List<OdinId> connectedIdentities =
             [
                 TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId
@@ -89,7 +101,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             // add one who is not connected
             List<OdinId> peerIdentities = connectedIdentities.Concat([TestIdentities.TomBombadil.OdinId]).ToList();
-            
+
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
             var shardRequest = new ConfigureShardsRequest
@@ -103,18 +115,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             };
 
             var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
-            Assert.That(configureShardsResponse.IsSuccessful, Is.True);
+            Assert.That(configureShardsResponse.IsSuccessful, Is.False);
 
-            await frodo.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
-
-            var verifyShardsResponse = await frodo.Security.VerifyShards();
-            Assert.That(verifyShardsResponse.IsSuccessful, Is.False);
-
-            var results = verifyShardsResponse.Content;
-            Assert.That(results, Is.Not.Null);
-            Assert.That(results.Players, Is.Not.Null);
-            Assert.That(results.Players.All(p => p.Value.IsValid), "one or more players not verified");
+            await CleanupConnections(connectedIdentities);
         }
+
 
         private async Task PrepareConnections(List<OdinId> peers)
         {
@@ -127,6 +132,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
                 var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
                 var acceptConnectionRequestResponse = await peerOwnerClient.Connections.AcceptConnectionRequest(frodo.OdinId);
+                Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
+            }
+        }
+
+        private async Task CleanupConnections(List<OdinId> peers)
+        {
+            // Note: no circles
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            foreach (var peer in peers)
+            {
+                var sendConnectionRequestResponse = await frodo.Connections.DisconnectFrom(peer);
+                Assert.That(sendConnectionRequestResponse.IsSuccessful, Is.True);
+
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var acceptConnectionRequestResponse = await peerOwnerClient.Connections.DisconnectFrom(frodo.OdinId);
                 Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
             }
         }
