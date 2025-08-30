@@ -6,23 +6,16 @@ using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Hosting.Controllers.OwnerToken.Security;
+using Odin.Services.ShamiraPasswordRecovery;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 
-public class SecurityApiClient
+public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
 {
-    private readonly TestIdentity _identity;
-    private readonly OwnerApiTestUtils _ownerApi;
-
-    public SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
-    {
-        _identity = identity;
-        _ownerApi = ownerApi;
-    }
-
     public async Task<RedactedOdinContext> GetSecurityContext()
     {
-        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetDotYouContext();
@@ -32,7 +25,7 @@ public class SecurityApiClient
 
     public async Task<ApiResponse<DecryptedRecoveryKey>> GetAccountRecoveryKey()
     {
-        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetAccountRecoveryKey();
@@ -42,16 +35,17 @@ public class SecurityApiClient
 
     public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword)
     {
-        using var authClient = _ownerApi.CreateAnonymousClient(_identity.OdinId);
+        using var authClient = ownerApi.CreateAnonymousClient(identity.OdinId);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
         var request = new ResetPasswordRequest()
         {
-            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey),
-            NewPasswordReply = await _ownerApi.CalculatePasswordReply(authClient, newPassword, clientEccFullKey)
+            CurrentAuthenticationPasswordReply =
+                await ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey),
+            NewPasswordReply = await ownerApi.CalculatePasswordReply(authClient, newPassword, clientEccFullKey)
         };
 
-        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.ResetPassword(request);
@@ -61,6 +55,26 @@ public class SecurityApiClient
 
     public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string recoveryKey, string newPassword)
     {
-        return await _ownerApi.ResetPasswordUsingRecoveryKey(this._identity.OdinId, recoveryKey, newPassword);
+        return await ownerApi.ResetPasswordUsingRecoveryKey(identity.OdinId, recoveryKey, newPassword);
+    }
+
+    public async Task<ApiResponse<HttpContent>> ConfigureShards(ConfigureShardsRequest request)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.ConfigureShards(request);
+            return apiResponse;
+        }
+    }
+    
+    public async Task<ApiResponse<RemoteShardVerificationResult>> VerifyShards()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.VerifyShards();
+            return apiResponse;
+        }
     }
 }

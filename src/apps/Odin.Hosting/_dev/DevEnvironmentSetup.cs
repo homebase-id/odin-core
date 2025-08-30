@@ -14,7 +14,8 @@ namespace Odin.Hosting._dev
 {
     public static class DevEnvironmentSetup
     {
-        public static void RegisterPreconfiguredDomainsAsync(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry identityRegistry)
+        public static void RegisterPreconfiguredDomainsAsync(ILogger logger, OdinConfiguration odinConfiguration,
+            IIdentityRegistry identityRegistry)
         {
             Dictionary<Guid, string> certificates = new();
             if (odinConfiguration.Development?.PreconfiguredDomains.Any() ?? false)
@@ -33,10 +34,11 @@ namespace Odin.Hosting._dev
                     continue;
                 }
 
-                var registrationRequest = new IdentityRegistrationRequest()
+                var registrationRequest = new IdentityRegistrationRequest
                 {
                     OdinId = (OdinId)domain,
-                    PlanId = "dev-domain"
+                    PlanId = "dev-domain",
+                    Email = $"my-email@{domain}",
                 };
 
                 try
@@ -68,7 +70,8 @@ namespace Odin.Hosting._dev
         /// <param name="odinConfiguration"></param>
         /// <param name="registry"></param>
         /// <param name="certificateStore"></param>
-        public static void ConfigureIfPresent(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry registry, ICertificateStore certificateStore)
+        public static void ConfigureIfPresent(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry registry,
+            ICertificateStore certificateStore)
         {
             if (odinConfiguration.Development != null)
             {
@@ -87,7 +90,8 @@ namespace Odin.Hosting._dev
                     var sourcePaths = GetSourceDomainPath(odinConfiguration.Registry.ProvisioningDomain, odinConfiguration);
                     var privateKey = File.ReadAllText(sourcePaths.privateKey);
                     var publicKey = File.ReadAllText(sourcePaths.publicKey);
-                    certificateStore.PutCertificateAsync(odinConfiguration.Registry.ProvisioningDomain, privateKey, publicKey).BlockingWait();
+                    certificateStore.PutCertificateAsync(odinConfiguration.Registry.ProvisioningDomain, privateKey, publicKey)
+                        .BlockingWait();
                 }
                 catch (Exception)
                 {

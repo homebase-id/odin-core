@@ -56,7 +56,16 @@ public static class SystemCircleConstants
                     Drive = SystemDriveConstants.FeedDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
-            }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.ShardRecoveryDrive,
+                    Permission = DrivePermission.Write
+                }
+            },
         ],
         Permissions = new PermissionSet()
         {

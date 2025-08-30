@@ -141,7 +141,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsNotNull(createdDrivesResponse.Content);
 
             var createdDrives = createdDrivesResponse.Content;
-            ClassicAssert.IsTrue(createdDrives.Results.Count == 9);
+            ClassicAssert.IsTrue(createdDrives.Results.Count == SystemDriveConstants.SystemDrives.Count);
 
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
                 $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
@@ -173,7 +173,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
-            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 6);
+            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 7);
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
                 dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
@@ -290,25 +290,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
             //check if system drives exist
-            var expectedDrives = new List<TargetDrive>()
-            {
-                SystemDriveConstants.ContactDrive,
-                SystemDriveConstants.ProfileDrive,
-                SystemDriveConstants.ChatDrive,
-                SystemDriveConstants.MailDrive,
-                SystemDriveConstants.FeedDrive,
-                SystemDriveConstants.HomePageConfigDrive,
-                SystemDriveConstants.PublicPostsChannelDrive,
-                SystemDriveConstants.WalletDrive,
-                SystemDriveConstants.TransientTempDrive,
-                newDrive.TargetDrive
-            };
-
+            var expectedDrives = SystemDriveConstants.SystemDrives.Concat([newDrive.TargetDrive]);
 
             var createdDrivesResponse = await ownerClient.Drive.GetDrives(1, 100);
             ClassicAssert.IsNotNull(createdDrivesResponse.Content);
             var createdDrives = createdDrivesResponse.Content;
-            ClassicAssert.IsTrue(createdDrives.Results.Count == expectedDrives.Count);
+            ClassicAssert.IsTrue(createdDrives.Results.Count == expectedDrives.Count());
 
             foreach (var expectedDrive in expectedDrives)
             {

@@ -402,7 +402,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task GrantCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.Caller.AssertHasMasterKey();
+            odinContext.Caller.AssertHasMasterKey(out var masterKey);
 
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
@@ -425,7 +425,6 @@ namespace Odin.Services.Membership.Connections
             }
 
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
-            var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, masterKey, odinContext);
 
