@@ -467,7 +467,7 @@ public class TableDriveMainIndex(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
         {
-            item.Validate();
+            // item.Validate();
 
             string sqlNowStr = updateCommand.SqlNow();
             updateCommand.CommandText = "UPDATE DriveMainIndex " +
