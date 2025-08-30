@@ -635,13 +635,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (databaseRowByteCountAdjustment)
                 (hdrDatabaseBytes, _, _) = DriveStorageServiceBase.ServerHeaderByteCount(header);
 
-
             // So the size of the hdrDatabaseBytes can vary slightly due to a few attributes being
             // set by the database (time, tagid, etc). So we check for a range. Maybe we should separate
             // it out...
             if (!IsInRange(header.ServerMetadata.FileByteCount, 
-                             hdrDatabaseBytes + diskPayloadPlusThumbBytes - 200, 
-                             hdrDatabaseBytes + diskPayloadPlusThumbBytes + 200))
+                             hdrDatabaseBytes + diskPayloadPlusThumbBytes - 50, 
+                             hdrDatabaseBytes + diskPayloadPlusThumbBytes + 50))
             {
                 logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} FileByteCount {header.ServerMetadata.FileByteCount} out of range for expected {hdrDatabaseBytes + diskPayloadPlusThumbBytes} (±100) based on DB header {hdrDatabaseBytes} disk payload {diskPayloadBytes} thumb {diskThumbBytes}");
 
@@ -660,6 +659,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     // This will also update the byteCount row, so we 
                     // don't need to call UpdateByteCountAsync() below
                     await identityDatabase.DriveMainIndex.RawUpdateAsync(r);
+                    var sanityRecord = await identityDatabase.DriveMainIndex.GetAsync(r.driveId, r.fileId);
+                    var sanityHeader = ServerFileHeader.FromDriveMainIndexRecord(sanityRecord);
+                    var (sanityDatabaseBytes, _, _) = DriveStorageServiceBase.ServerHeaderByteCount(header);
+                    if (sanityDatabaseBytes != hdrDatabaseBytes)
+                    {
+                        logger.LogError($"{logPrefix} header sannity check failed - possible corruption DriveId={header.FileMetadata.File.DriveId} FileId={header.FileMetadata.File.FileId}");
+                        throw new Exception("Noooo... stop! Corrupt record?");
+                    }
+
                 }
                 else if (databaseRowByteCountAdjustment)
                 {

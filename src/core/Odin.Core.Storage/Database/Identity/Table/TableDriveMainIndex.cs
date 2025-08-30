@@ -459,15 +459,19 @@ public class TableDriveMainIndex(
 
     // For defragmenter only (that's why it's internal)
     // Copy of UpdateAsync with Validation() and modified time removed
+    // It does NOT update reactionSummary and transferHistory and localAppData! 
+    // (for the same reason the regular one doesn't)
     public async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
     {
         // Skip vaildation deliberately: item.Validate();
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
         {
+            item.Validate();
+
             string sqlNowStr = updateCommand.SqlNow();
             updateCommand.CommandText = "UPDATE DriveMainIndex " +
-                                        $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrLocalVersionTag = @hdrLocalVersionTag,hdrLocalAppData = @hdrLocalAppData,hdrReactionSummary = @hdrReactionSummary,hdrServerData = @hdrServerData,hdrTransferHistory = @hdrTransferHistory,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType " +
+                                        $"SET globalTransitId = @globalTransitId,fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @hdrVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType " +
                                         "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId) " +
                                         "RETURNING created,modified,rowId;";
             var updateParam1 = updateCommand.CreateParameter();
@@ -546,26 +550,26 @@ public class TableDriveMainIndex(
             updateParam19.DbType = DbType.String;
             updateParam19.ParameterName = "@hdrAppData";
             updateCommand.Parameters.Add(updateParam19);
-            var updateParam20 = updateCommand.CreateParameter();
-            updateParam20.DbType = DbType.Binary;
-            updateParam20.ParameterName = "@hdrLocalVersionTag";
-            updateCommand.Parameters.Add(updateParam20);
-            var updateParam21 = updateCommand.CreateParameter();
-            updateParam21.DbType = DbType.String;
-            updateParam21.ParameterName = "@hdrLocalAppData";
-            updateCommand.Parameters.Add(updateParam21);
-            var updateParam22 = updateCommand.CreateParameter();
-            updateParam22.DbType = DbType.String;
-            updateParam22.ParameterName = "@hdrReactionSummary";
-            updateCommand.Parameters.Add(updateParam22);
+            //var updateParam20 = updateCommand.CreateParameter();
+            //updateParam20.DbType = DbType.Binary;
+            //updateParam20.ParameterName = "@hdrLocalVersionTag";
+            //updateCommand.Parameters.Add(updateParam20);
+            //var updateParam21 = updateCommand.CreateParameter();
+            //updateParam21.DbType = DbType.String;
+            //updateParam21.ParameterName = "@hdrLocalAppData";
+            //updateCommand.Parameters.Add(updateParam21);
+            //var updateParam22 = updateCommand.CreateParameter();
+            //updateParam22.DbType = DbType.String;
+            //updateParam22.ParameterName = "@hdrReactionSummary";
+            //updateCommand.Parameters.Add(updateParam22);
             var updateParam23 = updateCommand.CreateParameter();
             updateParam23.DbType = DbType.String;
             updateParam23.ParameterName = "@hdrServerData";
             updateCommand.Parameters.Add(updateParam23);
-            var updateParam24 = updateCommand.CreateParameter();
-            updateParam24.DbType = DbType.String;
-            updateParam24.ParameterName = "@hdrTransferHistory";
-            updateCommand.Parameters.Add(updateParam24);
+            //var updateParam24 = updateCommand.CreateParameter();
+            //updateParam24.DbType = DbType.String;
+            //updateParam24.ParameterName = "@hdrTransferHistory";
+            //updateCommand.Parameters.Add(updateParam24);
             var updateParam25 = updateCommand.CreateParameter();
             updateParam25.DbType = DbType.String;
             updateParam25.ParameterName = "@hdrFileMetaData";
@@ -597,11 +601,11 @@ public class TableDriveMainIndex(
             updateParam17.Value = item.hdrEncryptedKeyHeader;
             updateParam18.Value = item.hdrVersionTag.ToByteArray();
             updateParam19.Value = item.hdrAppData;
-            updateParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
-            updateParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
-            updateParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
+            //updateParam20.Value = item.hdrLocalVersionTag?.ToByteArray() ?? (object)DBNull.Value;
+            //updateParam21.Value = item.hdrLocalAppData ?? (object)DBNull.Value;
+            //updateParam22.Value = item.hdrReactionSummary ?? (object)DBNull.Value;
             updateParam23.Value = item.hdrServerData;
-            updateParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
+            //updateParam24.Value = item.hdrTransferHistory ?? (object)DBNull.Value;
             updateParam25.Value = item.hdrFileMetaData;
             updateParam26.Value = item.hdrTmpDriveAlias.ToByteArray();
             updateParam27.Value = item.hdrTmpDriveType.ToByteArray();
