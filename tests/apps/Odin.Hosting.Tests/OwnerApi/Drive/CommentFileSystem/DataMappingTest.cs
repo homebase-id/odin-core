@@ -23,6 +23,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             var uniqueId = Guid.NewGuid();
             var groupId = Guid.NewGuid();
             var localTag = Guid.NewGuid();
+            var identityId = Guid.NewGuid();
             var userDate = new UnixTimeUtc(26);
 
             var driveMainRecord = new DriveMainIndexRecord()
@@ -74,7 +75,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
                 hdrTransferHistory = OdinSystemSerializer.Serialize(new TransferHistorySummary() { TotalDelivered = 7 }),
                 hdrVersionTag = Guid.NewGuid(),
                 historyStatus = 21,
-                identityId = Guid.NewGuid(),
+                identityId = identityId,
                 modified = new UnixTimeUtc(22),
                 requiredSecurityGroup = 111,
                 rowId = 24,
@@ -125,7 +126,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             ClassicAssert.IsTrue(driveMainRecord.historyStatus == 21);
             ClassicAssert.IsTrue(dmr2.historyStatus == 0); // Hardcoded to 0
             ClassicAssert.IsTrue(driveMainRecord.identityId != Guid.Empty);
-            ClassicAssert.IsTrue(dmr2.identityId == Guid.Empty); // Doesn't get copied back
+            ClassicAssert.IsTrue(dmr2.identityId == identityId); // Gets copied back (parameter passed in ToDriveMainIndexRecord())
             ClassicAssert.IsTrue(driveMainRecord.modified == dmr2.modified);
             ClassicAssert.IsTrue(driveMainRecord.requiredSecurityGroup == dmr2.requiredSecurityGroup);
             ClassicAssert.IsTrue(driveMainRecord.rowId != 0);
