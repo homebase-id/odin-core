@@ -21,13 +21,15 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
+using Odin.Services.Membership.Connections;
 using Odin.Services.ShamiraPasswordRecovery.ShardCollection;
 using Odin.Services.ShamiraPasswordRecovery.ShardRequestApproval;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
 /// <summary>
-/// Handles scenarios where the Owner has lost their master password and need to get shards from their peer network
+/// Handles scenarios where the Owner has lost their master password
+/// and need to get shards from their peer network
 /// </summary>
 public class ShamirRecoveryService
 {
@@ -38,6 +40,7 @@ public class ShamirRecoveryService
     private readonly OdinConfiguration _configuration;
     private readonly IJobManager _jobManager;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
+    private readonly CircleNetworkService _circleNetworkService;
     private readonly IdentityDatabase _db;
     private readonly IMediator _mediator;
     private readonly ILogger<ShamirRecoveryService> _logger;
@@ -57,6 +60,7 @@ public class ShamirRecoveryService
         StandardFileSystem fileSystem,
         IdentityDatabase db,
         IMediator mediator,
+        CircleNetworkService circleNetworkService,
         ILogger<ShamirRecoveryService> logger)
     {
         _configurationService = configurationService;
@@ -69,6 +73,7 @@ public class ShamirRecoveryService
         _db = db;
         _mediator = mediator;
         _logger = logger;
+        _circleNetworkService = circleNetworkService;
 
         _playerShardCollector = new PlayerShardCollector(fileSystem);
         _approvalCollector = new ShardRequestApprovalCollector(fileSystem, mediator);
@@ -211,7 +216,14 @@ public class ShamirRecoveryService
 
         if (shard.Player.Type == PlayerType.Delegate)
         {
-            await _approvalCollector.SaveRequest(shard, odinContext);
+            ShardApprovalRequest r = new ShardApprovalRequest
+            {
+                Id = shard.Id,
+                Player = shard.Player.OdinId,
+                Created = UnixTimeUtc.Now()
+            };
+
+            await _approvalCollector.SaveRequest(r, odinContext);
 
             shard.DealerEncryptedShard.Wipe();
             return new RetrieveShardResult
@@ -306,6 +318,37 @@ public class ShamirRecoveryService
         {
             RecoveryText = recoveryText
         };
+    }
+
+    public async Task<List<ShardApprovalRequest>> GetShardRequestList(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsOwner();
+        var requests = await _approvalCollector.GetRequests(odinContext);
+        return requests.ToList();
+    }
+
+    public async Task ApproveShardRequest(Guid shardId, OdinId dealerId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsOwner();
+
+        var tx = await _db.BeginStackedTransactionAsync();
+        var (dealer, shard, _) = await _configurationService.GetDealerShard(shardId, odinContext);
+
+        var client = await CreateClientAsyncWithToken(dealer, null, odinContext);
+        await client.SendPlayerShard(new RetrieveShardResult
+        {
+            ResultType = RetrieveShardResultType.Complete,
+            Shard = shard
+        });
+
+        await _approvalCollector.DeleteRequest(shardId, odinContext);
+        tx.Commit();
+    }
+
+    public async Task RejectShardRequest(Guid shardId, OdinId dealerId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsOwner();
+        await _approvalCollector.DeleteRequest(shardId, odinContext);
     }
 
     private async Task<(Guid finalRecoveryKey, FinalRecoveryInfo finalInfo)> PrepareFinalKeys(
@@ -470,6 +513,17 @@ public class ShamirRecoveryService
     {
         var httpClient = _odinHttpClientFactory.CreateClient<IPeerPasswordRecoveryHttpClient>(odinId);
         return Task.FromResult(httpClient);
+    }
+
+    private async Task<IPeerPasswordRecoveryHttpClient> CreateClientAsyncWithToken(OdinId odinId,
+        FileSystemType? fileSystemType,
+        IOdinContext odinContext)
+    {
+        //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
+        var icr = await _circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
+        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
+        var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerPasswordRecoveryHttpClient>(odinId, authToken, fileSystemType);
+        return httpClient;
     }
 
     private async Task ExitRecoveryModeInternal(IOdinContext odinContext)

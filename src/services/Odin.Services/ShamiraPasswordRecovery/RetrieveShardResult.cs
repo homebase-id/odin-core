@@ -25,3 +25,9 @@ public class RetrieveShardRequest
 {
     public Guid ShardId { get; init; }
 }
+
+public class ApproveShardResult
+{
+    public Guid ShardId { get; init; }
+
+}

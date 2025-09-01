@@ -298,7 +298,7 @@ public class ShamirConfigurationService(
             // Dealer encrypts a player's shard with the random key
             var playerEncryptionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var (iv, cipher) = AesCbc.Encrypt(s.Shard, playerEncryptionKey);
-            
+
             var playerShardId = Guid.NewGuid();
             playerRecords.Add(new PlayerEncryptedShard()
             {

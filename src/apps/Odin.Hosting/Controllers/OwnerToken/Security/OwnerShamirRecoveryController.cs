@@ -73,8 +73,3 @@ public class OwnerShamirRecoveryController : OdinControllerBase
         return await _recoveryService.FinalizeRecovery(Guid.Parse(request.Id), Guid.Parse(request.FinalKey), WebOdinContext);
     }
 }
-public class FinalRecoveryRequest
-{
-    public string Id { get; set; }
-    public string FinalKey { get; set; }
-}

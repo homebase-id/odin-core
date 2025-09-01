@@ -32,8 +32,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
             return result;
         }
 
-        [HttpPost("accept-recovery-shard")]
-        public async Task<IActionResult> AcceptRecoveryShard([FromBody] RetrieveShardResult result)
+        [HttpPost("accept-player-shard")]
+        public async Task<IActionResult> AcceptPlayerShard([FromBody] RetrieveShardResult result)
         {
             await recoveryService.HandleAcceptRecoveryShard(result, WebOdinContext);
             return Ok();

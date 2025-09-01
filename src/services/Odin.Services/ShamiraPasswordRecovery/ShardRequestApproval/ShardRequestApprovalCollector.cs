@@ -27,66 +27,46 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     /// <summary>
     /// Saves the request for approval
     /// </summary>
-    /// <param name="shard"></param>
+    /// <param name="shardApproval"></param>
     /// <param name="odinContext"></param>
-    public async Task SaveRequest(PlayerEncryptedShard shard, IOdinContext odinContext)
+    public async Task SaveRequest(ShardApprovalRequest shardApproval, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        var uid = shard.Id;
+        var uid = shardApproval.Id;
         var existingFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
         if (existingFile == null)
         {
-            await WriteNewFile(shard, odinContext);
+            await WriteNewFile(shardApproval, odinContext);
         }
         else
         {
-            await OverwriteFile(shard, existingFile.FileId, odinContext);
+            await OverwriteFile(shardApproval, existingFile.FileId, odinContext);
         }
 
         await mediator.Publish(new ShamirPasswordRecoveryShardRequestedNotification
         {
             OdinContext = odinContext,
-            Sender = shard.Player.OdinId,
+            Sender = shardApproval.Player,
             AdditionalMessage = ""
         });
     }
 
-    public async Task<List<PlayerEncryptedShard>> GetRequests(IOdinContext odinContext)
+    public async Task<List<ShardApprovalRequest>> GetRequests(IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsOwner();
         var files = await GetShardRequestFiles(odinContext);
         return files.Select(ToPlayerCollectedShard).ToList();
     }
 
-
-    public async Task ApproveShardRequest(Guid shardId, IOdinContext odinContext)
+    public async Task DeleteRequest(Guid shardId, IOdinContext odinContext)
     {
-        await Task.CompletedTask;
-        
-        // get the shard
-
-        // send it to the dealer via https 
-
-        // Note: what happens when they are no longer connected?
-    }
-    
-    /// <summary>
-    /// Deletes all collected shards
-    /// </summary>
-    public async Task DeleteCollectedShards(IOdinContext odinContext)
-    {
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
-            SystemDriveConstants.ShardRecoveryDrive,
-            DrivePermission.ReadWrite,
+        var fileByClientUniqueId = await fileSystem.Query.GetFileByClientUniqueId(
+            SystemDriveConstants.ShardRecoveryDrive.Alias,
+            shardId,
             odinContext);
 
-        var files = await GetShardRequestFiles(byPassAclCheckContext);
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        foreach (var f in files)
-        {
-            var file = new InternalDriveFileId(driveId, f.FileId);
-            await fileSystem.Storage.HardDeleteLongTermFile(file, byPassAclCheckContext);
-        }
+        var file = new InternalDriveFileId(SystemDriveConstants.ShardRecoveryDrive.Alias, fileByClientUniqueId.FileId);
+        await fileSystem.Storage.HardDeleteLongTermFile(file, odinContext);
     }
 
     private async Task<List<SharedSecretEncryptedFileHeader>> GetShardRequestFiles(IOdinContext odinContext)
@@ -111,16 +91,13 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         return batch.SearchResults.ToList();
     }
 
-    private async Task WriteNewFile(PlayerEncryptedShard shard, IOdinContext odinContext)
+    private async Task WriteNewFile(ShardApprovalRequest shardApproval, IOdinContext odinContext)
     {
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
-            DrivePermission.Write, odinContext);
-
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
 
         var keyHeader = KeyHeader.Empty();
-        var content = OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray();
+        var content = OdinSystemSerializer.Serialize(shardApproval).ToUtf8ByteArray();
 
         var fileMetadata = new FileMetadata(file)
         {
@@ -129,7 +106,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
             {
                 FileType = ShardRequestFileType,
                 Content = content.ToBase64(),
-                UniqueId = shard.Id
+                UniqueId = shardApproval.Id
             },
 
             IsEncrypted = false,
@@ -143,17 +120,17 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
             AllowDistribution = false
         };
 
-        var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(file, keyHeader, fileMetadata, serverMetadata,
-            byPassAclCheckContext);
-        await fileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, byPassAclCheckContext, raiseEvent: true);
+        var serverFileHeader = await fileSystem.Storage.CreateServerFileHeader(file,
+            keyHeader,
+            fileMetadata,
+            serverMetadata,
+            odinContext);
+
+        await fileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
     }
 
-    private async Task OverwriteFile(PlayerEncryptedShard dealerShard, Guid existingFileId,
-        IOdinContext odinContext)
+    private async Task OverwriteFile(ShardApprovalRequest dealerShardApproval, Guid existingFileId, IOdinContext odinContext)
     {
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
-            DrivePermission.Write, odinContext);
-
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = new InternalDriveFileId()
         {
@@ -161,17 +138,17 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
             DriveId = driveId
         };
 
-        var header = await fileSystem.Storage.GetServerFileHeaderForWriting(file, byPassAclCheckContext);
+        var header = await fileSystem.Storage.GetServerFileHeaderForWriting(file, odinContext);
 
-        var content = OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray();
+        var content = OdinSystemSerializer.Serialize(dealerShardApproval).ToUtf8ByteArray();
 
         header.FileMetadata.AppData.Content = content.ToBase64();
-        await fileSystem.Storage.UpdateActiveFileHeader(file, header, byPassAclCheckContext, raiseEvent: true);
+        await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
     }
 
-    private PlayerEncryptedShard ToPlayerCollectedShard(SharedSecretEncryptedFileHeader header)
+    private ShardApprovalRequest ToPlayerCollectedShard(SharedSecretEncryptedFileHeader header)
     {
         var json = header.FileMetadata.AppData.Content.FromBase64().ToStringFromUtf8Bytes();
-        return OdinSystemSerializer.Deserialize<PlayerEncryptedShard>(json);
+        return OdinSystemSerializer.Deserialize<ShardApprovalRequest>(json);
     }
 }
