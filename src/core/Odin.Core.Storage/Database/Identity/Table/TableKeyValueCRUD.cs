@@ -43,13 +43,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableKeyValueCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "KeyValue";
 
-        protected TableKeyValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableKeyValueCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -109,7 +107,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -145,7 +142,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
                     return true;
                 }
                 return false;
@@ -182,7 +178,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -218,7 +213,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyValueCRUD", item.identityId.ToString()+item.key.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -292,8 +286,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = key;
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableKeyValueCRUD", identityId.ToString()+key.ToBase64());
                 return count;
             }
         }
@@ -359,9 +351,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key == null) throw new OdinDatabaseValidationException("Cannot be null key");
             if (key?.Length < 16) throw new OdinDatabaseValidationException($"Too short key, was {key.Length} (min 16)");
             if (key?.Length > 48) throw new OdinDatabaseValidationException($"Too long key, was {key.Length} (max 48)");
-            var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", identityId.ToString()+key.ToBase64());
-            if (hit)
-                return (KeyValueRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -384,11 +373,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,key);
-                        _cache.AddOrUpdate("TableKeyValueCRUD", identityId.ToString()+key.ToBase64(), r);
                         return r;
                     } // using
                 } //

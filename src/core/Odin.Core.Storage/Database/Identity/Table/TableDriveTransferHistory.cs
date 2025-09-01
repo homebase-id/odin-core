@@ -3,16 +3,14 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveTransferHistory(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveTransferHistoryCRUD(cache, scopedConnectionFactory: scopedConnectionFactory)
+    : TableDriveTransferHistoryCRUD(scopedConnectionFactory: scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -76,7 +74,7 @@ public class TableDriveTransferHistory(
         updateCommand.CommandText = sql.ToString();
 
         // Add required WHERE clause parameters
-        parameters["@identityId"] = odinIdentity.IdAsByteArray();
+        parameters["@identityId"] = odinIdentity.IdentityIdAsByteArray();
         parameters["@driveId"] = driveId.ToByteArray();
         parameters["@fileId"] = fileId.ToByteArray();
         parameters["@remoteIdentityId"] = recipient.DomainName;

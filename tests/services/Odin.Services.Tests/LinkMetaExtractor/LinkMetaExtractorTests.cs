@@ -94,13 +94,13 @@ public class LinkMetaExtractorTests
 #if !CI_GITHUB
     [Explicit]
     [Test]
-    public async Task TestTwitterUrl()
+    public async Task TestTwitterWithImageUrl()
     {
         var logStore = new LogEventMemoryStore();
         var  logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
 
-        var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/trunkio/status/1795913092204998997");
+        var ogp =  await linkMetaExtractor.ExtractAsync("https://x.com/battleforeurope/status/1927693899868303855");
 
         ClassicAssert.NotNull(ogp.Title);
         ClassicAssert.NotNull(ogp.Description);
@@ -108,6 +108,26 @@ public class LinkMetaExtractorTests
         ClassicAssert.NotNull(ogp.ImageUrl);
     }
 #endif
+
+#if !CI_GITHUB
+    [Explicit]
+    [Test]
+    public async Task TestTwitterWithNoImageUrl()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+
+        // This post doesn't have an image, so it should fall back to the profile picture
+        var ogp = await linkMetaExtractor.ExtractAsync("https://x.com/shellenberger/status/1955272838434144377");
+
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.Url);
+        ClassicAssert.NotNull(ogp.ImageUrl);
+    }
+#endif
+
 
 #if !CI_GITHUB
     [Test]
@@ -195,6 +215,24 @@ public class LinkMetaExtractorTests
         ClassicAssert.NotNull(ogp.ImageUrl);
     }
 #endif
+
+#if !CI_GITHUB
+    // !CI_GITHUB because it sometimes instagram blocks the request and does not send a static website
+    // The main cause are user-agent headers, but sometimes it does not send an SSR page
+    [Test]
+    public async Task TestInstagramOtherUrl()
+    {
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        var ogp = await linkMetaExtractor.ExtractAsync("https://www.instagram.com/reel/DMGW7MBsNzz/?igsh=YzlieXQ4djFxMmlh");
+        ClassicAssert.NotNull(ogp.Title);
+        ClassicAssert.NotNull(ogp.Description);
+        ClassicAssert.NotNull(ogp.ImageUrl);
+    }
+#endif
+
+    
 
     [Test]
     public async Task TestHtmlUrl()

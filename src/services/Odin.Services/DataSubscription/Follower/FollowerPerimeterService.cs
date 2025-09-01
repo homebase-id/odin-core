@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
@@ -30,8 +31,8 @@ namespace Odin.Services.DataSubscription.Follower
             {
                 // Created sample DeleteAndAddFollower() - take a look
                 await using var trx = await db.BeginStackedTransactionAsync();
-                await db.FollowsMe.DeleteByIdentityAsync(new OdinId(request.OdinId));
-                await db.FollowsMe.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
+                await db.FollowsMeCached.DeleteByIdentityAsync(new OdinId(request.OdinId));
+                await db.FollowsMeCached.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = Guid.Empty });
                 trx.Commit();
             }
 
@@ -66,7 +67,7 @@ namespace Odin.Services.DataSubscription.Follower
                     followsMeRecords.Add(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                 }
 
-                await db.FollowsMe.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
+                await db.FollowsMeCached.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
             }
 
             await mediator.Publish(new NewFollowerNotification
@@ -84,7 +85,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             var follower = odinContext.Caller.OdinId;
 
-            await db.FollowsMe.DeleteByIdentityAsync(new OdinId(follower));
+            await db.FollowsMeCached.DeleteByIdentityAsync(new OdinId(follower));
         }
     }
 }

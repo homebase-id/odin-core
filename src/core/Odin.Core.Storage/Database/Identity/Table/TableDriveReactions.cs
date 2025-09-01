@@ -3,16 +3,14 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveReactions(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveReactionsCRUD(cache, scopedConnectionFactory)
+    : TableDriveReactionsCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -60,7 +58,7 @@ public class TableDriveReactions(
 
         sparam1.Value = postId.ToByteArray();
         sparam2.Value = driveId.ToByteArray();
-        sparam3.Value = odinIdentity.IdAsByteArray();
+        sparam3.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -118,7 +116,7 @@ public class TableDriveReactions(
         s2param1.Value = postId.ToByteArray();
         s2param2.Value = identity.DomainName;
         s2param3.Value = driveId.ToByteArray();
-        s2param4.Value = odinIdentity.IdAsByteArray();
+        s2param4.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -162,7 +160,7 @@ public class TableDriveReactions(
         s3param1.Value = postId.ToByteArray();
         s3param2.Value = identity.DomainName;
         s3param3.Value = driveId.ToByteArray();
-        s3param4.Value = odinIdentity.IdAsByteArray();
+        s3param4.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -201,7 +199,7 @@ public class TableDriveReactions(
 
         param1.Value = postId.ToByteArray();
         param2.Value = driveId.ToByteArray();
-        param3.Value = odinIdentity.IdAsByteArray();
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -265,7 +263,7 @@ public class TableDriveReactions(
         getPaging0Param2.Value = count + 1;
         getPaging0Param3.Value = postIdFilter.ToByteArray();
         getPaging0Param4.Value = driveId.ToByteArray();
-        getPaging0Param5.Value = odinIdentity.IdAsByteArray();
+        getPaging0Param5.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {

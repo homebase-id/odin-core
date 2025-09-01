@@ -19,8 +19,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
     private readonly Dictionary<Type, string> _manualCheckSingletonWhitelist = new()
     {
         {typeof(Odin.Services.Tenant.Container.MultiTenantContainer), "ee75de5f"},
-        {typeof(Odin.Core.Identity.OdinIdentity), "56922cad"},
-        {typeof(Odin.Core.Storage.CacheHelper), "b6b4e9b2"},
+        {typeof(Odin.Core.Identity.OdinIdentity), "7ddb7f9c"},
         {typeof(Odin.Core.Storage.Database.DatabaseCounters), "e6f1c919"},
         {typeof(Odin.Core.Storage.Database.System.Connection.SqliteSystemDbConnectionFactory), "08513a77"},
         {typeof(Odin.Core.Storage.Database.System.Connection.PgsqlSystemDbConnectionFactory), "74c23c98"},

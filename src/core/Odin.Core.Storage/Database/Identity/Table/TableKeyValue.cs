@@ -6,10 +6,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableKeyValue(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableKeyValueCRUD(cache, scopedConnectionFactory)
+    : TableKeyValueCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -22,6 +21,12 @@ public class TableKeyValue(
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
+    }
+
+    public new async Task<bool> TryInsertAsync(KeyValueRecord item)
+    {
+        item.identityId = odinIdentity;
+        return await base.TryInsertAsync(item);
     }
 
     public async Task<int> DeleteAsync(byte[] key)

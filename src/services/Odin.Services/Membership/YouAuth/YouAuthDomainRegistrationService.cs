@@ -209,7 +209,7 @@ namespace Odin.Services.Membership.YouAuth
             
             odinContext.Caller.AssertHasMasterKey();
 
-            var list = await ClientStorage.GetByCategoryAsync<YouAuthDomainClient>(_db.KeyThreeValue, ClientDataType);
+            var list = await ClientStorage.GetByCategoryAsync<YouAuthDomainClient>(_db.KeyThreeValueCached, ClientDataType);
             var resp = list.Where(d => d.Domain.DomainName.ToLower() == domain.DomainName.ToLower()).Select(domainClient => new RedactedYouAuthDomainClient()
             {
                 Domain = domainClient.Domain,
@@ -240,14 +240,14 @@ namespace Odin.Services.Membership.YouAuth
                 throw new OdinSecurityException("Invalid call to Delete domain client");
             }
 
-            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValue, accessRegistrationId);
+            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValueCached, accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            await ClientStorage.DeleteAsync(_db.KeyThreeValue, accessRegistrationId);
+            await ClientStorage.DeleteAsync(_db.KeyThreeValueCached, accessRegistrationId);
         }
 
         public async Task DeleteClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
@@ -255,14 +255,14 @@ namespace Odin.Services.Membership.YouAuth
             
             odinContext.Caller.AssertHasMasterKey();
 
-            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValue, accessRegistrationId);
+            var client = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValueCached, accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            await ClientStorage.DeleteAsync(_db.KeyThreeValue, accessRegistrationId);
+            await ClientStorage.DeleteAsync(_db.KeyThreeValueCached, accessRegistrationId);
         }
 
         public async Task DeleteDomainRegistrationAsync(AsciiDomainName domain, IOdinContext odinContext)
@@ -278,14 +278,14 @@ namespace Odin.Services.Membership.YouAuth
             }
 
             //delete the clients
-            var clientsByDomain = await ClientStorage.GetByDataTypeAsync<YouAuthDomainClient>(_db.KeyThreeValue, GetDomainKey(domain).ToByteArray());
+            var clientsByDomain = await ClientStorage.GetByDataTypeAsync<YouAuthDomainClient>(_db.KeyThreeValueCached, GetDomainKey(domain).ToByteArray());
 
             await using var tx = await _db.BeginStackedTransactionAsync();
             foreach (var c in clientsByDomain)
             {
-                await ClientStorage.DeleteAsync(_db.KeyThreeValue, c.AccessRegistration.Id);
+                await ClientStorage.DeleteAsync(_db.KeyThreeValueCached, c.AccessRegistration.Id);
             }
-            await DomainStorage.DeleteAsync(_db.KeyThreeValue, GetDomainKey(domain));
+            await DomainStorage.DeleteAsync(_db.KeyThreeValueCached, GetDomainKey(domain));
             tx.Commit();
         }
 
@@ -294,7 +294,7 @@ namespace Odin.Services.Membership.YouAuth
             
             odinContext.Caller.AssertHasMasterKey();
 
-            var domains = await DomainStorage.GetByCategoryAsync<YouAuthDomainRegistration>(_db.KeyThreeValue, DomainRegistrationDataType);
+            var domains = await DomainStorage.GetByCategoryAsync<YouAuthDomainRegistration>(_db.KeyThreeValueCached, DomainRegistrationDataType);
             var redactedList = domains.Select(d => d.Redacted()).ToList();
             return redactedList;
         }
@@ -393,7 +393,7 @@ namespace Odin.Services.Membership.YouAuth
             ClientAuthenticationToken authToken)
         {
             
-            var domainClient = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValue, authToken.Id);
+            var domainClient = await ClientStorage.GetAsync<YouAuthDomainClient>(_db.KeyThreeValueCached, authToken.Id);
             if (null == domainClient)
             {
                 return (false, null, null);
@@ -420,7 +420,7 @@ namespace Odin.Services.Membership.YouAuth
         {
             
 
-            await ClientStorage.UpsertAsync(_db.KeyThreeValue, youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
+            await ClientStorage.UpsertAsync(_db.KeyThreeValueCached, youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
                 ClientDataType,
                 youAuthDomainClient);
         }
@@ -428,7 +428,7 @@ namespace Odin.Services.Membership.YouAuth
         private async Task<YouAuthDomainRegistration?> GetDomainRegistrationInternalAsync(AsciiDomainName domain)
         {
             var key = GuidId.FromString(domain.DomainName);
-            var reg = await DomainStorage.GetAsync<YouAuthDomainRegistration>(_db.KeyThreeValue, key);
+            var reg = await DomainStorage.GetAsync<YouAuthDomainRegistration>(_db.KeyThreeValueCached, key);
 
             if (null != reg)
             {
@@ -483,7 +483,7 @@ namespace Odin.Services.Membership.YouAuth
             //clear them here so we don't have two locations
             registration.CircleGrants.Clear();
 
-            await DomainStorage.UpsertAsync(_db.KeyThreeValue, GetDomainKey(registration.Domain), GuidId.Empty, DomainRegistrationDataType,
+            await DomainStorage.UpsertAsync(_db.KeyThreeValueCached, GetDomainKey(registration.Domain), GuidId.Empty, DomainRegistrationDataType,
                 registration);
             
             tx.Commit();

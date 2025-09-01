@@ -51,7 +51,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
 
-        public DriveMainIndexRecord ToDriveMainIndexRecord(TargetDrive targetDrive)
+        public DriveMainIndexRecord ToDriveMainIndexRecord(TargetDrive targetDrive, Guid identityId)
         {
             var fileMetadata = this.FileMetadata;
             var serverMetadata = this.ServerMetadata;
@@ -60,7 +60,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             var record = new DriveMainIndexRecord
             {
-                identityId = default, // Assuming default is appropriate; clarify if needed
+                identityId = identityId,
                 driveId = fileMetadata.File.DriveId,
                 fileId = fileMetadata.File.FileId,
                 globalTransitId = fileMetadata.GlobalTransitId,

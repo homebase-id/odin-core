@@ -10,8 +10,7 @@ public class ScopedNotaryConnectionFactory(
     ILifetimeScope lifetimeScope,
     ILogger<ScopedNotaryConnectionFactory> logger,
     INotaryDbConnectionFactory connectionFactory,
-    CacheHelper cache,
     DatabaseCounters counters)
-    : ScopedConnectionFactory<INotaryDbConnectionFactory>(lifetimeScope, logger, connectionFactory, cache, counters)
+    : ScopedConnectionFactory<INotaryDbConnectionFactory>(lifetimeScope, logger, connectionFactory, counters)
 {
 }

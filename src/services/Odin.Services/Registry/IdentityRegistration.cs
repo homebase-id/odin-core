@@ -65,6 +65,11 @@ namespace Odin.Services.Registry
         /// </summary>
         public UnixTimeUtc? MarkedForDeletionDate { get; set; }
 
+        /// <summary>
+        /// Timestamp of this account's last seen activity
+        /// </summary>
+        public UnixTimeUtc? LastSeen { get; set; }
+
         public override string ToString()
         {
             return PrimaryDomainName;

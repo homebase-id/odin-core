@@ -1,20 +1,11 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
-using Autofac.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
-using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Util;
-using Odin.Test.Helpers.Logging;
 using Serilog.Events;
 
 namespace Odin.Core.Storage.Tests.Factory;
@@ -513,6 +504,132 @@ public class ScopedConnectionFactoryTest : IocTestBase
         }
     }
 
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldFailToAddPostCommitActionOutsideTransaction(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+
+        var exception = Assert.Throws<OdinDatabaseException>(
+            () => scopedConnectionFactory.AddPostCommitAction(async () => await Task.CompletedTask));
+        Assert.That(exception!.Message,
+            Does.StartWith("Must be in a transaction to add a post transaction commit action"));
+
+        Services?.Resolve<ILogEventMemoryStore>().Clear(LogEventLevel.Error);
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunPostCommitActions(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        var postCommitText = "";
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            scopedConnectionFactory.AddPostCommitAction(() =>
+            {
+                postCommitText += "Hello";
+                return Task.CompletedTask;
+            });
+            tx.Commit();
+        }
+
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            scopedConnectionFactory.AddPostCommitAction(() =>
+            {
+                postCommitText += "I'm never run because of implicit rollback";
+                return Task.CompletedTask;
+            });
+        }
+
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            tx.Commit();
+        }
+
+        Assert.That(postCommitText, Is.EqualTo("Hello"));
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldFailToAddPostRollbackActionOutsideTransaction(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+
+        var exception = Assert.Throws<OdinDatabaseException>(
+            () => scopedConnectionFactory.AddPostRollbackAction(async () => await Task.CompletedTask));
+        Assert.That(exception!.Message,
+            Does.StartWith("Must be in a transaction to add a post transaction rollback action"));
+
+        Services?.Resolve<ILogEventMemoryStore>().Clear(LogEventLevel.Error);
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    public async Task ItShouldRunPostRollbackActions(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        var postCommitText = "";
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            scopedConnectionFactory.AddPostRollbackAction(() =>
+            {
+                postCommitText += "Hello";
+                return Task.CompletedTask;
+            });
+        }
+
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+            scopedConnectionFactory.AddPostRollbackAction(() =>
+            {
+                postCommitText += "I'm never run because of explicit commit";
+                return Task.CompletedTask;
+            });
+            tx.Commit();
+        }
+
+        await using (var tx = await cn.BeginStackedTransactionAsync())
+        {
+        }
+
+        Assert.That(postCommitText, Is.EqualTo("Hello"));
+    }
 
 }
 
