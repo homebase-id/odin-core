@@ -15,7 +15,6 @@ using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
-using Odin.Services.AppNotifications.Push;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
@@ -164,6 +163,11 @@ public class ShamirRecoveryService
                 {
                     await HandleAcceptRecoveryShard(retrieveShardResult, odinContext);
                 }
+
+                if (retrieveShardResult.ResultType == RetrieveShardResultType.WaitingForPlayer)
+                {
+                    //hmm, do we tell the user anything or just go into waiting mode?
+                }
             }
         }
     }
@@ -192,7 +196,7 @@ public class ShamirRecoveryService
             throw new OdinSecurityException("invalid requester");
         }
 
-        // if (shard.Player.Type == PlayerType.Automatic)
+        if (shard.Player.Type == PlayerType.Automatic)
         {
             // return it now
             return new RetrieveShardResult
@@ -201,15 +205,29 @@ public class ShamirRecoveryService
                 Shard = shard
             };
         }
-        //
-        // await SendPushNotification(requester, $"{requester} has requested your assistance in recovering their identity", odinContext);
-        //
-        // shard.DealerEncryptedShard.Wipe();
-        // return new RetrieveShardResult
-        // {
-        //     ResultType = RetrieveShardResultType.WaitingForPlayer,
-        //     Shard = shard,
-        // };
+        
+        if(shard.Player.Type == PlayerType.Delegate)
+        {
+            // put in a request somewhere for the /owner/shamir/verify url
+            
+            await _mediator.Publish(new ShamirPasswordRecoveryShardRequestedNotification
+            {
+                OdinContext = odinContext,
+                Sender = requester,
+                AdditionalMessage = ""
+            });
+
+            shard.DealerEncryptedShard.Wipe();
+            return new RetrieveShardResult
+            {
+                ResultType = RetrieveShardResultType.WaitingForPlayer,
+                Shard = shard,
+            };
+        }
+
+        throw new OdinSystemException($"How did we get here?  The player type is not delegate or " +
+                                      $"automatic. It is {shard.Player.Type} for Player {shard.Player.OdinId} and " +
+                                      $"id {shard.Id}");
     }
 
     /// <summary>
@@ -231,7 +249,7 @@ public class ShamirRecoveryService
             SystemDriveConstants.ShardRecoveryDrive,
             DrivePermission.Read,
             odinContext);
-        
+
         await using var tx = await _db.BeginStackedTransactionAsync();
 
         await _playerShardCollector.SavePlayerShard(result.Shard, odinContext);
@@ -249,7 +267,7 @@ public class ShamirRecoveryService
                 Updated = UnixTimeUtc.Now(),
                 State = ShamirRecoveryState.AwaitingOwnerFinalization,
             });
-            
+
             await _mediator.Publish(new ShamirPasswordRecoverySufficientShardsCollectedNotification()
             {
                 OdinContext = odinContext
@@ -265,7 +283,6 @@ public class ShamirRecoveryService
                 Sender = player,
                 AdditionalMessage = $"You need {remainingRequired} more shards to recover your identity."
             });
-
         }
 
         tx.Commit();

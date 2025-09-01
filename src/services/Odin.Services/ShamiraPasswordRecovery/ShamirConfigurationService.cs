@@ -284,8 +284,6 @@ public class ShamirConfigurationService(
     {
         odinContext.Caller.AssertHasMasterKey();
         var shards = ShamirSecretSharing.GenerateShamirShares(players.Count, minShards, secret.GetKey());
-
-        OdinValidationUtils.AssertIsTrue(players.TrueForAll(p => p.Type == PlayerType.Delegate), "Only Delegate player type is supported");
         OdinValidationUtils.AssertIsTrue(shards.Count == players.Count, "Player and shard count do not match");
 
         var dealerRecords = new List<DealerShardEnvelope>();
@@ -300,8 +298,7 @@ public class ShamirConfigurationService(
             // Dealer encrypts a player's shard with the random key
             var playerEncryptionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var (iv, cipher) = AesCbc.Encrypt(s.Shard, playerEncryptionKey);
-
-
+            
             var playerShardId = Guid.NewGuid();
             playerRecords.Add(new PlayerEncryptedShard()
             {
