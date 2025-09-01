@@ -22,6 +22,7 @@ using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.ShamiraPasswordRecovery.ShardCollection;
+using Odin.Services.ShamiraPasswordRecovery.ShardRequestApproval;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
@@ -41,6 +42,7 @@ public class ShamirRecoveryService
     private readonly IMediator _mediator;
     private readonly ILogger<ShamirRecoveryService> _logger;
     private readonly PlayerShardCollector _playerShardCollector;
+    private readonly ShardRequestApprovalCollector _approvalCollector;
 
     /// <summary>
     /// Handles scenarios where the Owner has lost their master password and need to get shards from their peer network
@@ -69,6 +71,7 @@ public class ShamirRecoveryService
         _logger = logger;
 
         _playerShardCollector = new PlayerShardCollector(fileSystem);
+        _approvalCollector = new ShardRequestApprovalCollector(fileSystem, mediator);
     }
 
     private static readonly Guid ShamirStatusStorageId = Guid.Parse("d2180696-2d18-41e3-8699-c90c0d3aa710");
@@ -205,17 +208,10 @@ public class ShamirRecoveryService
                 Shard = shard
             };
         }
-        
-        if(shard.Player.Type == PlayerType.Delegate)
+
+        if (shard.Player.Type == PlayerType.Delegate)
         {
-            // put in a request somewhere for the /owner/shamir/verify url
-            
-            await _mediator.Publish(new ShamirPasswordRecoveryShardRequestedNotification
-            {
-                OdinContext = odinContext,
-                Sender = requester,
-                AdditionalMessage = ""
-            });
+            await _approvalCollector.SaveRequest(shard, odinContext);
 
             shard.DealerEncryptedShard.Wipe();
             return new RetrieveShardResult
