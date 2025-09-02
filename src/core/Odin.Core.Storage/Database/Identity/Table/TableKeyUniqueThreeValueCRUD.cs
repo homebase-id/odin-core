@@ -48,13 +48,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableKeyUniqueThreeValueCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "KeyUniqueThreeValue";
 
-        protected TableKeyUniqueThreeValueCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableKeyUniqueThreeValueCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -129,7 +127,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -175,7 +172,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                     return true;
                 }
                 return false;
@@ -222,7 +218,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -268,7 +263,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", item.identityId.ToString()+item.key1.ToBase64(), item);
                     return 1;
                 }
                 return 0;
@@ -350,8 +344,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 delete0Param1.Value = identityId.ToByteArray();
                 delete0Param2.Value = key1;
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64());
                 return count;
             }
         }
@@ -423,9 +415,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (key1 == null) throw new OdinDatabaseValidationException("Cannot be null key1");
             if (key1?.Length < 16) throw new OdinDatabaseValidationException($"Too short key1, was {key1.Length} (min 16)");
             if (key1?.Length > 48) throw new OdinDatabaseValidationException($"Too long key1, was {key1.Length} (max 48)");
-            var (hit, cacheObject) = _cache.Get("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64());
-            if (hit)
-                return (KeyUniqueThreeValueRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -448,11 +437,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,key1);
-                        _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key1.ToBase64(), r);
                         return r;
                     } // using
                 } //
@@ -631,7 +618,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableKeyUniqueThreeValueCRUD", identityId.ToString()+key2.ToBase64()+key3.ToBase64(), null);
                             return new List<KeyUniqueThreeValueRecord>();
                         }
                         var result = new List<KeyUniqueThreeValueRecord>();

@@ -3,15 +3,15 @@ using System.Diagnostics;
 
 namespace Odin.Core.Identity;
 
-[DebuggerDisplay("{PrimaryDomain} - {Id}")]
-public class OdinIdentity(Guid id, string primaryDomain)
+[DebuggerDisplay("{PrimaryDomain} - {IdentityId}")]
+public class OdinIdentity(Guid identityId, string primaryDomain)
 {
-    public Guid Id { get; } = id;
+    public Guid IdentityId { get; } = identityId;
     public string PrimaryDomain { get; } = primaryDomain;
 
     public static implicit operator Guid(OdinIdentity odinIdentity)
     {
-        return odinIdentity.Id;
+        return odinIdentity.IdentityId;
     }
 
     public static implicit operator string(OdinIdentity odinIdentity)
@@ -19,8 +19,8 @@ public class OdinIdentity(Guid id, string primaryDomain)
         return odinIdentity.PrimaryDomain;
     }
 
-    public byte[] IdAsByteArray()
+    public byte[] IdentityIdAsByteArray()
     {
-        return Id.ToByteArray();
+        return IdentityId.ToByteArray();
     }
 }

@@ -499,7 +499,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             //    }
             //}
 
-            var sl = await CheckPayloadsIntegrity(drive, serverFileHeader, cleanup);
+            var sl = await CheckPayloadsIntegrity(drive, serverFileHeader, cleanup, record.identityId);
 
             if (sl != null)
             {
@@ -522,7 +522,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Otherwise returns the list of missing payloads / thumbnails as full filename plus directory
         /// If payloads are remote, skips check (caught in VerifyDriveDirectoriesPayloads())
         /// </summary>
-        private async Task<List<string>> CheckPayloadsIntegrity(StorageDrive drive, ServerFileHeader header, bool cleanup)
+        private async Task<List<string>> CheckPayloadsIntegrity(StorageDrive drive, ServerFileHeader header, bool cleanup, Guid identityId)
         {
             const string logPrefix = "PayloadIntegrity";
             var fileId = header.FileMetadata.File.FileId;
@@ -616,31 +616,36 @@ namespace Odin.Services.Drives.DriveCore.Storage
             bool databaseRowByteCountAdjustment = false;
 
             // Calculate the sum of bytes spent according to the header and the disk usage
-            var hdrPayloadThumbBytes = hdrPayloadBytes + hdrThumbBytes;
-            var diskPayloadThumbBytes = diskPayloadBytes + diskThumbBytes;
+            var hdrPayloadPlusThumbBytes = hdrPayloadBytes + hdrThumbBytes;
+            var diskPayloadPlusThumbBytes = diskPayloadBytes + diskThumbBytes;
 
             // The authorative size is the size of the header in the database hdrDatabaseBytes
             // plus the size of payloads and thumbs on disk, aka diskPayloadThumbBytes
 
             // If there is a mismatch between the disk and the header, 
             // we need to readjust the header
-            if (diskPayloadThumbBytes != hdrPayloadThumbBytes)
+            if (hdrPayloadPlusThumbBytes != diskPayloadPlusThumbBytes)
             {
-                logger.LogError($"{logPrefix} BYTESIZE - size of payloads + thumbs DIFFERENT between DISK and HEADER {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} disk total {diskPayloadThumbBytes} (payload {diskPayloadBytes} thumb {diskThumbBytes}) vs header total {hdrPayloadThumbBytes} (payload {hdrPayloadBytes} thumb {hdrThumbBytes}) DB header {hdrDatabaseBytes}");
+                logger.LogError($"{logPrefix} BYTESIZE - size of payloads + thumbs DIFFERENT between DISK and HEADER {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} disk total {diskPayloadPlusThumbBytes} (payload {diskPayloadBytes} thumb {diskThumbBytes}) vs header total {hdrPayloadPlusThumbBytes} (payload {hdrPayloadBytes} thumb {hdrThumbBytes}) DB header {hdrDatabaseBytes}");
                 databaseRowByteCountAdjustment = true;
                 if (cleanup)
-                    header.ServerMetadata.FileByteCount = hdrDatabaseBytes + diskPayloadThumbBytes;
+                    header.ServerMetadata.FileByteCount = hdrDatabaseBytes + diskPayloadPlusThumbBytes;
             }
+
+            if (databaseRowByteCountAdjustment)
+                (hdrDatabaseBytes, _, _) = DriveStorageServiceBase.ServerHeaderByteCount(header);
 
             // So the size of the hdrDatabaseBytes can vary slightly due to a few attributes being
             // set by the database (time, tagid, etc). So we check for a range. Maybe we should separate
             // it out...
-            if (!IsInRange(header.ServerMetadata.FileByteCount, hdrDatabaseBytes + diskPayloadThumbBytes - 100, hdrDatabaseBytes + diskPayloadThumbBytes + 100))
+            if (!IsInRange(header.ServerMetadata.FileByteCount, 
+                             hdrDatabaseBytes + diskPayloadPlusThumbBytes - 50, 
+                             hdrDatabaseBytes + diskPayloadPlusThumbBytes + 50))
             {
-                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} FileByteCount {header.ServerMetadata.FileByteCount} out of range for expected {hdrDatabaseBytes + diskPayloadThumbBytes} (±100) based on DB header {hdrDatabaseBytes} disk payload {diskPayloadBytes} thumb {diskThumbBytes}");
+                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} FileByteCount {header.ServerMetadata.FileByteCount} out of range for expected {hdrDatabaseBytes + diskPayloadPlusThumbBytes} (±100) based on DB header {hdrDatabaseBytes} disk payload {diskPayloadBytes} thumb {diskThumbBytes}");
 
                 if (cleanup)
-                    header.ServerMetadata.FileByteCount = hdrDatabaseBytes + diskPayloadThumbBytes;
+                    header.ServerMetadata.FileByteCount = hdrDatabaseBytes + diskPayloadPlusThumbBytes;
                 databaseRowByteCountAdjustment = true;
             }
 
@@ -648,12 +653,21 @@ namespace Odin.Services.Drives.DriveCore.Storage
             {
                 if (driveRecordAdjustments)
                 {
-                    var r = header.ToDriveMainIndexRecord(drive.TargetDriveInfo);
+                    var r = header.ToDriveMainIndexRecord(drive.TargetDriveInfo, identityId);
 
                     // We have to write the header r back to the DB
                     // This will also update the byteCount row, so we 
                     // don't need to call UpdateByteCountAsync() below
                     await identityDatabase.DriveMainIndex.RawUpdateAsync(r);
+                    var sanityRecord = await identityDatabase.DriveMainIndex.GetAsync(r.driveId, r.fileId);
+                    var sanityHeader = ServerFileHeader.FromDriveMainIndexRecord(sanityRecord);
+                    var (sanityDatabaseBytes, _, _) = DriveStorageServiceBase.ServerHeaderByteCount(header);
+                    if (sanityDatabaseBytes != hdrDatabaseBytes)
+                    {
+                        logger.LogError($"{logPrefix} header sannity check failed - possible corruption DriveId={header.FileMetadata.File.DriveId} FileId={header.FileMetadata.File.FileId}");
+                        throw new Exception("Noooo... stop! Corrupt record?");
+                    }
+
                 }
                 else if (databaseRowByteCountAdjustment)
                 {

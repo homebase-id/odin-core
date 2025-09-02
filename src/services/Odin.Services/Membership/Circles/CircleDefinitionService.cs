@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -15,7 +15,7 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Membership.Circles
 {
-    public class CircleDefinitionService(IDriveManager driveManager, TableKeyThreeValue tblKeyThreeValue)
+    public class CircleDefinitionService(IDriveManager driveManager, TableKeyThreeValueCached tblKeyThreeValue)
     {
         private const string CircleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
         private static readonly ThreeKeyValueStorage CircleValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(CircleValueContextKey));

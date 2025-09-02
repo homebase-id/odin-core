@@ -10,10 +10,9 @@ using Odin.Core.Util;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveLocalTagIndex(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableDriveLocalTagIndexCRUD(cache, scopedConnectionFactory: scopedConnectionFactory)
+    : TableDriveLocalTagIndexCRUD(scopedConnectionFactory: scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -75,7 +74,7 @@ public class TableDriveLocalTagIndex(
             selectCommand.Parameters.Add(param1);
             selectCommand.Parameters.Add(param2);
             selectCommand.Parameters.Add(param3);
-            param1.Value = odinIdentity.IdAsByteArray();
+            param1.Value = odinIdentity.IdentityIdAsByteArray();
             param2.Value = driveId.ToByteArray();
             param3.Value = fileId.ToByteArray();
 
@@ -122,7 +121,7 @@ public class TableDriveLocalTagIndex(
         updateCommand.Parameters.Add(newVersionTagParam);
         updateCommand.Parameters.Add(contentParam);
 
-        sparam1.Value = odinIdentity.IdAsByteArray();
+        sparam1.Value = odinIdentity.IdentityIdAsByteArray();
         sparam2.Value = driveId.ToByteArray();
         sparam3.Value = fileId.ToByteArray();
         sparam4.Value = oldVersionTag.ToByteArray();

@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "Outbox";
 
-        protected TableOutboxCRUD(CacheHelper cache, ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableOutboxCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

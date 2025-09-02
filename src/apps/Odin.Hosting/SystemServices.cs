@@ -41,6 +41,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.Registry;
+using Odin.Services.Registry.LastSeen;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
@@ -66,6 +67,7 @@ public static class SystemServices
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
         services.AddSingleton<ISystemDomains, SystemDomains>();
+        services.AddSingleton<ILastSeenService, LastSeenService>();
 
         services.AddControllers()
             .AddJsonOptions(options =>
@@ -248,7 +250,6 @@ public static class SystemServices
         builder.AddJobManagerServices();
 
         // Global database services
-        builder.AddDatabaseCacheServices();
         builder.AddDatabaseCounterServices();
 
         // System database services

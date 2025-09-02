@@ -18,8 +18,8 @@ public enum JobState
     Failed
 };
 
-public class TableJobs(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
-    : TableJobsCRUD(cache, scopedConnectionFactory)
+public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
+    : TableJobsCRUD(scopedConnectionFactory)
 {
     private readonly ScopedSystemConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

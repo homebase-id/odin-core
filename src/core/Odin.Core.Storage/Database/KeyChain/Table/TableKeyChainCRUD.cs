@@ -56,13 +56,11 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 
     public abstract class TableKeyChainCRUD : TableBase
     {
-        private readonly CacheHelper _cache;
         private ScopedKeyChainConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "KeyChain";
 
-        public TableKeyChainCRUD(CacheHelper cache, ScopedKeyChainConnectionFactory scopedConnectionFactory)
+        public TableKeyChainCRUD(ScopedKeyChainConnectionFactory scopedConnectionFactory)
         {
-            _cache = cache;
             _scopedConnectionFactory = scopedConnectionFactory;
         }
 
@@ -146,7 +144,6 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                     return 1;
                 }
                 return 0;
@@ -202,7 +199,6 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                     return true;
                 }
                 return false;
@@ -259,7 +255,6 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                     return 1;
                 }
                 return 0;
@@ -315,7 +310,6 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                 if (await rdr.ReadAsync())
                 {
                     item.rowId = (long) rdr[2];
-                   _cache.AddOrUpdate("TableKeyChainCRUD", item.identity+item.publicKeyJwkBase64Url, item);
                     return 1;
                 }
                 return 0;
@@ -402,8 +396,6 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                 delete0Param1.Value = identity;
                 delete0Param2.Value = publicKeyJwkBase64Url;
                 var count = await delete0Command.ExecuteNonQueryAsync();
-                if (count > 0)
-                    _cache.Remove("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
                 return count;
             }
         }
@@ -486,9 +478,6 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
             if (publicKeyJwkBase64Url == null) throw new OdinDatabaseValidationException("Cannot be null publicKeyJwkBase64Url");
             if (publicKeyJwkBase64Url?.Length < 16) throw new OdinDatabaseValidationException($"Too short publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (min 16)");
             if (publicKeyJwkBase64Url?.Length > 600) throw new OdinDatabaseValidationException($"Too long publicKeyJwkBase64Url, was {publicKeyJwkBase64Url.Length} (max 600)");
-            var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity+publicKeyJwkBase64Url);
-            if (hit)
-                return (KeyChainRecord)cacheObject;
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
@@ -511,11 +500,9 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
                     {
                         if (await rdr.ReadAsync() == false)
                         {
-                            _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, null);
                             return null;
                         }
                         var r = ReadRecordFromReader0(rdr,identity,publicKeyJwkBase64Url);
-                        _cache.AddOrUpdate("TableKeyChainCRUD", identity+publicKeyJwkBase64Url, r);
                         return r;
                     } // using
                 } //

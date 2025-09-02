@@ -17,7 +17,7 @@ using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Refit;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Core.X509;
@@ -49,7 +49,7 @@ public class PushNotificationService(
     PeerOutbox peerOutbox,
     IMediator mediator,
     ILifetimeScope scope,
-    TableKeyTwoValue twoKeyValue)
+    TableKeyTwoValueCached twoKeyValue)
     : INotificationHandler<ConnectionRequestAcceptedNotification>,
         INotificationHandler<ConnectionRequestReceivedNotification>
 {
@@ -102,7 +102,7 @@ public class PushNotificationService(
         await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
     }
 
-    public static async Task RemoveDeviceAsync(TableKeyTwoValue twoKeyValue, Guid deviceKey, IOdinContext odinContext)
+    public static async Task RemoveDeviceAsync(TableKeyTwoValueCached twoKeyValue, Guid deviceKey, IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         await DeviceSubscriptionStorage.DeleteAsync(twoKeyValue, deviceKey);
@@ -313,7 +313,7 @@ public class PushNotificationService(
                             // PushAsync can call DevicePushAsync multiple times in parallel,
                             // so we need to make separate scopes to call the database
                             await using var dbScope = scope.BeginLifetimeScope();
-                            var tkv = dbScope.Resolve<TableKeyTwoValue>();
+                            var tkv = dbScope.Resolve<TableKeyTwoValueCached>();
                             await RemoveDeviceAsync(tkv, subscription.AccessRegistrationId, odinContext);
                         }
                         else if (apiEx.StatusCode == HttpStatusCode.BadRequest)

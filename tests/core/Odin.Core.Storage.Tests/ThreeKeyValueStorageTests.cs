@@ -4,6 +4,7 @@ using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
@@ -25,7 +26,7 @@ public class ThreeKeyValueStorageTests : IocTestBase
     public async Task CanGetCorrectValueUsing_DuplicatePrimaryKey_WithDifferentContextKey(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
-        var tblKeyThreeValue = Services.Resolve<TableKeyThreeValue>();
+        var tblKeyThreeValue = Services.Resolve<TableKeyThreeValueCached>();
 
         var contextKey1 = Guid.NewGuid();
         var dataTypeKey = Guid.NewGuid().ToByteArray();

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 //
@@ -14,10 +13,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableFollowsMe(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableFollowsMeCRUD(cache, scopedConnectionFactory)
+    : TableFollowsMeCRUD(scopedConnectionFactory)
 {
     public const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
@@ -162,7 +160,7 @@ public class TableFollowsMe(
 
         param1.Value = inCursor;
         param2.Value = count + 1;
-        param3.Value = odinIdentity.IdAsByteArray();
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -239,7 +237,7 @@ public class TableFollowsMe(
         param1.Value = driveId.ToByteArray();
         param2.Value = inCursor;
         param3.Value = count + 1;
-        param4.Value = odinIdentity.IdAsByteArray();
+        param4.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {

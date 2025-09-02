@@ -44,7 +44,7 @@ namespace Odin.Core.Storage.Database.System.Table
         private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "Settings";
 
-        public TableSettingsCRUD(CacheHelper cache, ScopedSystemConnectionFactory scopedConnectionFactory)
+        public TableSettingsCRUD(ScopedSystemConnectionFactory scopedConnectionFactory)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
         }

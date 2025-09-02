@@ -1,0 +1,112 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Table;
+
+namespace Odin.Core.Storage.Database.Identity.Cache;
+
+#nullable enable
+
+public class TableAppNotificationsCached(
+    TableAppNotifications table,
+    ITenantLevel2Cache cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
+{
+    private static readonly List<string> PagingByCreateTags = ["PagingByCreate"];
+
+    //
+
+    private static string GetCacheKey(AppNotificationsRecord item)
+    {
+        return GetCacheKey(item.notificationId);
+    }
+
+    //
+
+    private static string GetCacheKey(Guid notificationId)
+    {
+        return notificationId.ToString();
+    }
+
+    //
+
+    private Task InvalidateAsync(AppNotificationsRecord item)
+    {
+        return InvalidateAsync(item.notificationId);
+    }
+
+    //
+
+    private Task InvalidateAsync(Guid notificationId)
+    {
+        return InvalidateAsync([
+            CreateRemoveByKeyAction(GetCacheKey(notificationId)),  
+            CreateRemoveByTagAction(PagingByCreateTags)
+        ]);
+    }
+
+    //
+
+    public async Task<AppNotificationsRecord?> GetAsync(Guid notificationId, TimeSpan ttl)
+    {
+        var result = await GetOrSetAsync(
+            GetCacheKey(notificationId),
+            _ => table.GetAsync(notificationId),
+            ttl);
+        return result;
+    }
+
+    //
+
+    public async Task<int> InsertAsync(AppNotificationsRecord item)
+    {
+        var result = await table.InsertAsync(item);
+
+        await InvalidateAsync(item);
+
+        return result;
+    }
+
+    //
+
+    public async Task<int> UpdateAsync(AppNotificationsRecord item)
+    {
+        var result = await table.UpdateAsync(item);
+
+        await InvalidateAsync(item);
+
+        return result;
+    }
+
+    //
+
+    public async Task<(List<AppNotificationsRecord>, string cursor)> PagingByCreatedAsync(
+        int count,
+        string? cursorString,
+        TimeSpan ttl)
+    {
+        var result = await GetOrSetAsync(
+            "PagingByCreated" + ":" + count + ":" + cursorString,
+            _ => table.PagingByCreatedAsync(count, cursorString),
+            ttl,
+            PagingByCreateTags);
+
+        return result;
+    }
+
+    //
+
+    public async Task<int> DeleteAsync(Guid notificationId)
+    {
+        var result = await table.DeleteAsync(notificationId);
+
+        await InvalidateAsync(notificationId);
+
+        return result;
+    }
+
+    //
+
+}

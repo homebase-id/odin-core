@@ -24,7 +24,8 @@ public class DriveQuery(
     MainIndexMeta metaIndex,
     TableDriveMainIndex tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
-    IdentityDatabase db
+    IdentityDatabase db,
+    OdinIdentity odinIdentity
 ) : IDriveDatabaseManager
 {
     public async Task<(string, List<DriveMainIndexRecord>, bool hasMoreRows)> GetModifiedCoreAsync(
@@ -155,7 +156,7 @@ public class DriveQuery(
 
         //sanity in case something higher up didnt set the drive properly for any crazy reason
         header.FileMetadata.File = header.FileMetadata.File with { DriveId = drive.Id };
-        var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive.TargetDriveInfo);
+        var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive.TargetDriveInfo, odinIdentity.IdentityId);
 
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());

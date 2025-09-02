@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 
 //
@@ -14,10 +13,9 @@ using Odin.Core.Storage.Database.Identity.Connection;
 namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableImFollowing(
-    CacheHelper cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity)
-    : TableImFollowingCRUD(cache, scopedConnectionFactory)
+    : TableImFollowingCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
@@ -107,7 +105,7 @@ public class TableImFollowing(
 
         param1.Value = inCursor;
         param2.Value = count + 1; // +1 because we want to see if there are more records to set the nextCursor correctly
-        param3.Value = odinIdentity.IdAsByteArray();
+        param3.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -185,7 +183,7 @@ public class TableImFollowing(
         param1.Value = driveId.ToByteArray();
         param2.Value = inCursor;
         param3.Value = count + 1; // +1 to check for EOD on nextCursor
-        param4.Value = odinIdentity.IdAsByteArray();
+        param4.Value = odinIdentity.IdentityIdAsByteArray();
 
         using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
         {
