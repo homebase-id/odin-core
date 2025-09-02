@@ -248,7 +248,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 // Write to temp file
                 var tempFile = new TempFile()
                 {
-                    File = await fileSystem.Storage.CreateInternalFileId(feedDriveId),
+                    File = await fileSystem.Storage.CreateInternalFileId(feedDriveId, odinContext),
                     StorageType = TempStorageType.Inbox
                 };
 

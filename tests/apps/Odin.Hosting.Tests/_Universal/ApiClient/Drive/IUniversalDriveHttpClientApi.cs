@@ -2,6 +2,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Services.Apps;
 using Odin.Services.Base.SharedTypes;
@@ -11,6 +12,7 @@ using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Hosting.Controllers.Base.Drive.Update;
+using Odin.Hosting.Controllers.ClientToken.Shared.Drive;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -105,5 +107,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Multipart]
         [Post(RootStorageEndpoint + "/uploadpayload")]
         Task<ApiResponse<UploadPayloadResult>> UploadPayload(StreamPart[] streamdata);
+
+        [Get(RootDriveEndpoint + "/metadata/type")]
+        Task<ApiResponse<PagedResult<ClientDriveData>>> GetDrivesByType([Query] GetDrivesByTypeRequest request);
     }
 }
