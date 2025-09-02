@@ -67,7 +67,7 @@ public static class SystemServices
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
         services.AddSingleton<ISystemDomains, SystemDomains>();
-        services.AddSingleton<ILastSeenService, LastSeenService>();
+        services.AddScoped<ILastSeenService, LastSeenService>();
 
         services.AddControllers()
             .AddJsonOptions(options =>
