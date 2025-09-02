@@ -197,7 +197,7 @@ public class ShamirRecoveryService
         var requester = odinContext.Caller.OdinId.GetValueOrDefault();
 
         // look up the shard info
-        var (dealer, shard, _) = await _configurationService.GetDealerShard(request.ShardId, odinContext);
+        var (dealer, shard, _) = await _configurationService.GetShardStoredForDealer(request.ShardId, odinContext);
 
         if (dealer != requester)
         {
@@ -332,7 +332,7 @@ public class ShamirRecoveryService
         odinContext.Caller.AssertCallerIsOwner();
 
         var tx = await _db.BeginStackedTransactionAsync();
-        var (dealer, shard, _) = await _configurationService.GetDealerShard(shardId, odinContext);
+        var (dealer, shard, _) = await _configurationService.GetShardStoredForDealer(shardId, odinContext);
 
         var client = await CreateClientAsyncWithToken(dealer, null, odinContext);
         await client.SendPlayerShard(new RetrieveShardResult
@@ -522,7 +522,8 @@ public class ShamirRecoveryService
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
         var icr = await _circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
-        var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerPasswordRecoveryHttpClient>(odinId, authToken, fileSystemType);
+        var httpClient =
+            _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerPasswordRecoveryHttpClient>(odinId, authToken, fileSystemType);
         return httpClient;
     }
 

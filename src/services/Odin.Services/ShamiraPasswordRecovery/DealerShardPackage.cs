@@ -10,5 +10,5 @@ public class DealerShardPackage
 {
     public int MinMatchingShards { get; init; }
     public List<DealerShardEnvelope> Envelopes { get; init; }
-    public UnixTimeUtc Created { get; set; }
+    public UnixTimeUtc Updated { get; set; }
 }

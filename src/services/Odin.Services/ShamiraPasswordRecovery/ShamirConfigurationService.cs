@@ -137,7 +137,7 @@ public class ShamirConfigurationService(
     /// </summary>
     public async Task<ShardVerificationResult> VerifyDealerShard(Guid shardId, IOdinContext odinContext)
     {
-        var (_, _, verifyDealerShard) = await GetDealerShard(shardId, odinContext);
+        var (_, _, verifyDealerShard) = await GetShardStoredForDealer(shardId, odinContext);
         return verifyDealerShard;
     }
 
@@ -158,22 +158,22 @@ public class ShamirConfigurationService(
                 ShardId = e.ShardId,
                 Player = e.Player
             }).ToList(),
-            Created = package.Created
+            Updated = package.Updated
         };
     }
 
     public async Task<List<ShamiraPlayer>> GetPlayers(IOdinContext odinContext)
     {
-        var key = await this.GetKeyInternalAsync();
-        if (key == null)
-        {
-            return [];
-        }
-
-        return key.Players;
+        var pkg = await this.GetDealerShardPackage(odinContext);
+        var players = pkg.Envelopes.Select(p => p.Player).ToList();
+        return players;
     }
 
-    public async Task<(OdinId dealer, PlayerEncryptedShard shard, ShardVerificationResult verificationResult)> GetDealerShard(Guid shardId,
+    /// <summary>
+    /// Gets the shard a player has stored for a dealer.  i.e. this is the info that will be returned
+    /// when a dealer requests to reset their password
+    /// </summary>
+    public async Task<(OdinId dealer, PlayerEncryptedShard shard, ShardVerificationResult verificationResult)> GetShardStoredForDealer(Guid shardId,
         IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
@@ -234,15 +234,11 @@ public class ShamirConfigurationService(
             return null;
         }
 
-        // var key = odinContext.PermissionsContext.SharedSecretKey;
-        // var decryptedKeyHeader = existingFile.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref key);
-        // var bytes = decryptedKeyHeader.Decrypt(existingFile.FileMetadata.AppData.Content.FromBase64());
-
         var bytes = existingFile.FileMetadata.AppData.Content.FromBase64();
         var json = bytes.ToStringFromUtf8Bytes();
 
         var package = OdinSystemSerializer.Deserialize<DealerShardPackage>(json);
-        package.Created = existingFile.FileMetadata.Created;
+        package.Updated = existingFile.FileMetadata.Updated;
 
         return package;
     }
@@ -499,10 +495,13 @@ public class ShamirConfigurationService(
             MasterKeyEncryptedShamirDistributionKey = new SymmetricKeyEncryptedAes(secret: masterKey, dataToEncrypt: recoveryKey),
             Created = UnixTimeUtc.Now(),
             ShamirDistributionKeyEncryptedRecoveryKey = new SymmetricKeyEncryptedAes(secret: distributionKey, dataToEncrypt: recoveryKey),
-            Players = package.Envelopes.Select(e => e.Player).ToList()
         };
 
-        await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);
+        var n = await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);
+        if (n != 1)
+        {
+            throw new OdinSystemException($"Failed to save key. {n} records affected");
+        }
     }
 
     private async Task<ShamirKeyRecord> GetKeyInternalAsync()
