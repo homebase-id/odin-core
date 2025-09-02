@@ -67,7 +67,7 @@ public static class SystemServices
         services.AddSingleton<FileReaderWriter>();
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
         services.AddSingleton<ISystemDomains, SystemDomains>();
-        services.AddSingleton<ILastSeenService, LastSeenService>();
+        services.AddScoped<ILastSeenService, LastSeenService>();
 
         services.AddControllers()
             .AddJsonOptions(options =>
@@ -246,7 +246,7 @@ public static class SystemServices
         builder.RegisterModule(new LoggingAutofacModule());
         builder.RegisterModule(new MultiTenantAutofacModule());
 
-        builder.AddSystemBackgroundServices();
+        builder.AddSystemBackgroundServices(config);
         builder.AddJobManagerServices();
 
         // Global database services

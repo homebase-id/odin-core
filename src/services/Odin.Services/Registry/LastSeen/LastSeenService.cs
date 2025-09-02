@@ -1,113 +1,140 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
+
+[assembly: InternalsVisibleTo("Odin.Services.Tests")]
 
 namespace Odin.Services.Registry.LastSeen;
 
 #nullable enable
 
-public interface ILastSeenService
+public class LastSeenService(
+    ISystemLevel2Cache<LastSeenService> cache,
+    TableRegistrations registrations) : ILastSeenService
 {
-    Dictionary<Guid, UnixTimeUtc> AllByIdentityId { get; }
-    Dictionary<string, UnixTimeUtc> AllByDomain { get; }
-    void LastSeenNow(IdentityRegistration registration);
-    void LastSeenNow(TenantContext tenantContext);
-    void LastSeenNow(Guid identityId, string domain);
-    void PutLastSeen(IdentityRegistration registration, UnixTimeUtc lastSeen);
-    void PutLastSeen(TenantContext tenantContext, UnixTimeUtc lastSeen);
-    void PutLastSeen(Guid identityId, string domain, UnixTimeUtc lastSeen);
-    void PutLastSeen(RegistrationsRecord? record);
-    UnixTimeUtc? GetLastSeen(Guid identityId);
-    UnixTimeUtc? GetLastSeen(string domain);
-}
+    private readonly TimeSpan _ttl = TimeSpan.FromMinutes(5);
 
-//
-
-public class LastSeenService : ILastSeenService
-{
-    private readonly ConcurrentDictionary<Guid, UnixTimeUtc> _lastSeenByIdentityId = new();
-    private readonly ConcurrentDictionary<string, UnixTimeUtc> _lastSeenByDomain = new();
-
-    public Dictionary<Guid, UnixTimeUtc> AllByIdentityId => _lastSeenByIdentityId.ToDictionary();
-    public Dictionary<string, UnixTimeUtc> AllByDomain => _lastSeenByDomain.ToDictionary();
+    // SEB:NOTE we need this local lists to batch updates to the database
+    // since the cache can't provide us with the list. Stupid cache.
+    private readonly ConcurrentDictionary<Guid, LastSeenEntry> _lastSeenByIdentityId = new();
 
     //
 
-    public void LastSeenNow(IdentityRegistration registration)
+    private static string BuildCacheKey(Guid identityId) => "last-seen:" + identityId;
+    private static string BuildCacheKey(string domain) => "last-seen:" + domain;
+
+    //
+
+    public Task LastSeenNowAsync(IdentityRegistration registration)
     {
-        PutLastSeen(registration, UnixTimeUtc.Now());
+        return PutLastSeenAsync(registration, UnixTimeUtc.Now());
     }
 
     //
 
-    public void LastSeenNow(TenantContext tenantContext)
+    public Task LastSeenNowAsync(TenantContext tenantContext)
     {
-        PutLastSeen(tenantContext, UnixTimeUtc.Now());
+        return PutLastSeenAsync(tenantContext, UnixTimeUtc.Now());
     }
 
     //
 
-    public void LastSeenNow(Guid identityId, string domain)
+    public Task LastSeenNowAsync(Guid identityId, string domain)
     {
-        PutLastSeen(identityId, domain, UnixTimeUtc.Now());
+        return PutLastSeenAsync(identityId, domain, UnixTimeUtc.Now());
     }
 
     //
 
-    public void PutLastSeen(IdentityRegistration registration, UnixTimeUtc lastSeen)
+    public Task PutLastSeenAsync(IdentityRegistration registration, UnixTimeUtc lastSeen)
     {
-        PutLastSeen(registration.Id, registration.PrimaryDomainName, lastSeen);
+        return PutLastSeenAsync(registration.Id, registration.PrimaryDomainName, lastSeen);
     }
 
     //
 
-    public void PutLastSeen(TenantContext tenantContext, UnixTimeUtc lastSeen)
+    public Task PutLastSeenAsync(TenantContext tenantContext, UnixTimeUtc lastSeen)
     {
-        PutLastSeen(tenantContext.DotYouRegistryId, tenantContext.HostOdinId, lastSeen);
+        return PutLastSeenAsync(tenantContext.DotYouRegistryId, tenantContext.HostOdinId, lastSeen);
     }
 
     //
 
-    public void PutLastSeen(Guid identityId, string domain, UnixTimeUtc lastSeen)
+    public Task PutLastSeenAsync(RegistrationsRecord? record)
     {
-        _lastSeenByIdentityId[identityId] = lastSeen;
-        _lastSeenByDomain[domain] = lastSeen;
+        return record?.lastSeen != null
+            ? PutLastSeenAsync(record.identityId, record.primaryDomainName, record.lastSeen.Value)
+            : Task.CompletedTask;
     }
 
     //
 
-    public void PutLastSeen(RegistrationsRecord? record)
+    public async Task PutLastSeenAsync(Guid identityId, string domain, UnixTimeUtc lastSeen)
     {
-        if (record?.lastSeen != null)
+        var lastSeenEntry = new LastSeenEntry(identityId, domain, lastSeen);
+
+        _lastSeenByIdentityId[identityId] = lastSeenEntry;
+
+        await Task.WhenAll(
+            cache.SetAsync(BuildCacheKey(identityId), lastSeenEntry, _ttl).AsTask(),
+            cache.SetAsync(BuildCacheKey(domain), lastSeenEntry, _ttl).AsTask());
+    }
+
+    //
+
+    public async Task<UnixTimeUtc?> GetLastSeenAsync(Guid identityId)
+    {
+        var result = await cache.GetOrSetAsync(
+            BuildCacheKey(identityId),
+            _ => registrations.GetLastSeenAsync(identityId),
+            _ttl);
+
+        if (result == null)
         {
-            PutLastSeen(record.identityId, record.primaryDomainName, record.lastSeen.Value);
+            return null;
         }
+
+        _lastSeenByIdentityId[identityId] = result;
+        return result.LastSeen;
     }
 
     //
 
-    public UnixTimeUtc? GetLastSeen(Guid identityId)
+    public async Task<UnixTimeUtc?> GetLastSeenAsync(string domain)
     {
-        if (_lastSeenByIdentityId.TryGetValue(identityId, out var lastSeen))
+        var result = await cache.GetOrSetAsync(
+            BuildCacheKey(domain),
+            _ => registrations.GetLastSeenAsync(domain),
+            _ttl);
+
+        if (result == null)
         {
-            return lastSeen;
+            return null;
         }
-        return null;
+
+        _lastSeenByIdentityId[result.IdentityId] = result;
+        return result.LastSeen;
     }
 
     //
 
-    public UnixTimeUtc? GetLastSeen(string domain)
+    internal async Task UpdateDatabaseAsync()
     {
-        if (_lastSeenByDomain.TryGetValue(domain, out var lastSeen))
+        if (_lastSeenByIdentityId.IsEmpty)
         {
-            return lastSeen;
+            return;
         }
-        return null;
+
+        var toUpdate = _lastSeenByIdentityId.ToDictionary(kv => kv.Key, kv => kv.Value);
+        _lastSeenByIdentityId.Clear();
+
+        await registrations.UpdateLastSeenAsync(toUpdate);
     }
 
     //
