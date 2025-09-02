@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Serialization;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -101,15 +100,13 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
 
         var keyHeader = KeyHeader.Empty();
-        var content = OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray();
-
         var fileMetadata = new FileMetadata(file)
         {
             GlobalTransitId = Guid.NewGuid(),
             AppData = new AppFileMetaData()
             {
                 FileType = CollectedPlayerShardFileType,
-                Content = content.ToBase64(),
+                Content = PlayerEncryptedShard.Serialize(shard),
                 UniqueId = shard.Id
             },
 
@@ -129,7 +126,7 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
         await fileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, byPassAclCheckContext, raiseEvent: true);
     }
 
-    private async Task OverwriteFile(PlayerEncryptedShard dealerShard, Guid existingFileId,
+    private async Task OverwriteFile(PlayerEncryptedShard shard, Guid existingFileId,
         IOdinContext odinContext)
     {
         var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
@@ -143,16 +140,12 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
         };
 
         var header = await fileSystem.Storage.GetServerFileHeaderForWriting(file, byPassAclCheckContext);
-
-        var content = OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray();
-
-        header.FileMetadata.AppData.Content = content.ToBase64();
+        header.FileMetadata.AppData.Content = PlayerEncryptedShard.Serialize(shard);
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, byPassAclCheckContext, raiseEvent: true);
     }
 
     private PlayerEncryptedShard ToPlayerCollectedShard(SharedSecretEncryptedFileHeader header)
     {
-        var json = header.FileMetadata.AppData.Content.FromBase64().ToStringFromUtf8Bytes();
-        return OdinSystemSerializer.Deserialize<PlayerEncryptedShard>(json);
+        return PlayerEncryptedShard.Deserialize(header.FileMetadata.AppData.Content);
     }
 }

@@ -31,16 +31,22 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     /// <param name="odinContext"></param>
     public async Task SaveRequest(ShardApprovalRequest shardApproval, IOdinContext odinContext)
     {
-        var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var targetDrive = SystemDriveConstants.ShardRecoveryDrive;
+        var driveId = targetDrive.Alias;
         var uid = shardApproval.Id;
-        var existingFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
+
+        // we have to grant the dealer write access to the drive since they
+        // are coming in authenticated (due to ssl cert) but there is no CAT 
+
+        var contextUpgrade = OdinContextUpgrades.UpgradeToByPassAclCheck(targetDrive, DrivePermission.ReadWrite, odinContext);
+        var existingFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, contextUpgrade);
         if (existingFile == null)
         {
-            await WriteNewFile(shardApproval, odinContext);
+            await WriteNewFile(shardApproval, contextUpgrade);
         }
         else
         {
-            await OverwriteFile(shardApproval, existingFile.FileId, odinContext);
+            await OverwriteFile(shardApproval, existingFile.FileId, contextUpgrade);
         }
 
         await mediator.Publish(new ShamirPasswordRecoveryShardRequestedNotification
@@ -55,7 +61,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     {
         odinContext.Caller.AssertCallerIsOwner();
         var files = await GetShardRequestFiles(odinContext);
-        return files.Select(ToPlayerCollectedShard).ToList();
+        return files.Select(ToRequest).ToList();
     }
 
     public async Task DeleteRequest(Guid shardId, IOdinContext odinContext)
@@ -97,7 +103,6 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
 
         var keyHeader = KeyHeader.Empty();
-        var content = OdinSystemSerializer.Serialize(shardApproval).ToUtf8ByteArray();
 
         var fileMetadata = new FileMetadata(file)
         {
@@ -105,7 +110,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
             AppData = new AppFileMetaData()
             {
                 FileType = ShardRequestFileType,
-                Content = content.ToBase64(),
+                Content = ShardApprovalRequest.Serialize(shardApproval),
                 UniqueId = shardApproval.Id
             },
 
@@ -129,7 +134,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         await fileSystem.Storage.WriteNewFileHeader(file, serverFileHeader, odinContext, raiseEvent: true);
     }
 
-    private async Task OverwriteFile(ShardApprovalRequest dealerShardApproval, Guid existingFileId, IOdinContext odinContext)
+    private async Task OverwriteFile(ShardApprovalRequest shardApproval, Guid existingFileId, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = new InternalDriveFileId()
@@ -139,16 +144,12 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         };
 
         var header = await fileSystem.Storage.GetServerFileHeaderForWriting(file, odinContext);
-
-        var content = OdinSystemSerializer.Serialize(dealerShardApproval).ToUtf8ByteArray();
-
-        header.FileMetadata.AppData.Content = content.ToBase64();
+        header.FileMetadata.AppData.Content = ShardApprovalRequest.Serialize(shardApproval);
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
     }
 
-    private ShardApprovalRequest ToPlayerCollectedShard(SharedSecretEncryptedFileHeader header)
+    private ShardApprovalRequest ToRequest(SharedSecretEncryptedFileHeader header)
     {
-        var json = header.FileMetadata.AppData.Content.FromBase64().ToStringFromUtf8Bytes();
-        return OdinSystemSerializer.Deserialize<ShardApprovalRequest>(json);
+        return ShardApprovalRequest.Deserialize(header.FileMetadata.AppData.Content);
     }
 }

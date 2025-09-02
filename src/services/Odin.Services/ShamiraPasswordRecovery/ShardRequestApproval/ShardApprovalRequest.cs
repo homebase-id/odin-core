@@ -1,5 +1,7 @@
 using System;
+using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Core.Time;
 
 namespace Odin.Services.ShamiraPasswordRecovery.ShardRequestApproval;
@@ -12,4 +14,14 @@ public class ShardApprovalRequest
     public Guid Id { get; init; }
     public OdinId Player { get; init; }
     public UnixTimeUtc Created { get; init; }
+    
+    public static string Serialize(ShardApprovalRequest shard)
+    {
+        return OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray().ToBase64();
+    }
+    
+    public static ShardApprovalRequest Deserialize(string content)
+    {
+        return OdinSystemSerializer.Deserialize<ShardApprovalRequest>(content.FromBase64().ToStringFromUtf8Bytes());
+    }
 }

@@ -53,7 +53,8 @@ public class PushNotificationService(
     : INotificationHandler<ConnectionRequestAcceptedNotification>,
         INotificationHandler<ConnectionRequestReceivedNotification>,
         INotificationHandler<ShamirPasswordRecoverySufficientShardsCollectedNotification>,
-        INotificationHandler<ShamirPasswordRecoveryShardCollectedNotification>
+        INotificationHandler<ShamirPasswordRecoveryShardCollectedNotification>,
+        INotificationHandler<ShamirPasswordRecoveryShardRequestedNotification>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
@@ -152,6 +153,20 @@ public class PushNotificationService(
             notification.OdinContext);
     }
 
+    
+    public async Task Handle(ShamirPasswordRecoveryShardRequestedNotification notification, CancellationToken cancellationToken)
+    {
+        await this.EnqueueNotificationInternalAsync(notification.Sender, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = notification.NotificationTypeId,
+                TagId = notification.Sender.ToHashId(),
+                Silent = false,
+                UnEncryptedMessage = notification.AdditionalMessage
+            },
+            notification.OdinContext);
+    }
+    
     public async Task Handle(ShamirPasswordRecoveryShardCollectedNotification notification, CancellationToken cancellationToken)
     {
         await this.EnqueueNotificationInternalAsync(notification.Sender, new AppNotificationOptions()

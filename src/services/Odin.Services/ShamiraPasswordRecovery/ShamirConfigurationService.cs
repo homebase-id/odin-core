@@ -161,12 +161,13 @@ public class ShamirConfigurationService(
             Updated = package.Updated
         };
     }
-    
+
     /// <summary>
     /// Gets the shard a player has stored for a dealer.  i.e. this is the info that will be returned
     /// when a dealer requests to reset their password
     /// </summary>
-    public async Task<(OdinId dealer, PlayerEncryptedShard shard, ShardVerificationResult verificationResult)> GetShardStoredForDealer(Guid shardId,
+    public async Task<(OdinId dealer, PlayerEncryptedShard shard, ShardVerificationResult verificationResult)> GetShardStoredForDealer(
+        Guid shardId,
         IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
@@ -196,9 +197,8 @@ public class ShamirConfigurationService(
                 IsValid = false
             });
         }
-
-        var json = file.FileMetadata.AppData.Content;
-        var shard = OdinSystemSerializer.Deserialize<PlayerEncryptedShard>(json);
+        
+        var shard = PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content);
 
         return (dealer, shard, new ShardVerificationResult()
         {
@@ -227,10 +227,8 @@ public class ShamirConfigurationService(
             return null;
         }
 
-        var bytes = existingFile.FileMetadata.AppData.Content.FromBase64();
-        var json = bytes.ToStringFromUtf8Bytes();
-
-        var package = OdinSystemSerializer.Deserialize<DealerShardPackage>(json);
+        var json = existingFile.FileMetadata.AppData.Content;
+        var package = DealerShardPackage.Deserialize(json);
         package.Updated = existingFile.FileMetadata.Updated;
 
         return package;
@@ -377,10 +375,7 @@ public class ShamirConfigurationService(
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
 
-        // var keyHeader = KeyHeader.NewRandom16();
-        // var encryptedContent = keyHeader.EncryptDataAes(OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray());
         var keyHeader = KeyHeader.Empty();
-        var encryptedContent = OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray();
 
         var fileMetadata = new FileMetadata(file)
         {
@@ -388,7 +383,7 @@ public class ShamirConfigurationService(
             AppData = new AppFileMetaData()
             {
                 FileType = DealerShardConfigFiletype,
-                Content = encryptedContent.ToBase64(),
+                Content = DealerShardPackage.Serialize(dealerShard),
                 UniqueId = Guid.Parse(DealerShardConfigUid)
             },
 
@@ -418,18 +413,8 @@ public class ShamirConfigurationService(
         };
 
         var header = await fileSystem.Storage.GetServerFileHeaderForWriting(file, odinContext);
-
-        // todo: should I rotate the key? 
-        // header.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(file.DriveId, keyHeader, odinContext);
-
-        // decrypt the key header so we can encrypt the content
-        // var storageKey = odinContext.PermissionsContext.GetDriveStorageKey(driveId);
-        // var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-        // var encryptedContent = keyHeader.EncryptDataAes(OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray());
-
-        var encryptedContent = OdinSystemSerializer.Serialize(dealerShard).ToUtf8ByteArray();
-
-        header.FileMetadata.AppData.Content = encryptedContent.ToBase64();
+        header.FileMetadata.AppData.Content = DealerShardPackage.Serialize(dealerShard);
+        header.FileMetadata.IsEncrypted = false;
         await fileSystem.Storage.UpdateActiveFileHeader(file, header, odinContext, raiseEvent: true);
     }
 
@@ -439,7 +424,6 @@ public class ShamirConfigurationService(
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
 
         var keyHeader = KeyHeader.Empty();
-        var shardData = OdinSystemSerializer.Serialize(shard);
 
         var fileMetadata = new FileMetadata(file)
         {
@@ -447,7 +431,7 @@ public class ShamirConfigurationService(
             AppData = new AppFileMetaData()
             {
                 FileType = PlayerEncryptedShardFileType,
-                Content = shardData,
+                Content = PlayerEncryptedShard.Serialize(shard),
                 UniqueId = shard.Id
             },
 

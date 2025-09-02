@@ -1,4 +1,6 @@
 using System;
+using Odin.Core;
+using Odin.Core.Serialization;
 using Odin.Core.Time;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
@@ -13,4 +15,14 @@ public class PlayerEncryptedShard
     public ShamiraPlayer Player { get; init; }
     public UnixTimeUtc Created { get; init; }
     public byte[] DealerEncryptedShard { get; init; }
+
+    public static string Serialize(PlayerEncryptedShard shard)
+    {
+        return OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray().ToBase64();
+    }
+    
+    public static PlayerEncryptedShard Deserialize(string content)
+    {
+        return OdinSystemSerializer.Deserialize<PlayerEncryptedShard>(content.FromBase64().ToStringFromUtf8Bytes());
+    }
 }
