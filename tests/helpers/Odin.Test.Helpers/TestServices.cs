@@ -43,16 +43,17 @@ public class TestServices : IDisposable
     public async Task<ILifetimeScope> RegisterServicesAsync(
         DatabaseType databaseType,
         string tempFolder,
+        Guid? identityId = null,
         bool migrateDatabases = true,
         bool redisEnabled = false,
         LogEventLevel logEventLevel = LogEventLevel.Debug)
     {
+        var iid = identityId ?? Guid.NewGuid();
+
         if (!Directory.Exists(tempFolder))
         {
             throw new DirectoryNotFoundException(tempFolder);
         }
-
-        var dummyIdentityId = Guid.NewGuid();
 
         if (databaseType == DatabaseType.Postgres)
         {
@@ -96,7 +97,7 @@ public class TestServices : IDisposable
         var builder = new ContainerBuilder();
         builder.Populate(serviceCollection);
 
-        builder.RegisterInstance(new OdinIdentity(dummyIdentityId, "foo.bar")).SingleInstance();
+        builder.RegisterInstance(new OdinIdentity(iid, "foo.bar")).SingleInstance();
 
         builder.RegisterModule(new LoggingAutofacModule());
         builder.RegisterGeneric(typeof(TestConsoleLogger<>)).As(typeof(ILogger<>)).SingleInstance();
@@ -109,18 +110,18 @@ public class TestServices : IDisposable
         {
             case DatabaseType.Sqlite:
                 builder.AddSqliteSystemDatabaseServices(Path.Combine(tempFolder, "system-test.db"));
-                builder.AddSqliteIdentityDatabaseServices(dummyIdentityId, Path.Combine(tempFolder, "identity-test.db"));
+                builder.AddSqliteIdentityDatabaseServices(iid, Path.Combine(tempFolder, "identity-test.db"));
                 break;
             case DatabaseType.Postgres:
                 builder.AddPgsqlSystemDatabaseServices(_postgresContainer!.GetConnectionString());
-                builder.AddPgsqlIdentityDatabaseServices(dummyIdentityId, _postgresContainer!.GetConnectionString());
+                builder.AddPgsqlIdentityDatabaseServices(iid, _postgresContainer!.GetConnectionString());
                 break;
             default:
                 throw new Exception("Unsupported database type");
         }
 
         builder.AddSystemCaches();
-        builder.AddTenantCaches(dummyIdentityId.ToString());
+        builder.AddTenantCaches(iid.ToString());
 
         _services = builder.Build();
 

@@ -18,12 +18,14 @@ public class LastSeenServiceTests
 {
     private string _tempDir = "";
     private TestServices? _testServices;
+    private Guid _identityId = Guid.NewGuid();
 
     [SetUp]
     public void Setup()
     {
         _tempDir = TempDirectory.Create();
         _testServices = new TestServices();
+        _identityId = Guid.NewGuid();
     }
 
     [TearDown]
@@ -47,7 +49,7 @@ public class LastSeenServiceTests
 #endif
     public async Task LastSeenNow_WithIdentityRegistration_SetsLastSeenToNow(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var now = UnixTimeUtc.Now();
@@ -75,7 +77,7 @@ public class LastSeenServiceTests
 #endif
     public async Task LastSeenNow_WithIdAndDomain_SetsLastSeenToNow(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var now = UnixTimeUtc.Now();
@@ -102,7 +104,7 @@ public class LastSeenServiceTests
 #endif
     public async Task PutLastSeen_WithIdentityRegistration_SetsSpecificLastSeen(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var lastSeen = UnixTimeUtc.Now().AddSeconds(-100);
@@ -123,7 +125,7 @@ public class LastSeenServiceTests
 #endif
     public async Task PutLastSeen_WithIdAndDomain_SetsSpecificLastSeen(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var lastSeen = UnixTimeUtc.Now().AddSeconds(-100);
@@ -143,7 +145,7 @@ public class LastSeenServiceTests
 #endif
     public async Task PutLastSeen_WithRegistrationsRecord_SetsLastSeenIfNotNull(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var lastSeen = UnixTimeUtc.Now().AddSeconds(-100);
@@ -169,7 +171,7 @@ public class LastSeenServiceTests
 #endif
     public async Task PutLastSeen_WithRegistrationsRecordNullLastSeen_DoesNothing(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var record = new RegistrationsRecord
@@ -194,7 +196,7 @@ public class LastSeenServiceTests
 #endif
     public async Task GetLastSeen_WithUnknownId_ReturnsNull(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var result = await lastSeenService.GetLastSeenAsync(Guid.NewGuid());
@@ -211,7 +213,7 @@ public class LastSeenServiceTests
 #endif
     public async Task GetLastSeen_WithDomain_ReturnsNull(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var result = await lastSeenService.GetLastSeenAsync("foo.bar");
@@ -228,7 +230,7 @@ public class LastSeenServiceTests
 #endif
     public async Task UpdatesOverwriteExistingValues(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var id = Guid.NewGuid();
@@ -252,7 +254,7 @@ public class LastSeenServiceTests
 #endif
     public async Task ItShouldUpdateDatabaseOnDemand(DatabaseType databaseType, bool enableRedis)
     {
-        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = (LastSeenService)services.Resolve<ILastSeenService>();
         var registrations = services.Resolve<TableRegistrations>();
 

@@ -166,7 +166,7 @@ public class FusionCacheTests
 
 #region TestServices
 
-public static class TestServices
+public static class FusionCacheTestServices
 {
     public static IServiceCollection AddFusionServices(this IServiceCollection services)
     {
