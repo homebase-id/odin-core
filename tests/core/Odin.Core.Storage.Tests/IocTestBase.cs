@@ -68,6 +68,7 @@ public abstract class IocTestBase
         GC.Collect();
     }
 
+    // SEB:TODO use test helper public class RegisterServices instead
     protected virtual async Task RegisterServicesAsync(
         DatabaseType databaseType,
         bool createDatabases = true,

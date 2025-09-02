@@ -1,53 +1,91 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Services.Registry;
 using Odin.Services.Registry.LastSeen;
+using Odin.Test.Helpers;
 
-// Grok v4 was here
 namespace Odin.Services.Tests.Registry.LastSeen;
 
 [TestFixture]
 public class LastSeenServiceTests
 {
-    private LastSeenService _service = new ();
+    private string _tempDir = "";
+    private TestServices? _testServices;
 
     [SetUp]
     public void Setup()
     {
-        _service = new LastSeenService();
+        _tempDir = TempDirectory.Create();
+        _testServices = new TestServices();
     }
 
-    [Test]
-    public void LastSeenNow_WithIdentityRegistration_SetsLastSeenToNow()
+    [TearDown]
+    public void TearDown()
     {
+        _testServices?.Dispose();
+
+        Directory.Delete(_tempDir, true);
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task LastSeenNow_WithIdentityRegistration_SetsLastSeenToNow(DatabaseType databaseType, bool enableRedis)
+    {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
         var now = UnixTimeUtc.Now();
         var registration = new IdentityRegistration { Id = Guid.NewGuid(), PrimaryDomainName = "test.domain" };
 
-        _service.LastSeenNow(registration);
+        await lastSeenService.LastSeenNowAsync(registration);
 
-        var lastSeenId = _service.GetLastSeen(registration.Id);
-        var lastSeenDomain = _service.GetLastSeen(registration.PrimaryDomainName);
+        var lastSeenId = await lastSeenService.GetLastSeenAsync(registration.Id);
+        var lastSeenDomain = await lastSeenService.GetLastSeenAsync(registration.PrimaryDomainName);
 
         Assert.That(lastSeenId, Is.Not.Null);
         Assert.That(lastSeenDomain, Is.Not.Null);
+
         // Approximate check due to timing; in practice, use a mockable time provider for exactness
         Assert.That(lastSeenId!.Value.milliseconds, Is.GreaterThanOrEqualTo(now.milliseconds));
         Assert.That(lastSeenDomain!.Value.milliseconds, Is.GreaterThanOrEqualTo(now.milliseconds));
     }
 
+    //
+
     [Test]
-    public void LastSeenNow_WithIdAndDomain_SetsLastSeenToNow()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task LastSeenNow_WithIdAndDomain_SetsLastSeenToNow(DatabaseType databaseType, bool enableRedis)
     {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
         var now = UnixTimeUtc.Now();
         var id = Guid.NewGuid();
         var domain = "test.domain";
 
-        _service.LastSeenNow(id, domain);
+        await lastSeenService.LastSeenNowAsync(id, domain);
 
-        var lastSeenId = _service.GetLastSeen(id);
-        var lastSeenDomain = _service.GetLastSeen(domain);
+        var lastSeenId = await lastSeenService.GetLastSeenAsync(id);
+        var lastSeenDomain = await lastSeenService.GetLastSeenAsync(domain);
 
         Assert.That(lastSeenId, Is.Not.Null);
         Assert.That(lastSeenDomain, Is.Not.Null);
@@ -55,34 +93,59 @@ public class LastSeenServiceTests
         Assert.That(lastSeenDomain!.Value.milliseconds, Is.GreaterThanOrEqualTo(now.milliseconds));
     }
 
+    //
+
     [Test]
-    public void PutLastSeen_WithIdentityRegistration_SetsSpecificLastSeen()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task PutLastSeen_WithIdentityRegistration_SetsSpecificLastSeen(DatabaseType databaseType, bool enableRedis)
     {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
         var lastSeen = UnixTimeUtc.Now().AddSeconds(-100);
         var registration = new IdentityRegistration { Id = Guid.NewGuid(), PrimaryDomainName = "test.domain" };
 
-        _service.PutLastSeen(registration, lastSeen);
+        await lastSeenService.PutLastSeenAsync(registration, lastSeen);
 
-        Assert.That(_service.GetLastSeen(registration.Id), Is.EqualTo(lastSeen));
-        Assert.That(_service.GetLastSeen(registration.PrimaryDomainName), Is.EqualTo(lastSeen));
+        Assert.That(await lastSeenService.GetLastSeenAsync(registration.Id), Is.EqualTo(lastSeen));
+        Assert.That(await lastSeenService.GetLastSeenAsync(registration.PrimaryDomainName), Is.EqualTo(lastSeen));
     }
 
+    //
+
     [Test]
-    public void PutLastSeen_WithIdAndDomain_SetsSpecificLastSeen()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task PutLastSeen_WithIdAndDomain_SetsSpecificLastSeen(DatabaseType databaseType, bool enableRedis)
     {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
         var lastSeen = UnixTimeUtc.Now().AddSeconds(-100);
         var id = Guid.NewGuid();
         var domain = "test.domain";
 
-        _service.PutLastSeen(id, domain, lastSeen);
+        await lastSeenService.PutLastSeenAsync(id, domain, lastSeen);
 
-        Assert.That(_service.GetLastSeen(id), Is.EqualTo(lastSeen));
-        Assert.That(_service.GetLastSeen(domain), Is.EqualTo(lastSeen));
+        Assert.That(await lastSeenService.GetLastSeenAsync(id), Is.EqualTo(lastSeen));
+        Assert.That(await lastSeenService.GetLastSeenAsync(domain), Is.EqualTo(lastSeen));
     }
 
     [Test]
-    public void PutLastSeen_WithRegistrationsRecord_SetsLastSeenIfNotNull()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task PutLastSeen_WithRegistrationsRecord_SetsLastSeenIfNotNull(DatabaseType databaseType, bool enableRedis)
     {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
         var lastSeen = UnixTimeUtc.Now().AddSeconds(-100);
         var record = new RegistrationsRecord
         {
@@ -91,24 +154,24 @@ public class LastSeenServiceTests
             lastSeen = lastSeen
         };
 
-        _service.PutLastSeen(record);
+        await lastSeenService.PutLastSeenAsync(record);
 
-        Assert.That(_service.GetLastSeen(record.identityId), Is.EqualTo(lastSeen));
-        Assert.That(_service.GetLastSeen(record.primaryDomainName), Is.EqualTo(lastSeen));
+        Assert.That(await lastSeenService.GetLastSeenAsync(record.identityId), Is.EqualTo(lastSeen));
+        Assert.That(await lastSeenService.GetLastSeenAsync(record.primaryDomainName), Is.EqualTo(lastSeen));
     }
 
-    [Test]
-    public void PutLastSeen_WithNullRegistrationsRecord_DoesNothing()
-    {
-        _service.PutLastSeen(null);
-
-        Assert.That(_service.AllByIdentityId, Is.Empty);
-        Assert.That(_service.AllByDomain, Is.Empty);
-    }
+    //
 
     [Test]
-    public void PutLastSeen_WithRegistrationsRecordNullLastSeen_DoesNothing()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task PutLastSeen_WithRegistrationsRecordNullLastSeen_DoesNothing(DatabaseType databaseType, bool enableRedis)
     {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
         var record = new RegistrationsRecord
         {
             identityId = Guid.NewGuid(),
@@ -116,72 +179,99 @@ public class LastSeenServiceTests
             lastSeen = null
         };
 
-        _service.PutLastSeen(record);
+        await lastSeenService.PutLastSeenAsync(record);
 
-        Assert.That(_service.GetLastSeen(record.identityId), Is.Null);
-        Assert.That(_service.GetLastSeen(record.primaryDomainName), Is.Null);
+        Assert.That(await lastSeenService.GetLastSeenAsync(record.identityId), Is.Null);
+        Assert.That(await lastSeenService.GetLastSeenAsync(record.primaryDomainName), Is.Null);
     }
 
+    //
+
     [Test]
-    public void GetLastSeen_WithUnknownId_ReturnsNull()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task GetLastSeen_WithUnknownId_ReturnsNull(DatabaseType databaseType, bool enableRedis)
     {
-        var result = _service.GetLastSeen(Guid.NewGuid());
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
+        var result = await lastSeenService.GetLastSeenAsync(Guid.NewGuid());
 
         Assert.That(result, Is.Null);
     }
 
+    //
+
     [Test]
-    public void GetLastSeen_WithUnknownDomain_ReturnsNull()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task GetLastSeen_WithDomain_ReturnsNull(DatabaseType databaseType, bool enableRedis)
     {
-        var result = _service.GetLastSeen("unknown.domain");
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
+        var result = await lastSeenService.GetLastSeenAsync("foo.bar");
 
         Assert.That(result, Is.Null);
     }
 
-    [Test]
-    public void AllByIdentityId_ReturnsCopyOfDictionary()
-    {
-        var id = Guid.NewGuid();
-        var lastSeen = UnixTimeUtc.Now();
-        _service.PutLastSeen(id, "test.domain", lastSeen);
-
-        var all = _service.AllByIdentityId;
-
-        Assert.That(all, Has.Count.EqualTo(1));
-        Assert.That(all[id], Is.EqualTo(lastSeen));
-        // Verify it's a copy (modifying it shouldn't affect internal state)
-        all.Clear();
-        Assert.That(_service.AllByIdentityId, Has.Count.EqualTo(1));
-    }
+    //
 
     [Test]
-    public void AllByDomain_ReturnsCopyOfDictionary()
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task UpdatesOverwriteExistingValues(DatabaseType databaseType, bool enableRedis)
     {
-        var domain = "test.domain";
-        var lastSeen = UnixTimeUtc.Now();
-        _service.PutLastSeen(Guid.NewGuid(), domain, lastSeen);
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
 
-        var all = _service.AllByDomain;
-
-        Assert.That(all, Has.Count.EqualTo(1));
-        Assert.That(all[domain], Is.EqualTo(lastSeen));
-        // Verify it's a copy
-        all.Clear();
-        Assert.That(_service.AllByDomain, Has.Count.EqualTo(1));
-    }
-
-    [Test]
-    public void UpdatesOverwriteExistingValues()
-    {
         var id = Guid.NewGuid();
         var domain = "test.domain";
         var initial = UnixTimeUtc.Now().AddSeconds(-200);
         var updated = UnixTimeUtc.Now().AddSeconds(-100);
 
-        _service.PutLastSeen(id, domain, initial);
-        _service.PutLastSeen(id, domain, updated);
+        await lastSeenService.PutLastSeenAsync(id, domain, initial);
+        await lastSeenService.PutLastSeenAsync(id, domain, updated);
 
-        Assert.That(_service.GetLastSeen(id), Is.EqualTo(updated));
-        Assert.That(_service.GetLastSeen(domain), Is.EqualTo(updated));
+        Assert.That(await lastSeenService.GetLastSeenAsync(id), Is.EqualTo(updated));
+        Assert.That(await lastSeenService.GetLastSeenAsync(domain), Is.EqualTo(updated));
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
+    public async Task ItShouldUpdateDatabaseOnDemand(DatabaseType databaseType, bool enableRedis)
+    {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, true, enableRedis);
+        var lastSeenService = (LastSeenService)services.Resolve<ILastSeenService>();
+        var registrations = services.Resolve<TableRegistrations>();
+
+        var identityId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var domain = "test.domain";
+        await registrations.InsertAsync(new RegistrationsRecord
+        {
+            identityId = identityId,
+            email = "frodo@baggins.com",
+            primaryDomainName = domain
+        });
+
+        await lastSeenService.PutLastSeenAsync(identityId, domain, UnixTimeUtc.Now());
+
+        var record = await registrations.GetLastSeenAsync(identityId);
+        Assert.That(record, Is.Null);
+
+        await lastSeenService.UpdateDatabaseAsync();
+        record = await registrations.GetLastSeenAsync(identityId);
+        Assert.That(record, Is.Not.Null);
     }
 }

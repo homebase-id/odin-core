@@ -246,7 +246,7 @@ public static class SystemServices
         builder.RegisterModule(new LoggingAutofacModule());
         builder.RegisterModule(new MultiTenantAutofacModule());
 
-        builder.AddSystemBackgroundServices();
+        builder.AddSystemBackgroundServices(config);
         builder.AddJobManagerServices();
 
         // Global database services

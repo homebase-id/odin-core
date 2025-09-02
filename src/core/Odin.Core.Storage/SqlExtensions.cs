@@ -1,6 +1,7 @@
 using Odin.Core.Storage.Factory;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -74,6 +75,19 @@ public static class CommandWrapperExtensions
             DatabaseType.Postgres => "GREATEST",
             _ => throw new NotSupportedException($"Database type {commandWrapper.DatabaseType} not supported")
         };
+    }
+
+    public static void AddParameter(
+        this ICommandWrapper commandWrapper,
+        string parameterName,
+        DbType dbType,
+        object? value)
+    {
+        var param = commandWrapper.CreateParameter();
+        param.ParameterName = parameterName;
+        param.DbType = dbType;
+        param.Value = value ?? DBNull.Value;
+        commandWrapper.Parameters.Add(param);
     }
 }
 

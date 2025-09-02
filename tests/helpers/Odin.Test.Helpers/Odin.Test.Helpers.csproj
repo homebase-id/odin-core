@@ -20,7 +20,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\..\src\core\Odin.Core.Storage\Odin.Core.Storage.csproj" />
       <ProjectReference Include="..\..\..\src\core\Odin.Core\Odin.Core.csproj" />
+      <ProjectReference Include="..\..\..\src\services\Odin.Services\Odin.Services.csproj" />
     </ItemGroup>
 
     <ItemGroup>
