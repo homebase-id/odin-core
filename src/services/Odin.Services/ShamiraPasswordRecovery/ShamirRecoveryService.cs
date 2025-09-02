@@ -216,6 +216,11 @@ public class ShamirRecoveryService
             throw new OdinSecurityException("invalid requester");
         }
 
+        if (shard == null)
+        {
+            throw new OdinClientException("Invalid shard id");
+        }
+
         if (shard.Player.Type == PlayerType.Automatic)
         {
             // return it now
@@ -338,7 +343,7 @@ public class ShamirRecoveryService
         return requests.ToList();
     }
 
-    public async Task ApproveShardRequest(Guid shardId, OdinId dealerId, IOdinContext odinContext)
+    public async Task ApproveShardRequest(Guid shardId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsOwner();
 
@@ -351,6 +356,11 @@ public class ShamirRecoveryService
         // var tx = await _db.BeginStackedTransactionAsync();
         var (shard, sender) = await _configurationService.GetShardStoredForDealer(shardId, odinContext);
 
+        if (null == shard)
+        {
+            throw new OdinClientException("Invalid shard id");
+        }
+        
         var client = await CreateClientAsyncWithToken(sender.GetValueOrDefault(), null, odinContext);
         await client.SendPlayerShard(new RetrieveShardResult
         {

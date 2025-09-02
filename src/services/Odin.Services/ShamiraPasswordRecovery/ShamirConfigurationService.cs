@@ -194,6 +194,11 @@ public class ShamirConfigurationService(
 
         var file = await fileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
 
+        if (file == null)
+        {
+            return (null, null);
+        }
+
         var shard = PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content);
         OdinId? sender = string.IsNullOrEmpty(file.FileMetadata.SenderOdinId) ? null : (OdinId)file.FileMetadata.SenderOdinId;
         return (shard, sender);

@@ -50,7 +50,7 @@ public class OwnerShamirConfigurationController(ShamirConfigurationService shami
     [HttpPost("approve-shard-request")]
     public async Task<IActionResult> ApproveShardRequest([FromBody] ApproveShardRequest request)
     {
-        await recoveryService.ApproveShardRequest(request.ShardId, request.OdinId, WebOdinContext);
+        await recoveryService.ApproveShardRequest(request.ShardId, WebOdinContext);
         return Ok();
     }
 
