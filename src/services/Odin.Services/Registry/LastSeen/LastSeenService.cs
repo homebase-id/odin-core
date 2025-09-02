@@ -18,7 +18,8 @@ public class LastSeenService(
     ISystemLevel2Cache<LastSeenService> cache,
     TableRegistrations registrations) : ILastSeenService
 {
-    private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan LastSeenEntryTtl = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan UpdateThreshold = TimeSpan.FromSeconds(10);
 
     // SEB:NOTE we need this local lists to batch updates to the database
     // since the cache can't provide us with the list. Stupid cache.
@@ -77,13 +78,23 @@ public class LastSeenService(
 
     public async Task PutLastSeenAsync(Guid identityId, string domain, UnixTimeUtc lastSeen)
     {
-        var lastSeenEntry = new LastSeenEntry(identityId, domain, lastSeen);
+        if (_lastSeenByIdentityId.TryGetValue(identityId, out var lastSeenEntry))
+        {
+            var diff = TimeSpan.FromMilliseconds(lastSeen.milliseconds - lastSeenEntry.LastSeen.milliseconds);
+            if (diff < UpdateThreshold)
+            {
+                // Don't thrash the cache with updates that are too close to each other
+                return;
+            }
+        }
+
+        lastSeenEntry = new LastSeenEntry(identityId, domain, lastSeen);
 
         _lastSeenByIdentityId[identityId] = lastSeenEntry;
 
         await Task.WhenAll(
-            cache.SetAsync(BuildCacheKey(identityId), lastSeenEntry, Ttl).AsTask(),
-            cache.SetAsync(BuildCacheKey(domain), lastSeenEntry, Ttl).AsTask());
+            cache.SetAsync(BuildCacheKey(identityId), lastSeenEntry, LastSeenEntryTtl).AsTask(),
+            cache.SetAsync(BuildCacheKey(domain), lastSeenEntry, LastSeenEntryTtl).AsTask());
     }
 
     //
@@ -93,7 +104,7 @@ public class LastSeenService(
         var result = await cache.GetOrSetAsync(
             BuildCacheKey(identityId),
             _ => registrations.GetLastSeenAsync(identityId),
-            Ttl);
+            LastSeenEntryTtl);
 
         if (result == null)
         {
@@ -111,7 +122,7 @@ public class LastSeenService(
         var result = await cache.GetOrSetAsync(
             BuildCacheKey(domain),
             _ => registrations.GetLastSeenAsync(domain),
-            Ttl);
+            LastSeenEntryTtl);
 
         if (result == null)
         {
