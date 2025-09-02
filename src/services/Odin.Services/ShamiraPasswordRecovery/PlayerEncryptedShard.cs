@@ -18,9 +18,10 @@ public class PlayerEncryptedShard
 
     public static string Serialize(PlayerEncryptedShard shard)
     {
-        return OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray().ToBase64();
+        var json = OdinSystemSerializer.Serialize(shard);
+        return json.ToUtf8ByteArray().ToBase64();
     }
-    
+
     public static PlayerEncryptedShard Deserialize(string content)
     {
         return OdinSystemSerializer.Deserialize<PlayerEncryptedShard>(content.FromBase64().ToStringFromUtf8Bytes());

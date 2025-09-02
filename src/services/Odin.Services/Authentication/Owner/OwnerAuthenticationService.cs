@@ -23,6 +23,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
+using Odin.Services.ShamiraPasswordRecovery;
 using Odin.Services.Util;
 
 // Goals here are that:
@@ -52,6 +53,7 @@ namespace Odin.Services.Authentication.Owner
 
         private readonly OdinConfiguration _configuration;
         private readonly TableKeyValueCached _tblKeyValue;
+        private readonly ShamirRecoveryService _shamirRecoveryService;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -72,6 +74,7 @@ namespace Odin.Services.Authentication.Owner
             IIdentityRegistry identityRegistry,
             OdinConfiguration configuration,
             TableKeyValueCached tblKeyValue,
+            ShamirRecoveryService shamirRecoveryService,
             OdinContextCache cache)
         {
             _logger = logger;
@@ -85,6 +88,7 @@ namespace Odin.Services.Authentication.Owner
 
             _configuration = configuration;
             _tblKeyValue = tblKeyValue;
+            _shamirRecoveryService = shamirRecoveryService;
 
             _cache = cache;
         }
@@ -142,6 +146,8 @@ namespace Odin.Services.Authentication.Owner
             //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
             await this.UpdateOdinContextAsync(token, clientContext, odinContext);
             await EnsureFirstRunOperationsAsync(odinContext);
+
+            await _shamirRecoveryService.ForceExitRecoveryMode(odinContext);
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Odin.Core;
-using Odin.Core.Serialization;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -111,7 +110,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
             {
                 FileType = ShardRequestFileType,
                 Content = ShardApprovalRequest.Serialize(shardApproval),
-                UniqueId = shardApproval.Id
+                UniqueId = Guid.NewGuid() //shardApproval.Id
             },
 
             IsEncrypted = false,

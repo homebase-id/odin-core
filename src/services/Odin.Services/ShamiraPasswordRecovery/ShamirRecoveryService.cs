@@ -197,6 +197,12 @@ public class ShamirRecoveryService
 
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
     }
+    
+    public async Task ForceExitRecoveryMode(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
+    }
 
     public async Task<RetrieveShardResult> HandleRetrieveShardRequest(RetrieveShardRequest request, IOdinContext odinContext)
     {

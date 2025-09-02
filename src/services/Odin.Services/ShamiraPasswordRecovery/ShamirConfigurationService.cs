@@ -7,7 +7,6 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Cache;
@@ -78,7 +77,7 @@ public class ShamirConfigurationService(
             throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
         }
 
-        await SaveDistributableKey(distributionKey, package, odinContext);
+        await SaveDistributableKey(distributionKey, odinContext);
 
         tx.Commit();
 
@@ -197,7 +196,7 @@ public class ShamirConfigurationService(
                 IsValid = false
             });
         }
-        
+
         var shard = PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content);
 
         return (dealer, shard, new ShardVerificationResult()
@@ -456,7 +455,7 @@ public class ShamirConfigurationService(
     /// <summary>
     /// Creates the key we will split and distribute to players
     /// </summary>
-    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, DealerShardPackage package, IOdinContext odinContext)
+    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
