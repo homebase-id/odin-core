@@ -90,7 +90,13 @@ public class ShamirRecoveryService
     {
         _logger.LogDebug("Initiating recovery mode");
 
-        var players = await _configurationService.GetPlayers(odinContext);
+        odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
+            SystemDriveConstants.ShardRecoveryDrive,
+            DrivePermission.Read,
+            odinContext);
+        
+        var pkg = await _configurationService.GetDealerShardPackage(odinContext);
+        var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {

@@ -161,14 +161,7 @@ public class ShamirConfigurationService(
             Updated = package.Updated
         };
     }
-
-    public async Task<List<ShamiraPlayer>> GetPlayers(IOdinContext odinContext)
-    {
-        var pkg = await this.GetDealerShardPackage(odinContext);
-        var players = pkg.Envelopes.Select(p => p.Player).ToList();
-        return players;
-    }
-
+    
     /// <summary>
     /// Gets the shard a player has stored for a dealer.  i.e. this is the info that will be returned
     /// when a dealer requests to reset their password
