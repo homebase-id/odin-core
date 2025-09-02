@@ -18,7 +18,7 @@ public class LastSeenService(
     ISystemLevel2Cache<LastSeenService> cache,
     TableRegistrations registrations) : ILastSeenService
 {
-    private readonly TimeSpan _ttl = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(30);
 
     // SEB:NOTE we need this local lists to batch updates to the database
     // since the cache can't provide us with the list. Stupid cache.
@@ -82,8 +82,8 @@ public class LastSeenService(
         _lastSeenByIdentityId[identityId] = lastSeenEntry;
 
         await Task.WhenAll(
-            cache.SetAsync(BuildCacheKey(identityId), lastSeenEntry, _ttl).AsTask(),
-            cache.SetAsync(BuildCacheKey(domain), lastSeenEntry, _ttl).AsTask());
+            cache.SetAsync(BuildCacheKey(identityId), lastSeenEntry, Ttl).AsTask(),
+            cache.SetAsync(BuildCacheKey(domain), lastSeenEntry, Ttl).AsTask());
     }
 
     //
@@ -93,7 +93,7 @@ public class LastSeenService(
         var result = await cache.GetOrSetAsync(
             BuildCacheKey(identityId),
             _ => registrations.GetLastSeenAsync(identityId),
-            _ttl);
+            Ttl);
 
         if (result == null)
         {
@@ -111,7 +111,7 @@ public class LastSeenService(
         var result = await cache.GetOrSetAsync(
             BuildCacheKey(domain),
             _ => registrations.GetLastSeenAsync(domain),
-            _ttl);
+            Ttl);
 
         if (result == null)
         {
