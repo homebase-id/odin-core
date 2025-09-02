@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 
 namespace Odin.Services.ShamiraPasswordRecovery;
 
@@ -7,6 +8,7 @@ namespace Odin.Services.ShamiraPasswordRecovery;
 /// to encrypt a player's shard. This is retained by the dealer
 /// and used when reconstructing the secret.
 /// </summary>
+[DebuggerDisplay("Player: {Player.OdinId} Type: {Player.Type}")]
 public class DealerShardEnvelope
 {
     public ShamiraPlayer Player { get; init; }

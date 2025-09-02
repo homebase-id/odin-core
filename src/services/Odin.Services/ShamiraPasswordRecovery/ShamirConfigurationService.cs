@@ -136,8 +136,15 @@ public class ShamirConfigurationService(
     /// </summary>
     public async Task<ShardVerificationResult> VerifyDealerShard(Guid shardId, IOdinContext odinContext)
     {
-        var (_, _, verifyDealerShard) = await GetShardStoredForDealer(shardId, odinContext);
-        return verifyDealerShard;
+        var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
+
+        var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
+
+        return new ShardVerificationResult()
+        {
+            IsValid = isValid,
+            Created = shard?.Created ?? 0
+        };
     }
 
     public async Task<DealerShardConfig> GetRedactedConfig(IOdinContext odinContext)
@@ -165,12 +172,11 @@ public class ShamirConfigurationService(
     /// Gets the shard a player has stored for a dealer.  i.e. this is the info that will be returned
     /// when a dealer requests to reset their password
     /// </summary>
-    public async Task<(OdinId dealer, PlayerEncryptedShard shard, ShardVerificationResult verificationResult)> GetShardStoredForDealer(
+    public async Task<(PlayerEncryptedShard shard, OdinId? sender)> GetShardStoredForDealer(
         Guid shardId,
         IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        var dealer = odinContext.Caller.OdinId.GetValueOrDefault();
 
         var options = new ResultOptions
         {
@@ -181,29 +187,16 @@ public class ShamirConfigurationService(
             IncludeTransferHistory = false
         };
 
-        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(SystemDriveConstants.ShardRecoveryDrive,
-            DrivePermission.Read, odinContext);
+        var byPassAclCheckContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
+            SystemDriveConstants.ShardRecoveryDrive,
+            DrivePermission.Read,
+            odinContext);
+
         var file = await fileSystem.Query.GetFileByClientUniqueId(driveId, shardId, options, byPassAclCheckContext);
 
-        var isValid = file != null &&
-                      !string.IsNullOrEmpty(file.FileMetadata.AppData.Content) &&
-                      file.FileMetadata.SenderOdinId == dealer;
-
-        if (!isValid)
-        {
-            return (dealer, null, new ShardVerificationResult()
-            {
-                IsValid = false
-            });
-        }
-
         var shard = PlayerEncryptedShard.Deserialize(file.FileMetadata.AppData.Content);
-
-        return (dealer, shard, new ShardVerificationResult()
-        {
-            Created = shard.Created,
-            IsValid = true
-        });
+        OdinId? sender = string.IsNullOrEmpty(file.FileMetadata.SenderOdinId) ? null : (OdinId)file.FileMetadata.SenderOdinId;
+        return (shard, sender);
     }
 
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)

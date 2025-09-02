@@ -21,7 +21,7 @@ namespace Odin.Services.ShamiraPasswordRecovery.ShardRequestApproval;
 /// </summary>
 public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMediator mediator)
 {
-    private const int ShardRequestFileType = 84099;
+    private const int CollectedShardRequestFileType = 84099;
 
     /// <summary>
     /// Saves the request for approval
@@ -32,13 +32,13 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     {
         var targetDrive = SystemDriveConstants.ShardRecoveryDrive;
         var driveId = targetDrive.Alias;
-        var uid = shardApproval.Id;
+        var shardId = shardApproval.ShardId;
 
         // we have to grant the dealer write access to the drive since they
         // are coming in authenticated (due to ssl cert) but there is no CAT 
-
         var contextUpgrade = OdinContextUpgrades.UpgradeToByPassAclCheck(targetDrive, DrivePermission.ReadWrite, odinContext);
-        var existingFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, contextUpgrade);
+
+        var existingFile = await fileSystem.Query.GetSingleFileByTag(driveId, tag: shardId, contextUpgrade);
         if (existingFile == null)
         {
             await WriteNewFile(shardApproval, contextUpgrade);
@@ -51,7 +51,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         await mediator.Publish(new ShamirPasswordRecoveryShardRequestedNotification
         {
             OdinContext = odinContext,
-            Sender = shardApproval.Player,
+            Sender = shardApproval.Dealer,
             AdditionalMessage = ""
         });
     }
@@ -63,9 +63,20 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         return files.Select(ToRequest).ToList();
     }
 
+    
+    public async Task<ShardApprovalRequest> GetRequest(Guid shardId, IOdinContext odinContext)
+    {
+        var fileByClientUniqueId = await fileSystem.Query.GetSingleFileByTag(
+            SystemDriveConstants.ShardRecoveryDrive.Alias,
+            shardId,
+            odinContext);
+
+        return ToRequest(fileByClientUniqueId);
+    }
+    
     public async Task DeleteRequest(Guid shardId, IOdinContext odinContext)
     {
-        var fileByClientUniqueId = await fileSystem.Query.GetFileByClientUniqueId(
+        var fileByClientUniqueId = await fileSystem.Query.GetSingleFileByTag(
             SystemDriveConstants.ShardRecoveryDrive.Alias,
             shardId,
             odinContext);
@@ -80,7 +91,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
 
         var qp = new FileQueryParams()
         {
-            FileType = [ShardRequestFileType]
+            FileType = [CollectedShardRequestFileType]
         };
 
         var options = new QueryBatchResultOptions
@@ -108,9 +119,9 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
             GlobalTransitId = Guid.NewGuid(),
             AppData = new AppFileMetaData()
             {
-                FileType = ShardRequestFileType,
+                FileType = CollectedShardRequestFileType,
                 Content = ShardApprovalRequest.Serialize(shardApproval),
-                UniqueId = Guid.NewGuid() //shardApproval.Id
+                Tags = [shardApproval.ShardId]
             },
 
             IsEncrypted = false,

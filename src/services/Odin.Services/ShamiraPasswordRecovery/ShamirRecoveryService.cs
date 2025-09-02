@@ -94,7 +94,7 @@ public class ShamirRecoveryService
             SystemDriveConstants.ShardRecoveryDrive,
             DrivePermission.Read,
             odinContext);
-        
+
         var pkg = await _configurationService.GetDealerShardPackage(odinContext);
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
@@ -197,21 +197,21 @@ public class ShamirRecoveryService
 
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
     }
-    
+
     public async Task ForceExitRecoveryMode(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
     }
 
-    public async Task<RetrieveShardResult> HandleRetrieveShardRequest(RetrieveShardRequest request, IOdinContext odinContext)
+    public async Task<RetrieveShardResult> HandleReleaseShardRequest(RetrieveShardRequest request, IOdinContext odinContext)
     {
         var requester = odinContext.Caller.OdinId.GetValueOrDefault();
 
         // look up the shard info
-        var (dealer, shard, _) = await _configurationService.GetShardStoredForDealer(request.ShardId, odinContext);
+        var (shard, sender) = await _configurationService.GetShardStoredForDealer(request.ShardId, odinContext);
 
-        if (dealer != requester)
+        if (sender != requester)
         {
             throw new OdinSecurityException("invalid requester");
         }
@@ -228,10 +228,10 @@ public class ShamirRecoveryService
 
         if (shard.Player.Type == PlayerType.Delegate)
         {
-            ShardApprovalRequest r = new ShardApprovalRequest
+            var r = new ShardApprovalRequest
             {
-                Id = shard.Id,
-                Player = shard.Player.OdinId,
+                ShardId = shard.Id,
+                Dealer = sender.GetValueOrDefault(),
                 Created = UnixTimeUtc.Now()
             };
 
@@ -275,7 +275,6 @@ public class ShamirRecoveryService
         await _playerShardCollector.SavePlayerShard(result.Shard, odinContext);
         var collectedShards = await _playerShardCollector.GetCollectShards(odinContext);
 
-        var player = odinContext.Caller.OdinId.GetValueOrDefault();
         var package = await _configurationService.GetDealerShardPackage(odinContext);
         if (collectedShards.Count >= package.MinMatchingShards)
         {
@@ -300,7 +299,7 @@ public class ShamirRecoveryService
             await _mediator.Publish(new ShamirPasswordRecoveryShardCollectedNotification
             {
                 OdinContext = odinContext,
-                Sender = player,
+                Sender = result.Shard.Player.OdinId,
                 AdditionalMessage = $"You need {remainingRequired} more shards to recover your identity."
             });
         }
@@ -343,10 +342,16 @@ public class ShamirRecoveryService
     {
         odinContext.Caller.AssertCallerIsOwner();
 
-        var tx = await _db.BeginStackedTransactionAsync();
-        var (dealer, shard, _) = await _configurationService.GetShardStoredForDealer(shardId, odinContext);
+        var request = await _approvalCollector.GetRequest(shardId, odinContext);
+        if (null == request)
+        {
+            throw new OdinClientException("Invalid shard id");
+        }
 
-        var client = await CreateClientAsyncWithToken(dealer, null, odinContext);
+        // var tx = await _db.BeginStackedTransactionAsync();
+        var (shard, sender) = await _configurationService.GetShardStoredForDealer(shardId, odinContext);
+
+        var client = await CreateClientAsyncWithToken(sender.GetValueOrDefault(), null, odinContext);
         await client.SendPlayerShard(new RetrieveShardResult
         {
             ResultType = RetrieveShardResultType.Complete,
@@ -354,7 +359,7 @@ public class ShamirRecoveryService
         });
 
         await _approvalCollector.DeleteRequest(shardId, odinContext);
-        tx.Commit();
+        // tx.Commit();
     }
 
     public async Task RejectShardRequest(Guid shardId, OdinId dealerId, IOdinContext odinContext)
@@ -371,7 +376,8 @@ public class ShamirRecoveryService
         var decryptedShards = new List<ShamirSecretSharing.ShamirShard>();
         foreach (var shard in collectedShards)
         {
-            var envelope = package.Envelopes.FirstOrDefault(e => e.Player.OdinId == shard.Player.OdinId);
+            var envelope = package.Envelopes.FirstOrDefault(e => e.Player.OdinId == shard.Player.OdinId
+                                                                 && e.ShardId == shard.Id);
             if (null == envelope?.EncryptionKey)
             {
                 _logger.LogWarning("Missing key for player: [{player}] for shardId: [{sid}]; continuing.",

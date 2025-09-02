@@ -117,6 +117,26 @@ namespace Odin.Services.Drives.FileSystem.Base
             return theSingleLonelyResult;
         }
 
+        public async Task<SharedSecretEncryptedFileHeader> GetSingleFileByTag(Guid driveId, Guid tag, IOdinContext odinContext)
+        {
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+
+            var qp = new FileQueryParams()
+            {
+                TagsMatchAll = [tag]
+            };
+
+            var options = new QueryBatchResultOptions()
+            {
+                MaxRecords = 1,
+                IncludeHeaderContent = true,
+                ExcludePreviewThumbnail = false
+            };
+
+            var results = await this.GetBatch(driveId, qp, options, odinContext);
+            return results.SearchResults.SingleOrDefault();
+        }
+
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
             IOdinContext odinContext,
             bool excludePreviewThumbnail = true)

@@ -28,7 +28,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
         [HttpPost("request-shard")]
         public async Task<RetrieveShardResult> RequestShard(RetrieveShardRequest request)
         {
-            var result = await recoveryService.HandleRetrieveShardRequest(request, WebOdinContext);
+            var result = await recoveryService.HandleReleaseShardRequest(request, WebOdinContext);
             return result;
         }
 

@@ -11,10 +11,10 @@ namespace Odin.Services.ShamiraPasswordRecovery.ShardRequestApproval;
 /// </summary>
 public class ShardApprovalRequest
 {
-    public Guid Id { get; init; }
-    public OdinId Player { get; init; }
+    public Guid ShardId { get; init; }
+    public OdinId Dealer { get; init; }
     public UnixTimeUtc Created { get; init; }
-    
+
     public static string Serialize(ShardApprovalRequest shard)
     {
         return OdinSystemSerializer.Serialize(shard).ToUtf8ByteArray().ToBase64();
