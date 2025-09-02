@@ -252,6 +252,30 @@ public class LastSeenServiceTests
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres, true)]
 #endif
+    public async Task SmallUpdatesDontOverwriteExistingValues(DatabaseType databaseType, bool enableRedis)
+    {
+        var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
+        var lastSeenService = services.Resolve<ILastSeenService>();
+
+        var id = Guid.NewGuid();
+        var domain = "test.domain";
+        var initial = UnixTimeUtc.Now().AddSeconds(-2);
+        var updated = UnixTimeUtc.Now().AddSeconds(-1);
+
+        await lastSeenService.PutLastSeenAsync(id, domain, initial);
+        await lastSeenService.PutLastSeenAsync(id, domain, updated);
+
+        Assert.That(await lastSeenService.GetLastSeenAsync(id), Is.EqualTo(initial));
+        Assert.That(await lastSeenService.GetLastSeenAsync(domain), Is.EqualTo(initial));
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite, false)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres, true)]
+#endif
     public async Task ItShouldUpdateDatabaseOnDemand(DatabaseType databaseType, bool enableRedis)
     {
         var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
