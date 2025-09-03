@@ -187,7 +187,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
 
             /*
-
             ENABLE WHEN WE CREATE A DIRECTORY AND NIBBLES ON DRIVE CREATION
 
             foreach (var drive in drives)
@@ -465,10 +464,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             foreach (var header in batch)
             {
-                var missing = await this.VerifyFilesAsync(storageDrive, header, cleanup);
+                var missing = await this.VerifyPayloadsAsync(storageDrive, header, cleanup);
                 if (missing != null)
                 {
-                    logger.LogDebug(missing);
+                    logger.LogError("PAYLOAD-INTEGRITY MISSING "+ missing);
                     missingCount++;
                 }
 
@@ -479,10 +478,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         }
 
         /// <summary>
-        /// Checks a file for payload integrity.
+        /// Checks a meta-file for payload (and thumbs ofc) integrity.
         /// </summary>
         /// <returns>null if file is complete, otherwise returns string of missing payloads / thumbnails</returns>
-        public async Task<string> VerifyFilesAsync(StorageDrive drive, DriveMainIndexRecord record, bool cleanup)
+        public async Task<string> VerifyPayloadsAsync(StorageDrive drive, DriveMainIndexRecord record, bool cleanup)
         {
             var file = new InternalDriveFileId(drive.Id, record.fileId);
             var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
@@ -642,7 +641,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                              hdrDatabaseBytes + diskPayloadPlusThumbBytes - 50, 
                              hdrDatabaseBytes + diskPayloadPlusThumbBytes + 50))
             {
-                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} FileByteCount {header.ServerMetadata.FileByteCount} out of range for expected {hdrDatabaseBytes + diskPayloadPlusThumbBytes} (±100) based on DB header {hdrDatabaseBytes} disk payload {diskPayloadBytes} thumb {diskThumbBytes}");
+                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} FileByteCount {header.ServerMetadata.FileByteCount} out of range for expected {hdrDatabaseBytes + diskPayloadPlusThumbBytes} (±50) based on DB header {hdrDatabaseBytes} disk payload {diskPayloadBytes} thumb {diskThumbBytes}");
 
                 if (cleanup)
                     header.ServerMetadata.FileByteCount = hdrDatabaseBytes + diskPayloadPlusThumbBytes;
