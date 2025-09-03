@@ -115,6 +115,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseVersionUpgrade();
 
         app.UseMiddleware<OdinContextMiddleware>();
+        app.UseMiddleware<LastSeenMiddleware>();
+
         app.UseCors();
         app.UseApiCors();
         app.UseMiddleware<SharedSecretEncryptionMiddleware>();

@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Autofac;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
@@ -14,9 +16,7 @@ namespace Odin.Services.Registry.LastSeen;
 
 #nullable enable
 
-public class LastSeenService(
-    ISystemLevel2Cache<LastSeenService> cache,
-    TableRegistrations registrations) : ILastSeenService
+public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetimeScope rootScope) : ILastSeenService
 {
     private static readonly TimeSpan LastSeenEntryTtl = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan UpdateThreshold = TimeSpan.FromSeconds(10);
@@ -46,6 +46,14 @@ public class LastSeenService(
 
     //
 
+    public Task LastSeenNowAsync(OdinIdentity odinIdentity)
+    {
+        return PutLastSeenAsync(odinIdentity, UnixTimeUtc.Now());
+    }
+
+
+    //
+
     public Task LastSeenNowAsync(Guid identityId, string domain)
     {
         return PutLastSeenAsync(identityId, domain, UnixTimeUtc.Now());
@@ -63,6 +71,13 @@ public class LastSeenService(
     public Task PutLastSeenAsync(TenantContext tenantContext, UnixTimeUtc lastSeen)
     {
         return PutLastSeenAsync(tenantContext.DotYouRegistryId, tenantContext.HostOdinId, lastSeen);
+    }
+
+    //
+
+    public Task PutLastSeenAsync(OdinIdentity odinIdentity, UnixTimeUtc lastSeen)
+    {
+        return PutLastSeenAsync(odinIdentity.IdentityId, odinIdentity.PrimaryDomain, lastSeen);
     }
 
     //
@@ -103,7 +118,12 @@ public class LastSeenService(
     {
         var result = await cache.GetOrSetAsync(
             BuildCacheKey(identityId),
-            _ => registrations.GetLastSeenAsync(identityId),
+            async _ =>
+            {
+                await using var scope = rootScope.BeginLifetimeScope();
+                var registrations = scope.Resolve<TableRegistrations>();
+                return await registrations.GetLastSeenAsync(identityId);
+            },
             LastSeenEntryTtl);
 
         if (result == null)
@@ -121,7 +141,12 @@ public class LastSeenService(
     {
         var result = await cache.GetOrSetAsync(
             BuildCacheKey(domain),
-            _ => registrations.GetLastSeenAsync(domain),
+            async _ =>
+            {
+                await using var scope = rootScope.BeginLifetimeScope();
+                var registrations = scope.Resolve<TableRegistrations>();
+                return await registrations.GetLastSeenAsync(domain);
+            },
             LastSeenEntryTtl);
 
         if (result == null)
@@ -141,6 +166,9 @@ public class LastSeenService(
         {
             return;
         }
+
+        await using var scope = rootScope.BeginLifetimeScope();
+        var registrations = scope.Resolve<TableRegistrations>();
 
         var toUpdate = _lastSeenByIdentityId.ToDictionary(kv => kv.Key, kv => kv.Value);
         _lastSeenByIdentityId.Clear();

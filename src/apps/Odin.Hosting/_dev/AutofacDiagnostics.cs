@@ -50,6 +50,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Http.DynamicHttpClientFactory), "f7ffd4c4"},
         {typeof(Odin.Core.Storage.Concurrency.RedisLock), "45a850b2"},
         {typeof(Odin.Core.Storage.Concurrency.NodeLock), "e6f1c919"},
+        {typeof(Odin.Services.Registry.LastSeen.LastSeenService), "c8318384"},
     };
 
     //

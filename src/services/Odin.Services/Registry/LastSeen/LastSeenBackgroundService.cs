@@ -15,17 +15,9 @@ public sealed class LastSeenBackgroundService(
     {
         var saveInterval = TimeSpan.FromMinutes(10);
 
-        try
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                await SleepAsync(saveInterval, stoppingToken);
-                await SaveAsync();
-            }
-        }
-        finally
-        {
-            // Make sure we save on shutdown
+            await SleepAsync(saveInterval, stoppingToken);
             await SaveAsync();
         }
     }
