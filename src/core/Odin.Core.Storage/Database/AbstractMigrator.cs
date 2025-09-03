@@ -83,6 +83,16 @@ public abstract class AbstractMigrator
             return;
         }
 
+        // Sanity
+        var latestVersion = groupedMigrations.Last().Key;
+        if (currentVersion > latestVersion)
+        {
+            throw new MigrationException(
+                $"Current database version {currentVersion} is higher than the latest known migration version " +
+                $"{latestVersion}. This likely indicates that the database was migrated with a newer version of " +
+                "the software. Please update the software to the latest version.");
+        }
+
         //
         // Adjust requested version
         //

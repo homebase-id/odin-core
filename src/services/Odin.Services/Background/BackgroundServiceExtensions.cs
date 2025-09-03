@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Odin.Services.Background.BackgroundServices;
 using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Background.BackgroundServices.Tenant;
+using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
@@ -15,7 +16,7 @@ namespace Odin.Services.Background;
 
 public static class BackgroundServiceExtensions
 {
-    public static void AddSystemBackgroundServices(this ContainerBuilder cb)
+    public static void AddSystemBackgroundServices(this ContainerBuilder cb, OdinConfiguration config)
     {
         // BackgroundServiceManager
         cb.RegisterType<BackgroundServiceManager>()
