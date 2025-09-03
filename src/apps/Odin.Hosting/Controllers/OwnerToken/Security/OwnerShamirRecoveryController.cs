@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 /// Security information for the current user
 /// </summary>
 [ApiController]
-[Route(OwnerApiPathConstants.ShamirRecoveryV1)]
+[Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 public class OwnerShamirRecoveryController : OdinControllerBase
 {
     private readonly ShamirRecoveryService _recoveryService;

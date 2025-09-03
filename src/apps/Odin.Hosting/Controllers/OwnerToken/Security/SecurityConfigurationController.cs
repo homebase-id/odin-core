@@ -9,9 +9,9 @@ using Odin.Services.ShamiraPasswordRecovery.ShardRequestApproval;
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
 [ApiController]
-[Route(OwnerApiPathConstants.ShamirRecoveryV1)]
+[Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class OwnerShamirConfigurationController(ShamirConfigurationService shamirConfigurationService, ShamirRecoveryService recoveryService)
+public class SecurityConfigurationController(ShamirConfigurationService shamirConfigurationService, ShamirRecoveryService recoveryService)
     : OdinControllerBase
 {
     [HttpGet("config")]

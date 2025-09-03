@@ -22,10 +22,10 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         [Post(OwnerApiPathConstants.SecurityV1 + "/resetpasswd")]
         Task<ApiResponse<HttpContent>> ResetPassword(ResetPasswordRequest request);
 
-        [Post(OwnerApiPathConstants.ShamirRecoveryV1 + "/configure-shards")]
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/configure-shards")]
         Task<ApiResponse<HttpContent>> ConfigureShards(ConfigureShardsRequest request);
 
-        [Post(OwnerApiPathConstants.ShamirRecoveryV1 + "/verify-remote-shards")]
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-remote-shards")]
         Task<ApiResponse<RemoteShardVerificationResult>> VerifyShards();
     }
 }
