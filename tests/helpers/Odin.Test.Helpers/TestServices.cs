@@ -103,7 +103,7 @@ public class TestServices : IDisposable
         builder.RegisterGeneric(typeof(TestConsoleLogger<>)).As(typeof(ILogger<>)).SingleInstance();
 
         builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
-        builder.RegisterType<LastSeenService>().As<ILastSeenService>().InstancePerLifetimeScope();
+        builder.RegisterType<LastSeenService>().As<ILastSeenService>().SingleInstance();
 
         builder.AddDatabaseCounterServices();
         switch (databaseType)
