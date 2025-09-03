@@ -13,6 +13,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Core.Storage.Database.Identity;
 using AngleSharp.Html;
+using Npgsql.Internal;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -76,7 +77,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             const string logPrefix = "INBOX-INTEGRITY";
             var validExtensions = new[] { ".metadata", ".transferkeyheader", ".payload", ".thumb" };
             var rootpath = _tenantPathManager.GetDriveInboxPath(driveId);
-            var files = GetFilesInDirectory(rootpath, "*", 0);
+            var files = GetFilesInDirectory(rootpath, "*");
             if (files == null)
                 return;
 
@@ -129,7 +130,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        private void SafeDeleteDirectory(string directory, Guid driveId, bool cleanup)
+        private void DirectorySafetyCheck(string directory, Guid driveId)
         {
             // Normalize path and count directories
             string normalizedPath = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);
@@ -145,9 +146,38 @@ namespace Odin.Services.Drives.DriveCore.Storage
             string expectedPathSegment = $"{Path.DirectorySeparatorChar}drives{Path.DirectorySeparatorChar}{driveName}";
             if (!normalizedPath.Contains(expectedPathSegment, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException($"Directory path '{normalizedPath}' does not contain expected segment '{expectedPathSegment}'");
+        }
+
+        private void SafeDeleteDirectory(string directory, Guid driveId, bool cleanup)
+        {
+            DirectorySafetyCheck(directory, driveId);
 
             if (cleanup)
                 Directory.Delete(directory, recursive: true);
+        }
+
+
+        private bool SafeDeleteEmptyDirectory(string directory, Guid driveId, bool cleanup)
+        {
+            DirectorySafetyCheck(directory, driveId);
+
+            // Check if the directory is completely empty (no files or subdirectories)
+            var directoryInfo = new DirectoryInfo(directory);
+
+            if (!directoryInfo.Exists)
+                throw new Exception("Directory doesn't exist");
+
+            if (directoryInfo.EnumerateFileSystemInfos().Any())
+                return false;
+
+            // Delete the empty directory
+            if (cleanup)
+            {
+                Directory.Delete(directory, recursive: false);
+                return true;
+            }
+
+            return false;
         }
 
 
@@ -239,12 +269,41 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 {
                     // Find kataloger der er for meget?
 
-                    var nibblepath = Path.Combine(first.ToString("x"), second.ToString("x"));
-                    var dirpath = Path.Combine(rootpath, nibblepath);
-                    var files = GetFilesInDirectory(dirpath, "*", 24);
+                    var twoNibbles = Path.Combine(first.ToString("x"), second.ToString("x"));
+                    var twoNibbleDirPath = Path.Combine(rootpath, twoNibbles);
 
-                    if (files == null)
+                    // If folder doesn't exist it'll be created dynamically when a file is placed in it
+                    if (!Directory.Exists(twoNibbleDirPath))
                         continue;
+
+                    // Get all files in the folder
+                    var files = GetFilesInDirectory(twoNibbleDirPath, "*");
+                    if (files == null)
+                        throw new Exception("Should not be possible we already checked if folder exists");
+
+                    if (files.Length < 1)
+                    {
+                        // This is an empty nibble folder from back when we created them all
+                        if (SafeDeleteEmptyDirectory(twoNibbleDirPath, driveId, cleanup) == false)
+                            throw new Exception("Unable to delete directory that was supposed to be empty");
+                        logger.LogError($"{logPrefix} DELETE - empty nibble level 2 directory {twoNibbleDirPath}");
+
+                        // Check if the parent nibble folder is now also empty
+                        var oneNibble = Path.Combine(first.ToString("x"));
+                        var oneNibbleDirPath = Path.Combine(rootpath, oneNibble);
+
+                        files = GetFilesInDirectory(oneNibbleDirPath, "*");
+                        if (files == null)
+                            throw new Exception("Should not be possible we already checked if folder exists");
+                        if (files.Length < 1)
+                        {
+                            if (SafeDeleteEmptyDirectory(oneNibbleDirPath, driveId, cleanup))
+                            {
+                                logger.LogError($"{logPrefix} DELETE - empty nibble level 1 directory {oneNibbleDirPath}");
+                            }
+                        }
+                        continue;
+                    }
 
                     foreach (var fileAndDirectory in files)
                     {
@@ -271,9 +330,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
                                 continue;
                         }
 
-                        if (TenantPathManager.GetPayloadDirectoryFromGuid(fileId) != nibblepath)
+                        if (TenantPathManager.GetPayloadDirectoryFromGuid(fileId) != twoNibbles)
                         {
-                            logger.LogDebug($"{logPrefix} DELETE - placed in incorrect nibble directory: {fileAndDirectory} in {dirpath}");
+                            logger.LogDebug($"{logPrefix} DELETE - placed in incorrect nibble directory: {fileAndDirectory} in {twoNibbleDirPath}");
                             if (cleanup)
                                 File.Delete(fileAndDirectory);
                             continue;
@@ -690,14 +749,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         /// <param name="dir"></param>
         /// <param name="searchPattern"></param>
-        /// <param name="minAgeHours"></param>
+        /// <param name="minAgeHours">If you set to e.g. 24 we'll ignore any files less than 24 hours old</param>
         /// <returns></returns>
-        private string[] GetFilesInDirectory(string dir, string searchPattern, int minAgeHours)
+        private string[] GetFilesInDirectory(string dir, string searchPattern, int minAgeHours = 0)
         {
             var directory = new DirectoryInfo(dir);
 
             if (directory.Exists == false)
-                return null; // Maybe create it...
+                return null;
 
             var files = directory.GetFiles(searchPattern)
                 .Where(f => f.CreationTimeUtc <= DateTime.UtcNow.AddHours(-minAgeHours))
