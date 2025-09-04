@@ -357,7 +357,7 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobHash = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
             item.lastError = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
             item.created = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
-            item.modified = (rdr[19] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[19]); // HACK
+            item.modified = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[19]);
             return item;
        }
 
@@ -426,7 +426,7 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobHash = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
             item.lastError = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
             item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[17]);
-            item.modified = (rdr[18] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[18]); // HACK
+            item.modified = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
             return item;
        }
 

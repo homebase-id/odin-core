@@ -260,7 +260,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[8]); // HACK
+            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -322,7 +322,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.modified = (rdr[6] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[6]); // HACK
+            item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
             return item;
        }
 
