@@ -274,7 +274,7 @@ public class TableDriveMainIndex(
         string sqlNowStr = touchCommand.SqlNow();
 
         touchCommand.CommandText =
-            $"UPDATE drivemainindex SET modified={touchCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING modified;";
+            $"UPDATE drivemainindex SET modified={touchCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileId RETURNING modified;";
 
         touchCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         touchCommand.AddParameter("@driveId", DbType.Binary, driveId);
