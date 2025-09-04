@@ -93,9 +93,45 @@ public static class CommandWrapperExtensions
     public static void AddParameter(
         this ICommandWrapper commandWrapper,
         string parameterName,
+        DbType dbType,
+        Guid? value)
+    {
+        if (dbType != DbType.Binary)
+        {
+            throw new ArgumentException("DbType must be Binary for Guid parameters", nameof(dbType));
+        }
+
+        var param = commandWrapper.CreateParameter();
+        param.ParameterName = parameterName;
+        param.DbType = dbType;
+        param.Value = value == null ? DBNull.Value : value.Value.ToByteArray();
+        commandWrapper.Parameters.Add(param);
+    }
+
+    public static void AddParameter(
+        this ICommandWrapper commandWrapper,
+        string parameterName,
+        DbType dbType,
         Guid value)
     {
-        commandWrapper.AddParameter(parameterName, (Guid?)value);
+        if (dbType != DbType.Binary)
+        {
+            throw new ArgumentException("DbType must be Binary for Guid parameters", nameof(dbType));
+        }
+
+        var param = commandWrapper.CreateParameter();
+        param.ParameterName = parameterName;
+        param.DbType = dbType;
+        param.Value = value.ToByteArray();
+        commandWrapper.Parameters.Add(param);
+    }
+
+    public static void AddParameter(
+        this ICommandWrapper commandWrapper,
+        string parameterName,
+        Guid value)
+    {
+        commandWrapper.AddParameter(parameterName, DbType.Binary, value);
     }
 
     public static void AddParameter(
@@ -103,11 +139,7 @@ public static class CommandWrapperExtensions
         string parameterName,
         Guid? value)
     {
-        var param = commandWrapper.CreateParameter();
-        param.ParameterName = parameterName;
-        param.DbType = DbType.Binary;
-        param.Value = value == null ? DBNull.Value : value.Value.ToByteArray();
-        commandWrapper.Parameters.Add(param);
+        commandWrapper.AddParameter(parameterName, DbType.Binary, value);
     }
 
 }
