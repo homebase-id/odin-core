@@ -285,8 +285,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     {
                         // This is an empty nibble folder from back when we created them all
                         if (SafeDeleteEmptyDirectory(twoNibbleDirPath, driveId, cleanup) == false)
-                            throw new Exception("Unable to delete directory that was supposed to be empty");
-                        logger.LogError($"{logPrefix} DELETE - empty nibble level 2 directory {twoNibbleDirPath}");
+                        {
+                            if (cleanup)
+                                throw new Exception("Unable to delete directory that was supposed to be empty");
+
+                            logger.LogError($"{logPrefix} DELETE - empty nibble level 2 directory {twoNibbleDirPath}");
+                        }
 
                         // Check if the parent nibble folder is now also empty
                         var oneNibble = Path.Combine(first.ToString("x"));
@@ -540,10 +544,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Checks a meta-file for payload (and thumbs ofc) integrity.
         /// </summary>
         /// <returns>null if file is complete, otherwise returns string of missing payloads / thumbnails</returns>
-        public async Task<string> VerifyPayloadsAsync(StorageDrive drive, DriveMainIndexRecord record, bool cleanup)
+        public async Task<string> VerifyPayloadsAsync(StorageDrive drive, DriveMainIndexRecord driveMainIndexRecord, bool cleanup)
         {
-            var file = new InternalDriveFileId(drive.Id, record.fileId);
-            var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(record);
+            var file = new InternalDriveFileId(drive.Id, driveMainIndexRecord.fileId);
+            var serverFileHeader = ServerFileHeader.FromDriveMainIndexRecord(driveMainIndexRecord);
 
             // CORRUPT HEADERS WITH THIS CODE
             // 
@@ -557,12 +561,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
             //    }
             //}
 
-            var sl = await CheckPayloadsIntegrity(drive, serverFileHeader, cleanup, record.identityId);
+            var sl = await CheckPayloadsIntegrity(drive, serverFileHeader, cleanup, driveMainIndexRecord.identityId);
 
             if (sl != null)
             {
-                var missingTime = SequentialGuid.ToUnixTimeUtc(record.fileId);
-                return $"{record.fileId.ToString()} dated {missingTime.ToDateTime():yyyy-MM-dd} following files are missing: {string.Join(",", sl)}";
+                var missingTime = SequentialGuid.ToUnixTimeUtc(driveMainIndexRecord.fileId);
+                return $"{driveMainIndexRecord.fileId.ToString()} dated {missingTime.ToDateTime():yyyy-MM-dd} following files are missing: {string.Join(",", sl)}";
             }
 
             return null;
@@ -595,8 +599,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             // If the payloads are remote, they will return zero in payloadBytes and thumbBytes
             // We need to get these values before we potentially modify the header values below
-            var (hdrDatabaseBytes, hdrPayloadBytes, hdrThumbBytes) = 
-                DriveStorageServiceBase.ServerHeaderByteCount(header);
+            var (hdrPayloadBytes, hdrThumbBytes) = DriveStorageServiceBase.PayloadByteCount(header);
 
             // If the payloads are local, we check the FileMetadata payloads[] array
             // and make sure the byteCount for each payload and thumbnail matches the 
@@ -626,6 +629,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     }
                     else
                     {
+                        logger.LogError($"{logPrefix} calculating payload file on disk missing.");
+
                         payload.BytesWritten = 0; // file is missing
                         if (cleanup)
                             driveRecordAdjustments = true;
@@ -661,6 +666,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                         }
                         else
                         {
+                            logger.LogError($"{logPrefix} calculating thumb file on disk missing.");
                             thumb.BytesWritten = 0; // thumb is missing
                             if (cleanup)
                                 driveRecordAdjustments = true;
@@ -680,55 +686,52 @@ namespace Odin.Services.Drives.DriveCore.Storage
             // The authorative size is the size of the header in the database hdrDatabaseBytes
             // plus the size of payloads and thumbs on disk, aka diskPayloadThumbBytes
 
+            var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive.TargetDriveInfo, identityId);
+            int headerBytes = DriveQuery.SizeOfDriveMainIndexRecord(driveMainIndexRecord);
+
             // If there is a mismatch between the disk and the header, 
             // we need to readjust the header
             if (hdrPayloadPlusThumbBytes != diskPayloadPlusThumbBytes)
             {
-                logger.LogError($"{logPrefix} BYTESIZE - size of payloads + thumbs DIFFERENT between DISK and HEADER {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} disk total {diskPayloadPlusThumbBytes} (payload {diskPayloadBytes} thumb {diskThumbBytes}) vs header total {hdrPayloadPlusThumbBytes} (payload {hdrPayloadBytes} thumb {hdrThumbBytes}) DB header {hdrDatabaseBytes}");
+                logger.LogError($"{logPrefix} BYTESIZE - size of payloads + thumbs DIFFERENT between DISK and HEADER {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} disk total {diskPayloadPlusThumbBytes} (payload {diskPayloadBytes} thumb {diskThumbBytes}) vs header total {hdrPayloadPlusThumbBytes} (payload {hdrPayloadBytes} thumb {hdrThumbBytes})");
                 databaseRowByteCountAdjustment = true;
-                if (cleanup)
-                    header.ServerMetadata.FileByteCount = hdrDatabaseBytes + diskPayloadPlusThumbBytes;
             }
-
-            if (databaseRowByteCountAdjustment)
-                (hdrDatabaseBytes, _, _) = DriveStorageServiceBase.ServerHeaderByteCount(header);
-
-            // So the size of the hdrDatabaseBytes can vary slightly due to a few attributes being
-            // set by the database (time, tagid, etc). So we check for a range. Maybe we should separate
-            // it out...
-            if (!IsInRange(header.ServerMetadata.FileByteCount, 
-                             hdrDatabaseBytes + diskPayloadPlusThumbBytes - 50, 
-                             hdrDatabaseBytes + diskPayloadPlusThumbBytes + 50))
+            else
             {
-                logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} FileByteCount {header.ServerMetadata.FileByteCount} out of range for expected {hdrDatabaseBytes + diskPayloadPlusThumbBytes} (±50) based on DB header {hdrDatabaseBytes} disk payload {diskPayloadBytes} thumb {diskThumbBytes}");
+                // So the size of the hdrDatabaseBytes can vary slightly due to a few attributes being
+                // set by the database (time, tagid, etc). So we check for a range. Maybe we should separate
+                // it out...
+                if (!IsInRange(driveMainIndexRecord.byteCount, headerBytes + diskPayloadPlusThumbBytes - 50, headerBytes + diskPayloadPlusThumbBytes + 50))
+                {
+                    logger.LogError($"{logPrefix} BYTESIZE - header cannot sum correctly {header.FileMetadata.File.DriveId} file {header.FileMetadata.File.FileId} FileByteCount {header.ServerMetadata.FileByteCount} out of range (+- 50) for expected {headerBytes + diskPayloadPlusThumbBytes} based on DB header {headerBytes} disk payload {diskPayloadBytes} thumb {diskThumbBytes}");
 
-                if (cleanup)
-                    header.ServerMetadata.FileByteCount = hdrDatabaseBytes + diskPayloadPlusThumbBytes;
-                databaseRowByteCountAdjustment = true;
+                    databaseRowByteCountAdjustment = true;
+                }
             }
+
 
             if (cleanup)
             {
                 if (driveRecordAdjustments)
                 {
-                    var r = header.ToDriveMainIndexRecord(drive.TargetDriveInfo, identityId);
+                    header.ServerMetadata.FileByteCount = headerBytes + diskPayloadPlusThumbBytes;
 
                     // We have to write the header r back to the DB
                     // This will also update the byteCount row, so we 
                     // don't need to call UpdateByteCountAsync() below
-                    await identityDatabase.DriveMainIndex.RawUpdateAsync(r);
-                    var sanityRecord = await identityDatabase.DriveMainIndex.GetAsync(r.driveId, r.fileId);
-                    var sanityHeader = ServerFileHeader.FromDriveMainIndexRecord(sanityRecord);
-                    var (sanityDatabaseBytes, _, _) = DriveStorageServiceBase.ServerHeaderByteCount(header);
-                    if (sanityDatabaseBytes != hdrDatabaseBytes)
+                    await identityDatabase.DriveMainIndex.RawUpdateAsync(driveMainIndexRecord);
+                    var sanityRecord = await identityDatabase.DriveMainIndex.GetAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    var sanityDatabaseBytes = DriveQuery.SizeOfDriveMainIndexRecord(sanityRecord);
+                    if (sanityDatabaseBytes != headerBytes)
                     {
                         logger.LogError($"{logPrefix} header sannity check failed - possible corruption DriveId={header.FileMetadata.File.DriveId} FileId={header.FileMetadata.File.FileId}");
                         throw new Exception("Noooo... stop! Corrupt record?");
                     }
-
                 }
                 else if (databaseRowByteCountAdjustment)
                 {
+                    header.ServerMetadata.FileByteCount = headerBytes + diskPayloadPlusThumbBytes;
+
                     // We just need to update the DB row byteCount
                     // The ServerFileHeader.FromDriveMainIndexRecord() DTO 
                     // will overwrite the ServerMetadata.FileByteCount with 
