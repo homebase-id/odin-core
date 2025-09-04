@@ -287,6 +287,18 @@ public class CommandLine
             return (true, 0);
         }
 
+        //
+        // Command line: Reset Modified
+        //
+        // examples:
+        //   dotnet run -- reset-feed
+        //
+        if (args.Length > 0 && args[0] == "reset-modified")
+        {
+            ResetModified.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
         return (false, 0);
     }
 }
