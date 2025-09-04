@@ -86,7 +86,7 @@ public class TableDriveMainIndex(
             "ON CONFLICT (identityId,driveId,fileId) DO UPDATE " +
             $"SET globalTransitId=COALESCE(driveMainIndex.globalTransitId, @globalTransitId),fileState = @fileState,requiredSecurityGroup = @requiredSecurityGroup,fileSystemType = @fileSystemType,userDate = @userDate,fileType = @fileType,dataType = @dataType,archivalStatus = @archivalStatus,historyStatus = @historyStatus,senderId = @senderId,groupId = @groupId,uniqueId = @uniqueId,byteCount = @byteCount,hdrEncryptedKeyHeader = @hdrEncryptedKeyHeader,hdrVersionTag = @newVersionTag,hdrAppData = @hdrAppData,hdrServerData = @hdrServerData,hdrFileMetaData = @hdrFileMetaData,hdrTmpDriveAlias = @hdrTmpDriveAlias,hdrTmpDriveType = @hdrTmpDriveType,modified = {upsertCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) " +
             "WHERE driveMainIndex.hdrVersionTag = @hdrVersionTag " +
-            "RETURNING created, driveMainIndex.modified, rowid;";
+            "RETURNING created,modified,rowId;";
 
         upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
         upsertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
@@ -151,25 +151,10 @@ public class TableDriveMainIndex(
         updateCommand.CommandText =
             $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}),hdrReactionSummary=@hdrReactionSummary WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId;";
 
-        var sparam1 = updateCommand.CreateParameter();
-        var sparam2 = updateCommand.CreateParameter();
-        var sparam3 = updateCommand.CreateParameter();
-        var sparam4 = updateCommand.CreateParameter();
-
-        sparam1.ParameterName = "@identityId";
-        sparam2.ParameterName = "@driveId";
-        sparam3.ParameterName = "@fileId";
-        sparam4.ParameterName = "@hdrReactionSummary";
-
-        updateCommand.Parameters.Add(sparam1);
-        updateCommand.Parameters.Add(sparam2);
-        updateCommand.Parameters.Add(sparam3);
-        updateCommand.Parameters.Add(sparam4);
-
-        sparam1.Value = odinIdentity.IdentityIdAsByteArray();
-        sparam2.Value = driveId.ToByteArray();
-        sparam3.Value = fileId.ToByteArray();
-        sparam4.Value = reactionSummary;
+        updateCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        updateCommand.AddParameter("@driveId", DbType.Binary, driveId);
+        updateCommand.AddParameter("@fileId", DbType.Binary, fileId);
+        updateCommand.AddParameter("@hdrReactionSummary", DbType.String, reactionSummary);
 
         return await updateCommand.ExecuteNonQueryAsync();
     }
@@ -184,25 +169,10 @@ public class TableDriveMainIndex(
         updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
                                     $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
 
-        var sparam1 = updateCommand.CreateParameter();
-        var sparam2 = updateCommand.CreateParameter();
-        var sparam3 = updateCommand.CreateParameter();
-        var sparam4 = updateCommand.CreateParameter();
-
-        sparam1.ParameterName = "@identityId";
-        sparam2.ParameterName = "@driveId";
-        sparam3.ParameterName = "@fileId";
-        sparam4.ParameterName = "@hdrTransferHistory";
-
-        updateCommand.Parameters.Add(sparam1);
-        updateCommand.Parameters.Add(sparam2);
-        updateCommand.Parameters.Add(sparam3);
-        updateCommand.Parameters.Add(sparam4);
-
-        sparam1.Value = odinIdentity.IdentityIdAsByteArray();
-        sparam2.Value = driveId.ToByteArray();
-        sparam3.Value = fileId.ToByteArray();
-        sparam4.Value = transferHistory;
+        updateCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        updateCommand.AddParameter("@driveId", DbType.Binary, driveId);
+        updateCommand.AddParameter("@fileId", DbType.Binary, fileId);
+        updateCommand.AddParameter("@hdrTransferHistory", DbType.String, transferHistory);
 
         using (var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -229,16 +199,8 @@ public class TableDriveMainIndex(
             WHERE identityId=@identityId AND driveid=@driveId;
             """;
 
-        var sparam1 = sizeCommand.CreateParameter();
-        sparam1.ParameterName = "@driveId";
-        sizeCommand.Parameters.Add(sparam1);
-
-        var sparam2 = sizeCommand.CreateParameter();
-        sparam2.ParameterName = "@identityId";
-        sizeCommand.Parameters.Add(sparam2);
-
-        sparam1.Value = driveId.ToByteArray();
-        sparam2.Value = odinIdentity.IdentityIdAsByteArray();
+        sizeCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        sizeCommand.AddParameter("@driveId", DbType.Binary, driveId);
 
         using (var rdr = await sizeCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
@@ -265,10 +227,7 @@ public class TableDriveMainIndex(
             WHERE identityId=@identityId;
             """;
 
-        var identityId = cmd.CreateParameter();
-        identityId.ParameterName = "@identityId";
-        identityId.Value = odinIdentity.IdentityIdAsByteArray();
-        cmd.Parameters.Add(identityId);
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
 
         var size = 0L;
         await using (var rdr = await cmd.ExecuteReaderAsync())
@@ -292,27 +251,12 @@ public class TableDriveMainIndex(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"UPDATE drivemainindex SET byteCount=@bcount WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid;";
+            $"UPDATE drivemainindex SET byteCount=@bcount WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileId;";
 
-        var tparam1 = cmd.CreateParameter();
-        var tparam2 = cmd.CreateParameter();
-        var tparam3 = cmd.CreateParameter();
-        var tparam4 = cmd.CreateParameter();
-
-        tparam1.ParameterName = "@fileid";
-        tparam2.ParameterName = "@driveId";
-        tparam3.ParameterName = "@identityId";
-        tparam4.ParameterName = "@bcount";
-
-        cmd.Parameters.Add(tparam1);
-        cmd.Parameters.Add(tparam2);
-        cmd.Parameters.Add(tparam3);
-        cmd.Parameters.Add(tparam4);
-
-        tparam1.Value = fileId.ToByteArray();
-        tparam2.Value = driveId.ToByteArray();
-        tparam3.Value = odinIdentity.IdentityIdAsByteArray();
-        tparam4.Value = byteCount;
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileId", DbType.Binary, fileId);
+        cmd.AddParameter("@bcount", DbType.Int64, byteCount);
 
         return await cmd.ExecuteNonQueryAsync();
     }
@@ -332,21 +276,9 @@ public class TableDriveMainIndex(
         touchCommand.CommandText =
             $"UPDATE drivemainindex SET modified={touchCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}) WHERE identityId = @identityId AND driveId = @driveId AND fileid = @fileid RETURNING modified;";
 
-        var tparam1 = touchCommand.CreateParameter();
-        var tparam3 = touchCommand.CreateParameter();
-        var tparam4 = touchCommand.CreateParameter();
-
-        tparam1.ParameterName = "@fileid";
-        tparam3.ParameterName = "@driveId";
-        tparam4.ParameterName = "@identityId";
-
-        touchCommand.Parameters.Add(tparam1);
-        touchCommand.Parameters.Add(tparam3);
-        touchCommand.Parameters.Add(tparam4);
-
-        tparam1.Value = fileId.ToByteArray();
-        tparam3.Value = driveId.ToByteArray();
-        tparam4.Value = odinIdentity.IdentityIdAsByteArray();
+        touchCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        touchCommand.AddParameter("@driveId", DbType.Binary, driveId);
+        touchCommand.AddParameter("@fileId", DbType.Binary, fileId);
 
         using (var rdr = await touchCommand.ExecuteReaderAsync(CommandBehavior.Default))
         {
