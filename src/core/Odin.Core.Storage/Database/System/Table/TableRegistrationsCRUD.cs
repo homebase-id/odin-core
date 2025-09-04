@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Database.System.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE Registrations IS '{ \"Version\": 202508281508 }';";
             }
             else
@@ -107,51 +107,15 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertCommand.CommandText = "INSERT INTO Registrations (identityId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified) " +
                                            $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@lastSeen,@json,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.String;
-                insertParam2.ParameterName = "@email";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.String;
-                insertParam3.ParameterName = "@primaryDomainName";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.String;
-                insertParam4.ParameterName = "@firstRunToken";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Boolean;
-                insertParam5.ParameterName = "@disabled";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Int64;
-                insertParam6.ParameterName = "@markedForDeletionDate";
-                insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.String;
-                insertParam7.ParameterName = "@planId";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.Int64;
-                insertParam8.ParameterName = "@lastSeen";
-                insertCommand.Parameters.Add(insertParam8);
-                var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.DbType = DbType.String;
-                insertParam9.ParameterName = "@json";
-                insertCommand.Parameters.Add(insertParam9);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.email ?? (object)DBNull.Value;
-                insertParam3.Value = item.primaryDomainName;
-                insertParam4.Value = item.firstRunToken ?? (object)DBNull.Value;
-                insertParam5.Value = item.disabled;
-                insertParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
-                insertParam7.Value = item.planId ?? (object)DBNull.Value;
-                insertParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                insertParam9.Value = item.json ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@email", DbType.String, item.email);
+                insertCommand.AddParameter("@primaryDomainName", DbType.String, item.primaryDomainName);
+                insertCommand.AddParameter("@firstRunToken", DbType.String, item.firstRunToken);
+                insertCommand.AddParameter("@disabled", DbType.Boolean, item.disabled);
+                insertCommand.AddParameter("@markedForDeletionDate", DbType.Int64, item.markedForDeletionDate?.milliseconds);
+                insertCommand.AddParameter("@planId", DbType.String, item.planId);
+                insertCommand.AddParameter("@lastSeen", DbType.Int64, item.lastSeen?.milliseconds);
+                insertCommand.AddParameter("@json", DbType.String, item.json);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -177,51 +141,15 @@ namespace Odin.Core.Storage.Database.System.Table
                                             $"VALUES (@identityId,@email,@primaryDomainName,@firstRunToken,@disabled,@markedForDeletionDate,@planId,@lastSeen,@json,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.String;
-                insertParam2.ParameterName = "@email";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.String;
-                insertParam3.ParameterName = "@primaryDomainName";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.String;
-                insertParam4.ParameterName = "@firstRunToken";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Boolean;
-                insertParam5.ParameterName = "@disabled";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Int64;
-                insertParam6.ParameterName = "@markedForDeletionDate";
-                insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.String;
-                insertParam7.ParameterName = "@planId";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.Int64;
-                insertParam8.ParameterName = "@lastSeen";
-                insertCommand.Parameters.Add(insertParam8);
-                var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.DbType = DbType.String;
-                insertParam9.ParameterName = "@json";
-                insertCommand.Parameters.Add(insertParam9);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.email ?? (object)DBNull.Value;
-                insertParam3.Value = item.primaryDomainName;
-                insertParam4.Value = item.firstRunToken ?? (object)DBNull.Value;
-                insertParam5.Value = item.disabled;
-                insertParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
-                insertParam7.Value = item.planId ?? (object)DBNull.Value;
-                insertParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                insertParam9.Value = item.json ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@email", DbType.String, item.email);
+                insertCommand.AddParameter("@primaryDomainName", DbType.String, item.primaryDomainName);
+                insertCommand.AddParameter("@firstRunToken", DbType.String, item.firstRunToken);
+                insertCommand.AddParameter("@disabled", DbType.Boolean, item.disabled);
+                insertCommand.AddParameter("@markedForDeletionDate", DbType.Int64, item.markedForDeletionDate?.milliseconds);
+                insertCommand.AddParameter("@planId", DbType.String, item.planId);
+                insertCommand.AddParameter("@lastSeen", DbType.Int64, item.lastSeen?.milliseconds);
+                insertCommand.AddParameter("@json", DbType.String, item.json);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -248,51 +176,15 @@ namespace Odin.Core.Storage.Database.System.Table
                                             "ON CONFLICT (identityId) DO UPDATE "+
                                             $"SET email = @email,primaryDomainName = @primaryDomainName,firstRunToken = @firstRunToken,disabled = @disabled,markedForDeletionDate = @markedForDeletionDate,planId = @planId,lastSeen = @lastSeen,json = @json,modified = {upsertCommand.SqlMax()}(Registrations.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.Binary;
-                upsertParam1.ParameterName = "@identityId";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.String;
-                upsertParam2.ParameterName = "@email";
-                upsertCommand.Parameters.Add(upsertParam2);
-                var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.DbType = DbType.String;
-                upsertParam3.ParameterName = "@primaryDomainName";
-                upsertCommand.Parameters.Add(upsertParam3);
-                var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.DbType = DbType.String;
-                upsertParam4.ParameterName = "@firstRunToken";
-                upsertCommand.Parameters.Add(upsertParam4);
-                var upsertParam5 = upsertCommand.CreateParameter();
-                upsertParam5.DbType = DbType.Boolean;
-                upsertParam5.ParameterName = "@disabled";
-                upsertCommand.Parameters.Add(upsertParam5);
-                var upsertParam6 = upsertCommand.CreateParameter();
-                upsertParam6.DbType = DbType.Int64;
-                upsertParam6.ParameterName = "@markedForDeletionDate";
-                upsertCommand.Parameters.Add(upsertParam6);
-                var upsertParam7 = upsertCommand.CreateParameter();
-                upsertParam7.DbType = DbType.String;
-                upsertParam7.ParameterName = "@planId";
-                upsertCommand.Parameters.Add(upsertParam7);
-                var upsertParam8 = upsertCommand.CreateParameter();
-                upsertParam8.DbType = DbType.Int64;
-                upsertParam8.ParameterName = "@lastSeen";
-                upsertCommand.Parameters.Add(upsertParam8);
-                var upsertParam9 = upsertCommand.CreateParameter();
-                upsertParam9.DbType = DbType.String;
-                upsertParam9.ParameterName = "@json";
-                upsertCommand.Parameters.Add(upsertParam9);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.email ?? (object)DBNull.Value;
-                upsertParam3.Value = item.primaryDomainName;
-                upsertParam4.Value = item.firstRunToken ?? (object)DBNull.Value;
-                upsertParam5.Value = item.disabled;
-                upsertParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
-                upsertParam7.Value = item.planId ?? (object)DBNull.Value;
-                upsertParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                upsertParam9.Value = item.json ?? (object)DBNull.Value;
+                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                upsertCommand.AddParameter("@email", DbType.String, item.email);
+                upsertCommand.AddParameter("@primaryDomainName", DbType.String, item.primaryDomainName);
+                upsertCommand.AddParameter("@firstRunToken", DbType.String, item.firstRunToken);
+                upsertCommand.AddParameter("@disabled", DbType.Boolean, item.disabled);
+                upsertCommand.AddParameter("@markedForDeletionDate", DbType.Int64, item.markedForDeletionDate?.milliseconds);
+                upsertCommand.AddParameter("@planId", DbType.String, item.planId);
+                upsertCommand.AddParameter("@lastSeen", DbType.Int64, item.lastSeen?.milliseconds);
+                upsertCommand.AddParameter("@json", DbType.String, item.json);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -318,51 +210,15 @@ namespace Odin.Core.Storage.Database.System.Table
                                             $"SET email = @email,primaryDomainName = @primaryDomainName,firstRunToken = @firstRunToken,disabled = @disabled,markedForDeletionDate = @markedForDeletionDate,planId = @planId,lastSeen = @lastSeen,json = @json,modified = {updateCommand.SqlMax()}(Registrations.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId) "+
                                             "RETURNING created,modified,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.Binary;
-                updateParam1.ParameterName = "@identityId";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.String;
-                updateParam2.ParameterName = "@email";
-                updateCommand.Parameters.Add(updateParam2);
-                var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.DbType = DbType.String;
-                updateParam3.ParameterName = "@primaryDomainName";
-                updateCommand.Parameters.Add(updateParam3);
-                var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.DbType = DbType.String;
-                updateParam4.ParameterName = "@firstRunToken";
-                updateCommand.Parameters.Add(updateParam4);
-                var updateParam5 = updateCommand.CreateParameter();
-                updateParam5.DbType = DbType.Boolean;
-                updateParam5.ParameterName = "@disabled";
-                updateCommand.Parameters.Add(updateParam5);
-                var updateParam6 = updateCommand.CreateParameter();
-                updateParam6.DbType = DbType.Int64;
-                updateParam6.ParameterName = "@markedForDeletionDate";
-                updateCommand.Parameters.Add(updateParam6);
-                var updateParam7 = updateCommand.CreateParameter();
-                updateParam7.DbType = DbType.String;
-                updateParam7.ParameterName = "@planId";
-                updateCommand.Parameters.Add(updateParam7);
-                var updateParam8 = updateCommand.CreateParameter();
-                updateParam8.DbType = DbType.Int64;
-                updateParam8.ParameterName = "@lastSeen";
-                updateCommand.Parameters.Add(updateParam8);
-                var updateParam9 = updateCommand.CreateParameter();
-                updateParam9.DbType = DbType.String;
-                updateParam9.ParameterName = "@json";
-                updateCommand.Parameters.Add(updateParam9);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.email ?? (object)DBNull.Value;
-                updateParam3.Value = item.primaryDomainName;
-                updateParam4.Value = item.firstRunToken ?? (object)DBNull.Value;
-                updateParam5.Value = item.disabled;
-                updateParam6.Value = item.markedForDeletionDate == null ? (object)DBNull.Value : item.markedForDeletionDate?.milliseconds;
-                updateParam7.Value = item.planId ?? (object)DBNull.Value;
-                updateParam8.Value = item.lastSeen == null ? (object)DBNull.Value : item.lastSeen?.milliseconds;
-                updateParam9.Value = item.json ?? (object)DBNull.Value;
+                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                updateCommand.AddParameter("@email", DbType.String, item.email);
+                updateCommand.AddParameter("@primaryDomainName", DbType.String, item.primaryDomainName);
+                updateCommand.AddParameter("@firstRunToken", DbType.String, item.firstRunToken);
+                updateCommand.AddParameter("@disabled", DbType.Boolean, item.disabled);
+                updateCommand.AddParameter("@markedForDeletionDate", DbType.Int64, item.markedForDeletionDate?.milliseconds);
+                updateCommand.AddParameter("@planId", DbType.String, item.planId);
+                updateCommand.AddParameter("@lastSeen", DbType.Int64, item.lastSeen?.milliseconds);
+                updateCommand.AddParameter("@json", DbType.String, item.json);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -441,12 +297,8 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 delete0Command.CommandText = "DELETE FROM Registrations " +
                                              "WHERE identityId = @identityId";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.Binary;
-                delete0Param1.ParameterName = "@identityId";
-                delete0Command.Parameters.Add(delete0Param1);
 
-                delete0Param1.Value = identityId.ToByteArray();
+                delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -460,12 +312,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 deleteCommand.CommandText = "DELETE FROM Registrations " +
                                              "WHERE identityId = @identityId " + 
                                              "RETURNING rowId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.Binary;
-                deleteParam1.ParameterName = "@identityId";
-                deleteCommand.Parameters.Add(deleteParam1);
 
-                deleteParam1.Value = identityId.ToByteArray();
+                deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -511,12 +359,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 get0Command.CommandText = "SELECT rowId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,lastSeen,json,created,modified FROM Registrations " +
                                              "WHERE identityId = @identityId LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
 
-                get0Param1.Value = identityId.ToByteArray();
+                get0Command.AddParameter("@identityId", DbType.Binary, identityId);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
