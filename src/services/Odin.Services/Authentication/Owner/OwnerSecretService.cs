@@ -148,16 +148,6 @@ namespace Odin.Services.Authentication.Owner
 
             return result;
         }
-
-        public async Task VerifyRecoveryKeyAsync(VerifyRecoveryKeyRequest request, IOdinContext odinContext)
-        {
-            var decryptedBytes = await publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
-            var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-
-            // this throws an odinsecurityexception if the key is invalid
-            var mk = await recoveryService.AssertValidKeyAsync(recoveryKey);
-            mk.Wipe();
-        }
         
         // Given the client's nonce and nonceHash, load the identities passwordKey info
         // and with that info we can validate if the client calculated the right hash.

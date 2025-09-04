@@ -11,13 +11,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class SecurityVerificationController(OwnerAuthenticationService authService, OwnerSecretService ss) : OdinControllerBase
+public class SecurityVerificationController(OwnerSecurityHealthService securityHealthService) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
     {
         WebOdinContext.Caller.AssertHasMasterKey();
-        await authService.VerifyPasswordAsync(package, WebOdinContext);
+        await securityHealthService.VerifyPasswordAsync(package, WebOdinContext);
         return Ok();
     }
 
@@ -27,7 +27,7 @@ public class SecurityVerificationController(OwnerAuthenticationService authServi
         try
         {
             WebOdinContext.Caller.AssertHasMasterKey();
-            await ss.VerifyRecoveryKeyAsync(reply, WebOdinContext);
+            await securityHealthService.VerifyRecoveryKeyAsync(reply, WebOdinContext);
         }
         catch (BIP39Exception e)
         {
@@ -35,5 +35,11 @@ public class SecurityVerificationController(OwnerAuthenticationService authServi
         }
 
         return new OkResult();
+    }
+
+    [HttpGet("verification-status")]
+    public async Task<VerificationStatus> GetStatus()
+    {
+        return await securityHealthService.GetVerificationStatusAsync(WebOdinContext);
     }
 }

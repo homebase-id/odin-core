@@ -45,6 +45,7 @@ namespace Odin.Services.Authentication.Owner
         private static readonly SingleKeyValueStorage NonceDataStorage =
             TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(NonceDataContextKey));
 
+        
         private const string ServerTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
 
         private static readonly SingleKeyValueStorage ServerTokenStorage =
@@ -117,6 +118,7 @@ namespace Odin.Services.Authentication.Owner
         public async Task VerifyPasswordAsync(PasswordReply reply, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
+            
             _ = await this.AssertValidPasswordAsync(reply);
         }
 
@@ -159,6 +161,7 @@ namespace Odin.Services.Authentication.Owner
             await this.UpdateOdinContextAsync(token, clientContext, odinContext);
             await EnsureFirstRunOperationsAsync(odinContext);
 
+            //if You've successfully logged in, you can't be recovery mode
             await _shamirRecoveryService.ForceExitRecoveryMode(odinContext);
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());

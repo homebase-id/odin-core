@@ -195,6 +195,8 @@ public static class TenantServices
             .As<INotificationHandler<DriveDefinitionAddedNotification>>()
             .InstancePerLifetimeScope();
 
+        cb.RegisterType<OwnerSecurityHealthService>().AsSelf().InstancePerLifetimeScope();
+
         cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
