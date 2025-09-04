@@ -55,7 +55,7 @@ public class CommandLine
         _logger = _serviceProviders.MultiTenantContainer.Resolve<ILogger<CommandLine>>();
         try
         {
-            return ParseAndExecute(args);
+            return ParseAndExecute(args.Where(x => x != "--verbose").ToArray());
         }
         finally
         {
