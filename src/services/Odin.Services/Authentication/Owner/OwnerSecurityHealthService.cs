@@ -76,6 +76,9 @@ public class OwnerSecurityHealthService(
             status.RecoveryKeyLastVerified = UnixTimeUtc.Now();
         }
 
+        //todo: update when we build this bit
+        status.DistributedRecoveryLastVerified = 0;
+
         await VerificationStatusStorage.UpsertAsync(keyValueTable, VerificationStorageId, status);
         return status;
     }
