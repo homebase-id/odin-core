@@ -59,7 +59,7 @@ namespace Odin.Core.Storage.Database.System.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE Settings IS '{ \"Version\": 0 }';";
             }
             else
@@ -87,16 +87,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertCommand.CommandText = "INSERT INTO Settings (key,value,created,modified) " +
                                            $"VALUES (@key,@value,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.String;
-                insertParam1.ParameterName = "@key";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.String;
-                insertParam2.ParameterName = "@value";
-                insertCommand.Parameters.Add(insertParam2);
-                insertParam1.Value = item.key;
-                insertParam2.Value = item.value;
+                insertCommand.AddParameter("@key", DbType.String, item.key);
+                insertCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -122,16 +114,8 @@ namespace Odin.Core.Storage.Database.System.Table
                                             $"VALUES (@key,@value,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.String;
-                insertParam1.ParameterName = "@key";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.String;
-                insertParam2.ParameterName = "@value";
-                insertCommand.Parameters.Add(insertParam2);
-                insertParam1.Value = item.key;
-                insertParam2.Value = item.value;
+                insertCommand.AddParameter("@key", DbType.String, item.key);
+                insertCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -158,16 +142,8 @@ namespace Odin.Core.Storage.Database.System.Table
                                             "ON CONFLICT (key) DO UPDATE "+
                                             $"SET value = @value,modified = {upsertCommand.SqlMax()}(Settings.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.String;
-                upsertParam1.ParameterName = "@key";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.String;
-                upsertParam2.ParameterName = "@value";
-                upsertCommand.Parameters.Add(upsertParam2);
-                upsertParam1.Value = item.key;
-                upsertParam2.Value = item.value;
+                upsertCommand.AddParameter("@key", DbType.String, item.key);
+                upsertCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -193,16 +169,8 @@ namespace Odin.Core.Storage.Database.System.Table
                                             $"SET value = @value,modified = {updateCommand.SqlMax()}(Settings.modified+1,{sqlNowStr}) "+
                                             "WHERE (key = @key) "+
                                             "RETURNING created,modified,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.String;
-                updateParam1.ParameterName = "@key";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.String;
-                updateParam2.ParameterName = "@value";
-                updateCommand.Parameters.Add(updateParam2);
-                updateParam1.Value = item.key;
-                updateParam2.Value = item.value;
+                updateCommand.AddParameter("@key", DbType.String, item.key);
+                updateCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -270,12 +238,8 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 delete0Command.CommandText = "DELETE FROM Settings " +
                                              "WHERE key = @key";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.String;
-                delete0Param1.ParameterName = "@key";
-                delete0Command.Parameters.Add(delete0Param1);
 
-                delete0Param1.Value = key;
+                delete0Command.AddParameter("@key", DbType.String, key);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -292,12 +256,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 deleteCommand.CommandText = "DELETE FROM Settings " +
                                              "WHERE key = @key " + 
                                              "RETURNING rowId,value,created,modified";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.String;
-                deleteParam1.ParameterName = "@key";
-                deleteCommand.Parameters.Add(deleteParam1);
 
-                deleteParam1.Value = key;
+                deleteCommand.AddParameter("@key", DbType.String, key);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -342,12 +302,8 @@ namespace Odin.Core.Storage.Database.System.Table
                 get0Command.CommandText = "SELECT rowId,value,created,modified FROM Settings " +
                                              "WHERE key = @key LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.String;
-                get0Param1.ParameterName = "@key";
-                get0Command.Parameters.Add(get0Param1);
 
-                get0Param1.Value = key;
+                get0Command.AddParameter("@key", DbType.String, key);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {

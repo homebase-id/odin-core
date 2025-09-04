@@ -89,6 +89,33 @@ public static class CommandWrapperExtensions
         param.Value = value ?? DBNull.Value;
         commandWrapper.Parameters.Add(param);
     }
+
+
+    public static void AddParameter(
+        this ICommandWrapper commandWrapper,
+        string parameterName,
+        DbType dbType,
+        Guid? value)
+    {
+        var param = commandWrapper.CreateParameter();
+        param.ParameterName = parameterName;
+        param.DbType = dbType;
+        param.Value = value == null ? DBNull.Value : value?.ToByteArray();
+        commandWrapper.Parameters.Add(param);
+    }
+
+    public static void AddParameter(
+        this ICommandWrapper commandWrapper,
+        string parameterName,
+        DbType dbType,
+        Guid value)
+    {
+        var param = commandWrapper.CreateParameter();
+        param.ParameterName = parameterName;
+        param.DbType = dbType;
+        param.Value = value.ToByteArray();
+        commandWrapper.Parameters.Add(param);
+    }
 }
 
 public static class SqlExtensions
