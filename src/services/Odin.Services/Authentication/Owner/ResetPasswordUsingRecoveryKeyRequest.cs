@@ -4,6 +4,11 @@ using Odin.Services.EncryptionKeyService;
 
 namespace Odin.Services.Authentication.Owner;
 
+public class VerifyRecoveryKeyRequest
+{
+    public EccEncryptedPayload EncryptedRecoveryKey { get; set; }
+}
+
 public class ResetPasswordUsingRecoveryKeyRequest
 {
     public EccEncryptedPayload EncryptedRecoveryKey { get; set; }

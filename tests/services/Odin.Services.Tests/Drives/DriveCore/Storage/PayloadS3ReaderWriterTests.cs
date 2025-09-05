@@ -109,7 +109,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
             new TenantPathManager(_config, tenantId),
             firstRunToken: null,
             isPreconfigured: true,
-            markedForDeletionDate: null
+            markedForDeletionDate: null,
+            email: ""
         );
         _tenantPathManager = _tenantContext.TenantPathManager;
 

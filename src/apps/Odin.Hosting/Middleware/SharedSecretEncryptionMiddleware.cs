@@ -51,8 +51,8 @@ namespace Odin.Hosting.Middleware
             _logger = logger;
 
 
-            _ignoredPathsForRequests = new List<string>
-            {
+            _ignoredPathsForRequests =
+            [
                 PeerApiPathConstants.BasePathV1, //TODO: temporarily allowing all perimeter traffic not use shared secret
                 $"{HomeApiPathConstants.AuthV1}/is-authenticated",
 
@@ -62,6 +62,9 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.DriveV1}/files/uploadpayload",
                 $"{OwnerApiPathConstants.PeerSenderV1}/files/send",
                 $"{OwnerApiPathConstants.DriveV1}/files/update",
+                $"{OwnerApiPathConstants.SecurityRecoveryV1}/verify-recovery-key",
+                $"{OwnerApiPathConstants.SecurityRecoveryV1}/verify-password",
+                $"{OwnerApiPathConstants.SecurityRecoveryV1}/verification-status", // <wtf!?
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
@@ -77,8 +80,8 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.AuthV1}/logout",
                 $"{AppApiPathConstants.NotificationsV1}/preauth",
                 $"{AppApiPathConstants.PeerNotificationsV1}/preauth",
-                $"{GuestApiPathConstants.PeerNotificationsV1}/preauth",
-            };
+                $"{GuestApiPathConstants.PeerNotificationsV1}/preauth"
+            ];
 
 
             //Paths that should not have their responses encrypted with shared secret

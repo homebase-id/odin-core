@@ -23,6 +23,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
+using Odin.Services.ShamiraPasswordRecovery;
 using Odin.Services.Util;
 
 // Goals here are that:
@@ -40,18 +41,26 @@ namespace Odin.Services.Authentication.Owner
     public class OwnerAuthenticationService : INotificationHandler<DriveDefinitionAddedNotification>
     {
         private const string NonceDataContextKey = "cc5430e7-cc05-49aa-bc8b-d8c1f261f5ee";
-        private static readonly SingleKeyValueStorage NonceDataStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(NonceDataContextKey));
 
+        private static readonly SingleKeyValueStorage NonceDataStorage =
+            TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(NonceDataContextKey));
+
+        
         private const string ServerTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
-        private static readonly SingleKeyValueStorage ServerTokenStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ServerTokenContextKey));
+
+        private static readonly SingleKeyValueStorage ServerTokenStorage =
+            TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ServerTokenContextKey));
 
         private const string FirstRunContextKey = "c05d8c71-e75f-4998-ad74-7e94d8752b56";
-        private static readonly SingleKeyValueStorage FirstRunInfoStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(FirstRunContextKey));
+
+        private static readonly SingleKeyValueStorage FirstRunInfoStorage =
+            TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(FirstRunContextKey));
 
         private readonly OwnerSecretService _secretService;
 
         private readonly OdinConfiguration _configuration;
         private readonly TableKeyValueCached _tblKeyValue;
+        private readonly ShamirRecoveryService _shamirRecoveryService;
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
@@ -72,6 +81,7 @@ namespace Odin.Services.Authentication.Owner
             IIdentityRegistry identityRegistry,
             OdinConfiguration configuration,
             TableKeyValueCached tblKeyValue,
+            ShamirRecoveryService shamirRecoveryService,
             OdinContextCache cache)
         {
             _logger = logger;
@@ -85,6 +95,7 @@ namespace Odin.Services.Authentication.Owner
 
             _configuration = configuration;
             _tblKeyValue = tblKeyValue;
+            _shamirRecoveryService = shamirRecoveryService;
 
             _cache = cache;
         }
@@ -102,6 +113,13 @@ namespace Odin.Services.Authentication.Owner
             await NonceDataStorage.UpsertAsync(_tblKeyValue, nonce.Id, nonce);
 
             return nonce;
+        }
+
+        public async Task VerifyPasswordAsync(PasswordReply reply, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+            
+            _ = await this.AssertValidPasswordAsync(reply);
         }
 
         /// <summary>
@@ -143,10 +161,13 @@ namespace Odin.Services.Authentication.Owner
             await this.UpdateOdinContextAsync(token, clientContext, odinContext);
             await EnsureFirstRunOperationsAsync(odinContext);
 
+            //if You've successfully logged in, you can't be recovery mode
+            await _shamirRecoveryService.ForceExitRecoveryMode(odinContext);
+
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 
-        private async Task<NonceData> AssertValidPasswordAsync(PasswordReply reply)
+        public async Task<NonceData> AssertValidPasswordAsync(PasswordReply reply)
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
 
@@ -300,10 +321,9 @@ namespace Odin.Services.Authentication.Owner
         private bool IsAuthTokenEntryValid(OwnerConsoleToken entry)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var valid =
-                null != entry &&
-                entry.Id != Guid.Empty &&
-                entry.ExpiryUnixTime > now;
+            var valid = null != entry &&
+                        entry.Id != Guid.Empty &&
+                        entry.ExpiryUnixTime > now;
 
             return valid;
         }

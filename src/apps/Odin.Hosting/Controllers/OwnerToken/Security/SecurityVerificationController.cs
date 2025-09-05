@@ -1,0 +1,45 @@
+using System.Threading.Tasks;
+using Bitcoin.BIP39;
+using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Cryptography.Login;
+using Odin.Core.Exceptions;
+using Odin.Hosting.Controllers.Base;
+using Odin.Services.Authentication.Owner;
+
+namespace Odin.Hosting.Controllers.OwnerToken.Security;
+
+[ApiController]
+[Route(OwnerApiPathConstants.SecurityRecoveryV1)]
+[AuthorizeValidOwnerToken]
+public class SecurityVerificationController(OwnerSecurityHealthService securityHealthService) : OdinControllerBase
+{
+    [HttpPost("verify-password")]
+    public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
+    {
+        WebOdinContext.Caller.AssertHasMasterKey();
+        await securityHealthService.VerifyPasswordAsync(package, WebOdinContext);
+        return Ok();
+    }
+
+    [HttpPost("verify-recovery-key")]
+    public async Task<IActionResult> VerifyRecoveryKey([FromBody] VerifyRecoveryKeyRequest reply)
+    {
+        try
+        {
+            WebOdinContext.Caller.AssertHasMasterKey();
+            await securityHealthService.VerifyRecoveryKeyAsync(reply, WebOdinContext);
+        }
+        catch (BIP39Exception e)
+        {
+            throw new OdinSecurityException("BIP39 failed", e);
+        }
+
+        return new OkResult();
+    }
+
+    [HttpGet("verification-status")]
+    public async Task<VerificationStatus> GetStatus()
+    {
+        return await securityHealthService.GetVerificationStatusAsync(WebOdinContext);
+    }
+}

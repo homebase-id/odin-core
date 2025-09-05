@@ -58,17 +58,17 @@ public class SingleKeyValueStorage
         await tblKeyValue.UpsertManyAsync(keyValueRecords);
     }
 
-    public async Task UpsertAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
+    public async Task<int> UpsertAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
     {
         var json = OdinSystemSerializer.Serialize(value);
-        await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+        return await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
     }
 
     public async Task DeleteAsync(TableKeyValueCached tblKeyValue, Guid key)
     {
         await tblKeyValue.DeleteAsync(MakeStorageKey(key));
     }
-    
+
     private byte[] MakeStorageKey(Guid key)
     {
         return ByteArrayUtil.Combine(key.ToByteArray(), _contextKey.ToByteArray());

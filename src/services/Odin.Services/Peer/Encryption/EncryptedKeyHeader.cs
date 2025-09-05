@@ -19,6 +19,12 @@ namespace Odin.Services.Peer.Encryption
         /// </summary>
         public byte[] EncryptedAesKey { get; set; }
 
+        /// <summary>
+        /// Decrypts this Encrypted Key header
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        /// <exception cref="OdinSecurityException"></exception>
         public KeyHeader DecryptAesToKeyHeader(ref SensitiveByteArray key)
         {
             if (this.EncryptionVersion == 1)
