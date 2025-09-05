@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -13,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -25,6 +19,13 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Util;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -1226,31 +1227,28 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
-        /// Sums the number of bytes spent, according to the header, 
+        /// Sums the number of bytes spent
         /// for each payload, for each payload's thumbs,
-        /// and the number of bytes for the json of the header.
-        /// If payloads are remote only the header size is returned.
-        /// Note the json header size can vary slightly in the DB from here
-        /// due to the DB controlling the value of fields like TAGs and created / modified
+        /// If payloads are remote the result is zero.
         /// </summary>
-        /// <returns>Number of bytes by header JSON plus all payloads and thumbs (zero if they are remote)</returns>
-        public static (long databaseBytes, long payloadBytes, long thumbBytes) ServerHeaderByteCount(ServerFileHeader header)
+        /// <returns>Number of bytes used by payloads and thumbs (zero if remote)</returns>
+        public static (long payloadBytes, long thumbBytes) PayloadByteCount(ServerFileHeader header)
         {
-            var json = OdinSystemSerializer.Serialize(header);
-            var jsonBytes = Encoding.UTF8.GetBytes(json);
-
             long payloadDiskUsage = 0;
             long thumbnailDiskUsage = 0;
+
             if (!header.FileMetadata.PayloadsAreRemote)
             {
                 payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
+
                 thumbnailDiskUsage = header.FileMetadata.Payloads?
                    .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
                    .Sum(pp => pp.BytesWritten) ?? 0;
             }
 
-            return (jsonBytes.Length, payloadDiskUsage, thumbnailDiskUsage);
+            return (payloadDiskUsage, thumbnailDiskUsage);
         }
+
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
@@ -1260,11 +1258,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             // other operations will have occured, so these checks also exist in the upload validation
 
             header.Validate(odinContext);
-
-            var (databaseBytes, payloadBytes, thumbBytes) = ServerHeaderByteCount(header);
-
-            // The .FileByteCount will also end up in the Table column "bytes" for quick summing.
-            header.ServerMetadata.FileByteCount = databaseBytes + payloadBytes + thumbBytes;
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
 

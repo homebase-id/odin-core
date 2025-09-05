@@ -56,7 +56,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE AttestationStatus IS '{ \"Version\": 0 }';";
             }
             else
@@ -84,16 +84,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 insertCommand.CommandText = "INSERT INTO AttestationStatus (attestationId,status,created,modified) " +
                                            $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@attestationId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Int32;
-                insertParam2.ParameterName = "@status";
-                insertCommand.Parameters.Add(insertParam2);
-                insertParam1.Value = item.attestationId;
-                insertParam2.Value = item.status;
+                insertCommand.AddParameter("@attestationId", DbType.Binary, item.attestationId);
+                insertCommand.AddParameter("@status", DbType.Int32, item.status);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -119,16 +111,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                                             $"VALUES (@attestationId,@status,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@attestationId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Int32;
-                insertParam2.ParameterName = "@status";
-                insertCommand.Parameters.Add(insertParam2);
-                insertParam1.Value = item.attestationId;
-                insertParam2.Value = item.status;
+                insertCommand.AddParameter("@attestationId", DbType.Binary, item.attestationId);
+                insertCommand.AddParameter("@status", DbType.Int32, item.status);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -155,16 +139,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                                             "ON CONFLICT (attestationId) DO UPDATE "+
                                             $"SET status = @status,modified = {upsertCommand.SqlMax()}(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.Binary;
-                upsertParam1.ParameterName = "@attestationId";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.Int32;
-                upsertParam2.ParameterName = "@status";
-                upsertCommand.Parameters.Add(upsertParam2);
-                upsertParam1.Value = item.attestationId;
-                upsertParam2.Value = item.status;
+                upsertCommand.AddParameter("@attestationId", DbType.Binary, item.attestationId);
+                upsertCommand.AddParameter("@status", DbType.Int32, item.status);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -190,16 +166,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                                             $"SET status = @status,modified = {updateCommand.SqlMax()}(AttestationStatus.modified+1,{sqlNowStr}) "+
                                             "WHERE (attestationId = @attestationId) "+
                                             "RETURNING created,modified,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.Binary;
-                updateParam1.ParameterName = "@attestationId";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.Int32;
-                updateParam2.ParameterName = "@status";
-                updateCommand.Parameters.Add(updateParam2);
-                updateParam1.Value = item.attestationId;
-                updateParam2.Value = item.status;
+                updateCommand.AddParameter("@attestationId", DbType.Binary, item.attestationId);
+                updateCommand.AddParameter("@status", DbType.Int32, item.status);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -255,7 +223,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 throw new Exception("Too little data in attestationId...");
             item.status = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.created = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.modified = (rdr[4] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[4]); // HACK
+            item.modified = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             return item;
        }
 
@@ -269,12 +237,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             {
                 delete0Command.CommandText = "DELETE FROM AttestationStatus " +
                                              "WHERE attestationId = @attestationId";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.Binary;
-                delete0Param1.ParameterName = "@attestationId";
-                delete0Command.Parameters.Add(delete0Param1);
 
-                delete0Param1.Value = attestationId;
+                delete0Command.AddParameter("@attestationId", DbType.Binary, attestationId);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -291,12 +255,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 deleteCommand.CommandText = "DELETE FROM AttestationStatus " +
                                              "WHERE attestationId = @attestationId " + 
                                              "RETURNING rowId,status,created,modified";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.Binary;
-                deleteParam1.ParameterName = "@attestationId";
-                deleteCommand.Parameters.Add(deleteParam1);
 
-                deleteParam1.Value = attestationId;
+                deleteCommand.AddParameter("@attestationId", DbType.Binary, attestationId);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -326,7 +286,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.status = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
             item.created = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.modified = (rdr[3] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[3]); // HACK
+            item.modified = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             return item;
        }
 
@@ -341,12 +301,8 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                 get0Command.CommandText = "SELECT rowId,status,created,modified FROM AttestationStatus " +
                                              "WHERE attestationId = @attestationId LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@attestationId";
-                get0Command.Parameters.Add(get0Param1);
 
-                get0Param1.Value = attestationId;
+                get0Command.AddParameter("@attestationId", DbType.Binary, attestationId);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {

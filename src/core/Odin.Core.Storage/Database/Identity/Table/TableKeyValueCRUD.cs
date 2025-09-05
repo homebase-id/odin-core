@@ -61,7 +61,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE KeyValue IS '{ \"Version\": 0 }';";
             }
             else
@@ -88,21 +88,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO KeyValue (identityId,key,data) " +
                                            $"VALUES (@identityId,@key,@data)"+
                                             "RETURNING -1,-1,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@key";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@data";
-                insertCommand.Parameters.Add(insertParam3);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.key;
-                insertParam3.Value = item.data ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@key", DbType.Binary, item.key);
+                insertCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -123,21 +111,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@key,@data) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@key";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@data";
-                insertCommand.Parameters.Add(insertParam3);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.key;
-                insertParam3.Value = item.data ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@key", DbType.Binary, item.key);
+                insertCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -159,21 +135,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT (identityId,key) DO UPDATE "+
                                             $"SET data = @data "+
                                             "RETURNING -1,-1,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.Binary;
-                upsertParam1.ParameterName = "@identityId";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.Binary;
-                upsertParam2.ParameterName = "@key";
-                upsertCommand.Parameters.Add(upsertParam2);
-                var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.DbType = DbType.Binary;
-                upsertParam3.ParameterName = "@data";
-                upsertCommand.Parameters.Add(upsertParam3);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.key;
-                upsertParam3.Value = item.data ?? (object)DBNull.Value;
+                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                upsertCommand.AddParameter("@key", DbType.Binary, item.key);
+                upsertCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -194,21 +158,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET data = @data "+
                                             "WHERE (identityId = @identityId AND key = @key) "+
                                             "RETURNING -1,-1,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.Binary;
-                updateParam1.ParameterName = "@identityId";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.Binary;
-                updateParam2.ParameterName = "@key";
-                updateCommand.Parameters.Add(updateParam2);
-                var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.DbType = DbType.Binary;
-                updateParam3.ParameterName = "@data";
-                updateCommand.Parameters.Add(updateParam3);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.key;
-                updateParam3.Value = item.data ?? (object)DBNull.Value;
+                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                updateCommand.AddParameter("@key", DbType.Binary, item.key);
+                updateCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -274,17 +226,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 delete0Command.CommandText = "DELETE FROM KeyValue " +
                                              "WHERE identityId = @identityId AND key = @key";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.Binary;
-                delete0Param1.ParameterName = "@identityId";
-                delete0Command.Parameters.Add(delete0Param1);
-                var delete0Param2 = delete0Command.CreateParameter();
-                delete0Param2.DbType = DbType.Binary;
-                delete0Param2.ParameterName = "@key";
-                delete0Command.Parameters.Add(delete0Param2);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = key;
+                delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete0Command.AddParameter("@key", DbType.Binary, key);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -301,17 +245,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 deleteCommand.CommandText = "DELETE FROM KeyValue " +
                                              "WHERE identityId = @identityId AND key = @key " + 
                                              "RETURNING rowId,data";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.Binary;
-                deleteParam1.ParameterName = "@identityId";
-                deleteCommand.Parameters.Add(deleteParam1);
-                var deleteParam2 = deleteCommand.CreateParameter();
-                deleteParam2.DbType = DbType.Binary;
-                deleteParam2.ParameterName = "@key";
-                deleteCommand.Parameters.Add(deleteParam2);
 
-                deleteParam1.Value = identityId.ToByteArray();
-                deleteParam2.Value = key;
+                deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                deleteCommand.AddParameter("@key", DbType.Binary, key);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -357,17 +293,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Command.CommandText = "SELECT rowId,data FROM KeyValue " +
                                              "WHERE identityId = @identityId AND key = @key LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.Binary;
-                get0Param2.ParameterName = "@key";
-                get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = key;
+                get0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get0Command.AddParameter("@key", DbType.Binary, key);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -396,17 +324,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging0Command.CommandText = "SELECT rowId,identityId,key,data FROM KeyValue " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
-                var getPaging0Param1 = getPaging0Command.CreateParameter();
-                getPaging0Param1.DbType = DbType.Int64;
-                getPaging0Param1.ParameterName = "@rowId";
-                getPaging0Command.Parameters.Add(getPaging0Param1);
-                var getPaging0Param2 = getPaging0Command.CreateParameter();
-                getPaging0Param2.DbType = DbType.Int64;
-                getPaging0Param2.ParameterName = "@count";
-                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                getPaging0Param1.Value = inCursor;
-                getPaging0Param2.Value = count+1;
+                getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
+                getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
 
                 {
                     await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))

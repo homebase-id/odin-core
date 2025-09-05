@@ -63,7 +63,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE Connections IS '{ \"Version\": 0 }';";
             }
             else
@@ -97,36 +97,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
                                            $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.String;
-                insertParam2.ParameterName = "@identity";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.String;
-                insertParam3.ParameterName = "@displayName";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Int32;
-                insertParam4.ParameterName = "@status";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Int32;
-                insertParam5.ParameterName = "@accessIsRevoked";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Binary;
-                insertParam6.ParameterName = "@data";
-                insertCommand.Parameters.Add(insertParam6);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.identity.DomainName;
-                insertParam3.Value = item.displayName;
-                insertParam4.Value = item.status;
-                insertParam5.Value = item.accessIsRevoked;
-                insertParam6.Value = item.data ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
+                insertCommand.AddParameter("@displayName", DbType.String, item.displayName);
+                insertCommand.AddParameter("@status", DbType.Int32, item.status);
+                insertCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
+                insertCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -152,36 +128,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.String;
-                insertParam2.ParameterName = "@identity";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.String;
-                insertParam3.ParameterName = "@displayName";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Int32;
-                insertParam4.ParameterName = "@status";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Int32;
-                insertParam5.ParameterName = "@accessIsRevoked";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Binary;
-                insertParam6.ParameterName = "@data";
-                insertCommand.Parameters.Add(insertParam6);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.identity.DomainName;
-                insertParam3.Value = item.displayName;
-                insertParam4.Value = item.status;
-                insertParam5.Value = item.accessIsRevoked;
-                insertParam6.Value = item.data ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
+                insertCommand.AddParameter("@displayName", DbType.String, item.displayName);
+                insertCommand.AddParameter("@status", DbType.Int32, item.status);
+                insertCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
+                insertCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -208,36 +160,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT (identityId,identity) DO UPDATE "+
                                             $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = {upsertCommand.SqlMax()}(Connections.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.Binary;
-                upsertParam1.ParameterName = "@identityId";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.String;
-                upsertParam2.ParameterName = "@identity";
-                upsertCommand.Parameters.Add(upsertParam2);
-                var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.DbType = DbType.String;
-                upsertParam3.ParameterName = "@displayName";
-                upsertCommand.Parameters.Add(upsertParam3);
-                var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.DbType = DbType.Int32;
-                upsertParam4.ParameterName = "@status";
-                upsertCommand.Parameters.Add(upsertParam4);
-                var upsertParam5 = upsertCommand.CreateParameter();
-                upsertParam5.DbType = DbType.Int32;
-                upsertParam5.ParameterName = "@accessIsRevoked";
-                upsertCommand.Parameters.Add(upsertParam5);
-                var upsertParam6 = upsertCommand.CreateParameter();
-                upsertParam6.DbType = DbType.Binary;
-                upsertParam6.ParameterName = "@data";
-                upsertCommand.Parameters.Add(upsertParam6);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.identity.DomainName;
-                upsertParam3.Value = item.displayName;
-                upsertParam4.Value = item.status;
-                upsertParam5.Value = item.accessIsRevoked;
-                upsertParam6.Value = item.data ?? (object)DBNull.Value;
+                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                upsertCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
+                upsertCommand.AddParameter("@displayName", DbType.String, item.displayName);
+                upsertCommand.AddParameter("@status", DbType.Int32, item.status);
+                upsertCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
+                upsertCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -263,36 +191,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = {updateCommand.SqlMax()}(Connections.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND identity = @identity) "+
                                             "RETURNING created,modified,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.Binary;
-                updateParam1.ParameterName = "@identityId";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.String;
-                updateParam2.ParameterName = "@identity";
-                updateCommand.Parameters.Add(updateParam2);
-                var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.DbType = DbType.String;
-                updateParam3.ParameterName = "@displayName";
-                updateCommand.Parameters.Add(updateParam3);
-                var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.DbType = DbType.Int32;
-                updateParam4.ParameterName = "@status";
-                updateCommand.Parameters.Add(updateParam4);
-                var updateParam5 = updateCommand.CreateParameter();
-                updateParam5.DbType = DbType.Int32;
-                updateParam5.ParameterName = "@accessIsRevoked";
-                updateCommand.Parameters.Add(updateParam5);
-                var updateParam6 = updateCommand.CreateParameter();
-                updateParam6.DbType = DbType.Binary;
-                updateParam6.ParameterName = "@data";
-                updateCommand.Parameters.Add(updateParam6);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.identity.DomainName;
-                updateParam3.Value = item.displayName;
-                updateParam4.Value = item.status;
-                updateParam5.Value = item.accessIsRevoked;
-                updateParam6.Value = item.data ?? (object)DBNull.Value;
+                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                updateCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
+                updateCommand.AddParameter("@displayName", DbType.String, item.displayName);
+                updateCommand.AddParameter("@status", DbType.Int32, item.status);
+                updateCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
+                updateCommand.AddParameter("@data", DbType.Binary, item.data);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -356,7 +260,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[8]); // HACK
+            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -367,17 +271,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 delete0Command.CommandText = "DELETE FROM Connections " +
                                              "WHERE identityId = @identityId AND identity = @identity";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.Binary;
-                delete0Param1.ParameterName = "@identityId";
-                delete0Command.Parameters.Add(delete0Param1);
-                var delete0Param2 = delete0Command.CreateParameter();
-                delete0Param2.DbType = DbType.String;
-                delete0Param2.ParameterName = "@identity";
-                delete0Command.Parameters.Add(delete0Param2);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = identity.DomainName;
+                delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete0Command.AddParameter("@identity", DbType.String, identity.DomainName);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -391,17 +287,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 deleteCommand.CommandText = "DELETE FROM Connections " +
                                              "WHERE identityId = @identityId AND identity = @identity " + 
                                              "RETURNING rowId,displayName,status,accessIsRevoked,data,created,modified";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.Binary;
-                deleteParam1.ParameterName = "@identityId";
-                deleteCommand.Parameters.Add(deleteParam1);
-                var deleteParam2 = deleteCommand.CreateParameter();
-                deleteParam2.DbType = DbType.String;
-                deleteParam2.ParameterName = "@identity";
-                deleteCommand.Parameters.Add(deleteParam2);
 
-                deleteParam1.Value = identityId.ToByteArray();
-                deleteParam2.Value = identity.DomainName;
+                deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                deleteCommand.AddParameter("@identity", DbType.String, identity.DomainName);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -434,7 +322,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
             item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.modified = (rdr[6] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[6]); // HACK
+            item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
             return item;
        }
 
@@ -446,17 +334,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Command.CommandText = "SELECT rowId,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
                                              "WHERE identityId = @identityId AND identity = @identity LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.String;
-                get0Param2.ParameterName = "@identity";
-                get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = identity.DomainName;
+                get0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get0Command.AddParameter("@identity", DbType.String, identity.DomainName);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -485,22 +365,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId) AND identity > @identity  ORDER BY identity ASC  LIMIT @count;";
-                var getPaging2Param1 = getPaging2Command.CreateParameter();
-                getPaging2Param1.DbType = DbType.String;
-                getPaging2Param1.ParameterName = "@identity";
-                getPaging2Command.Parameters.Add(getPaging2Param1);
-                var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.DbType = DbType.Int64;
-                getPaging2Param2.ParameterName = "@count";
-                getPaging2Command.Parameters.Add(getPaging2Param2);
-                var getPaging2Param3 = getPaging2Command.CreateParameter();
-                getPaging2Param3.DbType = DbType.Binary;
-                getPaging2Param3.ParameterName = "@identityId";
-                getPaging2Command.Parameters.Add(getPaging2Param3);
 
-                getPaging2Param1.Value = inCursor;
-                getPaging2Param2.Value = count+1;
-                getPaging2Param3.Value = identityId.ToByteArray();
+                getPaging2Command.AddParameter("@identity", DbType.String, inCursor);
+                getPaging2Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging2Command.AddParameter("@identityId", DbType.Binary, identityId);
 
                 {
                     await using (var rdr = await getPaging2Command.ExecuteReaderAsync(CommandBehavior.Default))
@@ -541,27 +409,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId AND status = @status) AND identity > @identity  ORDER BY identity ASC  LIMIT @count;";
-                var getPaging2Param1 = getPaging2Command.CreateParameter();
-                getPaging2Param1.DbType = DbType.String;
-                getPaging2Param1.ParameterName = "@identity";
-                getPaging2Command.Parameters.Add(getPaging2Param1);
-                var getPaging2Param2 = getPaging2Command.CreateParameter();
-                getPaging2Param2.DbType = DbType.Int64;
-                getPaging2Param2.ParameterName = "@count";
-                getPaging2Command.Parameters.Add(getPaging2Param2);
-                var getPaging2Param3 = getPaging2Command.CreateParameter();
-                getPaging2Param3.DbType = DbType.Binary;
-                getPaging2Param3.ParameterName = "@identityId";
-                getPaging2Command.Parameters.Add(getPaging2Param3);
-                var getPaging2Param4 = getPaging2Command.CreateParameter();
-                getPaging2Param4.DbType = DbType.Int32;
-                getPaging2Param4.ParameterName = "@status";
-                getPaging2Command.Parameters.Add(getPaging2Param4);
 
-                getPaging2Param1.Value = inCursor;
-                getPaging2Param2.Value = count+1;
-                getPaging2Param3.Value = identityId.ToByteArray();
-                getPaging2Param4.Value = status;
+                getPaging2Command.AddParameter("@identity", DbType.String, inCursor);
+                getPaging2Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging2Command.AddParameter("@identityId", DbType.Binary, identityId);
+                getPaging2Command.AddParameter("@status", DbType.Int32, status);
 
                 {
                     await using (var rdr = await getPaging2Command.ExecuteReaderAsync(CommandBehavior.Default))
@@ -604,32 +456,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging7Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId AND status = @status) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
-                var getPaging7Param1 = getPaging7Command.CreateParameter();
-                getPaging7Param1.DbType = DbType.Int64;
-                getPaging7Param1.ParameterName = "@created";
-                getPaging7Command.Parameters.Add(getPaging7Param1);
-                var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.DbType = DbType.Int64;
-                getPaging7Param2.ParameterName = "@rowId";
-                getPaging7Command.Parameters.Add(getPaging7Param2);
-                var getPaging7Param3 = getPaging7Command.CreateParameter();
-                getPaging7Param3.DbType = DbType.Int64;
-                getPaging7Param3.ParameterName = "@count";
-                getPaging7Command.Parameters.Add(getPaging7Param3);
-                var getPaging7Param4 = getPaging7Command.CreateParameter();
-                getPaging7Param4.DbType = DbType.Binary;
-                getPaging7Param4.ParameterName = "@identityId";
-                getPaging7Command.Parameters.Add(getPaging7Param4);
-                var getPaging7Param5 = getPaging7Command.CreateParameter();
-                getPaging7Param5.DbType = DbType.Int32;
-                getPaging7Param5.ParameterName = "@status";
-                getPaging7Command.Parameters.Add(getPaging7Param5);
 
-                getPaging7Param1.Value = inCursor?.milliseconds;
-                getPaging7Param2.Value = rowid;
-                getPaging7Param3.Value = count+1;
-                getPaging7Param4.Value = identityId.ToByteArray();
-                getPaging7Param5.Value = status;
+                getPaging7Command.AddParameter("@created", DbType.Int64, inCursor?.milliseconds);
+                getPaging7Command.AddParameter("@rowId", DbType.Int64, rowid);
+                getPaging7Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging7Command.AddParameter("@identityId", DbType.Binary, identityId);
+                getPaging7Command.AddParameter("@status", DbType.Int32, status);
 
                 {
                     await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))
@@ -675,27 +507,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging7Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
-                var getPaging7Param1 = getPaging7Command.CreateParameter();
-                getPaging7Param1.DbType = DbType.Int64;
-                getPaging7Param1.ParameterName = "@created";
-                getPaging7Command.Parameters.Add(getPaging7Param1);
-                var getPaging7Param2 = getPaging7Command.CreateParameter();
-                getPaging7Param2.DbType = DbType.Int64;
-                getPaging7Param2.ParameterName = "@rowId";
-                getPaging7Command.Parameters.Add(getPaging7Param2);
-                var getPaging7Param3 = getPaging7Command.CreateParameter();
-                getPaging7Param3.DbType = DbType.Int64;
-                getPaging7Param3.ParameterName = "@count";
-                getPaging7Command.Parameters.Add(getPaging7Param3);
-                var getPaging7Param4 = getPaging7Command.CreateParameter();
-                getPaging7Param4.DbType = DbType.Binary;
-                getPaging7Param4.ParameterName = "@identityId";
-                getPaging7Command.Parameters.Add(getPaging7Param4);
 
-                getPaging7Param1.Value = inCursor?.milliseconds;
-                getPaging7Param2.Value = rowid;
-                getPaging7Param3.Value = count+1;
-                getPaging7Param4.Value = identityId.ToByteArray();
+                getPaging7Command.AddParameter("@created", DbType.Int64, inCursor?.milliseconds);
+                getPaging7Command.AddParameter("@rowId", DbType.Int64, rowid);
+                getPaging7Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging7Command.AddParameter("@identityId", DbType.Binary, identityId);
 
                 {
                     await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))
@@ -739,17 +555,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging0Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
-                var getPaging0Param1 = getPaging0Command.CreateParameter();
-                getPaging0Param1.DbType = DbType.Int64;
-                getPaging0Param1.ParameterName = "@rowId";
-                getPaging0Command.Parameters.Add(getPaging0Param1);
-                var getPaging0Param2 = getPaging0Command.CreateParameter();
-                getPaging0Param2.DbType = DbType.Int64;
-                getPaging0Param2.ParameterName = "@count";
-                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                getPaging0Param1.Value = inCursor;
-                getPaging0Param2.Value = count+1;
+                getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
+                getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
 
                 {
                     await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))

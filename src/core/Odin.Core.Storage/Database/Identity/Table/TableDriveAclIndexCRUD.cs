@@ -57,7 +57,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE DriveAclIndex IS '{ \"Version\": 0 }';";
             }
             else
@@ -85,26 +85,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO DriveAclIndex (identityId,driveId,fileId,aclMemberId) " +
                                            $"VALUES (@identityId,@driveId,@fileId,@aclMemberId)"+
                                             "RETURNING -1,-1,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@driveId";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@fileId";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Binary;
-                insertParam4.ParameterName = "@aclMemberId";
-                insertCommand.Parameters.Add(insertParam4);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
-                insertParam4.Value = item.aclMemberId.ToByteArray();
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                insertCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -125,26 +109,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@driveId,@fileId,@aclMemberId) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@driveId";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@fileId";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Binary;
-                insertParam4.ParameterName = "@aclMemberId";
-                insertCommand.Parameters.Add(insertParam4);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
-                insertParam4.Value = item.aclMemberId.ToByteArray();
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                insertCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -166,26 +134,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT (identityId,driveId,fileId,aclMemberId) DO UPDATE "+
                                             $"SET  "+
                                             "RETURNING -1,-1,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.Binary;
-                upsertParam1.ParameterName = "@identityId";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.Binary;
-                upsertParam2.ParameterName = "@driveId";
-                upsertCommand.Parameters.Add(upsertParam2);
-                var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.DbType = DbType.Binary;
-                upsertParam3.ParameterName = "@fileId";
-                upsertCommand.Parameters.Add(upsertParam3);
-                var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.DbType = DbType.Binary;
-                upsertParam4.ParameterName = "@aclMemberId";
-                upsertCommand.Parameters.Add(upsertParam4);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.driveId.ToByteArray();
-                upsertParam3.Value = item.fileId.ToByteArray();
-                upsertParam4.Value = item.aclMemberId.ToByteArray();
+                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                upsertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                upsertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                upsertCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -206,26 +158,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET  "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId) "+
                                             "RETURNING -1,-1,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.Binary;
-                updateParam1.ParameterName = "@identityId";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.Binary;
-                updateParam2.ParameterName = "@driveId";
-                updateCommand.Parameters.Add(updateParam2);
-                var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.DbType = DbType.Binary;
-                updateParam3.ParameterName = "@fileId";
-                updateCommand.Parameters.Add(updateParam3);
-                var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.DbType = DbType.Binary;
-                updateParam4.ParameterName = "@aclMemberId";
-                updateCommand.Parameters.Add(updateParam4);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.driveId.ToByteArray();
-                updateParam3.Value = item.fileId.ToByteArray();
-                updateParam4.Value = item.aclMemberId.ToByteArray();
+                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                updateCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                updateCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                updateCommand.AddParameter("@aclMemberId", DbType.Binary, item.aclMemberId);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -269,11 +205,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                  // TODO: this is SQLite specific
                 getCountDriveCommand.CommandText = "SELECT COUNT(*) FROM DriveAclIndex WHERE driveId = $driveId;";
-                var getCountDriveParam1 = getCountDriveCommand.CreateParameter();
-                getCountDriveParam1.DbType = DbType.Binary;
-                getCountDriveParam1.ParameterName = "$driveId";
-                getCountDriveCommand.Parameters.Add(getCountDriveParam1);
-                getCountDriveParam1.Value = driveId.ToByteArray();
+                getCountDriveCommand.AddParameter("$driveId", DbType.Binary, driveId);
                 var count = await getCountDriveCommand.ExecuteScalarAsync();
                 if (count == null || count == DBNull.Value || !(count is int || count is long))
                     return -1;
@@ -306,22 +238,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 delete0Command.CommandText = "DELETE FROM DriveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.Binary;
-                delete0Param1.ParameterName = "@identityId";
-                delete0Command.Parameters.Add(delete0Param1);
-                var delete0Param2 = delete0Command.CreateParameter();
-                delete0Param2.DbType = DbType.Binary;
-                delete0Param2.ParameterName = "@driveId";
-                delete0Command.Parameters.Add(delete0Param2);
-                var delete0Param3 = delete0Command.CreateParameter();
-                delete0Param3.DbType = DbType.Binary;
-                delete0Param3.ParameterName = "@fileId";
-                delete0Command.Parameters.Add(delete0Param3);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = driveId.ToByteArray();
-                delete0Param3.Value = fileId.ToByteArray();
+                delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete0Command.AddParameter("@driveId", DbType.Binary, driveId);
+                delete0Command.AddParameter("@fileId", DbType.Binary, fileId);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -334,27 +254,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 delete1Command.CommandText = "DELETE FROM DriveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId";
-                var delete1Param1 = delete1Command.CreateParameter();
-                delete1Param1.DbType = DbType.Binary;
-                delete1Param1.ParameterName = "@identityId";
-                delete1Command.Parameters.Add(delete1Param1);
-                var delete1Param2 = delete1Command.CreateParameter();
-                delete1Param2.DbType = DbType.Binary;
-                delete1Param2.ParameterName = "@driveId";
-                delete1Command.Parameters.Add(delete1Param2);
-                var delete1Param3 = delete1Command.CreateParameter();
-                delete1Param3.DbType = DbType.Binary;
-                delete1Param3.ParameterName = "@fileId";
-                delete1Command.Parameters.Add(delete1Param3);
-                var delete1Param4 = delete1Command.CreateParameter();
-                delete1Param4.DbType = DbType.Binary;
-                delete1Param4.ParameterName = "@aclMemberId";
-                delete1Command.Parameters.Add(delete1Param4);
 
-                delete1Param1.Value = identityId.ToByteArray();
-                delete1Param2.Value = driveId.ToByteArray();
-                delete1Param3.Value = fileId.ToByteArray();
-                delete1Param4.Value = aclMemberId.ToByteArray();
+                delete1Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete1Command.AddParameter("@driveId", DbType.Binary, driveId);
+                delete1Command.AddParameter("@fileId", DbType.Binary, fileId);
+                delete1Command.AddParameter("@aclMemberId", DbType.Binary, aclMemberId);
                 var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -368,27 +272,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 deleteCommand.CommandText = "DELETE FROM DriveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId " + 
                                              "RETURNING rowId";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.Binary;
-                deleteParam1.ParameterName = "@identityId";
-                deleteCommand.Parameters.Add(deleteParam1);
-                var deleteParam2 = deleteCommand.CreateParameter();
-                deleteParam2.DbType = DbType.Binary;
-                deleteParam2.ParameterName = "@driveId";
-                deleteCommand.Parameters.Add(deleteParam2);
-                var deleteParam3 = deleteCommand.CreateParameter();
-                deleteParam3.DbType = DbType.Binary;
-                deleteParam3.ParameterName = "@fileId";
-                deleteCommand.Parameters.Add(deleteParam3);
-                var deleteParam4 = deleteCommand.CreateParameter();
-                deleteParam4.DbType = DbType.Binary;
-                deleteParam4.ParameterName = "@aclMemberId";
-                deleteCommand.Parameters.Add(deleteParam4);
 
-                deleteParam1.Value = identityId.ToByteArray();
-                deleteParam2.Value = driveId.ToByteArray();
-                deleteParam3.Value = fileId.ToByteArray();
-                deleteParam4.Value = aclMemberId.ToByteArray();
+                deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                deleteCommand.AddParameter("@driveId", DbType.Binary, driveId);
+                deleteCommand.AddParameter("@fileId", DbType.Binary, fileId);
+                deleteCommand.AddParameter("@aclMemberId", DbType.Binary, aclMemberId);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -427,27 +315,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Command.CommandText = "SELECT rowId FROM DriveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.Binary;
-                get0Param2.ParameterName = "@driveId";
-                get0Command.Parameters.Add(get0Param2);
-                var get0Param3 = get0Command.CreateParameter();
-                get0Param3.DbType = DbType.Binary;
-                get0Param3.ParameterName = "@fileId";
-                get0Command.Parameters.Add(get0Param3);
-                var get0Param4 = get0Command.CreateParameter();
-                get0Param4.DbType = DbType.Binary;
-                get0Param4.ParameterName = "@aclMemberId";
-                get0Command.Parameters.Add(get0Param4);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = driveId.ToByteArray();
-                get0Param3.Value = fileId.ToByteArray();
-                get0Param4.Value = aclMemberId.ToByteArray();
+                get0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get0Command.AddParameter("@driveId", DbType.Binary, driveId);
+                get0Command.AddParameter("@fileId", DbType.Binary, fileId);
+                get0Command.AddParameter("@aclMemberId", DbType.Binary, aclMemberId);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -470,22 +342,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Command.CommandText = "SELECT aclMemberId FROM DriveAclIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
                                              ";";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.DbType = DbType.Binary;
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.DbType = DbType.Binary;
-                get1Param2.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.DbType = DbType.Binary;
-                get1Param3.ParameterName = "@fileId";
-                get1Command.Parameters.Add(get1Param3);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
+                get1Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get1Command.AddParameter("@driveId", DbType.Binary, driveId);
+                get1Command.AddParameter("@fileId", DbType.Binary, fileId);
                 {
                     using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
@@ -532,17 +392,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,aclMemberId FROM DriveAclIndex " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
-                var getPaging0Param1 = getPaging0Command.CreateParameter();
-                getPaging0Param1.DbType = DbType.Int64;
-                getPaging0Param1.ParameterName = "@rowId";
-                getPaging0Command.Parameters.Add(getPaging0Param1);
-                var getPaging0Param2 = getPaging0Command.CreateParameter();
-                getPaging0Param2.DbType = DbType.Int64;
-                getPaging0Param2.ParameterName = "@count";
-                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                getPaging0Param1.Value = inCursor;
-                getPaging0Param2.Value = count+1;
+                getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
+                getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
 
                 {
                     await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))

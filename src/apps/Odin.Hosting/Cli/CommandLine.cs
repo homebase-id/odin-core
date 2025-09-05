@@ -55,7 +55,7 @@ public class CommandLine
         _logger = _serviceProviders.MultiTenantContainer.Resolve<ILogger<CommandLine>>();
         try
         {
-            return ParseAndExecute(args);
+            return ParseAndExecute(args.Where(x => x != "--verbose").ToArray());
         }
         finally
         {
@@ -284,6 +284,18 @@ public class CommandLine
         if (args.Length > 0 && args[0] == "create-test-identity")
         {
             CreateTestIdentity.ExecuteAsync(_serviceProvider, Guid.Parse(args[1]), args[2]).BlockingWait();
+            return (true, 0);
+        }
+
+        //
+        // Command line: Reset Modified
+        //
+        // examples:
+        //   dotnet run -- reset-feed
+        //
+        if (args.Length > 0 && args[0] == "reset-modified")
+        {
+            ResetModified.ExecuteAsync(_serviceProvider).BlockingWait();
             return (true, 0);
         }
 

@@ -50,17 +50,35 @@ public static class CommandLineLoggerExtensions
 {
     public static IServiceCollection AddCommandLineLogging(
         this IServiceCollection serviceCollection,
-        bool commandLineOnly = false, // Only show logs from ILogger<CommandLine> and not from other services
+        bool commandLineOnly = false, // Only show logs from namespace Odin.Hosting.Cli and not from other services
         LogLevel minimumLevel = LogLevel.Debug)
     {
         return serviceCollection.AddLogging(builder =>
         {
             builder
                 .ClearProviders()
-                .AddFilter((provider, category, logLevel) =>
-                    (!commandLineOnly || category?.Contains(nameof(CommandLine)) == true) && logLevel >= minimumLevel)
                 .AddConsole(options => options.FormatterName = CommandLineLogFormatter.FormatterName)
-                .AddConsoleFormatter<CommandLineLogFormatter, ConsoleFormatterOptions>();
+                .AddConsoleFormatter<CommandLineLogFormatter, ConsoleFormatterOptions>()
+                .SetMinimumLevel(LogLevel.Warning)
+                .AddFilter((provider, category, logLevel) =>
+                {
+                    if (logLevel < minimumLevel)
+                    {
+                        return false;
+                    }
+
+                    if (commandLineOnly && category?.StartsWith("Odin.Hosting.Cli") == true)
+                    {
+                        return true;
+                    }
+
+                    if (!commandLineOnly && category?.StartsWith("Odin.") == true)
+                    {
+                        return true;
+                    }
+
+                    return false;
+                });
         });
     }
 }

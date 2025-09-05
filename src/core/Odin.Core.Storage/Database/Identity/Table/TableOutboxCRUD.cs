@@ -75,7 +75,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE Outbox IS '{ \"Version\": 0 }';";
             }
             else
@@ -115,66 +115,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO Outbox (identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified) " +
                                            $"VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@driveId";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@fileId";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.String;
-                insertParam4.ParameterName = "@recipient";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Int32;
-                insertParam5.ParameterName = "@type";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Int32;
-                insertParam6.ParameterName = "@priority";
-                insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.Binary;
-                insertParam7.ParameterName = "@dependencyFileId";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.Int32;
-                insertParam8.ParameterName = "@checkOutCount";
-                insertCommand.Parameters.Add(insertParam8);
-                var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.DbType = DbType.Int64;
-                insertParam9.ParameterName = "@nextRunTime";
-                insertCommand.Parameters.Add(insertParam9);
-                var insertParam10 = insertCommand.CreateParameter();
-                insertParam10.DbType = DbType.Binary;
-                insertParam10.ParameterName = "@value";
-                insertCommand.Parameters.Add(insertParam10);
-                var insertParam11 = insertCommand.CreateParameter();
-                insertParam11.DbType = DbType.Binary;
-                insertParam11.ParameterName = "@checkOutStamp";
-                insertCommand.Parameters.Add(insertParam11);
-                var insertParam12 = insertCommand.CreateParameter();
-                insertParam12.DbType = DbType.String;
-                insertParam12.ParameterName = "@correlationId";
-                insertCommand.Parameters.Add(insertParam12);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
-                insertParam4.Value = item.recipient;
-                insertParam5.Value = item.type;
-                insertParam6.Value = item.priority;
-                insertParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam8.Value = item.checkOutCount;
-                insertParam9.Value = item.nextRunTime.milliseconds;
-                insertParam10.Value = item.value ?? (object)DBNull.Value;
-                insertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam12.Value = item.correlationId ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                insertCommand.AddParameter("@recipient", DbType.String, item.recipient);
+                insertCommand.AddParameter("@type", DbType.Int32, item.type);
+                insertCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                insertCommand.AddParameter("@dependencyFileId", DbType.Binary, item.dependencyFileId);
+                insertCommand.AddParameter("@checkOutCount", DbType.Int32, item.checkOutCount);
+                insertCommand.AddParameter("@nextRunTime", DbType.Int64, item.nextRunTime.milliseconds);
+                insertCommand.AddParameter("@value", DbType.Binary, item.value);
+                insertCommand.AddParameter("@checkOutStamp", DbType.Binary, item.checkOutStamp);
+                insertCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -200,66 +152,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@driveId,@fileId,@recipient,@type,@priority,@dependencyFileId,@checkOutCount,@nextRunTime,@value,@checkOutStamp,@correlationId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@driveId";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@fileId";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.String;
-                insertParam4.ParameterName = "@recipient";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Int32;
-                insertParam5.ParameterName = "@type";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Int32;
-                insertParam6.ParameterName = "@priority";
-                insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.Binary;
-                insertParam7.ParameterName = "@dependencyFileId";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.Int32;
-                insertParam8.ParameterName = "@checkOutCount";
-                insertCommand.Parameters.Add(insertParam8);
-                var insertParam9 = insertCommand.CreateParameter();
-                insertParam9.DbType = DbType.Int64;
-                insertParam9.ParameterName = "@nextRunTime";
-                insertCommand.Parameters.Add(insertParam9);
-                var insertParam10 = insertCommand.CreateParameter();
-                insertParam10.DbType = DbType.Binary;
-                insertParam10.ParameterName = "@value";
-                insertCommand.Parameters.Add(insertParam10);
-                var insertParam11 = insertCommand.CreateParameter();
-                insertParam11.DbType = DbType.Binary;
-                insertParam11.ParameterName = "@checkOutStamp";
-                insertCommand.Parameters.Add(insertParam11);
-                var insertParam12 = insertCommand.CreateParameter();
-                insertParam12.DbType = DbType.String;
-                insertParam12.ParameterName = "@correlationId";
-                insertCommand.Parameters.Add(insertParam12);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.driveId.ToByteArray();
-                insertParam3.Value = item.fileId.ToByteArray();
-                insertParam4.Value = item.recipient;
-                insertParam5.Value = item.type;
-                insertParam6.Value = item.priority;
-                insertParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam8.Value = item.checkOutCount;
-                insertParam9.Value = item.nextRunTime.milliseconds;
-                insertParam10.Value = item.value ?? (object)DBNull.Value;
-                insertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam12.Value = item.correlationId ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                insertCommand.AddParameter("@recipient", DbType.String, item.recipient);
+                insertCommand.AddParameter("@type", DbType.Int32, item.type);
+                insertCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                insertCommand.AddParameter("@dependencyFileId", DbType.Binary, item.dependencyFileId);
+                insertCommand.AddParameter("@checkOutCount", DbType.Int32, item.checkOutCount);
+                insertCommand.AddParameter("@nextRunTime", DbType.Int64, item.nextRunTime.milliseconds);
+                insertCommand.AddParameter("@value", DbType.Binary, item.value);
+                insertCommand.AddParameter("@checkOutStamp", DbType.Binary, item.checkOutStamp);
+                insertCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -286,66 +190,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT (identityId,driveId,fileId,recipient) DO UPDATE "+
                                             $"SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = {upsertCommand.SqlMax()}(Outbox.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.Binary;
-                upsertParam1.ParameterName = "@identityId";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.Binary;
-                upsertParam2.ParameterName = "@driveId";
-                upsertCommand.Parameters.Add(upsertParam2);
-                var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.DbType = DbType.Binary;
-                upsertParam3.ParameterName = "@fileId";
-                upsertCommand.Parameters.Add(upsertParam3);
-                var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.DbType = DbType.String;
-                upsertParam4.ParameterName = "@recipient";
-                upsertCommand.Parameters.Add(upsertParam4);
-                var upsertParam5 = upsertCommand.CreateParameter();
-                upsertParam5.DbType = DbType.Int32;
-                upsertParam5.ParameterName = "@type";
-                upsertCommand.Parameters.Add(upsertParam5);
-                var upsertParam6 = upsertCommand.CreateParameter();
-                upsertParam6.DbType = DbType.Int32;
-                upsertParam6.ParameterName = "@priority";
-                upsertCommand.Parameters.Add(upsertParam6);
-                var upsertParam7 = upsertCommand.CreateParameter();
-                upsertParam7.DbType = DbType.Binary;
-                upsertParam7.ParameterName = "@dependencyFileId";
-                upsertCommand.Parameters.Add(upsertParam7);
-                var upsertParam8 = upsertCommand.CreateParameter();
-                upsertParam8.DbType = DbType.Int32;
-                upsertParam8.ParameterName = "@checkOutCount";
-                upsertCommand.Parameters.Add(upsertParam8);
-                var upsertParam9 = upsertCommand.CreateParameter();
-                upsertParam9.DbType = DbType.Int64;
-                upsertParam9.ParameterName = "@nextRunTime";
-                upsertCommand.Parameters.Add(upsertParam9);
-                var upsertParam10 = upsertCommand.CreateParameter();
-                upsertParam10.DbType = DbType.Binary;
-                upsertParam10.ParameterName = "@value";
-                upsertCommand.Parameters.Add(upsertParam10);
-                var upsertParam11 = upsertCommand.CreateParameter();
-                upsertParam11.DbType = DbType.Binary;
-                upsertParam11.ParameterName = "@checkOutStamp";
-                upsertCommand.Parameters.Add(upsertParam11);
-                var upsertParam12 = upsertCommand.CreateParameter();
-                upsertParam12.DbType = DbType.String;
-                upsertParam12.ParameterName = "@correlationId";
-                upsertCommand.Parameters.Add(upsertParam12);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.driveId.ToByteArray();
-                upsertParam3.Value = item.fileId.ToByteArray();
-                upsertParam4.Value = item.recipient;
-                upsertParam5.Value = item.type;
-                upsertParam6.Value = item.priority;
-                upsertParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
-                upsertParam8.Value = item.checkOutCount;
-                upsertParam9.Value = item.nextRunTime.milliseconds;
-                upsertParam10.Value = item.value ?? (object)DBNull.Value;
-                upsertParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
-                upsertParam12.Value = item.correlationId ?? (object)DBNull.Value;
+                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                upsertCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                upsertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                upsertCommand.AddParameter("@recipient", DbType.String, item.recipient);
+                upsertCommand.AddParameter("@type", DbType.Int32, item.type);
+                upsertCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                upsertCommand.AddParameter("@dependencyFileId", DbType.Binary, item.dependencyFileId);
+                upsertCommand.AddParameter("@checkOutCount", DbType.Int32, item.checkOutCount);
+                upsertCommand.AddParameter("@nextRunTime", DbType.Int64, item.nextRunTime.milliseconds);
+                upsertCommand.AddParameter("@value", DbType.Binary, item.value);
+                upsertCommand.AddParameter("@checkOutStamp", DbType.Binary, item.checkOutStamp);
+                upsertCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -371,66 +227,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET type = @type,priority = @priority,dependencyFileId = @dependencyFileId,checkOutCount = @checkOutCount,nextRunTime = @nextRunTime,value = @value,checkOutStamp = @checkOutStamp,correlationId = @correlationId,modified = {updateCommand.SqlMax()}(Outbox.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient) "+
                                             "RETURNING created,modified,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.Binary;
-                updateParam1.ParameterName = "@identityId";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.Binary;
-                updateParam2.ParameterName = "@driveId";
-                updateCommand.Parameters.Add(updateParam2);
-                var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.DbType = DbType.Binary;
-                updateParam3.ParameterName = "@fileId";
-                updateCommand.Parameters.Add(updateParam3);
-                var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.DbType = DbType.String;
-                updateParam4.ParameterName = "@recipient";
-                updateCommand.Parameters.Add(updateParam4);
-                var updateParam5 = updateCommand.CreateParameter();
-                updateParam5.DbType = DbType.Int32;
-                updateParam5.ParameterName = "@type";
-                updateCommand.Parameters.Add(updateParam5);
-                var updateParam6 = updateCommand.CreateParameter();
-                updateParam6.DbType = DbType.Int32;
-                updateParam6.ParameterName = "@priority";
-                updateCommand.Parameters.Add(updateParam6);
-                var updateParam7 = updateCommand.CreateParameter();
-                updateParam7.DbType = DbType.Binary;
-                updateParam7.ParameterName = "@dependencyFileId";
-                updateCommand.Parameters.Add(updateParam7);
-                var updateParam8 = updateCommand.CreateParameter();
-                updateParam8.DbType = DbType.Int32;
-                updateParam8.ParameterName = "@checkOutCount";
-                updateCommand.Parameters.Add(updateParam8);
-                var updateParam9 = updateCommand.CreateParameter();
-                updateParam9.DbType = DbType.Int64;
-                updateParam9.ParameterName = "@nextRunTime";
-                updateCommand.Parameters.Add(updateParam9);
-                var updateParam10 = updateCommand.CreateParameter();
-                updateParam10.DbType = DbType.Binary;
-                updateParam10.ParameterName = "@value";
-                updateCommand.Parameters.Add(updateParam10);
-                var updateParam11 = updateCommand.CreateParameter();
-                updateParam11.DbType = DbType.Binary;
-                updateParam11.ParameterName = "@checkOutStamp";
-                updateCommand.Parameters.Add(updateParam11);
-                var updateParam12 = updateCommand.CreateParameter();
-                updateParam12.DbType = DbType.String;
-                updateParam12.ParameterName = "@correlationId";
-                updateCommand.Parameters.Add(updateParam12);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.driveId.ToByteArray();
-                updateParam3.Value = item.fileId.ToByteArray();
-                updateParam4.Value = item.recipient;
-                updateParam5.Value = item.type;
-                updateParam6.Value = item.priority;
-                updateParam7.Value = item.dependencyFileId?.ToByteArray() ?? (object)DBNull.Value;
-                updateParam8.Value = item.checkOutCount;
-                updateParam9.Value = item.nextRunTime.milliseconds;
-                updateParam10.Value = item.value ?? (object)DBNull.Value;
-                updateParam11.Value = item.checkOutStamp?.ToByteArray() ?? (object)DBNull.Value;
-                updateParam12.Value = item.correlationId ?? (object)DBNull.Value;
+                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                updateCommand.AddParameter("@driveId", DbType.Binary, item.driveId);
+                updateCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                updateCommand.AddParameter("@recipient", DbType.String, item.recipient);
+                updateCommand.AddParameter("@type", DbType.Int32, item.type);
+                updateCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                updateCommand.AddParameter("@dependencyFileId", DbType.Binary, item.dependencyFileId);
+                updateCommand.AddParameter("@checkOutCount", DbType.Int32, item.checkOutCount);
+                updateCommand.AddParameter("@nextRunTime", DbType.Int64, item.nextRunTime.milliseconds);
+                updateCommand.AddParameter("@value", DbType.Binary, item.value);
+                updateCommand.AddParameter("@checkOutStamp", DbType.Binary, item.checkOutStamp);
+                updateCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -506,7 +314,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.checkOutStamp = (rdr[11] == DBNull.Value) ? null : new Guid((byte[])rdr[11]);
             item.correlationId = (rdr[12] == DBNull.Value) ? null : (string)rdr[12];
             item.created = (rdr[13] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[13]);
-            item.modified = (rdr[14] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[14]); // HACK
+            item.modified = (rdr[14] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[14]);
             return item;
        }
 
@@ -520,27 +328,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 delete0Command.CommandText = "DELETE FROM Outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.Binary;
-                delete0Param1.ParameterName = "@identityId";
-                delete0Command.Parameters.Add(delete0Param1);
-                var delete0Param2 = delete0Command.CreateParameter();
-                delete0Param2.DbType = DbType.Binary;
-                delete0Param2.ParameterName = "@driveId";
-                delete0Command.Parameters.Add(delete0Param2);
-                var delete0Param3 = delete0Command.CreateParameter();
-                delete0Param3.DbType = DbType.Binary;
-                delete0Param3.ParameterName = "@fileId";
-                delete0Command.Parameters.Add(delete0Param3);
-                var delete0Param4 = delete0Command.CreateParameter();
-                delete0Param4.DbType = DbType.String;
-                delete0Param4.ParameterName = "@recipient";
-                delete0Command.Parameters.Add(delete0Param4);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = driveId.ToByteArray();
-                delete0Param3.Value = fileId.ToByteArray();
-                delete0Param4.Value = recipient;
+                delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete0Command.AddParameter("@driveId", DbType.Binary, driveId);
+                delete0Command.AddParameter("@fileId", DbType.Binary, fileId);
+                delete0Command.AddParameter("@recipient", DbType.String, recipient);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -557,27 +349,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 deleteCommand.CommandText = "DELETE FROM Outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient " + 
                                              "RETURNING rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.Binary;
-                deleteParam1.ParameterName = "@identityId";
-                deleteCommand.Parameters.Add(deleteParam1);
-                var deleteParam2 = deleteCommand.CreateParameter();
-                deleteParam2.DbType = DbType.Binary;
-                deleteParam2.ParameterName = "@driveId";
-                deleteCommand.Parameters.Add(deleteParam2);
-                var deleteParam3 = deleteCommand.CreateParameter();
-                deleteParam3.DbType = DbType.Binary;
-                deleteParam3.ParameterName = "@fileId";
-                deleteCommand.Parameters.Add(deleteParam3);
-                var deleteParam4 = deleteCommand.CreateParameter();
-                deleteParam4.DbType = DbType.String;
-                deleteParam4.ParameterName = "@recipient";
-                deleteCommand.Parameters.Add(deleteParam4);
 
-                deleteParam1.Value = identityId.ToByteArray();
-                deleteParam2.Value = driveId.ToByteArray();
-                deleteParam3.Value = fileId.ToByteArray();
-                deleteParam4.Value = recipient;
+                deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                deleteCommand.AddParameter("@driveId", DbType.Binary, driveId);
+                deleteCommand.AddParameter("@fileId", DbType.Binary, fileId);
+                deleteCommand.AddParameter("@recipient", DbType.String, recipient);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -619,7 +395,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.checkOutStamp = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
             item.correlationId = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
-            item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
+            item.modified = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
             return item;
        }
 
@@ -634,27 +410,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Command.CommandText = "SELECT rowId,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND recipient = @recipient LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.Binary;
-                get0Param2.ParameterName = "@driveId";
-                get0Command.Parameters.Add(get0Param2);
-                var get0Param3 = get0Command.CreateParameter();
-                get0Param3.DbType = DbType.Binary;
-                get0Param3.ParameterName = "@fileId";
-                get0Command.Parameters.Add(get0Param3);
-                var get0Param4 = get0Command.CreateParameter();
-                get0Param4.DbType = DbType.String;
-                get0Param4.ParameterName = "@recipient";
-                get0Command.Parameters.Add(get0Param4);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = driveId.ToByteArray();
-                get0Param3.Value = fileId.ToByteArray();
-                get0Param4.Value = recipient;
+                get0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get0Command.AddParameter("@driveId", DbType.Binary, driveId);
+                get0Command.AddParameter("@fileId", DbType.Binary, fileId);
+                get0Command.AddParameter("@recipient", DbType.String, recipient);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -693,7 +453,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.checkOutStamp = (rdr[8] == DBNull.Value) ? null : new Guid((byte[])rdr[8]);
             item.correlationId = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
             item.created = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
-            item.modified = (rdr[11] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[11]); // HACK
+            item.modified = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[11]);
             return item;
        }
 
@@ -705,22 +465,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get1Command.CommandText = "SELECT rowId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
                                              ";";
-                var get1Param1 = get1Command.CreateParameter();
-                get1Param1.DbType = DbType.Binary;
-                get1Param1.ParameterName = "@identityId";
-                get1Command.Parameters.Add(get1Param1);
-                var get1Param2 = get1Command.CreateParameter();
-                get1Param2.DbType = DbType.Binary;
-                get1Param2.ParameterName = "@driveId";
-                get1Command.Parameters.Add(get1Param2);
-                var get1Param3 = get1Command.CreateParameter();
-                get1Param3.DbType = DbType.Binary;
-                get1Param3.ParameterName = "@fileId";
-                get1Command.Parameters.Add(get1Param3);
 
-                get1Param1.Value = identityId.ToByteArray();
-                get1Param2.Value = driveId.ToByteArray();
-                get1Param3.Value = fileId.ToByteArray();
+                get1Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get1Command.AddParameter("@driveId", DbType.Binary, driveId);
+                get1Command.AddParameter("@fileId", DbType.Binary, fileId);
                 {
                     using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
@@ -755,17 +503,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,recipient,type,priority,dependencyFileId,checkOutCount,nextRunTime,value,checkOutStamp,correlationId,created,modified FROM Outbox " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
-                var getPaging0Param1 = getPaging0Command.CreateParameter();
-                getPaging0Param1.DbType = DbType.Int64;
-                getPaging0Param1.ParameterName = "@rowId";
-                getPaging0Command.Parameters.Add(getPaging0Param1);
-                var getPaging0Param2 = getPaging0Command.CreateParameter();
-                getPaging0Param2.DbType = DbType.Int64;
-                getPaging0Param2.ParameterName = "@count";
-                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                getPaging0Param1.Value = inCursor;
-                getPaging0Param2.Value = count+1;
+                getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
+                getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
 
                 {
                     await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))

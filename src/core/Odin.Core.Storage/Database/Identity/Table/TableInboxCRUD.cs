@@ -67,7 +67,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE Inbox IS '{ \"Version\": 0 }';";
             }
             else
@@ -105,46 +105,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.CommandText = "INSERT INTO Inbox (identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified) " +
                                            $"VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@fileId";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@boxId";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Int32;
-                insertParam4.ParameterName = "@priority";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Int64;
-                insertParam5.ParameterName = "@timeStamp";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Binary;
-                insertParam6.ParameterName = "@value";
-                insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.Binary;
-                insertParam7.ParameterName = "@popStamp";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.String;
-                insertParam8.ParameterName = "@correlationId";
-                insertCommand.Parameters.Add(insertParam8);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.fileId.ToByteArray();
-                insertParam3.Value = item.boxId.ToByteArray();
-                insertParam4.Value = item.priority;
-                insertParam5.Value = item.timeStamp.milliseconds;
-                insertParam6.Value = item.value ?? (object)DBNull.Value;
-                insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                insertCommand.AddParameter("@boxId", DbType.Binary, item.boxId);
+                insertCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                insertCommand.AddParameter("@timeStamp", DbType.Int64, item.timeStamp.milliseconds);
+                insertCommand.AddParameter("@value", DbType.Binary, item.value);
+                insertCommand.AddParameter("@popStamp", DbType.Binary, item.popStamp);
+                insertCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -170,46 +138,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"VALUES (@identityId,@fileId,@boxId,@priority,@timeStamp,@value,@popStamp,@correlationId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
-                var insertParam1 = insertCommand.CreateParameter();
-                insertParam1.DbType = DbType.Binary;
-                insertParam1.ParameterName = "@identityId";
-                insertCommand.Parameters.Add(insertParam1);
-                var insertParam2 = insertCommand.CreateParameter();
-                insertParam2.DbType = DbType.Binary;
-                insertParam2.ParameterName = "@fileId";
-                insertCommand.Parameters.Add(insertParam2);
-                var insertParam3 = insertCommand.CreateParameter();
-                insertParam3.DbType = DbType.Binary;
-                insertParam3.ParameterName = "@boxId";
-                insertCommand.Parameters.Add(insertParam3);
-                var insertParam4 = insertCommand.CreateParameter();
-                insertParam4.DbType = DbType.Int32;
-                insertParam4.ParameterName = "@priority";
-                insertCommand.Parameters.Add(insertParam4);
-                var insertParam5 = insertCommand.CreateParameter();
-                insertParam5.DbType = DbType.Int64;
-                insertParam5.ParameterName = "@timeStamp";
-                insertCommand.Parameters.Add(insertParam5);
-                var insertParam6 = insertCommand.CreateParameter();
-                insertParam6.DbType = DbType.Binary;
-                insertParam6.ParameterName = "@value";
-                insertCommand.Parameters.Add(insertParam6);
-                var insertParam7 = insertCommand.CreateParameter();
-                insertParam7.DbType = DbType.Binary;
-                insertParam7.ParameterName = "@popStamp";
-                insertCommand.Parameters.Add(insertParam7);
-                var insertParam8 = insertCommand.CreateParameter();
-                insertParam8.DbType = DbType.String;
-                insertParam8.ParameterName = "@correlationId";
-                insertCommand.Parameters.Add(insertParam8);
-                insertParam1.Value = item.identityId.ToByteArray();
-                insertParam2.Value = item.fileId.ToByteArray();
-                insertParam3.Value = item.boxId.ToByteArray();
-                insertParam4.Value = item.priority;
-                insertParam5.Value = item.timeStamp.milliseconds;
-                insertParam6.Value = item.value ?? (object)DBNull.Value;
-                insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                insertParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                insertCommand.AddParameter("@boxId", DbType.Binary, item.boxId);
+                insertCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                insertCommand.AddParameter("@timeStamp", DbType.Int64, item.timeStamp.milliseconds);
+                insertCommand.AddParameter("@value", DbType.Binary, item.value);
+                insertCommand.AddParameter("@popStamp", DbType.Binary, item.popStamp);
+                insertCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -236,46 +172,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "ON CONFLICT (identityId,fileId) DO UPDATE "+
                                             $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {upsertCommand.SqlMax()}(Inbox.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
-                var upsertParam1 = upsertCommand.CreateParameter();
-                upsertParam1.DbType = DbType.Binary;
-                upsertParam1.ParameterName = "@identityId";
-                upsertCommand.Parameters.Add(upsertParam1);
-                var upsertParam2 = upsertCommand.CreateParameter();
-                upsertParam2.DbType = DbType.Binary;
-                upsertParam2.ParameterName = "@fileId";
-                upsertCommand.Parameters.Add(upsertParam2);
-                var upsertParam3 = upsertCommand.CreateParameter();
-                upsertParam3.DbType = DbType.Binary;
-                upsertParam3.ParameterName = "@boxId";
-                upsertCommand.Parameters.Add(upsertParam3);
-                var upsertParam4 = upsertCommand.CreateParameter();
-                upsertParam4.DbType = DbType.Int32;
-                upsertParam4.ParameterName = "@priority";
-                upsertCommand.Parameters.Add(upsertParam4);
-                var upsertParam5 = upsertCommand.CreateParameter();
-                upsertParam5.DbType = DbType.Int64;
-                upsertParam5.ParameterName = "@timeStamp";
-                upsertCommand.Parameters.Add(upsertParam5);
-                var upsertParam6 = upsertCommand.CreateParameter();
-                upsertParam6.DbType = DbType.Binary;
-                upsertParam6.ParameterName = "@value";
-                upsertCommand.Parameters.Add(upsertParam6);
-                var upsertParam7 = upsertCommand.CreateParameter();
-                upsertParam7.DbType = DbType.Binary;
-                upsertParam7.ParameterName = "@popStamp";
-                upsertCommand.Parameters.Add(upsertParam7);
-                var upsertParam8 = upsertCommand.CreateParameter();
-                upsertParam8.DbType = DbType.String;
-                upsertParam8.ParameterName = "@correlationId";
-                upsertCommand.Parameters.Add(upsertParam8);
-                upsertParam1.Value = item.identityId.ToByteArray();
-                upsertParam2.Value = item.fileId.ToByteArray();
-                upsertParam3.Value = item.boxId.ToByteArray();
-                upsertParam4.Value = item.priority;
-                upsertParam5.Value = item.timeStamp.milliseconds;
-                upsertParam6.Value = item.value ?? (object)DBNull.Value;
-                upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                upsertParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                upsertCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                upsertCommand.AddParameter("@boxId", DbType.Binary, item.boxId);
+                upsertCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                upsertCommand.AddParameter("@timeStamp", DbType.Int64, item.timeStamp.milliseconds);
+                upsertCommand.AddParameter("@value", DbType.Binary, item.value);
+                upsertCommand.AddParameter("@popStamp", DbType.Binary, item.popStamp);
+                upsertCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -301,46 +205,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             $"SET boxId = @boxId,priority = @priority,timeStamp = @timeStamp,value = @value,popStamp = @popStamp,correlationId = @correlationId,modified = {updateCommand.SqlMax()}(Inbox.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND fileId = @fileId) "+
                                             "RETURNING created,modified,rowId;";
-                var updateParam1 = updateCommand.CreateParameter();
-                updateParam1.DbType = DbType.Binary;
-                updateParam1.ParameterName = "@identityId";
-                updateCommand.Parameters.Add(updateParam1);
-                var updateParam2 = updateCommand.CreateParameter();
-                updateParam2.DbType = DbType.Binary;
-                updateParam2.ParameterName = "@fileId";
-                updateCommand.Parameters.Add(updateParam2);
-                var updateParam3 = updateCommand.CreateParameter();
-                updateParam3.DbType = DbType.Binary;
-                updateParam3.ParameterName = "@boxId";
-                updateCommand.Parameters.Add(updateParam3);
-                var updateParam4 = updateCommand.CreateParameter();
-                updateParam4.DbType = DbType.Int32;
-                updateParam4.ParameterName = "@priority";
-                updateCommand.Parameters.Add(updateParam4);
-                var updateParam5 = updateCommand.CreateParameter();
-                updateParam5.DbType = DbType.Int64;
-                updateParam5.ParameterName = "@timeStamp";
-                updateCommand.Parameters.Add(updateParam5);
-                var updateParam6 = updateCommand.CreateParameter();
-                updateParam6.DbType = DbType.Binary;
-                updateParam6.ParameterName = "@value";
-                updateCommand.Parameters.Add(updateParam6);
-                var updateParam7 = updateCommand.CreateParameter();
-                updateParam7.DbType = DbType.Binary;
-                updateParam7.ParameterName = "@popStamp";
-                updateCommand.Parameters.Add(updateParam7);
-                var updateParam8 = updateCommand.CreateParameter();
-                updateParam8.DbType = DbType.String;
-                updateParam8.ParameterName = "@correlationId";
-                updateCommand.Parameters.Add(updateParam8);
-                updateParam1.Value = item.identityId.ToByteArray();
-                updateParam2.Value = item.fileId.ToByteArray();
-                updateParam3.Value = item.boxId.ToByteArray();
-                updateParam4.Value = item.priority;
-                updateParam5.Value = item.timeStamp.milliseconds;
-                updateParam6.Value = item.value ?? (object)DBNull.Value;
-                updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
-                updateParam8.Value = item.correlationId ?? (object)DBNull.Value;
+                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                updateCommand.AddParameter("@fileId", DbType.Binary, item.fileId);
+                updateCommand.AddParameter("@boxId", DbType.Binary, item.boxId);
+                updateCommand.AddParameter("@priority", DbType.Int32, item.priority);
+                updateCommand.AddParameter("@timeStamp", DbType.Int64, item.timeStamp.milliseconds);
+                updateCommand.AddParameter("@value", DbType.Binary, item.value);
+                updateCommand.AddParameter("@popStamp", DbType.Binary, item.popStamp);
+                updateCommand.AddParameter("@correlationId", DbType.String, item.correlationId);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -408,7 +280,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.popStamp = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
             item.correlationId = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
-            item.modified = (rdr[10] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[10]); // HACK
+            item.modified = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
             return item;
        }
 
@@ -419,17 +291,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 delete0Command.CommandText = "DELETE FROM Inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId";
-                var delete0Param1 = delete0Command.CreateParameter();
-                delete0Param1.DbType = DbType.Binary;
-                delete0Param1.ParameterName = "@identityId";
-                delete0Command.Parameters.Add(delete0Param1);
-                var delete0Param2 = delete0Command.CreateParameter();
-                delete0Param2.DbType = DbType.Binary;
-                delete0Param2.ParameterName = "@fileId";
-                delete0Command.Parameters.Add(delete0Param2);
 
-                delete0Param1.Value = identityId.ToByteArray();
-                delete0Param2.Value = fileId.ToByteArray();
+                delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete0Command.AddParameter("@fileId", DbType.Binary, fileId);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
@@ -443,17 +307,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 deleteCommand.CommandText = "DELETE FROM Inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId " + 
                                              "RETURNING rowId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified";
-                var deleteParam1 = deleteCommand.CreateParameter();
-                deleteParam1.DbType = DbType.Binary;
-                deleteParam1.ParameterName = "@identityId";
-                deleteCommand.Parameters.Add(deleteParam1);
-                var deleteParam2 = deleteCommand.CreateParameter();
-                deleteParam2.DbType = DbType.Binary;
-                deleteParam2.ParameterName = "@fileId";
-                deleteCommand.Parameters.Add(deleteParam2);
 
-                deleteParam1.Value = identityId.ToByteArray();
-                deleteParam2.Value = fileId.ToByteArray();
+                deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                deleteCommand.AddParameter("@fileId", DbType.Binary, fileId);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
@@ -488,7 +344,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.popStamp = (rdr[5] == DBNull.Value) ? null : new Guid((byte[])rdr[5]);
             item.correlationId = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
             item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? item.created : new UnixTimeUtc((long)rdr[8]); // HACK
+            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -500,17 +356,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get0Command.CommandText = "SELECT rowId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM Inbox " +
                                              "WHERE identityId = @identityId AND fileId = @fileId LIMIT 1;"+
                                              ";";
-                var get0Param1 = get0Command.CreateParameter();
-                get0Param1.DbType = DbType.Binary;
-                get0Param1.ParameterName = "@identityId";
-                get0Command.Parameters.Add(get0Param1);
-                var get0Param2 = get0Command.CreateParameter();
-                get0Param2.DbType = DbType.Binary;
-                get0Param2.ParameterName = "@fileId";
-                get0Command.Parameters.Add(get0Param2);
 
-                get0Param1.Value = identityId.ToByteArray();
-                get0Param2.Value = fileId.ToByteArray();
+                get0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get0Command.AddParameter("@fileId", DbType.Binary, fileId);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -539,17 +387,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 getPaging0Command.CommandText = "SELECT rowId,identityId,fileId,boxId,priority,timeStamp,value,popStamp,correlationId,created,modified FROM Inbox " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
-                var getPaging0Param1 = getPaging0Command.CreateParameter();
-                getPaging0Param1.DbType = DbType.Int64;
-                getPaging0Param1.ParameterName = "@rowId";
-                getPaging0Command.Parameters.Add(getPaging0Param1);
-                var getPaging0Param2 = getPaging0Command.CreateParameter();
-                getPaging0Param2.DbType = DbType.Int64;
-                getPaging0Param2.ParameterName = "@count";
-                getPaging0Command.Parameters.Add(getPaging0Param2);
 
-                getPaging0Param1.Value = inCursor;
-                getPaging0Param2.Value = count+1;
+                getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
+                getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
 
                 {
                     await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
