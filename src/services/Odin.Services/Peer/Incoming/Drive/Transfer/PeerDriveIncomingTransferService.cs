@@ -307,8 +307,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             
             var tempFile = _transferState.TempFile with {StorageType = TempStorageType.Inbox};
             var instructionSet = _transferState.TransferInstructionSet;
-            
-            await WriteInstructionsAndMetadataToInbox(tempFile, fileMetadata, instructionSet, odinContext);
+
+            try
+            {
+                await WriteInstructionsAndMetadataToInbox(tempFile, fileMetadata, instructionSet, odinContext);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "After TryDirectWriteFailed, we also failed to ensure " +
+                                   "metadata and instructions are available to the inbox.  file: {tempFile}", tempFile);
+            }
 
             //S1220
             return await RouteToInboxAsync(stateItem, odinContext);
