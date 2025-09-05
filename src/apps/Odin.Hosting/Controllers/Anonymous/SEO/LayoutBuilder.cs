@@ -70,8 +70,8 @@ public static class LayoutBuilder
         b.AppendLine($"<meta property='og:type' content='{siteType}'/>");
         b.AppendLine($"<meta property='og:image' content='{imageUrl}'/>");
 
-        b.AppendLine($"<link rel='alternate' href='{humanReadableVersion}' />");
-        b.AppendLine($"<link rel='canonical' href='{GetDisplayUrlWithSsr(httpContext)}' />");
+        b.AppendLine($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContext)}' />");
+        b.AppendLine($"<link rel='canonical' href='{humanReadableVersion}' />");
         b.AppendLine(PrepareIdentityContent(person, odinContext));
 
         return b;
