@@ -351,7 +351,6 @@ public class HomebaseSsrController(
             throw new OdinClientException("Missing channel or post key");
         }
 
-        var (head, _) = await BuildHeadSection(suffix: "Posts", siteType: "website");
         var post = await channelContentService.GetPost(
             channelKey, postKey, WebOdinContext, HttpContext.RequestAborted);
 
@@ -360,6 +359,10 @@ public class HomebaseSsrController(
             Response.StatusCode = 404;
             return;
         }
+
+        // We need the post title in the tab title xxx
+        string suffix = string.IsNullOrEmpty(post.Content.Caption) ? "Posts" : post.Content.Caption;
+        var (head, _) = await BuildHeadSection(suffix: "Posts", siteType: "website"); 
 
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
