@@ -66,16 +66,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             _transferState = new IncomingTransferStateItem(file, transferInstructionSet);
-
-
-            // Write the instruction set to disk
-            await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(file, TenantPathManager.TransferInstructionSetExtension, stream,
-                odinContext);
-
-            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(metadata)));
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, TenantPathManager.MetadataExtension, metadataStream,
-                odinContext);
+            await WriteInstructionsAndMetadataToInbox(file, metadata, transferInstructionSet, odinContext);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
@@ -101,7 +92,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-
             var shouldExpectPayload = !fileMetadata.PayloadsAreRemote;
 
             // if there are payloads in the descriptor, and they should have been sent
@@ -313,8 +303,29 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 return PeerResponseCode.AcceptedDirectWrite;
             }
 
+            logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox", stateItem.TempFile);
+            
+            var tempFile = _transferState.TempFile with {StorageType = TempStorageType.Inbox};
+            var instructionSet = _transferState.TransferInstructionSet;
+            
+            await WriteInstructionsAndMetadataToInbox(tempFile, fileMetadata, instructionSet, odinContext);
+
             //S1220
             return await RouteToInboxAsync(stateItem, odinContext);
+        }
+
+        private async Task WriteInstructionsAndMetadataToInbox(TempFile tempFile, FileMetadata fileMetadata, EncryptedRecipientTransferInstructionSet instructionSet,
+            IOdinContext odinContext)
+        {
+            logger.LogDebug("Writing metadata as {tempFile}", tempFile);
+
+            await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+            await fileSystem.Storage.WriteTempStream(tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
+                odinContext);
+
+            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
+            await fileSystem.Storage.WriteTempStream(tempFile, TenantPathManager.MetadataExtension, metadataStream,
+                odinContext);
         }
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
@@ -354,6 +365,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         odinContext);
                     return true;
                 }
+
+                logger.LogDebug("Caller can direct-write to drive [{drive}] but does not have storage " +
+                                "key for encrypted file", stateItem.TempFile.File.DriveId);
 
                 //S2210 - comments cannot fall back to inbox
                 if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
