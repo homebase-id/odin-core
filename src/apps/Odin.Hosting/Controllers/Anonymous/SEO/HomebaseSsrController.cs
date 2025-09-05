@@ -362,7 +362,7 @@ public class HomebaseSsrController(
 
         // We need the post title in the tab title xxx
         string suffix = string.IsNullOrEmpty(post.Content.Caption) ? "Posts" : post.Content.Caption;
-        var (head, _) = await BuildHeadSection(suffix: "Posts", siteType: "website"); 
+        var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website"); 
 
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
