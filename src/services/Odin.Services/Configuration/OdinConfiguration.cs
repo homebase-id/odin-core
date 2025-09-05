@@ -500,6 +500,7 @@ namespace Odin.Services.Configuration
             public string Region { get; init; } = "";
             public bool ForcePathStyle { get; init; } = false;
             public string BucketName { get; init; } = "";
+            public string RootPath { get; init; } = "";
 
             public S3PayloadStorageSection()
             {
@@ -517,6 +518,7 @@ namespace Odin.Services.Configuration
                     Region = config.GetOrDefault("S3PayloadStorage:Region", "");
                     ForcePathStyle = config.GetOrDefault("S3PayloadStorage:ForcePathStyle", false);
                     BucketName = config.Required<string>("S3PayloadStorage:BucketName");
+                    RootPath = config.GetOrDefault("S3PayloadStorage:RootPath", "payloads");
                 }
             }
         }

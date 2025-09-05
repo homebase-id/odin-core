@@ -182,6 +182,24 @@ public class S3AwsStorageTests
     //
 
     [Test]
+    public async Task S3AwsStorage_ItShouldReadAndWriteFileWithRootPath()
+    {
+        const string path = "the-file";
+        const string text = "test";
+
+        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName, "the-root");
+
+        // Write to bucket
+        await bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
+
+        // Read back from bucket
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy.ToStringFromUtf8Bytes(), Is.EqualTo(text));
+    }
+
+    //
+
+    [Test]
     public async Task S3AwsStorage_ItShouldReadAndWriteFileWithOffsetAndLength()
     {
         const string path = "the-file";
