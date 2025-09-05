@@ -16,6 +16,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Query;
 
@@ -150,6 +151,30 @@ public class DriveQuery(
             return "{" + v1Str + "," + v2Str + "}";
     }
 
+    /// <summary>
+    /// Just a ballpark figure used for quota
+    /// </summary>
+    /// <returns>Number of quota bytes used by this record</returns>
+    public static int SizeOfDriveMainIndexRecord(DriveMainIndexRecord r)
+    {
+        // All the constants and overhead in DB
+        // Plus the average size of reaction summary, transfer history and localAppData
+        // Note that when we do a toDriveMainIndexRecord() those three fields aren't copied
+        // So to make it easy, I've just added an average and ignore changes to those fields for now.
+        int size = 4096; 
+
+        size += r.senderId != null ? r.senderId.Length + 20 : 0;
+        size += r.hdrEncryptedKeyHeader != null ? 72 : 0;
+        size += r.hdrAppData != null ? r.hdrAppData.Length + 20 : 0;
+        // size += r.hdrLocalAppData != null ? r.hdrLocalAppData.Length + 20 : 0;
+        // size += r.hdrReactionSummary != null ? r.hdrReactionSummary.Length + 20 : 0;
+        size += r.hdrServerData != null ? r.hdrServerData.Length + 20 : 0;
+        // size += r.hdrTransferHistory != null ? r.hdrTransferHistory.Length + 20 : 0;
+        size += r.hdrFileMetaData != null ? r.hdrFileMetaData.Length + 20 : 0;
+
+        return size;
+    }
+
     public async Task SaveFileHeaderAsync(StorageDrive drive, ServerFileHeader header, Guid? useThisVersionTag = null)
     {
         var fileMetadata = header.FileMetadata;
@@ -157,6 +182,13 @@ public class DriveQuery(
         //sanity in case something higher up didnt set the drive properly for any crazy reason
         header.FileMetadata.File = header.FileMetadata.File with { DriveId = drive.Id };
         var driveMainIndexRecord = header.ToDriveMainIndexRecord(drive.TargetDriveInfo, odinIdentity.IdentityId);
+
+        int headerBytes = SizeOfDriveMainIndexRecord(driveMainIndexRecord);
+        var (payloadBytes, thumbBytes) = DriveStorageServiceBase.PayloadByteCount(header);
+        long sumBytes = headerBytes + payloadBytes + thumbBytes;
+
+        header.ServerMetadata.FileByteCount = sumBytes;
+        driveMainIndexRecord.byteCount = sumBytes;
 
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
