@@ -11,8 +11,9 @@ public interface IS3PayloadStorage : IS3Storage
 {
 }
 
-public sealed class S3AwsPayloadStorage(ILogger<S3AwsPayloadStorage> logger, IAmazonS3 awsClient, string bucketName)
-    : S3AwsStorage(logger, awsClient, bucketName), IS3PayloadStorage
+public sealed class S3AwsPayloadStorage(
+    ILogger<S3AwsPayloadStorage> logger, IAmazonS3 awsClient, string bucketName, string rootPath = "")
+    : S3AwsStorage(logger, awsClient, bucketName, rootPath), IS3PayloadStorage
 {
 }
 
@@ -27,12 +28,14 @@ public static class S3AwsPayloadStorageExtensions
         string serviceUrl,
         string region,
         bool forcePathStyle,
-        string bucketName)
+        string bucketName,
+        string rootPath = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessKey, nameof(accessKey));
         ArgumentException.ThrowIfNullOrWhiteSpace(secretAccessKey, nameof(secretAccessKey));
         ArgumentException.ThrowIfNullOrWhiteSpace(serviceUrl, nameof(serviceUrl));
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
+        ArgumentNullException.ThrowIfNull(rootPath, nameof(rootPath));
 
         services.AddAmazonS3Client(
             accessKey,
@@ -45,7 +48,7 @@ public static class S3AwsPayloadStorageExtensions
         {
             var logger = sp.GetRequiredService<ILogger<S3AwsPayloadStorage>>();
             var awsClient = sp.GetRequiredService<IAmazonS3>();
-            return new S3AwsPayloadStorage(logger, awsClient, bucketName);
+            return new S3AwsPayloadStorage(logger, awsClient, bucketName, rootPath);
         });
 
         return services;
