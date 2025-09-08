@@ -233,7 +233,8 @@ public static class SystemServices
                 config.S3PayloadStorage.ServiceUrl,
                 config.S3PayloadStorage.Region,
                 config.S3PayloadStorage.ForcePathStyle,
-                config.S3PayloadStorage.BucketName);
+                config.S3PayloadStorage.BucketName,
+                config.S3PayloadStorage.RootPath);
         }
 
         return services;

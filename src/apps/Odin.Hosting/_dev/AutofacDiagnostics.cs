@@ -43,7 +43,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheKeyPrefix), "ec4d8d30"},
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationUniqueIdGenerator), "e6f1c919"},
-        {typeof(Odin.Core.Storage.ObjectStorage.IS3PayloadStorage), "0dddfbe1"},
+        {typeof(Odin.Core.Storage.ObjectStorage.IS3PayloadStorage), "a64db6c5"},
         {typeof(Odin.Services.Certificate.CertificateService), "69a1f6ca"},
         {typeof(Odin.Services.Certificate.CertificateStore), "3d5de885"},
         {typeof(Odin.Services.Certificate.CertificateStorageKey), "4bbcfd3f"},

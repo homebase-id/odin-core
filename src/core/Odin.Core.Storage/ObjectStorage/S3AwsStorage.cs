@@ -24,15 +24,19 @@ public class S3AwsStorage : IS3Storage
 {
     private readonly ILogger<S3AwsStorage> _logger;
     private readonly IAmazonS3 _s3Client;
+    private readonly string _rootPath;
 
     public string BucketName { get; }
 
-    public S3AwsStorage(ILogger<S3AwsStorage> logger, IAmazonS3 s3Client, string bucketName)
+    public S3AwsStorage(ILogger<S3AwsStorage> logger, IAmazonS3 s3Client, string bucketName, string rootPath = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
+        ArgumentNullException.ThrowIfNull(rootPath, nameof(rootPath));
+
         _logger = logger;
         _s3Client = s3Client;
         BucketName = bucketName;
+        _rootPath = S3Path.Combine(rootPath);
     }
 
     //
@@ -76,7 +80,7 @@ public class S3AwsStorage : IS3Storage
         _logger.LogTrace(nameof(WriteBytesAsync));
 
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(path);
+        path = S3Path.Combine(_rootPath, path);
 
         var memoryStream = new MemoryStream(bytes);
         try
@@ -106,7 +110,7 @@ public class S3AwsStorage : IS3Storage
     public async Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(path);
+        path = S3Path.Combine(_rootPath, path);
 
         try
         {
@@ -159,7 +163,7 @@ public class S3AwsStorage : IS3Storage
         // _logger.LogDebug("Requesting bytes from S3: Path={Path}, Offset={Offset}, Length={Length}", path, offset, length);
 
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(path);
+        path = S3Path.Combine(_rootPath, path);
 
         var memoryStream = new MemoryStream();
         try
@@ -194,7 +198,7 @@ public class S3AwsStorage : IS3Storage
     public async Task DeleteFileAsync(string path, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(path);
+        path = S3Path.Combine(_rootPath, path);
 
         try
         {
@@ -219,12 +223,65 @@ public class S3AwsStorage : IS3Storage
 
     //
 
+    // SEB:NOTE this will not delete versioned objects (if versioning is enabled on the bucket).
+    public async Task DeleteDirectoryAsync(string path, CancellationToken cancellationToken = default)
+    {
+        // S3 doesn't have directories, so we need to list and delete all objects with the given prefix (path)
+
+        S3Path.AssertFolderName(path);
+        path = S3Path.Combine(_rootPath, path);
+
+        try
+        {
+            bool isTruncated;
+            string? continuationToken = null;
+            do
+            {
+                var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+                {
+                    BucketName = BucketName,
+                    ContinuationToken = continuationToken,
+                    MaxKeys = 1000,
+                    Prefix = path,
+                }, cancellationToken);
+
+                if (listResponse.S3Objects?.Count > 0)
+                {
+                    var deleteRequest = new DeleteObjectsRequest
+                    {
+                        BucketName = BucketName,
+                        Objects = listResponse.S3Objects
+                            .Select(o => new KeyVersion { Key = o.Key })
+                            .ToList()
+                    };
+                    await _s3Client.DeleteObjectsAsync(deleteRequest, cancellationToken);
+                }
+
+                continuationToken = listResponse.NextContinuationToken;
+                isTruncated = listResponse.IsTruncated ?? false;
+            }
+            while (isTruncated);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed delete all objects from '{path} in bucket '{BucketName}'");
+        }
+    }
+
+
+    //
+
     public async Task CopyFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
     {
+        if (string.Equals(srcPath, dstPath, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Source and destination paths cannot be the same", nameof(dstPath));
+        }
+
         S3Path.AssertFileName(srcPath);
         S3Path.AssertFileName(dstPath);
-        srcPath = S3Path.Combine(srcPath);
-        dstPath = S3Path.Combine(dstPath);
+        srcPath = S3Path.Combine(_rootPath, srcPath);
+        dstPath = S3Path.Combine(_rootPath, dstPath);
 
         var request = new CopyObjectRequest
         {
@@ -259,7 +316,7 @@ public class S3AwsStorage : IS3Storage
     public async Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(dstPath);
-        dstPath = S3Path.Combine(dstPath);
+        dstPath = S3Path.Combine(_rootPath, dstPath);
 
         try
         {
@@ -285,7 +342,7 @@ public class S3AwsStorage : IS3Storage
     public async Task DownloadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(srcPath);
-        srcPath = S3Path.Combine(srcPath);
+        srcPath = S3Path.Combine(_rootPath, srcPath);
 
         Directory.CreateDirectory(Path.GetDirectoryName(dstPath) ?? throw new InvalidOperationException());
 
@@ -311,7 +368,7 @@ public class S3AwsStorage : IS3Storage
     public async Task<long> FileLengthAsync(string path, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(path);
+        path = S3Path.Combine(_rootPath, path);
 
         try
         {

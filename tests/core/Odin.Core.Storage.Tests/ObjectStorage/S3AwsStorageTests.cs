@@ -182,6 +182,24 @@ public class S3AwsStorageTests
     //
 
     [Test]
+    public async Task S3AwsStorage_ItShouldReadAndWriteFileWithRootPath()
+    {
+        const string path = "the-file";
+        const string text = "test";
+
+        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName, "the-root");
+
+        // Write to bucket
+        await bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
+
+        // Read back from bucket
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy.ToStringFromUtf8Bytes(), Is.EqualTo(text));
+    }
+
+    //
+
+    [Test]
     public async Task S3AwsStorage_ItShouldReadAndWriteFileWithOffsetAndLength()
     {
         const string path = "the-file";
@@ -297,6 +315,46 @@ public class S3AwsStorageTests
 
         var exists = await bucket.FileExistsAsync(path);
         Assert.That(exists, Is.False);
+    }
+
+    //
+
+    [Test]
+    [TestCase("")]
+    [TestCase("payloads")]
+    public async Task S3AwsStorage_ItShouldDeleteADirectory(string root)
+    {
+        const string dir = "the-dir/";
+        const string path = dir + "the-file";
+        const string text = "test";
+        const int fileCount = 10;
+
+        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName, root);
+
+        await bucket.DeleteDirectoryAsync(dir); // Should not throw
+
+        // Create files
+        for (var idx = 0; idx < fileCount; idx++)
+        {
+            await bucket.WriteBytesAsync(path + idx, System.Text.Encoding.UTF8.GetBytes(text));
+        }
+
+        // Check that files exist
+        for (var idx = 0; idx < fileCount; idx++)
+        {
+            var exists = await bucket.FileExistsAsync(path + idx);
+            Assert.That(exists, Is.True);
+        }
+
+        // Delete directory
+        await bucket.DeleteDirectoryAsync(dir);
+
+        // Check that files don't exist anymore
+        for (var idx = 0; idx < fileCount; idx++)
+        {
+            var exists = await bucket.FileExistsAsync(path + idx);
+            Assert.That(exists, Is.False);
+        }
     }
 
     //
