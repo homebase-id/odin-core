@@ -17,13 +17,12 @@ namespace Odin.Services.Base
 
         public SensitiveByteArray TemporalEncryptionKey { get; } = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
         
-        public TenantContext(
-            Guid dotYouRegistryId,
+        public TenantContext(Guid dotYouRegistryId,
             OdinId hostOdinId,
             TenantPathManager tenantPathManager,
             Guid? firstRunToken,
             bool isPreconfigured,
-            UnixTimeUtc? markedForDeletionDate)
+            UnixTimeUtc? markedForDeletionDate, string email)
         {
             this.DotYouRegistryId = dotYouRegistryId;
             this.HostOdinId = hostOdinId;
@@ -31,7 +30,10 @@ namespace Odin.Services.Base
             this.FirstRunToken = firstRunToken;
             this.IsPreconfigured = isPreconfigured;
             this.MarkedForDeletionDate = markedForDeletionDate;
+            this.Email = email;
         }
+
+        public string Email { get; private set; }
 
         public Guid DotYouRegistryId { get; private set; }
 
@@ -69,6 +71,7 @@ namespace Odin.Services.Base
             this.FirstRunToken = source.FirstRunToken;
             this.IsPreconfigured = source.IsPreconfigured;
             this.TenantPathManager = source.TenantPathManager;
+            this.Email = source.Email;
             this.LastSeen = source.LastSeen;
         }
         

@@ -130,7 +130,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             tenantPathManager,
             idReg.FirstRunToken,
             isPreconfigured,
-            idReg.MarkedForDeletionDate);
+            idReg.MarkedForDeletionDate,
+            idReg.Email);
 
         return tc;
     }

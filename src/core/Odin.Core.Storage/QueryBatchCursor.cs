@@ -31,6 +31,13 @@ namespace Odin.Core.Storage
 
         public static TimeRowCursor FromJson(string json)
         {
+            if (string.IsNullOrEmpty(json))
+            {
+                // I know the exception below handles it but,
+                // I became very annoyed at hitting this during debugging
+                return null;
+            }
+            
             try
             {
                 var deserializedCursor = JsonSerializer.Deserialize<TimeRowCursor>(json);

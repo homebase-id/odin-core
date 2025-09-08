@@ -333,8 +333,8 @@ namespace Odin.Core.Storage.Tests
             };
 
             // These are the objects stored with each player.
-            var shamirShardPlayerWrapper = new List<ShamirShardPlayerWrapper>();
-            var shamirShardDealerWrapper = new List<ShamirShardDealerWrapper>();
+            var shamirShardPlayerWrappers = new List<ShamirShardPlayerWrapper>();
+            var shamirShardDealerWrappers = new List<ShamirShardDealerWrapper>();
 
             ClassicAssert.IsTrue(shards.Count == 5);
             ClassicAssert.IsTrue(shamirPlayers.Count == 5);
@@ -352,12 +352,12 @@ namespace Odin.Core.Storage.Tests
 
                 // We create the player record that we will send to the player
                 var playerRecord = new ShamirShardPlayerWrapper(shamirPlayers[i], guidId, CipherText);
-                shamirShardPlayerWrapper.Add(playerRecord);
-
+                shamirShardPlayerWrappers.Add(playerRecord);
+                
                 // This record is stored on the dealer's host, for each player
                 var dealerRecord = new ShamirShardDealerWrapper(guidId, playerRecord.Player, keyba, Iv);
                 SaveToDealerDisk(dealerRecord);
-                shamirShardDealerWrapper.Add(dealerRecord);
+                shamirShardDealerWrappers.Add(dealerRecord);
 
                 if (SendOverPeerD2PSendShard(playerRecord) == false)
                 {
@@ -372,26 +372,26 @@ namespace Odin.Core.Storage.Tests
             // [TEST] ShamirSecretSharingFlowRecoveryExample()
 
             // .. Now we're in recovery mode. Let's get the automatic shards.
-            var peerShard1 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[0].Id);
-            var ddisk1 = LoadFromDealerDisk(shamirShardPlayerWrapper[0].Id);
+            var peerShard1 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrappers[0].Id);
+            var ddisk1 = LoadFromDealerDisk(shamirShardPlayerWrappers[0].Id);
             var dShard1 = AesCbc.Decrypt(peerShard1.DealerEncryptedShard, ddisk1.Key, ddisk1.Iv);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard1, shards[0].Shard) == true);
             var shard1 = new ShamirSecretSharing.ShamirShard(ddisk1.Player.Index, dShard1);
             
-            var peerShard2 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[1].Id);
-            var ddisk2 = LoadFromDealerDisk(shamirShardPlayerWrapper[1].Id);
+            var peerShard2 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrappers[1].Id);
+            var ddisk2 = LoadFromDealerDisk(shamirShardPlayerWrappers[1].Id);
             var dShard2 = AesCbc.Decrypt(peerShard2.DealerEncryptedShard, ddisk2.Key, ddisk2.Iv);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard2, shards[1].Shard) == true);
             var shard2 = new ShamirSecretSharing.ShamirShard(ddisk2.Player.Index, dShard2);
             
-            var peerShard3 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrapper[2].Id);
-            var ddisk3 = LoadFromDealerDisk(shamirShardPlayerWrapper[2].Id);
+            var peerShard3 = PeerRequestAutomaticShard(DealerOdinId, shamirShardPlayerWrappers[2].Id);
+            var ddisk3 = LoadFromDealerDisk(shamirShardPlayerWrappers[2].Id);
             var dShard3 = AesCbc.Decrypt(peerShard3.DealerEncryptedShard, ddisk3.Key, ddisk3.Iv);
             ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(dShard3, shards[2].Shard) == true);
             var shard3 = new ShamirSecretSharing.ShamirShard(ddisk3.Player.Index, dShard3);
 
             // Signal the player that we need their help
-            var ddisk4 = LoadFromDealerDisk(shamirShardDealerWrapper[3].Id);
+            var ddisk4 = LoadFromDealerDisk(shamirShardDealerWrappers[3].Id);
             PeerRequestDelegateShard(DealerOdinId, ddisk4.Id);
             // ... 3 hours later ... the player does it
             var dShard4 = LocalApiResolveDelegateShard(ddisk4.Id);
@@ -399,7 +399,7 @@ namespace Odin.Core.Storage.Tests
             var shard4 = new ShamirSecretSharing.ShamirShard(ddisk4.Player.Index, dShard4);
             
             // Signal the player that we need their help
-            var ddisk5 = LoadFromDealerDisk(shamirShardDealerWrapper[4].Id);
+            var ddisk5 = LoadFromDealerDisk(shamirShardDealerWrappers[4].Id);
             PeerRequestDelegateShard(DealerOdinId, ddisk5.Id);
             // ... 3 hours later ... the player does it
             var dShard5 = LocalApiResolveDelegateShard(ddisk5.Id);

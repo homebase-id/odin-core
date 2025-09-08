@@ -37,7 +37,7 @@ public class TenantConfigService
     private readonly IIdentityRegistry _registry;
     private readonly IDriveManager _driveManager;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
-    private readonly RecoveryService _recoverService;
+    private readonly PasswordKeyRecoveryService _recoverService;
     private readonly IcrKeyService _icrKeyService;
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
@@ -50,7 +50,7 @@ public class TenantConfigService
         IDriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         IcrKeyService icrKeyService,
-        RecoveryService recoverService,
+        PasswordKeyRecoveryService recoverService,
         CircleMembershipService circleMembershipService,
         IAppRegistrationService appRegistrationService,
         IdentityDatabase identityDatabase)
@@ -264,6 +264,7 @@ public class TenantConfigService
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
     {
         // Note - if the drive attributes was changed, they will be applied by this
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateShardRecoveryDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateChatDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);

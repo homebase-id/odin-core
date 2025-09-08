@@ -83,6 +83,15 @@ namespace Odin.Services.Base
                 throw new OdinSecurityException("Master key not available; check your auth scheme");
             }
         }
+        public void AssertHasMasterKey(out SensitiveByteArray masterKey)
+        {
+            if (!HasMasterKey)
+            {
+                throw new OdinSecurityException("Master key not available; check your auth scheme");
+            }
+            
+            masterKey = this._masterKey;
+        }
 
         public void AssertCallerIsOwner()
         {

@@ -14,6 +14,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Query;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
@@ -35,6 +36,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             var t = ownerApi.GetOwnerAuthContext(identity.OdinId);
             var factory = new OwnerApiClientFactory(t.AuthenticationResult, t.SharedSecret.GetKey());
 
+            Security = new SecurityApiClient(ownerApi, identity);
             AppManager = new AppManagementApiClient(ownerApi, identity);
             DriveManager = new DriveManagementApiClient(ownerApi, identity);
             Configuration = new OwnerConfigurationApiClient(ownerApi, identity);
@@ -70,6 +72,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public TestIdentity Identity => _identity;
 
         public OdinId OdinId => _identity.OdinId;
+
+        public SecurityApiClient Security { get; }
 
         public UniversalFollowerApiClient Follower { get; }
 
