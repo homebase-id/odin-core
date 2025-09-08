@@ -122,12 +122,18 @@ namespace Odin.Services.Drives
             string payloadDirectory = GetDrivePayloadPath();
 
             // Just for sanity, to see if anything fails
-            if (Directory.Exists(payloadDirectory))
+            if (!_tenantPathManager.S3PayloadsEnabled && Directory.Exists(payloadDirectory))
+            {
                 throw new Exception("CreateDirectories() called but drive folder already exists on disk.");
+            }
 
             Directory.CreateDirectory(GetDriveUploadPath());
             Directory.CreateDirectory(GetDriveInboxPath());
-            Directory.CreateDirectory(payloadDirectory);
+
+            if (!_tenantPathManager.S3PayloadsEnabled && !string.IsNullOrEmpty(payloadDirectory))
+            {
+                Directory.CreateDirectory(payloadDirectory);
+            }
 
             /* This code will oddly cause Overwrite_Encrypted_PayloadManyTimes_Concurrently_MultipleThreads TEST to fail
             for (int first = 0; first < 16; first++)

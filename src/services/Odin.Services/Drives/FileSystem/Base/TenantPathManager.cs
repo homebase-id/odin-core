@@ -32,7 +32,6 @@ public record ParsedThumbnailFileRecord
 
 public class TenantPathManager
 {
- 
     public static readonly string TransferInstructionSetExtension = "transferkeyheader";
     public const string MetadataExtension = "metadata";
     
@@ -66,16 +65,19 @@ public class TenantPathManager
     public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
     public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
 
+    public bool S3PayloadsEnabled { get; }
+
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(config.Host.TenantDataRootPath, nameof(config.Host.TenantDataRootPath));
 
+        S3PayloadsEnabled = config.S3PayloadStorage.Enabled;
         var tenant = tenantId.ToString();
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
 
-        if (config.S3PayloadStorage.Enabled)
+        if (S3PayloadsEnabled)
         {
             // Payloads on S3 is anchored to the root of the bucket
             RootPayloadsPath = string.Empty;
@@ -253,8 +255,12 @@ public class TenantPathManager
     {
         Directory.CreateDirectory(HeadersPath);
         Directory.CreateDirectory(TempPath);
-        Directory.CreateDirectory(PayloadsPath);
         Directory.CreateDirectory(StaticPath);
+
+        if (!S3PayloadsEnabled)
+        {
+            Directory.CreateDirectory(PayloadsPath);
+        }
     }
 
     // ----------------------
