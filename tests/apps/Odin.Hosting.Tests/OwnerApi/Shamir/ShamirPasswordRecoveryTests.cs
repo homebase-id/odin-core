@@ -43,6 +43,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         }
 
         [Test]
+        [Ignore("dark launched")]
         public async Task CanDistributeShardsToDelegatePeersAndVerify()
         {
             List<OdinId> peerIdentities =
@@ -82,6 +83,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         }
 
         [Test]
+        [Ignore("dark launched")]
         public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
         {
             _scaffold.SetAssertLogEventsAction(logEvents =>
