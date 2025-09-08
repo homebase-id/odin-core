@@ -12,6 +12,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      - name: Only allow main branch
+        if: github.ref != 'refs/heads/main-prod-on'
+        run: |
+          echo "Error: Workflow must run on 'main' branch. Current ref: ${{ github.ref }}"
+          exit 1          
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
