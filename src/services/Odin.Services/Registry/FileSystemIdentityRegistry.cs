@@ -548,6 +548,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private Task DeletePayloads(IdentityRegistration identity)
     {
+        // SEB:TODO update for S3 payloads
+        if (_config.S3PayloadStorage.Enabled)
+        {
+            throw new OdinSystemException("Deleting registrations with S3 payloads is not supported yet.");
+        }
+
         return Task.Run(() =>
         {
             var shards = Directory.GetDirectories(PayloadRoot);
