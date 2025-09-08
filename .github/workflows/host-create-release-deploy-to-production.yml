@@ -34,6 +34,12 @@ jobs:
           INPUTS: ${{ toJson(github.event.inputs) }}
           GITHUB_REF: ${{ github.ref }}    
 
+      - name: Only allow main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Error: Workflow must run on 'main' branch. Current ref: ${{ github.ref }}"
+          exit 1          
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:

@@ -14,6 +14,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Only allow main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Error: Workflow must run on 'main' branch. Current ref: ${{ github.ref }}"
+          exit 1          
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
