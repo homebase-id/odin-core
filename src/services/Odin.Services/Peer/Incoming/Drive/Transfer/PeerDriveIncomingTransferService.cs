@@ -28,6 +28,7 @@ using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Registry.LastSeen;
 using Odin.Services.Util;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer
@@ -44,7 +45,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         FileSystemResolver fileSystemResolver,
         OdinConfiguration odinConfiguration,
         TransitInboxBoxStorage transitInboxBoxStorage,
-        FeedWriter feedWriter
+        FeedWriter feedWriter,
+        ILastSeenService lastSeenService
     ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
@@ -179,7 +181,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                 }
 
-                return new PeerTransferResponse() { Code = responseCode };
+                return await GetPeerTransferResponse(responseCode, odinContext);
             }
 
             throw new OdinSystemException("Unhandled Routing");
@@ -214,10 +216,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     },
                     odinContext, null);
 
-                return new PeerTransferResponse()
-                {
-                    Code = PeerResponseCode.AcceptedDirectWrite
-                };
+                return await GetPeerTransferResponse(PeerResponseCode.AcceptedDirectWrite, odinContext);
             }
 
             var item = new TransferInboxItem()
@@ -237,9 +236,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             await transitInboxBoxStorage.AddAsync(item);
 
+            return await GetPeerTransferResponse(PeerResponseCode.AcceptedIntoInbox, odinContext);
+        }
+
+        private async Task<PeerTransferResponse> GetPeerTransferResponse(PeerResponseCode code, IOdinContext odinContext)
+        {
             return new PeerTransferResponse()
             {
-                Code = PeerResponseCode.AcceptedIntoInbox
+                Code = code,
+                LastSeen = await lastSeenService.GetLastSeenAsync(odinContext)
             };
         }
 
@@ -273,10 +278,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 TransferFileType = TransferFileType.ReadReceipt,
             });
 
-            return new PeerTransferResponse()
-            {
-                Code = PeerResponseCode.AcceptedIntoInbox
-            };
+            return await GetPeerTransferResponse(PeerResponseCode.AcceptedIntoInbox, odinContext);
         }
 
         public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
@@ -303,9 +305,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 return PeerResponseCode.AcceptedDirectWrite;
             }
 
-            logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox", stateItem.TempFile);
-            
-            var tempFile = _transferState.TempFile with {StorageType = TempStorageType.Inbox};
+            logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
+                stateItem.TempFile);
+
+            var tempFile = _transferState.TempFile with { StorageType = TempStorageType.Inbox };
             var instructionSet = _transferState.TransferInstructionSet;
 
             try
@@ -322,7 +325,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await RouteToInboxAsync(stateItem, odinContext);
         }
 
-        private async Task WriteInstructionsAndMetadataToInbox(TempFile tempFile, FileMetadata fileMetadata, EncryptedRecipientTransferInstructionSet instructionSet,
+        private async Task WriteInstructionsAndMetadataToInbox(TempFile tempFile, FileMetadata fileMetadata,
+            EncryptedRecipientTransferInstructionSet instructionSet,
             IOdinContext odinContext)
         {
             logger.LogDebug("Writing metadata as {tempFile}", tempFile);

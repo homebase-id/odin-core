@@ -1,3 +1,5 @@
+using Odin.Core.Time;
+
 namespace Odin.Services.Peer
 {
     /// <summary>
@@ -9,6 +11,8 @@ namespace Odin.Services.Peer
         /// Specifies if the transfer was successfully received
         /// </summary>
         public PeerResponseCode Code { get; set; }
+
+        public UnixTimeUtc? LastSeen { get; set; }
     }
 
 

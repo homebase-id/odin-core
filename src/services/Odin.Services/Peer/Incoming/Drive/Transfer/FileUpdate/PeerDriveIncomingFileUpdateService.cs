@@ -22,6 +22,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Registry.LastSeen;
 
 namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 {
@@ -32,7 +33,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         IMediator mediator,
         FileSystemResolver fileSystemResolver,
         PushNotificationService pushNotificationService,
-        TransitInboxBoxStorage transitInboxBoxStorage)
+        TransitInboxBoxStorage transitInboxBoxStorage,
+        ILastSeenService lastSeenService)
     {
         private EncryptedRecipientFileUpdateInstructionSet _updateInstructionSet;
         private TempFile _tempFile;
@@ -122,7 +124,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext);
                 }
 
-                return new PeerTransferResponse() { Code = responseCode };
+                return new PeerTransferResponse()
+                {
+                    Code = responseCode,
+                    LastSeen = await lastSeenService.GetLastSeenAsync(odinContext)
+                };
             }
 
             throw new OdinSystemException("Unhandled Routing");

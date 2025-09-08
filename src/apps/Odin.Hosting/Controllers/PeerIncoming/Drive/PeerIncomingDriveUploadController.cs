@@ -23,7 +23,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
@@ -34,6 +33,7 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Registry.LastSeen;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -53,6 +53,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         private readonly ILogger<PeerIncomingDriveUploadController> _logger;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FeedWriter _feedWriter;
+        private readonly ILastSeenService _lastSeenService;
         private readonly IDriveManager _driveManager;
 
         private readonly FileSystemResolver _fileSystemResolver;
@@ -73,7 +74,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             OdinConfiguration odinConfiguration,
             ILogger<PeerIncomingDriveUploadController> logger,
             TransitInboxBoxStorage transitInboxBoxStorage,
-            FeedWriter feedWriter)
+            FeedWriter feedWriter,
+            ILastSeenService lastSeenService)
         {
             _driveManager = driveManager;
 
@@ -88,6 +90,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             _logger = logger;
             _transitInboxBoxStorage = transitInboxBoxStorage;
             _feedWriter = feedWriter;
+            _lastSeenService = lastSeenService;
         }
 
         /// <summary />
@@ -440,7 +443,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _fileSystemResolver,
                 _odinConfiguration,
                 _transitInboxBoxStorage,
-                _feedWriter);
+                _feedWriter,
+                _lastSeenService);
         }
     }
 }

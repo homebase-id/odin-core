@@ -122,7 +122,7 @@ public class SendFileOutboxWorkerAsync(
                     transferKeyHeaderMemory,
                     "transferInstructionSet.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
-                
+
                 (metaDataStream, var metaDataStreamPart, payloadStreams, var payloadStreamParts) = await PackageFileStreamsAsync(
                     header,
                     odinContext,
@@ -169,6 +169,11 @@ public class SendFileOutboxWorkerAsync(
 
             if (response.IsSuccessStatusCode)
             {
+                if (response.Content?.LastSeen != null)
+                {
+                    // capture in a local cache? 
+                }
+
                 return (versionTag, globalTransitId.GetValueOrDefault());
             }
 

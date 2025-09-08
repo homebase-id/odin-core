@@ -22,4 +22,9 @@ public interface ILastSeenService
     Task PutLastSeenAsync(RegistrationsRecord? record);
     Task<UnixTimeUtc?> GetLastSeenAsync(Guid identityId);
     Task<UnixTimeUtc?> GetLastSeenAsync(string domain);
+    
+    /// <summary>
+    /// Returns the last seen value of this tenant
+    /// </summary>
+    Task<UnixTimeUtc?> GetLastSeenAsync(IOdinContext odinContext);
 }

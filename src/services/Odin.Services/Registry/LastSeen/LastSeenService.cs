@@ -158,6 +158,11 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
         return result.LastSeen;
     }
 
+    public Task<UnixTimeUtc?> GetLastSeenAsync(IOdinContext odinContext)
+    {
+        return this.GetLastSeenAsync(odinContext.Tenant.DomainName);
+    }
+
     //
 
     internal async Task UpdateDatabaseAsync()
