@@ -223,6 +223,54 @@ public class S3AwsStorage : IS3Storage
 
     //
 
+    // SEB:NOTE this will not delete versioned objects (if versioning is enabled on the bucket).
+    public async Task DeleteDirectoryAsync(string path, CancellationToken cancellationToken = default)
+    {
+        // S3 doesn't have directories, so we need to list and delete all objects with the given prefix (path)
+
+        S3Path.AssertFolderName(path);
+        path = S3Path.Combine(_rootPath, path);
+
+        try
+        {
+            bool isTruncated;
+            string? continuationToken = null;
+            do
+            {
+                var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+                {
+                    BucketName = BucketName,
+                    ContinuationToken = continuationToken,
+                    MaxKeys = 1000,
+                    Prefix = path,
+                }, cancellationToken);
+
+                if (listResponse.S3Objects?.Count > 0)
+                {
+                    var deleteRequest = new DeleteObjectsRequest
+                    {
+                        BucketName = BucketName,
+                        Objects = listResponse.S3Objects
+                            .Select(o => new KeyVersion { Key = o.Key })
+                            .ToList()
+                    };
+                    await _s3Client.DeleteObjectsAsync(deleteRequest, cancellationToken);
+                }
+
+                continuationToken = listResponse.NextContinuationToken;
+                isTruncated = listResponse.IsTruncated ?? false;
+            }
+            while (isTruncated);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed delete all objects from '{path} in bucket '{BucketName}'");
+        }
+    }
+
+
+    //
+
     public async Task CopyFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
     {
         if (string.Equals(srcPath, dstPath, StringComparison.OrdinalIgnoreCase))

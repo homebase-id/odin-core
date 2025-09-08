@@ -15,6 +15,7 @@ public interface IS3Storage
     Task<byte[]> ReadBytesAsync(string path, CancellationToken cancellationToken = default);
     Task<byte[]> ReadBytesAsync(string path, long offset, long length, CancellationToken cancellationToken = default);
     Task DeleteFileAsync(string path, CancellationToken cancellationToken = default);
+    Task DeleteDirectoryAsync(string path, CancellationToken cancellationToken = default);
     Task CopyFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task MoveFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
