@@ -15,6 +15,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Time;
 using Odin.Core.Trie;
 using Odin.Core.Util;
@@ -548,37 +549,44 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private Task DeletePayloads(IdentityRegistration identity)
     {
-        // SEB:TODO update for S3 payloads
-        if (_config.S3PayloadStorage.Enabled)
+        var id = identity.Id.ToString();
+
+        // Sanity
+        if (string.IsNullOrEmpty(id))
         {
-            throw new OdinSystemException("Deleting registrations with S3 payloads is not supported yet.");
+            throw new OdinSystemException("I just stopped you in wiping the wrong stuff (missing id)");
         }
 
-        return Task.Run(() =>
+        return Task.Run(async () =>
         {
-            var shards = Directory.GetDirectories(PayloadRoot);
-            foreach (var shard in shards)
+            if (_config.S3PayloadStorage.Enabled)
             {
-                var id = identity.Id.ToString();
-
+                _logger.LogInformation("Deleting S3 payload data for {identity.PrimaryDomainName}",
+                    identity.PrimaryDomainName);
+                var s3 = _serviceProvider.Resolve<IS3PayloadStorage>();
+                await s3.DeleteDirectoryAsync(id + "/");
+            }
+            else
+            {
                 // Sanity
-                if (string.IsNullOrEmpty(shard) || string.IsNullOrEmpty(id))
+                if (string.IsNullOrEmpty(PayloadRoot))
                 {
-                    throw new OdinSystemException("I just stopped you in wiping the wrong stuff!");
+                    throw new OdinSystemException("I just stopped you in wiping the wrong stuff (missing PayloadRoot)");
                 }
 
-                _logger.LogInformation("Deleting shard {shard} on {domain}", shard, identity.PrimaryDomainName);
-
-                var payloadPath = Path.Combine(shard, id);
-                if (Directory.Exists(payloadPath))
+                var identityPayloadDir = Path.Combine(PayloadRoot, id);
+                if (Directory.Exists(identityPayloadDir))
                 {
+                    _logger.LogInformation("Deleting payload dir {dir} on {identity.PrimaryDomainName}",
+                        identityPayloadDir, identity.PrimaryDomainName);
+
                     try
                     {
-                        Directory.Delete(payloadPath, true);
+                        Directory.Delete(identityPayloadDir, true);
                     }
                     catch (Exception e)
                     {
-                        _logger.LogError(e, "Error deleting payload in '{path}': {error}", payloadPath, e.Message);
+                        _logger.LogError(e, "Error deleting payload in '{path}': {error}", identityPayloadDir, e.Message);
                     }
                 }
             }
