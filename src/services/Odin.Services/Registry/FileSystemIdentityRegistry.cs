@@ -405,7 +405,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public async Task LoadRegistrations()
     {
         Directory.CreateDirectory(RegistrationRoot);
-        Directory.CreateDirectory(PayloadRoot);
+        if (!_config.S3PayloadStorage.Enabled)
+        {
+            Directory.CreateDirectory(PayloadRoot);
+        }
 
         await using var systemScope = _serviceProvider.BeginLifetimeScope();
         var systemDatabase = systemScope.Resolve<SystemDatabase>();
