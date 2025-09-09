@@ -46,6 +46,13 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     //
 
+    public Task LastSeenNowAsync(IOdinContext odinContext)
+    {
+        return PutLastSeenAsync(odinContext, UnixTimeUtc.Now());
+    }
+
+    //
+
     public Task LastSeenNowAsync(OdinIdentity odinIdentity)
     {
         return PutLastSeenAsync(odinIdentity, UnixTimeUtc.Now());
@@ -75,6 +82,13 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
     public Task PutLastSeenAsync(TenantContext tenantContext, UnixTimeUtc lastSeen)
     {
         return PutLastSeenAsync(tenantContext.HostOdinId, lastSeen);
+    }
+
+    //
+
+    public Task PutLastSeenAsync(IOdinContext odinContext, UnixTimeUtc lastSeen)
+    {
+        return PutLastSeenAsync(odinContext.Tenant.DomainName, lastSeen);
     }
 
     //
@@ -117,6 +131,13 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
     public Task<UnixTimeUtc?> GetLastSeenAsync(OdinId odinId)
     {
         return GetLastSeenAsync(odinId.DomainName);
+    }
+
+    //
+
+    public Task<UnixTimeUtc?> GetLastSeenAsync(IOdinContext odinContext)
+    {
+        return GetLastSeenAsync(odinContext.Tenant.DomainName);
     }
 
     //

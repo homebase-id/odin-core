@@ -107,4 +107,31 @@ public class TableLastSeenTests : IocTestBase
         Assert.That(notSeen, Is.Null);
     }
 
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldNotStoreInvalidDomain(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        await using var scope = Services.BeginLifetimeScope();
+        var tableLastSeen = scope.Resolve<TableLastSeen>();
+
+        var domain = "a";
+
+        var now = UnixTimeUtc.Now();
+        var lastSeen = new Dictionary<string, UnixTimeUtc>
+        {
+            { domain, now },
+        };
+
+        await tableLastSeen.UpdateLastSeenAsync(lastSeen);
+
+        var all = await tableLastSeen.GetAllAsync();
+        Assert.That(all.Count, Is.EqualTo(0));
+    }
 }

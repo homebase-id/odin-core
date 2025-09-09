@@ -36,9 +36,9 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
     //
 
-    public async Task UpdateLastSeenAsync(Dictionary<string, UnixTimeUtc> lastSeenByOdinId)
+    public async Task UpdateLastSeenAsync(Dictionary<string, UnixTimeUtc> lastSeenByDomain)
     {
-        if (lastSeenByOdinId.Count == 0)
+        if (lastSeenByDomain.Count == 0)
         {
             return;
         }
@@ -48,8 +48,14 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
         var sb = new StringBuilder();
         var idx = 0;
-        foreach (var record in lastSeenByOdinId)
+        foreach (var record in lastSeenByDomain)
         {
+            // Sanity
+            if (record.Key.Length is < 3 or > 255)
+            {
+                continue;
+            }
+
             var timestampParam = $"@timestamp{idx}";
             var odinIdParam = $"@odinId{idx}";
 
@@ -69,7 +75,10 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
         }
 
         cmd.CommandText = sb.ToString();
-        await cmd.ExecuteNonQueryAsync();
+        if (cmd.CommandText.Length > 0)
+        {
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     //
