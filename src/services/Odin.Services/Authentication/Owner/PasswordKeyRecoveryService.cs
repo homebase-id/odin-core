@@ -1,23 +1,37 @@
 using System;
+using System.Net.Mail;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Cache;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 
 namespace Odin.Services.Authentication.Owner;
 
-public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, TableKeyValueCached tblKeyValue)
+public class PasswordKeyRecoveryService(
+    OdinConfiguration odinConfiguration,
+    TableKeyValueCached tblKeyValue,
+    TenantContext tenantContext,
+    OwnerSecretService secretService)
 {
     private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private const string ContextKey = "3780295a-5bc6-4e0f-8334-4b5c063099c4";
-    private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
+
+    private static readonly SingleKeyValueStorage RecoveryKeyStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
+
+    private readonly Guid _accountRecoveryInfoStorageId = Guid.Parse("44879725-b01f-4aab-8c84-921c63df087a");
+    private const string AccountRecoveryInfoContextKey = "94db6882-aa92-44de-8da8-a23c15a11d88";
+
+    private static readonly SingleKeyValueStorage AccountRecoveryInfoStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(AccountRecoveryInfoContextKey));
+
 
     /// <summary>
     /// Validates the recovery key and returns the decrypted master key, if valid.
@@ -37,7 +51,7 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
     public async Task CreateInitialKeyAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        var keyRecord = await Storage.GetAsync<RecoveryKeyRecord>(tblKeyValue, RecordStorageId);
+        var keyRecord = await RecoveryKeyStorage.GetAsync<RecoveryKeyRecord>(tblKeyValue, RecordStorageId);
         if (null != keyRecord)
         {
             throw new OdinSystemException("Recovery key already exists");
@@ -87,9 +101,30 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
         return rk;
     }
 
+    /// <summary>
+    /// Gets the official recovery email used for resetting passwords or account recovery
+    /// </summary>
+    public async Task<string> GetRecoveryEmail()
+    {
+        var recovery = await AccountRecoveryInfoStorage.GetAsync<AccountRecoveryInfo>(tblKeyValue, _accountRecoveryInfoStorageId);
+        return recovery.Email ?? tenantContext.Email;
+    }
+
+    public async Task UpdateRecoveryEmail(string newEmail, PasswordReply passwordReply, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        // just for validation
+        MailAddress.TryCreate(newEmail, out _);
+        _ = await secretService.AssertValidPasswordAsync(passwordReply);
+
+        var recovery = await AccountRecoveryInfoStorage.GetAsync<AccountRecoveryInfo>(tblKeyValue, _accountRecoveryInfoStorageId);
+        recovery.Email = newEmail;
+        await AccountRecoveryInfoStorage.UpsertAsync(tblKeyValue, _accountRecoveryInfoStorageId, recovery);
+    }
+
     private async Task<RecoveryKeyRecord> GetKeyInternalAsync()
     {
-        var existingKey = await Storage.GetAsync<RecoveryKeyRecord>(tblKeyValue, RecordStorageId);
+        var existingKey = await RecoveryKeyStorage.GetAsync<RecoveryKeyRecord>(tblKeyValue, RecordStorageId);
         return existingKey;
     }
 
@@ -105,6 +140,6 @@ public class PasswordKeyRecoveryService(OdinConfiguration odinConfiguration, Tab
             RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(recoveryKey, masterKey)
         };
 
-        await Storage.UpsertAsync(tblKeyValue, RecordStorageId, record);
+        await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, record);
     }
 }

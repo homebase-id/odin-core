@@ -17,6 +17,7 @@ public class OwnerSecurityHealthService(
     OwnerSecretService secretService,
     PasswordKeyRecoveryService recoveryService,
     PublicPrivateKeyService publicPrivateKeyService,
+    TenantContext tenantContext,
     TableKeyValueCached keyValueTable)
 {
     private static readonly Guid VerificationStorageId = Guid.Parse("475c72c0-bb9c-4dc9-a565-7e72319ff2b8");
@@ -43,6 +44,24 @@ public class OwnerSecurityHealthService(
         var mk = await recoveryService.AssertValidKeyAsync(recoveryKey);
         mk.Wipe();
         await UpdateVerificationStatusInternalAsync(updateRecoveryKeyLastVerified: true);
+    }
+
+    public async Task<RecoveryInfo> GetRecoveryInfo(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        return new RecoveryInfo()
+        {
+            Email = await recoveryService.GetRecoveryEmail(),
+            Status = await GetVerificationStatusInternalAsync()
+        };
+    }
+
+    public async Task UpdateRecoveryEmail(string newEmail, PasswordReply passwordReply, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        await recoveryService.UpdateRecoveryEmail(newEmail, passwordReply, odinContext);
+        await UpdateVerificationStatusInternalAsync(updatePasswordLastVerified: true);
     }
 
     public async Task<VerificationStatus> GetVerificationStatusAsync(IOdinContext odinContext)

@@ -26,7 +26,7 @@ namespace Odin.Services.Authentication.Owner
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
 
         // private static readonly Guid RsaKeyStorageId = Guid.Parse("b5e1e0d0-2f27-429a-9c44-34cbcc71745e");
-        private readonly Guid EccKeyStorageId = Guid.Parse("a54ee0f0-e861-45c4-90df-9402a383aac1");
+        private readonly Guid _eccKeyStorageId = Guid.Parse("a54ee0f0-e861-45c4-90df-9402a383aac1");
 
         private const string NonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
 
@@ -136,7 +136,7 @@ namespace Odin.Services.Authentication.Owner
             var eccKeyList = EccKeyListManagement.CreateEccKeyList(EccKeyListManagement.zeroSensitiveKey,
                 EccKeyListManagement.DefaultMaxOfflineKeys,
                 EccKeyListManagement.DefaultHoursOfflineKey); // TODO
-            await EccStorage.UpsertAsync(tblKeyValue, EccKeyStorageId, eccKeyList);
+            await EccStorage.UpsertAsync(tblKeyValue, _eccKeyStorageId, eccKeyList);
             return eccKeyList;
         }
 
@@ -145,7 +145,7 @@ namespace Odin.Services.Authentication.Owner
         /// </summary>
         public async Task<EccFullKeyListData> GetOfflineEccKeyListAsync()
         {
-            var result = await EccStorage.GetAsync<EccFullKeyListData>(tblKeyValue, EccKeyStorageId);
+            var result = await EccStorage.GetAsync<EccFullKeyListData>(tblKeyValue, _eccKeyStorageId);
             if (result == null || result.ListEcc == null || result.ListEcc.Count == 0 || result.ListEcc.TrueForAll(x => x.IsDead()))
             {
                 return await this.GenerateOfflineEccKeyListAsync();

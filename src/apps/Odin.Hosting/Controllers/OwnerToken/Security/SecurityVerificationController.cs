@@ -37,9 +37,23 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         return new OkResult();
     }
 
+
     [HttpGet("verification-status")]
     public async Task<VerificationStatus> GetStatus()
     {
         return await securityHealthService.GetVerificationStatusAsync(WebOdinContext);
+    }
+
+    [HttpGet("recovery-info")]
+    public async Task<RecoveryInfo> GetRecoveryInfo()
+    {
+        return await securityHealthService.GetRecoveryInfo(WebOdinContext);
+    }
+
+    [HttpPost("update-recovery-email")]
+    public async Task<IActionResult> UpdateRecoveryInfo([FromBody] UpdateRecoveryEmailRequest request)
+    {
+        await securityHealthService.UpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
+        return Ok();
     }
 }

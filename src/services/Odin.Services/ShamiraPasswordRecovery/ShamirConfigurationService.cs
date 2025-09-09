@@ -55,10 +55,7 @@ public class ShamirConfigurationService(
 
         var distributionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-        var r = await CreateShards(players,
-            minShards,
-            distributionKey,
-            odinContext);
+        var r = await CreateShards(players, minShards, distributionKey, odinContext);
 
         var package = new DealerShardPackage
         {

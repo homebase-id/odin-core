@@ -8,3 +8,9 @@ public class VerificationStatus
     public UnixTimeUtc RecoveryKeyLastVerified { get; set; }
     public UnixTimeUtc DistributedRecoveryLastVerified { get; set; }
 }
+
+public class RecoveryInfo
+{
+    public string Email { get; init; }
+    public VerificationStatus Status { get; init; }
+}
