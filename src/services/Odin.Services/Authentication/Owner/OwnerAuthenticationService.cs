@@ -10,8 +10,10 @@ using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Cache;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -24,7 +26,6 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
 using Odin.Services.ShamiraPasswordRecovery;
-using Odin.Services.Util;
 
 // Goals here are that:
 //   * the password never leaves the clients.
@@ -40,12 +41,6 @@ namespace Odin.Services.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationService : INotificationHandler<DriveDefinitionAddedNotification>
     {
-        private const string NonceDataContextKey = "cc5430e7-cc05-49aa-bc8b-d8c1f261f5ee";
-
-        private static readonly SingleKeyValueStorage NonceDataStorage =
-            TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(NonceDataContextKey));
-
-        
         private const string ServerTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
 
         private static readonly SingleKeyValueStorage ServerTokenStorage =
@@ -101,28 +96,6 @@ namespace Odin.Services.Authentication.Owner
         }
 
         /// <summary>
-        /// Generates a one time value to used when authenticating a user
-        /// </summary>
-        public async Task<NonceData> GenerateAuthenticationNonceAsync()
-        {
-            var salts = await _secretService.GetStoredSaltsAsync();
-            var (publicKeyCrc32C, publicKeyJwk) = await _secretService.GetCurrentAuthenticationEccKeyAsync();
-
-            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyJwk, publicKeyCrc32C);
-
-            await NonceDataStorage.UpsertAsync(_tblKeyValue, nonce.Id, nonce);
-
-            return nonce;
-        }
-
-        public async Task VerifyPasswordAsync(PasswordReply reply, IOdinContext odinContext)
-        {
-            odinContext.Caller.AssertHasMasterKey();
-            
-            _ = await this.AssertValidPasswordAsync(reply);
-        }
-
-        /// <summary>
         /// Authenticates the owner based on the <see cref="PasswordReply"/> specified.
         /// </summary>
         /// <param name="reply"></param>
@@ -132,7 +105,7 @@ namespace Odin.Services.Authentication.Owner
         public async Task<(ClientAuthenticationToken, SensitiveByteArray)> AuthenticateAsync(PasswordReply reply,
             Guid devicePushNotificationKey, IOdinContext odinContext)
         {
-            var noncePackage = await AssertValidPasswordAsync(reply);
+            var noncePackage = await _secretService.AssertValidPasswordAsync(reply);
 
             //now that the password key matches, we set return the client auth token
             var keys = await this._secretService.GetOfflineEccKeyListAsync();
@@ -166,26 +139,7 @@ namespace Odin.Services.Authentication.Owner
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
-
-        public async Task<NonceData> AssertValidPasswordAsync(PasswordReply reply)
-        {
-            byte[] key = Convert.FromBase64String(reply.Nonce64);
-
-            // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = await NonceDataStorage.GetAsync<NonceData>(_tblKeyValue, new GuidId(key));
-
-            // TODO TEST Make sure an exception is thrown if it does not exist.
-            OdinValidationUtils.AssertNotNull(noncePackage, nameof(noncePackage));
-
-            // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            await NonceDataStorage.DeleteAsync(_tblKeyValue, new GuidId(key));
-
-            // Here we test if the client's provided nonce is saved on the server and if the
-            // client's calculated nonceHash is equal to the same calculation on the server
-            await _secretService.AssertPasswordKeyMatchAsync(reply.NonceHashedPassword64, reply.Nonce64);
-            return noncePackage;
-        }
-
+        
         /// <summary>
         /// Determines if the <paramref name="sessionTokenId"/> is valid and has not expired.  
         /// </summary>
@@ -407,7 +361,7 @@ namespace Odin.Services.Authentication.Owner
         public async Task MarkForDeletionAsync(PasswordReply currentPasswordReply, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var _ = await this.AssertValidPasswordAsync(currentPasswordReply);
+            var _ = await _secretService.AssertValidPasswordAsync(currentPasswordReply);
             await _identityRegistry.MarkForDeletionAsync(_tenantContext.HostOdinId);
 
             var tc = _identityRegistry.CreateTenantContext(_tenantContext.HostOdinId);
@@ -417,7 +371,7 @@ namespace Odin.Services.Authentication.Owner
         public async Task UnmarkForDeletionAsync(PasswordReply currentPasswordReply, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var _ = await this.AssertValidPasswordAsync(currentPasswordReply);
+            var _ = await _secretService.AssertValidPasswordAsync(currentPasswordReply);
             await _identityRegistry.UnmarkForDeletionAsync(_tenantContext.HostOdinId);
 
             var tc = _identityRegistry.CreateTenantContext(_tenantContext.HostOdinId);
