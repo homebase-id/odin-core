@@ -50,26 +50,20 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
         var idx = 0;
         foreach (var record in lastSeenByDomain)
         {
-            // Sanity
-            if (record.Key.Length is < 3 or > 255)
-            {
-                continue;
-            }
-
             var timestampParam = $"@timestamp{idx}";
-            var odinIdParam = $"@odinId{idx}";
+            var subjectParam = $"@subject{idx}";
 
             sb.AppendLine(
                 $"""
-                INSERT INTO LastSeen (odinId, timestamp)
-                VALUES ({odinIdParam}, {timestampParam})
-                ON CONFLICT(odinId) DO UPDATE
+                INSERT INTO LastSeen (subject, timestamp)
+                VALUES ({subjectParam}, {timestampParam})
+                ON CONFLICT(subject) DO UPDATE
                 SET timestamp = {timestampParam}
                 WHERE LastSeen.timestamp IS NULL OR LastSeen.timestamp < EXCLUDED.timestamp;
                 """);
 
             cmd.AddParameter(timestampParam, DbType.Int64, record.Value.milliseconds);
-            cmd.AddParameter(odinIdParam, DbType.String, record.Key);
+            cmd.AddParameter(subjectParam, DbType.String, record.Key);
 
             idx++;
         }
@@ -87,8 +81,8 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
-        cmd.CommandText = "SELECT timestamp FROM LastSeen where odinId = @odinId;";
-        cmd.AddParameter("@odinId", DbType.String, domain);
+        cmd.CommandText = "SELECT timestamp FROM LastSeen where subject = @subject;";
+        cmd.AddParameter("@subject", DbType.String, domain);
 
         var rs = await cmd.ExecuteScalarAsync();
         if (rs == DBNull.Value || rs == null)

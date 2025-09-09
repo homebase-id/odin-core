@@ -28,7 +28,7 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     //
 
-    private static string BuildCacheKey(string domain) => "last-seen:" + domain;
+    private static string BuildCacheKey(string subject) => "last-seen:" + subject;
 
     //
 
@@ -65,23 +65,36 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
         return PutLastSeenAsync(odinId, UnixTimeUtc.Now());
     }
 
-    public Task LastSeenNowAsync(string domain)
+    //
+
+    public Task LastSeenNowAsync(Guid guid)
     {
-        return PutLastSeenAsync(domain, UnixTimeUtc.Now());
+        return PutLastSeenAsync(guid, UnixTimeUtc.Now());
+    }
+
+    //
+
+    public Task LastSeenNowAsync(string subject)
+    {
+        return PutLastSeenAsync(subject, UnixTimeUtc.Now());
     }
 
     //
 
     public Task PutLastSeenAsync(IdentityRegistration registration, UnixTimeUtc lastSeen)
     {
-        return PutLastSeenAsync(registration.PrimaryDomainName, lastSeen);
+        return Task.WhenAll(
+            PutLastSeenAsync(registration.PrimaryDomainName, lastSeen),
+            PutLastSeenAsync(registration.Id, lastSeen));
     }
 
     //
 
     public Task PutLastSeenAsync(TenantContext tenantContext, UnixTimeUtc lastSeen)
     {
-        return PutLastSeenAsync(tenantContext.HostOdinId, lastSeen);
+        return Task.WhenAll(
+            PutLastSeenAsync(tenantContext.HostOdinId, lastSeen),
+            PutLastSeenAsync(tenantContext.DotYouRegistryId, lastSeen));
     }
 
     //
@@ -95,7 +108,9 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     public Task PutLastSeenAsync(OdinIdentity odinIdentity, UnixTimeUtc lastSeen)
     {
-        return PutLastSeenAsync(odinIdentity.PrimaryDomain, lastSeen);
+        return Task.WhenAll(
+            PutLastSeenAsync(odinIdentity.PrimaryDomain, lastSeen),
+            PutLastSeenAsync(odinIdentity.IdentityId, lastSeen));
     }
 
     //
@@ -107,11 +122,21 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     //
 
-    public async Task PutLastSeenAsync(string domain, UnixTimeUtc lastSeen)
+    public Task PutLastSeenAsync(Guid guid, UnixTimeUtc lastSeen)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(domain, nameof(domain));
+        return PutLastSeenAsync(guid.ToString(), lastSeen);
+    }
 
-        if (_lastSeenByIdentityId.TryGetValue(domain, out var lastSeenCached))
+    //
+
+    public async Task PutLastSeenAsync(string subject, UnixTimeUtc lastSeen)
+    {
+        if (string.IsNullOrEmpty(subject))
+        {
+            return;
+        }
+
+        if (_lastSeenByIdentityId.TryGetValue(subject, out var lastSeenCached))
         {
             var diff = TimeSpan.FromMilliseconds(lastSeen.milliseconds - lastSeenCached.milliseconds);
             if (diff < UpdateThreshold)
@@ -121,9 +146,9 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             }
         }
 
-        _lastSeenByIdentityId[domain] = lastSeen;
+        _lastSeenByIdentityId[subject] = lastSeen;
 
-        await cache.SetAsync(BuildCacheKey(domain), lastSeen, LastSeenEntryTtl);
+        await cache.SetAsync(BuildCacheKey(subject), lastSeen, LastSeenEntryTtl);
     }
 
     //
@@ -142,20 +167,20 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     //
 
-    public async Task<UnixTimeUtc?> GetLastSeenAsync(string domain)
+    public async Task<UnixTimeUtc?> GetLastSeenAsync(string subject)
     {
-        if (string.IsNullOrWhiteSpace(domain))
+        if (string.IsNullOrEmpty(subject))
         {
             return null;
         }
 
         var result = await cache.GetOrSetAsync(
-            BuildCacheKey(domain),
+            BuildCacheKey(subject),
             async _ =>
             {
                 await using var scope = rootScope.BeginLifetimeScope();
                 var lastSeen = scope.Resolve<TableLastSeen>();
-                return await lastSeen.GetLastSeenAsync(domain);
+                return await lastSeen.GetLastSeenAsync(subject);
             },
             LastSeenEntryTtl);
 
@@ -164,7 +189,7 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             return null;
         }
 
-        _lastSeenByIdentityId[domain] = result.Value;
+        _lastSeenByIdentityId[subject] = result.Value;
         return result;
     }
 

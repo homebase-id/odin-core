@@ -20,6 +20,7 @@ namespace Odin.Core.Storage.Database.System.Migrations
     public class TableLastSeenMigrationV202509090509 : MigrationBase
     {
         public override Int64 MigrationVersion => 202509090509;
+
         public TableLastSeenMigrationV202509090509(Int64 previousVersion) : base(previousVersion)
         {
         }
@@ -30,20 +31,43 @@ namespace Odin.Core.Storage.Database.System.Migrations
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE LastSeenMigrationsV202509090509 IS '{ \"Version\": 202509090509 }';";
+                rowid = "rowId BIGSERIAL PRIMARY KEY,";
+                commentSql = "COMMENT ON TABLE LastSeenMigrationsV202509090509 IS '{ \"Version\": 202509090509 }';";
             }
             else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS LastSeenMigrationsV202509090509( -- { \"Version\": 202509090509 }\n"
-                   +rowid
-                   +"odinId TEXT NOT NULL UNIQUE, "
-                   +"timestamp BIGINT NOT NULL "
-                   +$"){wori};"
-                   ;
+                    "CREATE TABLE IF NOT EXISTS LastSeenMigrationsV202509090509( -- { \"Version\": 202509090509 }\n"
+                    + rowid
+                    + "subject TEXT NOT NULL UNIQUE, "
+                    + "timestamp BIGINT NOT NULL "
+                    + $"){wori};"
+                ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "LastSeenMigrationsV202509090509", createSql, commentSql);
+        }
+
+        public new static List<string> GetColumnNames()
+        {
+            var sl = new List<string>();
+            sl.Add("rowId");
+            sl.Add("subject");
+            sl.Add("timestamp");
+            return sl;
+        }
+
+        public async Task<int> CopyDataAsync(IConnectionWrapper cn)
+        {
+            await CheckSqlTableVersion(cn, "LastSeenMigrationsV202509090509", MigrationVersion);
+            await CheckSqlTableVersion(cn, "LastSeen", PreviousVersion);
+            await using var copyCommand = cn.CreateCommand();
+            {
+                copyCommand.CommandText = "INSERT INTO LastSeenMigrationsV202509090509 (rowId,subject,timestamp) " +
+                                          $"SELECT rowId,subject,timestamp " +
+                                          $"FROM LastSeen;";
+                return await copyCommand.ExecuteNonQueryAsync();
+            }
         }
 
         public override async Task UpAsync(IConnectionWrapper cn)
@@ -60,6 +84,5 @@ namespace Odin.Core.Storage.Database.System.Migrations
             await CheckSqlTableVersion(cn, "LastSeen", MigrationVersion);
             await SqlHelper.DeleteTableAsync(cn, "LastSeen");
         }
-
     }
 }

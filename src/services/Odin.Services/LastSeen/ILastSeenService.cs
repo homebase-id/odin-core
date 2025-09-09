@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Time;
@@ -15,14 +16,16 @@ public interface ILastSeenService
     Task LastSeenNowAsync(IOdinContext odinContext);
     Task LastSeenNowAsync(OdinIdentity odinIdentity);
     Task LastSeenNowAsync(OdinId odinId);
-    Task LastSeenNowAsync(string domain);
+    Task LastSeenNowAsync(Guid guid);
+    Task LastSeenNowAsync(string subject);
     Task PutLastSeenAsync(IdentityRegistration registration, UnixTimeUtc lastSeen);
     Task PutLastSeenAsync(TenantContext tenantContext, UnixTimeUtc lastSeen);
     Task PutLastSeenAsync(IOdinContext odinContext, UnixTimeUtc lastSeen);
     Task PutLastSeenAsync(OdinIdentity odinIdentity, UnixTimeUtc lastSeen);
     Task PutLastSeenAsync(OdinId odinId, UnixTimeUtc lastSeen);
-    Task PutLastSeenAsync(string domain, UnixTimeUtc lastSeen);
+    Task PutLastSeenAsync(Guid guid, UnixTimeUtc lastSeen);
+    Task PutLastSeenAsync(string subject, UnixTimeUtc lastSeen);
     Task<UnixTimeUtc?> GetLastSeenAsync(OdinId odinId);
     Task<UnixTimeUtc?> GetLastSeenAsync(IOdinContext odinContext);
-    Task<UnixTimeUtc?> GetLastSeenAsync(string domain);
+    Task<UnixTimeUtc?> GetLastSeenAsync(string subject);
 }
