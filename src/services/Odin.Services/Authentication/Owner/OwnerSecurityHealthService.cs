@@ -14,7 +14,7 @@ namespace Odin.Services.Authentication.Owner;
 /// Handles the assisting of owners ensuring their password and the like are in good health
 /// </summary>
 public class OwnerSecurityHealthService(
-    OwnerAuthenticationService authenticationService,
+    OwnerSecretService secretService,
     PasswordKeyRecoveryService recoveryService,
     PublicPrivateKeyService publicPrivateKeyService,
     TableKeyValueCached keyValueTable)
@@ -30,7 +30,7 @@ public class OwnerSecurityHealthService(
     public async Task VerifyPasswordAsync(PasswordReply reply, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        _ = await authenticationService.AssertValidPasswordAsync(reply);
+        _ = await secretService.AssertValidPasswordAsync(reply);
         await UpdateVerificationStatusInternalAsync(updatePasswordLastVerified: true);
     }
 

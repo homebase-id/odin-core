@@ -91,7 +91,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpGet("nonce")]
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
-            var result = await authService.GenerateAuthenticationNonceAsync();
+            var result = await ss.GenerateAuthenticationNonceAsync();
             return result;
         }
 
