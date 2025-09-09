@@ -21,10 +21,11 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 {
     private static readonly TimeSpan LastSeenEntryTtl = TimeSpan.FromMinutes(60);
     private static readonly TimeSpan UpdateThreshold = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan DatabaseLifeTime = TimeSpan.FromDays(365);
 
     // SEB:NOTE we need this local lists to batch updates to the database
     // since the cache can't provide us with the list. Stupid cache.
-    private readonly ConcurrentDictionary<string, UnixTimeUtc> _lastSeenByIdentityId = new();
+    private readonly ConcurrentDictionary<string, UnixTimeUtc> _lastSeenBySubject = new();
 
     //
 
@@ -136,7 +137,7 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             return;
         }
 
-        if (_lastSeenByIdentityId.TryGetValue(subject, out var lastSeenCached))
+        if (_lastSeenBySubject.TryGetValue(subject, out var lastSeenCached))
         {
             var diff = TimeSpan.FromMilliseconds(lastSeen.milliseconds - lastSeenCached.milliseconds);
             if (diff < UpdateThreshold)
@@ -146,7 +147,7 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             }
         }
 
-        _lastSeenByIdentityId[subject] = lastSeen;
+        _lastSeenBySubject[subject] = lastSeen;
 
         await cache.SetAsync(BuildCacheKey(subject), lastSeen, LastSeenEntryTtl);
     }
@@ -189,7 +190,7 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             return null;
         }
 
-        _lastSeenByIdentityId[subject] = result.Value;
+        _lastSeenBySubject[subject] = result.Value;
         return result;
     }
 
@@ -197,13 +198,13 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     internal async Task UpdateDatabaseAsync()
     {
-        if (_lastSeenByIdentityId.IsEmpty)
+        if (_lastSeenBySubject.IsEmpty)
         {
             return;
         }
 
-        var updates = _lastSeenByIdentityId.ToDictionary();
-        _lastSeenByIdentityId.Clear();
+        var updates = _lastSeenBySubject.ToDictionary();
+        _lastSeenBySubject.Clear();
 
         await using var scope = rootScope.BeginLifetimeScope();
         var lastSeen = scope.Resolve<TableLastSeen>();
@@ -211,5 +212,12 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
     }
 
     //
+
+    internal async Task DeleteOldDatabaseRecords()
+    {
+        await using var scope = rootScope.BeginLifetimeScope();
+        var lastSeen = scope.Resolve<TableLastSeen>();
+        await lastSeen.DeleteOldRecordsAsync(DatabaseLifeTime);
+    }
 
 }

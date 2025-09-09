@@ -13,12 +13,16 @@ public sealed class LastSeenBackgroundService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var saveInterval = TimeSpan.FromMinutes(10);
+        var saveInterval = TimeSpan.FromMinutes(30);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             await SleepAsync(saveInterval, stoppingToken);
             await SaveAsync();
+            if (!stoppingToken.IsCancellationRequested)
+            {
+                await DeleteOldDatabaseRecords();
+            }
         }
     }
 
@@ -37,5 +41,22 @@ public sealed class LastSeenBackgroundService(
             logger.LogError(e, "Error saving last seen identities");
         }
     }
+
+    //
+
+    private async Task DeleteOldDatabaseRecords()
+    {
+        try
+        {
+            logger.LogDebug("Deleting old last seen identities");
+            var impl = (LastSeenService)lastSeenService;
+            await impl.DeleteOldDatabaseRecords();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error deleting old seen identities");
+        }
+    }
+
 }
 

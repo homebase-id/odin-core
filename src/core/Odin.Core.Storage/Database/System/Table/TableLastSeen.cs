@@ -36,9 +36,9 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
     //
 
-    public async Task UpdateLastSeenAsync(Dictionary<string, UnixTimeUtc> lastSeenByDomain)
+    public async Task UpdateLastSeenAsync(Dictionary<string, UnixTimeUtc> lastSeenBySubject)
     {
-        if (lastSeenByDomain.Count == 0)
+        if (lastSeenBySubject.Count == 0)
         {
             return;
         }
@@ -48,7 +48,7 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
         var sb = new StringBuilder();
         var idx = 0;
-        foreach (var record in lastSeenByDomain)
+        foreach (var record in lastSeenBySubject)
         {
             var timestampParam = $"@timestamp{idx}";
             var subjectParam = $"@subject{idx}";
@@ -77,12 +77,12 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
     //
 
-    public async Task<UnixTimeUtc?> GetLastSeenAsync(string domain)
+    public async Task<UnixTimeUtc?> GetLastSeenAsync(string subject)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
         cmd.CommandText = "SELECT timestamp FROM LastSeen where subject = @subject;";
-        cmd.AddParameter("@subject", DbType.String, domain);
+        cmd.AddParameter("@subject", DbType.String, subject);
 
         var rs = await cmd.ExecuteScalarAsync();
         if (rs == DBNull.Value || rs == null)
@@ -90,6 +90,20 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
             return null;
         }
         return new UnixTimeUtc((long)rs);
+    }
+
+    //
+
+    public async Task DeleteOldRecordsAsync(TimeSpan deleteOlderThan)
+    {
+        var threshold = DateTimeOffset.UtcNow.Add(-deleteOlderThan).ToUnixTimeMilliseconds();
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM LastSeen WHERE timestamp < @threshold;";
+        cmd.AddParameter("@threshold", DbType.Int64, threshold);
+
+        await cmd.ExecuteNonQueryAsync();
     }
 
     //

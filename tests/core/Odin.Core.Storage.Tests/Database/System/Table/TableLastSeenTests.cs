@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
@@ -108,5 +109,38 @@ public class TableLastSeenTests : IocTestBase
     }
 
     //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldDeleteOldRecords(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        await using var scope = Services.BeginLifetimeScope();
+        var tableLastSeen = scope.Resolve<TableLastSeen>();
+
+        var identityId1 = "frodo.me";
+
+        var then = UnixTimeUtc.Now().AddDays(-1000);
+        var lastSeen = new Dictionary<string, UnixTimeUtc>
+        {
+            { identityId1, then },
+        };
+
+        await tableLastSeen.UpdateLastSeenAsync(lastSeen);
+
+        var seen1 = await tableLastSeen.GetLastSeenAsync(identityId1);
+        Assert.That(seen1, Is.Not.Null);
+        Assert.That(seen1.Value.milliseconds, Is.EqualTo(then.milliseconds));
+
+        await tableLastSeen.DeleteOldRecordsAsync(TimeSpan.FromDays(100));
+
+        seen1 = await tableLastSeen.GetLastSeenAsync(identityId1);
+        Assert.That(seen1, Is.Null);
+    }
+
 
 }
