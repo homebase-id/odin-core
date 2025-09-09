@@ -33,44 +33,9 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     //
 
-    public Task LastSeenNowAsync(IdentityRegistration registration)
-    {
-        return PutLastSeenAsync(registration, UnixTimeUtc.Now());
-    }
-
-    //
-
-    public Task LastSeenNowAsync(TenantContext tenantContext)
-    {
-        return PutLastSeenAsync(tenantContext, UnixTimeUtc.Now());
-    }
-
-    //
-
-    public Task LastSeenNowAsync(IOdinContext odinContext)
-    {
-        return PutLastSeenAsync(odinContext, UnixTimeUtc.Now());
-    }
-
-    //
-
-    public Task LastSeenNowAsync(OdinIdentity odinIdentity)
-    {
-        return PutLastSeenAsync(odinIdentity, UnixTimeUtc.Now());
-    }
-
-    //
-
     public Task LastSeenNowAsync(OdinId odinId)
     {
         return PutLastSeenAsync(odinId, UnixTimeUtc.Now());
-    }
-
-    //
-
-    public Task LastSeenNowAsync(Guid guid)
-    {
-        return PutLastSeenAsync(guid, UnixTimeUtc.Now());
     }
 
     //
@@ -82,50 +47,9 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     //
 
-    public Task PutLastSeenAsync(IdentityRegistration registration, UnixTimeUtc lastSeen)
-    {
-        return Task.WhenAll(
-            PutLastSeenAsync(registration.PrimaryDomainName, lastSeen),
-            PutLastSeenAsync(registration.Id, lastSeen));
-    }
-
-    //
-
-    public Task PutLastSeenAsync(TenantContext tenantContext, UnixTimeUtc lastSeen)
-    {
-        return Task.WhenAll(
-            PutLastSeenAsync(tenantContext.HostOdinId, lastSeen),
-            PutLastSeenAsync(tenantContext.DotYouRegistryId, lastSeen));
-    }
-
-    //
-
-    public Task PutLastSeenAsync(IOdinContext odinContext, UnixTimeUtc lastSeen)
-    {
-        return PutLastSeenAsync(odinContext.Tenant.DomainName, lastSeen);
-    }
-
-    //
-
-    public Task PutLastSeenAsync(OdinIdentity odinIdentity, UnixTimeUtc lastSeen)
-    {
-        return Task.WhenAll(
-            PutLastSeenAsync(odinIdentity.PrimaryDomain, lastSeen),
-            PutLastSeenAsync(odinIdentity.IdentityId, lastSeen));
-    }
-
-    //
-
     public Task PutLastSeenAsync(OdinId odinId, UnixTimeUtc lastSeen)
     {
         return PutLastSeenAsync(odinId.DomainName, lastSeen);
-    }
-
-    //
-
-    public Task PutLastSeenAsync(Guid guid, UnixTimeUtc lastSeen)
-    {
-        return PutLastSeenAsync(guid.ToString(), lastSeen);
     }
 
     //
@@ -157,13 +81,6 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
     public Task<UnixTimeUtc?> GetLastSeenAsync(OdinId odinId)
     {
         return GetLastSeenAsync(odinId.DomainName);
-    }
-
-    //
-
-    public Task<UnixTimeUtc?> GetLastSeenAsync(IOdinContext odinContext)
-    {
-        return GetLastSeenAsync(odinContext.Tenant.DomainName);
     }
 
     //

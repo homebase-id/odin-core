@@ -9,10 +9,7 @@ namespace Odin.Hosting.Middleware;
 
 public class LastSeenMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(
-        HttpContext httpContext,
-        OdinContext odinContext,
-        ILastSeenService lastSeen)
+    public async Task InvokeAsync(HttpContext httpContext, OdinContext odinContext, ILastSeenService lastSeen)
     {
         if (odinContext.Caller.OdinId.HasValue)
         {
