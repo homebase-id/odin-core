@@ -24,11 +24,13 @@ namespace Odin.Core.Storage.Database.System.Table
     public record LastSeenRecord
     {
         public Int64 rowId { get; set; }
-        public Guid identityId { get; set; }
+        public string odinId { get; set; }
         public UnixTimeUtc timestamp { get; set; }
         public void Validate()
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            if (odinId == null) throw new OdinDatabaseValidationException("Cannot be null odinId");
+            if (odinId?.Length < 3) throw new OdinDatabaseValidationException($"Too short odinId, was {odinId.Length} (min 3)");
+            if (odinId?.Length > 256) throw new OdinDatabaseValidationException($"Too long odinId, was {odinId.Length} (max 256)");
         }
     } // End of record LastSeenRecord
 
@@ -61,7 +63,7 @@ namespace Odin.Core.Storage.Database.System.Table
             string createSql =
                 "CREATE TABLE IF NOT EXISTS LastSeen( -- { \"Version\": 202509090509 }\n"
                    +rowid
-                   +"identityId BYTEA NOT NULL UNIQUE, "
+                   +"odinId TEXT NOT NULL UNIQUE, "
                    +"timestamp BIGINT NOT NULL "
                    +$"){wori};"
                    ;
@@ -74,10 +76,10 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO LastSeen (identityId,timestamp) " +
-                                           $"VALUES (@identityId,@timestamp)"+
+                insertCommand.CommandText = "INSERT INTO LastSeen (odinId,timestamp) " +
+                                           $"VALUES (@odinId,@timestamp)"+
                                             "RETURNING -1,-1,rowId;";
-                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@odinId", DbType.String, item.odinId);
                 insertCommand.AddParameter("@timestamp", DbType.Int64, item.timestamp.milliseconds);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
@@ -95,11 +97,11 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var insertCommand = cn.CreateCommand();
             {
-                insertCommand.CommandText = "INSERT INTO LastSeen (identityId,timestamp) " +
-                                            $"VALUES (@identityId,@timestamp) " +
+                insertCommand.CommandText = "INSERT INTO LastSeen (odinId,timestamp) " +
+                                            $"VALUES (@odinId,@timestamp) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING -1,-1,rowId;";
-                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                insertCommand.AddParameter("@odinId", DbType.String, item.odinId);
                 insertCommand.AddParameter("@timestamp", DbType.Int64, item.timestamp.milliseconds);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
@@ -117,12 +119,12 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var upsertCommand = cn.CreateCommand();
             {
-                upsertCommand.CommandText = "INSERT INTO LastSeen (identityId,timestamp) " +
-                                            $"VALUES (@identityId,@timestamp)"+
-                                            "ON CONFLICT (identityId) DO UPDATE "+
+                upsertCommand.CommandText = "INSERT INTO LastSeen (odinId,timestamp) " +
+                                            $"VALUES (@odinId,@timestamp)"+
+                                            "ON CONFLICT (odinId) DO UPDATE "+
                                             $"SET timestamp = @timestamp "+
                                             "RETURNING -1,-1,rowId;";
-                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                upsertCommand.AddParameter("@odinId", DbType.String, item.odinId);
                 upsertCommand.AddParameter("@timestamp", DbType.Int64, item.timestamp.milliseconds);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
@@ -142,9 +144,9 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 updateCommand.CommandText = "UPDATE LastSeen " +
                                             $"SET timestamp = @timestamp "+
-                                            "WHERE (identityId = @identityId) "+
+                                            "WHERE (odinId = @odinId) "+
                                             "RETURNING -1,-1,rowId;";
-                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
+                updateCommand.AddParameter("@odinId", DbType.String, item.odinId);
                 updateCommand.AddParameter("@timestamp", DbType.Int64, item.timestamp.milliseconds);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
@@ -175,12 +177,12 @@ namespace Odin.Core.Storage.Database.System.Table
         {
             var sl = new List<string>();
             sl.Add("rowId");
-            sl.Add("identityId");
+            sl.Add("odinId");
             sl.Add("timestamp");
             return sl;
         }
 
-        // SELECT rowId,identityId,timestamp
+        // SELECT rowId,odinId,timestamp
         public LastSeenRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<LastSeenRecord>();
@@ -190,40 +192,46 @@ namespace Odin.Core.Storage.Database.System.Table
             var guid = new byte[16];
             var item = new LastSeenRecord();
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.odinId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.timestamp = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 
-        public virtual async Task<int> DeleteAsync(Guid identityId)
+        public virtual async Task<int> DeleteAsync(string odinId)
         {
+            if (odinId == null) throw new OdinDatabaseValidationException("Cannot be null odinId");
+            if (odinId?.Length < 3) throw new OdinDatabaseValidationException($"Too short odinId, was {odinId.Length} (min 3)");
+            if (odinId?.Length > 256) throw new OdinDatabaseValidationException($"Too long odinId, was {odinId.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM LastSeen " +
-                                             "WHERE identityId = @identityId";
+                                             "WHERE odinId = @odinId";
 
-                delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete0Command.AddParameter("@odinId", DbType.String, odinId);
                 var count = await delete0Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        public virtual async Task<LastSeenRecord> PopAsync(Guid identityId)
+        public virtual async Task<LastSeenRecord> PopAsync(string odinId)
         {
+            if (odinId == null) throw new OdinDatabaseValidationException("Cannot be null odinId");
+            if (odinId?.Length < 3) throw new OdinDatabaseValidationException($"Too short odinId, was {odinId.Length} (min 3)");
+            if (odinId?.Length > 256) throw new OdinDatabaseValidationException($"Too long odinId, was {odinId.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var deleteCommand = cn.CreateCommand();
             {
                 deleteCommand.CommandText = "DELETE FROM LastSeen " +
-                                             "WHERE identityId = @identityId " + 
+                                             "WHERE odinId = @odinId " + 
                                              "RETURNING rowId,timestamp";
 
-                deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
+                deleteCommand.AddParameter("@odinId", DbType.String, odinId);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
                     {
-                       return ReadRecordFromReader0(rdr,identityId);
+                       return ReadRecordFromReader0(rdr,odinId);
                     }
                     else
                     {
@@ -233,30 +241,36 @@ namespace Odin.Core.Storage.Database.System.Table
             }
         }
 
-        public LastSeenRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId)
+        public LastSeenRecord ReadRecordFromReader0(DbDataReader rdr,string odinId)
         {
+            if (odinId == null) throw new OdinDatabaseValidationException("Cannot be null odinId");
+            if (odinId?.Length < 3) throw new OdinDatabaseValidationException($"Too short odinId, was {odinId.Length} (min 3)");
+            if (odinId?.Length > 256) throw new OdinDatabaseValidationException($"Too long odinId, was {odinId.Length} (max 256)");
             var result = new List<LastSeenRecord>();
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var guid = new byte[16];
             var item = new LastSeenRecord();
-            item.identityId = identityId;
+            item.odinId = odinId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.timestamp = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
             return item;
        }
 
-        public virtual async Task<LastSeenRecord> GetAsync(Guid identityId)
+        public virtual async Task<LastSeenRecord> GetAsync(string odinId)
         {
+            if (odinId == null) throw new OdinDatabaseValidationException("Cannot be null odinId");
+            if (odinId?.Length < 3) throw new OdinDatabaseValidationException($"Too short odinId, was {odinId.Length} (min 3)");
+            if (odinId?.Length > 256) throw new OdinDatabaseValidationException($"Too long odinId, was {odinId.Length} (max 256)");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,timestamp FROM LastSeen " +
-                                             "WHERE identityId = @identityId LIMIT 1;"+
+                                             "WHERE odinId = @odinId LIMIT 1;"+
                                              ";";
 
-                get0Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get0Command.AddParameter("@odinId", DbType.String, odinId);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -264,7 +278,7 @@ namespace Odin.Core.Storage.Database.System.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr,identityId);
+                        var r = ReadRecordFromReader0(rdr,odinId);
                         return r;
                     } // using
                 } //

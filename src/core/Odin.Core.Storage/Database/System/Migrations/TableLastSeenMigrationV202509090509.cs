@@ -39,36 +39,13 @@ namespace Odin.Core.Storage.Database.System.Migrations
             string createSql =
                 "CREATE TABLE IF NOT EXISTS LastSeenMigrationsV202509090509( -- { \"Version\": 202509090509 }\n"
                    +rowid
-                   +"identityId BYTEA NOT NULL UNIQUE, "
+                   +"odinId TEXT NOT NULL UNIQUE, "
                    +"timestamp BIGINT NOT NULL "
                    +$"){wori};"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "LastSeenMigrationsV202509090509", createSql, commentSql);
         }
 
-        public new static List<string> GetColumnNames()
-        {
-            var sl = new List<string>();
-            sl.Add("rowId");
-            sl.Add("identityId");
-            sl.Add("timestamp");
-            return sl;
-        }
-
-        public async Task<int> CopyDataAsync(IConnectionWrapper cn)
-        {
-            await CheckSqlTableVersion(cn, "LastSeenMigrationsV202509090509", MigrationVersion);
-            await CheckSqlTableVersion(cn, "LastSeen", PreviousVersion);
-            await using var copyCommand = cn.CreateCommand();
-            {
-                copyCommand.CommandText = "INSERT INTO LastSeenMigrationsV202509090509 (rowId,identityId,timestamp) " +
-               $"SELECT rowId,identityId,timestamp "+
-               $"FROM LastSeen;";
-               return await copyCommand.ExecuteNonQueryAsync();
-            }
-        }
-
-        // Will upgrade from the previous version to version 202509090509
         public override async Task UpAsync(IConnectionWrapper cn)
         {
             // Create the initial table

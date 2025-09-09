@@ -52,11 +52,11 @@ public class LastSeenServiceTests
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var now = UnixTimeUtc.Now();
-        var id = Guid.NewGuid();
+        var domain = "frodo.me";
 
-        await lastSeenService.LastSeenNowAsync(id);
+        await lastSeenService.LastSeenNowAsync(domain);
 
-        var lastSeenId = await lastSeenService.GetLastSeenAsync(id);
+        var lastSeenId = await lastSeenService.GetLastSeenAsync(domain);
 
         Assert.That(lastSeenId, Is.Not.Null);
         Assert.That(lastSeenId!.Value.milliseconds, Is.GreaterThanOrEqualTo(now.milliseconds));
@@ -75,11 +75,11 @@ public class LastSeenServiceTests
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var lastSeen = UnixTimeUtc.Now().AddSeconds(-100);
-        var id = Guid.NewGuid();
+        var domain = "frodo.me";
 
-        await lastSeenService.PutLastSeenAsync(id, lastSeen);
+        await lastSeenService.PutLastSeenAsync(domain, lastSeen);
 
-        Assert.That(await lastSeenService.GetLastSeenAsync(id), Is.EqualTo(lastSeen));
+        Assert.That(await lastSeenService.GetLastSeenAsync(domain), Is.EqualTo(lastSeen));
     }
 
     //
@@ -94,7 +94,7 @@ public class LastSeenServiceTests
         var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
-        var result = await lastSeenService.GetLastSeenAsync(Guid.NewGuid());
+        var result = await lastSeenService.GetLastSeenAsync("gandalf.me");
 
         Assert.That(result, Is.Null);
     }
@@ -111,14 +111,14 @@ public class LastSeenServiceTests
         var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
-        var id = Guid.NewGuid();
+        var domain = "frodo.me";
         var initial = UnixTimeUtc.Now().AddSeconds(-200);
         var updated = UnixTimeUtc.Now().AddSeconds(-100);
 
-        await lastSeenService.PutLastSeenAsync(id, initial);
-        await lastSeenService.PutLastSeenAsync(id, updated);
+        await lastSeenService.PutLastSeenAsync(domain, initial);
+        await lastSeenService.PutLastSeenAsync(domain, updated);
 
-        Assert.That(await lastSeenService.GetLastSeenAsync(id), Is.EqualTo(updated));
+        Assert.That(await lastSeenService.GetLastSeenAsync(domain), Is.EqualTo(updated));
     }
 
     //
@@ -133,14 +133,14 @@ public class LastSeenServiceTests
         var services = await _testServices!.RegisterServicesAsync(databaseType, _tempDir, _identityId, true, enableRedis);
         var lastSeenService = services.Resolve<ILastSeenService>();
 
-        var id = Guid.NewGuid();
+        var domain = "frodo.me";
         var initial = UnixTimeUtc.Now().AddSeconds(-2);
         var updated = UnixTimeUtc.Now().AddSeconds(-1);
 
-        await lastSeenService.PutLastSeenAsync(id, initial);
-        await lastSeenService.PutLastSeenAsync(id, updated);
+        await lastSeenService.PutLastSeenAsync(domain, initial);
+        await lastSeenService.PutLastSeenAsync(domain, updated);
 
-        Assert.That(await lastSeenService.GetLastSeenAsync(id), Is.EqualTo(initial));
+        Assert.That(await lastSeenService.GetLastSeenAsync(domain), Is.EqualTo(initial));
     }
 
     //
@@ -156,7 +156,7 @@ public class LastSeenServiceTests
         var lastSeenService = (LastSeenService)services.Resolve<ILastSeenService>();
         var lastSeenTable = services.Resolve<TableLastSeen>();
 
-        var identityId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var identityId = "frodo.me";
 
         await lastSeenService.PutLastSeenAsync(identityId, UnixTimeUtc.Now());
 

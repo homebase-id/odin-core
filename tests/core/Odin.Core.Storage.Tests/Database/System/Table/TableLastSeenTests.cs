@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
@@ -25,11 +24,11 @@ public class TableLastSeenTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var tableLastSeen = scope.Resolve<TableLastSeen>();
 
-        var identityId1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        var identityId2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var identityId1 = "frodo.me";
+        var identityId2 = "sam.me";
 
         var now = UnixTimeUtc.Now();
-        var lastSeen = new Dictionary<Guid, UnixTimeUtc>
+        var lastSeen = new Dictionary<string, UnixTimeUtc>
         {
             { identityId1, now },
             { identityId2, now },
@@ -43,7 +42,7 @@ public class TableLastSeenTests : IocTestBase
         Assert.That(all[1].timestamp, Is.EqualTo(now));
 
         var older = now.AddMilliseconds(-10000);
-        lastSeen = new Dictionary<Guid, UnixTimeUtc>
+        lastSeen = new Dictionary<string, UnixTimeUtc>
         {
             { identityId1, older },
             { identityId2, older },
@@ -56,7 +55,7 @@ public class TableLastSeenTests : IocTestBase
         Assert.That(all[1].timestamp, Is.EqualTo(now));
 
         var newer = now.AddMilliseconds(10000);
-        lastSeen = new Dictionary<Guid, UnixTimeUtc>
+        lastSeen = new Dictionary<string, UnixTimeUtc>
         {
             { identityId1, newer },
             { identityId2, newer },
@@ -83,12 +82,12 @@ public class TableLastSeenTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var tableLastSeen = scope.Resolve<TableLastSeen>();
 
-        var identityId1 = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        var identityId2 = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var identityId1 = "frodo.me";
+        var identityId2 = "sam.me";
 
         var now = UnixTimeUtc.Now();
         var then = now.AddMilliseconds(-5000);
-        var lastSeen = new Dictionary<Guid, UnixTimeUtc>
+        var lastSeen = new Dictionary<string, UnixTimeUtc>
         {
             { identityId1, now },
             { identityId2, then },
@@ -104,7 +103,7 @@ public class TableLastSeenTests : IocTestBase
         Assert.That(seen2, Is.Not.Null);
         Assert.That(seen2.Value.milliseconds, Is.EqualTo(then.milliseconds));
 
-        var notSeen = await tableLastSeen.GetLastSeenAsync(Guid.Empty);
+        var notSeen = await tableLastSeen.GetLastSeenAsync("gandalf.me");
         Assert.That(notSeen, Is.Null);
     }
 

@@ -36,9 +36,9 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
     //
 
-    public async Task UpdateLastSeenAsync(Dictionary<Guid, UnixTimeUtc> lastSeenByIdentityId)
+    public async Task UpdateLastSeenAsync(Dictionary<string, UnixTimeUtc> lastSeenByOdinId)
     {
-        if (lastSeenByIdentityId.Count == 0)
+        if (lastSeenByOdinId.Count == 0)
         {
             return;
         }
@@ -48,22 +48,22 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
         var sb = new StringBuilder();
         var idx = 0;
-        foreach (var record in lastSeenByIdentityId)
+        foreach (var record in lastSeenByOdinId)
         {
             var timestampParam = $"@timestamp{idx}";
-            var identityIdParam = $"@identityId{idx}";
+            var odinIdParam = $"@odinId{idx}";
 
             sb.AppendLine(
                 $"""
-                INSERT INTO LastSeen (identityId, timestamp)
-                VALUES ({identityIdParam}, {timestampParam})
-                ON CONFLICT(identityId) DO UPDATE
+                INSERT INTO LastSeen (odinId, timestamp)
+                VALUES ({odinIdParam}, {timestampParam})
+                ON CONFLICT(odinId) DO UPDATE
                 SET timestamp = {timestampParam}
                 WHERE LastSeen.timestamp IS NULL OR LastSeen.timestamp < EXCLUDED.timestamp;
                 """);
 
             cmd.AddParameter(timestampParam, DbType.Int64, record.Value.milliseconds);
-            cmd.AddParameter(identityIdParam, DbType.Binary, record.Key.ToByteArray());
+            cmd.AddParameter(odinIdParam, DbType.String, record.Key);
 
             idx++;
         }
@@ -74,12 +74,12 @@ public class TableLastSeen(ScopedSystemConnectionFactory scopedConnectionFactory
 
     //
 
-    public async Task<UnixTimeUtc?> GetLastSeenAsync(Guid identityId)
+    public async Task<UnixTimeUtc?> GetLastSeenAsync(string domain)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
-        cmd.CommandText = "SELECT timestamp FROM LastSeen where identityId = @identityId;";
-        cmd.AddParameter("@identityId", DbType.Binary, identityId.ToByteArray());
+        cmd.CommandText = "SELECT timestamp FROM LastSeen where odinId = @odinId;";
+        cmd.AddParameter("@odinId", DbType.String, domain);
 
         var rs = await cmd.ExecuteScalarAsync();
         if (rs == DBNull.Value || rs == null)

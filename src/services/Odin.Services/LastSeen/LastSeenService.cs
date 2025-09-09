@@ -24,11 +24,11 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
 
     // SEB:NOTE we need this local lists to batch updates to the database
     // since the cache can't provide us with the list. Stupid cache.
-    private readonly ConcurrentDictionary<Guid, UnixTimeUtc> _lastSeenByIdentityId = new();
+    private readonly ConcurrentDictionary<string, UnixTimeUtc> _lastSeenByIdentityId = new();
 
     //
 
-    private static string BuildCacheKey(Guid identityId) => "last-seen:" + identityId;
+    private static string BuildCacheKey(string domain) => "last-seen:" + domain;
 
     //
 
@@ -51,47 +51,53 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
         return PutLastSeenAsync(odinIdentity, UnixTimeUtc.Now());
     }
 
-
     //
 
-    public Task LastSeenNowAsync(Guid identityId)
+    public Task LastSeenNowAsync(OdinId odinId)
     {
-        return PutLastSeenAsync(identityId, UnixTimeUtc.Now());
+        return PutLastSeenAsync(odinId, UnixTimeUtc.Now());
+    }
+
+    public Task LastSeenNowAsync(string domain)
+    {
+        return PutLastSeenAsync(domain, UnixTimeUtc.Now());
     }
 
     //
 
     public Task PutLastSeenAsync(IdentityRegistration registration, UnixTimeUtc lastSeen)
     {
-        return PutLastSeenAsync(registration.Id, lastSeen);
+        return PutLastSeenAsync(registration.PrimaryDomainName, lastSeen);
     }
 
     //
 
     public Task PutLastSeenAsync(TenantContext tenantContext, UnixTimeUtc lastSeen)
     {
-        return PutLastSeenAsync(tenantContext.DotYouRegistryId, lastSeen);
+        return PutLastSeenAsync(tenantContext.HostOdinId, lastSeen);
     }
 
     //
 
     public Task PutLastSeenAsync(OdinIdentity odinIdentity, UnixTimeUtc lastSeen)
     {
-        return PutLastSeenAsync(odinIdentity.IdentityId, lastSeen);
+        return PutLastSeenAsync(odinIdentity.PrimaryDomain, lastSeen);
     }
 
     //
 
-    public Task PutLastSeenAsync(LastSeenRecord record)
+    public Task PutLastSeenAsync(OdinId odinId, UnixTimeUtc lastSeen)
     {
-        return PutLastSeenAsync(record.identityId, record.timestamp);
+        return PutLastSeenAsync(odinId.DomainName, lastSeen);
     }
 
     //
 
-    public async Task PutLastSeenAsync(Guid identityId, UnixTimeUtc lastSeen)
+    public async Task PutLastSeenAsync(string domain, UnixTimeUtc lastSeen)
     {
-        if (_lastSeenByIdentityId.TryGetValue(identityId, out var lastSeenCached))
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain, nameof(domain));
+
+        if (_lastSeenByIdentityId.TryGetValue(domain, out var lastSeenCached))
         {
             var diff = TimeSpan.FromMilliseconds(lastSeen.milliseconds - lastSeenCached.milliseconds);
             if (diff < UpdateThreshold)
@@ -101,22 +107,34 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             }
         }
 
-        _lastSeenByIdentityId[identityId] = lastSeen;
+        _lastSeenByIdentityId[domain] = lastSeen;
 
-        await cache.SetAsync(BuildCacheKey(identityId), lastSeen, LastSeenEntryTtl);
+        await cache.SetAsync(BuildCacheKey(domain), lastSeen, LastSeenEntryTtl);
     }
 
     //
 
-    public async Task<UnixTimeUtc?> GetLastSeenAsync(Guid identityId)
+    public Task<UnixTimeUtc?> GetLastSeenAsync(OdinId odinId)
     {
+        return GetLastSeenAsync(odinId.DomainName);
+    }
+
+    //
+
+    public async Task<UnixTimeUtc?> GetLastSeenAsync(string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return null;
+        }
+
         var result = await cache.GetOrSetAsync(
-            BuildCacheKey(identityId),
+            BuildCacheKey(domain),
             async _ =>
             {
                 await using var scope = rootScope.BeginLifetimeScope();
                 var lastSeen = scope.Resolve<TableLastSeen>();
-                return await lastSeen.GetLastSeenAsync(identityId);
+                return await lastSeen.GetLastSeenAsync(domain);
             },
             LastSeenEntryTtl);
 
@@ -125,7 +143,7 @@ public class LastSeenService(ISystemLevel2Cache<LastSeenService> cache, ILifetim
             return null;
         }
 
-        _lastSeenByIdentityId[identityId] = result.Value;
+        _lastSeenByIdentityId[domain] = result.Value;
         return result;
     }
 
