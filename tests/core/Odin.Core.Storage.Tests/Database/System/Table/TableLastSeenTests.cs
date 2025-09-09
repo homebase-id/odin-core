@@ -123,23 +123,40 @@ public class TableLastSeenTests : IocTestBase
         var tableLastSeen = scope.Resolve<TableLastSeen>();
 
         var identityId1 = "frodo.me";
+        var identityId2 = "sam.me";
 
-        var then = UnixTimeUtc.Now().AddDays(-1000);
+        var now = UnixTimeUtc.Now().AddDays(-10);
         var lastSeen = new Dictionary<string, UnixTimeUtc>
         {
-            { identityId1, then },
+            { identityId1, now },
+        };
+
+        await tableLastSeen.UpdateLastSeenAsync(lastSeen);
+
+        var then = UnixTimeUtc.Now().AddDays(-1000);
+        lastSeen = new Dictionary<string, UnixTimeUtc>
+        {
+            { identityId2, then },
         };
 
         await tableLastSeen.UpdateLastSeenAsync(lastSeen);
 
         var seen1 = await tableLastSeen.GetLastSeenAsync(identityId1);
         Assert.That(seen1, Is.Not.Null);
-        Assert.That(seen1.Value.milliseconds, Is.EqualTo(then.milliseconds));
+        Assert.That(seen1.Value.milliseconds, Is.EqualTo(now.milliseconds));
+
+        var seen2 = await tableLastSeen.GetLastSeenAsync(identityId2);
+        Assert.That(seen2, Is.Not.Null);
+        Assert.That(seen2.Value.milliseconds, Is.EqualTo(then.milliseconds));
 
         await tableLastSeen.DeleteOldRecordsAsync(TimeSpan.FromDays(100));
 
         seen1 = await tableLastSeen.GetLastSeenAsync(identityId1);
-        Assert.That(seen1, Is.Null);
+        Assert.That(seen1, Is.Not.Null);
+        Assert.That(seen1.Value.milliseconds, Is.EqualTo(now.milliseconds));
+
+        seen2 = await tableLastSeen.GetLastSeenAsync(identityId2);
+        Assert.That(seen2, Is.Null);
     }
 
 
