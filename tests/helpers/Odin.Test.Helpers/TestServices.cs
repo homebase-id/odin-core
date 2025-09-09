@@ -11,7 +11,7 @@ using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
-using Odin.Services.Registry.LastSeen;
+using Odin.Services.LastSeen;
 using Odin.Test.Helpers.Logging;
 using Serilog.Events;
 using StackExchange.Redis;

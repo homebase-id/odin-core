@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Background.BackgroundServices;
 
-namespace Odin.Services.Registry.LastSeen;
+namespace Odin.Services.LastSeen;
 
 public sealed class LastSeenBackgroundService(
     ILogger<LastSeenBackgroundService> logger,

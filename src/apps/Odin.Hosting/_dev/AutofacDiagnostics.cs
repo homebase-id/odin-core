@@ -9,6 +9,7 @@ using Autofac.Core;
 using Autofac.Core.Activators.Reflection;
 using Autofac.Core.Lifetime;
 using Microsoft.Extensions.Logging;
+using Odin.Services.LastSeen;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting._dev;
@@ -50,7 +51,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Http.DynamicHttpClientFactory), "f7ffd4c4"},
         {typeof(Odin.Core.Storage.Concurrency.RedisLock), "45a850b2"},
         {typeof(Odin.Core.Storage.Concurrency.NodeLock), "e6f1c919"},
-        {typeof(Odin.Services.Registry.LastSeen.LastSeenService), "c8318384"},
+        {typeof(Odin.Services.LastSeen.LastSeenService), "ef375af0"},
     };
 
     //

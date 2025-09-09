@@ -7,9 +7,9 @@ using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Background.BackgroundServices.Tenant;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
+using Odin.Services.LastSeen;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
-using Odin.Services.Registry.LastSeen;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Background;

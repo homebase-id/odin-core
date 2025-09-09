@@ -4,7 +4,7 @@ using Odin.Core.Identity;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
-using Odin.Services.Registry.LastSeen;
+using Odin.Services.LastSeen;
 
 namespace Odin.Hosting.Middleware;
 
