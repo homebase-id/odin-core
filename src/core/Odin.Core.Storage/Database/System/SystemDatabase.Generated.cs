@@ -12,6 +12,7 @@ public partial class SystemDatabase
     public static readonly ImmutableList<Type> TableTypes = [
             typeof(TableJobs),
             typeof(TableCertificates),
+            typeof(TableLastSeen),
             typeof(TableRegistrations),
             typeof(TableSettings),
     ];
@@ -21,6 +22,9 @@ public partial class SystemDatabase
 
     private Lazy<TableCertificates> _certificates;
     public TableCertificates Certificates => LazyResolve(ref _certificates);
+
+    private Lazy<TableLastSeen> _lastSeen;
+    public TableLastSeen LastSeen => LazyResolve(ref _lastSeen);
 
     private Lazy<TableRegistrations> _registrations;
     public TableRegistrations Registrations => LazyResolve(ref _registrations);
