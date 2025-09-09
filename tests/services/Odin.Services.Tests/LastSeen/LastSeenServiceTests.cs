@@ -112,7 +112,6 @@ public class LastSeenServiceTests
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var id = Guid.NewGuid();
-        var domain = "test.domain";
         var initial = UnixTimeUtc.Now().AddSeconds(-200);
         var updated = UnixTimeUtc.Now().AddSeconds(-100);
 
@@ -135,7 +134,6 @@ public class LastSeenServiceTests
         var lastSeenService = services.Resolve<ILastSeenService>();
 
         var id = Guid.NewGuid();
-        var domain = "test.domain";
         var initial = UnixTimeUtc.Now().AddSeconds(-2);
         var updated = UnixTimeUtc.Now().AddSeconds(-1);
 
