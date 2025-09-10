@@ -43,7 +43,7 @@ public class TableCircleCached(
     {
         return InvalidateAsync([
             CreateRemoveByKeyAction(GetCacheKey(circleId)),
-            CreateRemoveByTagAction(PagingByCircleIdTags)
+            CreateRemoveByTagsAction(PagingByCircleIdTags)
         ]);
     }
 

@@ -8,7 +8,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
-using Odin.Core.Util;
 
 [assembly: InternalsVisibleTo("Odin.Services.Drives.DriveCore.Storage")]
 
@@ -21,44 +20,44 @@ public class TableDriveMainIndex(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId)
+    internal async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId)
     {
         return await base.GetAllByDriveIdAsync(odinIdentity, driveId);
     }
 
-    public async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
+    internal async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
     {
         return await base.GetByUniqueIdAsync(odinIdentity, driveId, uniqueId);
     }
 
-    public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId)
+    internal async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId)
     {
         return await base.GetByGlobalTransitIdAsync(odinIdentity, driveId, globalTransitId);
     }
 
-    public async Task<DriveMainIndexRecord> GetAsync(Guid driveId, Guid fileId)
+    internal async Task<DriveMainIndexRecord> GetAsync(Guid driveId, Guid fileId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
-    public new async Task<int> InsertAsync(DriveMainIndexRecord item)
+    internal new async Task<int> InsertAsync(DriveMainIndexRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public async Task<int> DeleteAsync(Guid driveId, Guid fileId)
+    internal async Task<int> DeleteAsync(Guid driveId, Guid fileId)
     {
         return await base.DeleteAsync(odinIdentity, driveId, fileId);
     }
 
-    public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
+    internal DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
-        return base.ReadRecordFromReader1(rdr, odinIdentity.IdentityId, driveId);
+        return ReadRecordFromReader1(rdr, odinIdentity.IdentityId, driveId);
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
-    public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null)
+    internal virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null)
     {
         if (useThisNewVersionTag == null)
             useThisNewVersionTag = SequentialGuid.CreateGuid();
@@ -142,7 +141,7 @@ public class TableDriveMainIndex(
         // Unreachable return 0;
     }
 
-    public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
+    internal async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
@@ -159,7 +158,7 @@ public class TableDriveMainIndex(
         return await updateCommand.ExecuteNonQueryAsync();
     }
 
-    public async Task<(int, long)> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory)
+    internal async Task<(int, long)> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
@@ -186,7 +185,7 @@ public class TableDriveMainIndex(
         return (0, 0);
     }
 
-    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId)
+    internal async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var sizeCommand = cn.CreateCommand();
@@ -215,7 +214,7 @@ public class TableDriveMainIndex(
         return (-1, -1);
     }
 
-    public async Task<long> GetTotalSizeAllDrivesAsync()
+    internal async Task<long> GetTotalSizeAllDrivesAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -245,7 +244,7 @@ public class TableDriveMainIndex(
     /// <summary>
     /// For defragmenter only. Updates the byteCount column in the DB.
     /// </summary>
-    public async Task<int> UpdateByteCountAsync(Guid driveId, Guid fileId, long byteCount)
+    internal async Task<int> UpdateByteCountAsync(Guid driveId, Guid fileId, long byteCount)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -296,7 +295,7 @@ public class TableDriveMainIndex(
     // Copy of UpdateAsync with Validation() and modified time removed
     // It does NOT update reactionSummary and transferHistory and localAppData! 
     // (for the same reason the regular one doesn't)
-    public async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
+    internal async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
     {
         // Skip vaildation deliberately: item.Validate();
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

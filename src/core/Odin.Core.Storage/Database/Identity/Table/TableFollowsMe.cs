@@ -17,15 +17,15 @@ public class TableFollowsMe(
     OdinIdentity odinIdentity)
     : TableFollowsMeCRUD(scopedConnectionFactory)
 {
-    public const int GuidSize = 16; // Precisely 16 bytes for the ID key
+    internal const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
+    internal async Task<int> DeleteAsync(OdinId identity, Guid driveId)
     {
         return await base.DeleteAsync(odinIdentity, identity.DomainName, driveId);
     }
 
-    public async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
+    internal async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
     {
         var recordsInserted = 0;
 
@@ -46,19 +46,19 @@ public class TableFollowsMe(
     }
 
 
-    public new async Task<int> InsertAsync(FollowsMeRecord item)
+    internal new async Task<int> InsertAsync(FollowsMeRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public new async Task<bool> TryInsertAsync(FollowsMeRecord item)
+    internal new async Task<bool> TryInsertAsync(FollowsMeRecord item)
     {
         item.identityId = odinIdentity;
         return await base.TryInsertAsync(item);
     }
 
-    public new async Task<int> UpsertAsync(FollowsMeRecord item)
+    internal new async Task<int> UpsertAsync(FollowsMeRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
@@ -72,13 +72,13 @@ public class TableFollowsMe(
     /// <param name="identity">The identity following you</param>
     /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
     /// <exception cref="Exception"></exception>
-    public async Task<List<FollowsMeRecord>> GetAsync(OdinId identity)
+    internal async Task<List<FollowsMeRecord>> GetAsync(OdinId identity)
     {
         var r = await base.GetAsync(odinIdentity, identity.DomainName) ?? [];
         return r;
     }
 
-    public async Task<int> DeleteByIdentityAsync(OdinId identity)
+    internal async Task<int> DeleteByIdentityAsync(OdinId identity)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
@@ -102,7 +102,7 @@ public class TableFollowsMe(
     }
 
     // Returns # records inserted (1 or 0)
-    public async Task<int> DeleteAndAddFollowerAsync(FollowsMeRecord record)
+    internal async Task<int> DeleteAndAddFollowerAsync(FollowsMeRecord record)
     {
         record.identityId = odinIdentity;
 
@@ -129,7 +129,7 @@ public class TableFollowsMe(
     /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
     /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
     /// <exception cref="Exception"></exception>
-    public async Task<(List<string> followers, string nextCursor)> GetAllFollowersAsync(int count, string inCursor)
+    internal async Task<(List<string> followers, string nextCursor)> GetAllFollowersAsync(int count, string inCursor)
     {
         if (count < 1)
             throw new Exception("Count must be at least 1.");
@@ -200,7 +200,7 @@ public class TableFollowsMe(
     /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
     /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
     /// <exception cref="Exception"></exception>
-    public async Task<(List<string> followers, string nextCursor)> GetFollowersAsync(int count, Guid driveId, string inCursor)
+    internal async Task<(List<string> followers, string nextCursor)> GetFollowersAsync(int count, Guid driveId, string inCursor)
     {
         var databaseType = _scopedConnectionFactory.DatabaseType;
 

@@ -43,7 +43,7 @@ public class TableAppNotificationsCached(
     {
         return InvalidateAsync([
             CreateRemoveByKeyAction(GetCacheKey(notificationId)),  
-            CreateRemoveByTagAction(PagingByCreateTags)
+            CreateRemoveByTagsAction(PagingByCreateTags)
         ]);
     }
 

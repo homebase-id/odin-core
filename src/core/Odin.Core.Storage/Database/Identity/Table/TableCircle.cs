@@ -11,23 +11,23 @@ public class TableCircle(
     OdinIdentity odinIdentity)
     : TableCircleCRUD(scopedConnectionFactory)
 {
-    public async Task<CircleRecord> GetAsync(Guid circleId)
+    internal async Task<CircleRecord> GetAsync(Guid circleId)
     {
         return await base.GetAsync(odinIdentity, circleId);
     }
 
-    public new async Task<int> InsertAsync(CircleRecord item)
+    internal new async Task<int> InsertAsync(CircleRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public async Task<int> DeleteAsync(Guid circleId)
+    internal async Task<int> DeleteAsync(Guid circleId)
     {
         return await base.DeleteAsync(odinIdentity, circleId);
     }
 
-    public async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid? inCursor)
+    internal async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(int count, Guid? inCursor)
     {
         return await PagingByCircleIdAsync(count, odinIdentity, inCursor);
     }

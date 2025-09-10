@@ -60,7 +60,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 return cache[fileId]; // May return null, which means the recond wasn't in the DB
             }
 
-            var record = await identityDatabase.DriveMainIndex.GetAsync(driveId, fileId);
+            var record = await identityDatabase.DriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMinutes(10));
 
             if (record == null)
                 cache.Add(fileId, null);
@@ -519,7 +519,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var driveId = targetDrive.Alias;
             var storageDrive = await driveManager.GetDriveAsync(driveId);
 
-            var batch = await identityDatabase.DriveMainIndex.GetAllByDriveIdAsync(driveId);
+            var batch = await identityDatabase.DriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromMinutes(10));
 
             logger.LogDebug("Defragmenting drive {driveName}.", driveId);
 
@@ -719,8 +719,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     // We have to write the header r back to the DB
                     // This will also update the byteCount row, so we 
                     // don't need to call UpdateByteCountAsync() below
-                    await identityDatabase.DriveMainIndex.RawUpdateAsync(driveMainIndexRecord);
-                    var sanityRecord = await identityDatabase.DriveMainIndex.GetAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
+                    await identityDatabase.DriveMainIndexCached.RawUpdateAsync(driveMainIndexRecord);
+                    var sanityRecord = await identityDatabase.DriveMainIndexCached.GetAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
                     var sanityDatabaseBytes = DriveQuery.SizeOfDriveMainIndexRecord(sanityRecord);
                     if (sanityDatabaseBytes != headerBytes)
                     {
@@ -736,7 +736,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     // The ServerFileHeader.FromDriveMainIndexRecord() DTO 
                     // will overwrite the ServerMetadata.FileByteCount with 
                     // the byteCount value
-                    await identityDatabase.DriveMainIndex.UpdateByteCountAsync(drive.Id, fileId, header.ServerMetadata.FileByteCount);
+                    await identityDatabase.DriveMainIndexCached.UpdateByteCountAsync(drive.Id, fileId, header.ServerMetadata.FileByteCount);
                 }
             }
 

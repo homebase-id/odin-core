@@ -28,21 +28,32 @@ public abstract class AbstractTableCaching
     public long Misses => Interlocked.Read(ref _misses);
 
     private readonly IScopedConnectionFactory _scopedConnectionFactory;
-    protected readonly ILevel2Cache Cache;
+    private readonly ILevel2Cache _cache;
 
-    private readonly string _tagAllItems;
-    private readonly List<string> _tagsAllItems;
+    private readonly List<string> _rootTag;
+    private string RootTag { get; }
 
     protected virtual bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
 
     //
 
-    protected AbstractTableCaching(ILevel2Cache cache, IScopedConnectionFactory scopedConnectionFactory)
+    protected AbstractTableCaching(
+        ILevel2Cache cache,
+        IScopedConnectionFactory scopedConnectionFactory,
+        string? shareableRootTag = null)
     {
-        Cache = cache;
+        _cache = cache;
         _scopedConnectionFactory = scopedConnectionFactory;
-        _tagAllItems = Cache.CacheKeyPrefix + ":" + GetType().Name;
-        _tagsAllItems = [_tagAllItems];
+
+        if (string.IsNullOrWhiteSpace(shareableRootTag))
+        {
+            _rootTag = [_cache.CacheKeyPrefix + ":" + GetType().Name];
+        }
+        else
+        {
+            _rootTag = [_cache.CacheKeyPrefix + ":" + shareableRootTag];
+        }
+        RootTag = _rootTag.First();
     }
 
     //
@@ -64,29 +75,29 @@ public abstract class AbstractTableCaching
         var result = new List<string>(tags.Count);
         foreach (var tag in tags)
         {
-            result.Add(_tagAllItems + ":" + tag);
+            result.Add(RootTag + ":" + tag);
         }
         return result;
     }
 
     //
 
-    private List<string> CombineAllTags(List<string>? tags)
+    private List<string> CombineAllTagsWithRoot(List<string>? tags)
     {
         if (tags == null || tags.Count == 0)
         {
-            return _tagsAllItems;
+            return _rootTag;
         }
 
-        var result = new List<string>(_tagsAllItems.Count + tags.Count);
-        result.AddRange(_tagsAllItems);
+        var result = new List<string>(_rootTag.Count + tags.Count);
+        result.AddRange(_rootTag);
         result.AddRange(BuildTags(tags));
         return result;
     }
 
     //
 
-    private List<string> CombineExplicitTags(List<string> tags)
+    private List<string> CombineAllTagsWithoutRoot(List<string> tags)
     {
         if (tags == null || tags.Count == 0)
         {
@@ -119,7 +130,7 @@ public abstract class AbstractTableCaching
         }
 
         var hit = true;
-        var result = await Cache.GetOrSetAsync(
+        var result = await _cache.GetOrSetAsync(
             BuildCacheKey(key),
             async _ =>
             {
@@ -127,7 +138,7 @@ public abstract class AbstractTableCaching
                 return await factory(cancellationToken);
             },
             ttl,
-            CombineAllTags(tags),
+            CombineAllTagsWithRoot(tags),
             cancellationToken);
 
         if (hit)
@@ -151,14 +162,14 @@ public abstract class AbstractTableCaching
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        return await GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTags(tags), cancellationToken);
+        return await GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTagsWithRoot(tags), cancellationToken);
     }
 
     //
 
     protected virtual Func<Task> CreateRemoveByKeyAction(string key)
     {
-        return () => Cache.RemoveAsync(BuildCacheKey(key)).AsTask();
+        return () => _cache.RemoveAsync(BuildCacheKey(key)).AsTask();
     }
 
     //
@@ -170,17 +181,10 @@ public abstract class AbstractTableCaching
 
     //
 
-    protected Func<Task> MakeRemoveByTagAction(string tag)
+    protected Func<Task> CreateRemoveByTagsAction(IEnumerable<string> tags)
     {
-        return () => Cache.RemoveByTagAsync(CombineExplicitTags([tag])).AsTask();
-    }
-
-    //
-
-    protected Func<Task> CreateRemoveByTagAction(IEnumerable<string> tags)
-    {
-        var explicitTags = CombineExplicitTags(tags.ToList());
-        return () => Cache.RemoveByTagAsync(explicitTags).AsTask();
+        var explicitTags = CombineAllTagsWithoutRoot(tags.ToList());
+        return () => _cache.RemoveByTagAsync(explicitTags).AsTask();
     }
     
     //
@@ -189,11 +193,11 @@ public abstract class AbstractTableCaching
     {
         if (InDatabaseTransaction)
         {
-            _scopedConnectionFactory.AddPostCommitAction(async () => await Cache.RemoveByTagAsync(_tagsAllItems));
+            _scopedConnectionFactory.AddPostCommitAction(async () => await _cache.RemoveByTagAsync(_rootTag));
         }
         else
         {
-            await Cache.RemoveByTagAsync(_tagsAllItems);
+            await _cache.RemoveByTagAsync(_rootTag);
         }
     }
 

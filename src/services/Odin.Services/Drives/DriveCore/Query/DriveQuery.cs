@@ -16,6 +16,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Query;
@@ -23,7 +24,7 @@ namespace Odin.Services.Drives.DriveCore.Query;
 public class DriveQuery(
     ILogger<DriveQuery> logger,
     MainIndexMeta metaIndex,
-    TableDriveMainIndex tblDriveMainIndex,
+    TableDriveMainIndexCached tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
     IdentityDatabase db,
     OdinIdentity odinIdentity
@@ -214,11 +215,11 @@ public class DriveQuery(
             DriveMainIndexRecord ru = null;
             DriveMainIndexRecord rt = null;
 
-            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
+            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
             if (fileMetadata.AppData.UniqueId.HasValue)
-                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId);
+                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
             if (fileMetadata.GlobalTransitId.HasValue)
-                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId);
+                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
 
             string s = "";
             DriveMainIndexRecord r = null;
@@ -293,7 +294,7 @@ public class DriveQuery(
 
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId);
+        var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
 
         if (null == record || record.fileSystemType != (int)fileSystemType)
         {
@@ -427,13 +428,13 @@ public class DriveQuery(
 
     public async Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive)
     {
-        var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(drive.Id);
+        var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(drive.Id, TimeSpan.FromMinutes(10)); // MS:TODO ttl
         return (count, size);
     }
 
     public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
+        var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
         if (null == record)
         {
             return null;
@@ -449,7 +450,7 @@ public class DriveQuery(
 
     public async Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
+        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
 
         if (null == record)
         {

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Admin.Tenants.Jobs;
 using Odin.Services.Configuration;
@@ -136,8 +137,8 @@ public class TenantAdmin(
             if (includePayload)
             {
                 var tenantScope = multiTenantContainer.GetTenantScope(identityRegistration.PrimaryDomainName);
-                var driveMainIndex = tenantScope.Resolve<TableDriveMainIndex>();
-                var sizeAllDrives = await driveMainIndex.GetTotalSizeAllDrivesAsync();
+                var driveMainIndex = tenantScope.Resolve<TableDriveMainIndexCached>();
+                var sizeAllDrives = await driveMainIndex.GetTotalSizeAllDrivesAsync(TimeSpan.FromMinutes(10));
 
                 if (config.S3PayloadStorage.Enabled)
                 {

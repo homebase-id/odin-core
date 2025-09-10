@@ -44,7 +44,7 @@ public class TableConnectionsCached(
     {
         await InvalidateAsync([
             CreateRemoveByKeyAction(GetCacheKey(identity)),
-            CreateRemoveByTagAction(PagingByTags)
+            CreateRemoveByTagsAction(PagingByTags)
         ]);
     }
 
