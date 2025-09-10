@@ -14,9 +14,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class SecurityVerificationController(
-    OwnerSecurityHealthService securityHealthService,
-    PasswordKeyRecoveryService recoveryService) : OdinControllerBase
+public class SecurityVerificationController(OwnerSecurityHealthService securityHealthService) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
