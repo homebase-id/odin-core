@@ -75,7 +75,7 @@ public class OwnerSecurityHealthService(
         odinContext.Caller.AssertHasMasterKey();
         if (MailAddress.TryCreate(newEmail, out var email))
         {
-            throw new OdinClientException("Invalid email address");
+            throw new OdinClientException("Invalid email address", OdinClientErrorCode.InvalidEmail);
         }
 
         _ = await secretService.AssertValidPasswordAsync(passwordReply);
