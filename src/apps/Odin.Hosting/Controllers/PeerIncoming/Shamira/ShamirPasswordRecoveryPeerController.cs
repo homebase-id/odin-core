@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Peer;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
 {

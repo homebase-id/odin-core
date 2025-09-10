@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Bitcoin.BIP39;
 using Microsoft.AspNetCore.Mvc;
@@ -5,13 +6,17 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Security;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class SecurityVerificationController(OwnerSecurityHealthService securityHealthService) : OdinControllerBase
+public class SecurityVerificationController(
+    OwnerSecurityHealthService securityHealthService,
+    PasswordKeyRecoveryService recoveryService) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
@@ -51,9 +56,16 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
     }
 
     [HttpPost("update-recovery-email")]
-    public async Task<IActionResult> UpdateRecoveryInfo([FromBody] UpdateRecoveryEmailRequest request)
+    public async Task<IActionResult> UpdateRecoveryEmail([FromBody] UpdateRecoveryEmailRequest request)
     {
-        await securityHealthService.UpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
+        await recoveryService.StartUpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
+        return Ok();
+    }
+
+    [HttpGet("verify-email")]
+    public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string nonceId)
+    {
+        await recoveryService.FinalizeUpdateRecoveryEmail(Guid.Parse(nonceId), WebOdinContext);
         return Ok();
     }
 }

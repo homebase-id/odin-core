@@ -7,7 +7,9 @@ using Refit;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Hosting.Controllers.OwnerToken.Security;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 

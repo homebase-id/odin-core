@@ -20,6 +20,7 @@ using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Util;
 
 namespace Odin.Services.Configuration;

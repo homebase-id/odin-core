@@ -69,7 +69,10 @@ using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security;
+using Odin.Services.Security.Email;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting;
 
@@ -185,6 +188,7 @@ public static class TenantServices
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
 
+        cb.RegisterType<RecoveryEmailer>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
