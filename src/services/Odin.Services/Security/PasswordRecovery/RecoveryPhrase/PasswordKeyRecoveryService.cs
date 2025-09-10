@@ -4,12 +4,10 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Security.Email;
@@ -20,7 +18,6 @@ public class PasswordKeyRecoveryService(
     OdinConfiguration odinConfiguration,
     TableKeyValueCached tblKeyValue,
     TenantContext tenantContext,
-    OwnerSecretService secretService,
     RecoveryEmailer recoveryEmailer)
 {
     private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
@@ -113,27 +110,9 @@ public class PasswordKeyRecoveryService(
         return recovery.Email ?? tenantContext.Email;
     }
 
-    /// <summary>
-    /// Sends an email to the new email address for verification
-    /// </summary>
-    public async Task StartUpdateRecoveryEmail(string newEmail, PasswordReply passwordReply, IOdinContext odinContext)
+    public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {
-        odinContext.Caller.AssertHasMasterKey();
-        if (MailAddress.TryCreate(newEmail, out var email))
-        {
-            throw new OdinClientException("Invalid email address");
-        }
-
-        _ = await secretService.AssertValidPasswordAsync(passwordReply);
-        await recoveryEmailer.EnqueueVerifyNewRecoveryEmailAddress(email);
-    }
-
-    public async Task FinalizeUpdateRecoveryEmail(Guid nonceId, IOdinContext odinContext)
-    {
-        odinContext.Caller.AssertHasMasterKey();
-
         var email = await recoveryEmailer.GetNonceDataOrFail(nonceId);
-
         var recovery = await GetAccountRecoveryInfo();
         recovery.Email = email;
         await AccountRecoveryInfoStorage.UpsertAsync(tblKeyValue, _accountRecoveryInfoStorageId, recovery);
@@ -164,5 +143,11 @@ public class PasswordKeyRecoveryService(
         };
 
         await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, record);
+    }
+
+    public async Task StartUpdateRecoveryEmail(MailAddress email, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        await recoveryEmailer.EnqueueVerifyNewRecoveryEmailAddress(email);
     }
 }

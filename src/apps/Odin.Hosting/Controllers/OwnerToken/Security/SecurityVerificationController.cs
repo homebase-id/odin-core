@@ -58,14 +58,14 @@ public class SecurityVerificationController(
     [HttpPost("update-recovery-email")]
     public async Task<IActionResult> UpdateRecoveryEmail([FromBody] UpdateRecoveryEmailRequest request)
     {
-        await recoveryService.StartUpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
+        await securityHealthService.StartUpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
         return Ok();
     }
 
     [HttpGet("verify-email")]
     public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string nonceId)
     {
-        await recoveryService.FinalizeUpdateRecoveryEmail(Guid.Parse(nonceId), WebOdinContext);
+        await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(nonceId), WebOdinContext);
         return Ok();
     }
 }

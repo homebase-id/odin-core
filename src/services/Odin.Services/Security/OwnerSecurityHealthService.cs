@@ -1,13 +1,16 @@
 using System;
+using System.Net.Mail;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Login;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Services.Security;
@@ -63,6 +66,28 @@ public class OwnerSecurityHealthService(
         odinContext.Caller.AssertHasMasterKey();
         return await GetVerificationStatusInternalAsync();
     }
+
+    /// <summary>
+    /// Sends an email to the new email address for verification
+    /// </summary>
+    public async Task StartUpdateRecoveryEmail(string newEmail, PasswordReply passwordReply, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        if (MailAddress.TryCreate(newEmail, out var email))
+        {
+            throw new OdinClientException("Invalid email address");
+        }
+
+        _ = await secretService.AssertValidPasswordAsync(passwordReply);
+        await recoveryService.StartUpdateRecoveryEmail(email, odinContext);
+    }
+
+    public async Task FinalizeUpdateRecoveryEmail(Guid nonceId, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        await recoveryService.UpdateAccountRecoveryEmail(nonceId);
+    }
+
 
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()
     {
