@@ -52,7 +52,7 @@ public static class ResetFeed
                     throw new OdinSystemException("invalid drive");
                 }
 
-                await db.MainIndexMeta.DeleteEntryAsync(feedDriveId, header.fileId);
+                await db.MainIndexMetaCached.DeleteEntryAsync(feedDriveId, header.fileId);
             }
 
             var shouldBeAllGoneResults = await GetHeadersInFeedDrive(db);
@@ -68,7 +68,7 @@ public static class ResetFeed
 
         async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> GetHeadersInFeedDrive(IdentityDatabase db)
         {
-            var results = await db.MainIndexMeta.QueryBatchAsync(feedDriveId,
+            var results = await db.MainIndexMetaCached.QueryBatchAsync(feedDriveId,
                 Int32.MaxValue,
                 null,
                 QueryBatchSortOrder.Default,

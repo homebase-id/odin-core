@@ -23,7 +23,7 @@ namespace Odin.Services.Drives.DriveCore.Query;
 
 public class DriveQuery(
     ILogger<DriveQuery> logger,
-    MainIndexMeta metaIndex,
+    MainIndexMetaCached metaIndex,
     TableDriveMainIndexCached tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
     IdentityDatabase db,

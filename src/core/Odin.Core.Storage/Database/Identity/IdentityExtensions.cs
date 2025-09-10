@@ -84,6 +84,7 @@ public static class IdentityExtensions
         cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
 
         // Caches
+        cb.RegisterType<MainIndexMetaCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableAppGrantsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableAppNotificationsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableCircleCached>().InstancePerLifetimeScope();

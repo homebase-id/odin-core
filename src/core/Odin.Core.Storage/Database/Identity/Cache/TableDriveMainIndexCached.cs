@@ -13,9 +13,9 @@ public class TableDriveMainIndexCached(
     TableDriveMainIndex table,
     ITenantLevel2Cache cache,
     ScopedIdentityConnectionFactory scopedConnectionFactory) :
-    AbstractTableCaching(cache, scopedConnectionFactory, SharedRootTag)
+    AbstractTableCaching(cache, scopedConnectionFactory, CommonDriveRootTag)
 {
-    public const string SharedRootTag = nameof(TableDriveMainIndexCached);
+    public const string CommonDriveRootTag = nameof(TableDriveMainIndexCached);
 
     //
 
@@ -124,6 +124,7 @@ public class TableDriveMainIndexCached(
 
     public async Task<DriveMainIndexRecord?> GetAsync(Guid driveId, Guid fileId, TimeSpan ttl)
     {
+        // CanUpdateLocalAppMetadataTagsWhenNotSetInTargetFile
         var result = await GetOrSetAsync(
             GetFileIdCacheKey(driveId, fileId),
             _ => table.GetAsync(driveId, fileId),

@@ -58,7 +58,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             
         }
 
-        public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
+        internal async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -81,7 +81,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="tagIdList"></param>
         /// <param name="useThisNewVersionTag"></param>
         /// <returns></returns>
-        public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
+        internal async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null,
             Guid? useThisNewVersionTag = null)
@@ -247,7 +247,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// </code>
         /// This example uses <c>AnyChangeDate</c> to retrieve records based on their most recent change, ensuring both new and modified records are included.
         /// </example>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
+        internal async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
         int noOfItems,
             QueryBatchCursor cursor,
             QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
@@ -451,7 +451,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// </example>
         /// </summary>
         /// <returns></returns>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(Guid driveId,
+        internal async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(Guid driveId,
             int noOfItems,
             QueryBatchCursor cursor,
             QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
@@ -619,7 +619,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
+        internal async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
             string cursorString,
             TimeRowCursor stopAtModifiedUnixTimeSeconds = null,
             Int32? fileSystemType = (int)FileSystemType.Standard,

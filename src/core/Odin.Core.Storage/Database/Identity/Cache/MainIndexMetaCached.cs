@@ -5,16 +5,194 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-// public class MainIndexMetaCached(
-//     MainIndexMeta meta,
-//     ITenantLevel2Cache cache,
-//     ScopedIdentityConnectionFactory scopedConnectionFactory) :
-//     AbstractTableCaching(cache, scopedConnectionFactory, TableDriveMainIndexCached.SharedRootTag)
-// {
-//
-// }
+public class MainIndexMetaCached(
+    MainIndexMeta meta,
+    ITenantLevel2Cache cache,
+    ScopedIdentityConnectionFactory scopedConnectionFactory) :
+    AbstractTableCaching(cache, scopedConnectionFactory, TableDriveMainIndexCached.CommonDriveRootTag)
+{
+    public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
+    {
+        var result = await meta.DeleteEntryAsync(driveId, fileId);
+
+        await InvalidateAllAsync(); // SEB:TODO Invalidate more selectively
+
+        return result;
+    }
+
+    //
+
+    public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
+        List<Guid>? accessControlList = null,
+        List<Guid>? tagIdList = null,
+        Guid? useThisNewVersionTag = null)
+    {
+        var result = await meta.BaseUpsertEntryZapZapAsync(
+            driveMainIndexRecord,
+            accessControlList,
+            tagIdList,
+            useThisNewVersionTag);
+
+        await InvalidateAllAsync(); // SEB:TODO Invalidate more selectively
+
+        return result;
+    }
+
+    //
+
+    public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(
+        Guid driveId,
+        int noOfItems,
+        QueryBatchCursor? cursor,
+        QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
+        QueryBatchSortField sortField = QueryBatchSortField.CreatedDate,
+        Int32? fileSystemType = (int)FileSystemType.Standard,
+        List<int>? fileStateAnyOf = null,
+        IntRange? requiredSecurityGroup = null,
+        List<Guid>? globalTransitIdAnyOf = null,
+        List<int>? filetypesAnyOf = null,
+        List<int>? datatypesAnyOf = null,
+        List<string>? senderidAnyOf = null,
+        List<Guid>? groupIdAnyOf = null,
+        List<Guid>? uniqueIdAnyOf = null,
+        List<Int32>? archivalStatusAnyOf = null,
+        UnixTimeUtcRange? userdateSpan = null,
+        List<Guid>? aclAnyOf = null,
+        List<Guid>? tagsAnyOf = null,
+        List<Guid>? tagsAllOf = null,
+        List<Guid>? localTagsAnyOf = null,
+        List<Guid>? localTagsAllOf = null)
+    {
+        // SEB:TODO
+        var result = await meta.QueryBatchAsync(
+            driveId,
+            noOfItems,
+            cursor,
+            sortOrder,
+            sortField,
+            fileSystemType,
+            fileStateAnyOf,
+            requiredSecurityGroup,
+            globalTransitIdAnyOf,
+            filetypesAnyOf,
+            datatypesAnyOf,
+            senderidAnyOf,
+            groupIdAnyOf,
+            uniqueIdAnyOf,
+            archivalStatusAnyOf,
+            userdateSpan,
+            aclAnyOf,
+            tagsAnyOf,
+            tagsAllOf,
+            localTagsAnyOf,
+            localTagsAllOf);
+
+        return result;
+    }
+
+    //
+
+    public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(
+        Guid driveId,
+        int noOfItems,
+        QueryBatchCursor? cursor,
+        QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
+        QueryBatchSortField sortField = QueryBatchSortField.CreatedDate,
+        Int32? fileSystemType = (int)FileSystemType.Standard,
+        List<int>? fileStateAnyOf = null,
+        IntRange? requiredSecurityGroup = null,
+        List<Guid>? globalTransitIdAnyOf = null,
+        List<int>? filetypesAnyOf = null,
+        List<int>? datatypesAnyOf = null,
+        List<string>? senderidAnyOf = null,
+        List<Guid>? groupIdAnyOf = null,
+        List<Guid>? uniqueIdAnyOf = null,
+        List<Int32>? archivalStatusAnyOf = null,
+        UnixTimeUtcRange? userdateSpan = null,
+        List<Guid>? aclAnyOf = null,
+        List<Guid>? tagsAnyOf = null,
+        List<Guid>? tagsAllOf = null,
+        List<Guid>? localTagsAnyOf = null,
+        List<Guid>? localTagsAllOf = null)
+    {
+        // SEB:TODO
+        var result = await meta.QueryBatchSmartCursorAsync(
+            driveId,
+            noOfItems,
+            cursor,
+            sortOrder,
+            sortField,
+            fileSystemType,
+            fileStateAnyOf,
+            requiredSecurityGroup,
+            globalTransitIdAnyOf,
+            filetypesAnyOf,
+            datatypesAnyOf,
+            senderidAnyOf,
+            groupIdAnyOf,
+            uniqueIdAnyOf,
+            archivalStatusAnyOf,
+            userdateSpan,
+            aclAnyOf,
+            tagsAnyOf,
+            tagsAllOf,
+            localTagsAnyOf,
+            localTagsAllOf);
+
+        return result;
+
+    }
+
+    //
+
+    public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId,
+        int noOfItems,
+        string cursorString,
+        TimeRowCursor? stopAtModifiedUnixTimeSeconds = null,
+        Int32? fileSystemType = (int)FileSystemType.Standard,
+        IntRange? requiredSecurityGroup = null,
+        List<Guid>? globalTransitIdAnyOf = null,
+        List<int>? filetypesAnyOf = null,
+        List<int>? datatypesAnyOf = null,
+        List<string>? senderidAnyOf = null,
+        List<Guid>? groupIdAnyOf = null,
+        List<Guid>? uniqueIdAnyOf = null,
+        List<Int32>? archivalStatusAnyOf = null,
+        UnixTimeUtcRange? userdateSpan = null,
+        List<Guid>? aclAnyOf = null,
+        List<Guid>? tagsAnyOf = null,
+        List<Guid>? tagsAllOf = null,
+        List<Guid>? localTagsAnyOf = null,
+        List<Guid>? localTagsAllOf = null)
+    {
+        // SEB:TODO
+        var result = await meta.QueryModifiedAsync(
+            driveId,
+            noOfItems,
+            cursorString,
+            stopAtModifiedUnixTimeSeconds,
+            fileSystemType,
+            requiredSecurityGroup,
+            globalTransitIdAnyOf,
+            filetypesAnyOf,
+            datatypesAnyOf,
+            senderidAnyOf,
+            groupIdAnyOf,
+            uniqueIdAnyOf,
+            archivalStatusAnyOf,
+            userdateSpan,
+            aclAnyOf,
+            tagsAnyOf,
+            tagsAllOf,
+            localTagsAnyOf,
+            localTagsAllOf);
+
+        return result;
+    }
+}
