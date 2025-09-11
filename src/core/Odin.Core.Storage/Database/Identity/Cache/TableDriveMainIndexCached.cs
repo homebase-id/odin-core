@@ -197,6 +197,18 @@ public class TableDriveMainIndexCached(
 
     //
 
+    public async Task<bool> UpdateLocalAppMetadataAsync(
+        Guid driveId,
+        Guid fileId,
+        Guid oldVersionTag,
+        Guid newVersionTag,
+        string localMetadataJson)
+    {
+        var result = await table.UpdateLocalAppMetadataAsync(driveId, fileId, oldVersionTag, newVersionTag, localMetadataJson);
+        await InvalidateDriveAsync(driveId);
+        return result;
+    }
+
     // For defragmenter only
     public async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
     {

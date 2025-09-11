@@ -72,7 +72,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var localMetadataContent = "this is some content";
 
             // Check UpdateLocalAppMetadataAsync returns false when the row doesn't exist
-            bool exists = await tableDriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.Empty, newVersionTag, localMetadataContent);
+            bool exists = await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.Empty, newVersionTag, localMetadataContent);
             ClassicAssert.IsTrue(exists == false);
 
             // Setup
@@ -83,13 +83,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(r1.hdrLocalVersionTag == null);
 
             // Check UpdateLocalAppMetadataAsync returns true when the row exist and the tag was updated (when the value is null)
-            exists = await tableDriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.Empty, newVersionTag, localMetadataContent);
+            exists = await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.Empty, newVersionTag, localMetadataContent);
             ClassicAssert.IsTrue(exists);
 
             // Check UpdateLocalAppMetadataAsync returns true when the row exist and the tag was updated (when the value is not null)
             var prevVersionTag = newVersionTag;
             newVersionTag = Guid.NewGuid();
-            exists = await tableDriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, prevVersionTag, newVersionTag, localMetadataContent);
+            exists = await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, fileId, prevVersionTag, newVersionTag, localMetadataContent);
             ClassicAssert.IsTrue(exists);
 
             // Check we get a proper exception when the version tag mismatches
@@ -99,7 +99,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             try
             {
-                exists = await tableDriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.NewGuid(), newVersionTag, localMetadataContent);
+                exists = await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.NewGuid(), newVersionTag, localMetadataContent);
             }
             catch (OdinClientException ex)
             {
@@ -169,7 +169,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             bool ok = false;
             try
             {
-                bool exists = await tableDriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.NewGuid(), Guid.Empty, localMetadataContent);
+                bool exists = await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.NewGuid(), Guid.Empty, localMetadataContent);
             }
             catch (OdinSystemException) 
             {
@@ -183,7 +183,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             try
             {
                 var g = Guid.NewGuid();
-                bool exists = await tableDriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, g, g, localMetadataContent);
+                bool exists = await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, fileId, g, g, localMetadataContent);
             }
             catch (ArgumentException)
             {
@@ -256,7 +256,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var localVersionTag1 = SequentialGuid.CreateGuid();
             var localMetadataContent = "this is some content";
             var affectedCount =
-                await localTagsDataOperations.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.Empty, localVersionTag1, localMetadataContent);
+                await tblDriveMainIndex.UpdateLocalAppMetadataAsync(driveId, fileId, Guid.Empty, localVersionTag1, localMetadataContent);
 
             // 
             // Assert

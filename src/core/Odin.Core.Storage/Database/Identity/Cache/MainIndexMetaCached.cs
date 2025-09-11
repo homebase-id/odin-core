@@ -28,6 +28,14 @@ public class MainIndexMetaCached(
 
     //
 
+    public async Task UpdateLocalTagsAsync(Guid driveId, Guid fileId, List<Guid> tags)
+    {
+        await meta.UpdateLocalTagsAsync(driveId, fileId, tags);
+        await InvalidateAllAsync(); // SEB:TODO Invalidate more selectively
+    }
+
+    //
+
     public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
         List<Guid>? accessControlList = null,
         List<Guid>? tagIdList = null,

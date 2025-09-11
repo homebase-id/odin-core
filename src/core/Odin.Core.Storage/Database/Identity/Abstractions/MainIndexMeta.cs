@@ -72,6 +72,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return n;
         }
 
+        internal async Task UpdateLocalTagsAsync(Guid driveId, Guid fileId, List<Guid> tags)
+        {
+            await _driveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, tags);
+        }
+
         /// <summary>
         /// By design does NOT update the TransferHistory and ReactionSummary fields, even when 
         /// they are specified in the record.

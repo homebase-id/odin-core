@@ -9,7 +9,6 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -263,7 +262,7 @@ public class DriveQuery(
 
     public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, Guid oldVersionTag, string metadataJson, Guid newVersionTag)
     {
-        var exists = await db.DriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, oldVersionTag, newVersionTag, metadataJson);
+        var exists = await db.DriveMainIndexCached.UpdateLocalAppMetadataAsync(driveId, fileId, oldVersionTag, newVersionTag, metadataJson);
 
         if (exists == false)
             throw new OdinClientException("No such file found for local metadata async", OdinClientErrorCode.FileNotFound);
@@ -275,13 +274,13 @@ public class DriveQuery(
 
         // Update the official metadata field
         var json = OdinSystemSerializer.Serialize(metadata);
-        var exists = await db.DriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, newVersionTag, json);
+        var exists = await db.DriveMainIndexCached.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, newVersionTag, json);
 
         if (exists == false)
             throw new OdinClientException("No such file found for local metadata async", OdinClientErrorCode.FileNotFound);
 
         // Update the tables used to query
-        await db.DriveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
+        await db.MainIndexMetaCached.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
 
         tx.Commit();
     }
