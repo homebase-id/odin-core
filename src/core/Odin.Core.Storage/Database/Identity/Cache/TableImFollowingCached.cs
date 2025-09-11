@@ -9,7 +9,7 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 #nullable enable
 
 public class TableImFollowingCached(TableImFollowing table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     // SEB:NOTE some advanced queries are used in this table, so instead of trying to remove specific keys,
     // we use Cache.InvalidateAllAsync() to clear the cache whenever data changes are made

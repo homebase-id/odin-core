@@ -16,7 +16,7 @@ public class MainIndexMetaCached : AbstractTableCaching
     private readonly DriveMainIndexCacheHelper _cacheHelper;
 
     public MainIndexMetaCached(MainIndexMeta meta, IIdentityTransactionalCacheFactory cacheFactory)
-        : base(cacheFactory, DriveMainIndexCacheHelper.RootTag)
+        : base(cacheFactory, meta.GetType().Name, DriveMainIndexCacheHelper.RootTag)
     {
         _meta = meta;
         _cacheHelper = new DriveMainIndexCacheHelper(Cache);

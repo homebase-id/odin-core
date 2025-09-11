@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 #nullable enable
 
 public class TableCircleMemberCached(TableCircleMember table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private const string CacheKeyAll = "all:all:all";
 

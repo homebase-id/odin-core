@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 #nullable enable
 
 public class TableAppNotificationsCached(TableAppNotifications table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private static readonly List<string> PagingByCreateTags = ["PagingByCreate"];
 

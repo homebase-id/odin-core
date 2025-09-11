@@ -12,9 +12,9 @@ namespace Odin.Core.Storage.Database;
 // (aka remove) the cache entry.
 //
 
-public abstract class AbstractTableCaching(ITransactionalCacheFactory cacheFactory, string rootTag)
+public abstract class AbstractTableCaching(ITransactionalCacheFactory cacheFactory, string keyPrefix, string rootInvalidationTag)
 {
-    protected readonly TransactionalCache Cache = cacheFactory.Create(rootTag);
+    protected readonly TransactionalCache Cache = cacheFactory.Create(keyPrefix, rootInvalidationTag);
 
     public long Hits => Cache.Hits;
     public long Misses => Cache.Misses;

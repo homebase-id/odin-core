@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 #nullable enable
 
 public class TableKeyThreeValueCached(TableKeyThreeValue table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     // SEB:NOTE some funky cache keys here. We'll invalidate everything on any change. Might be worth refining later.
 

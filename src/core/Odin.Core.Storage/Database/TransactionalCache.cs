@@ -13,15 +13,14 @@ namespace Odin.Core.Storage.Database;
 
 public interface ITransactionalCacheFactory
 {
-    public TransactionalCache Create(string rootTag);
+    public TransactionalCache Create(string keyPrefix, string rootTag);
 }
 
 public abstract class AbstractTransactionalCacheFactory(ILevel2Cache cache, IScopedConnectionFactory scopedConnectionFactory)
 {
-    public TransactionalCache Create(string rootTag)
+    public TransactionalCache Create(string keyPrefix, string rootTag)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(rootTag, nameof(rootTag));
-        return new TransactionalCache(cache, scopedConnectionFactory, rootTag);
+        return new TransactionalCache(cache, scopedConnectionFactory, keyPrefix, rootTag);
     }
 }
 
@@ -35,8 +34,9 @@ public sealed class TransactionalCache
     private long _misses;
     public long Misses => Interlocked.Read(ref _misses);
 
-    private readonly IScopedConnectionFactory _scopedConnectionFactory;
     private readonly ILevel2Cache _cache;
+    private readonly IScopedConnectionFactory _scopedConnectionFactory;
+    private readonly string _keyPrefix;
 
     private readonly List<string> _rootTag;
     private string RootTag { get; }
@@ -48,10 +48,17 @@ public sealed class TransactionalCache
     public TransactionalCache(
         ILevel2Cache cache,
         IScopedConnectionFactory scopedConnectionFactory,
+        string keyPrefix,
         string rootTag)
     {
+        ArgumentNullException.ThrowIfNull(cache, nameof(cache));
+        ArgumentNullException.ThrowIfNull(scopedConnectionFactory, nameof(scopedConnectionFactory));
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyPrefix, nameof(keyPrefix));
+        ArgumentException.ThrowIfNullOrWhiteSpace(rootTag, nameof(rootTag));
+
         _cache = cache;
         _scopedConnectionFactory = scopedConnectionFactory;
+        _keyPrefix = keyPrefix;
         _rootTag = [_cache.CacheKeyPrefix + ":" + rootTag];
         RootTag = _rootTag.First();
     }
@@ -60,7 +67,7 @@ public sealed class TransactionalCache
 
     private string BuildCacheKey(string key)
     {
-        return GetType().FullName + ":" + key;
+        return _keyPrefix + ":" + key;
     }
 
     //

@@ -8,7 +8,7 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 #nullable enable
 
 public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private static readonly List<string> PagingByCircleIdTags = ["PagingByCircleId"];
 

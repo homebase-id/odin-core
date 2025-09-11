@@ -14,7 +14,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
     private readonly DriveMainIndexCacheHelper _cacheHelper;
 
     public TableDriveMainIndexCached(TableDriveMainIndex table, IIdentityTransactionalCacheFactory cacheFactory) :
-        base(cacheFactory, DriveMainIndexCacheHelper.RootTag)
+        base(cacheFactory, table.GetType().Name, DriveMainIndexCacheHelper.RootTag)
     {
         _table = table;
         _cacheHelper = new DriveMainIndexCacheHelper(Cache);
