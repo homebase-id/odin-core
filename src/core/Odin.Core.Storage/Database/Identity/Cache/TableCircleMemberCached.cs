@@ -1,27 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableCircleMemberCached(
-    TableCircleMember table,
-    ITenantLevel2Cache cache,
-    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
+public class TableCircleMemberCached(TableCircleMember table, IIdentityTransactionalCacheFactory cacheFactory) :
+    AbstractTableCaching(cacheFactory, table.GetType().Name)
 {
     private const string CacheKeyAll = "all:all:all";
-
-    //
-
-    private static string GetCacheKey(CircleMemberRecord item)
-    {
-        return GetCacheKey(item.circleId, item.memberId);
-    }
 
     //
 
@@ -55,11 +44,11 @@ public class TableCircleMemberCached(
 
     private async Task InvalidateAsync(Guid circleId, Guid memberId)
     {
-        await InvalidateAsync([
-            CreateRemoveByKeyAction(GetCacheKey(circleId, memberId)),
-            CreateRemoveByKeyAction(GetCircleCacheKey(circleId)),
-            CreateRemoveByKeyAction(GetMemberCacheKey(memberId)),
-            CreateRemoveByKeyAction(CacheKeyAll)
+        await Cache.InvalidateAsync([
+            Cache.CreateRemoveByKeyAction(GetCacheKey(circleId, memberId)),
+            Cache.CreateRemoveByKeyAction(GetCircleCacheKey(circleId)),
+            Cache.CreateRemoveByKeyAction(GetMemberCacheKey(memberId)),
+            Cache.CreateRemoveByKeyAction(CacheKeyAll)
         ]);
     }
 
@@ -100,7 +89,7 @@ public class TableCircleMemberCached(
 
     public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId, TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             GetCircleCacheKey(circleId),
             _ => table.GetCircleMembersAsync(circleId),
             ttl);
@@ -111,7 +100,7 @@ public class TableCircleMemberCached(
 
     public async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId, TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             GetMemberCacheKey(memberId),
             _ => table.GetMemberCirclesAndDataAsync(memberId),
             ttl);
@@ -125,7 +114,7 @@ public class TableCircleMemberCached(
         await table.UpsertCircleMembersAsync(circleMemberRecordList);
         // SEB:NOTE We could iterate the list here and invalidate each item individually,
         // but that would probably be slow, so for now we just invalidate all.
-        await InvalidateAllAsync();
+        await Cache.InvalidateAllAsync();
     }
 
     //
@@ -135,7 +124,7 @@ public class TableCircleMemberCached(
         await table.RemoveCircleMembersAsync(circleId, members);
         // SEB:NOTE We could iterate the list here and invalidate each item individually,
         // but that would probably be slow, so for now we just invalidate all.
-        await InvalidateAllAsync();
+        await Cache.InvalidateAllAsync();
     }
 
     //
@@ -145,14 +134,14 @@ public class TableCircleMemberCached(
         await table.DeleteMembersFromAllCirclesAsync(members);
         // SEB:NOTE We could iterate the list here and invalidate each item individually,
         // but that would probably be slow, so for now we just invalidate all.
-        await InvalidateAllAsync();
+        await Cache.InvalidateAllAsync();
     }
 
     //
 
     public async Task<List<CircleMemberRecord>> GetAllCirclesAsync(TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             CacheKeyAll,
             _ => table.GetAllCirclesAsync(),
             ttl);

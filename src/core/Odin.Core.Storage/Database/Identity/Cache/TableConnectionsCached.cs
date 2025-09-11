@@ -2,27 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 
 namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class TableConnectionsCached(
-    TableConnections table,
-    ITenantLevel2Cache cache,
-    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
+public class TableConnectionsCached(TableConnections table, IIdentityTransactionalCacheFactory cacheFactory) :
+    AbstractTableCaching(cacheFactory, table.GetType().Name)
 {
     private static readonly List<string> PagingByTags = ["PagingBy"];
-
-    //
-
-    private static string GetCacheKey(ConnectionsRecord item)
-    {
-        return GetCacheKey(item.identity);
-    }
 
     //
 
@@ -42,9 +31,9 @@ public class TableConnectionsCached(
 
     private async Task InvalidateAsync(OdinId identity)
     {
-        await InvalidateAsync([
-            CreateRemoveByKeyAction(GetCacheKey(identity)),
-            CreateRemoveByTagsAction(PagingByTags)
+        await Cache.InvalidateAsync([
+            Cache.CreateRemoveByKeyAction(GetCacheKey(identity)),
+            Cache.CreateRemoveByTagsAction(PagingByTags)
         ]);
     }
 
@@ -52,7 +41,7 @@ public class TableConnectionsCached(
 
     public async Task<ConnectionsRecord?> GetAsync(OdinId identity, TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             GetCacheKey(identity),
             _ => table.GetAsync(identity),
             ttl);
@@ -102,7 +91,7 @@ public class TableConnectionsCached(
         string? inCursor,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, inCursor),
             ttl,
@@ -118,7 +107,7 @@ public class TableConnectionsCached(
         string? inCursor,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + status + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, status, inCursor),
             ttl,
@@ -134,7 +123,7 @@ public class TableConnectionsCached(
         string? cursorString,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + status + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, status, cursorString),
             ttl,
@@ -149,7 +138,7 @@ public class TableConnectionsCached(
         string? cursorString,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, cursorString),
             ttl,

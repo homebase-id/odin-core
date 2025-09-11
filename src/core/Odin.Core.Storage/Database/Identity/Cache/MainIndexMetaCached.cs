@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Cache.Helpers;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
@@ -11,18 +10,31 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 
 #nullable enable
 
-public class MainIndexMetaCached(
-    MainIndexMeta meta,
-    ITenantLevel2Cache cache,
-    ScopedIdentityConnectionFactory scopedConnectionFactory) :
-    AbstractTableCaching(cache, scopedConnectionFactory, TableDriveMainIndexCached.CommonDriveRootTag)
+public class MainIndexMetaCached : AbstractTableCaching
 {
+    private readonly MainIndexMeta _meta;
+    private readonly DriveMainIndexCacheHelper _cacheHelper;
+
+    public MainIndexMetaCached(MainIndexMeta meta, IIdentityTransactionalCacheFactory cacheFactory)
+        : base(cacheFactory, DriveMainIndexCacheHelper.RootTag)
+    {
+        _meta = meta;
+        _cacheHelper = new DriveMainIndexCacheHelper(Cache);
+    }
+
+    //
+
+    private Task InvalidateDriveAsync(Guid driveId)
+    {
+        return _cacheHelper.InvalidateDriveAsync(driveId);
+    }
+
+    //
+
     public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
     {
-        var result = await meta.DeleteEntryAsync(driveId, fileId);
-
-        await InvalidateAllAsync(); // SEB:TODO Invalidate more selectively
-
+        var result = await _meta.DeleteEntryAsync(driveId, fileId);
+        await InvalidateDriveAsync(driveId);
         return result;
     }
 
@@ -30,8 +42,8 @@ public class MainIndexMetaCached(
 
     public async Task UpdateLocalTagsAsync(Guid driveId, Guid fileId, List<Guid> tags)
     {
-        await meta.UpdateLocalTagsAsync(driveId, fileId, tags);
-        await InvalidateAllAsync(); // SEB:TODO Invalidate more selectively
+        await _meta.UpdateLocalTagsAsync(driveId, fileId, tags);
+        await InvalidateDriveAsync(driveId);
     }
 
     //
@@ -41,13 +53,13 @@ public class MainIndexMetaCached(
         List<Guid>? tagIdList = null,
         Guid? useThisNewVersionTag = null)
     {
-        var result = await meta.BaseUpsertEntryZapZapAsync(
+        var result = await _meta.BaseUpsertEntryZapZapAsync(
             driveMainIndexRecord,
             accessControlList,
             tagIdList,
             useThisNewVersionTag);
 
-        await InvalidateAllAsync(); // SEB:TODO Invalidate more selectively
+        await InvalidateDriveAsync(driveMainIndexRecord.driveId);
 
         return result;
     }
@@ -78,7 +90,7 @@ public class MainIndexMetaCached(
         List<Guid>? localTagsAllOf = null)
     {
         // SEB:TODO
-        var result = await meta.QueryBatchAsync(
+        var result = await _meta.QueryBatchAsync(
             driveId,
             noOfItems,
             cursor,
@@ -130,7 +142,7 @@ public class MainIndexMetaCached(
         List<Guid>? localTagsAllOf = null)
     {
         // SEB:TODO
-        var result = await meta.QueryBatchSmartCursorAsync(
+        var result = await _meta.QueryBatchSmartCursorAsync(
             driveId,
             noOfItems,
             cursor,
@@ -180,7 +192,7 @@ public class MainIndexMetaCached(
         List<Guid>? localTagsAllOf = null)
     {
         // SEB:TODO
-        var result = await meta.QueryModifiedAsync(
+        var result = await _meta.QueryModifiedAsync(
             driveId,
             noOfItems,
             cursorString,

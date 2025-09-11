@@ -17,7 +17,7 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
 {
     var databasePath = builder.Configuration.GetConnectionString("DatabasePath") ?? "notarychain.db";
     containerBuilder.AddSqliteNotaryDatabaseServices(databasePath);
-    containerBuilder.AddDatabaseCounterServices();
+    containerBuilder.AddDatabaseServices();
 });
 
 builder.Services.AddSingleton<INodeLock, NodeLock>();
