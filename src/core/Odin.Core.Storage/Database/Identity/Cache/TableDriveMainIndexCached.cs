@@ -72,14 +72,6 @@ public class TableDriveMainIndexCached(
     {
         await InvalidateAsync([
             CreateRemoveByTagsAction(GetDriveIdTags(driveId)),
-        ]);
-    }
-
-    //
-
-    private async Task InvalidateTotalsAsync()
-    {
-        await InvalidateAsync([
             CreateRemoveByKeyAction(GetTotalSizeAllDrivesCacheKey()),
         ]);
     }
@@ -138,7 +130,7 @@ public class TableDriveMainIndexCached(
     public async Task<int> InsertAsync(DriveMainIndexRecord item)
     {
         var result = await table.InsertAsync(item);
-        await InvalidateTotalsAsync();
+        await InvalidateDriveAsync(item.driveId);
         return result;
     }
 
