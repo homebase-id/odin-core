@@ -11,6 +11,7 @@ using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Security.Email;
+using Odin.Services.Util;
 
 namespace Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
@@ -107,8 +108,17 @@ public class PasswordKeyRecoveryService(
     public async Task<string> GetRecoveryEmail()
     {
         var recovery = await AccountRecoveryInfoStorage.GetAsync<AccountRecoveryInfo>(tblKeyValue, _accountRecoveryInfoStorageId);
-        return recovery.Email ?? tenantContext.Email;
+        return recovery?.Email ?? tenantContext.Email;
     }
+    
+    public async Task<Guid> GetHashedRecoveryEmail()
+    {
+        var recoveryEmail = await GetRecoveryEmail();
+        OdinValidationUtils.AssertValidEmail(recoveryEmail, "Recovery email must be set to configure sharding");
+        var hash = ByteArrayUtil.ReduceSHA256Hash(recoveryEmail);
+        return hash;
+    }
+        
 
     public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {

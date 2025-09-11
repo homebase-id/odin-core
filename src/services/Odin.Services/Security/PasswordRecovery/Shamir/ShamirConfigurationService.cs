@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -19,7 +20,6 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
-using Odin.Services.Membership.Connections;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -30,9 +30,9 @@ using Odin.Services.Util;
 namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
 public class ShamirConfigurationService(
+    ILogger<ShamirConfigurationService> logger,
     PasswordKeyRecoveryService passwordKeyRecoveryService,
     PeerOutgoingTransferService transferService,
-    CircleNetworkService circleNetworkService,
     IOdinHttpClientFactory odinHttpClientFactory,
     TableKeyValueCached tblKeyValue,
     IdentityDatabase db,
@@ -53,21 +53,21 @@ public class ShamirConfigurationService(
         OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
         OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
 
+        var hashedRecoveryEmail = await passwordKeyRecoveryService.GetHashedRecoveryEmail();
         var distributionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-
-        var r = await CreateShards(players, minShards, distributionKey, odinContext);
+        var shards = await CreateShards(players, minShards, distributionKey, hashedRecoveryEmail, odinContext);
 
         var package = new DealerShardPackage
         {
             MinMatchingShards = minShards,
-            Envelopes = r.DealerEnvelops
+            Envelopes = shards.DealerEnvelops
         };
 
         await using var tx = await db.BeginStackedTransactionAsync();
 
         await SaveDealerPackage(package, odinContext);
 
-        var enqueueResults = await EnqueueShardsForDistribution(r.PlayerShards, odinContext);
+        var enqueueResults = await EnqueueShardsForDistribution(shards.PlayerShards, odinContext);
         var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
         if (failures.Any())
         {
@@ -86,8 +86,6 @@ public class ShamirConfigurationService(
     /// </summary>
     public async Task<RemoteShardVerificationResult> VerifyRemotePlayerShards(IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
-
         // get the preconfigured package
         var package = await this.GetDealerShardPackage(odinContext);
 
@@ -111,31 +109,52 @@ public class ShamirConfigurationService(
 
     public async Task<ShardVerificationResult> VerifyRemotePlayer(OdinId player, Guid shardId, IOdinContext odinContext)
     {
-        var (_, client) = await CreateClientAsync(player, odinContext);
-        var response = await client.VerifyShard(new VerifyShardRequest()
+        //todo: change to generic file system call
+        var result = new ShardVerificationResult
         {
-            ShardId = shardId
-        });
+            IsValid = false,
+            Created = UnixTimeUtc.Now()
+        };
+        
+        try
+        {
+            var client = CreateClientAsync(player, odinContext);
+            var response = await client.VerifyShard(new VerifyShardRequest()
+            {
+                ShardId = shardId,
+                RecoveryEmailHash = await passwordKeyRecoveryService.GetHashedRecoveryEmail()
+            });
 
-        if (response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
+            {
+                return response.Content;
+            }
+
+            return new ShardVerificationResult()
+            {
+                IsValid = false
+            };
+        }
+        catch (Exception e)
         {
-            return response.Content;
+            logger.LogDebug(e, "failed during shard verification for identity: {identity}", player);
+            result.IsValid = false;
         }
 
-        return new ShardVerificationResult()
-        {
-            IsValid = false
-        };
+        return result;
     }
 
     /// <summary>
     /// Verifies the shard given to this identity from a dealer
     /// </summary>
-    public async Task<ShardVerificationResult> VerifyDealerShard(Guid shardId, IOdinContext odinContext)
+    public async Task<ShardVerificationResult> VerifyDealerShard(Guid shardId, Guid recoveryEmailHash, IOdinContext odinContext)
     {
+        odinContext.Caller.AssertCallerIsAuthenticated();
+
         var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
 
-        var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
+        var isValid = shard != null &&
+                      sender == odinContext.Caller.OdinId.GetValueOrDefault();
 
         return new ShardVerificationResult()
         {
@@ -244,14 +263,16 @@ public class ShamirConfigurationService(
         return text;
     }
 
-    private async Task<(IdentityConnectionRegistration, IPeerPasswordRecoveryHttpClient)> CreateClientAsync(OdinId odinId,
-        IOdinContext odinContext)
+    private IPeerPasswordRecoveryHttpClient CreateClientAsync(OdinId odinId, IOdinContext odinContext)
     {
-        var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
-        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
-        var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerPasswordRecoveryHttpClient>(
-            odinId, authToken, FileSystemType.Standard);
-        return (icr, httpClient);
+        // var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
+        // var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
+        // var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerPasswordRecoveryHttpClient>(
+        //     odinId, authToken, FileSystemType.Standard);
+        // return (icr, httpClient);
+
+        var httpClient = odinHttpClientFactory.CreateClient<IPeerPasswordRecoveryHttpClient>(odinId, FileSystemType.Standard);
+        return httpClient;
     }
 
     /// <summary>
@@ -261,6 +282,7 @@ public class ShamirConfigurationService(
         List<ShamiraPlayer> players,
         int minShards,
         SensitiveByteArray secret,
+        Guid recoveryEmailHash,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -285,6 +307,7 @@ public class ShamirConfigurationService(
             {
                 Index = s.Index,
                 Id = playerShardId,
+                RecoveryEmailHash = recoveryEmailHash,
                 Player = player,
                 Created = UnixTimeUtc.Now(),
                 DealerEncryptedShard = cipher
@@ -303,6 +326,9 @@ public class ShamirConfigurationService(
         return Task.FromResult((dealerRecords, playerRecords));
     }
 
+    /// <summary>
+    /// Saves the dealer information for the encrypted shards
+    /// </summary>
     private async Task SaveDealerPackage(DealerShardPackage envelope, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
@@ -448,7 +474,7 @@ public class ShamirConfigurationService(
     }
 
     /// <summary>
-    /// Creates the key we will split and distribute to players
+    /// Saves the key used to decrypt the <see cref="PlayerEncryptedShard"/>s
     /// </summary>
     private async Task SaveDistributableKey(SensitiveByteArray distributionKey, IOdinContext odinContext)
     {

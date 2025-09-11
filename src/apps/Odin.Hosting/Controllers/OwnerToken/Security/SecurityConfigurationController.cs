@@ -30,6 +30,7 @@ public class SecurityConfigurationController(ShamirConfigurationService shamirCo
     [HttpPost("verify-remote-shards")]
     public async Task<RemoteShardVerificationResult> Verify()
     {
+        WebOdinContext.Caller.AssertHasMasterKey();
         var results = await shamirConfigurationService.VerifyRemotePlayerShards(WebOdinContext);
         return results;
     }

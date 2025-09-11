@@ -10,6 +10,6 @@ public class RemoteShardVerificationResult
 
 public class ShardVerificationResult
 {
-    public bool IsValid { get; init; }
+    public bool IsValid { get; set; }
     public UnixTimeUtc Created { get; init; }
 }

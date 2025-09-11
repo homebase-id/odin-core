@@ -24,6 +24,7 @@ public class RetrieveShardResult
 public class RetrieveShardRequest
 {
     public Guid ShardId { get; init; }
+    public Guid HashedRecoveryEmail { get; init; }
 }
 
 public class ApproveShardResult

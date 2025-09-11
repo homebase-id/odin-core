@@ -4,14 +4,15 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
-using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Services.Security;
 
@@ -21,15 +22,21 @@ namespace Odin.Services.Security;
 public class OwnerSecurityHealthService(
     OwnerSecretService secretService,
     PasswordKeyRecoveryService recoveryService,
+    ShamirConfigurationService shamirConfigurationService,
     PublicPrivateKeyService publicPrivateKeyService,
     TableKeyValueCached keyValueTable)
 {
     private static readonly Guid VerificationStorageId = Guid.Parse("475c72c0-bb9c-4dc9-a565-7e72319ff2b8");
-
     private const string VerificationStatusDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
 
     private static readonly SingleKeyValueStorage VerificationStatusStorage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(VerificationStatusDataContextKey));
+
+    private static readonly Guid PeriodicSecurityHealthCheckStatusStorageId = Guid.Parse("25d29d27-8997-4fbc-b50e-e609a27633dc");
+    private const string PeriodicSecurityHealthCheckStatusContextKey = "a91549c6-b7d1-435d-8962-2cf5d1e36c65";
+
+    private static readonly SingleKeyValueStorage PeriodicSecurityHealthCheckStatusStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(PeriodicSecurityHealthCheckStatusContextKey));
 
 
     public async Task VerifyPasswordAsync(PasswordReply reply, IOdinContext odinContext)
@@ -63,7 +70,7 @@ public class OwnerSecurityHealthService(
 
     public async Task<VerificationStatus> GetVerificationStatusAsync(IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertCallerIsOwnerOrSystem();
         return await GetVerificationStatusInternalAsync();
     }
 
@@ -88,14 +95,50 @@ public class OwnerSecurityHealthService(
         await recoveryService.UpdateAccountRecoveryEmail(nonceId);
     }
 
+    /// <summary>
+    /// Checks the health of distributed shards
+    /// </summary>
+    public async Task RunHeathCheck(IOdinContext odinContext)
+    {
+        var dealerShardPackage = await shamirConfigurationService.GetDealerShardPackage(odinContext);
+
+        var healthResult = new PeriodicSecurityHealthCheckStatus
+        {
+            LastUpdated = UnixTimeUtc.Now(),
+            IsConfigured = null != dealerShardPackage
+        };
+
+        if (healthResult.IsConfigured)
+        {
+            var verificationResult = await shamirConfigurationService.VerifyRemotePlayerShards(odinContext);
+
+            foreach (var (odinId, result) in verificationResult.Players)
+            {
+                var playerResult = new PlayerShardHealthResult
+                {
+                    PlayerId = (OdinId)odinId,
+                    IsValid = result.IsValid,
+                };
+
+                healthResult.Players.Add(playerResult);
+            }
+        }
+
+        await PeriodicSecurityHealthCheckStatusStorage.UpsertAsync(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId, healthResult);
+    }
 
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()
     {
         var status = await VerificationStatusStorage.GetAsync<VerificationStatus>(keyValueTable, VerificationStorageId);
+        var healthCheckStatus =
+            await PeriodicSecurityHealthCheckStatusStorage.GetAsync<PeriodicSecurityHealthCheckStatus>(keyValueTable,
+                PeriodicSecurityHealthCheckStatusStorageId);
+        
         return status ?? new VerificationStatus
         {
             PasswordLastVerified = default,
-            RecoveryKeyLastVerified = default
+            RecoveryKeyLastVerified = default,
+            PeriodicSecurityHealthCheckStatus = healthCheckStatus
         };
     }
 
@@ -113,9 +156,6 @@ public class OwnerSecurityHealthService(
         {
             status.RecoveryKeyLastVerified = UnixTimeUtc.Now();
         }
-
-        //todo: update when we build this bit
-        status.DistributedRecoveryLastVerified = 0;
 
         await VerificationStatusStorage.UpsertAsync(keyValueTable, VerificationStorageId, status);
         return status;

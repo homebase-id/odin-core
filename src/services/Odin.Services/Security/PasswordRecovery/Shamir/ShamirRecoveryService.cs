@@ -19,6 +19,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Security.Email;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardCollection;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 
@@ -36,6 +37,7 @@ public class ShamirRecoveryService
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly CircleNetworkService _circleNetworkService;
     private readonly RecoveryEmailer _recoveryEmailer;
+    private readonly PasswordKeyRecoveryService _passwordKeyRecoveryService;
     private readonly IdentityDatabase _db;
     private readonly IMediator _mediator;
     private readonly ILogger<ShamirRecoveryService> _logger;
@@ -54,6 +56,7 @@ public class ShamirRecoveryService
         IMediator mediator,
         CircleNetworkService circleNetworkService,
         RecoveryEmailer recoveryEmailer,
+        PasswordKeyRecoveryService passwordKeyRecoveryService,
         ILogger<ShamirRecoveryService> logger)
     {
         _configurationService = configurationService;
@@ -65,6 +68,7 @@ public class ShamirRecoveryService
         _logger = logger;
         _circleNetworkService = circleNetworkService;
         _recoveryEmailer = recoveryEmailer;
+        _passwordKeyRecoveryService = passwordKeyRecoveryService;
 
         _playerShardCollector = new PlayerShardCollector(fileSystem);
         _approvalCollector = new ShardRequestApprovalCollector(fileSystem, mediator);
@@ -143,6 +147,8 @@ public class ShamirRecoveryService
             State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation
         });
 
+
+        var hashedRecoveryEmail = await _passwordKeyRecoveryService.GetHashedRecoveryEmail();
         //TODO: move this to an outbox call
 
         // notify all players this identity needs their password shards
@@ -153,7 +159,8 @@ public class ShamirRecoveryService
             var client = await CreateClientAsync(envelope.Player.OdinId);
             var response = await client.RequestShard(new RetrieveShardRequest
             {
-                ShardId = envelope.ShardId
+                ShardId = envelope.ShardId,
+                HashedRecoveryEmail = hashedRecoveryEmail
             });
 
             if (response.IsSuccessStatusCode)
@@ -190,7 +197,7 @@ public class ShamirRecoveryService
 
         // look up the shard info
         var (shard, sender) = await _configurationService.GetShardStoredForDealer(request.ShardId, odinContext);
-
+        
         if (sender != requester)
         {
             throw new OdinSecurityException("invalid requester");
@@ -199,6 +206,11 @@ public class ShamirRecoveryService
         if (shard == null)
         {
             throw new OdinClientException("Invalid shard id");
+        }
+
+        if (shard.RecoveryEmailHash != request.HashedRecoveryEmail)
+        {
+            throw new OdinSecurityException("Invalid RecoveryEmailHash");
         }
 
         if (shard.Player.Type == PlayerType.Automatic)
