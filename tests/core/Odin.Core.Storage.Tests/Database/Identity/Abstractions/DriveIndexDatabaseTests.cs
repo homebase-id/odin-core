@@ -3712,7 +3712,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                     countTags++;
                 }
 
-                await metaIndex._driveLocalTagIndex.InsertRowsAsync(driveId, fileId[i], tmpLocalTaglist);
+                await metaIndex.DriveLocalTagIndex.InsertRowsAsync(driveId, fileId[i], tmpLocalTaglist);
             }
 
             stopWatch.Stop();

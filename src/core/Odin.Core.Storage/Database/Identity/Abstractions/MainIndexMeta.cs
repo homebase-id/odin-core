@@ -40,14 +40,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         TableDriveLocalTagIndex driveLocalTagIndex,
         TableDriveMainIndex driveMainIndex)
     {
+        private static readonly string SelectOutputFields;
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
-        private static readonly string selectOutputFields;
-        public TableDriveLocalTagIndex _driveLocalTagIndex = driveLocalTagIndex;
+        public readonly TableDriveLocalTagIndex DriveLocalTagIndex = driveLocalTagIndex;
 
         static MainIndexMeta()
         {
             // Initialize selectOutputFields statically
-            selectOutputFields = string.Join(",",
+            SelectOutputFields = string.Join(",",
                 TableDriveMainIndex.GetColumnNames()
                     .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
                                 && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
 
         internal async Task UpdateLocalTagsAsync(Guid driveId, Guid fileId, List<Guid> tags)
         {
-            await _driveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, tags);
+            await DriveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, tags);
         }
 
         /// <summary>
@@ -396,7 +396,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {SelectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
 
             cmd.CommandText = stm;
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
