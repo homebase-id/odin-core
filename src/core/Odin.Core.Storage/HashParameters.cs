@@ -138,6 +138,10 @@ public static class HashParameters
                 WriteToStream(writer, utr.Start);
                 WriteToStream(writer, utr.End);
                 break;
+            case TimeRowCursor trc:
+                WriteToStream(writer, trc.rowId);
+                WriteToStream(writer, trc.Time);
+                break;
 
             //
             // OH NO!
