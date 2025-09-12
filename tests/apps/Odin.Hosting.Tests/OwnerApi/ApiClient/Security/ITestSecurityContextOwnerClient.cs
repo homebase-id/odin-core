@@ -3,7 +3,9 @@ using System.Threading.Tasks;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security

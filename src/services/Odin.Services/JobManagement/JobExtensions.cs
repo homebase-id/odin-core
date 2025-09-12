@@ -1,10 +1,11 @@
 using System;
 using Autofac;
 using Odin.Services.Admin.Tenants.Jobs;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry.Registration;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security.Email;
 
 namespace Odin.Services.JobManagement;
 

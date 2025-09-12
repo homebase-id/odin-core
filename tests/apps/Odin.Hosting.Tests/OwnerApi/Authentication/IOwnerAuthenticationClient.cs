@@ -8,6 +8,7 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.EncryptionKeyService;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
+using Odin.Services.Security;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Authentication

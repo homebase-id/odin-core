@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 

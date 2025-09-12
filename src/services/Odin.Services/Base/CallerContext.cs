@@ -70,6 +70,7 @@ namespace Odin.Services.Base
         /// Specifies if the caller to the service is the owner of the OdinId being acted upon.
         /// </summary>
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
+        public bool IsSystem => this.SecurityLevel == SecurityGroupType.System;
 
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
 
@@ -98,6 +99,14 @@ namespace Odin.Services.Base
             if (!IsOwner)
             {
                 throw new OdinSecurityException("Caller must be owner");
+            }
+        }
+        
+        public void AssertCallerIsOwnerOrSystem()
+        {
+            if (!IsOwner && !IsSystem)
+            {
+                throw new OdinSecurityException("Caller must be owner or system");
             }
         }
 

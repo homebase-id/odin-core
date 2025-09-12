@@ -63,6 +63,7 @@ using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Refit;
 using System.Text;
 using NUnit.Framework.Legacy;
+using Odin.Services.Security;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
