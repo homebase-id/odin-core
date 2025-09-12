@@ -128,7 +128,9 @@ public static class HashParameters
                 writer.Write(utc.milliseconds);
                 break;
             case QueryBatchCursor qb:
-                WriteToStream(writer, qb.ToJson());
+                WriteToStream(writer, qb.pagingCursor);
+                WriteToStream(writer, qb.stopAtBoundary);
+                WriteToStream(writer, qb.nextBoundaryCursor);
                 break;
             case IntRange ir:
                 WriteToStream(writer, ir.Start);

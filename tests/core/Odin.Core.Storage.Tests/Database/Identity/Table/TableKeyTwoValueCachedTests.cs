@@ -5,7 +5,7 @@ using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Tests.Database.Identity.Cache;
+namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 
 public class TableKeyTwoValueCachedTests : IocTestBase
 {
