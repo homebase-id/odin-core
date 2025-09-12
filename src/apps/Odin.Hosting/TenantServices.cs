@@ -71,6 +71,8 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Security;
 using Odin.Services.Security.Email;
+using Odin.Services.Security.Health;
+using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 

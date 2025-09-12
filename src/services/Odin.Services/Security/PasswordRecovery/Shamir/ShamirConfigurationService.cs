@@ -20,6 +20,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.LastSeen;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -36,7 +37,8 @@ public class ShamirConfigurationService(
     IOdinHttpClientFactory odinHttpClientFactory,
     TableKeyValueCached tblKeyValue,
     IdentityDatabase db,
-    StandardFileSystem fileSystem)
+    StandardFileSystem fileSystem,
+    ILastSeenService lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
     private const int PlayerEncryptedShardFileType = 74829;
@@ -110,12 +112,6 @@ public class ShamirConfigurationService(
     public async Task<ShardVerificationResult> VerifyRemotePlayer(OdinId player, Guid shardId, IOdinContext odinContext)
     {
         //todo: change to generic file system call
-        var result = new ShardVerificationResult
-        {
-            IsValid = false,
-            Created = UnixTimeUtc.Now()
-        };
-        
         try
         {
             var client = CreateClientAsync(player, odinContext);
@@ -129,19 +125,18 @@ public class ShamirConfigurationService(
             {
                 return response.Content;
             }
-
-            return new ShardVerificationResult()
-            {
-                IsValid = false
-            };
         }
         catch (Exception e)
         {
-            logger.LogDebug(e, "failed during shard verification for identity: {identity}", player);
-            result.IsValid = false;
+            logger.LogError(e, "Failed during shard verification for identity: {identity}", player);
         }
 
-        return result;
+        return new ShardVerificationResult
+        {
+            IsValid = false,
+            Created = UnixTimeUtc.Now(),
+            TrustLevel = ShardTrustLevel.RedAlert
+        };
     }
 
     /// <summary>
@@ -152,13 +147,32 @@ public class ShamirConfigurationService(
         odinContext.Caller.AssertCallerIsAuthenticated();
 
         var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
+        var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
 
-        var isValid = shard != null &&
-                      sender == odinContext.Caller.OdinId.GetValueOrDefault();
+        var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
+        var trustLevel = ShardTrustLevel.RedAlert;
+        if (lastSeen.HasValue)
+        {
+            var now = DateTime.UtcNow;
+            var elapsed = now - lastSeen.Value.ToDateTime();
+            if (elapsed < TimeSpan.FromDays(14))
+            {
+                trustLevel = ShardTrustLevel.Thumbsup;
+            }
+            else if (elapsed < TimeSpan.FromDays(30))
+            {
+                trustLevel = ShardTrustLevel.TheSideEye;
+            }
+            else if (elapsed < TimeSpan.FromDays(90))
+            {
+                trustLevel = ShardTrustLevel.Warning;
+            }
+        }
 
         return new ShardVerificationResult()
         {
             IsValid = isValid,
+            TrustLevel = trustLevel,
             Created = shard?.Created ?? 0
         };
     }

@@ -13,6 +13,8 @@ using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Drives;
 using Odin.Services.Security;
+using Odin.Services.Security.Health;
+using Odin.Services.Security.Health.RiskAnalyzer;
 
 namespace Odin.Services.Background.BackgroundServices.Tenant;
 

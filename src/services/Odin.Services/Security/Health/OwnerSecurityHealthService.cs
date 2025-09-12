@@ -1,20 +1,21 @@
 using System;
+using System.Linq;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
-using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
-namespace Odin.Services.Security;
+namespace Odin.Services.Security.Health;
 
 /// <summary>
 /// Handles the assisting of owners ensuring their password and the like are in good health
@@ -61,17 +62,17 @@ public class OwnerSecurityHealthService(
     {
         odinContext.Caller.AssertHasMasterKey();
 
+        var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
+        var healthCheckStatus =
+            await PeriodicSecurityHealthCheckStatusStorage.GetAsync<PeriodicSecurityHealthCheckStatus>(keyValueTable,
+                PeriodicSecurityHealthCheckStatusStorageId);
+
         return new RecoveryInfo()
         {
             Email = await recoveryService.GetRecoveryEmail(),
-            Status = await GetVerificationStatusInternalAsync()
+            Status = await GetVerificationStatusInternalAsync(),
+            RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)
         };
-    }
-
-    public async Task<VerificationStatus> GetVerificationStatusAsync(IOdinContext odinContext)
-    {
-        odinContext.Caller.AssertCallerIsOwnerOrSystem();
-        return await GetVerificationStatusInternalAsync();
     }
 
     /// <summary>
@@ -102,10 +103,15 @@ public class OwnerSecurityHealthService(
     {
         var dealerShardPackage = await shamirConfigurationService.GetDealerShardPackage(odinContext);
 
+        if (null == dealerShardPackage)
+        {
+            return;
+        }
+
         var healthResult = new PeriodicSecurityHealthCheckStatus
         {
             LastUpdated = UnixTimeUtc.Now(),
-            IsConfigured = null != dealerShardPackage
+            IsConfigured = true
         };
 
         if (healthResult.IsConfigured)
@@ -114,10 +120,20 @@ public class OwnerSecurityHealthService(
 
             foreach (var (odinId, result) in verificationResult.Players)
             {
+                var envelope = dealerShardPackage.Envelopes.FirstOrDefault(e => e.Player.OdinId == odinId);
+                if (null == envelope)
+                {
+                    // verification issue occured; this should not occur
+                    throw new OdinSystemException($"Missing a PlayerEnvelop for {odinId}.  Could not find it in the verification results");
+                }
+
                 var playerResult = new PlayerShardHealthResult
                 {
-                    PlayerId = (OdinId)odinId,
+                    Player = envelope.Player,
                     IsValid = result.IsValid,
+                    TrustLevel = result.TrustLevel,
+                    IsMissing = false,
+                    ShardId = envelope.ShardId
                 };
 
                 healthResult.Players.Add(playerResult);
@@ -130,15 +146,11 @@ public class OwnerSecurityHealthService(
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()
     {
         var status = await VerificationStatusStorage.GetAsync<VerificationStatus>(keyValueTable, VerificationStorageId);
-        var healthCheckStatus =
-            await PeriodicSecurityHealthCheckStatusStorage.GetAsync<PeriodicSecurityHealthCheckStatus>(keyValueTable,
-                PeriodicSecurityHealthCheckStatusStorageId);
-        
+
         return status ?? new VerificationStatus
         {
             PasswordLastVerified = default,
-            RecoveryKeyLastVerified = default,
-            PeriodicSecurityHealthCheckStatus = healthCheckStatus
+            RecoveryKeyLastVerified = default
         };
     }
 

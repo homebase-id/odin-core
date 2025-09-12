@@ -7,6 +7,8 @@ using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Security;
+using Odin.Services.Security.Health;
+using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
@@ -40,12 +42,6 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         return new OkResult();
     }
 
-
-    [HttpGet("verification-status")]
-    public async Task<VerificationStatus> GetStatus()
-    {
-        return await securityHealthService.GetVerificationStatusAsync(WebOdinContext);
-    }
 
     [HttpGet("recovery-info")]
     public async Task<RecoveryInfo> GetRecoveryInfo()

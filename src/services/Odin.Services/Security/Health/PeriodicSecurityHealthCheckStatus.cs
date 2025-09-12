@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Odin.Core.Time;
 
-namespace Odin.Services.Security;
+namespace Odin.Services.Security.Health;
 
 public class PeriodicSecurityHealthCheckStatus
 {
