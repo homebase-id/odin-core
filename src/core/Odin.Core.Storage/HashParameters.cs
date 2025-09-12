@@ -11,7 +11,7 @@ namespace Odin.Core.Storage;
 
 public static class HashParameters
 {
-    public static string Calculate(params object[] parameters)
+    public static string Calculate(params object?[] parameters)
     {
         ArgumentNullException.ThrowIfNull(parameters);
 

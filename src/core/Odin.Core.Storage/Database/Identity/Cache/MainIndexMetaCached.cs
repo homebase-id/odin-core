@@ -12,6 +12,7 @@ namespace Odin.Core.Storage.Database.Identity.Cache;
 
 public class MainIndexMetaCached : AbstractTableCaching
 {
+    private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(10);
     private readonly MainIndexMeta _meta;
     private readonly DriveMainIndexCacheHelper _cacheHelper;
 
@@ -69,7 +70,7 @@ public class MainIndexMetaCached : AbstractTableCaching
     public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(
         Guid driveId,
         int noOfItems,
-        QueryBatchCursor? cursor,
+        QueryBatchCursor cursor,
         QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
         QueryBatchSortField sortField = QueryBatchSortField.CreatedDate,
         Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -87,10 +88,10 @@ public class MainIndexMetaCached : AbstractTableCaching
         List<Guid>? tagsAnyOf = null,
         List<Guid>? tagsAllOf = null,
         List<Guid>? localTagsAnyOf = null,
-        List<Guid>? localTagsAllOf = null)
+        List<Guid>? localTagsAllOf = null,
+        TimeSpan? cacheTtl = null)
     {
-        // SEB:TODO
-        var result = await _meta.QueryBatchAsync(
+        var cacheKey = "QueryBatchAsync:" + HashParameters.Calculate(
             driveId,
             noOfItems,
             cursor,
@@ -112,6 +113,34 @@ public class MainIndexMetaCached : AbstractTableCaching
             tagsAllOf,
             localTagsAnyOf,
             localTagsAllOf);
+
+        var query = () => _meta.QueryBatchAsync(
+            driveId,
+            noOfItems,
+            cursor,
+            sortOrder,
+            sortField,
+            fileSystemType,
+            fileStateAnyOf,
+            requiredSecurityGroup,
+            globalTransitIdAnyOf,
+            filetypesAnyOf,
+            datatypesAnyOf,
+            senderidAnyOf,
+            groupIdAnyOf,
+            uniqueIdAnyOf,
+            archivalStatusAnyOf,
+            userdateSpan,
+            aclAnyOf,
+            tagsAnyOf,
+            tagsAllOf,
+            localTagsAnyOf,
+            localTagsAllOf);
+
+        var result = await Cache.GetOrSetAsync(
+            cacheKey,
+            _ => query(),
+            cacheTtl ?? DefaultTtl);
 
         return result;
     }
@@ -121,7 +150,7 @@ public class MainIndexMetaCached : AbstractTableCaching
     public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(
         Guid driveId,
         int noOfItems,
-        QueryBatchCursor? cursor,
+        QueryBatchCursor cursor,
         QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
         QueryBatchSortField sortField = QueryBatchSortField.CreatedDate,
         Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -139,10 +168,10 @@ public class MainIndexMetaCached : AbstractTableCaching
         List<Guid>? tagsAnyOf = null,
         List<Guid>? tagsAllOf = null,
         List<Guid>? localTagsAnyOf = null,
-        List<Guid>? localTagsAllOf = null)
+        List<Guid>? localTagsAllOf = null,
+        TimeSpan? cacheTtl = null)
     {
-        // SEB:TODO
-        var result = await _meta.QueryBatchSmartCursorAsync(
+        var cacheKey = "QueryBatchSmartCursorAsync:" + HashParameters.Calculate(
             driveId,
             noOfItems,
             cursor,
@@ -165,13 +194,41 @@ public class MainIndexMetaCached : AbstractTableCaching
             localTagsAnyOf,
             localTagsAllOf);
 
-        return result;
+        var query = () => _meta.QueryBatchSmartCursorAsync(
+            driveId,
+            noOfItems,
+            cursor,
+            sortOrder,
+            sortField,
+            fileSystemType,
+            fileStateAnyOf,
+            requiredSecurityGroup,
+            globalTransitIdAnyOf,
+            filetypesAnyOf,
+            datatypesAnyOf,
+            senderidAnyOf,
+            groupIdAnyOf,
+            uniqueIdAnyOf,
+            archivalStatusAnyOf,
+            userdateSpan,
+            aclAnyOf,
+            tagsAnyOf,
+            tagsAllOf,
+            localTagsAnyOf,
+            localTagsAllOf);
 
+        var result = await Cache.GetOrSetAsync(
+            cacheKey,
+            _ => query(),
+            cacheTtl ?? DefaultTtl);
+
+        return result;
     }
 
     //
 
-    public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId,
+    public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(
+        Guid driveId,
         int noOfItems,
         string cursorString,
         TimeRowCursor? stopAtModifiedUnixTimeSeconds = null,
@@ -189,10 +246,10 @@ public class MainIndexMetaCached : AbstractTableCaching
         List<Guid>? tagsAnyOf = null,
         List<Guid>? tagsAllOf = null,
         List<Guid>? localTagsAnyOf = null,
-        List<Guid>? localTagsAllOf = null)
+        List<Guid>? localTagsAllOf = null,
+        TimeSpan? cacheTtl = null)
     {
-        // SEB:TODO
-        var result = await _meta.QueryModifiedAsync(
+        var cacheKey = "QueryModifiedAsync:" + HashParameters.Calculate(
             driveId,
             noOfItems,
             cursorString,
@@ -212,6 +269,32 @@ public class MainIndexMetaCached : AbstractTableCaching
             tagsAllOf,
             localTagsAnyOf,
             localTagsAllOf);
+
+        var query = () => _meta.QueryModifiedAsync(
+            driveId,
+            noOfItems,
+            cursorString,
+            stopAtModifiedUnixTimeSeconds,
+            fileSystemType,
+            requiredSecurityGroup,
+            globalTransitIdAnyOf,
+            filetypesAnyOf,
+            datatypesAnyOf,
+            senderidAnyOf,
+            groupIdAnyOf,
+            uniqueIdAnyOf,
+            archivalStatusAnyOf,
+            userdateSpan,
+            aclAnyOf,
+            tagsAnyOf,
+            tagsAllOf,
+            localTagsAnyOf,
+            localTagsAllOf);
+
+        var result = await Cache.GetOrSetAsync(
+            cacheKey,
+            _ => query(),
+            cacheTtl ?? DefaultTtl);
 
         return result;
     }
