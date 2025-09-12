@@ -2,13 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Cache;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
-public class TableImFollowingCached(TableImFollowing table, IIdentityTransactionalCacheFactory cacheFactory) :
+public class TableFollowsMeCached(TableFollowsMe table, IIdentityTransactionalCacheFactory cacheFactory) :
     AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     // SEB:NOTE some advanced queries are used in this table, so instead of trying to remove specific keys,
@@ -16,25 +15,9 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
 
     //
 
-    private static string GetCacheKey(string domainName, Guid driveId)
-    {
-        return domainName + ":" + driveId;
-    }
-
-    //
-
     private static string GetCacheKey(OdinId identity)
     {
         return identity.DomainName;
-    }
-
-    //
-
-    public async Task<int> InsertAsync(ImFollowingRecord item)
-    {
-        var result = await table.InsertAsync(item);
-        await Cache.InvalidateAllAsync();
-        return result;
     }
 
     //
@@ -48,7 +31,46 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
 
     //
 
-    public async Task<List<ImFollowingRecord>> GetAsync(OdinId identity, TimeSpan ttl)
+    public async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
+    {
+        var result = await table.DeleteAndInsertManyAsync(identity, items);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
+    public async Task<int> InsertAsync(FollowsMeRecord item)
+    {
+        var result = await table.InsertAsync(item);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
+    public async Task<bool> TryInsertAsync(FollowsMeRecord item)
+    {
+        var result = await table.TryInsertAsync(item);
+        if (result)
+        {
+            await Cache.InvalidateAllAsync();
+        }
+        return result;
+    }
+
+    //
+
+    public async Task<int> UpsertAsync(FollowsMeRecord item)
+    {
+        var result = await table.UpsertAsync(item);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
+    public async Task<List<FollowsMeRecord>> GetAsync(OdinId identity, TimeSpan ttl)
     {
         var result =  await Cache.GetOrSetAsync(
             GetCacheKey(identity),
@@ -62,6 +84,15 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
     public async Task<int> DeleteByIdentityAsync(OdinId identity)
     {
         var result = await table.DeleteByIdentityAsync(identity);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
+    public async Task<int> DeleteAndAddFollowerAsync(FollowsMeRecord record)
+    {
+        var result = await table.DeleteAndAddFollowerAsync(record);
         await Cache.InvalidateAllAsync();
         return result;
     }

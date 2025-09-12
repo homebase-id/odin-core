@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Odin.Core.Storage.Database.Identity.Cache.Helpers;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
-internal class DriveMainIndexCacheHelper(TransactionalCache cache)
+internal class TableDriveMainIndexCacheKeys(TransactionalCache cache)
 {
-    internal const string RootTag = "DriveMainIndex";
+    internal const string RootInvalidationTag = "DriveMainIndex";
 
     //
 
@@ -66,5 +66,7 @@ internal class DriveMainIndexCacheHelper(TransactionalCache cache)
             cache.CreateRemoveByKeyAction(GetTotalSizeAllDrivesCacheKey()),
         ]);
     }
+
+    //
 
 }

@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Cache.Helpers;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
-namespace Odin.Core.Storage.Database.Identity.Cache;
+namespace Odin.Core.Storage.Database.Identity.Abstractions;
 
 #nullable enable
 
@@ -14,27 +12,27 @@ public class MainIndexMetaCached : AbstractTableCaching
 {
     private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(10);
     private readonly MainIndexMeta _meta;
-    private readonly DriveMainIndexCacheHelper _cacheHelper;
+    private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public MainIndexMetaCached(MainIndexMeta meta, IIdentityTransactionalCacheFactory cacheFactory)
-        : base(cacheFactory, meta.GetType().Name, DriveMainIndexCacheHelper.RootTag)
+        : base(cacheFactory, meta.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _meta = meta;
-        _cacheHelper = new DriveMainIndexCacheHelper(Cache);
+        _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);
     }
 
     //
 
     private List<string> GetDriveIdTags(Guid driveId)
     {
-        return _cacheHelper.GetDriveIdTags(driveId);
+        return _cacheKeys.GetDriveIdTags(driveId);
     }
 
     //
 
     private Task InvalidateDriveAsync(Guid driveId)
     {
-        return _cacheHelper.InvalidateDriveAsync(driveId);
+        return _cacheKeys.InvalidateDriveAsync(driveId);
     }
 
     //

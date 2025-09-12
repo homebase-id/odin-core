@@ -1,79 +1,77 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Database.Identity.Cache.Helpers;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Cache;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
 public class TableDriveMainIndexCached : AbstractTableCaching
 {
     private readonly TableDriveMainIndex _table;
-    private readonly DriveMainIndexCacheHelper _cacheHelper;
+    private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public TableDriveMainIndexCached(TableDriveMainIndex table, IIdentityTransactionalCacheFactory cacheFactory) :
-        base(cacheFactory, table.GetType().Name, DriveMainIndexCacheHelper.RootTag)
+        base(cacheFactory, table.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _table = table;
-        _cacheHelper = new DriveMainIndexCacheHelper(Cache);
+        _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);
     }
 
     //
 
     private string GetCacheKey(Guid driveId)
     {
-        return _cacheHelper.GetCacheKey(driveId);
+        return _cacheKeys.GetCacheKey(driveId);
     }
 
     //
 
     private string GetUniqueIdCacheKey(Guid driveId, Guid? uniqueId)
     {
-        return _cacheHelper.GetUniqueIdCacheKey(driveId, uniqueId);
+        return _cacheKeys.GetUniqueIdCacheKey(driveId, uniqueId);
     }
 
     //
 
     private string GetGlobalTransitIdCacheKey(Guid driveId, Guid? globalTransitId)
     {
-        return _cacheHelper.GetGlobalTransitIdCacheKey(driveId, globalTransitId);
+        return _cacheKeys.GetGlobalTransitIdCacheKey(driveId, globalTransitId);
     }
 
     //
 
     private string GetFileIdCacheKey(Guid driveId, Guid fileId)
     {
-        return _cacheHelper.GetFileIdCacheKey(driveId, fileId);
+        return _cacheKeys.GetFileIdCacheKey(driveId, fileId);
     }
 
     //
 
     private string GetDriveSizeCacheKey(Guid driveId)
     {
-        return _cacheHelper.GetDriveSizeCacheKey(driveId);
+        return _cacheKeys.GetDriveSizeCacheKey(driveId);
     }
 
     //
 
     private string GetTotalSizeAllDrivesCacheKey()
     {
-        return _cacheHelper.GetTotalSizeAllDrivesCacheKey();
+        return _cacheKeys.GetTotalSizeAllDrivesCacheKey();
     }
 
     //
 
     private List<string> GetDriveIdTags(Guid driveId)
     {
-        return _cacheHelper.GetDriveIdTags(driveId);
+        return _cacheKeys.GetDriveIdTags(driveId);
     }
 
     //
 
     private Task InvalidateDriveAsync(Guid driveId)
     {
-        return _cacheHelper.InvalidateDriveAsync(driveId);
+        return _cacheKeys.InvalidateDriveAsync(driveId);
     }
 
     //
