@@ -25,6 +25,13 @@ public class MainIndexMetaCached : AbstractTableCaching
 
     //
 
+    private List<string> GetDriveIdTags(Guid driveId)
+    {
+        return _cacheHelper.GetDriveIdTags(driveId);
+    }
+
+    //
+
     private Task InvalidateDriveAsync(Guid driveId)
     {
         return _cacheHelper.InvalidateDriveAsync(driveId);
@@ -140,7 +147,8 @@ public class MainIndexMetaCached : AbstractTableCaching
         var result = await Cache.GetOrSetAsync(
             cacheKey,
             _ => query(),
-            cacheTtl ?? DefaultTtl);
+            cacheTtl ?? DefaultTtl,
+            GetDriveIdTags(driveId));
 
         return result;
     }
@@ -220,7 +228,8 @@ public class MainIndexMetaCached : AbstractTableCaching
         var result = await Cache.GetOrSetAsync(
             cacheKey,
             _ => query(),
-            cacheTtl ?? DefaultTtl);
+            cacheTtl ?? DefaultTtl,
+            GetDriveIdTags(driveId));
 
         return result;
     }
@@ -294,7 +303,8 @@ public class MainIndexMetaCached : AbstractTableCaching
         var result = await Cache.GetOrSetAsync(
             cacheKey,
             _ => query(),
-            cacheTtl ?? DefaultTtl);
+            cacheTtl ?? DefaultTtl,
+            GetDriveIdTags(driveId));
 
         return result;
     }
