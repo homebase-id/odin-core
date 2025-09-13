@@ -14,7 +14,7 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
 {
     var databasePath = builder.Configuration.GetConnectionString("DatabasePath") ?? "blockchain.db";
     containerBuilder.AddSqliteKeyChainDatabaseServices(databasePath);
-    containerBuilder.AddDatabaseCounterServices();
+    containerBuilder.AddDatabaseServices();
 });
 
 builder.Services.AddSingleton<INodeLock, NodeLock>();

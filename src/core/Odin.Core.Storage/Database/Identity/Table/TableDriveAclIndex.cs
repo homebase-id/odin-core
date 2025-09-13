@@ -16,28 +16,28 @@ public class TableDriveAclIndex(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
     
-    public new async Task<DriveAclIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid aclMemberId)
+    internal new async Task<DriveAclIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid aclMemberId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId, aclMemberId);
     }
 
-    public async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
+    internal async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
-    public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
+    internal async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {
         return await base.DeleteAllRowsAsync(odinIdentity, driveId, fileId);
     }
 
-    public new async Task<int> InsertAsync(DriveAclIndexRecord item)
+    internal new async Task<int> InsertAsync(DriveAclIndexRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
+    internal async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
     {
         if (accessControlList == null)
             return;
@@ -56,7 +56,7 @@ public class TableDriveAclIndex(
         tx.Commit();
     }
 
-    public async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
+    internal async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> accessControlList)
     {
         if (accessControlList == null)
             return;

@@ -14,7 +14,7 @@ builder.Host.ConfigureContainer<ContainerBuilder>(containerBuilder =>
 {
     var databasePath = builder.Configuration.GetConnectionString("DatabasePath") ?? "attestation.db";
     containerBuilder.AddSqliteAttestationDatabaseServices(databasePath);
-    containerBuilder.AddDatabaseCounterServices();
+    containerBuilder.AddDatabaseServices();
 });
 
 builder.Services.AddControllers();

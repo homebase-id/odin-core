@@ -12,7 +12,7 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
-    public class TableMainIndexTests : IocTestBase
+    public class TableDriveMainIndexTests : IocTestBase
     {
         [Test]
         [TestCase(DatabaseType.Sqlite)]

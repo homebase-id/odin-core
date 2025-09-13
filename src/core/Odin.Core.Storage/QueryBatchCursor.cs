@@ -2,7 +2,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Time;
-using Serilog;
 
 namespace Odin.Core.Storage
 {
@@ -80,6 +79,18 @@ namespace Odin.Core.Storage
             pagingCursor = null;
             stopAtBoundary = null;
             nextBoundaryCursor = null;
+        }
+
+        public QueryBatchCursor Clone()
+        {
+            var copy = new QueryBatchCursor()
+            {
+                nextBoundaryCursor = this.nextBoundaryCursor,
+                pagingCursor = this.pagingCursor,
+                stopAtBoundary = this.stopAtBoundary
+            };
+
+            return copy;
         }
 
 

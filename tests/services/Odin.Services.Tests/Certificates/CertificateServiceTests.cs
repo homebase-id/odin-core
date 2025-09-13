@@ -115,7 +115,7 @@ public class CertificateServiceTests
 
             cb.RegisterModule(new LoggingAutofacModule());
 
-            cb.AddDatabaseCounterServices();
+            cb.AddDatabaseServices();
 
             switch (databaseType)
             {

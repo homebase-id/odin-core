@@ -1,18 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Cache;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
-public class TableAppNotificationsCached(
-    TableAppNotifications table,
-    ITenantLevel2Cache cache,
-    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
+public class TableAppNotificationsCached(TableAppNotifications table, IIdentityTransactionalCacheFactory cacheFactory) :
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private static readonly List<string> PagingByCreateTags = ["PagingByCreate"];
 
@@ -41,9 +36,9 @@ public class TableAppNotificationsCached(
 
     private Task InvalidateAsync(Guid notificationId)
     {
-        return InvalidateAsync([
-            CreateRemoveByKeyAction(GetCacheKey(notificationId)),  
-            CreateRemoveByTagAction(PagingByCreateTags)
+        return Cache.InvalidateAsync([
+            Cache.CreateRemoveByKeyAction(GetCacheKey(notificationId)),
+            Cache.CreateRemoveByTagsAction(PagingByCreateTags)
         ]);
     }
 
@@ -51,7 +46,7 @@ public class TableAppNotificationsCached(
 
     public async Task<AppNotificationsRecord?> GetAsync(Guid notificationId, TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             GetCacheKey(notificationId),
             _ => table.GetAsync(notificationId),
             ttl);
@@ -87,7 +82,7 @@ public class TableAppNotificationsCached(
         string? cursorString,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, cursorString),
             ttl,

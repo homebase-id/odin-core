@@ -2,8 +2,8 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
-using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Tests.Database;
@@ -41,3 +41,4 @@ public class AbstractTableCachingTests : IocTestBase
     //
 
 }
+

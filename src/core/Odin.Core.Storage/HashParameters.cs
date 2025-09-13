@@ -11,7 +11,7 @@ namespace Odin.Core.Storage;
 
 public static class HashParameters
 {
-    public static string Calculate(params object[] parameters)
+    public static string Calculate(params object?[] parameters)
     {
         ArgumentNullException.ThrowIfNull(parameters);
 
@@ -128,7 +128,9 @@ public static class HashParameters
                 writer.Write(utc.milliseconds);
                 break;
             case QueryBatchCursor qb:
-                WriteToStream(writer, qb.ToJson());
+                WriteToStream(writer, qb.pagingCursor);
+                WriteToStream(writer, qb.stopAtBoundary);
+                WriteToStream(writer, qb.nextBoundaryCursor);
                 break;
             case IntRange ir:
                 WriteToStream(writer, ir.Start);
@@ -137,6 +139,10 @@ public static class HashParameters
             case UnixTimeUtcRange utr:
                 WriteToStream(writer, utr.Start);
                 WriteToStream(writer, utr.End);
+                break;
+            case TimeRowCursor trc:
+                WriteToStream(writer, trc.rowId);
+                WriteToStream(writer, trc.Time);
                 break;
 
             //

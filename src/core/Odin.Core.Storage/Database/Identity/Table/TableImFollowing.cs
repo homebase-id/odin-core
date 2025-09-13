@@ -19,13 +19,13 @@ public class TableImFollowing(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public new async Task<int> InsertAsync(ImFollowingRecord item)
+    internal new async Task<int> InsertAsync(ImFollowingRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
+    internal async Task<int> DeleteAsync(OdinId identity, Guid driveId)
     {
         return await base.DeleteAsync(odinIdentity, identity, driveId);
     }
@@ -36,13 +36,13 @@ public class TableImFollowing(
     /// <param name="identity">The identity following you</param>
     /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
     /// <exception cref="Exception"></exception>
-    public async Task<List<ImFollowingRecord>> GetAsync(OdinId identity)
+    internal async Task<List<ImFollowingRecord>> GetAsync(OdinId identity)
     {
         var r = await base.GetAsync(odinIdentity, identity) ?? [];
         return r;
     }
 
-    public async Task<int> DeleteByIdentityAsync(OdinId identity)
+    internal async Task<int> DeleteByIdentityAsync(OdinId identity)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
 
@@ -74,7 +74,7 @@ public class TableImFollowing(
     /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
     /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
     /// <exception cref="Exception"></exception>
-    public async Task<(List<string> followers, string nextCursor)>  GetAllFollowersAsync(int count, string inCursor)
+    internal async Task<(List<string> followers, string nextCursor)>  GetAllFollowersAsync(int count, string inCursor)
     {
         if (count < 1)
             throw new Exception("Count must be at least 1.");
@@ -146,7 +146,7 @@ public class TableImFollowing(
     /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
     /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
     /// <exception cref="Exception"></exception>
-    public async Task<(List<string> followers, string nextCursor)>  GetFollowersAsync(int count, Guid driveId, string inCursor)
+    internal async Task<(List<string> followers, string nextCursor)>  GetFollowersAsync(int count, Guid driveId, string inCursor)
     {
         var databaseType = _scopedConnectionFactory.DatabaseType;
 

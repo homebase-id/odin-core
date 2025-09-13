@@ -2,8 +2,8 @@ using System;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Identity.Abstractions;
-using Odin.Core.Storage.Database.Identity.Cache;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;
@@ -36,6 +36,9 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
     private Lazy<TableConnectionsCached> _connectionsCached;
     public TableConnectionsCached ConnectionsCached => LazyResolve(ref _connectionsCached);
 
+    private Lazy<TableDriveMainIndexCached> _driveMainIndexCached;
+    public TableDriveMainIndexCached DriveMainIndexCached => LazyResolve(ref _driveMainIndexCached);
+
     private Lazy<TableFollowsMeCached> _followsMeCached;
     public TableFollowsMeCached FollowsMeCached => LazyResolve(ref _followsMeCached);
 
@@ -50,6 +53,10 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
 
     private Lazy<TableKeyValueCached> _keyValueCached;
     public TableKeyValueCached KeyValueCached => LazyResolve(ref _keyValueCached);
+
+    private Lazy<MainIndexMetaCached> _mainIndexMetaCached;
+    public MainIndexMetaCached MainIndexMetaCached => LazyResolve(ref _mainIndexMetaCached);
+
 
     //
     // Connection

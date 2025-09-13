@@ -13,36 +13,36 @@ public class TableAppGrants(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public new async Task<bool> TryInsertAsync(AppGrantsRecord item)
+    internal new async Task<bool> TryInsertAsync(AppGrantsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.TryInsertAsync(item);
     }
 
-    public new async Task<int> InsertAsync(AppGrantsRecord item)
+    internal new async Task<int> InsertAsync(AppGrantsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public new async Task<int> UpsertAsync(AppGrantsRecord item)
+    internal new async Task<int> UpsertAsync(AppGrantsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
-    public async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid odinHashId)
+    internal async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid odinHashId)
     {
         return await base.GetByOdinHashIdAsync(odinIdentity, odinHashId);
     }
 
-    public async Task<List<AppGrantsRecord>> GetAllAsync()
+    internal async Task<List<AppGrantsRecord>> GetAllAsync()
     {
         return await base.GetAllAsync(odinIdentity);
     }
 
 
-    public async Task DeleteByIdentityAsync(Guid odinHashId)
+    internal async Task DeleteByIdentityAsync(Guid odinHashId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();

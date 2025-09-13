@@ -2,28 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
-using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Cache;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
-public class TableImFollowingCached(
-    TableImFollowing table,
-    ITenantLevel2Cache cache,
-    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
+public class TableImFollowingCached(TableImFollowing table, IIdentityTransactionalCacheFactory cacheFactory) :
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     // SEB:NOTE some advanced queries are used in this table, so instead of trying to remove specific keys,
-    // we use InvalidateAllAsync() to clear the cache whenever data changes are made
-
-    //
-
-    private static string GetCacheKey(ImFollowingRecord item)
-    {
-        return GetCacheKey(item.identity.DomainName, item.driveId);
-    }
+    // we use Cache.InvalidateAllAsync() to clear the cache whenever data changes are made
 
     //
 
@@ -44,7 +32,7 @@ public class TableImFollowingCached(
     public async Task<int> InsertAsync(ImFollowingRecord item)
     {
         var result = await table.InsertAsync(item);
-        await InvalidateAllAsync();
+        await Cache.InvalidateAllAsync();
         return result;
     }
 
@@ -53,7 +41,7 @@ public class TableImFollowingCached(
     public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
     {
         var result = await table.DeleteAsync(identity, driveId);
-        await InvalidateAllAsync();
+        await Cache.InvalidateAllAsync();
         return result;
     }
 
@@ -61,7 +49,7 @@ public class TableImFollowingCached(
 
     public async Task<List<ImFollowingRecord>> GetAsync(OdinId identity, TimeSpan ttl)
     {
-        var result =  await GetOrSetAsync(
+        var result =  await Cache.GetOrSetAsync(
             GetCacheKey(identity),
             _ => table.GetAsync(identity),
             ttl);
@@ -73,7 +61,7 @@ public class TableImFollowingCached(
     public async Task<int> DeleteByIdentityAsync(OdinId identity)
     {
         var result = await table.DeleteByIdentityAsync(identity);
-        await InvalidateAllAsync();
+        await Cache.InvalidateAllAsync();
         return result;
     }
 
@@ -84,7 +72,7 @@ public class TableImFollowingCached(
         string? inCursor,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "GetAllFollowers" + ":" + count + ":" + inCursor,
             _ => table.GetAllFollowersAsync(count, inCursor),
             ttl);
@@ -99,7 +87,7 @@ public class TableImFollowingCached(
         string? inCursor,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "GetFollowers" + ":" + count + ":" + driveId + ":" + inCursor,
             _ => table.GetFollowersAsync(count, driveId, inCursor),
             ttl);

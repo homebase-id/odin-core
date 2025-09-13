@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Cache;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;

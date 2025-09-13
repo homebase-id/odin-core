@@ -139,7 +139,7 @@ public class JobManagerTests
         jobTypeRegistry.RegisterJobType<ChainedJobTest>(builder, ChainedJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<ScopedJobTest>(builder, ScopedJobTest.JobTypeId);
 
-        builder.AddDatabaseCounterServices();
+        builder.AddDatabaseServices();
         switch (databaseType)
         {
             case DatabaseType.Sqlite:
