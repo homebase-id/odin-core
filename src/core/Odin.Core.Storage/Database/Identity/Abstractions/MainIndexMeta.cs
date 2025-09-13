@@ -293,6 +293,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             {
                 cursor = new QueryBatchCursor();
             }
+            else
+            {
+                // Create a clone, we don't want to modify the original cursor
+                cursor = cursor.Clone();
+            }
 
             if (requiredSecurityGroup == null)
             {

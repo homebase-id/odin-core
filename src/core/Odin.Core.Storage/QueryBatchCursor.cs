@@ -81,6 +81,18 @@ namespace Odin.Core.Storage
             nextBoundaryCursor = null;
         }
 
+        public QueryBatchCursor Clone()
+        {
+            var copy = new QueryBatchCursor()
+            {
+                nextBoundaryCursor = this.nextBoundaryCursor,
+                pagingCursor = this.pagingCursor,
+                stopAtBoundary = this.stopAtBoundary
+            };
+
+            return copy;
+        }
+
 
         /// <summary>
         /// THIS FUNCTION SHOULD ONLY BE USED WITH OLDESTFIRST SORT ORDERING
