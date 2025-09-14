@@ -18,6 +18,11 @@ namespace Odin.Core.Storage
             this.rowId = rowId;
         }
 
+        public TimeRowCursor Clone()
+        {
+            return new TimeRowCursor(Time, rowId);
+        }
+
         public override string ToString()
         {
             return Time.ToString() + "," + rowId.ToString();
@@ -83,16 +88,13 @@ namespace Odin.Core.Storage
 
         public QueryBatchCursor Clone()
         {
-            var copy = new QueryBatchCursor()
+            return new QueryBatchCursor
             {
-                nextBoundaryCursor = this.nextBoundaryCursor,
-                pagingCursor = this.pagingCursor,
-                stopAtBoundary = this.stopAtBoundary
+                nextBoundaryCursor = nextBoundaryCursor?.Clone(),
+                pagingCursor = pagingCursor?.Clone(),
+                stopAtBoundary = stopAtBoundary?.Clone(),
             };
-
-            return copy;
         }
-
 
         /// <summary>
         /// THIS FUNCTION SHOULD ONLY BE USED WITH OLDESTFIRST SORT ORDERING
