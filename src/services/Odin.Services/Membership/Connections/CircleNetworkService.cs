@@ -546,10 +546,23 @@ namespace Odin.Services.Membership.Connections
                     }
 
                     await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
+
                     if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
                     {
                         // refetch the record since the above method just writes to db
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+                        
+                        if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                        {
+                            logger.LogError("After Refetch ICR for {identity} STILL Requires MasterKey Encryption Upgrade; " +
+                                            "something is wrong for sure", icr.OdinId);
+                        }
+                    }
+
+                    if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                    {
+                        logger.LogError("ICR for {identity} still Requires MasterKey Encryption Upgrade - skipping", icr.OdinId);
+                        continue;
                     }
 
                     // Re-create the circle grant so
@@ -631,10 +644,8 @@ namespace Odin.Services.Membership.Connections
 
         public async Task RevokeConnectionAsync(OdinId odinId, IOdinContext odinContext)
         {
-            await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:DeleteAsync", async () =>
-            {
-                await circleNetworkStorage.DeleteAsync(odinId);
-            });
+            await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:DeleteAsync",
+                async () => { await circleNetworkStorage.DeleteAsync(odinId); });
 
             await Benchmark.MillisecondsAsync(logger, "RevokeConnectionAsync:Publish", async () =>
             {
@@ -1003,12 +1014,12 @@ namespace Odin.Services.Membership.Connections
 
             CircleDefinition confirmedCircle = await circleMembershipService.GetCircleAsync(
                 SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-            
+
             await UpdateIfRequired(confirmedCircle);
 
             CircleDefinition autoConnectedCircle = await circleMembershipService.GetCircleAsync(
-                    SystemCircleConstants.AutoConnectionsCircleId, odinContext);
-            
+                SystemCircleConstants.AutoConnectionsCircleId, odinContext);
+
             await UpdateIfRequired(autoConnectedCircle);
         }
 
@@ -1025,6 +1036,8 @@ namespace Odin.Services.Membership.Connections
 
             async Task GrantAnonymousRead(CircleDefinition def)
             {
+                logger.LogDebug("GrantAnonymousRead called for circle {def}", def.Name);
+
                 var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
                 grants.Add(new DriveGrantRequest()
                 {
