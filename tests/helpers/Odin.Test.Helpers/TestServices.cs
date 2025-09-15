@@ -105,7 +105,7 @@ public class TestServices : IDisposable
         builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
         builder.RegisterType<LastSeenService>().As<ILastSeenService>().SingleInstance();
 
-        builder.AddDatabaseCounterServices();
+        builder.AddDatabaseServices();
         switch (databaseType)
         {
             case DatabaseType.Sqlite:

@@ -13,28 +13,28 @@ public class TableDriveTagIndex(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public new async Task<DriveTagIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid tagId)
+    internal new async Task<DriveTagIndexRecord> GetAsync(Guid driveId, Guid fileId, Guid tagId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId, tagId);
     }
 
-    public async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
+    internal async Task<List<Guid>> GetAsync(Guid driveId, Guid fileId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
-    public new async Task<int> InsertAsync(DriveTagIndexRecord item)
+    internal new async Task<int> InsertAsync(DriveTagIndexRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
+    internal async Task<int> DeleteAllRowsAsync(Guid driveId, Guid fileId)
     {
         return await base.DeleteAllRowsAsync(odinIdentity, driveId, fileId);
     }
 
-    public async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
+    internal async Task InsertRowsAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
     {
         if (tagIdList == null)
             return;
@@ -53,7 +53,7 @@ public class TableDriveTagIndex(
         tx.Commit();
     }
 
-    public async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
+    internal async Task DeleteRowAsync(Guid driveId, Guid fileId, List<Guid> tagIdList)
     {
         if (tagIdList == null)
             return;

@@ -634,4 +634,93 @@ public class HashParametersTests
         Assert.That(hash1, Is.EqualTo(hash2));
     }
 
+    [Test]
+    public void Calculate_WithTimeRowCursor_IsConsistent()
+    {
+        var time = new UnixTimeUtc(1234567890000L);
+        var cursor = new TimeRowCursor(time, 42L);
+        var hash1 = HashParameters.Calculate(cursor);
+        var hash2 = HashParameters.Calculate(cursor);
+
+        Assert.That(hash1, Is.EqualTo(hash2));
+    }
+
+    [Test]
+    public void Calculate_WithTimeRowCursorNullRowId_IsConsistent()
+    {
+        var time = new UnixTimeUtc(1234567890000L);
+        var cursor = new TimeRowCursor(time, null);
+        var hash1 = HashParameters.Calculate(cursor);
+        var hash2 = HashParameters.Calculate(cursor);
+
+        Assert.That(hash1, Is.EqualTo(hash2));
+    }
+
+    [Test]
+    public void Calculate_WithDifferentTimeRowCursors_ReturnsDifferentHash()
+    {
+        var time = new UnixTimeUtc(1234567890000L);
+        var cursor1 = new TimeRowCursor(time, 42L);
+        var cursor2 = new TimeRowCursor(time, 43L);
+
+        var hash1 = HashParameters.Calculate(cursor1);
+        var hash2 = HashParameters.Calculate(cursor2);
+
+        Assert.That(hash1, Is.Not.EqualTo(hash2));
+    }
+
+    [Test]
+    public void Calculate_WithTimeRowCursorSameValues_ReturnsSameHash()
+    {
+        var time = new UnixTimeUtc(1234567890000L);
+        var cursor1 = new TimeRowCursor(time, 123L);
+        var cursor2 = new TimeRowCursor(time, 123L);
+
+        var hash1 = HashParameters.Calculate(cursor1);
+        var hash2 = HashParameters.Calculate(cursor2);
+
+        Assert.That(hash1, Is.EqualTo(hash2));
+    }
+
+    [Test]
+    public void Calculate_WithTimeRowCursorDifferentTimes_ReturnsDifferentHash()
+    {
+        var time1 = new UnixTimeUtc(1234567890000L);
+        var time2 = new UnixTimeUtc(1234567890001L);
+        var cursor1 = new TimeRowCursor(time1, 42L);
+        var cursor2 = new TimeRowCursor(time2, 42L);
+
+        var hash1 = HashParameters.Calculate(cursor1);
+        var hash2 = HashParameters.Calculate(cursor2);
+
+        Assert.That(hash1, Is.Not.EqualTo(hash2));
+    }
+
+    [Test]
+    public void Calculate_WithTimeRowCursorFromJson_IsConsistent()
+    {
+        var originalCursor = new TimeRowCursor(new UnixTimeUtc(1234567890000L), 42L);
+        var json = originalCursor.ToJson();
+        var deserializedCursor = TimeRowCursor.FromJson(json);
+
+        var hash1 = HashParameters.Calculate(originalCursor);
+        var hash2 = HashParameters.Calculate(deserializedCursor);
+
+        Assert.That(hash1, Is.EqualTo(hash2));
+    }
+
+    [TestCase(0L, null)]
+    [TestCase(1234567890000L, 0L)]
+    [TestCase(-1000L, long.MaxValue)]
+    [TestCase(long.MaxValue, long.MinValue)]
+    public void Calculate_WithTimeRowCursorVariousValues_IsConsistent(long timeMs, long? rowId)
+    {
+        var time = new UnixTimeUtc(timeMs);
+        var cursor = new TimeRowCursor(time, rowId);
+        var hash1 = HashParameters.Calculate(cursor);
+        var hash2 = HashParameters.Calculate(cursor);
+
+        Assert.That(hash1, Is.EqualTo(hash2));
+    }
+
 }

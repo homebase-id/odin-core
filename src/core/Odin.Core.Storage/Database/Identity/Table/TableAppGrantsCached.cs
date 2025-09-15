@@ -1,18 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Cache;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
-public class TableAppGrantsCached(
-    TableAppGrants table,
-    ITenantLevel2Cache cache,
-    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
+public class TableAppGrantsCached(TableAppGrants table, IIdentityTransactionalCacheFactory cacheFactory) :
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private const string CacheKeyAll = "all:all:all";
 
@@ -41,10 +36,10 @@ public class TableAppGrantsCached(
 
     private Task InvalidateAsync(Guid? odinHashId, Guid? appId, Guid? circleId)
     {
-        return InvalidateAsync([
-            CreateRemoveByKeyAction(GetCacheKey(odinHashId, null, null)),
-            CreateRemoveByKeyAction(GetCacheKey(odinHashId, appId, circleId)),
-            CreateRemoveByKeyAction(CacheKeyAll),
+        return Cache.InvalidateAsync([
+            Cache.CreateRemoveByKeyAction(GetCacheKey(odinHashId, null, null)),
+            Cache.CreateRemoveByKeyAction(GetCacheKey(odinHashId, appId, circleId)),
+            Cache.CreateRemoveByKeyAction(CacheKeyAll),
         ]);
     }
 
@@ -86,7 +81,7 @@ public class TableAppGrantsCached(
 
     public async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid odinHashId, TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             GetCacheKey(odinHashId, null, null),
             _ => table.GetByOdinHashIdAsync(odinHashId),
             ttl);
@@ -97,7 +92,7 @@ public class TableAppGrantsCached(
 
     public async Task<List<AppGrantsRecord>> GetAllAsync(TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             CacheKeyAll,
             _ => table.GetAllAsync(),
             ttl);
@@ -111,7 +106,7 @@ public class TableAppGrantsCached(
         await table.DeleteByIdentityAsync(odinHashId);
         // There's no easy way to invalidate all records for a specific identity,
         // so we'll have to invalidate all records instead.
-        await InvalidateAllAsync();
+        await Cache.InvalidateAllAsync();
     }
 
     //

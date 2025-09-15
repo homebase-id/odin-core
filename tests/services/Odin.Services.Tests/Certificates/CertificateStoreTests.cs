@@ -89,7 +89,7 @@ public class CertificateStoreTests
 
         cb.RegisterType<CertificateStore>().As<ICertificateStore>().SingleInstance();
         cb.RegisterInstance(new CertificateStorageKey(config.CertificateRenewal.StorageKey)).SingleInstance();
-        cb.AddDatabaseCounterServices();
+        cb.AddDatabaseServices();
         cb.RegisterModule(new LoggingAutofacModule());
 
 

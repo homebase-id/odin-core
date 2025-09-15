@@ -2,7 +2,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Odin.Core.Time;
-using Serilog;
 
 namespace Odin.Core.Storage
 {
@@ -17,6 +16,11 @@ namespace Odin.Core.Storage
         {
             this.Time = time;
             this.rowId = rowId;
+        }
+
+        public TimeRowCursor Clone()
+        {
+            return new TimeRowCursor(Time, rowId);
         }
 
         public override string ToString()
@@ -82,6 +86,15 @@ namespace Odin.Core.Storage
             nextBoundaryCursor = null;
         }
 
+        public QueryBatchCursor Clone()
+        {
+            return new QueryBatchCursor
+            {
+                nextBoundaryCursor = nextBoundaryCursor?.Clone(),
+                pagingCursor = pagingCursor?.Clone(),
+                stopAtBoundary = stopAtBoundary?.Clone(),
+            };
+        }
 
         /// <summary>
         /// THIS FUNCTION SHOULD ONLY BE USED WITH OLDESTFIRST SORT ORDERING

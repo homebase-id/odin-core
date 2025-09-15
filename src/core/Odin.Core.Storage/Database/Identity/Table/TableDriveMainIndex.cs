@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Core.Util;
 
@@ -21,44 +22,44 @@ public class TableDriveMainIndex(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId)
+    internal async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId)
     {
         return await base.GetAllByDriveIdAsync(odinIdentity, driveId);
     }
 
-    public async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
+    internal async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
     {
         return await base.GetByUniqueIdAsync(odinIdentity, driveId, uniqueId);
     }
 
-    public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId)
+    internal async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId)
     {
         return await base.GetByGlobalTransitIdAsync(odinIdentity, driveId, globalTransitId);
     }
 
-    public async Task<DriveMainIndexRecord> GetAsync(Guid driveId, Guid fileId)
+    internal async Task<DriveMainIndexRecord> GetAsync(Guid driveId, Guid fileId)
     {
         return await base.GetAsync(odinIdentity, driveId, fileId);
     }
 
-    public new async Task<int> InsertAsync(DriveMainIndexRecord item)
+    internal new async Task<int> InsertAsync(DriveMainIndexRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public async Task<int> DeleteAsync(Guid driveId, Guid fileId)
+    internal async Task<int> DeleteAsync(Guid driveId, Guid fileId)
     {
         return await base.DeleteAsync(odinIdentity, driveId, fileId);
     }
 
-    public DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
+    internal DriveMainIndexRecord ReadAllColumns(DbDataReader rdr, Guid driveId)
     {
-        return base.ReadRecordFromReader1(rdr, odinIdentity.IdentityId, driveId);
+        return ReadRecordFromReader1(rdr, odinIdentity.IdentityId, driveId);
     }
 
     // REMOVED TransferHistory and ReactionSummary and localAppData by hand
-    public virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null)
+    internal virtual async Task<int> UpsertAllButReactionsAndTransferAsync(DriveMainIndexRecord item, Guid? useThisNewVersionTag = null)
     {
         if (useThisNewVersionTag == null)
             useThisNewVersionTag = SequentialGuid.CreateGuid();
@@ -142,7 +143,7 @@ public class TableDriveMainIndex(
         // Unreachable return 0;
     }
 
-    public async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
+    internal async Task<int> UpdateReactionSummaryAsync(Guid driveId, Guid fileId, string reactionSummary)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
@@ -159,7 +160,7 @@ public class TableDriveMainIndex(
         return await updateCommand.ExecuteNonQueryAsync();
     }
 
-    public async Task<(int, long)> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory)
+    internal async Task<(int, long)> UpdateTransferSummaryAsync(Guid driveId, Guid fileId, string transferHistory)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var updateCommand = cn.CreateCommand();
@@ -186,7 +187,7 @@ public class TableDriveMainIndex(
         return (0, 0);
     }
 
-    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId)
+    internal async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var sizeCommand = cn.CreateCommand();
@@ -215,7 +216,7 @@ public class TableDriveMainIndex(
         return (-1, -1);
     }
 
-    public async Task<long> GetTotalSizeAllDrivesAsync()
+    internal async Task<long> GetTotalSizeAllDrivesAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -241,11 +242,120 @@ public class TableDriveMainIndex(
         return size;
     }
 
+    /// <summary>
+    /// Updates local app metadata in the driveMainIndex table.
+    /// </summary>
+    /// <param name="driveId">The drive ID.</param>
+    /// <param name="fileId">The file ID.</param>
+    /// <param name="oldVersionTag">The expected current version tag.</param>
+    /// <param name="newVersionTag">The new version tag to set.</param>
+    /// <param name="localMetadataJson">The new metadata JSON.</param>
+    /// <returns>Returns false if the row doesn't exist, throws an exception on version tag mismatch, and returns true if updated successfully.</returns>
+    /// <exception cref="OdinClientException">Thrown if the version tag mismatches.</exception>
+    /// <exception cref="ArgumentException">Thrown if newVersionTag equals oldVersionTag or is empty.</exception>
+    internal async Task<bool> UpdateLocalAppMetadataAsync(Guid driveId, Guid fileId, Guid oldVersionTag, Guid newVersionTag, string localMetadataJson)
+    {
+        newVersionTag.AssertGuidNotEmpty();
+
+        if (oldVersionTag == newVersionTag)
+            throw new ArgumentException("newVersionTag==oldVersionTag : Fy fy, skamme skamme, man må ikke snyde");
+
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var tx = await cn.BeginStackedTransactionAsync(); // The SQL below requires a transaction
+
+        string sqlNowStr;
+
+        using (var selectCommand = cn.CreateCommand())
+        {
+            sqlNowStr = selectCommand.SqlNow();
+            string forUpdate;
+            if (_scopedConnectionFactory.DatabaseType == DatabaseType.Sqlite)
+                forUpdate = "";
+            else
+                forUpdate = "FOR UPDATE";
+
+            selectCommand.CommandText = $"SELECT 1 FROM driveMainIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
+
+            var param1 = selectCommand.CreateParameter();
+            var param2 = selectCommand.CreateParameter();
+            var param3 = selectCommand.CreateParameter();
+            param1.ParameterName = "@identityId";
+            param2.ParameterName = "@driveId";
+            param3.ParameterName = "@fileId";
+            selectCommand.Parameters.Add(param1);
+            selectCommand.Parameters.Add(param2);
+            selectCommand.Parameters.Add(param3);
+            param1.Value = odinIdentity.IdentityIdAsByteArray();
+            param2.Value = driveId.ToByteArray();
+            param3.Value = fileId.ToByteArray();
+
+            var result = await selectCommand.ExecuteScalarAsync();
+            bool rowExists = result != null;
+
+            if (rowExists == false)
+                return false; // The item doesn't exist
+        }
+
+
+        await using var updateCommand = cn.CreateCommand();
+        // We unfortunately need the row_check to differentiate between not-found and version tag mismatch
+        updateCommand.CommandText =
+            $"""
+            UPDATE driveMainIndex
+            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr})
+            WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId
+                  AND COALESCE(hdrLocalVersionTag, @emptyGuid) = @hdrLocalVersionTag
+            """;
+
+        var sparam1 = updateCommand.CreateParameter();
+        var sparam2 = updateCommand.CreateParameter();
+        var sparam3 = updateCommand.CreateParameter();
+        var sparam4 = updateCommand.CreateParameter();
+        var sparam5 = updateCommand.CreateParameter();
+        var newVersionTagParam = updateCommand.CreateParameter();
+        var contentParam = updateCommand.CreateParameter();
+
+        sparam1.ParameterName = "@identityId";
+        sparam2.ParameterName = "@driveId";
+        sparam3.ParameterName = "@fileId";
+        sparam4.ParameterName = "@hdrLocalVersionTag";
+        sparam5.ParameterName = "@emptyGuid";
+        newVersionTagParam.ParameterName = "@newVersionTag";
+        contentParam.ParameterName = "@hdrLocalAppData";
+
+
+        updateCommand.Parameters.Add(sparam1);
+        updateCommand.Parameters.Add(sparam2);
+        updateCommand.Parameters.Add(sparam3);
+        updateCommand.Parameters.Add(sparam4);
+        updateCommand.Parameters.Add(sparam5);
+        updateCommand.Parameters.Add(newVersionTagParam);
+        updateCommand.Parameters.Add(contentParam);
+
+        sparam1.Value = odinIdentity.IdentityIdAsByteArray();
+        sparam2.Value = driveId.ToByteArray();
+        sparam3.Value = fileId.ToByteArray();
+        sparam4.Value = oldVersionTag.ToByteArray();
+        sparam5.Value = Guid.Empty.ToByteArray();
+        newVersionTagParam.Value = newVersionTag.ToByteArray();
+        contentParam.Value = localMetadataJson;
+
+        int rows = await updateCommand.ExecuteNonQueryAsync();
+
+        if (rows < 1)
+            throw new OdinClientException($"Mismatching version tag {oldVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+
+        tx.Commit();
+
+        return true;
+    }
+
 
     /// <summary>
     /// For defragmenter only. Updates the byteCount column in the DB.
     /// </summary>
-    public async Task<int> UpdateByteCountAsync(Guid driveId, Guid fileId, long byteCount)
+    internal async Task<int> UpdateByteCountAsync(Guid driveId, Guid fileId, long byteCount)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
@@ -296,7 +406,7 @@ public class TableDriveMainIndex(
     // Copy of UpdateAsync with Validation() and modified time removed
     // It does NOT update reactionSummary and transferHistory and localAppData! 
     // (for the same reason the regular one doesn't)
-    public async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
+    internal async Task<int> RawUpdateAsync(DriveMainIndexRecord item)
     {
         // Skip vaildation deliberately: item.Validate();
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

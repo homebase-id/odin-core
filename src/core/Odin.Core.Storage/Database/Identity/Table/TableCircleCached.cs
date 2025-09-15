@@ -1,18 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Odin.Core.Storage.Cache;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage.Database.Identity.Cache;
+namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
-public class TableCircleCached(
-    TableCircle table,
-    ITenantLevel2Cache cache,
-    ScopedIdentityConnectionFactory scopedConnectionFactory) : AbstractTableCaching(cache, scopedConnectionFactory)
+public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFactory cacheFactory) :
+    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
     private static readonly List<string> PagingByCircleIdTags = ["PagingByCircleId"];
 
@@ -41,9 +36,9 @@ public class TableCircleCached(
 
     private Task InvalidateAsync(Guid circleId)
     {
-        return InvalidateAsync([
-            CreateRemoveByKeyAction(GetCacheKey(circleId)),
-            CreateRemoveByTagAction(PagingByCircleIdTags)
+        return Cache.InvalidateAsync([
+            Cache.CreateRemoveByKeyAction(GetCacheKey(circleId)),
+            Cache.CreateRemoveByTagsAction(PagingByCircleIdTags)
         ]);
     }
 
@@ -51,7 +46,7 @@ public class TableCircleCached(
 
     public async Task<CircleRecord?> GetAsync(Guid circleId, TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             GetCacheKey(circleId),
             _ => table.GetAsync(circleId),
             ttl);
@@ -88,7 +83,7 @@ public class TableCircleCached(
         Guid? inCursor,
         TimeSpan ttl)
     {
-        var result = await GetOrSetAsync(
+        var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + inCursor,
             _ => table.PagingByCircleIdAsync(count, inCursor),
             ttl,

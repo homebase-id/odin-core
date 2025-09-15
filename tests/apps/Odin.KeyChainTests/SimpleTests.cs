@@ -27,7 +27,7 @@ namespace Odin.KeyChainTests
             var builder = new ContainerBuilder();
             builder.Populate(serviceCollection);
 
-            builder.AddDatabaseCounterServices();
+            builder.AddDatabaseServices();
             builder.AddSqliteKeyChainDatabaseServices(":memory:");
 
             _container = builder.Build();

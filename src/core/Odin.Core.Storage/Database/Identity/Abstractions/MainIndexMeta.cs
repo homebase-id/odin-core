@@ -40,14 +40,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         TableDriveLocalTagIndex driveLocalTagIndex,
         TableDriveMainIndex driveMainIndex)
     {
+        private static readonly string SelectOutputFields;
         private readonly DatabaseType _databaseType = scopedConnectionFactory.DatabaseType;
-        private static readonly string selectOutputFields;
-        public TableDriveLocalTagIndex _driveLocalTagIndex = driveLocalTagIndex;
+        public readonly TableDriveLocalTagIndex DriveLocalTagIndex = driveLocalTagIndex;
 
         static MainIndexMeta()
         {
             // Initialize selectOutputFields statically
-            selectOutputFields = string.Join(",",
+            SelectOutputFields = string.Join(",",
                 TableDriveMainIndex.GetColumnNames()
                     .Where(name => !name.Equals("identityId", StringComparison.OrdinalIgnoreCase)
                                 && !name.Equals("driveId", StringComparison.OrdinalIgnoreCase))
@@ -58,7 +58,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             
         }
 
-        public async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
+        internal async Task<int> DeleteEntryAsync(Guid driveId, Guid fileId)
         {
             await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var tx = await cn.BeginStackedTransactionAsync();
@@ -72,6 +72,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             return n;
         }
 
+        internal async Task UpdateLocalTagsAsync(Guid driveId, Guid fileId, List<Guid> tags)
+        {
+            await DriveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, tags);
+        }
+
         /// <summary>
         /// By design does NOT update the TransferHistory and ReactionSummary fields, even when 
         /// they are specified in the record.
@@ -81,7 +86,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="tagIdList"></param>
         /// <param name="useThisNewVersionTag"></param>
         /// <returns></returns>
-        public async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
+        internal async Task<int> BaseUpsertEntryZapZapAsync(DriveMainIndexRecord driveMainIndexRecord,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null,
             Guid? useThisNewVersionTag = null)
@@ -247,7 +252,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// </code>
         /// This example uses <c>AnyChangeDate</c> to retrieve records based on their most recent change, ensuring both new and modified records are included.
         /// </example>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
+        internal async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(Guid driveId,
         int noOfItems,
             QueryBatchCursor cursor,
             QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
@@ -287,6 +292,11 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (cursor == null)
             {
                 cursor = new QueryBatchCursor();
+            }
+            else
+            {
+                // Create a clone, we don't want to modify the original cursor
+                cursor = cursor.Clone();
             }
 
             if (requiredSecurityGroup == null)
@@ -391,7 +401,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             var orderString = $"{timeField} {direction}, driveMainIndex.rowId {direction}";
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT DISTINCT {selectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT DISTINCT {SelectOutputFields} FROM driveMainIndex {leftJoin} WHERE " + string.Join(" AND ", listWhereAnd) + $" ORDER BY {orderString} LIMIT {noOfItems + 1}";
 
             cmd.CommandText = stm;
             using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
@@ -451,7 +461,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// </example>
         /// </summary>
         /// <returns></returns>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(Guid driveId,
+        internal async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(Guid driveId,
             int noOfItems,
             QueryBatchCursor cursor,
             QueryBatchSortOrder sortOrder = QueryBatchSortOrder.NewestFirst,
@@ -619,7 +629,7 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
+        internal async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(Guid driveId, int noOfItems,
             string cursorString,
             TimeRowCursor stopAtModifiedUnixTimeSeconds = null,
             Int32? fileSystemType = (int)FileSystemType.Standard,

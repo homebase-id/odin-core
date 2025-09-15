@@ -251,7 +251,7 @@ public static class SystemServices
         builder.AddJobManagerServices();
 
         // Global database services
-        builder.AddDatabaseCounterServices();
+        builder.AddDatabaseServices();
 
         // System database services
         switch (config.Database.Type)

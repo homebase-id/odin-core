@@ -11,24 +11,24 @@ public class TableAppNotifications(
     OdinIdentity odinIdentity)
     : TableAppNotificationsCRUD(scopedConnectionFactory)
 {
-    public async Task<AppNotificationsRecord> GetAsync(Guid notificationId)
+    internal async Task<AppNotificationsRecord> GetAsync(Guid notificationId)
     {
         return await base.GetAsync(odinIdentity, notificationId);
     }
 
-    public new async Task<int> InsertAsync(AppNotificationsRecord item)
+    internal new async Task<int> InsertAsync(AppNotificationsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public new async Task<int> UpdateAsync(AppNotificationsRecord item)
+    internal new async Task<int> UpdateAsync(AppNotificationsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpdateAsync(item);
     }
 
-    public async Task<(List<AppNotificationsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursorString)
+    internal async Task<(List<AppNotificationsRecord>, string cursor)> PagingByCreatedAsync(int count, string cursorString)
     {
         var cursor = TimeRowCursor.FromJson(cursorString);
 
@@ -37,7 +37,7 @@ public class TableAppNotifications(
         return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }
 
-    public async Task<int> DeleteAsync(Guid notificationId)
+    internal async Task<int> DeleteAsync(Guid notificationId)
     {
         return await base.DeleteAsync(odinIdentity, notificationId);
     }

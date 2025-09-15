@@ -136,8 +136,8 @@ public class TenantAdmin(
             if (includePayload)
             {
                 var tenantScope = multiTenantContainer.GetTenantScope(identityRegistration.PrimaryDomainName);
-                var driveMainIndex = tenantScope.Resolve<TableDriveMainIndex>();
-                var sizeAllDrives = await driveMainIndex.GetTotalSizeAllDrivesAsync();
+                var driveMainIndex = tenantScope.Resolve<TableDriveMainIndexCached>();
+                var sizeAllDrives = await driveMainIndex.GetTotalSizeAllDrivesAsync(TimeSpan.FromMinutes(10));
 
                 if (config.S3PayloadStorage.Enabled)
                 {
