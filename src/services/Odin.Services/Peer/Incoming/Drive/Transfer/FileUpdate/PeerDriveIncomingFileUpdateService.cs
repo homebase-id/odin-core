@@ -40,11 +40,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
         public async Task InitializeIncomingTransfer(EncryptedRecipientFileUpdateInstructionSet transferInstructionSet,
-            FileMetadata metadata,
+            FileMetadata fileMetadata,
             IOdinContext odinContext)
         {
             var driveId = transferInstructionSet.Request.File.TargetDrive.Alias;
-            var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet.FileSystemType, odinContext);
+            var canDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
             _tempFile = new TempFile()
@@ -54,17 +54,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             };
 
             _updateInstructionSet = transferInstructionSet;
-
-            // Write the instruction set to disk
-            await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
-                odinContext);
-
-            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(metadata)));
-            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
-            
+            await WriteInstructionsAndMetadataToDisk(fileMetadata, odinContext);
         }
-        
+
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
@@ -147,8 +139,35 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return PeerResponseCode.AcceptedDirectWrite;
             }
 
+            logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
+                _tempFile);
+
+            try
+            {
+                _tempFile.StorageType = TempStorageType.Inbox;
+                await WriteInstructionsAndMetadataToDisk(fileMetadata, odinContext);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "After TryDirectWriteFailed, we also failed to ensure " +
+                                   "metadata and instructions are available to the inbox.  file: {tempFile}", _tempFile.File);
+            }
+
             //S1220
             return await RouteToInboxAsync(odinContext);
+        }
+
+        private async Task WriteInstructionsAndMetadataToDisk(FileMetadata fileMetadata, IOdinContext odinContext)
+        {
+            logger.LogDebug("Writing metadata as {tempFile}", _tempFile);
+
+            // Write the instruction set to disk
+            await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray());
+            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
+                odinContext);
+
+            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
+            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
         }
 
         private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
