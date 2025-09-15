@@ -323,13 +323,12 @@ public class DriveQuery(
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete)
     {
+        bool inserted = false;
+
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
-            // Originally we had TryInsert which will ignore duplicate inserts.
-            // However, we suspect it might occasionally swallow other SQL errors.
-            // So changed to UPSERT which will simply do a meaningless update if
-            // the record already exists.
-            int n = await tblDriveReactions.UpsertAsync(new DriveReactionsRecord()
+            // inserted will be false if the reaction was already in the database
+            inserted = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
             {
                 driveId = drive.Id,
                 identity = odinId,
@@ -337,27 +336,23 @@ public class DriveQuery(
                 singleReaction = reaction
             });
 
-            bool success = (n > 0);
-
-            if (success)
+            if (markComplete != null)
             {
-                if (markComplete != null)
-                {
-                    n = await markComplete.ExecuteAsync();
+                int n = await markComplete.ExecuteAsync();
 
-                    if (n != 1)
-                        throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
-                }
+                if (n != 1)
+                    throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
             }
 
-            if (success)
-                tx.Commit();
+            tx.Commit();
         }
 
         // Both these exception need to be scrutinized. Look up in the inbox handler. We need to 
         // be very deliberate about when we remove it from the inbox and when we try again. If for
         // example we fail to markComplete, but the reaction insert was successful, we should try again,
         // but otherwise we should delete from inbox !!
+        if (!inserted)
+            throw new OdinClientException("Cannot add duplicate reaction");
     }
 
     public async Task DeleteReactionsAsync(StorageDrive drive, OdinId odinId, Guid fileId)
