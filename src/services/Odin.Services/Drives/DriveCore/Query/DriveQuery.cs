@@ -323,11 +323,9 @@ public class DriveQuery(
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete)
     {
-        bool success = false;
-
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
-            success = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
+            int n = await tblDriveReactions.InsertAsync(new DriveReactionsRecord()
             {
                 driveId = drive.Id,
                 identity = odinId,
@@ -335,11 +333,13 @@ public class DriveQuery(
                 singleReaction = reaction
             });
 
+            bool success = (n > 0);
+
             if (success)
             {
                 if (markComplete != null)
                 {
-                    var n = await markComplete.ExecuteAsync();
+                    n = await markComplete.ExecuteAsync();
 
                     if (n != 1)
                         throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
