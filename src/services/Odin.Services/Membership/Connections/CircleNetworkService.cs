@@ -546,14 +546,25 @@ namespace Odin.Services.Membership.Connections
                     }
 
                     await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);
-                    
+
                     if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
                     {
                         // refetch the record since the above method just writes to db
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+                        
+                        if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                        {
+                            logger.LogError("After Refetch ICR for {identity} STILL Requires MasterKey Encryption Upgrade; " +
+                                            "something is wrong for sure", icr.OdinId);
+                        }
                     }
 
-                    
+                    if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                    {
+                        logger.LogError("ICR for {identity} still Requires MasterKey Encryption Upgrade - skipping", icr.OdinId);
+                        continue;
+                    }
+
                     // Re-create the circle grant so
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
                     icr.AccessGrant.CircleGrants[circleKey] =
@@ -1026,7 +1037,7 @@ namespace Odin.Services.Membership.Connections
             async Task GrantAnonymousRead(CircleDefinition def)
             {
                 logger.LogDebug("GrantAnonymousRead called for circle {def}", def.Name);
-                
+
                 var grants = def.DriveGrants?.ToList() ?? new List<DriveGrantRequest>();
                 grants.Add(new DriveGrantRequest()
                 {
@@ -1258,7 +1269,7 @@ namespace Odin.Services.Membership.Connections
                     logger.LogError(e, "Failed to upgrade KSK Encryption for {id}", identity.OdinId);
                     return false;
                 }
-            }    
+            }
 
             return false;
         }
