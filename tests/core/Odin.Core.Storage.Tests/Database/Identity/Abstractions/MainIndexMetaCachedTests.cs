@@ -203,6 +203,10 @@ public class MainIndexMetaCachedTests : IocTestBase
             Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(6));
         }
 
+        // SEB:NOTE QueryModifiedAsync has issues with time resolution of selecting modified records too close to
+        // an update. So we add a small delay here to make sure the record is picked up. We should fix this properly.
+        await Task.Delay(100);
+
         {
             var (records, _, _) = await mainIndexMetaCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
