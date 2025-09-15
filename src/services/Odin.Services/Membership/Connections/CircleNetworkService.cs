@@ -1243,13 +1243,19 @@ namespace Odin.Services.Membership.Connections
             if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
             {
                 logger.LogDebug("Upgrading KSK Encryption for {id}", identity.OdinId);
-
-                var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TempWeakKeyStoreKey, odinContext);
-
-                var masterKey = odinContext.Caller.GetMasterKey();
-                var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
-                await circleNetworkStorage.UpdateKeyStoreKeyAsync(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
-                return true;
+                try
+                {
+                    var keyStoreKey = await publicPrivateKeyService.EccDecryptPayload(identity.TempWeakKeyStoreKey, odinContext);
+                    var masterKey = odinContext.Caller.GetMasterKey();
+                    var masterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(masterKey, new SensitiveByteArray(keyStoreKey));
+                    await circleNetworkStorage.UpdateKeyStoreKeyAsync(identity.OdinId, identity.Status, masterKeyEncryptedKeyStoreKey);
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to upgrade KSK Encryption for {id}", identity.OdinId);
+                    return false;
+                }
             }
 
             return false;
