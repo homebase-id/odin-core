@@ -15,7 +15,6 @@ using Odin.Services.DataSubscription;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.EncryptionKeyService;
@@ -176,6 +175,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             try
             {
                 var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
+
+                await this.AssertMetadataTempFileExists(tempFile, fs, odinContext);
 
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
@@ -470,7 +471,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return (success, payloads);
         }
 
-
         private async Task<InboxStatus> GetPendingCountAsync(TargetDrive targetDrive, Guid driveId)
         {
             var pendingCount = await transitInboxBoxStorage.GetPendingCountAsync(driveId);
@@ -488,6 +488,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var sharedSecret = icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey()).SharedSecret;
             var decryptedKeyHeader = encryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
             return decryptedKeyHeader;
+        }
+
+        private async Task AssertMetadataTempFileExists(
+            TempFile tempFile,
+            IDriveFileSystem fs,
+            IOdinContext odinContext)
+        {
+            var exists = await fs.Storage.TempFileExists(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
+            if (!exists)
+            {
+                logger.LogError("Metadata file for tempFile does not exist");
+                throw new OdinSystemException("Metadata file does not exist");
+            }
         }
     }
 }
