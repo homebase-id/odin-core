@@ -325,7 +325,11 @@ public class DriveQuery(
     {
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
-            int n = await tblDriveReactions.InsertAsync(new DriveReactionsRecord()
+            // Originally we had TryInsert which will ignore duplicate inserts.
+            // However, we suspect it might occasionally swallow other SQL errors.
+            // So changed to UPSERT which will simply do a meaningless update if
+            // the record already exists.
+            int n = await tblDriveReactions.UpsertAsync(new DriveReactionsRecord()
             {
                 driveId = drive.Id,
                 identity = odinId,

@@ -30,11 +30,17 @@ public class TableDriveReactions(
         return await base.InsertAsync(item);
     }
 
-    public new async Task<bool> TryInsertAsync(DriveReactionsRecord item)
+    public new async Task<int> UpsertAsync(DriveReactionsRecord item)
     {
         item.identityId = odinIdentity;
-        return await base.TryInsertAsync(item);
+        return await base.UpsertAsync(item);
     }
+
+    //public new async Task<bool> TryInsertAsync(DriveReactionsRecord item)
+    //{
+    //    item.identityId = odinIdentity;
+    //    return await base.TryInsertAsync(item);
+    //}
 
     public async Task<(List<string>, int)> GetPostReactionsAsync(Guid driveId, Guid postId)
     {
