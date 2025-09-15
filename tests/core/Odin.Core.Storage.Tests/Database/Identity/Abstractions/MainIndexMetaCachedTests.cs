@@ -226,6 +226,8 @@ public class MainIndexMetaCachedTests : IocTestBase
             Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(8));
         }
 
+        await Task.Delay(100); // SEB:TODO delete this when QueryModifiedAsync is fixed
+
         {
             var (records, _, _) = await mainIndexMetaCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));

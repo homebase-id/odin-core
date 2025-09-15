@@ -52,6 +52,8 @@ public class MainIndexMetaTests : IocTestBase
 
         await tableDriveMainIndex.UpdateReactionSummaryAsync(item1.driveId, item1.fileId, "hopla");
 
+        // await Task.Delay(100); // SEB:TODO delete this when QueryModifiedAsync is fixed
+
         {
             var (records, _, _) = await mainIndexMeta.QueryModifiedAsync(item1.driveId, 100, null!, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));

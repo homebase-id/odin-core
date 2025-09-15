@@ -237,7 +237,7 @@ public class MainIndexMetaCached : AbstractTableCaching
     public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(
         Guid driveId,
         int noOfItems,
-        string cursorString,
+        string? cursorString,
         TimeRowCursor? stopAtModifiedUnixTimeSeconds = null,
         Int32? fileSystemType = (int)FileSystemType.Standard,
         IntRange? requiredSecurityGroup = null,
