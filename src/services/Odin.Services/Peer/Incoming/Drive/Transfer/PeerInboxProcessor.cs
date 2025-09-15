@@ -176,8 +176,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
 
-                await AssertMetadataTempFileExists(tempFile, fs, odinContext);
-
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
                     var (success, payloadDescriptors) = await HandleUpdateFileAsync(tempFile, inboxItem, odinContext, markComplete);
@@ -490,16 +488,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return decryptedKeyHeader;
         }
 
-        private async Task AssertMetadataTempFileExists(
-            TempFile tempFile,
-            IDriveFileSystem fs,
-            IOdinContext odinContext)
-        {
-            var exists = await fs.Storage.TempFileExists(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
-            if (!exists)
-            {
-                throw new OdinSystemException($"Metadata for tempFile {tempFile.ToString()} does not exist");
-            }
-        }
+        // private async Task AssertMetadataTempFileExists(
+        //     TempFile tempFile,
+        //     IDriveFileSystem fs,
+        //     IOdinContext odinContext)
+        // {
+        //     var exists = await fs.Storage.TempFileExists(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
+        //     if (!exists)
+        //     {
+        //         throw new OdinSystemException($"Metadata for tempFile {tempFile.ToString()} does not exist");
+        //     }
+        // }
     }
 }
