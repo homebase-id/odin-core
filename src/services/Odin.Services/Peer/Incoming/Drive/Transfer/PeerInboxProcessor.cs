@@ -176,7 +176,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
 
-                await this.AssertMetadataTempFileExists(tempFile, fs, odinContext);
+                await AssertMetadataTempFileExists(tempFile, fs, odinContext);
 
                 if (inboxItem.InstructionType == TransferInstructionType.UpdateFile)
                 {
@@ -498,8 +498,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var exists = await fs.Storage.TempFileExists(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
             if (!exists)
             {
-                logger.LogError("Metadata file for tempFile does not exist");
-                throw new OdinSystemException("Metadata file does not exist");
+                throw new OdinSystemException($"Metadata for tempFile {tempFile.ToString()} does not exist");
             }
         }
     }
