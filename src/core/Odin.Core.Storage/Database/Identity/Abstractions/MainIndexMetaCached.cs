@@ -23,9 +23,9 @@ public class MainIndexMetaCached : AbstractTableCaching
 
     //
 
-    private List<string> GetDriveIdTags(Guid driveId)
+    private List<string> GetDriveIdInvalidationTags(Guid driveId)
     {
-        return _cacheKeys.GetDriveIdTags(driveId);
+        return _cacheKeys.GetDriveIdInvalidationTags(driveId);
     }
 
     //
@@ -146,7 +146,7 @@ public class MainIndexMetaCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
-            GetDriveIdTags(driveId));
+            GetDriveIdInvalidationTags(driveId));
 
         return result;
     }
@@ -227,7 +227,7 @@ public class MainIndexMetaCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
-            GetDriveIdTags(driveId));
+            GetDriveIdInvalidationTags(driveId));
 
         return result;
     }
@@ -302,7 +302,7 @@ public class MainIndexMetaCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
-            GetDriveIdTags(driveId));
+            GetDriveIdInvalidationTags(driveId));
 
         return result;
     }

@@ -9,6 +9,7 @@ using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
+using Org.BouncyCastle.Tls;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
@@ -1093,5 +1094,52 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await metaIndex.BaseUpsertEntryZapZapAsync(rec, useThisNewVersionTag: myTag);
             ClassicAssert.IsTrue(rec.hdrVersionTag == myTag);
         }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task ItShouldDeleteARecord(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
+
+            var item1 = new DriveMainIndexRecord()
+            {
+                driveId = Guid.NewGuid(),
+                fileId = Guid.NewGuid(),
+                requiredSecurityGroup = 44,
+                fileSystemType = (int)FileSystemType.Standard,
+                hdrEncryptedKeyHeader = """{"guid1": "123e4567-e89b-12d3-a456-426614174000", "guid2": "987f6543-e21c-45d6-b789-123456789abc"}""",
+                hdrVersionTag = SequentialGuid.CreateGuid(),
+                hdrAppData = """{"myAppData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrServerData = """ {"serverData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrFileMetaData = """{"fileMetaData": "123e4567-e89b-12d3-a456-426614174000"}""",
+                hdrTmpDriveAlias = SequentialGuid.CreateGuid(),
+                hdrTmpDriveType = SequentialGuid.CreateGuid()
+            };
+
+            {
+                var record = await tblDriveMainIndex.GetAsync(item1.driveId, item1.fileId);
+                Assert.That(record, Is.Null);
+            }
+
+            await tblDriveMainIndex.InsertAsync(item1);
+
+            {
+                var record = await tblDriveMainIndex.GetAsync(item1.driveId, item1.fileId);
+                Assert.That(record, Is.Not.Null);
+            }
+
+            await tblDriveMainIndex.DeleteAsync(item1.driveId, item1.fileId);
+
+            {
+                var record = await tblDriveMainIndex.GetAsync(item1.driveId, item1.fileId);
+                Assert.That(record, Is.Null);
+            }
+        }
+
     }
 }

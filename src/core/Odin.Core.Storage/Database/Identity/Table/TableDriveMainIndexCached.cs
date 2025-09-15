@@ -64,7 +64,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     private List<string> GetDriveIdTags(Guid driveId)
     {
-        return _cacheKeys.GetDriveIdTags(driveId);
+        return _cacheKeys.GetDriveIdInvalidationTags(driveId);
     }
 
     //
