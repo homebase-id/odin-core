@@ -358,11 +358,6 @@ public class DriveQuery(
         // be very deliberate about when we remove it from the inbox and when we try again. If for
         // example we fail to markComplete, but the reaction insert was successful, we should try again,
         // but otherwise we should delete from inbox !!
-
-        if (!success)
-        {
-            throw new OdinClientException("Cannot add duplicate reaction");
-        }
     }
 
     public async Task DeleteReactionsAsync(StorageDrive drive, OdinId odinId, Guid fileId)
