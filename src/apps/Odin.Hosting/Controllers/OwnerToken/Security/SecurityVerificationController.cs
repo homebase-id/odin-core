@@ -8,7 +8,6 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Security;
 using Odin.Services.Security.Health;
-using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
@@ -42,11 +41,10 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         return new OkResult();
     }
 
-
     [HttpGet("recovery-info")]
-    public async Task<RecoveryInfo> GetRecoveryInfo()
+    public async Task<RecoveryInfo> GetRecoveryInfo([FromQuery] bool live = false)
     {
-        return await securityHealthService.GetRecoveryInfo(WebOdinContext);
+        return await securityHealthService.GetRecoveryInfo(live, WebOdinContext);
     }
 
     [HttpPost("update-recovery-email")]
@@ -61,5 +59,12 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
     {
         await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(nonceId), WebOdinContext);
         return Ok();
+    }
+
+    [HttpGet("recovery-risk-report")]
+    public async Task<IActionResult> GetHealthCheck()
+    {
+        var check = await securityHealthService.RunHeathCheck(WebOdinContext);
+        return Ok(check);
     }
 }

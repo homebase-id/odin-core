@@ -58,14 +58,23 @@ public class OwnerSecurityHealthService(
         await UpdateVerificationStatusInternalAsync(updateRecoveryKeyLastVerified: true);
     }
 
-    public async Task<RecoveryInfo> GetRecoveryInfo(IOdinContext odinContext)
+    public async Task<RecoveryInfo> GetRecoveryInfo(bool live, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
-        var healthCheckStatus =
-            await PeriodicSecurityHealthCheckStatusStorage.GetAsync<PeriodicSecurityHealthCheckStatus>(keyValueTable,
-                PeriodicSecurityHealthCheckStatusStorageId);
+
+        PeriodicSecurityHealthCheckStatus healthCheckStatus;
+        if (live)
+        {
+            // get the latest
+            healthCheckStatus = await UpdateHealthCheck(odinContext);
+        }
+        else
+        {
+            healthCheckStatus = await PeriodicSecurityHealthCheckStatusStorage
+                .GetAsync<PeriodicSecurityHealthCheckStatus>(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId);
+        }
 
         return new RecoveryInfo()
         {
@@ -96,16 +105,27 @@ public class OwnerSecurityHealthService(
         await recoveryService.UpdateAccountRecoveryEmail(nonceId);
     }
 
+    public async Task<PeriodicSecurityHealthCheckStatus> UpdateHealthCheck(IOdinContext odinContext)
+    {
+        var healthResult = await RunHeathCheck(odinContext);
+        await PeriodicSecurityHealthCheckStatusStorage.UpsertAsync(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId, healthResult);
+        return healthResult;
+    }
+
     /// <summary>
-    /// Checks the health of distributed shards
+    /// Checks the health of distributed shards; writes results to storage
     /// </summary>
-    public async Task RunHeathCheck(IOdinContext odinContext)
+    public async Task<PeriodicSecurityHealthCheckStatus> RunHeathCheck(IOdinContext odinContext)
     {
         var dealerShardPackage = await shamirConfigurationService.GetDealerShardPackage(odinContext);
 
         if (null == dealerShardPackage)
         {
-            return;
+            return new PeriodicSecurityHealthCheckStatus()
+            {
+                LastUpdated = UnixTimeUtc.Now(),
+                IsConfigured = false
+            };
         }
 
         var healthResult = new PeriodicSecurityHealthCheckStatus
@@ -140,7 +160,7 @@ public class OwnerSecurityHealthService(
             }
         }
 
-        await PeriodicSecurityHealthCheckStatusStorage.UpsertAsync(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId, healthResult);
+        return healthResult;
     }
 
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()

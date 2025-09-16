@@ -57,13 +57,13 @@ public sealed class SecurityHealthCheckBackgroundService(
         var service = lifetimeScope.Resolve<OwnerSecurityHealthService>();
 
 #if DEBUG
-        await service.RunHeathCheck(odinContext);
+        await service.UpdateHealthCheck(odinContext);
 #else
         var status = await service.GetVerificationStatusAsync(odinContext);
         var lastUpdated = status.PeriodicSecurityHealthCheckStatus?.LastUpdated.ToDateTime();
         if (lastUpdated == null || lastUpdated < DateTime.UtcNow.AddDays(-30))
         {
-            await service.RunHeathCheck(odinContext);
+            await service.UpdateHealthCheck(odinContext);
         }
 #endif
 
