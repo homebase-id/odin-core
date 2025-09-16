@@ -16,11 +16,14 @@ public interface ITransactionalCacheFactory
     public TransactionalCache Create(string keyPrefix, string rootTag);
 }
 
-public abstract class AbstractTransactionalCacheFactory(ILevel2Cache cache, IScopedConnectionFactory scopedConnectionFactory)
+public abstract class AbstractTransactionalCacheFactory(
+    ILevel2Cache cache,
+    ITransactionalCacheStats cacheStats,
+    IScopedConnectionFactory scopedConnectionFactory)
 {
     public TransactionalCache Create(string keyPrefix, string rootTag)
     {
-        return new TransactionalCache(cache, scopedConnectionFactory, keyPrefix, rootTag);
+        return new TransactionalCache(cache, cacheStats, scopedConnectionFactory, keyPrefix, rootTag);
     }
 }
 
@@ -35,6 +38,7 @@ public sealed class TransactionalCache
     public long Misses => Interlocked.Read(ref _misses);
 
     private readonly ILevel2Cache _cache;
+    private readonly ITransactionalCacheStats _cacheStats;
     private readonly IScopedConnectionFactory _scopedConnectionFactory;
     private readonly string _keyPrefix;
 
@@ -47,6 +51,7 @@ public sealed class TransactionalCache
 
     public TransactionalCache(
         ILevel2Cache cache,
+        ITransactionalCacheStats cacheStats,
         IScopedConnectionFactory scopedConnectionFactory,
         string keyPrefix,
         string rootTag)
@@ -57,6 +62,7 @@ public sealed class TransactionalCache
         ArgumentException.ThrowIfNullOrWhiteSpace(rootTag, nameof(rootTag));
 
         _cache = cache;
+        _cacheStats = cacheStats;
         _scopedConnectionFactory = scopedConnectionFactory;
         _keyPrefix = keyPrefix;
         _rootTag = [_cache.CacheKeyPrefix + ":" + rootTag];
@@ -136,9 +142,10 @@ public sealed class TransactionalCache
             return await factory(cancellationToken);
         }
 
+        var cacheKey = BuildCacheKey(key);
         var hit = true;
         var result = await _cache.GetOrSetAsync(
-            BuildCacheKey(key),
+            cacheKey,
             async _ =>
             {
                 hit = false;
@@ -151,10 +158,12 @@ public sealed class TransactionalCache
         if (hit)
         {
             Interlocked.Increment(ref _hits);
+            _cacheStats.ReportHit(cacheKey);
         }
         else
         {
             Interlocked.Increment(ref _misses);
+            _cacheStats.ReportMiss(cacheKey);
         }
 
         return result;

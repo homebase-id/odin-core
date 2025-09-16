@@ -9,7 +9,8 @@ public interface IIdentityTransactionalCacheFactory : ITransactionalCacheFactory
 
 public class IdentityTransactionalCacheFactory(
     ITenantLevel2Cache cache,
+    ITransactionalCacheStats cacheStats,
     ScopedIdentityConnectionFactory scopedConnectionFactory)
-    : AbstractTransactionalCacheFactory(cache, scopedConnectionFactory), IIdentityTransactionalCacheFactory
+    : AbstractTransactionalCacheFactory(cache, cacheStats, scopedConnectionFactory), IIdentityTransactionalCacheFactory
 {
 }
