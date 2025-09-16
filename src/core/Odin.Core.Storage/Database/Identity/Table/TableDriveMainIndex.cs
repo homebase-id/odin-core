@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -17,7 +18,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveMainIndex(
     ScopedIdentityConnectionFactory scopedConnectionFactory,
-    OdinIdentity odinIdentity)
+    OdinIdentity odinIdentity,
+    ILogger<TableDriveMainIndex> logger)
     : TableDriveMainIndexCRUD(scopedConnectionFactory)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
@@ -69,6 +71,8 @@ public class TableDriveMainIndex(
         if (item.hdrVersionTag == useThisNewVersionTag)
             throw new ArgumentException("useThisNewVersionTag==item.hdrVersionTag : Fy fy, skamme skamme, man må ikke snyde");
 
+        logger.LogDebug("We are trying to go from {this} to {that}", item.hdrVersionTag, useThisNewVersionTag);
+        
         // If it is a new file, and the caller likely didn't set a VersionTag, we'll assign it the new version
         if (item.hdrVersionTag == Guid.Empty)
             item.hdrVersionTag = useThisNewVersionTag.Value;
@@ -129,15 +133,20 @@ public class TableDriveMainIndex(
                 item.modified = new UnixTimeUtc(modified);
 
                 if (modified != created)
+                {
                     item.hdrVersionTag = useThisNewVersionTag.Value;
+                    logger.LogDebug("Final resulting version tag: {f}", item.hdrVersionTag);
+                }
 
                 item.rowId = (long)rdr[2];
                 return 1;
             }
             else
             {
+                logger.LogDebug("Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
                 throw new OdinClientException($"Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
             }
+            
         }
 
         // Unreachable return 0;
@@ -167,8 +176,9 @@ public class TableDriveMainIndex(
 
         string sqlNowStr = updateCommand.SqlNow();
 
-        updateCommand.CommandText = $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
-                                    $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
+        updateCommand.CommandText =
+            $"UPDATE driveMainIndex SET modified={updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr}), hdrTransferHistory=@hdrTransferHistory " +
+            $"WHERE identityId=@identityId AND driveid=@driveId AND fileId=@fileId RETURNING driveMainIndex.modified;";
 
         updateCommand.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
         updateCommand.AddParameter("@driveId", DbType.Binary, driveId);
@@ -253,7 +263,8 @@ public class TableDriveMainIndex(
     /// <returns>Returns false if the row doesn't exist, throws an exception on version tag mismatch, and returns true if updated successfully.</returns>
     /// <exception cref="OdinClientException">Thrown if the version tag mismatches.</exception>
     /// <exception cref="ArgumentException">Thrown if newVersionTag equals oldVersionTag or is empty.</exception>
-    internal async Task<bool> UpdateLocalAppMetadataAsync(Guid driveId, Guid fileId, Guid oldVersionTag, Guid newVersionTag, string localMetadataJson)
+    internal async Task<bool> UpdateLocalAppMetadataAsync(Guid driveId, Guid fileId, Guid oldVersionTag, Guid newVersionTag,
+        string localMetadataJson)
     {
         newVersionTag.AssertGuidNotEmpty();
 
@@ -275,7 +286,8 @@ public class TableDriveMainIndex(
             else
                 forUpdate = "FOR UPDATE";
 
-            selectCommand.CommandText = $"SELECT 1 FROM driveMainIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
+            selectCommand.CommandText =
+                $"SELECT 1 FROM driveMainIndex WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId {forUpdate};";
 
             var param1 = selectCommand.CreateParameter();
             var param2 = selectCommand.CreateParameter();
@@ -302,11 +314,11 @@ public class TableDriveMainIndex(
         // We unfortunately need the row_check to differentiate between not-found and version tag mismatch
         updateCommand.CommandText =
             $"""
-            UPDATE driveMainIndex
-            SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr})
-            WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId
-                  AND COALESCE(hdrLocalVersionTag, @emptyGuid) = @hdrLocalVersionTag
-            """;
+             UPDATE driveMainIndex
+             SET hdrLocalVersionTag = @newVersionTag, hdrLocalAppData = @hdrLocalAppData, modified = {updateCommand.SqlMax()}(driveMainIndex.modified+1,{sqlNowStr})
+             WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId
+                   AND COALESCE(hdrLocalVersionTag, @emptyGuid) = @hdrLocalVersionTag
+             """;
 
         var sparam1 = updateCommand.CreateParameter();
         var sparam2 = updateCommand.CreateParameter();
@@ -458,6 +470,7 @@ public class TableDriveMainIndex(
                 item.rowId = (long)rdr[2];
                 return 1;
             }
+
             return 0;
         }
     }
