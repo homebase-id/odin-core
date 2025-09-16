@@ -26,7 +26,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         DriveQuery driveQuery,
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
-        TableDriveMainIndex driveMainIndex,
+        TableDriveMainIndexCached driveMainIndex,
         TenantContext tenantContext,
         IForgottenTasks forgottenTasks)
     {

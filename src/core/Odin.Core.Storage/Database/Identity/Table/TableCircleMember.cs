@@ -14,24 +14,24 @@ public class TableCircleMember(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public async Task<int> DeleteAsync(Guid circleId, Guid memberId)
+    internal async Task<int> DeleteAsync(Guid circleId, Guid memberId)
     {
         return await base.DeleteAsync(odinIdentity, circleId, memberId);
     }
 
-    public new async Task<int> InsertAsync(CircleMemberRecord item)
+    internal new async Task<int> InsertAsync(CircleMemberRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public new async Task<int> UpsertAsync(CircleMemberRecord item)
+    internal new async Task<int> UpsertAsync(CircleMemberRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
-    public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId)
+    internal async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId)
     {
         // The services code doesn't handle null, so I've made this override
         var r = await base.GetCircleMembersAsync(odinIdentity, circleId) ?? [];
@@ -44,7 +44,7 @@ public class TableCircleMember(
     /// <param name="memberId"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId)
+    internal async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId)
     {
         // The services code doesn't handle null, so I've made this override
         var r = await base.GetMemberCirclesAndDataAsync(odinIdentity, memberId) ?? [];
@@ -56,7 +56,7 @@ public class TableCircleMember(
     /// </summary>
     /// <param name="circleMemberRecordList"></param>
     /// <exception cref="Exception"></exception>
-    public async Task UpsertCircleMembersAsync(List<CircleMemberRecord> circleMemberRecordList)
+    internal async Task UpsertCircleMembersAsync(List<CircleMemberRecord> circleMemberRecordList)
     {
         if (circleMemberRecordList == null || circleMemberRecordList.Count < 1)
             throw new OdinSystemException("No members supplied (null or empty)");
@@ -79,7 +79,7 @@ public class TableCircleMember(
     /// <param name="circleId"></param>
     /// <param name="members"></param>
     /// <exception cref="Exception"></exception>
-    public async Task RemoveCircleMembersAsync(Guid circleId, List<Guid> members)
+    internal async Task RemoveCircleMembersAsync(Guid circleId, List<Guid> members)
     {
         if (members == null || members.Count < 1)
             throw new OdinSystemException("No members supplied (null or empty)");
@@ -99,7 +99,7 @@ public class TableCircleMember(
     /// </summary>
     /// <param name="members"></param>
     /// <exception cref="Exception"></exception>
-    public async Task DeleteMembersFromAllCirclesAsync(List<Guid> members)
+    internal async Task DeleteMembersFromAllCirclesAsync(List<Guid> members)
     {
         if (members == null || members.Count < 1)
             throw new OdinSystemException("No members supplied (null or empty)");
@@ -118,7 +118,7 @@ public class TableCircleMember(
         tx.Commit();
     }
 
-    public Task<List<CircleMemberRecord>> GetAllCirclesAsync()
+    internal Task<List<CircleMemberRecord>> GetAllCirclesAsync()
     {
         return base.GetAllCirclesAsync(odinIdentity.IdentityId);
     }

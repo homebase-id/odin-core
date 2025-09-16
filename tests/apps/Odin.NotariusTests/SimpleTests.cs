@@ -29,7 +29,7 @@ public class Tests
         builder.Populate(serviceCollection);
 
 
-        builder.AddDatabaseCounterServices();
+        builder.AddDatabaseServices();
         builder.AddSqliteNotaryDatabaseServices(":memory:");
 
         _container = builder.Build();

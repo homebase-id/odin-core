@@ -9,21 +9,21 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Query;
 
 public class DriveQuery(
     ILogger<DriveQuery> logger,
-    MainIndexMeta metaIndex,
-    TableDriveMainIndex tblDriveMainIndex,
+    MainIndexMetaCached metaIndex,
+    TableDriveMainIndexCached tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
     IdentityDatabase db,
     OdinIdentity odinIdentity
@@ -214,11 +214,11 @@ public class DriveQuery(
             DriveMainIndexRecord ru = null;
             DriveMainIndexRecord rt = null;
 
-            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
+            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
             if (fileMetadata.AppData.UniqueId.HasValue)
-                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId);
+                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
             if (fileMetadata.GlobalTransitId.HasValue)
-                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId);
+                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
 
             string s = "";
             DriveMainIndexRecord r = null;
@@ -262,7 +262,7 @@ public class DriveQuery(
 
     public async Task SaveLocalMetadataAsync(Guid driveId, Guid fileId, Guid oldVersionTag, string metadataJson, Guid newVersionTag)
     {
-        var exists = await db.DriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, oldVersionTag, newVersionTag, metadataJson);
+        var exists = await db.DriveMainIndexCached.UpdateLocalAppMetadataAsync(driveId, fileId, oldVersionTag, newVersionTag, metadataJson);
 
         if (exists == false)
             throw new OdinClientException("No such file found for local metadata async", OdinClientErrorCode.FileNotFound);
@@ -274,13 +274,13 @@ public class DriveQuery(
 
         // Update the official metadata field
         var json = OdinSystemSerializer.Serialize(metadata);
-        var exists = await db.DriveLocalTagIndex.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, newVersionTag, json);
+        var exists = await db.DriveMainIndexCached.UpdateLocalAppMetadataAsync(driveId, fileId, metadata.VersionTag, newVersionTag, json);
 
         if (exists == false)
             throw new OdinClientException("No such file found for local metadata async", OdinClientErrorCode.FileNotFound);
 
         // Update the tables used to query
-        await db.DriveLocalTagIndex.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
+        await db.MainIndexMetaCached.UpdateLocalTagsAsync(driveId, fileId, metadata.Tags);
 
         tx.Commit();
     }
@@ -293,7 +293,7 @@ public class DriveQuery(
 
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId);
+        var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
 
         if (null == record || record.fileSystemType != (int)fileSystemType)
         {
@@ -323,11 +323,12 @@ public class DriveQuery(
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete)
     {
-        bool success = false;
+        bool inserted = false;
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
-            success = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
+            // inserted will be false if the reaction was already in the database
+            inserted = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
             {
                 driveId = drive.Id,
                 identity = odinId,
@@ -335,30 +336,23 @@ public class DriveQuery(
                 singleReaction = reaction
             });
 
-            if (success)
+            if (markComplete != null)
             {
-                if (markComplete != null)
-                {
-                    var n = await markComplete.ExecuteAsync();
+                int n = await markComplete.ExecuteAsync();
 
-                    if (n != 1)
-                        throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
-                }
+                if (n != 1)
+                    throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
             }
 
-            if (success)
-                tx.Commit();
+            tx.Commit();
         }
 
         // Both these exception need to be scrutinized. Look up in the inbox handler. We need to 
         // be very deliberate about when we remove it from the inbox and when we try again. If for
         // example we fail to markComplete, but the reaction insert was successful, we should try again,
         // but otherwise we should delete from inbox !!
-
-        if (!success)
-        {
+        if (!inserted)
             throw new OdinClientException("Cannot add duplicate reaction");
-        }
     }
 
     public async Task DeleteReactionsAsync(StorageDrive drive, OdinId odinId, Guid fileId)
@@ -427,13 +421,13 @@ public class DriveQuery(
 
     public async Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive)
     {
-        var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(drive.Id);
+        var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(drive.Id, TimeSpan.FromMinutes(10)); // MS:TODO ttl
         return (count, size);
     }
 
     public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
+        var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
         if (null == record)
         {
             return null;
@@ -449,7 +443,7 @@ public class DriveQuery(
 
     public async Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
+        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
 
         if (null == record)
         {

@@ -9,9 +9,10 @@ public static class DatabaseExtensions
     //
 
     // Note: be sure to also call this in any sub-scopes if isolation is required
-    public static ContainerBuilder AddDatabaseCounterServices(this ContainerBuilder cb)
+    public static ContainerBuilder AddDatabaseServices(this ContainerBuilder cb)
     {
         cb.RegisterType<DatabaseCounters>().SingleInstance();
+        cb.RegisterType<TransactionalCacheStats>().As<ITransactionalCacheStats>().SingleInstance();
         return cb;
     }
 

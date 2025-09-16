@@ -412,7 +412,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             c = 0;
             for (int i = 1; i < 100; i++)
             {
-                (result, moreRows, var refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
+                (result, moreRows, cursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (moreRows == false)
                     break;
@@ -432,13 +432,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             c = 0;
             for (int i = 1; i < 100; i++)
             {
-                (result, moreRows, var refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
+                (result, moreRows, cursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 2, cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (moreRows == false)
                     break;
             }
 
-            ClassicAssert.IsTrue(c == 5);
+            Assert.That(c, Is.EqualTo(5));
             ClassicAssert.IsTrue(moreRows == false);
         }
 
@@ -1908,7 +1908,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor.CursorStartPoint(c3);
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-            var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
+            (var result, var hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 2);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
@@ -1921,7 +1921,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor.CursorStartPoint(c3);
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
@@ -1968,7 +1968,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor.CursorStartPoint(t3);
 
             // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
-            var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
+            (var result, var hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 2);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f2) == 0);
@@ -1981,7 +1981,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor.CursorStartPoint(t3);
 
             // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(ByteArrayUtil.muidcmp(result[0].fileId, f4) == 0);
@@ -2086,13 +2086,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var cursor = new QueryBatchCursor(c3);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
+            (var result, var hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 0);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
@@ -2104,13 +2104,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = new QueryBatchCursor(c3);
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 2);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 0);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
@@ -2154,13 +2154,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             var cursor = new QueryBatchCursor(t3);
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            var (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
+            (var result, var hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 3);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 0);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c4, 3).Equals(cursor.pagingCursor));
@@ -2172,13 +2172,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             cursor = new QueryBatchCursor(t3);
 
             // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 2);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
 
             // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
-            (result, hasRows, refCursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
+            (result, hasRows, cursor) = await metaIndex.QueryBatchAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.OldestFirst, requiredSecurityGroup: allIntRange);
             ClassicAssert.IsTrue(result.Count == 0);
             ClassicAssert.IsTrue(hasRows == false);
             ClassicAssert.IsTrue(new TimeRowCursor(c2, 2).Equals(cursor.pagingCursor));
@@ -3712,7 +3712,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
                     countTags++;
                 }
 
-                await metaIndex._driveLocalTagIndex.InsertRowsAsync(driveId, fileId[i], tmpLocalTaglist);
+                await metaIndex.DriveLocalTagIndex.InsertRowsAsync(driveId, fileId[i], tmpLocalTaglist);
             }
 
             stopWatch.Stop();
