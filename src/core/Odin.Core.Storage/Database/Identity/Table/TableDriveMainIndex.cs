@@ -71,7 +71,7 @@ public class TableDriveMainIndex(
         if (item.hdrVersionTag == useThisNewVersionTag)
             throw new ArgumentException("useThisNewVersionTag==item.hdrVersionTag : Fy fy, skamme skamme, man må ikke snyde");
 
-        logger.LogDebug("We are trying to go from {this} to {that}", item.hdrVersionTag, useThisNewVersionTag);
+        logger.LogDebug("We are trying to go from version tag {this} to version tag {that}", item.hdrVersionTag, useThisNewVersionTag);
         
         // If it is a new file, and the caller likely didn't set a VersionTag, we'll assign it the new version
         if (item.hdrVersionTag == Guid.Empty)
@@ -143,7 +143,7 @@ public class TableDriveMainIndex(
             }
             else
             {
-                logger.LogDebug("Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
+                logger.LogDebug("Mismatching version tag {versionTag}", item.hdrVersionTag);
                 throw new OdinClientException($"Mismatching version tag {item.hdrVersionTag}", OdinClientErrorCode.VersionTagMismatch);
             }
             
