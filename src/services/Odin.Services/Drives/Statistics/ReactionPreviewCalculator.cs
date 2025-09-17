@@ -99,24 +99,20 @@ public class ReactionPreviewCalculator(
     {
         if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
         {
-            // Is this right? I'd think we'd want to remove the file below even if the empty 
-            logger.LogError("ReactionPreviewCalculator.HandleFileDeleted -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+            logger.LogWarning("ReactionPreviewCalculator.HandleFileDeleted -> FileId is Empty guid; proceeding to check comments. Gtid: {gtid}",
                 updatedFileHeader.FileMetadata.GlobalTransitId);
-            return; 
         }
-        
-        if (targetFileReactionPreview.TotalCommentCount > 0)
-        {
-            // Is this right? Shouldn't we only do this if idx > -1?
-            targetFileReactionPreview.TotalCommentCount--;
-        }
-
+   
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
-
+        
         if (idx > -1)
         {
             targetFileReactionPreview.Comments.RemoveAt(idx);
+            if (targetFileReactionPreview.TotalCommentCount > 0)
+            {
+                targetFileReactionPreview.TotalCommentCount--;
+            }
         }
     }
 
