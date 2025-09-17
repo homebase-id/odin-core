@@ -50,28 +50,32 @@ public abstract class AbstractBackgroundService(ILogger logger)
 
     //
 
-    // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2 (max 48 hours)
+    // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2 (max 7 days)
     // Call InternalPulseBackgroundProcessor() to wake up.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
+        if (duration1 == TimeSpan.Zero && duration2 == TimeSpan.Zero)
+        {
+            return;
+        }
         if (duration1 < TimeSpan.Zero)
         {
-            logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to min.", duration1.TotalMilliseconds);
+            logger.LogError("Invalid duration1 {duration1}ms. Resetting to min.", duration1.TotalMilliseconds);
             duration1 = TimeSpan.Zero;
         }
         if (duration1 > MaxSleepDuration)
         {
-            logger.LogDebug("Invalid duration1 {duration1}ms. Resetting to max.", duration1.TotalMilliseconds);
+            logger.LogError("Invalid duration1 {duration1}ms. Resetting to max.", duration1.TotalMilliseconds);
             duration1 = MaxSleepDuration;
         }
         if (duration2 < TimeSpan.Zero)
         {
-            logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to min.", duration2.TotalMilliseconds);
+            logger.LogError("Invalid duration2 {duration2}ms. Resetting to min.", duration2.TotalMilliseconds);
             duration2 = TimeSpan.Zero;
         }
         if (duration2 > MaxSleepDuration)
         {
-            logger.LogDebug("Invalid duration2 {duration2}ms. Resetting to max.", duration2.TotalMilliseconds);
+            logger.LogError("Invalid duration2 {duration2}ms. Resetting to max.", duration2.TotalMilliseconds);
             duration2 = MaxSleepDuration;
         }
 
