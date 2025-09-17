@@ -331,9 +331,9 @@ public class BackgroundServiceManagerTest
              await manager.StartAsync(service);
  
              var logEvents = _logEventMemoryStore.GetLogEvents();
-             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Debug], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to min.");
+             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Error], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to min.");
          
-             AssertLogEvents();
+             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
          }
          
          // Bad sleep
@@ -348,13 +348,15 @@ public class BackgroundServiceManagerTest
              await manager.StartAsync(service);
 
              var logEvents = _logEventMemoryStore.GetLogEvents();
-             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Debug], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to max.");
+             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Error], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to max.");
              
-             AssertLogEvents();
+             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
          }
          
          // Bad sleep
          {
+             _logEventMemoryStore.Clear();
+
              var sleep1 = TimeSpan.FromMilliseconds(2);
              var sleep2 = TimeSpan.FromMilliseconds(1);
 
