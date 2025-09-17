@@ -42,7 +42,7 @@ namespace Odin.Services.Drives
         {
             if (!IsValid())
             {
-                throw new OdinSystemException("InternalDriveFileId is not valid");
+                throw new OdinSystemException($"InternalDriveFileId is not valid " + ToString());
             }
         }
 
