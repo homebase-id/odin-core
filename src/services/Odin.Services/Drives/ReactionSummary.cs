@@ -3,6 +3,8 @@ using Odin.Core.Time;
 using Odin.Core.Util;
 using System;
 using System.Collections.Generic;
+using Serilog;
+using Serilog.Core;
 
 namespace Odin.Services.Drives;
 
@@ -126,8 +128,14 @@ public class CommentPreview
             AsciiDomainNameValidator.AssertValidDomain(OdinId); // Because it's not an OdinId we need to check
 
         if (Content.Length > MaxContentLength)
-            throw new OdinClientException($"Too long Content length {Content.Length} in CommentPreview max {MaxContentLength}",
+        {
+            var ex = new OdinClientException($"Too long Content length {Content.Length} in CommentPreview max {MaxContentLength}",
                 OdinClientErrorCode.MaxContentLengthExceeded);
+
+            // sorry seb
+            Log.Debug(ex, "Content length too much for comment, len: {a}", Content.Length);
+            throw ex;
+        }
 
         if (Reactions != null)
         {
