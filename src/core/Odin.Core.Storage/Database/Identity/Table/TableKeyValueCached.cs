@@ -37,9 +37,9 @@ public class TableKeyValueCached(TableKeyValue table, IIdentityTransactionalCach
 
     //
 
-    public async Task<KeyValueRecord?> GetAsync(byte[] key, TimeSpan ttl)
+    public async Task<KeyValueRecord?> GetAsync(byte[] key, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(GetCacheKey(key), _ => table.GetAsync(key), ttl);
+        var result = await Cache.GetOrSetAsync(GetCacheKey(key), _ => table.GetAsync(key), ttl ?? DefaultTtl);
         return result;
     }
 

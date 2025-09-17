@@ -38,7 +38,7 @@ public class CircleMembershipService(
 
         logger.LogInformation("Migrating Circle Grants");
 
-        var allCircleMembers = await db.CircleMemberCached.GetAllCirclesAsync(TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var allCircleMembers = await db.CircleMemberCached.GetAllCirclesAsync();
         foreach (var cmr in allCircleMembers)
         {
             var storageData = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(cmr.data.ToStringFromUtf8Bytes());
@@ -57,7 +57,7 @@ public class CircleMembershipService(
         }
 
         logger.LogInformation("Migrating App Grants");
-        var allAppGrants = await db.AppGrantsCached.GetAllAsync(TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var allAppGrants = await db.AppGrantsCached.GetAllAsync();
         foreach (var appGrant in allAppGrants)
         {
             var storageData = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrant.data.ToStringFromUtf8Bytes());
@@ -85,7 +85,7 @@ public class CircleMembershipService(
         var memberId = OdinId.ToHashId(domainName);
 
         await using var tx = await db.BeginStackedTransactionAsync();
-        var circleMemberRecords = await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var circleMemberRecords = await db.CircleMemberCached.GetMemberCirclesAndDataAsync(memberId);
 
         foreach (var circleMemberRecord in circleMemberRecords)
         {
@@ -103,7 +103,7 @@ public class CircleMembershipService(
     public async Task<IEnumerable<CircleGrant>> GetCirclesGrantsByDomainAsync(AsciiDomainName domainName, DomainType domainType)
     {
         var records =
-            await db.CircleMemberCached.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName), TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            await db.CircleMemberCached.GetMemberCirclesAndDataAsync(OdinId.ToHashId(domainName));
         var circleMemberRecords = records.Select(d =>
             OdinSystemSerializer.Deserialize<CircleMemberStorageData>(d.data.ToStringFromUtf8Bytes())
         );
@@ -124,7 +124,7 @@ public class CircleMembershipService(
             }
         }
 
-        var memberBytesList = await db.CircleMemberCached.GetCircleMembersAsync(circleId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var memberBytesList = await db.CircleMemberCached.GetCircleMembersAsync(circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());

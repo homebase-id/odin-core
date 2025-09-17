@@ -32,7 +32,7 @@ public class DriveManager : IDriveManager
 
     private readonly IMediator _mediator;
     private readonly TenantContext _tenantContext;
-    private readonly TableDrives _tableDrives;
+    private readonly TableDrivesCached _tableDrives;
 
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
@@ -41,7 +41,7 @@ public class DriveManager : IDriveManager
         SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> driveCache,
         IMediator mediator,
         TenantContext tenantContext,
-        TableDrives tableDrives)
+        TableDrivesCached tableDrives)
     {
         _logger = logger;
         _driveCache = driveCache;

@@ -31,7 +31,7 @@ public class SingleKeyValueStorage
     /// <returns></returns>
     public async Task<T> GetAsync<T>(TableKeyValueCached tblKeyValue, Guid key) where T : class
     {
-        var item = await tblKeyValue.GetAsync(MakeStorageKey(key), TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
 
         if (null == item)
         {
