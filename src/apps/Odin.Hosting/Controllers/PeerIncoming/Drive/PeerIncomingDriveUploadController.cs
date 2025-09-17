@@ -23,7 +23,6 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Peer;
@@ -133,6 +132,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 //End Optimizations
 
                 var metadata = await Initialize(transferInstructionSet, reader);
+
+                metadata.Validate(WebOdinContext.Tenant);
 
                 //
                 var shouldExpectPayload = !metadata.PayloadsAreRemote;
