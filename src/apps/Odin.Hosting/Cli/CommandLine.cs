@@ -107,7 +107,7 @@ public class CommandLine
                 foreach (var tenant in LoadTenants())
                 {
                     var scope = GetTenantScope(tenant);
-                    var drives = scope.Resolve<TableDrives>();
+                    var drives = scope.Resolve<TableDrivesCached>();
                     var driveCount = drives.GetCountAsync().Result;
                     _logger.LogInformation("Found {DriveCount} drives on {tenant}", driveCount, tenant.PrimaryDomainName);
                 }

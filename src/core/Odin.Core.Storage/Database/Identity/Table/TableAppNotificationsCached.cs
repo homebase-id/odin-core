@@ -44,12 +44,12 @@ public class TableAppNotificationsCached(TableAppNotifications table, IIdentityT
 
     //
 
-    public async Task<AppNotificationsRecord?> GetAsync(Guid notificationId, TimeSpan ttl)
+    public async Task<AppNotificationsRecord?> GetAsync(Guid notificationId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetCacheKey(notificationId),
             _ => table.GetAsync(notificationId),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 
@@ -80,12 +80,12 @@ public class TableAppNotificationsCached(TableAppNotifications table, IIdentityT
     public async Task<(List<AppNotificationsRecord>, string cursor)> PagingByCreatedAsync(
         int count,
         string? cursorString,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, cursorString),
-            ttl,
+            ttl ?? DefaultTtl,
             PagingByCreateTags);
 
         return result;

@@ -39,33 +39,33 @@ public class TableKeyThreeValueCached(TableKeyThreeValue table, IIdentityTransac
 
     //
 
-    public async Task<KeyThreeValueRecord?> GetAsync(byte[] key1, TimeSpan ttl)
+    public async Task<KeyThreeValueRecord?> GetAsync(byte[] key1, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(GetCacheKey1(key1), _ => table.GetAsync(key1), ttl);
+        var result = await Cache.GetOrSetAsync(GetCacheKey1(key1), _ => table.GetAsync(key1), ttl ?? DefaultTtl);
         return result;
     }
 
     //
 
-    public async Task<List<byte[]>> GetByKeyTwoAsync(byte[] key2, TimeSpan ttl)
+    public async Task<List<byte[]>> GetByKeyTwoAsync(byte[] key2, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(GetCacheKey2(key2), _ => table.GetByKeyTwoAsync(key2), ttl);
+        var result = await Cache.GetOrSetAsync(GetCacheKey2(key2), _ => table.GetByKeyTwoAsync(key2), ttl ?? DefaultTtl);
         return result;
     }
 
     //
 
-    public async Task<List<byte[]>> GetByKeyThreeAsync(byte[] key3, TimeSpan ttl)
+    public async Task<List<byte[]>> GetByKeyThreeAsync(byte[] key3, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(GetCacheKey3(key3), _ => table.GetByKeyThreeAsync(key3), ttl);
+        var result = await Cache.GetOrSetAsync(GetCacheKey3(key3), _ => table.GetByKeyThreeAsync(key3), ttl ?? DefaultTtl);
         return result;
     }
 
     //
 
-    public async Task<List<KeyThreeValueRecord>> GetByKeyTwoThreeAsync(byte[] key2, byte[] key3, TimeSpan ttl)
+    public async Task<List<KeyThreeValueRecord>> GetByKeyTwoThreeAsync(byte[] key2, byte[] key3, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(GetCacheKey23(key2, key3), _ => table.GetByKeyTwoThreeAsync(key2, key3), ttl);
+        var result = await Cache.GetOrSetAsync(GetCacheKey23(key2, key3), _ => table.GetByKeyTwoThreeAsync(key2, key3), ttl ?? DefaultTtl);
         return result;
     }
 

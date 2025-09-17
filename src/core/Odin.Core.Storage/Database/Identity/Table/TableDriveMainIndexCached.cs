@@ -76,48 +76,48 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
-    public async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId, TimeSpan ttl)
+    public async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetCacheKey(driveId),
             _ => _table.GetAllByDriveIdAsync(driveId),
-            ttl,
+            ttl ?? DefaultTtl,
             GetDriveIdTags(driveId));
         return result;
     }
 
     //
 
-    public async Task<DriveMainIndexRecord?> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId, TimeSpan ttl)
+    public async Task<DriveMainIndexRecord?> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetUniqueIdCacheKey(driveId, uniqueId),
             _ => _table.GetByUniqueIdAsync(driveId, uniqueId),
-            ttl,
+            ttl ?? DefaultTtl,
             GetDriveIdTags(driveId));
         return result;
     }
 
     //
 
-    public async Task<DriveMainIndexRecord?> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId, TimeSpan ttl)
+    public async Task<DriveMainIndexRecord?> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetGlobalTransitIdCacheKey(driveId, globalTransitId),
             _ => _table.GetByGlobalTransitIdAsync(driveId, globalTransitId),
-            ttl,
+            ttl ?? DefaultTtl,
             GetDriveIdTags(driveId));
         return result;
     }
 
     //
 
-    public async Task<DriveMainIndexRecord?> GetAsync(Guid driveId, Guid fileId, TimeSpan ttl)
+    public async Task<DriveMainIndexRecord?> GetAsync(Guid driveId, Guid fileId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetFileIdCacheKey(driveId, fileId),
             _ => _table.GetAsync(driveId, fileId),
-            ttl,
+            ttl ?? DefaultTtl,
             GetDriveIdTags(driveId));
         return result;
     }
@@ -171,24 +171,24 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
-    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId, TimeSpan ttl)
+    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetDriveSizeCacheKey(driveId),
             _ => _table.GetDriveSizeAsync(driveId),
-            ttl,
+            ttl ?? DefaultTtl,
             GetDriveIdTags(driveId));
         return result;
     }
 
     //
 
-    public async Task<long> GetTotalSizeAllDrivesAsync(TimeSpan ttl)
+    public async Task<long> GetTotalSizeAllDrivesAsync(TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetTotalSizeAllDrivesCacheKey(),
             _ => _table.GetTotalSizeAllDrivesAsync(),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 

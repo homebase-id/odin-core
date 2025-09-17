@@ -59,7 +59,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        var (results, cursor) = await db.AppNotificationsCached.PagingByCreatedAsync(request.Count, request.Cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var (results, cursor) = await db.AppNotificationsCached.PagingByCreatedAsync(request.Count, request.Cursor);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -99,7 +99,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         //Note: this was added long after the db table.  given the assumption there will be
         //very few (relatively speaking) notifications.  we'll do this ugly count for now
         //until it becomes an issue
-        var (results, _) = await db.AppNotificationsCached.PagingByCreatedAsync(int.MaxValue, null, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var (results, _) = await db.AppNotificationsCached.PagingByCreatedAsync(int.MaxValue, null);
 
         var list = results.Select(r => new AppNotification()
         {
@@ -138,7 +138,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         foreach (var update in request.Updates)
         {
-            var record = await db.AppNotificationsCached.GetAsync(update.Id, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var record = await db.AppNotificationsCached.GetAsync(update.Id);
             if (null != record)
             {
                 record.unread = update.Unread ? 1 : 0;

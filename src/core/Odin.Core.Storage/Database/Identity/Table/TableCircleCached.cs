@@ -44,12 +44,12 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
 
     //
 
-    public async Task<CircleRecord?> GetAsync(Guid circleId, TimeSpan ttl)
+    public async Task<CircleRecord?> GetAsync(Guid circleId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetCacheKey(circleId),
             _ => table.GetAsync(circleId),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 
@@ -81,12 +81,12 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
     public async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(
         int count,
         Guid? inCursor,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + inCursor,
             _ => table.PagingByCircleIdAsync(count, inCursor),
-            ttl,
+            ttl ?? DefaultTtl,
             PagingByCircleIdTags);
 
         return result;

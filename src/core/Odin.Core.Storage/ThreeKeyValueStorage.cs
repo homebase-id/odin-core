@@ -27,7 +27,7 @@ public class ThreeKeyValueStorage
 
     public async Task<T> GetAsync<T>(TableKeyThreeValueCached tblKeyThreeValue, Guid key) where T : class
     {
-        var bytes = await tblKeyThreeValue.GetAsync(MakeStorageKey(key), TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var bytes = await tblKeyThreeValue.GetAsync(MakeStorageKey(key));
 
         if (null == bytes)
         {
@@ -51,7 +51,7 @@ public class ThreeKeyValueStorage
 
     public async Task<IEnumerable<T>> GetByDataTypeAsync<T>(TableKeyThreeValueCached tblKeyThreeValue, byte[] dataType) where T : class
     {
-        var list = await tblKeyThreeValue.GetByKeyTwoAsync(dataType, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var list = await tblKeyThreeValue.GetByKeyTwoAsync(dataType);
 
         if (null == list)
         {
@@ -63,7 +63,7 @@ public class ThreeKeyValueStorage
 
     public async Task<IEnumerable<T>> GetByCategoryAsync<T>(TableKeyThreeValueCached tblKeyThreeValue, byte[] categoryKey) where T : class
     {
-        var list = await tblKeyThreeValue.GetByKeyThreeAsync(categoryKey, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var list = await tblKeyThreeValue.GetByKeyThreeAsync(categoryKey);
         if (null == list)
         {
             return new List<T>();
@@ -74,7 +74,7 @@ public class ThreeKeyValueStorage
 
     public async Task<IEnumerable<T>> GetByKey2And3Async<T>(TableKeyThreeValueCached tblKeyThreeValue, byte[] dataTypeKey, byte[] categoryKey) where T : class
     {
-        var list = await tblKeyThreeValue.GetByKeyTwoThreeAsync(dataTypeKey, categoryKey, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var list = await tblKeyThreeValue.GetByKeyTwoThreeAsync(dataTypeKey, categoryKey);
 
         if (null == list)
         {

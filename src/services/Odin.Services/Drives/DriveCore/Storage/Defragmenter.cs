@@ -60,7 +60,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 return cache[fileId]; // May return null, which means the recond wasn't in the DB
             }
 
-            var record = await identityDatabase.DriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMinutes(10));
+            var record = await identityDatabase.DriveMainIndexCached.GetAsync(driveId, fileId);
 
             if (record == null)
                 cache.Add(fileId, null);
@@ -187,7 +187,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (folders.Length == 0)
                 return;
 
-            var (drives, _, _) = await identityDatabase.Drives.GetList(int.MaxValue, null);
+            var (drives, _, _) = await identityDatabase.DrivesCached.GetList(int.MaxValue, null);
 
             logger.LogDebug($"{logPrefix} STATUS - {folders.Length} directories; {drives.Count} rows");
 
@@ -468,7 +468,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             await VerifyDriveDirectoriesTemp(cleanup);
             await VerifyDriveDirectoriesPayloads(cleanup);
 
-            var (drives, _, _) = await identityDatabase.Drives.GetList(int.MaxValue, null);
+            var (drives, _, _) = await identityDatabase.DrivesCached.GetList(int.MaxValue, null);
             foreach (var drive in drives)
             {
                 ValidateDriveDirectories(drive.DriveId, cleanup);
@@ -519,7 +519,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var driveId = targetDrive.Alias;
             var storageDrive = await driveManager.GetDriveAsync(driveId);
 
-            var batch = await identityDatabase.DriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromMinutes(10));
+            var batch = await identityDatabase.DriveMainIndexCached.GetAllByDriveIdAsync(driveId);
 
             logger.LogDebug("Defragmenting drive {driveName}.", driveId);
 
@@ -720,7 +720,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     // This will also update the byteCount row, so we 
                     // don't need to call UpdateByteCountAsync() below
                     await identityDatabase.DriveMainIndexCached.RawUpdateAsync(driveMainIndexRecord);
-                    var sanityRecord = await identityDatabase.DriveMainIndexCached.GetAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+                    var sanityRecord = await identityDatabase.DriveMainIndexCached.GetAsync(driveMainIndexRecord.driveId, driveMainIndexRecord.fileId);
                     var sanityDatabaseBytes = DriveQuery.SizeOfDriveMainIndexRecord(sanityRecord);
                     if (sanityDatabaseBytes != headerBytes)
                     {

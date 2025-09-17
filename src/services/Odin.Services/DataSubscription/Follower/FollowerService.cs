@@ -177,7 +177,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await db.FollowsMeCached.GetAllFollowersAsync(DefaultMax(max), cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetAllFollowersAsync(DefaultMax(max), cursor);
 
             var result = new CursoredResult<string>()
             {
@@ -201,7 +201,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
             var result = new CursoredResult<OdinId>
             {
                 Cursor = nextCursor,
@@ -218,7 +218,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -236,7 +236,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var (dbResults, nextCursor) = await db.ImFollowingCached.GetAllFollowersAsync(DefaultMax(max), cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.ImFollowingCached.GetAllFollowersAsync(DefaultMax(max), cursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -256,7 +256,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await db.ImFollowingCached.GetFollowersAsync(DefaultMax(max), driveAlias, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.ImFollowingCached.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -560,7 +560,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetIdentityIFollowInternalAsync(OdinId odinId)
         {
-            var dbRecords = await db.ImFollowingCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var dbRecords = await db.ImFollowingCached.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
@@ -599,7 +599,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternalAsync(OdinId odinId)
         {
-            var dbRecords = await db.FollowsMeCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var dbRecords = await db.FollowsMeCached.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
