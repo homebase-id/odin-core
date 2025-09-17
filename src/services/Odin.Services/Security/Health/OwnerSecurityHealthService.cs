@@ -63,6 +63,20 @@ public class OwnerSecurityHealthService(
         odinContext.Caller.AssertHasMasterKey();
 
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
+        var recoveryEmail = await recoveryService.GetRecoveryEmail();
+
+
+        if (package == null)
+        {
+            return new RecoveryInfo
+            {
+                IsConfigured = false,
+                ConfigurationUpdated = null,
+                Email = recoveryEmail,
+                Status = null,
+                RecoveryRisk = null
+            };
+        }
 
         PeriodicSecurityHealthCheckStatus healthCheckStatus;
         if (live)
@@ -78,7 +92,9 @@ public class OwnerSecurityHealthService(
 
         return new RecoveryInfo()
         {
-            Email = await recoveryService.GetRecoveryEmail(),
+            IsConfigured = true,
+            ConfigurationUpdated = package.Updated,
+            Email = recoveryEmail,
             Status = await GetVerificationStatusInternalAsync(),
             RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)
         };
