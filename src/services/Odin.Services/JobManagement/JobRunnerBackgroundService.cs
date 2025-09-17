@@ -57,8 +57,9 @@ public class JobRunnerBackgroundService(
         {
             return TimeSpan.Zero;
         }
-        
-        return nextRunTime - now;
+
+        var duration = nextRunTime - now;
+        return duration > MaxSleepDuration ? MaxSleepDuration : duration;
     }
     
     //
