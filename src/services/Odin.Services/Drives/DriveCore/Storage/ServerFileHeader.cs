@@ -128,6 +128,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public void Validate(IOdinContext odinContext)
         {
             FileMetadata?.Validate(odinContext.Tenant);
+            if (FileMetadata != null && FileMetadata.File.IsValid())
+            {
+                throw new OdinSystemException("FileMetadata.File is not valid");
+            }
+
             ServerMetadata?.Validate();
 
             // TODO possibly validate the EncryptedKeyHeader here

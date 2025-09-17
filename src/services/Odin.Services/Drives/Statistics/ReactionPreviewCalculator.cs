@@ -97,6 +97,13 @@ public class ReactionPreviewCalculator(
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview)
     {
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
+        {
+            logger.LogWarning("ReactionPreviewCalculator.HandleFileDeleted -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
+            return; 
+        }
+        
         if (targetFileReactionPreview.TotalCommentCount > 0)
         {
             targetFileReactionPreview.TotalCommentCount--;
@@ -114,6 +121,13 @@ public class ReactionPreviewCalculator(
     private void HandleFileModified(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview, IOdinContext odinContext)
     {
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
+        {
+            logger.LogWarning("ReactionPreviewCalculator.HandleFileModified -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
+            return; 
+        }
+        
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
 
@@ -145,6 +159,13 @@ public class ReactionPreviewCalculator(
     private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview,
         IOdinContext odinContext)
     {
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
+        {
+            logger.LogWarning("ReactionPreviewCalculator.HandleFileAdded -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
+            return; 
+        }
+        
         //Always increment even if we don't store the contents
         targetFileReactionPreview.TotalCommentCount++;
 
@@ -163,7 +184,8 @@ public class ReactionPreviewCalculator(
 
             return;
         }
-        
+
+      
 
         var isEncrypted = updatedFileHeader.FileMetadata.IsEncrypted;
         targetFileReactionPreview.Comments.Add(new CommentPreview()
