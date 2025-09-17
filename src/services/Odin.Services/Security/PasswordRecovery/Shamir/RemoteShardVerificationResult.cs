@@ -18,23 +18,22 @@ public class ShardVerificationResult
 public enum ShardTrustLevel
 {
     /// <summary>
-    /// Active recently
+    /// Slightly stale, below medium trust.
     /// </summary>
-    Thumbsup,
+    Low = 0,
 
     /// <summary>
-    /// Slightly stale
+    /// Worrisome, medium trust level.
     /// </summary>
-    TheSideEye,
+    Medium = 1,
 
     /// <summary>
-    /// Worrisome
+    /// Active recently, highest confidence.
     /// </summary>
-    Warning,
+    High = 2,
 
     /// <summary>
-    /// Very stale or unknown
-    /// https://www.youtube.com/watch?v=MGQ_Lifd-Wg (boots and cats boots and cats)
+    /// Very stale or unknown, critical concern.
     /// </summary>
-    RedAlert
+    Critical = 3
 }

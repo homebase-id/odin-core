@@ -135,14 +135,17 @@ public class ShamirConfigurationService(
         {
             IsValid = false,
             Created = UnixTimeUtc.Now(),
-            TrustLevel = ShardTrustLevel.RedAlert
+            TrustLevel = ShardTrustLevel.Critical
         };
     }
 
     /// <summary>
     /// Verifies the shard given to this identity from a dealer
     /// </summary>
-    public async Task<ShardVerificationResult> VerifyDealerShard(Guid shardId, Guid recoveryEmailHash, IOdinContext odinContext)
+    public async Task<ShardVerificationResult> VerifyDealerShard(
+        Guid shardId,
+        Guid recoveryEmailHash,
+        IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsAuthenticated();
 
@@ -150,33 +153,36 @@ public class ShamirConfigurationService(
         var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
 
         var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
-        var trustLevel = ShardTrustLevel.RedAlert;
+        var trustLevel = ShardTrustLevel.Critical; // default = worst case
+
         if (lastSeen.HasValue)
         {
             var now = DateTime.UtcNow;
             var elapsed = now - lastSeen.Value.ToDateTime();
+
             if (elapsed < TimeSpan.FromDays(14))
             {
-                trustLevel = ShardTrustLevel.Thumbsup;
+                trustLevel = ShardTrustLevel.High;
             }
             else if (elapsed < TimeSpan.FromDays(30))
             {
-                trustLevel = ShardTrustLevel.TheSideEye;
+                trustLevel = ShardTrustLevel.Low;
             }
             else if (elapsed < TimeSpan.FromDays(90))
             {
-                trustLevel = ShardTrustLevel.Warning;
+                trustLevel = ShardTrustLevel.Medium;
             }
+            // otherwise remains Critical
         }
 
-        return new ShardVerificationResult()
+        return new ShardVerificationResult
         {
             IsValid = isValid,
             TrustLevel = trustLevel,
             Created = shard?.Created ?? 0
         };
     }
-
+    
     public async Task<DealerShardConfig> GetRedactedConfig(IOdinContext odinContext)
     {
         var package = await this.GetDealerShardPackage(odinContext);

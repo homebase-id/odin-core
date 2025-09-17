@@ -5,13 +5,11 @@ using Odin.Services.Security.PasswordRecovery.Shamir;
 namespace Odin.Services.Security.Health.RiskAnalyzer;
 
 /// <summary>
-/// GPT generated analyzer I'm exploring
+/// Analyzer for evaluating dealer shard health and recovery risk.
 /// </summary>
 public static class DealerShardAnalyzer
 {
-    public static DealerRecoveryRiskReport Analyze(
-        DealerShardPackage dealerPackage,
-        PeriodicSecurityHealthCheckStatus healthStatus)
+    public static DealerRecoveryRiskReport Analyze(DealerShardPackage dealerPackage, PeriodicSecurityHealthCheckStatus healthStatus)
     {
         if (dealerPackage == null || healthStatus == null)
         {
@@ -28,11 +26,10 @@ public static class DealerShardAnalyzer
 
         var allResults = new List<PlayerShardHealthResult>();
 
-        // Drive this by the dealer package because it is the source of true
+        // Drive this by the dealer package because it is the source of truth
         foreach (var envelope in dealerPackage.Envelopes)
         {
-            var playerResult = healthStatus.Players
-                .FirstOrDefault(p => p.Player.OdinId == envelope.Player.OdinId);
+            var playerResult = healthStatus.Players.FirstOrDefault(p => p.Player.OdinId == envelope.Player.OdinId);
 
             if (playerResult != null)
             {
@@ -46,15 +43,24 @@ public static class DealerShardAnalyzer
                     Player = envelope.Player,
                     IsValid = false,
                     ShardId = envelope.ShardId,
-                    TrustLevel = ShardTrustLevel.RedAlert,
+                    TrustLevel = ShardTrustLevel.Critical,
                     IsMissing = true
                 });
             }
         }
 
-        var validCount = allResults.Count(p => !p.IsMissing && p.IsValid);
-        var isRecoverable = validCount >= dealerPackage.MinMatchingShards;
-        var risk = EvaluateRisk(validCount, dealerPackage.MinMatchingShards, allResults);
+        // Apply the "valid shard" definition:
+        // Verified AND ((delegate + reachable identity) OR automatic)
+        int validCount = allResults.Count(p =>
+            !p.IsMissing &&
+            p.IsValid &&
+            (
+                (p.Player.Type == PlayerType.Delegate && IsReachable(p.TrustLevel)) ||
+                p.Player.Type == PlayerType.Automatic
+            ));
+
+        bool isRecoverable = validCount >= dealerPackage.MinMatchingShards;
+        var risk = EvaluateRisk(validCount, dealerPackage.MinMatchingShards);
 
         return new DealerRecoveryRiskReport
         {
@@ -67,27 +73,23 @@ public static class DealerShardAnalyzer
         };
     }
 
-    private static RecoveryRiskLevel EvaluateRisk(
-        int validCount,
-        int minRequired,
-        List<PlayerShardHealthResult> players)
+    private static RecoveryRiskLevel EvaluateRisk(int validCount, int minRequired)
     {
         if (validCount < minRequired)
-            return RecoveryRiskLevel.Critical;
+            return RecoveryRiskLevel.Critical; // Not possible
 
-        // Enough shards, but check trust levels
-        if (players.Any(p => p.IsMissing))
-            return RecoveryRiskLevel.Critical; // missing shards is worst case
-
-        if (players.Any(p => p.TrustLevel == ShardTrustLevel.RedAlert))
+        if (validCount == minRequired)
             return RecoveryRiskLevel.High;
 
-        if (players.Any(p => p.TrustLevel == ShardTrustLevel.Warning))
-            return RecoveryRiskLevel.High;
-
-        if (players.Any(p => p.TrustLevel == ShardTrustLevel.TheSideEye))
-            return RecoveryRiskLevel.Moderate;
+        if (validCount == minRequired + 1)
+            return RecoveryRiskLevel.Moderate; // Medium
 
         return RecoveryRiskLevel.Low;
+    }
+
+    private static bool IsReachable(ShardTrustLevel trust)
+    {
+        // Reachable identity = Medium or High
+        return trust >= ShardTrustLevel.Medium;
     }
 }
