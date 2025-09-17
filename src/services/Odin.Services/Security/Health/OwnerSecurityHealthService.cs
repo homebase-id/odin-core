@@ -174,7 +174,7 @@ public class OwnerSecurityHealthService(
         };
     }
 
-    private async Task<VerificationStatus> UpdateVerificationStatusInternalAsync(bool updatePasswordLastVerified = false,
+    private async Task UpdateVerificationStatusInternalAsync(bool updatePasswordLastVerified = false,
         bool updateRecoveryKeyLastVerified = false)
     {
         var status = await GetVerificationStatusInternalAsync();
@@ -190,6 +190,5 @@ public class OwnerSecurityHealthService(
         }
 
         await VerificationStatusStorage.UpsertAsync(keyValueTable, VerificationStorageId, status);
-        return status;
     }
 }

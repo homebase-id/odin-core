@@ -58,6 +58,7 @@ public sealed class SecurityHealthCheckBackgroundService(
 
 #if DEBUG
         await service.UpdateHealthCheck(odinContext);
+#else
         var status = await service.GetRecoveryInfo(false, odinContext);
         var lastUpdated = status.RecoveryRisk.HealthLastChecked?.ToDateTime();
         if (lastUpdated == null || lastUpdated < DateTime.UtcNow.AddDays(-30))
