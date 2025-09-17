@@ -205,12 +205,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public void Validate(OdinId tenant)
         {
-
-            if (!File.IsValid())
-            {
-                throw new OdinSystemException("FileMetadata.File is not valid");
-            }
-
+            File.Validate();
             ReactionPreview?.Validate();
 
             if (!string.IsNullOrEmpty(SenderOdinId))
