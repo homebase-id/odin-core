@@ -124,9 +124,11 @@ public class ReactionPreviewCalculator(
             logger.LogWarning("Skipping adding comment to comment preview due to max " +
                               "size.  Comment content Size: {len}.  Max Preview: {max}",
                 len, CommentPreview.MaxContentLength);
+
+            return;
         }
 
-        if (idx > -1 && !shouldSkip)
+        if (idx > -1)
         {
             targetFileReactionPreview.Comments[idx] = new CommentPreview()
             {
@@ -150,6 +152,18 @@ public class ReactionPreviewCalculator(
         {
             return;
         }
+        
+        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
+        var shouldSkip = len > CommentPreview.MaxContentLength;
+        if (shouldSkip)
+        {
+            logger.LogWarning("Skipping adding comment to comment preview due to max " +
+                              "size.  Comment content Size: {len}.  Max Preview: {max}",
+                len, CommentPreview.MaxContentLength);
+
+            return;
+        }
+        
 
         var isEncrypted = updatedFileHeader.FileMetadata.IsEncrypted;
         targetFileReactionPreview.Comments.Add(new CommentPreview()
