@@ -127,8 +127,6 @@ public abstract class OutboxWorkerBase(
             Guid? overrideGlobalTransitId = null,
             DataSource datasourceOverride = null)
     {
-        // header.FileMetadata.Validate(odinContext.Tenant);
-        
         var sourceMetadata = header.FileMetadata;
 
         var file = header.FileMetadata.File;
