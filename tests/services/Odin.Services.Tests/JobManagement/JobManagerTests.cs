@@ -18,6 +18,7 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
+using Odin.Core.Time;
 using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
@@ -847,8 +848,11 @@ public class JobManagerTests
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _container.Resolve<IJobManager>();
 
+        var dt = DateTimeOffset.UtcNow.AddMinutes(1);
+        var schedule = new JobSchedule { RunAt = dt };
+
         var job1 = _container.Resolve<JobWithHashTest>();
-        var jobId1 = await jobManager.ScheduleJobAsync(job1);
+        var jobId1 = await jobManager.ScheduleJobAsync(job1, schedule);
 
         // Act
         var job2 = _container.Resolve<JobWithHashTest>();
@@ -975,7 +979,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
@@ -1107,7 +1111,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);

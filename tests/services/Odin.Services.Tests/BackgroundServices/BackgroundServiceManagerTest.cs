@@ -222,7 +222,7 @@ public class BackgroundServiceManagerTest
             {
                 for (var i = 0; i < serviceCount; i++)
                 {
-                    manager.PulseBackgroundProcessor($"instance{i*(iteration+1)}");
+                    await manager.PulseBackgroundProcessorAsync($"instance{i*(iteration+1)}");
                 }
                 await Task.Delay(200);
             }
@@ -274,7 +274,7 @@ public class BackgroundServiceManagerTest
         await Task.Delay(200);
         ClassicAssert.AreEqual(1, service.Counter);
         
-        manager.PulseBackgroundProcessor("foo");
+        await manager.PulseBackgroundProcessorAsync("foo");
         await Task.Delay(200);
         
         ClassicAssert.AreEqual(2, service.Counter);
@@ -444,7 +444,7 @@ public class BackgroundServiceManagerTest
 
          var otherService = _container.Resolve<PulseTestBackgroundService>();
          var trigger = _container.Resolve<IBackgroundServiceTrigger<PulseTestBackgroundService>>();
-         trigger.PulseBackgroundProcessor();
+         await trigger.PulseBackgroundProcessorAsync();
          await Task.Delay(100);
          ClassicAssert.True(service.Pulsed);
          ClassicAssert.False(otherService.Pulsed);

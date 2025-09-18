@@ -25,8 +25,8 @@ public interface IBackgroundServiceManager
     Task StopAsync<T>();
     Task StopAllAsync();
     Task ShutdownAsync();
-    void PulseBackgroundProcessor(string serviceIdentifier);
-    void PulseBackgroundProcessor<T>();
+    Task PulseBackgroundProcessorAsync(string serviceIdentifier);
+    Task PulseBackgroundProcessorAsync<T>();
 }
 
 //
@@ -172,27 +172,28 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     //
 
-    public void PulseBackgroundProcessor(string serviceIdentifier)
+    public async Task PulseBackgroundProcessorAsync(string serviceIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
 
         ScopedAbstractBackgroundService? backgroundService;
-        using (_lock.ReaderLock())
+        using (await _lock.ReaderLockAsync())
         {
             _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
         }
 
         // This fixes a race condition during startup where one background service can pulse
         // another background service that hasn't started yet.
+        // It has to be async or we risk serializing the startup of all background services.
         if (backgroundService == null)
         {
-            TryRetry.Create()
+            await TryRetry.Create()
                 .WithAttempts(30)
                 .WithDelay(TimeSpan.FromSeconds(1))
                 .WithCancellation(_stoppingCts.Token)
-                .Execute(() =>
+                .ExecuteAsync(async () =>
                 {
-                    using (_lock.ReaderLock())
+                    using (await _lock.ReaderLockAsync())
                     {
                         if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
                         {
@@ -211,9 +212,9 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     //
 
-    public void PulseBackgroundProcessor<T>()
+    public Task PulseBackgroundProcessorAsync<T>()
     {
-        PulseBackgroundProcessor(typeof(T).Name);
+        return PulseBackgroundProcessorAsync(typeof(T).Name);
     }
 
     //

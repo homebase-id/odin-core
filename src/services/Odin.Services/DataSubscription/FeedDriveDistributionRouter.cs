@@ -110,7 +110,7 @@ namespace Odin.Services.DataSubscription
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, rpi);
                     }
 
-                    _backgroundServiceTrigger.PulseBackgroundProcessor();
+                    await _backgroundServiceTrigger.PulseBackgroundProcessorAsync();
                 }
                 else
                 {
@@ -119,7 +119,7 @@ namespace Odin.Services.DataSubscription
                         if (isCollaborationChannel)
                         {
                             await DistributeToCollaborativeChannelMembers(notification, rpi);
-                            _backgroundServiceTrigger.PulseBackgroundProcessor();
+                            await _backgroundServiceTrigger.PulseBackgroundProcessorAsync();
                             return;
                         }
                     }
@@ -137,7 +137,7 @@ namespace Odin.Services.DataSubscription
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, rpi);
-                        _backgroundServiceTrigger.PulseBackgroundProcessor();
+                        await _backgroundServiceTrigger.PulseBackgroundProcessorAsync();
                     }
                 }
             }
