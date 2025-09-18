@@ -97,26 +97,35 @@ public class ReactionPreviewCalculator(
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview)
     {
-        if (targetFileReactionPreview.TotalCommentCount > 0)
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
         {
-            targetFileReactionPreview.TotalCommentCount--;
+            logger.LogWarning("ReactionPreviewCalculator.HandleFileDeleted -> FileId is Empty guid; proceeding to check comments. Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
         }
-
+   
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
-
+        
         if (idx > -1)
         {
             targetFileReactionPreview.Comments.RemoveAt(idx);
+            if (targetFileReactionPreview.TotalCommentCount > 0)
+            {
+                targetFileReactionPreview.TotalCommentCount--;
+            }
         }
     }
 
     private void HandleFileModified(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview, IOdinContext odinContext)
     {
-        var idx = targetFileReactionPreview.Comments.FindIndex(c =>
-            c.FileId == updatedFileHeader.FileMetadata.File.FileId);
-
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
+        {
+            logger.LogError("ReactionPreviewCalculator.HandleFileModified -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
+            return; 
+        }
+        
         var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
         var shouldSkip = len > CommentPreview.MaxContentLength;
         if (shouldSkip)
@@ -128,6 +137,8 @@ public class ReactionPreviewCalculator(
             return;
         }
 
+        var idx = targetFileReactionPreview.Comments.FindIndex(c =>
+            c.FileId == updatedFileHeader.FileMetadata.File.FileId);
         if (idx > -1)
         {
             targetFileReactionPreview.Comments[idx] = new CommentPreview()
@@ -145,6 +156,13 @@ public class ReactionPreviewCalculator(
     private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview,
         IOdinContext odinContext)
     {
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
+        {
+            logger.LogError("ReactionPreviewCalculator.HandleFileAdded -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
+            return; 
+        }
+        
         //Always increment even if we don't store the contents
         targetFileReactionPreview.TotalCommentCount++;
 
@@ -163,7 +181,6 @@ public class ReactionPreviewCalculator(
 
             return;
         }
-        
 
         var isEncrypted = updatedFileHeader.FileMetadata.IsEncrypted;
         targetFileReactionPreview.Comments.Add(new CommentPreview()
