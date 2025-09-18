@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -449,7 +450,7 @@ namespace Odin.Services.DataSubscription.Follower
 
             var newFileMetadata = new FileMetadata()
             {
-                File = default,
+                File = new InternalDriveFileId() { DriveId = channelId, FileId = Guid.NewGuid()},
                 GlobalTransitId = fm.GlobalTransitId,
                 ReferencedFile = fm.ReferencedFile,
                 AppData = fm.AppData,
