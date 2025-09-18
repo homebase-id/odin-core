@@ -9,9 +9,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 public class PeerOutboxProcessorMediatorAdapter(IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger)
     : INotificationHandler<OutboxItemAddedNotification>
 {
-    public Task Handle(OutboxItemAddedNotification notification, CancellationToken cancellationToken)
+    public async Task Handle(OutboxItemAddedNotification notification, CancellationToken cancellationToken)
     {
-        backgroundServiceTrigger.PulseBackgroundProcessor();
-        return Task.CompletedTask;
+        await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
     }
 }

@@ -18,6 +18,7 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
+using Odin.Core.Time;
 using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
@@ -838,9 +839,9 @@ public class JobManagerTests
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
-#if RUN_POSTGRES_TESTS
+    #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
-#endif
+    #endif
     public async Task ItShouldScheduleUniqueJob(DatabaseType databaseType)
     {
         // Arrange
@@ -991,7 +992,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
@@ -1123,7 +1124,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
