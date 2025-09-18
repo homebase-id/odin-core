@@ -450,7 +450,6 @@ namespace Odin.Services.DataSubscription.Follower
 
             var newFileMetadata = new FileMetadata()
             {
-                File = new InternalDriveFileId() { DriveId = channelId, FileId = Guid.NewGuid()},
                 GlobalTransitId = fm.GlobalTransitId,
                 ReferencedFile = fm.ReferencedFile,
                 AppData = fm.AppData,
@@ -490,19 +489,21 @@ namespace Odin.Services.DataSubscription.Follower
                 }
             }
 
-            if (!newFileMetadata.TryValidate(odinContext.Tenant, out var exception))
-            {
-                logger.LogWarning("Skipping sync of file with GlobalTransitId:{gtid} " +
-                                  "from identity:{id} on driveId:{driveId}; " +
-                                  "Validation failed: {message}",
-                    newFileMetadata.GlobalTransitId,
-                    identityIFollow,
-                    channelId,
-                    exception.Message);
-
-
-                return;
-            }
+            // Wrong place to check - File might be EMPTY. Validate() will run before saving the item
+            // IF YOU NEED TO CHECK it should happen AFTER assigning the FileID / twice in the if statement
+            // one for each
+            //
+            // if (!newFileMetadata.TryValidate(odinContext.Tenant, out var exception))
+            // {
+            //     logger.LogWarning("Skipping sync of file with GlobalTransitId:{gtid} " +
+            //                       "from identity:{id} on driveId:{driveId}; " +
+            //                       "Validation failed: {message}",
+            //         newFileMetadata.GlobalTransitId,
+            //         identityIFollow,
+            //         channelId,
+            //         exception.Message);
+            //     return;
+            // }
 
             var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(
                 SystemDriveConstants.FeedDrive.Alias,
@@ -510,6 +511,9 @@ namespace Odin.Services.DataSubscription.Follower
 
             if (null == existingFile)
             {
+                // TODD CHECK!!!
+                newFileMetadata.File = new InternalDriveFileId() { DriveId = SystemDriveConstants.FeedDrive.Alias, FileId = Guid.NewGuid() };
+
                 logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
                     newFileMetadata.GlobalTransitId.GetValueOrDefault(),
                     newFileMetadata.AppData.UniqueId.GetValueOrDefault());
