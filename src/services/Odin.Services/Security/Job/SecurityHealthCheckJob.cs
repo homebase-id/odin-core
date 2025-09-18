@@ -68,15 +68,16 @@ public class SecurityHealthCheckJob(
             stickyHostnameContext.Hostname = $"{Data.Tenant}&";
             
             await RunHealthCheck(scope);
+
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Version Upgrade Job railed to run");
+            logger.LogError(e, $"{nameof(SecurityHealthCheckJob)} Job railed to run");
             return JobExecutionResult.Fail();
         }
 
-        // do the thing
-        return JobExecutionResult.Success();
+        return JobExecutionResult.Reschedule(DateTimeOffset.UtcNow.AddDays(30));
+
     }
 
     public override string? CreateJobHash()
