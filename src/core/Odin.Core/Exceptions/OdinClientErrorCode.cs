@@ -6,6 +6,9 @@ public enum OdinClientErrorCode
     UnhandledScenario = 1,
     ArgumentError = 2,
 
+    // general input errors
+    InvalidEmail = 10,
+    
     // Auth Errors 10xx
     InvalidAuthToken = 1001,
     SharedSecretEncryptionIsInvalid = 1002,

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -506,6 +507,34 @@ namespace Odin.Hosting.Tests
             var logEvents = GetLogEvents();
             var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
             ClassicAssert.IsTrue(expectedEvent.Count() == count);
+        }
+        
+        public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel,
+            TimeSpan? maxWaitTime = null)
+        {
+            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+
+            var sw = Stopwatch.StartNew();
+            while (true)
+            {
+                var infoEvents = logEvents[logLevel];
+                foreach (var infoEvent in infoEvents)
+                {
+                    if (infoEvent.Properties.TryGetValue(propertyName, out var value))
+                    {
+                        return value?.ToString();
+                    }
+                }
+
+                if (sw.Elapsed > maxWait)
+                {
+                    throw new TimeoutException($"Failed waiting to find log property {propertyName} in logLevel {logLevel}");
+                }
+
+                await Task.Delay(100);
+            }
         }
     }
 }

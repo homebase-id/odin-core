@@ -12,6 +12,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Security;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {

@@ -2,6 +2,8 @@
 using System.Threading.Tasks;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
+using Odin.Services.Security;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement

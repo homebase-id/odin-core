@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Peer;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
 {
@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
         [HttpPost("verify-shard")]
         public async Task<IActionResult> VerifyShard(VerifyShardRequest request)
         {
-            var result = await configurationService.VerifyDealerShard(request.ShardId, WebOdinContext);
+            var result = await configurationService.VerifyDealerShard(request.ShardId, request.RecoveryEmailHash, WebOdinContext);
             return Ok(result);
         }
 
