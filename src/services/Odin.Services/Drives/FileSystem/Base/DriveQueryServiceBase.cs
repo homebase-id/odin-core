@@ -318,10 +318,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (null == record)
             {
-                // SEB:TODO delete me:
-                _logger.LogDebug("GetByGlobalTransitIdAsync returned null for globalTransitId {gtid} on drive {drive}",
-                    file.GlobalTransitId,
-                    driveId);
                 return null;
             }
 
