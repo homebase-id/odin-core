@@ -15,7 +15,8 @@ namespace Odin.Core.Storage.Database;
 
 public abstract class AbstractTableCaching(ITransactionalCacheFactory cacheFactory, string keyPrefix, string rootInvalidationTag)
 {
-    protected static readonly TimeSpan DefaultTtl = TimeSpan.FromHours(2);
+    // protected static readonly TimeSpan DefaultTtl = TimeSpan.FromHours(2);
+    protected static readonly TimeSpan DefaultTtl = TimeSpan.FromMilliseconds(100);
     protected readonly TransactionalCache Cache = cacheFactory.Create(keyPrefix, rootInvalidationTag);
 
     public long Hits => Cache.Hits;
