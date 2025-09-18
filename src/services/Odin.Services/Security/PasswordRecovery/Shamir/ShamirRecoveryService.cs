@@ -147,7 +147,6 @@ public class ShamirRecoveryService
             State = ShamirRecoveryState.AwaitingSufficientDelegateConfirmation
         });
 
-
         var hashedRecoveryEmail = await _passwordKeyRecoveryService.GetHashedRecoveryEmail();
         //TODO: move this to an outbox call
 

@@ -48,11 +48,20 @@ public class ShamirConfigurationService(
     private const string ContextKey = "078e018e-e6b3-4349-b635-721b43d35241";
     private static readonly SingleKeyValueStorage Storage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ContextKey));
 
+    public const int MinimumPlayerCount = 3;
+    public const int MinimumMatchingShardsOffset = 1;
+
     public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(players, nameof(players));
-        OdinValidationUtils.AssertIsTrue(players.Count >= 3, "You need at least 3 players");
+        OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount, $"You need at least {MinimumPlayerCount} trusted connections");
         OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
+
+        var minAllowedShards = players.Count - MinimumMatchingShardsOffset;
+        OdinValidationUtils.AssertIsTrue(minShards >= minAllowedShards, "The minimum number of matching shards must be " +
+                                                                        $"at least {minAllowedShards} since you have {players.Count} " +
+                                                                        $"trusted connections selected");
+
         OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
 
         var hashedRecoveryEmail = await passwordKeyRecoveryService.GetHashedRecoveryEmail();
@@ -182,7 +191,7 @@ public class ShamirConfigurationService(
             Created = shard?.Created ?? 0
         };
     }
-    
+
     public async Task<DealerShardConfig> GetRedactedConfig(IOdinContext odinContext)
     {
         var package = await this.GetDealerShardPackage(odinContext);

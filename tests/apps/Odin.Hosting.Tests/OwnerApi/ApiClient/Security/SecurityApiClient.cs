@@ -69,13 +69,34 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
             return apiResponse;
         }
     }
-    
+
     public async Task<ApiResponse<RemoteShardVerificationResult>> VerifyShards()
     {
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.VerifyShards();
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> EnterRecoveryMode()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.InitiateRecoveryMode();
+            return apiResponse;
+        }
+        
+    }
+
+    public async Task<ApiResponse<HttpContent>> VerifyEnterRecoveryMode(string nonceId)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.VerifyEnterRecoveryMode(nonceId);
             return apiResponse;
         }
     }

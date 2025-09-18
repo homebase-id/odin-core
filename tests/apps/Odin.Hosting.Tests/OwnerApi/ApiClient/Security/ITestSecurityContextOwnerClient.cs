@@ -29,5 +29,15 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
 
         [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-remote-shards")]
         Task<ApiResponse<RemoteShardVerificationResult>> VerifyShards();
+        
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/initiate-recovery-mode")]
+        Task<ApiResponse<HttpContent>> InitiateRecoveryMode();
+        
+        [Post(OwnerApiPathConstants.SecurityRecoveryV1 + "/verify-enter")]
+        Task<ApiResponse<HttpContent>> VerifyEnterRecoveryMode(string nonceId);
+        
+        
+        
+        
     }
 }

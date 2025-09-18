@@ -23,6 +23,11 @@ public class RecoveryEmailer(
     TableNonce nonceTable,
     IJobManager jobManager)
 {
+    /// <summary>
+    /// Uses for integration testing so I can get the nonceId from the log during ShamirPasswordRecoveryTests
+    /// </summary>
+    public const string NoncePropertyName = "nonceId";
+
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
         var record = await nonceTable.PopAsync(nonceId);
@@ -30,9 +35,10 @@ public class RecoveryEmailer(
         {
             throw new OdinClientException("Invalid Nonce");
         }
+
         return record.data;
     }
-    
+
     public async Task EnqueueVerifyNewRecoveryEmailAddress(MailAddress email)
     {
         logger.LogDebug("Enqueueing verify new recovery email address");
@@ -41,13 +47,13 @@ public class RecoveryEmailer(
 
         var tenant = tenantContext.HostOdinId;
         var nonceId = await MakeNonce(email.Address);
-        
+
         var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email", nonceId, "");
-        
+
 #if DEBUG
-        logger.LogInformation("\n\n\n{link}\n\n\n", link);
+        logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
 #endif
-        
+
         var job = jobManager.NewJob<SendEmailJob>();
         job.Data = new SendEmailJobData()
         {
@@ -81,7 +87,7 @@ public class RecoveryEmailer(
             });
         }
     }
-    
+
     public async Task EnqueueVerificationEmail(List<ShamiraPlayer> players, RecoveryEmailType emailType)
     {
         AssertEmailEnabled();
@@ -153,7 +159,7 @@ public class RecoveryEmailer(
             });
         }
     }
-    
+
     private async Task<Guid> MakeNonce(string data = "")
     {
         var nonceId = Guid.NewGuid();
@@ -167,7 +173,7 @@ public class RecoveryEmailer(
         await nonceTable.InsertAsync(r);
         return nonceId;
     }
-    
+
     private void AssertEmailEnabled()
     {
         if (!configuration.Mailgun.Enabled)
@@ -177,7 +183,7 @@ public class RecoveryEmailer(
 #endif
         }
     }
-    
+
     private static string BuildResetUrl(string baseUrl, Guid id, string token)
     {
         // Ensure URL-safe encoding if needed, but since both are hex ("N" format), they're safe

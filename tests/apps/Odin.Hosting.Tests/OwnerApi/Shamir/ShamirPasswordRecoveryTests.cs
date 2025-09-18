@@ -5,7 +5,9 @@ using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Services.Drives;
+using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Serilog.Events;
 
 namespace Odin.Hosting.Tests.OwnerApi.Shamir
 {
@@ -43,14 +45,61 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         }
 
         [Test]
-        [Ignore("dark launched")]
-        public async Task CanDistributeShardsToDelegatePeersAndVerify()
+#if !DEBUG
+        [Ignore("Ignored for release tests due to how we test reovery mode")]
+#endif
+        public async Task CanEnterRecoveryMode()
         {
             List<OdinId> peerIdentities =
             [
                 TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId, TestIdentities.TomBombadil.OdinId
             ];
 
+            await PrepareConnections(peerIdentities);
+
+            await DistributeAndVerifyShards(peerIdentities);
+
+            // enter recovery mode
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+            var enterResponse = await frodo.Security.EnterRecoveryMode();
+            Assert.That(enterResponse.IsSuccessful, Is.True);
+
+            // watch for the recovery links
+            var nonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.NoncePropertyName, LogEventLevel.Information);
+            Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
+
+            var verifyEnterResponse = await frodo.Security.VerifyEnterRecoveryMode(nonceId);
+            Assert.That(verifyEnterResponse.IsSuccessful, Is.True);
+
+
+            
+            // var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
+            // Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+            // var code = configureShardsResponse.Error.ParseProblemDetails();
+            // Assert.That(code, Is.EqualTo(OdinClientErrorCode.InvalidEmail), "should have been bad email due to missing recovery email");
+
+            await CleanupConnections(peerIdentities);
+        }
+
+        private async Task PrepareConnections(List<OdinId> peers)
+        {
+            // Note: no circles
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            foreach (var peer in peers)
+            {
+                var sendConnectionRequestResponse = await frodo.Connections.SendConnectionRequest(peer);
+                Assert.That(sendConnectionRequestResponse.IsSuccessful, Is.True);
+
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var acceptConnectionRequestResponse = await peerOwnerClient.Connections.AcceptConnectionRequest(frodo.OdinId);
+                Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
+            }
+        }
+
+        private async Task DistributeAndVerifyShards(List<OdinId> peerIdentities)
+        {
             await PrepareConnections(peerIdentities);
 
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -62,7 +111,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                     OdinId = d,
                     Type = PlayerType.Delegate
                 }).ToList(),
-                MinMatchingShards = 2
+                MinMatchingShards = 3
             };
 
             var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
@@ -80,62 +129,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(results.Players.All(p => p.Value.IsValid), "one or more players not verified");
 
             await CleanupConnections(peerIdentities);
-        }
-
-        [Test]
-        [Ignore("dark launched")]
-        public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
-        {
-            _scaffold.SetAssertLogEventsAction(logEvents =>
-            {
-                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
-                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-                var error = errorLogs.First();
-                Assert.That(error.MessageTemplate.Text.StartsWith("Failed while creating outbox item"), Is.True);
-            });
-
-            List<OdinId> connectedIdentities =
-            [
-                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId
-            ];
-
-            await PrepareConnections(connectedIdentities);
-
-            // add one who is not connected
-            List<OdinId> peerIdentities = connectedIdentities.Concat([TestIdentities.TomBombadil.OdinId]).ToList();
-
-            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-
-            var shardRequest = new ConfigureShardsRequest
-            {
-                Players = peerIdentities.Select(d => new ShamiraPlayer()
-                {
-                    OdinId = d,
-                    Type = PlayerType.Delegate
-                }).ToList(),
-                MinMatchingShards = 2
-            };
-
-            var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
-            Assert.That(configureShardsResponse.IsSuccessful, Is.False);
-
-            await CleanupConnections(connectedIdentities);
-        }
-
-
-        private async Task PrepareConnections(List<OdinId> peers)
-        {
-            // Note: no circles
-            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-            foreach (var peer in peers)
-            {
-                var sendConnectionRequestResponse = await frodo.Connections.SendConnectionRequest(peer);
-                Assert.That(sendConnectionRequestResponse.IsSuccessful, Is.True);
-
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
-                var acceptConnectionRequestResponse = await peerOwnerClient.Connections.AcceptConnectionRequest(frodo.OdinId);
-                Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
-            }
         }
 
         private async Task CleanupConnections(List<OdinId> peers)
