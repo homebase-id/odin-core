@@ -427,9 +427,12 @@ public class DriveQuery(
 
     public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
     {
+        // SEB:HERE!
+
         var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
         if (null == record)
         {
+            logger.LogWarning("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX GetByGlobalTransitIdAsync {driveId} {globalTransitId} = null", driveId, globalTransitId);
             return null;
         }
 
@@ -438,6 +441,7 @@ public class DriveQuery(
             return record;
         }
 
+        logger.LogWarning("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX GetByGlobalTransitIdAsync {record.fileSystemType} != {fileSystemType}", record.fileSystemType, fileSystemType);
         return null;
     }
 

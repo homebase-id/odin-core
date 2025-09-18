@@ -170,6 +170,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
             {
+                // SEB:HERE!
                 targetAcl = await ResetAclForComment(metadata, odinContext);
             }
             else

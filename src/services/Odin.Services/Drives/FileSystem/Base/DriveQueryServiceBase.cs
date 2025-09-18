@@ -314,6 +314,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             var driveId = file.TargetDrive.Alias;
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
+
+            // SEB:HERE!
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId, GetFileSystemType());
 
             if (null == record)
