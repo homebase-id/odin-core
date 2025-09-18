@@ -261,7 +261,7 @@ public class ScopedConnectionFactory<T>(
 
     public void AddPostRollbackAction(Func<Task> action)
     {
-        using var _ = NoParallelism(nameof(AddPostCommitAction));
+        using var _ = NoParallelism(nameof(AddPostRollbackAction));
 
         // Sanity #1
         if (_transaction == null)
