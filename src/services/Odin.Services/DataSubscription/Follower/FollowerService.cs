@@ -515,7 +515,7 @@ namespace Odin.Services.DataSubscription.Follower
             }
             catch (Exception e)
             {
-                logger.LogWarning("Skipping sync of file with GlobalTransitId:{gtid} " +
+                logger.LogError("Skipping sync of file with GlobalTransitId:{gtid} " +
                                   "from identity:{id} on driveId:{driveId}; " +
                                   "Error: {message}",
                     newFileMetadata.GlobalTransitId,
