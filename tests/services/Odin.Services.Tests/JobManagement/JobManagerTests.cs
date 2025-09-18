@@ -848,17 +848,30 @@ public class JobManagerTests
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _container.Resolve<IJobManager>();
 
-        var dt = DateTimeOffset.UtcNow.AddMinutes(1);
-        var schedule = new JobSchedule { RunAt = dt };
+        var dt1 = DateTimeOffset.UtcNow.AddMinutes(1);
+        var schedule1 = new JobSchedule { RunAt = dt1 };
 
         var job1 = _container.Resolve<JobWithHashTest>();
-        var jobId1 = await jobManager.ScheduleJobAsync(job1, schedule);
+        var jobId1 = await jobManager.ScheduleJobAsync(job1, schedule1);
 
-        // Act
+        {
+            var scheduleJob1 = await jobManager.GetJobAsync<JobWithHashTest>(jobId1);
+            Assert.That(scheduleJob1!.Record!.nextRun.milliseconds, Is.EqualTo(dt1.ToUnixTimeMilliseconds()));
+        }
+
+        var dt2 = DateTimeOffset.UtcNow.AddMinutes(2);
+        var schedule2 = new JobSchedule { RunAt = dt2 };
+
         var job2 = _container.Resolve<JobWithHashTest>();
-        var jobId2 = await jobManager.ScheduleJobAsync(job2);
+        var jobId2 = await jobManager.ScheduleJobAsync(job2, schedule2);
 
         Assert.That(jobId1, Is.EqualTo(jobId2));
+
+        {
+            // Make sure the schedule didn't change
+            var scheduleJob1 = await jobManager.GetJobAsync<JobWithHashTest>(jobId2);
+            Assert.That(scheduleJob1!.Record!.nextRun.milliseconds, Is.EqualTo(dt1.ToUnixTimeMilliseconds()));
+        }
 
         AssertLogEvents();
     }
