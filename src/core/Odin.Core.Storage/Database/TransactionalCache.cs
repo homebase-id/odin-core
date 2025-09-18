@@ -210,6 +210,7 @@ public sealed class TransactionalCache
         if (InDatabaseTransaction)
         {
             _scopedConnectionFactory.AddPostCommitAction(async () => await _cache.RemoveByTagAsync(_rootTag));
+            _scopedConnectionFactory.AddPostRollbackAction(async () => await _cache.RemoveByTagAsync(_rootTag));
         }
         else
         {
@@ -230,10 +231,8 @@ public sealed class TransactionalCache
 
         if (InDatabaseTransaction)
         {
-            _scopedConnectionFactory.AddPostCommitAction(async () =>
-            {
-                await Task.WhenAll(actionsArray.Select(a => a()));
-            });
+            _scopedConnectionFactory.AddPostCommitAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
+            _scopedConnectionFactory.AddPostRollbackAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
         }
         else
         {
