@@ -18,6 +18,7 @@ namespace Odin.Services.Configuration.VersionUpgrade;
 
 //
 
+// ReSharper disable once ClassNeverInstantiated.Global (well, it is done so by DI)
 public class VersionUpgradeJob(
     IMultiTenantContainer tenantContainer,
     ILogger<VersionUpgradeJob> logger) : AbstractJob

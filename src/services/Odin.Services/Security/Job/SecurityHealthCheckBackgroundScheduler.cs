@@ -18,6 +18,7 @@ public sealed class SecurityHealthCheckBackgroundScheduler(
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await SleepAsync(TimeSpan.FromSeconds(5), stoppingToken);
 
 #if !DEBUG
         await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
