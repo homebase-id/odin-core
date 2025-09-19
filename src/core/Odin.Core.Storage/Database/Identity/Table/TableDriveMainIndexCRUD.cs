@@ -786,6 +786,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         _logger.LogWarning("ZZZZZZZZZZZZZ {sql}", get3Command.RenderSqlForDebugging());
                     }
 
+                    _logger.LogWarning("ZZZZZZZZZZZZZ {sql}", get3Command.RenderSqlForDebugging());
+
                     using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)
