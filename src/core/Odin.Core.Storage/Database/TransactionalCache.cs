@@ -205,7 +205,11 @@ public sealed class TransactionalCache
     public Func<Task> CreateRemoveByTagsAction(IEnumerable<string> tags)
     {
         var explicitTags = CombineAllTagsWithoutRoot(tags.ToList());
-        return () => _cache.RemoveByTagAsync(explicitTags).AsTask();
+        return () =>
+        {
+            _logger.LogWarning("ZZZZZZZZZZZZZ RemoveByTagAsync {xx}", string.Join(',', explicitTags));
+            return _cache.RemoveByTagAsync(explicitTags).AsTask();
+        };
     }
     
     //

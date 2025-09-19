@@ -11,12 +11,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions;
 
 public class MainIndexMetaCached : AbstractTableCaching
 {
+    private readonly ILogger<MainIndexMetaCached> _logger;
     private readonly MainIndexMeta _meta;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public MainIndexMetaCached(ILogger<MainIndexMetaCached> logger, MainIndexMeta meta, IIdentityTransactionalCacheFactory cacheFactory)
         : base(cacheFactory, meta.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
+        _logger = logger;
         _meta = meta;
         _cacheKeys = new TableDriveMainIndexCacheKeys(logger, Cache);
     }
@@ -65,6 +67,7 @@ public class MainIndexMetaCached : AbstractTableCaching
             tagIdList,
             useThisNewVersionTag);
 
+        _logger.LogWarning("ZZZZZZZZZZZZZ Invalidating cache for drive {driveId}", driveMainIndexRecord.driveId);
         await InvalidateDriveAsync(driveMainIndexRecord.driveId);
 
         return result;

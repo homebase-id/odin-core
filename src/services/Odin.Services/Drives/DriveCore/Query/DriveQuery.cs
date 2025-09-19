@@ -201,6 +201,7 @@ public class DriveQuery(
 
         try
         {
+            logger.LogWarning("ZZZZZZZZZZZZZ calling BaseUpsertEntryZapZapAsync({id})", driveMainIndexRecord.driveId);
             int n = await metaIndex.BaseUpsertEntryZapZapAsync(driveMainIndexRecord, acl, tags, useThisVersionTag);
             if (n != 1)
                 throw new OdinClientException($"SaveFileHeaderAsync() didn't write database record, n is {n}");
