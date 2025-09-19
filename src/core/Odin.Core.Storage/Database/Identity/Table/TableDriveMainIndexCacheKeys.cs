@@ -62,6 +62,10 @@ internal class TableDriveMainIndexCacheKeys(ILogger logger, TransactionalCache c
 
     internal async Task InvalidateDriveAsync(Guid driveId)
     {
+        if (logger == null)
+        {
+            // ;
+        }
         await cache.InvalidateAsync([
             cache.CreateRemoveByTagsAction(GetDriveIdInvalidationTags(driveId)),
             cache.CreateRemoveByKeyAction(GetTotalSizeAllDrivesCacheKey()),
