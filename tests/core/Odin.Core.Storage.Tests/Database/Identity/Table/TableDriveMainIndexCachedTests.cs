@@ -36,48 +36,20 @@ public class TableDriveMainIndexCachedTests : IocTestBase
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(1));
         }
 
+        var uniqueId = Guid.NewGuid();
+
         {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, null, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(1));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(2));
         }
 
         {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, null, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(2));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(2));
-        }
-
-        var uniqueId = Guid.NewGuid();
-
-        {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
-            Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(2));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(3));
-        }
-
-        {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
-            Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(3));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(3));
-        }
-
-        {
-            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, null, TimeSpan.FromSeconds(1));
-            Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(3));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(4));
-        }
-
-        {
-            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, null, TimeSpan.FromSeconds(1));
-            Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(4));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(4));
         }
 
         var globalTransitId = Guid.NewGuid();
@@ -85,15 +57,15 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(4));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(2));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(3));
         }
 
         {
             var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(3));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(3));
         }
 
         var fileId = Guid.NewGuid();
@@ -101,15 +73,15 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(6));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(3));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(4));
         }
 
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(6));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(4));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(4));
         }
 
         //
@@ -166,36 +138,36 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(7));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(4));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(5));
         }
 
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(7));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(5));
         }
 
         {
             var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromSeconds(1));
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(8));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(6));
         }
 
         {
             var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(9));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(7));
         }
 
         {
             var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(10));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(8));
         }
 
         //
@@ -205,8 +177,8 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(item2.driveId, item2.fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(11));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(9));
         }
 
         await tableDriveMainIndexCached.DeleteAsync(item1.driveId, item1.fileId);
@@ -214,22 +186,22 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(12));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(10));
         }
 
         {
             var record = await tableDriveMainIndexCached.GetAsync(item2.driveId, item2.fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(12));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(10));
         }
 
         {
             var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromSeconds(1));
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(13));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(11));
         }
 
         //
@@ -240,8 +212,8 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(14));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(12));
         }
 
         await tableDriveMainIndexCached.UpsertAllButReactionsAndTransferAsync(item1, Guid.NewGuid());
@@ -249,15 +221,15 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(15));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(13));
         }
 
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(15));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(13));
         }
 
         await tableDriveMainIndexCached.UpdateReactionSummaryAsync(item1.driveId, item1.fileId, "foobar");
@@ -265,8 +237,8 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(16));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(14));
         }
 
         await tableDriveMainIndexCached.UpdateTransferSummaryAsync(item1.driveId, item1.fileId, "abnc");
@@ -274,8 +246,8 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
             Assert.That(record, Is.Not.Null);
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(17));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(15));
         }
 
         //
@@ -286,30 +258,30 @@ public class TableDriveMainIndexCachedTests : IocTestBase
             var (count, size) = await tableDriveMainIndexCached.GetDriveSizeAsync(driveId, TimeSpan.FromSeconds(1));
             Assert.That(count, Is.EqualTo(1));
             Assert.That(size, Is.EqualTo(0));
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(18));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(16));
         }
 
         {
             var (count, size) = await tableDriveMainIndexCached.GetDriveSizeAsync(driveId, TimeSpan.FromSeconds(1));
             Assert.That(count, Is.EqualTo(1));
             Assert.That(size, Is.EqualTo(0));
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(10));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(18));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(16));
         }
 
         {
             var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromSeconds(1));
             Assert.That(size, Is.EqualTo(0));
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(10));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(19));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(17));
         }
 
         {
             var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromSeconds(1));
             Assert.That(size, Is.EqualTo(0));
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(11));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(19));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(17));
         }
 
         await tableDriveMainIndexCached.DeleteAsync(item1.driveId, item1.fileId);
@@ -318,8 +290,8 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         {
             var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromSeconds(1));
             Assert.That(size, Is.EqualTo(0));
-            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(11));
-            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(20));
+            Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
+            Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(18));
         }
     }
 
