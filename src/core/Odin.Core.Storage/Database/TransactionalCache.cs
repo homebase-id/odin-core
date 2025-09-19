@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
@@ -17,13 +18,14 @@ public interface ITransactionalCacheFactory
 }
 
 public abstract class AbstractTransactionalCacheFactory(
+    ILogger logger,
     ILevel2Cache cache,
     ITransactionalCacheStats cacheStats,
     IScopedConnectionFactory scopedConnectionFactory)
 {
     public TransactionalCache Create(string keyPrefix, string rootTag)
     {
-        return new TransactionalCache(cache, cacheStats, scopedConnectionFactory, keyPrefix, rootTag);
+        return new TransactionalCache(logger, cache, cacheStats, scopedConnectionFactory, keyPrefix, rootTag);
     }
 }
 
@@ -37,6 +39,7 @@ public sealed class TransactionalCache
     private long _misses;
     public long Misses => Interlocked.Read(ref _misses);
 
+    private readonly ILogger _logger;
     private readonly ILevel2Cache _cache;
     private readonly ITransactionalCacheStats _cacheStats;
     private readonly IScopedConnectionFactory _scopedConnectionFactory;
@@ -50,6 +53,7 @@ public sealed class TransactionalCache
     //
 
     public TransactionalCache(
+        ILogger logger,
         ILevel2Cache cache,
         ITransactionalCacheStats cacheStats,
         IScopedConnectionFactory scopedConnectionFactory,
@@ -61,6 +65,7 @@ public sealed class TransactionalCache
         ArgumentException.ThrowIfNullOrWhiteSpace(keyPrefix, nameof(keyPrefix));
         ArgumentException.ThrowIfNullOrWhiteSpace(rootTag, nameof(rootTag));
 
+        _logger = logger;
         _cache = cache;
         _cacheStats = cacheStats;
         _scopedConnectionFactory = scopedConnectionFactory;
@@ -209,11 +214,13 @@ public sealed class TransactionalCache
     {
         if (InDatabaseTransaction)
         {
+            _logger.LogWarning("ZZZZZZZZZZZZZ InvalidateAllAsync delayed");
             _scopedConnectionFactory.AddPostCommitAction(async () => await _cache.RemoveByTagAsync(_rootTag));
             _scopedConnectionFactory.AddPostRollbackAction(async () => await _cache.RemoveByTagAsync(_rootTag));
         }
         else
         {
+            _logger.LogWarning("ZZZZZZZZZZZZZ InvalidateAllAsync immediate");
             await _cache.RemoveByTagAsync(_rootTag);
         }
     }
@@ -231,11 +238,29 @@ public sealed class TransactionalCache
 
         if (InDatabaseTransaction)
         {
-            _scopedConnectionFactory.AddPostCommitAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
-            _scopedConnectionFactory.AddPostRollbackAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
+            _logger.LogWarning("ZZZZZZZZZZZZZ InvalidateAsync delayed");
+
+            _scopedConnectionFactory.AddPostCommitAction(async () =>
+            {
+                await Task.WhenAll(actionsArray.Select(a =>
+                {
+                    _logger.LogWarning("ZZZZZZZZZZZZZ Running post commit cache invalidation action");
+                    return a();
+                }));
+            });
+
+            _scopedConnectionFactory.AddPostRollbackAction(async () =>
+            {
+                await Task.WhenAll(actionsArray.Select(a =>
+                {
+                    _logger.LogWarning("ZZZZZZZZZZZZZ Running post rollback cache invalidation action");
+                    return a();
+                }));
+            });
         }
         else
         {
+            _logger.LogWarning("ZZZZZZZZZZZZZ InvalidateAsync immediate");
             await Task.WhenAll(actionsArray.Select(a => a()));
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -11,11 +12,11 @@ public class TableDriveMainIndexCached : AbstractTableCaching
     private readonly TableDriveMainIndex _table;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
-    public TableDriveMainIndexCached(TableDriveMainIndex table, IIdentityTransactionalCacheFactory cacheFactory) :
+    public TableDriveMainIndexCached(ILogger<TableDriveMainIndexCached> logger, TableDriveMainIndex table, IIdentityTransactionalCacheFactory cacheFactory) :
         base(cacheFactory, table.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _table = table;
-        _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);
+        _cacheKeys = new TableDriveMainIndexCacheKeys(logger, Cache);
     }
 
     //

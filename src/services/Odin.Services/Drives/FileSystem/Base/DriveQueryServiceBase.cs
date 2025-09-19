@@ -276,12 +276,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool excludePreviewThumbnail = true,
             bool includeTransferHistory = true)
         {
+            _logger.LogWarning("ZZZZZZZZZZZZZ GetFileByGlobalTransitId: enter");
+
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId, GetFileSystemType());
 
             if (null == record)
             {
+                _logger.LogWarning("ZZZZZZZZZZZZZ _driveQuery.GetByGlobalTransitIdAsync == null");
+                _logger.LogWarning("ZZZZZZZZZZZZZ GetFileByGlobalTransitId: leave");
                 return null;
             }
 
@@ -302,10 +306,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 // see if it's because of a permissions issue
                 if (aclFailures.Any(f => f.FileMetadata.GlobalTransitId == globalTransitId))
                 {
+                    _logger.LogWarning($"Cannot access file with globalTransitId: {globalTransitId}");
+                    _logger.LogWarning("ZZZZZZZZZZZZZ GetFileByGlobalTransitId: leave");
                     throw new OdinSecurityException($"Cannot access file with globalTransitId: {globalTransitId}");
                 }
             }
 
+            _logger.LogWarning("ZZZZZZZZZZZZZ GetFileByGlobalTransitId: leave");
             return theSingleLonelyResult;
         }
 

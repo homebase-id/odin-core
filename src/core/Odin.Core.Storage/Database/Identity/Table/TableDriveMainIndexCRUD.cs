@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Attestation.Connection;
@@ -15,6 +16,7 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.Extensions;
 using Odin.Core.Storage.SQLite; //added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
@@ -92,10 +94,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
     {
         private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
         public override string TableName { get; } = "DriveMainIndex";
+        private readonly ILogger _logger;
 
-        protected TableDriveMainIndexCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
+        protected TableDriveMainIndexCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory, ILogger logger)
         {
             _scopedConnectionFactory = scopedConnectionFactory;
+            _logger = logger;
         }
 
 
@@ -777,6 +781,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get3Command.AddParameter("@driveId", DbType.Binary, driveId);
                 get3Command.AddParameter("@globalTransitId", DbType.Binary, globalTransitId);
                 {
+                    if (globalTransitId == null)
+                    {
+                        _logger.LogWarning("ZZZZZZZZZZZZZ {sql}", get3Command.RenderSqlForDebugging());
+                    }
+
                     using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
                         if (await rdr.ReadAsync() == false)

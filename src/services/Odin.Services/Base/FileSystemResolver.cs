@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Services.Drives;
@@ -8,7 +9,7 @@ using Odin.Services.Drives.FileSystem.Standard;
 
 namespace Odin.Services.Base
 {
-    public class FileSystemResolver(StandardFileSystem standardFileSystem, CommentFileSystem commentFileSystem)
+    public class FileSystemResolver(StandardFileSystem standardFileSystem, CommentFileSystem commentFileSystem, ILogger<FileSystemResolver> logger)
     {
         /// <summary />
         public IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
@@ -64,6 +65,7 @@ namespace Odin.Services.Base
 
             if (null == file && tryCommentDrive)
             {
+                logger.LogWarning("ZZZZZZZZZZZZZ tryCommentDrive");
                 //try by comment
                 fs = this.ResolveFileSystem(FileSystemType.Comment);
                 file = await fs.Query.ResolveFileId(globalTransitFileId, odinContext);

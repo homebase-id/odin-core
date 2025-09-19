@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
-internal class TableDriveMainIndexCacheKeys(TransactionalCache cache)
+internal class TableDriveMainIndexCacheKeys(ILogger logger, TransactionalCache cache)
 {
     internal const string RootInvalidationTag = "DriveMainIndex";
 

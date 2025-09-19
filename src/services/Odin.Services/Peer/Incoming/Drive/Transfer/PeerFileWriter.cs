@@ -192,13 +192,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<AccessControlList> ResetAclForComment(FileMetadata metadata, IOdinContext odinContext)
         {
+            logger.LogWarning("ZZZZZZZZZZZZZ PeerFileWriter: enter");
+
             AccessControlList targetAcl;
 
+            logger.LogWarning("ZZZZZZZZZZZZZ PeerFileWriter: calling fileSystemResolver.ResolveFileSystem");
             var (referencedFs, fileId) = await fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile, odinContext);
 
             if (null == referencedFs || !fileId.HasValue)
             {
-                logger.LogWarning("CCCCCCCCCCCC Referenced file missing or caller does not have access {referencedFs} {fileId}", referencedFs, fileId);
+                logger.LogError("ZZZZZZZZZZZZZ PeerFileWriter: Referenced file missing or caller does not have access {referencedFs} {fileId}", referencedFs, fileId);
                 throw new OdinClientException("Referenced file missing or caller does not have access");
             }
 
@@ -207,13 +210,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // owner, so we need to forceIncludeServerMetadata
             //
 
+            logger.LogWarning("ZZZZZZZZZZZZZ PeerFileWriter: calling referencedFs.Query.GetFileByGlobalTransitId");
             var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
                 metadata.ReferencedFile.GlobalTransitId, odinContext: odinContext, forceIncludeServerMetadata: true);
 
             if (null == referencedFile)
             {
                 //TODO file does not exist or some other issue - need clarity on what is happening here
-                logger.LogWarning("CCCCCCCCCCCC referencedFile == null");
+                logger.LogError("ZZZZZZZZZZZZZ PeerFileWriter: referencedFile == null");
                 throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
             }
 
@@ -221,10 +225,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             //S2040
             if (referencedFile.FileMetadata.IsEncrypted != metadata.IsEncrypted)
             {
+                logger.LogError("ZZZZZZZZZZZZZ PeerFileWriter: Referenced filed and metadata payload encryption do not match");
                 throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
             }
 
             targetAcl = referencedFile.ServerMetadata.AccessControlList;
+
+            logger.LogWarning("ZZZZZZZZZZZZZ PeerFileWriter: leave");
 
             return targetAcl;
         }

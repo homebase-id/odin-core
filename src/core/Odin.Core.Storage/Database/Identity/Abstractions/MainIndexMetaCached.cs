@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
@@ -13,11 +14,11 @@ public class MainIndexMetaCached : AbstractTableCaching
     private readonly MainIndexMeta _meta;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
-    public MainIndexMetaCached(MainIndexMeta meta, IIdentityTransactionalCacheFactory cacheFactory)
+    public MainIndexMetaCached(ILogger<MainIndexMetaCached> logger, MainIndexMeta meta, IIdentityTransactionalCacheFactory cacheFactory)
         : base(cacheFactory, meta.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
         _meta = meta;
-        _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);
+        _cacheKeys = new TableDriveMainIndexCacheKeys(logger, Cache);
     }
 
     //

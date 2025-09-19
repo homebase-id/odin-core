@@ -20,7 +20,7 @@ public class TableDriveMainIndex(
     ScopedIdentityConnectionFactory scopedConnectionFactory,
     OdinIdentity odinIdentity,
     ILogger<TableDriveMainIndex> logger)
-    : TableDriveMainIndexCRUD(scopedConnectionFactory)
+    : TableDriveMainIndexCRUD(scopedConnectionFactory, logger)
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 

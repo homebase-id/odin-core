@@ -551,11 +551,13 @@ public class ScopedConnectionFactory<T>(
                     if (instance._commit)
                     {
                         instance.LogTrace("Committing transaction");
+                        instance._logger.LogWarning("ZZZZZZZZZZZZZ Committing transaction");
                         await instance._transaction!.CommitAsync();
                         foreach (var action in instance._postCommitActions)
                         {
                             try
                             {
+                                instance._logger.LogWarning("ZZZZZZZZZZZZZ Running post-commit action");
                                 instance.LogTrace("Running post-commit action");
                                 await action();
                             }
@@ -568,11 +570,13 @@ public class ScopedConnectionFactory<T>(
                     else
                     {
                         instance._logger.LogDebug("Rolling back transaction");
+                        instance._logger.LogWarning("ZZZZZZZZZZZZZ Rolling back transaction");
                         await instance._transaction!.RollbackAsync();
                         foreach (var action in instance._postRollbackActions)
                         {
                             try
                             {
+                                instance._logger.LogWarning("ZZZZZZZZZZZZZ Running post-rollback action");
                                 instance.LogTrace("Running post-rollback action");
                                 await action();
                             }
