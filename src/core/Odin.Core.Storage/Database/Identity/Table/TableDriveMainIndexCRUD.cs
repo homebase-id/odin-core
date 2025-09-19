@@ -699,6 +699,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid identityId,Guid driveId,Guid? uniqueId)
         {
+            if (uniqueId == null)
+               throw new Exception("uniqueId is null and it's not allowed in a single return statement");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
@@ -766,6 +768,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
         protected virtual async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid identityId,Guid driveId,Guid? globalTransitId)
         {
+            if (globalTransitId == null)
+               throw new Exception("globalTransitId is null and it's not allowed in a single return statement");
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
