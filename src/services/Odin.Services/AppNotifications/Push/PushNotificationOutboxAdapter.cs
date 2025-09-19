@@ -13,10 +13,9 @@ public class PushNotificationOutboxAdapter(
     IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger)
     : INotificationHandler<PushNotificationEnqueuedNotification>
 {
-    public Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
+    public async Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
     {
         logger.LogDebug("PushNotificationOutboxAdapter starting outbox processing");
-        backgroundServiceTrigger.PulseBackgroundProcessor();
-        return Task.CompletedTask;
+        await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
     }
 }

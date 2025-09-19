@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -15,7 +16,10 @@ namespace Odin.Services.Drives.Statistics;
 /// <summary>
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
-public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, OdinConfiguration config)
+public class ReactionPreviewCalculator(
+    FileSystemResolver fileSystemResolver,
+    OdinConfiguration config,
+    ILogger<ReactionPreviewCalculator> logger)
     : INotificationHandler<IDriveNotification>,
         INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionContentDeletedNotification>,
         INotificationHandler<AllReactionsByFileDeleted>
@@ -93,26 +97,48 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview)
     {
-        if (targetFileReactionPreview.TotalCommentCount > 0)
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
         {
-            targetFileReactionPreview.TotalCommentCount--;
+            logger.LogWarning("ReactionPreviewCalculator.HandleFileDeleted -> FileId is Empty guid; proceeding to check comments. Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
         }
-
+   
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
-
+        
         if (idx > -1)
         {
             targetFileReactionPreview.Comments.RemoveAt(idx);
+            if (targetFileReactionPreview.TotalCommentCount > 0)
+            {
+                targetFileReactionPreview.TotalCommentCount--;
+            }
         }
     }
 
     private void HandleFileModified(ServerFileHeader updatedFileHeader,
         ref ReactionSummary targetFileReactionPreview, IOdinContext odinContext)
     {
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
+        {
+            logger.LogError("ReactionPreviewCalculator.HandleFileModified -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
+            return; 
+        }
+        
+        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
+        var shouldSkip = len > CommentPreview.MaxContentLength;
+        if (shouldSkip)
+        {
+            logger.LogWarning("Skipping adding comment to comment preview due to max " +
+                              "size.  Comment content Size: {len}.  Max Preview: {max}",
+                len, CommentPreview.MaxContentLength);
+
+            return;
+        }
+
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
-
         if (idx > -1)
         {
             targetFileReactionPreview.Comments[idx] = new CommentPreview()
@@ -130,11 +156,29 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview,
         IOdinContext odinContext)
     {
+        if (updatedFileHeader.FileMetadata.File.FileId == Guid.Empty)
+        {
+            logger.LogError("ReactionPreviewCalculator.HandleFileAdded -> FileId is Empty guid; skipping.  Gtid: {gtid}",
+                updatedFileHeader.FileMetadata.GlobalTransitId);
+            return; 
+        }
+        
         //Always increment even if we don't store the contents
         targetFileReactionPreview.TotalCommentCount++;
 
         if (targetFileReactionPreview.Comments.Count > config.Feed.MaxCommentsInPreview) //TODO: add to config
         {
+            return;
+        }
+        
+        var len = updatedFileHeader.FileMetadata.AppData.Content?.Length ?? 0;
+        var shouldSkip = len > CommentPreview.MaxContentLength;
+        if (shouldSkip)
+        {
+            logger.LogWarning("Skipping adding comment to comment preview due to max " +
+                              "size.  Comment content Size: {len}.  Max Preview: {max}",
+                len, CommentPreview.MaxContentLength);
+
             return;
         }
 
@@ -155,9 +199,9 @@ public class ReactionPreviewCalculator(FileSystemResolver fileSystemResolver, Od
     {
         var targetFile = notification.Reaction.FileId;
         var odinContext = notification.OdinContext;
-        
+
         // having issues looking the file system for comments
-        
+
         var fs = await fileSystemResolver.ResolveFileSystem(targetFile, odinContext);
         var header = await fs.Storage.GetServerFileHeader(targetFile, odinContext);
         var preview = header.FileMetadata.ReactionPreview ?? new ReactionSummary();

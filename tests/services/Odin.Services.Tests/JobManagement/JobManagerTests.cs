@@ -18,6 +18,7 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
+using Odin.Core.Time;
 using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
@@ -847,14 +848,30 @@ public class JobManagerTests
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _container.Resolve<IJobManager>();
 
-        var job1 = _container.Resolve<JobWithHashTest>();
-        var jobId1 = await jobManager.ScheduleJobAsync(job1);
+        var dt1 = DateTimeOffset.UtcNow.AddMinutes(1);
+        var schedule1 = new JobSchedule { RunAt = dt1 };
 
-        // Act
+        var job1 = _container.Resolve<JobWithHashTest>();
+        var jobId1 = await jobManager.ScheduleJobAsync(job1, schedule1);
+
+        {
+            var scheduleJob1 = await jobManager.GetJobAsync<JobWithHashTest>(jobId1);
+            Assert.That(scheduleJob1!.Record!.nextRun.milliseconds, Is.EqualTo(dt1.ToUnixTimeMilliseconds()));
+        }
+
+        var dt2 = DateTimeOffset.UtcNow.AddMinutes(2);
+        var schedule2 = new JobSchedule { RunAt = dt2 };
+
         var job2 = _container.Resolve<JobWithHashTest>();
-        var jobId2 = await jobManager.ScheduleJobAsync(job2);
+        var jobId2 = await jobManager.ScheduleJobAsync(job2, schedule2);
 
         Assert.That(jobId1, Is.EqualTo(jobId2));
+
+        {
+            // Make sure the schedule didn't change
+            var scheduleJob1 = await jobManager.GetJobAsync<JobWithHashTest>(jobId2);
+            Assert.That(scheduleJob1!.Record!.nextRun.milliseconds, Is.EqualTo(dt1.ToUnixTimeMilliseconds()));
+        }
 
         AssertLogEvents();
     }
@@ -975,7 +992,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
@@ -1107,7 +1124,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        backgroundServiceManager.PulseBackgroundProcessor(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);

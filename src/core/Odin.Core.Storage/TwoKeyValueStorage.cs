@@ -27,7 +27,7 @@ public class TwoKeyValueStorage
 
     public async Task<T> GetAsync<T>(TableKeyTwoValueCached tblKeyTwoValue, Guid key) where T : class
     {
-        var record = await tblKeyTwoValue.GetAsync(MakeStorageKey(key), TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var record = await tblKeyTwoValue.GetAsync(MakeStorageKey(key));
 
         if (null == record)
         {
@@ -39,7 +39,7 @@ public class TwoKeyValueStorage
 
     public async Task<IEnumerable<T>> GetByDataTypeAsync<T>(TableKeyTwoValueCached tblKeyTwoValue, byte[] key2) where T : class
     {
-        var list = await tblKeyTwoValue.GetByKeyTwoAsync(key2, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var list = await tblKeyTwoValue.GetByKeyTwoAsync(key2);
         if (null == list)
         {
             return new List<T>();

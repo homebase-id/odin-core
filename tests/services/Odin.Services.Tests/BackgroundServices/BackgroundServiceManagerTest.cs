@@ -222,7 +222,7 @@ public class BackgroundServiceManagerTest
             {
                 for (var i = 0; i < serviceCount; i++)
                 {
-                    manager.PulseBackgroundProcessor($"instance{i*(iteration+1)}");
+                    await manager.PulseBackgroundProcessorAsync($"instance{i*(iteration+1)}");
                 }
                 await Task.Delay(200);
             }
@@ -274,7 +274,7 @@ public class BackgroundServiceManagerTest
         await Task.Delay(200);
         ClassicAssert.AreEqual(1, service.Counter);
         
-        manager.PulseBackgroundProcessor("foo");
+        await manager.PulseBackgroundProcessorAsync("foo");
         await Task.Delay(200);
         
         ClassicAssert.AreEqual(2, service.Counter);
@@ -331,9 +331,9 @@ public class BackgroundServiceManagerTest
              await manager.StartAsync(service);
  
              var logEvents = _logEventMemoryStore.GetLogEvents();
-             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Debug], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to min.");
+             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Error], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to min.");
          
-             AssertLogEvents();
+             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
          }
          
          // Bad sleep
@@ -348,13 +348,15 @@ public class BackgroundServiceManagerTest
              await manager.StartAsync(service);
 
              var logEvents = _logEventMemoryStore.GetLogEvents();
-             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Debug], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to max.");
+             LogEvents.AssertLogMessageExists(logEvents[LogEventLevel.Error], $"Invalid duration1 {sleep.TotalMilliseconds}ms. Resetting to max.");
              
-             AssertLogEvents();
+             Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(2), "Unexpected number of Error log events");
          }
          
          // Bad sleep
          {
+             _logEventMemoryStore.Clear();
+
              var sleep1 = TimeSpan.FromMilliseconds(2);
              var sleep2 = TimeSpan.FromMilliseconds(1);
 
@@ -442,7 +444,7 @@ public class BackgroundServiceManagerTest
 
          var otherService = _container.Resolve<PulseTestBackgroundService>();
          var trigger = _container.Resolve<IBackgroundServiceTrigger<PulseTestBackgroundService>>();
-         trigger.PulseBackgroundProcessor();
+         await trigger.PulseBackgroundProcessorAsync();
          await Task.Delay(100);
          ClassicAssert.True(service.Pulsed);
          ClassicAssert.False(otherService.Pulsed);

@@ -45,7 +45,7 @@ public class CircleNetworkStorage
 
     public async Task<IdentityConnectionRegistration> GetAsync(OdinId odinId)
     {
-        var record = await _db.ConnectionsCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var record = await _db.ConnectionsCached.GetAsync(odinId);
 
         if (null == record)
         {
@@ -149,7 +149,7 @@ public class CircleNetworkStorage
         string cursor,
         ConnectionStatus connectionStatus)
     {
-        var (records, nextCursor) = await _db.ConnectionsCached.PagingByCreatedAsync(count, (int)connectionStatus, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var (records, nextCursor) = await _db.ConnectionsCached.PagingByCreatedAsync(count, (int)connectionStatus, cursor);
 
         // NOTE: MapFromStorageAsync used to be called in parallel here, but it's using a
         // single db connection that is not thread safe.
@@ -216,7 +216,7 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        var allAppGrants = await _db.AppGrantsCached.GetByOdinHashIdAsync(odinHashId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+        var allAppGrants = await _db.AppGrantsCached.GetByOdinHashIdAsync(odinHashId);
 
         foreach (var appGrantRecord in allAppGrants)
         {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -177,7 +178,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await db.FollowsMeCached.GetAllFollowersAsync(DefaultMax(max), cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetAllFollowersAsync(DefaultMax(max), cursor);
 
             var result = new CursoredResult<string>()
             {
@@ -201,7 +202,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
             var result = new CursoredResult<OdinId>
             {
                 Cursor = nextCursor,
@@ -218,7 +219,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), Guid.Empty, cursor);
 
             var result = new CursoredResult<OdinId>()
             {
@@ -236,7 +237,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var (dbResults, nextCursor) = await db.ImFollowingCached.GetAllFollowersAsync(DefaultMax(max), cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.ImFollowingCached.GetAllFollowersAsync(DefaultMax(max), cursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -256,7 +257,7 @@ namespace Odin.Services.DataSubscription.Follower
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
-            var (dbResults, nextCursor) = await db.ImFollowingCached.GetFollowersAsync(DefaultMax(max), driveAlias, cursor, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var (dbResults, nextCursor) = await db.ImFollowingCached.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -449,7 +450,6 @@ namespace Odin.Services.DataSubscription.Follower
 
             var newFileMetadata = new FileMetadata()
             {
-                File = default,
                 GlobalTransitId = fm.GlobalTransitId,
                 ReferencedFile = fm.ReferencedFile,
                 AppData = fm.AppData,
@@ -475,7 +475,7 @@ namespace Odin.Services.DataSubscription.Follower
             if (newFileMetadata.AppData.PreviewThumbnail != null)
             {
                 //overwrite with a dummy one
-                if(newFileMetadata.AppData.PreviewThumbnail.TryValidate() == false)
+                if (newFileMetadata.AppData.PreviewThumbnail.TryValidate() == false)
                 {
                     logger.LogDebug("Preview thumbnail failed validation; release the kraken");
                     newFileMetadata.AppData.PreviewThumbnail = new ThumbnailContent
@@ -484,45 +484,44 @@ namespace Odin.Services.DataSubscription.Follower
                         PixelHeight = 497,
                         ContentType = "image/webp",
                         BytesWritten = 0,
-                        Content = Convert.FromBase64String("UklGRr4CAABXRUJQVlA4WAoAAAAgAAAAEwAAEAAASUNDUMgBAAAAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADZWUDgg0AAAAHAFAJ0BKhQAEQA+9XKwUyqmpKKoCAFQHolnAM45i2X0kIuwndxsFE34nVBHGFszwHZV8SgAyzpLin+kW9ywqKsxofEadS2Rip94f5OHdFtM/yYfsrr7xi10XLJmghR4yV+C+ZMFqn3OT/BKMJhzf/SbgkjMD0Hik4z7sPZIfYFx8/a1qPW5hS1TbWtU6vP3cO/OORwki96rapqidTKwBau/DQMJqMCXqYjw+YbZcZXvUmuGmgiF3lz2Yh1jP0Oz1HgZE/JB3wOOhJwtKkAAAAA=")
+                        Content = Convert.FromBase64String(
+                            "UklGRr4CAABXRUJQVlA4WAoAAAAgAAAAEwAAEAAASUNDUMgBAAAAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADZWUDgg0AAAAHAFAJ0BKhQAEQA+9XKwUyqmpKKoCAFQHolnAM45i2X0kIuwndxsFE34nVBHGFszwHZV8SgAyzpLin+kW9ywqKsxofEadS2Rip94f5OHdFtM/yYfsrr7xi10XLJmghR4yV+C+ZMFqn3OT/BKMJhzf/SbgkjMD0Hik4z7sPZIfYFx8/a1qPW5hS1TbWtU6vP3cO/OORwki96rapqidTKwBau/DQMJqMCXqYjw+YbZcZXvUmuGmgiF3lz2Yh1jP0Oz1HgZE/JB3wOOhJwtKkAAAAA=")
                     };
                 }
-            }
-
-            if (!newFileMetadata.TryValidate(odinContext.Tenant, out var exception))
-            {
-                logger.LogWarning("Skipping sync of file with GlobalTransitId:{gtid} " +
-                                  "from identity:{id} on driveId:{driveId}; " +
-                                  "Validation failed: {message}",
-                    newFileMetadata.GlobalTransitId,
-                    identityIFollow,
-                    channelId,
-                    exception.Message);
-
-
-                return;
             }
 
             var existingFile = await standardFileSystem.Query.GetFileByGlobalTransitId(
                 SystemDriveConstants.FeedDrive.Alias,
                 dsr.FileMetadata.GlobalTransitId.GetValueOrDefault(), odinContext);
-
-            if (null == existingFile)
+            try
             {
-                logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
-                    newFileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    newFileMetadata.AppData.UniqueId.GetValueOrDefault());
+                if (null == existingFile)
+                {
+                    logger.LogDebug("SynchronizeChannelFiles - Writing new file with gtid:{gtid} and uid:{uid}",
+                        newFileMetadata.GlobalTransitId.GetValueOrDefault(),
+                        newFileMetadata.AppData.UniqueId.GetValueOrDefault());
 
-                await feedWriter.WriteNewFileToFeedDriveAsync(keyHeader, newFileMetadata, odinContext);
+                    await feedWriter.WriteNewFileToFeedDriveAsync(keyHeader, newFileMetadata, odinContext);
+                }
+                else
+                {
+                    logger.LogDebug("SynchronizeChannelFiles - updating existing file gtid:{gtid} and uid:{uid}",
+                        newFileMetadata.GlobalTransitId.GetValueOrDefault(),
+                        newFileMetadata.AppData.UniqueId.GetValueOrDefault());
+
+                    await feedWriter.ReplaceFileMetadataOnFeedDrive(existingFile.FileId, newFileMetadata, odinContext,
+                        bypassCallerCheck: true);
+                }
             }
-            else
+            catch (Exception e)
             {
-                logger.LogDebug("SynchronizeChannelFiles - updating existing file gtid:{gtid} and uid:{uid}",
-                    newFileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    newFileMetadata.AppData.UniqueId.GetValueOrDefault());
-
-                await feedWriter.ReplaceFileMetadataOnFeedDrive(existingFile.FileId, newFileMetadata, odinContext,
-                    bypassCallerCheck: true);
+                logger.LogError("Skipping sync of file with GlobalTransitId:{gtid} " +
+                                  "from identity:{id} on driveId:{driveId}; " +
+                                  "Error: {message}",
+                    newFileMetadata.GlobalTransitId,
+                    identityIFollow,
+                    channelId,
+                    e.Message);
             }
         }
 
@@ -560,7 +559,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetIdentityIFollowInternalAsync(OdinId odinId)
         {
-            var dbRecords = await db.ImFollowingCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var dbRecords = await db.ImFollowingCached.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
@@ -599,7 +598,7 @@ namespace Odin.Services.DataSubscription.Follower
 
         private async Task<FollowerDefinition> GetFollowerInternalAsync(OdinId odinId)
         {
-            var dbRecords = await db.FollowsMeCached.GetAsync(odinId, TimeSpan.FromMinutes(10)); // TODD:TODO set correct TTL
+            var dbRecords = await db.FollowsMeCached.GetAsync(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;

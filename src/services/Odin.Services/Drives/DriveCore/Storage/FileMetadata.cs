@@ -205,6 +205,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public void Validate(OdinId tenant)
         {
+            File.Validate();
             ReactionPreview?.Validate();
 
             if (!string.IsNullOrEmpty(SenderOdinId))

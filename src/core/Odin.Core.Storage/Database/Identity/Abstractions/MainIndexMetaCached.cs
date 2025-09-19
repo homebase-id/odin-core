@@ -10,7 +10,6 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions;
 
 public class MainIndexMetaCached : AbstractTableCaching
 {
-    private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(10);
     private readonly MainIndexMeta _meta;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
