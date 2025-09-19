@@ -198,6 +198,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (null == referencedFs || !fileId.HasValue)
             {
+                logger.LogWarning("CCCCCCCCCCCC Referenced file missing or caller does not have access {referencedFs} {fileId}", referencedFs, fileId);
                 throw new OdinClientException("Referenced file missing or caller does not have access");
             }
 
@@ -212,6 +213,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (null == referencedFile)
             {
                 //TODO file does not exist or some other issue - need clarity on what is happening here
+                logger.LogWarning("CCCCCCCCCCCC referencedFile == null");
                 throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
             }
 
