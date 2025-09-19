@@ -31,6 +31,8 @@ public class ReactionPreviewCalculator(
             return;
         }
 
+        logger.LogWarning("ZZZZZZZZZZZZZ ReactionPreviewCalclation Handle: enter");
+
         //TODO: handle encrypted content?
         var odinContext = notification.OdinContext;
 

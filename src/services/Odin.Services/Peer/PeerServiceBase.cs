@@ -27,6 +27,7 @@ namespace Odin.Services.Peer
     /// Base class for the transit subsystem providing various functions specific to Transit
     /// </summary>
     public abstract class PeerServiceBase(
+        ILogger logger,
         IOdinHttpClientFactory odinHttpClientFactory,
         CircleNetworkService circleNetworkService,
         FileSystemResolver fileSystemResolver,
@@ -139,6 +140,8 @@ namespace Odin.Services.Peer
         protected async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file, IOdinContext odinContext,
             bool failIfNull = false)
         {
+            logger.LogWarning("ZZZZZZZZZZZZZ ReactionPreviewCalclation Handle: enter");
+
             var (_, fileId) = await FileSystemResolver.ResolveFileSystem(file, odinContext);
 
             if (failIfNull && fileId == null)

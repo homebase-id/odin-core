@@ -54,7 +54,7 @@ namespace Odin.Services.Membership.Connections.Requests
         OdinConfiguration odinConfiguration,
         TableKeyThreeValueCached tblKeyThreeValue,
         ITenantLevel2Cache<CircleNetworkRequestService> cache)
-        : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
+        : PeerServiceBase(logger, odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {
         private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
         private static readonly byte[] SentRequestsDataType = Guid.Parse("32130ad3-d8aa-445a-a932-162cb4d499b4").ToByteArray();

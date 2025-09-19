@@ -62,7 +62,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         IDriveManager driveManager,
         TenantContext tenantContext,
         IdentityDatabase db)
-        : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+        : base(logger, odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _circleNetworkRequestService = circleNetworkRequestService;
         _logger = logger;

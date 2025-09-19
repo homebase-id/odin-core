@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
@@ -34,6 +35,7 @@ public class PeerAppNotificationService : PeerServiceBase
     private readonly byte[] _subscriptionsCategoryKey = Guid.Parse("3265f455-7fac-4569-8637-500119b4ae9d").ToByteArray();
 
     public PeerAppNotificationService(IOdinHttpClientFactory odinHttpClientFactory,
+        ILogger<PeerAppNotificationService> logger,
         OdinConfiguration odinConfiguration,
         CircleNetworkService circleNetworkService,
         TableKeyThreeValueCached tableKeyThreeValue,
@@ -41,7 +43,7 @@ public class PeerAppNotificationService : PeerServiceBase
         PushNotificationService pushNotificationService,
         FileSystemResolver fileSystemResolver,
         OdinContextCache cache
-        ) : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+        ) : base(logger, odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _odinConfiguration = odinConfiguration;
         _tableKeyThreeValue = tableKeyThreeValue;

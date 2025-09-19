@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Util;
@@ -18,11 +19,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Reactions;
 
 /// <summary/>
 public class PeerReactionSenderService(
+    ILogger<PeerReactionSenderService> logger,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     FileSystemResolver fileSystemResolver,
     OdinConfiguration odinConfiguration)
-    : PeerServiceBase(odinHttpClientFactory,
+    : PeerServiceBase(logger, odinHttpClientFactory,
         circleNetworkService, fileSystemResolver,odinConfiguration)
 {
     /// <summary />

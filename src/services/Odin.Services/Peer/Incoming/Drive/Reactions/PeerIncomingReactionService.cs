@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.Reactions;
@@ -14,12 +15,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Reactions;
 /// Handles incoming reactions and queries from followers
 /// </summary>
 public class PeerIncomingReactionService(
+    ILogger<PeerIncomingReactionService> logger,
     ReactionContentService reactionContentService,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     OdinConfiguration odinConfiguration,
     FileSystemResolver fileSystemResolver)
-    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+    : PeerServiceBase(logger, odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload, IOdinContext odinContext)
     {

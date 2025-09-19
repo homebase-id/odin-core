@@ -29,7 +29,7 @@ public class CircleNetworkVerificationService(
     IOdinHttpClientFactory odinHttpClientFactory,
     FileSystemResolver fileSystemResolver,
     ILogger<CircleNetworkVerificationService> logger)
-    : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
+    : PeerServiceBase(logger, odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
 {
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
 

@@ -140,6 +140,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
         private async Task<InternalDriveFileId?> ResolveInternalFileAsync(GlobalTransitIdFileIdentifier file, Guid? uid,
             IOdinContext odinContext)
         {
+            logger.LogWarning("ZZZZZZZZZZZZZ ResolveInternalFileAsync: enter");
+
             Log.Debug("FeedDistributionPerimeterService - looking up fileId by global transit id");
             var (fs, fileId) = await fileSystemResolver.ResolveFileSystem(file, odinContext, tryCommentDrive: false);
 

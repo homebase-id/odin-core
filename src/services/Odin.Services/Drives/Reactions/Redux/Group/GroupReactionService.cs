@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -20,6 +21,7 @@ using Odin.Services.Util;
 namespace Odin.Services.Drives.Reactions.Redux.Group;
 
 public class GroupReactionService(
+    ILogger<GroupReactionService> logger,
     TenantContext tenantContext,
     ReactionContentService reactionContentService,
     PeerOutbox peerOutbox,
@@ -28,7 +30,7 @@ public class GroupReactionService(
     CircleNetworkService circleNetworkService,
     FileSystemResolver fileSystemResolver,
     OdinConfiguration odinConfiguration)
-    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+    : PeerServiceBase(logger, odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;
 

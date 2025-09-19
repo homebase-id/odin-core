@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Time;
@@ -19,13 +20,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 /// Handles incoming reactions and routes to the inbox
 /// </summary>
 public class PeerIncomingGroupReactionInboxRouterService(
+    ILogger<PeerIncomingGroupReactionInboxRouterService> logger,
     TransitInboxBoxStorage transitInboxBoxStorage,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     IMediator mediator,
     FileSystemResolver fileSystemResolver,
     OdinConfiguration odinConfiguration)
-    : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+    : PeerServiceBase(logger, odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
 {
     public async Task<PeerResponseCode> AddReaction(RemoteReactionRequestRedux request, IOdinContext odinContext)
     {

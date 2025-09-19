@@ -39,7 +39,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
         PushNotificationService pushNotificationService,
         OdinConfiguration odinConfiguration)
-        : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+        : PeerServiceBase(logger, odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private const int MaxRecipientCount = 1000;
         private readonly FileSystemResolver _fileSystemResolver = fileSystemResolver;

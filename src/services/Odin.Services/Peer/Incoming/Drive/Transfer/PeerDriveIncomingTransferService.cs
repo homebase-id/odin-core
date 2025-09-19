@@ -45,7 +45,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         OdinConfiguration odinConfiguration,
         TransitInboxBoxStorage transitInboxBoxStorage,
         FeedWriter feedWriter
-    ) : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
+    ) : PeerServiceBase(logger, odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         private IncomingTransferStateItem _transferState;
 
