@@ -703,7 +703,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT rowId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND uniqueId = @uniqueId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND "+(uniqueId==null ? "uniqueId IS NULL" : "uniqueId = @uniqueId") + " LIMIT 1;"+
                                              ";";
 
                 get2Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -770,7 +770,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get3Command = cn.CreateCommand();
             {
                 get3Command.CommandText = "SELECT rowId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND "+(globalTransitId==null ? "globalTransitId IS NULL" : "globalTransitId = @globalTransitId") + " LIMIT 1;"+
                                              ";";
 
                 get3Command.AddParameter("@identityId", DbType.Binary, identityId);
