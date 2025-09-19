@@ -250,6 +250,58 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
         [Test]
         [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        /// Make sure SQL IS NULL is properly applied
+        public async Task UpsertNullTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tblKeyThreeValue = scope.Resolve<TableKeyThreeValue>();
+
+            var k1 = Guid.NewGuid().ToByteArray();
+            var k2 = Guid.NewGuid().ToByteArray();
+            var k11 = Guid.NewGuid().ToByteArray();
+            var k22 = Guid.NewGuid().ToByteArray();
+            var k111 = Guid.NewGuid().ToByteArray();
+            var k222 = Guid.NewGuid().ToByteArray();
+            var v1 = Guid.NewGuid().ToByteArray();
+            var v2 = Guid.NewGuid().ToByteArray();
+            var v3 = Guid.NewGuid().ToByteArray();
+
+            var r = await tblKeyThreeValue.GetAsync(k1);
+            ClassicAssert.IsTrue(r == null);
+
+            await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 =  null, data = v1 });
+            await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = k2, key2 = null, key3 = k222, data = v1 });
+
+            r = await tblKeyThreeValue.GetAsync(k1);
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                Assert.Fail();
+
+            r = await tblKeyThreeValue.GetAsync(k2);
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
+                Assert.Fail();
+
+            await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = k1, key2 = k11, key3 = null, data = v2 });
+            await tblKeyThreeValue.UpsertAsync(new KeyThreeValueRecord() { key1 = k2, key2 = null, key3 = k222, data = v3 });
+
+            var r2 = await tblKeyThreeValue.GetByKeyTwoThreeAsync(k11, null);
+            ClassicAssert.IsTrue(r2.Count == 1);
+            if (ByteArrayUtil.muidcmp(r2[0].data, v2) != 0)
+                Assert.Fail();
+
+            var r3 = await tblKeyThreeValue.GetByKeyTwoThreeAsync(null, k222);
+            ClassicAssert.IsTrue(r3.Count == 1);
+            if (ByteArrayUtil.muidcmp(r3[0].data, v3) != 0)
+                Assert.Fail();
+        }
+
+
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
         #if RUN_POSTGRES_TESTS
         [TestCase(DatabaseType.Postgres)]
         #endif
