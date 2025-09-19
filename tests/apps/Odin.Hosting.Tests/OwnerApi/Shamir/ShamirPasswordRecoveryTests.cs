@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
@@ -57,7 +58,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             await PrepareConnections(peerIdentities);
 
-            await DistributeAndVerifyShards(peerIdentities);
+            await DistributeAndVerifyAutomaticShards(peerIdentities);
 
             // enter recovery mode
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -70,16 +71,50 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
 
             var verifyEnterResponse = await frodo.Security.VerifyEnterRecoveryMode(nonceId);
-            Assert.That(verifyEnterResponse.IsSuccessful, Is.True);
+            Assert.That(verifyEnterResponse.StatusCode == HttpStatusCode.Redirect, Is.True, $"Response was {verifyEnterResponse.StatusCode}");
 
+            await CleanupConnections(peerIdentities);
+        }
 
+        [Test]
+        public async Task CanExitRecoveryMode()
+        {
+            List<OdinId> peerIdentities =
+            [
+                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId, TestIdentities.TomBombadil.OdinId
+            ];
+
+            //
+            // Setup - enter recovery mode
+            //
+            await PrepareConnections(peerIdentities);
+
+            await DistributeAndVerifyAutomaticShards(peerIdentities);
+
+            // enter recovery mode
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+
+            var enterResponse = await frodo.Security.EnterRecoveryMode();
+            Assert.That(enterResponse.IsSuccessful, Is.True);
+
+            // watch for the recovery links
+            var enterRecoveryNonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.NoncePropertyName, LogEventLevel.Information);
+            Assert.That(enterRecoveryNonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
+
+            var verifyEnterResponse = await frodo.Security.VerifyEnterRecoveryMode(enterRecoveryNonceId);
+            Assert.That(verifyEnterResponse.StatusCode == HttpStatusCode.Redirect, Is.True, $"Response was {verifyEnterResponse.StatusCode}");
             
-            // var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
-            // Assert.That(configureShardsResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-
-            // var code = configureShardsResponse.Error.ParseProblemDetails();
-            // Assert.That(code, Is.EqualTo(OdinClientErrorCode.InvalidEmail), "should have been bad email due to missing recovery email");
-
+            // Act - exit recovery mode
+            var exitEnterResponse = await frodo.Security.ExitRecoveryMode();
+            Assert.That(exitEnterResponse.IsSuccessful, Is.True, $"Response was {exitEnterResponse.StatusCode}");
+            
+            // Assert
+            var exitRecoveryNonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.NoncePropertyName, LogEventLevel.Information);
+            
+            var verifyExitRecoveryModeResponse = await frodo.Security.VerifyExitRecoveryMode(exitRecoveryNonceId);
+            Assert.That(verifyExitRecoveryModeResponse.StatusCode == HttpStatusCode.Redirect, Is.True,
+                $"Response was {verifyExitRecoveryModeResponse.StatusCode}");
+            
             await CleanupConnections(peerIdentities);
         }
 
@@ -98,10 +133,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             }
         }
 
-        private async Task DistributeAndVerifyShards(List<OdinId> peerIdentities)
+        private async Task DistributeAndVerifyAutomaticShards(List<OdinId> peerIdentities)
         {
-            await PrepareConnections(peerIdentities);
-
             var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
             var shardRequest = new ConfigureShardsRequest
@@ -109,7 +142,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                 Players = peerIdentities.Select(d => new ShamiraPlayer()
                 {
                     OdinId = d,
-                    Type = PlayerType.Delegate
+                    Type = PlayerType.Automatic
                 }).ToList(),
                 MinMatchingShards = 3
             };
@@ -128,7 +161,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(results.Players.Count, Is.EqualTo(shardRequest.Players.Count), "mismatch number of shards in verified results");
             Assert.That(results.Players.All(p => p.Value.IsValid), "one or more players not verified");
 
-            await CleanupConnections(peerIdentities);
         }
 
         private async Task CleanupConnections(List<OdinId> peers)

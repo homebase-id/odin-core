@@ -84,6 +84,12 @@ public class ShamirRecoveryService
     public async Task InitiateRecoveryModeEntry(IOdinContext odinContext)
     {
         _logger.LogDebug("Initiating recovery mode");
+        if (await IsInRecoveryMode())
+        {
+            // do nothing, say nothing to keep any insights
+            // from making it to the wrong eyes
+            return;
+        }
 
         odinContext = OdinContextUpgrades.UpgradeToByPassAclCheck(
             SystemDriveConstants.ShardRecoveryDrive,

@@ -10,6 +10,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;

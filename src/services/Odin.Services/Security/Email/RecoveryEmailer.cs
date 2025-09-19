@@ -106,7 +106,7 @@ public class RecoveryEmailer(
 
 #if DEBUG
         var link = job.CreateLink();
-        logger.LogInformation("\n\n\n{link}\n\n\n", link);
+        logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, job.Data.NonceId);
 #endif
 
         if (configuration.Mailgun.Enabled)
@@ -130,7 +130,7 @@ public class RecoveryEmailer(
             finalRecoveryKey.ToString());
 
 #if DEBUG
-        logger.LogInformation("\n\n\n{link}\n\n\n", link);
+        logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
 #endif
 
         AssertEmailEnabled();

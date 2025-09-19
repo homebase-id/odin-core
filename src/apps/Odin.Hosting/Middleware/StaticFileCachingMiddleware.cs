@@ -7,10 +7,8 @@ using Microsoft.Extensions.Hosting;
 
 namespace Odin.Hosting.Middleware
 {
-    public class StaticFileCachingMiddleware
+    public class StaticFileCachingMiddleware(RequestDelegate next)
     {
-        private readonly RequestDelegate _next;
-
         //Note: be sure it does not end with a "/"
         private static readonly List<string> paths = new List<string>()
         {
@@ -23,11 +21,6 @@ namespace Odin.Hosting.Middleware
             "/emoji",
         };
 
-        public StaticFileCachingMiddleware(RequestDelegate next)
-        {
-            _next = next;
-        }
-
         public async Task Invoke(HttpContext httpContext, IHostEnvironment env)
         {
             var isDev = env.IsDevelopment();
@@ -37,7 +30,7 @@ namespace Odin.Hosting.Middleware
                 httpContext.Response.Headers.Append("Cache-Control", "max-age=31536000");
             }
 
-            await _next(httpContext);
+            await next(httpContext);
         }
     }
 }

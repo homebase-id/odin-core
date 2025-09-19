@@ -14,6 +14,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
@@ -105,6 +106,13 @@ public class SecurityHealthCheckJob(
     private async Task RunHealthCheck(ILifetimeScope lifetimeScope)
     {
         var odinContext = BuildOdinContext(Data.Tenant);
+        var configService = lifetimeScope.Resolve<TenantConfigService>();
+        var isConfigured = await configService.IsIdentityServerConfiguredAsync();
+        if (!isConfigured)
+        {
+            return;
+        }
+
         var service = lifetimeScope.Resolve<OwnerSecurityHealthService>();
         await service.UpdateHealthCheck(odinContext);
 

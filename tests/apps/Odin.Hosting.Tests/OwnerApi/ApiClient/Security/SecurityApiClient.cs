@@ -1,6 +1,7 @@
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Odin.Services.Authentication.Owner;
+using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
@@ -10,6 +11,7 @@ using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Services.Security;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 
@@ -82,9 +84,9 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
 
     public async Task<ApiResponse<HttpContent>> EnterRecoveryMode()
     {
-        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateAnonymousClient(identity.OdinId);
         {
-            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var svc =  RestService.For<ITestSecurityContextOwnerClient>(client);
             var apiResponse = await svc.InitiateRecoveryMode();
             return apiResponse;
         }
@@ -93,10 +95,83 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
 
     public async Task<ApiResponse<HttpContent>> VerifyEnterRecoveryMode(string nonceId)
     {
+        var client = ownerApi.CreateAnonymousClient(identity.OdinId);
+        {
+            var svc =  RestService.For<ITestSecurityContextOwnerClient>(client);
+            var apiResponse = await svc.VerifyEnterRecoveryMode(nonceId);
+            return apiResponse;
+        }
+    }
+    
+    public async Task<ApiResponse<HttpContent>> ExitRecoveryMode()
+    {
+        var client = ownerApi.CreateAnonymousClient(identity.OdinId);
+        {
+            var svc =  RestService.For<ITestSecurityContextOwnerClient>(client);
+            var apiResponse = await svc.ExitRecoveryMode();
+            return apiResponse;
+        }
+        
+    }
+
+    public async Task<ApiResponse<HttpContent>> VerifyExitRecoveryMode(string nonceId)
+    {
+        var client = ownerApi.CreateAnonymousClient(identity.OdinId);
+        {
+            var svc =  RestService.For<ITestSecurityContextOwnerClient>(client);
+            var apiResponse = await svc.VerifyExitRecoveryMode(nonceId);
+            return apiResponse;
+        }
+    }
+    
+    public async Task<ApiResponse<HttpContent>> FinalizeRecovery(FinalRecoveryRequest request)
+    {
+        var client = ownerApi.CreateAnonymousClient(identity.OdinId);
+        {
+            var svc =  RestService.For<ITestSecurityContextOwnerClient>(client);
+            var apiResponse = await svc.FinalizeRecovery(request);
+            return apiResponse;
+        }
+    }
+    
+    
+    public async Task<ApiResponse<List<ShardApprovalRequest>>> GetShardRequestList()
+    {
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
-            var apiResponse = await svc.VerifyEnterRecoveryMode(nonceId);
+            var apiResponse = await svc.GetShardRequestList();
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> ApproveShardRequest( ApproveShardRequest request)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.ApproveShardRequest(request);
+            return apiResponse;
+        }
+        
+    }
+
+    public async Task<ApiResponse<HttpContent>> RejectShardRequest(RejectShardRequest request)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.RejectShardRequest(request);
+            return apiResponse;
+        }
+    }
+    
+    public async Task<ApiResponse<DealerShardConfig>> GetDealerShardConfig()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.GetShardConfig();
             return apiResponse;
         }
     }

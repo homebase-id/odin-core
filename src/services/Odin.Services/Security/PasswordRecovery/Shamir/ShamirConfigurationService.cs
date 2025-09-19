@@ -51,13 +51,18 @@ public class ShamirConfigurationService(
     public const int MinimumPlayerCount = 3;
     public const int MinimumMatchingShardsOffset = 1;
 
+    public static int CalculateMinAllowedShardCount(int playerCount)
+    {
+        return playerCount - MinimumMatchingShardsOffset;
+    }
+    
     public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(players, nameof(players));
         OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount, $"You need at least {MinimumPlayerCount} trusted connections");
         OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
 
-        var minAllowedShards = players.Count - MinimumMatchingShardsOffset;
+        var minAllowedShards = CalculateMinAllowedShardCount(players.Count);
         OdinValidationUtils.AssertIsTrue(minShards >= minAllowedShards, "The minimum number of matching shards must be " +
                                                                         $"at least {minAllowedShards} since you have {players.Count} " +
                                                                         $"trusted connections selected");
