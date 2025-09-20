@@ -14,20 +14,20 @@ public interface ILevel1Cache<T> : ILevel1Cache
 
 public abstract class Level1Cache : FusionCacheWrapper, ILevel1Cache
 {
-    private readonly FusionCacheEntryOptions _defaultOptions;
+    private readonly FusionCacheEntryOptions _defaultEntryOptions;
 
     //
 
     protected Level1Cache(string prefix, IFusionCache cache) : base(prefix + ":L1", cache)
     {
-        _defaultOptions = cache.DefaultEntryOptions.Duplicate();
-        _defaultOptions.SkipDistributedCacheRead = true;
-        _defaultOptions.SkipDistributedCacheWrite = true;
+        _defaultEntryOptions = cache.DefaultEntryOptions.Duplicate();
+        _defaultEntryOptions.SkipDistributedCacheRead = true;
+        _defaultEntryOptions.SkipDistributedCacheWrite = true;
     }
 
     //
 
-    protected override FusionCacheEntryOptions DefaultOptions => _defaultOptions;
+    protected override FusionCacheEntryOptions DefaultEntryOptions => _defaultEntryOptions;
 
     //
 }
