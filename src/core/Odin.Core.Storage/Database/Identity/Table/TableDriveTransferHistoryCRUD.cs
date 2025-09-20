@@ -350,7 +350,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM DriveTransferHistory " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND remoteIdentityId = @remoteIdentityId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -397,7 +397,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient FROM DriveTransferHistory " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId "+
                                              ";";
 
                 get1Command.AddParameter("@identityId", DbType.Binary, identityId);

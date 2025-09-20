@@ -279,7 +279,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,requestEnvelope,timestamp FROM AttestationRequest " +
-                                             "WHERE attestationId = @attestationId LIMIT 1;"+
+                                             "WHERE attestationId = @attestationId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@attestationId", DbType.String, attestationId);

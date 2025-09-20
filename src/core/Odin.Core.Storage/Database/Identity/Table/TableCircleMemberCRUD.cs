@@ -284,7 +284,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,data FROM CircleMember " +
-                                             "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND circleId = @circleId AND memberId = @memberId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -328,7 +328,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,circleId,memberId,data FROM CircleMember " +
-                                             "WHERE identityId = @identityId;"+
+                                             "WHERE identityId = @identityId "+
                                              ";";
 
                 get1Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -376,7 +376,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT rowId,memberId,data FROM CircleMember " +
-                                             "WHERE identityId = @identityId AND circleId = @circleId;"+
+                                             "WHERE identityId = @identityId AND circleId = @circleId "+
                                              ";";
 
                 get2Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -425,7 +425,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get3Command = cn.CreateCommand();
             {
                 get3Command.CommandText = "SELECT rowId,circleId,data FROM CircleMember " +
-                                             "WHERE identityId = @identityId AND memberId = @memberId;"+
+                                             "WHERE identityId = @identityId AND memberId = @memberId "+
                                              ";";
 
                 get3Command.AddParameter("@identityId", DbType.Binary, identityId);
