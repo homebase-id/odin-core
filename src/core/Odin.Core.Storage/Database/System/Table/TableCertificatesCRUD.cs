@@ -338,7 +338,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,privateKey,certificate,expiration,lastAttempt,correlationId,lastError,created,modified FROM Certificates " +
-                                             "WHERE domain = @domain LIMIT 1;"+
+                                             "WHERE domain = @domain LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@domain", DbType.String, domain.DomainName);

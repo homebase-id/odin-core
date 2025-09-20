@@ -267,7 +267,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,timestamp FROM LastSeen " +
-                                             "WHERE subject = @subject LIMIT 1;"+
+                                             "WHERE subject = @subject LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@subject", DbType.String, subject);

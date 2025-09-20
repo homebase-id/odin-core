@@ -298,7 +298,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,created,modified FROM ImFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND identity = @identity AND driveId = @driveId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -341,7 +341,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,driveId,created,modified FROM ImFollowing " +
-                                             "WHERE identityId = @identityId AND identity = @identity;"+
+                                             "WHERE identityId = @identityId AND identity = @identity "+
                                              ";";
 
                 get1Command.AddParameter("@identityId", DbType.Binary, identityId);

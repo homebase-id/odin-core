@@ -323,7 +323,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,key2,key3,data FROM KeyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -351,7 +351,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT data FROM KeyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2;"+
+                                             "WHERE identityId = @identityId AND key2 = @key2 "+
                                              ";";
 
                 get1Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -398,7 +398,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT data FROM KeyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key3 = @key3;"+
+                                             "WHERE identityId = @identityId AND key3 = @key3 "+
                                              ";";
 
                 get2Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -475,7 +475,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get3Command = cn.CreateCommand();
             {
                 get3Command.CommandText = "SELECT rowId,key1,data FROM KeyUniqueThreeValue " +
-                                             "WHERE identityId = @identityId AND key2 = @key2 AND key3 = @key3;"+
+                                             "WHERE identityId = @identityId AND key2 = @key2 AND key3 = @key3 "+
                                              ";";
 
                 get3Command.AddParameter("@identityId", DbType.Binary, identityId);

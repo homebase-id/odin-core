@@ -313,7 +313,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId FROM DriveAclIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId AND aclMemberId = @aclMemberId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -340,7 +340,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT aclMemberId FROM DriveAclIndex " +
-                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId;"+
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND fileId = @fileId "+
                                              ";";
 
                 get1Command.AddParameter("@identityId", DbType.Binary, identityId);

@@ -296,7 +296,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,data FROM AppGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId AND appId = @appId AND circleId = @circleId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -342,7 +342,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,appId,circleId,data FROM AppGrants " +
-                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId;"+
+                                             "WHERE identityId = @identityId AND odinHashId = @odinHashId "+
                                              ";";
 
                 get1Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -392,7 +392,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get2Command = cn.CreateCommand();
             {
                 get2Command.CommandText = "SELECT rowId,odinHashId,appId,circleId,data FROM AppGrants " +
-                                             "WHERE identityId = @identityId;"+
+                                             "WHERE identityId = @identityId "+
                                              ";";
 
                 get2Command.AddParameter("@identityId", DbType.Binary, identityId);
