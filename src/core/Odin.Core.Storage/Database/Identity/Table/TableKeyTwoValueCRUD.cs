@@ -304,7 +304,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,key2,data FROM KeyTwoValue " +
-                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND key1 = @key1 LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
@@ -353,7 +353,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get1Command = cn.CreateCommand();
             {
                 get1Command.CommandText = "SELECT rowId,key1,data FROM KeyTwoValue " +
-                                             "WHERE identityId = @identityId AND "+(key2==null ? "key2 IS NULL" : "key2 = @key2") + ";"+
+                                             "WHERE identityId = @identityId AND "+(key2==null ? "key2 IS NULL" : "key2 = @key2") + " "+
                                              ";";
 
                 get1Command.AddParameter("@identityId", DbType.Binary, identityId);

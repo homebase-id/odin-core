@@ -7,6 +7,7 @@ using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity;
@@ -78,12 +79,13 @@ public class DatabaseMigrationTests : IocTestBase
         var scopedIdentityConnectionFactory = scope.Resolve<ScopedIdentityConnectionFactory>();
         await using var cn = await scopedIdentityConnectionFactory.CreateScopedConnectionAsync();
 
-        // I need to upgrade this code when I am not stress coding.
-        var list = new TableDriveMainIndexMigrationList();
-        var m1 = list.GetByVersion(0);
-        string version = await SqlHelper.GetTableCommentAsync(cn, "Drives");
-        var v = await SqlHelper.GetTableVersionAsync(cn, "Drives");
-        ClassicAssert.IsTrue(v == 0);
+        var commentJson = await SqlHelper.GetTableCommentAsync(cn, "Drives");
+        var doc = JsonDocument.Parse(commentJson);
+
+        var commentVersion = doc.RootElement.GetProperty("Version").GetInt64();
+        var tableVersion = await SqlHelper.GetTableVersionAsync(cn, "Drives");
+
+        Assert.That(commentVersion, Is.EqualTo(tableVersion));
     }
     
     [Test]

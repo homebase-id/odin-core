@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
-                                             "WHERE identityId = @identityId AND identity = @identity LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND identity = @identity LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);

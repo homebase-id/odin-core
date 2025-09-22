@@ -436,7 +436,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM Jobs " +
-                                             "WHERE id = @id LIMIT 1;"+
+                                             "WHERE id = @id LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@id", DbType.Binary, id);

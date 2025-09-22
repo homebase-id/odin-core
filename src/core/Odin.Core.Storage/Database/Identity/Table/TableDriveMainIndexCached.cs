@@ -88,7 +88,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
-    public async Task<DriveMainIndexRecord?> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId, TimeSpan? ttl = null)
+    public async Task<DriveMainIndexRecord?> GetByUniqueIdAsync(Guid driveId, Guid uniqueId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetUniqueIdCacheKey(driveId, uniqueId),
@@ -100,7 +100,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
-    public async Task<DriveMainIndexRecord?> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId, TimeSpan? ttl = null)
+    public async Task<DriveMainIndexRecord?> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetGlobalTransitIdCacheKey(driveId, globalTransitId),
