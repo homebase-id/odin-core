@@ -29,12 +29,12 @@ public class TableDriveMainIndex(
         return await base.GetAllByDriveIdAsync(odinIdentity, driveId);
     }
 
-    internal async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid? uniqueId)
+    internal async Task<DriveMainIndexRecord> GetByUniqueIdAsync(Guid driveId, Guid uniqueId)
     {
         return await base.GetByUniqueIdAsync(odinIdentity, driveId, uniqueId);
     }
 
-    internal async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid? globalTransitId)
+    internal async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId)
     {
         return await base.GetByGlobalTransitIdAsync(odinIdentity, driveId, globalTransitId);
     }

@@ -216,9 +216,9 @@ public class DriveQuery(
 
             rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
             if (fileMetadata.AppData.UniqueId.HasValue)
-                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId);
+                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId.Value);
             if (fileMetadata.GlobalTransitId.HasValue)
-                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId);
+                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId.Value);
 
             string s = "";
             DriveMainIndexRecord r = null;
