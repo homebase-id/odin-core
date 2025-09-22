@@ -82,13 +82,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Drives IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE Drives IS '{ \"Version\": 202509220609 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Drives( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Drives( -- { \"Version\": 202509220609 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"DriveId BYTEA NOT NULL, "
