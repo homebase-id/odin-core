@@ -41,6 +41,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             };
 
             _scaffold.RunBeforeAnyTests(envOverrides: env);
+
         }
 
         [OneTimeTearDown]
@@ -85,6 +86,8 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         public async Task CanReadTransferSummaryFromFileMixResultsWhenSourceFileDoesNotAllowDistribution(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
+
             Console.WriteLine("Scenario:" + callerContext.GetType());
             Console.WriteLine();
             
@@ -170,6 +173,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         public async Task CanReadTransferSummaryFromFileMixResultsWhenRecipientReturnsAccessDenied(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
+
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 
@@ -273,6 +279,9 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         public async Task CanReadTransferHistoryForFileMixResults(IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
         {
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
+
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
             await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 

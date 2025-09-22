@@ -185,6 +185,9 @@ public class DirectDriveSizeValidationTests
         IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
+
         var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
 
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);

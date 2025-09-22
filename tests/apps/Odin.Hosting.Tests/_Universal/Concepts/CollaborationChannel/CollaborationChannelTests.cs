@@ -94,6 +94,8 @@ public class CollaborationChannelTests
     public async Task CanViewAndEditCollaborativePostFromFeed(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
+
         var collabChannel = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
         var member1 = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
         var member2 = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
@@ -168,6 +170,8 @@ public class CollaborationChannelTests
     public async Task CanUpdateRemoteFile_AndSeeChangesDistributedToFeed(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
+
         var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
         var member1_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
         var member2_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);

@@ -59,6 +59,8 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
         [Test]
         public async Task CanUnmarkAccountForDeletion()
         {
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+
             var identity = TestIdentities.TomBombadil;
             const string password = "8833CC039d!!~!";
             await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);

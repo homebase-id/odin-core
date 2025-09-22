@@ -89,6 +89,7 @@ public class PeerUpdateOriginalAuthorTests
         HttpStatusCode expectedStatusCode)
     {
         var debugTimeSpan = TimeSpan.FromMinutes(30);
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
 
         var collabChannelOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
@@ -338,6 +339,9 @@ public class PeerUpdateOriginalAuthorTests
         IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
+
         var secondaryAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
 
         var originalAuthor_OwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);

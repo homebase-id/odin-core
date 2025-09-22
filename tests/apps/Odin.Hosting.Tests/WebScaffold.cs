@@ -228,9 +228,20 @@ namespace Odin.Hosting.Tests
                 // {
                 //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
                 // }
-
-                Parallel.ForEach(TestIdentities.All.Keys,
-                    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
+                //
+                // Parallel.ForEach(TestIdentities.All.Keys,
+                //     odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
+                //
+                List<OdinId> regularIdentities =
+                [
+                    TestIdentities.Frodo.OdinId,
+                    TestIdentities.Samwise.OdinId,
+                    TestIdentities.Merry.OdinId,
+                    TestIdentities.Pippin.OdinId
+                ];
+                
+                Parallel.ForEach(regularIdentities,
+                    odinId => { _oldOwnerApi.SetupOwnerAccount(odinId, initializeIdentity).GetAwaiter().GetResult(); });
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);

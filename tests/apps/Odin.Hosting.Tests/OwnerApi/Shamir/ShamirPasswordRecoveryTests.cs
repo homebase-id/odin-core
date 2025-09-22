@@ -46,6 +46,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         [Ignore("dark launched")]
         public async Task CanDistributeShardsToDelegatePeersAndVerify()
         {
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+
             List<OdinId> peerIdentities =
             [
                 TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId, TestIdentities.TomBombadil.OdinId
@@ -86,6 +88,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         [Ignore("dark launched")]
         public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
         {
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+
             _scaffold.SetAssertLogEventsAction(logEvents =>
             {
                 var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];

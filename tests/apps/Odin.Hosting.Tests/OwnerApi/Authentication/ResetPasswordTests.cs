@@ -54,6 +54,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         [Test]
         public async Task CanResetPasswordUsingCurrentPassword()
         {
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+
             var identity = TestIdentities.TomBombadil;
             const string password = "8833CC039d!!~!";
             const string newPassword = "672c~!!9402044";

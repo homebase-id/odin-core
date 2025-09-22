@@ -122,6 +122,7 @@ public class PeerAppPushNotificationTests
         HttpStatusCode expectedStatusCode)
     {
         var debugTimeout = _scaffold.DebugTimeout;
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.Collab.OdinId, true);
 
         var collabChatIdentity = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Collab);
         var member1 = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);

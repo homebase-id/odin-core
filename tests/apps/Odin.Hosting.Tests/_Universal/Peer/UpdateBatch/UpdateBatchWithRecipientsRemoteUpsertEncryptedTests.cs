@@ -281,6 +281,8 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
             IApiClientContext callerContext,
             HttpStatusCode expectedStatusCode)
     {
+        await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
+
         var sender = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(sender);
         var targetDrive = callerContext.TargetDrive;

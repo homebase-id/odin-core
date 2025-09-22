@@ -93,6 +93,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
              * I need to ensure the outbox is being emptied and at the end of the test; no items remain (with in X minutes)
              */
 
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(TestIdentities.TomBombadil.OdinId, true);
 
 
             // Setup
