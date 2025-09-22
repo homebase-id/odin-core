@@ -1,4 +1,5 @@
 ﻿using Autofac;
+using Odin.Core.Logging.Caller;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Logging.Statistics.Serilog;
@@ -13,6 +14,7 @@ namespace Odin.Core.Logging
             builder.RegisterType<CorrelationContext>().As<ICorrelationContext>().SingleInstance();
             builder.RegisterType<StickyHostname>().As<IStickyHostname>().SingleInstance();
             builder.RegisterType<StickyHostnameGenerator>().As<IStickyHostnameGenerator>().SingleInstance();
+            builder.RegisterType<CallerLogContext>().As<ICallerLogContext>().SingleInstance();
             builder.RegisterType<LogEventMemoryStore>().As<ILogEventMemoryStore>().SingleInstance();
         }
     }
