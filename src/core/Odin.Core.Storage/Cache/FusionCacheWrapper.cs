@@ -10,7 +10,7 @@ namespace Odin.Core.Storage.Cache;
 
 public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cache) : IFusionCacheWrapper
 {
-    protected abstract FusionCacheEntryOptions DefaultOptions { get; }
+    protected abstract FusionCacheEntryOptions DefaultEntryOptions { get; }
 
     //
 
@@ -23,7 +23,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         TValue? defaultValue = default,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultEntryOptions.Duplicate();
 
         return cache.GetOrDefault(
             AddPrefix(key),
@@ -39,7 +39,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         TValue? defaultValue = default,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultEntryOptions.Duplicate();
 
         return cache.GetOrDefaultAsync(
             AddPrefix(key),
@@ -52,7 +52,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public MaybeValue<TValue> TryGet<TValue>(string key, CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultEntryOptions.Duplicate();
 
         return cache.TryGet<TValue>(
             AddPrefix(key),
@@ -64,7 +64,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public ValueTask<MaybeValue<TValue>> TryGetAsync<TValue>(string key, CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultEntryOptions.Duplicate();
 
         return cache.TryGetAsync<TValue>(
             AddPrefix(key),
@@ -81,7 +81,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate(duration);
+        var options = DefaultEntryOptions.Duplicate(duration);
 
         return cache.GetOrSet(
             AddPrefix(key),
@@ -100,7 +100,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate(duration);
+        var options = DefaultEntryOptions.Duplicate(duration);
 
         return cache.GetOrSetAsync(
             AddPrefix(key),
@@ -119,7 +119,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate(duration);
+        var options = DefaultEntryOptions.Duplicate(duration);
 
         return cache.GetOrSet<TValue>(
             AddPrefix(key),
@@ -138,7 +138,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate(duration);
+        var options = DefaultEntryOptions.Duplicate(duration);
 
         return cache.GetOrSetAsync<TValue>(
             AddPrefix(key),
@@ -157,7 +157,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate(duration);
+        var options = DefaultEntryOptions.Duplicate(duration);
 
         cache.Set(
             AddPrefix(key),
@@ -176,7 +176,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate(duration);
+        var options = DefaultEntryOptions.Duplicate(duration);
 
         return cache.SetAsync(
             AddPrefix(key),
@@ -190,7 +190,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public void Remove(string key, CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultEntryOptions.Duplicate();
 
         cache.Remove(
             AddPrefix(key),
@@ -202,7 +202,7 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
+        var options = DefaultEntryOptions.Duplicate();
 
         return cache.RemoveAsync(
             AddPrefix(key),
@@ -214,11 +214,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public void RemoveByTag(string tag, CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
-
         cache.RemoveByTag(
             AddPrefix(tag),
-            options,
+            null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
             cancellationToken);
     }
     
@@ -226,11 +224,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public ValueTask RemoveByTagAsync(string tag, CancellationToken cancellationToken = default)
     {
-        var options = DefaultOptions.Duplicate();
-        
         return cache.RemoveByTagAsync(
             AddPrefix(tag),
-            options,
+            null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
             cancellationToken);
     }
 
@@ -240,11 +236,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     {
         ArgumentNullException.ThrowIfNull(tags, nameof(tags));
 
-        var options = DefaultOptions.Duplicate();
-
         cache.RemoveByTag(
             AddPrefix(tags)!,
-            options,
+            null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
             cancellationToken);
     }
 
@@ -254,11 +248,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
     {
         ArgumentNullException.ThrowIfNull(tags, nameof(tags));
 
-        var options = DefaultOptions.Duplicate();
-
         return cache.RemoveByTagAsync(
             AddPrefix(tags)!,
-            options,
+            null, // SEB:NOTE do not pass entry-options here, they are meant for cache entries, not for tag entries
             cancellationToken);
     }
 
