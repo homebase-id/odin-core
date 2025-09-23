@@ -376,13 +376,13 @@ namespace Odin.Core.Cryptography.Tests
             //Sign with private key
             var rsaPrivate = new RSACryptoServiceProvider();
             rsaPrivate.FromXmlString(privateXml);
-            byte[] signedRSA = rsaPrivate.SignData(toEncryptData, System.Security.Cryptography.CryptoConfig.MapNameToOID("SHA256"));
+            byte[] signedRSA = rsaPrivate.SignData(toEncryptData, CryptoConfig.MapNameToOID("SHA256"));
             string signedResult = Encoding.Default.GetString(signedRSA);
 
             //Verify with public key 
             RSACryptoServiceProvider rsaPublic = new RSACryptoServiceProvider();
             rsaPublic.FromXmlString(publicXml);
-            bool SignatureOK = rsaPublic.VerifyData(toEncryptData, System.Security.Cryptography.CryptoConfig.MapNameToOID("SHA256"), signedRSA);
+            bool SignatureOK = rsaPublic.VerifyData(toEncryptData, CryptoConfig.MapNameToOID("SHA256"), signedRSA);
 
             if (SignatureOK)
                 Assert.Pass();
