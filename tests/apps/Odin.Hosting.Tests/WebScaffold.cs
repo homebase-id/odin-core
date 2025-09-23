@@ -101,8 +101,13 @@ namespace Odin.Hosting.Tests
         public void RunBeforeAnyTests(
             bool initializeIdentity = true,
             bool setupOwnerAccounts = true,
-            Dictionary<string, string> envOverrides = null)
+            Dictionary<string, string> envOverrides = null,
+            List<TestIdentity> testIdentities = null
+            )
         {
+            // Default to all identities
+            TestIdentities.SetCurrent(testIdentities);
+
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
             GC.Collect();
@@ -160,7 +165,7 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
-                $"[{string.Join(",", TestIdentities.All.Values.Select(v => $"\"{v.OdinId}\""))}]");
+                $"[{string.Join(",", TestIdentities.InitializedIdentities.Values.Select(v => $"\"{v.OdinId}\""))}]");
 
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning.dotyou.cloud");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dotyou.cloud\"]");
@@ -229,8 +234,11 @@ namespace Odin.Hosting.Tests
                 //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
                 // }
 
-                Parallel.ForEach(TestIdentities.All.Keys,
-                    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
+                Parallel.ForEach(testIdentities.Select(i => i.OdinId),
+                    odinId => { _oldOwnerApi.SetupOwnerAccount(odinId, initializeIdentity).GetAwaiter().GetResult(); });
+
+                //Parallel.ForEach(TestIdentities.All.Keys,
+                //    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);

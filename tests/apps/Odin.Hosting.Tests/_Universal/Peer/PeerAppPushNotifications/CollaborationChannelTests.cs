@@ -180,7 +180,7 @@ public class PeerAppPushNotificationTests
             //
             foreach (var recipient in notificationOptions.Recipients)
             {
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
                 ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 

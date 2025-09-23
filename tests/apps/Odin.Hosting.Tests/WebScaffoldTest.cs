@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,7 @@ public class WebScaffoldTest
     {
         var folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { });
     }
 
     //

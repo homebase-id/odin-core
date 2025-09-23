@@ -114,7 +114,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             foreach (var recipientFile in recipientFiles)
             {
                 var recipient = recipientFile.Key;
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
 
                 //
                 // Send the read receipt
@@ -209,7 +209,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             foreach (var recipientFile in recipientFiles)
             {
                 var recipient = recipientFile.Key;
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
 
                 //
                 // Send the read receipt
@@ -289,7 +289,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             foreach (var recipientFile in recipientFiles)
             {
                 var recipient = recipientFile.Key;
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
 
                 //
                 // Send the read receipt
@@ -383,7 +383,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             foreach (var recipientFile in recipientFiles)
             {
                 var recipient = recipientFile.Key;
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
 
                 //
                 // Send the read receipt
@@ -479,7 +479,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             foreach (var recipientFile in recipientFiles)
             {
                 var recipient = recipientFile.Key;
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
 
                 //
                 // Send the read receipt
@@ -586,7 +586,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var recipientFiles = new Dictionary<string, SharedSecretEncryptedFileHeader>();
             foreach (var recipient in transitOptions.Recipients)
             {
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
                 await client.DriveRedux.ProcessInbox(storageOptions.Drive);
                 var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult1.GlobalTransitIdFileIdentifier);
                 ClassicAssert.IsTrue(recipientFileResponse.IsSuccessStatusCode);

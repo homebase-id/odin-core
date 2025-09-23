@@ -127,7 +127,7 @@ public abstract class YouAuthIntegrationTestBase
         Guid driveAlias,
         Guid driveType)
     {
-        var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+        var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.InitializedIdentities[identity]);
 
         var drive = new TargetDrive
         {

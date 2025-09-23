@@ -362,7 +362,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 }
             };
 
-            var client = _scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+            var client = _scaffold.CreateOwnerApiClient(TestIdentities.InitializedIdentities[identity]);
             var td = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "a drive", "", true);
             var response = await client.DriveRedux.UploadNewMetadata(td.TargetDriveInfo, uploadFileMetadata);
             var uploadResult = response.Content;
@@ -392,7 +392,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 AccessControlList = acl
             };
 
-            var client = _scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+            var client = _scaffold.CreateOwnerApiClient(TestIdentities.InitializedIdentities[identity]);
 
             if (overwriteFileId.HasValue)
             {
