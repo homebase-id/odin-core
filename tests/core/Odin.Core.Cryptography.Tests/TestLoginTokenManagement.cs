@@ -9,6 +9,8 @@ namespace Odin.Core.Cryptography.Tests
 {
     public class TestLoginTokenManagement
     {
+        private readonly OdinCryptoConfig _cryptoConfig = new(Iterations: 1);
+
         [SetUp]
         public void Setup()
         {
@@ -47,7 +49,7 @@ namespace Odin.Core.Cryptography.Tests
             // (If the list was updated, the server needs to save it), i.e. the out var _ shouldn't be ignored
 
             // The server now generates the NonceData 
-            NonceData nonce = NonceData.NewRandomNonce(currentKey);
+            NonceData nonce = NonceData.NewRandomNonce(currentKey, _cryptoConfig.HashSize);
 
             // The server sends the nonce data back to the client
 
@@ -60,7 +62,8 @@ namespace Odin.Core.Cryptography.Tests
             // This is a temporary Ecc on the client
             var clientEcc = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-            PasswordReply rp = PasswordDataManager.CalculatePasswordReply(password, nonce, clientEcc);
+            var passwordDataManager = new PasswordDataManager(_cryptoConfig);
+            PasswordReply rp = passwordDataManager.CalculatePasswordReply(password, nonce, clientEcc);
             // The client sends the reply to the server
 
             // The server receives the reply
@@ -69,13 +72,14 @@ namespace Odin.Core.Cryptography.Tests
             // These two values were already pre-existing on the server. The HashedPassword was set when the
             // password was initially set. And the KeK was also calculated at that time.
             //
-            var HashedPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
-            var KeK = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var HashedPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, _cryptoConfig.Iterations, _cryptoConfig.HashSize);
+            var KeK = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256, _cryptoConfig.Iterations, _cryptoConfig.HashSize);
 
             // The server now parses the received reply and creates the tokens needed for the client/server.
-            var (halfCookie, loginToken) = OwnerConsoleTokenManager.CreateToken(nonce, rp, listEcc);
+            var ownerConsoleTokenManager = new OwnerConsoleTokenManager(new PasswordDataManager(_cryptoConfig));
+            var (halfCookie, loginToken) = ownerConsoleTokenManager.CreateToken(nonce, rp, listEcc);
 
-            var testKek = OwnerConsoleTokenManager.GetMasterKey(loginToken, halfCookie);
+            var testKek = ownerConsoleTokenManager.GetMasterKey(loginToken, halfCookie);
 
             if (ByteArrayUtil.EquiByteArrayCompare(KeK, testKek.GetKey()) == false)
             {

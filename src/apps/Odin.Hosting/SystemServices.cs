@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Login;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
@@ -68,6 +70,11 @@ public static class SystemServices
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
         services.AddSingleton<ISystemDomains, SystemDomains>();
         services.AddSingleton<ILastSeenService, LastSeenService>();
+
+        services.AddSingleton<OwnerConsoleTokenManager>();
+        services.AddSingleton<PasswordDataManager>();
+        services.AddSingleton(new OdinCryptoConfig(
+            config.Crypto.SaltSize, config.Crypto.SaltSize, config.Crypto.Iterations, config.Crypto.NonceSize));
 
         services.AddControllers()
             .AddJsonOptions(options =>

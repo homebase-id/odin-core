@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Cryptography;
 using Odin.Core.Time;
 
 namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
@@ -9,6 +10,7 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
     public class DeleteAccountTests
     {
         private WebScaffold _scaffold;
+        private OdinCryptoConfig _cryptoConfig = null!;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -29,6 +31,7 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
         {
             _scaffold.ClearAssertLogEventsAction();
             _scaffold.ClearLogEvents();
+            _cryptoConfig = _scaffold.GetCryptoConfig();
         }
 
         [TearDown]
@@ -43,11 +46,12 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
         {
             var identity = TestIdentities.Frodo;
             const string password = "8833CC039d!!~!";
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, _cryptoConfig, password);
 
             var ownerClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
-            var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password);
+            var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password, _cryptoConfig);
             ClassicAssert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
 
             var getStatusResponse = await ownerClient.AccountManagement.GetAccountStatus();
@@ -61,12 +65,12 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
         {
             var identity = TestIdentities.TomBombadil;
             const string password = "8833CC039d!!~!";
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, _cryptoConfig, password);
 
             var ownerClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
             //setup for delete
-            var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password);
+            var deleteAccountResponse = await ownerClient.AccountManagement.DeleteAccount(password, _cryptoConfig);
             ClassicAssert.IsTrue(deleteAccountResponse.IsSuccessStatusCode);
 
             // make sure we're set to delete
@@ -75,7 +79,7 @@ namespace Odin.Hosting.Tests._Universal.Owner.AccountManagement
             ClassicAssert.IsNotNull(getStatusResponse.Content.PlannedDeletionDate);
             ClassicAssert.IsTrue(getStatusResponse.Content.PlannedDeletionDate > UnixTimeUtc.Now());
 
-            var unmarkAccountResponse = await ownerClient.AccountManagement.UndeleteAccount(password);
+            var unmarkAccountResponse = await ownerClient.AccountManagement.UndeleteAccount(password, _cryptoConfig);
             ClassicAssert.IsTrue(unmarkAccountResponse.IsSuccessStatusCode);
 
             var getStatusResponse2 = await ownerClient.AccountManagement.GetAccountStatus();

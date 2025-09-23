@@ -23,7 +23,7 @@ using Odin.Core.Cryptography.Login;
 
 namespace Odin.Core.Cryptography
 {
-    public static class OwnerConsoleTokenManager
+    public class OwnerConsoleTokenManager(PasswordDataManager passwordDataManager)
     {
         /// <summary>
         /// For each (logged in) client that needs access call this function
@@ -36,13 +36,11 @@ namespace Odin.Core.Cryptography
         ///    The LoginTokenData object is to be stored on the server and retrievable 
         ///    via the index cookie as DB load key.
         /// </summary>
-        /// <param name="LoginKeK"></param>
-        /// <param name="sharedSecret"></param>
         /// <returns></returns>
-        public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, PasswordReply reply,
+        public (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, PasswordReply reply,
             EccFullKeyListData listEcc)
         {
-            var (hpwd64, kek64, sharedsecret64) = PasswordDataManager.ParsePasswordEccReply(reply, listEcc);
+            var (hpwd64, kek64, sharedsecret64) = passwordDataManager.ParsePasswordEccReply(reply, listEcc);
 
             const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.
 
@@ -64,7 +62,7 @@ namespace Odin.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SensitiveByteArray GetMasterKey(OwnerConsoleToken loginToken, SensitiveByteArray halfCookie)
+        public SensitiveByteArray GetMasterKey(OwnerConsoleToken loginToken, SensitiveByteArray halfCookie)
         {
             return loginToken.TokenEncryptedKek.DecryptKeyClone(halfCookie);
         }

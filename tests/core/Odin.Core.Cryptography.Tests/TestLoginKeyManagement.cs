@@ -10,6 +10,8 @@ namespace Odin.Core.Cryptography.Tests
 {
     public class TestLoginKeyManagement
     {
+        private readonly OdinCryptoConfig _cryptoConfig = new(Iterations: 1);
+
         [SetUp]
         public void Setup()
         {
@@ -29,13 +31,14 @@ namespace Odin.Core.Cryptography.Tests
             var clientEcc = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
             // Client requests a noncePackage from the server (after password is entered)
-            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc));
+            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc), _cryptoConfig.HashSize);
 
             // Client calculates the passwordReply based on the password and noncePackage
-            var pr = PasswordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc);
+            var passwordDataManager = new PasswordDataManager(_cryptoConfig);
+            var pr = passwordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc);
 
             // Server receives the passwordReply and set's the user's initial password
-            PasswordData pk = PasswordDataManager.SetInitialPassword(np, pr, hostEcc);
+            PasswordData pk = passwordDataManager.SetInitialPassword(np, pr, hostEcc);
 
             Assert.Pass();
         }
@@ -140,15 +143,16 @@ namespace Odin.Core.Cryptography.Tests
             var hostEcc = EccKeyListManagement.CreateEccKeyList(EccKeyListManagement.zeroSensitiveKey, 2, EccKeyListManagement.DefaultHoursOfflineKey);
             EccKeyListManagement.GenerateNewKey(EccKeyListManagement.zeroSensitiveKey, hostEcc, 24);
 
-            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc));
+            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc), _cryptoConfig.HashSize);
 
             EccKeyListManagement.GenerateNewKey(EccKeyListManagement.zeroSensitiveKey, hostEcc, EccKeyListManagement.DefaultHoursOfflineKey);
             // This is a temporary Ecc on the client
             var clientEcc = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-            var pr = PasswordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc); // Sanity check
+            var passwordDataManager = new PasswordDataManager(_cryptoConfig);
+            var pr = passwordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc); // Sanity check
 
-            PasswordData pk = PasswordDataManager.SetInitialPassword(np, pr, hostEcc);
+            PasswordData pk = passwordDataManager.SetInitialPassword(np, pr, hostEcc);
 
             Assert.Pass();
         }
@@ -162,19 +166,20 @@ namespace Odin.Core.Cryptography.Tests
             var hostEcc = EccKeyListManagement.CreateEccKeyList(EccKeyListManagement.zeroSensitiveKey, 2, EccKeyListManagement.DefaultHoursOfflineKey);
             EccKeyListManagement.GenerateNewKey(EccKeyListManagement.zeroSensitiveKey, hostEcc, 24);
 
-            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc));
+            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc), _cryptoConfig.HashSize);
 
             // Sanity Values
-            var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, 16);
+            var sanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, _cryptoConfig.Iterations, 16);
 
             // This is a temporary Ecc on the client
             var clientEcc = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-            var pr = PasswordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc); // Sanity check
+            var passwordDataManager = new PasswordDataManager(_cryptoConfig);
+            var pr = passwordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc); // Sanity check
 
-            PasswordData pk = PasswordDataManager.SetInitialPassword(np, pr, hostEcc);
+            PasswordData pk = passwordDataManager.SetInitialPassword(np, pr, hostEcc);
 
-            if (ByteArrayUtil.EquiByteArrayCompare(SanityHashPassword, pk.HashPassword) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(sanityHashPassword, pk.HashPassword) == false)
                 Assert.Fail();
 
             Assert.Pass();
@@ -194,7 +199,7 @@ namespace Odin.Core.Cryptography.Tests
             // Generate Host Ecc key 
             var hostEcc = EccKeyListManagement.CreateEccKeyList(EccKeyListManagement.zeroSensitiveKey, 2, EccKeyListManagement.DefaultHoursOfflineKey);
 
-            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc));
+            var np = NonceData.NewRandomNonce(EccKeyListManagement.GetCurrentKey(hostEcc), _cryptoConfig.HashSize);
 
             np.SaltPassword64 = Convert.ToBase64String(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
             np.SaltKek64 = Convert.ToBase64String(new byte[] {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17});
@@ -205,8 +210,9 @@ namespace Odin.Core.Cryptography.Tests
             // This is a temporary Ecc on the client
             var clientEcc = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-            var pr = PasswordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc); // Sanity check
-            PasswordData pk = PasswordDataManager.SetInitialPassword(np, pr, hostEcc);
+            var passwordDataManager = new PasswordDataManager(_cryptoConfig);
+            var pr = passwordDataManager.CalculatePasswordReply("EnSøienØ", np, clientEcc); // Sanity check
+            PasswordData pk = passwordDataManager.SetInitialPassword(np, pr, hostEcc);
 
             if (ByteArrayUtil.EquiByteArrayCompare(pk.HashPassword, resultPasswordArray) == false)
                 Assert.Fail();

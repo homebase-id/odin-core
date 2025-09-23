@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Cryptography;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -40,15 +41,15 @@ public class OwnerAccountManagementApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword)
+    public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword, OdinCryptoConfig odinCryptoConfig)
     {
         using var authClient = _ownerApi.CreateAnonymousClient(_identity.OdinId);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
         var request = new ResetPasswordRequest()
         {
-            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey),
-            NewPasswordReply = await _ownerApi.CalculatePasswordReply(authClient, newPassword, clientEccFullKey)
+            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey, odinCryptoConfig),
+            NewPasswordReply = await _ownerApi.CalculatePasswordReply(authClient, newPassword, clientEccFullKey, odinCryptoConfig)
         };
 
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
@@ -59,18 +60,18 @@ public class OwnerAccountManagementApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string recoveryKey, string newPassword)
+    public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string recoveryKey, string newPassword, OdinCryptoConfig odinCryptoConfig)
     {
-        return await _ownerApi.ResetPasswordUsingRecoveryKey(this._identity.OdinId, recoveryKey, newPassword);
+        return await _ownerApi.ResetPasswordUsingRecoveryKey(this._identity.OdinId, recoveryKey, newPassword, odinCryptoConfig);
     }
     
-    public async Task<ApiResponse<DeleteAccountResponse>> DeleteAccount(string currentPassword)
+    public async Task<ApiResponse<DeleteAccountResponse>> DeleteAccount(string currentPassword, OdinCryptoConfig odinCryptoConfig)
     {
         using var authClient = _ownerApi.CreateAnonymousClient(_identity.OdinId);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
         var request = new DeleteAccountRequest()
         {
-            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey),
+            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey, odinCryptoConfig),
         };
         
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
@@ -81,13 +82,13 @@ public class OwnerAccountManagementApiClient
         }
     }
     
-    public async Task<ApiResponse<DeleteAccountResponse>> UndeleteAccount(string currentPassword)
+    public async Task<ApiResponse<DeleteAccountResponse>> UndeleteAccount(string currentPassword, OdinCryptoConfig odinCryptoConfig)
     {
         using var authClient = _ownerApi.CreateAnonymousClient(_identity.OdinId);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
         var request = new DeleteAccountRequest()
         {
-            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey),
+            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey, odinCryptoConfig),
         };
         
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);

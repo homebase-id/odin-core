@@ -15,7 +15,7 @@ namespace Odin.Core.Cryptography.Login
         public string secret { get; set; }
     }
 
-    public static class PasswordDataManager
+    public class PasswordDataManager(OdinCryptoConfig odinCryptoConfig)
     {
         /// <summary>
         /// Only call this on initializing an identity the first time 
@@ -23,7 +23,7 @@ namespace Odin.Core.Cryptography.Login
         /// You should only call if the identity's PasswordKey data struct is null
         /// On creation the DeK will be set and encrypted with the KeK
         /// </summary>
-        /// <param name="passwordKeK">pbkdf2(SaltKek, password, CryptographyConstants.ITERATIONS, 16)</param>
+        /// <param name="passwordKeK">pbkdf2(SaltKek, password, cryptoConstants.Iterations, 16)</param>
         /// <returns></returns>
         private static PasswordData CreateInitialPasswordKey(NonceData nonce, string hashedPassword64, string kek64, SensitiveByteArray masterKey)
         {
@@ -56,7 +56,7 @@ namespace Odin.Core.Cryptography.Login
             return passwordKey;
         }
 
-        public static void ChangePassword(PasswordData passwordKey, byte[] oldKeK, byte[] newKeK)
+        public void ChangePassword(PasswordData passwordKey, byte[] oldKeK, byte[] newKeK)
         {
             throw new Exception();
 
@@ -65,12 +65,12 @@ namespace Odin.Core.Cryptography.Login
             // ByteArrayUtil.WipeByteArray(DeK);
         }
 
-        public static SensitiveByteArray GetDek(PasswordData passwordKey, SensitiveByteArray KeK)
+        public SensitiveByteArray GetDek(PasswordData passwordKey, SensitiveByteArray KeK)
         {
             return GetDek(passwordKey.KekEncryptedMasterKey, KeK);
         }
 
-        public static SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, SensitiveByteArray KeK)
+        public SensitiveByteArray GetDek(SymmetricKeyEncryptedAes EncryptedDek, SensitiveByteArray KeK)
         {
             return EncryptedDek.DecryptKeyClone(KeK);
         }
@@ -83,7 +83,7 @@ namespace Odin.Core.Cryptography.Login
         /// Nonce package, then call here to setup everything needed (HasedPassword, Kek, DeK)
         /// </summary>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static PasswordData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, EccFullKeyListData listEcc,
+        public PasswordData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, EccFullKeyListData listEcc,
             SensitiveByteArray masterKey = null)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordEccReply(reply, listEcc);
@@ -103,7 +103,7 @@ namespace Odin.Core.Cryptography.Login
         /// <param name="clientEcc"></param>
         /// <param name="hostPublicEcc"></param>
         /// <returns>base64 encoded encrypted string</returns>
-        private static string DeriveSsAndGcmEncrypt(EccFullKeyData clientEcc, EccPublicKeyData hostPublicEcc, byte[] dataToEncrypt, byte[] nonce)
+        private string DeriveSsAndGcmEncrypt(EccFullKeyData clientEcc, EccPublicKeyData hostPublicEcc, byte[] dataToEncrypt, byte[] nonce)
         {
             string encryptedGcm;
 
@@ -128,7 +128,7 @@ namespace Odin.Core.Cryptography.Login
         /// <param name="clientPublicEcc"></param>
         /// <param name="gcmEncrypted64"></param>
         /// <returns></returns>
-        private static byte[] DeriveSsAndGcmDecrypt(EccFullKeyData hostEcc, EccPublicKeyData clientPublicEcc, byte[] dataToDecrypt, byte[] nonce)
+        private byte[] DeriveSsAndGcmDecrypt(EccFullKeyData hostEcc, EccPublicKeyData clientPublicEcc, byte[] dataToDecrypt, byte[] nonce)
         {
             byte[] decryptedGcm;
 
@@ -148,7 +148,7 @@ namespace Odin.Core.Cryptography.Login
 
         // From the PasswordReply package received from the client, try to decrypt the ECC
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
-        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordEccReply(PasswordReply reply, EccFullKeyListData listHostEcc)
+        public (string pwd64, string kek64, string sharedsecret64) ParsePasswordEccReply(PasswordReply reply, EccFullKeyListData listHostEcc)
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
@@ -192,7 +192,7 @@ namespace Odin.Core.Cryptography.Login
 
         // Returns the kek64 and sharedSecret64 by the RSA encrypted reply from the client.
         // We should rename this function. The actual authentication is done in TryPasswordKeyMatch
-        public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage,
+        public (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage,
             PasswordReply reply, EccFullKeyListData listEcc)
         {
             var (hpwd64, kek64, sharedsecret64) = ParsePasswordEccReply(reply, listEcc);
@@ -200,7 +200,7 @@ namespace Odin.Core.Cryptography.Login
         }
 
 
-        public static void TryPasswordKeyMatch(string hashPassword64, string nonceHashedPassword64, string nonce64)
+        public void TryPasswordKeyMatch(string hashPassword64, string nonceHashedPassword64, string nonce64)
         {
             var noncePasswordBytes = Convert.FromBase64String(nonceHashedPassword64);
 
@@ -208,8 +208,8 @@ namespace Odin.Core.Cryptography.Login
                 hashPassword64,
                 Convert.FromBase64String(nonce64),
                 KeyDerivationPrf.HMACSHA256,
-                CryptographyConstants.ITERATIONS,
-                CryptographyConstants.HASH_SIZE);
+                odinCryptoConfig.Iterations,
+                odinCryptoConfig.HashSize);
 
             if (ByteArrayUtil.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword) == false)
                 throw new OdinSecurityException("Password mismatch");
@@ -224,19 +224,19 @@ namespace Odin.Core.Cryptography.Login
         /// <param name="nonceHashedPassword64">The client calculated nonceHashedPassword64</param>
         /// <param name="nonce64">The nonce the client was given by the server</param>
         /// <returns></returns>
-        public static void TryPasswordKeyMatch(PasswordData pk, string nonceHashedPassword64, string nonce64)
+        public void TryPasswordKeyMatch(PasswordData pk, string nonceHashedPassword64, string nonce64)
         {
             TryPasswordKeyMatch(Convert.ToBase64String(pk.HashPassword), nonceHashedPassword64, nonce64);
         }
 
 
-        public static PasswordData SetInitialPassword(NonceData noncePackage, object loadedNoncePackage,
+        public PasswordData SetInitialPassword(NonceData noncePackage, object loadedNoncePackage,
             PasswordReply passwordReply, object reply)
         {
             throw new NotImplementedException();
         }
 
-        public static PasswordReply CalculatePasswordReply(string password, NonceData nonce, EccFullKeyData clientEccKey)
+        public PasswordReply CalculatePasswordReply(string password, NonceData nonce, EccFullKeyData clientEccKey)
         {
             var pr = new PasswordReply();
 
@@ -244,15 +244,15 @@ namespace Odin.Core.Cryptography.Login
 
             string hashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
                 Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256,
-                CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+                odinCryptoConfig.Iterations, odinCryptoConfig.HashSize));
 
             string keK64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
                 Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256,
-                CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
+                odinCryptoConfig.Iterations, odinCryptoConfig.HashSize));
 
             pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(hashedPassword64,
-                Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS,
-                CryptographyConstants.HASH_SIZE));
+                Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, odinCryptoConfig.Iterations,
+                odinCryptoConfig.HashSize));
 
             //TODO XXX
             //RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();

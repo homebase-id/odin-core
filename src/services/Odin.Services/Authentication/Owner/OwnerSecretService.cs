@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
@@ -20,7 +21,9 @@ namespace Odin.Services.Authentication.Owner
         PasswordKeyRecoveryService recoveryService,
         PublicPrivateKeyService publicPrivateKeyService,
         TableKeyValueCached tblKeyValue,
-        TableNonce nonceTable)
+        TableNonce nonceTable,
+        OdinCryptoConfig odinCryptoConfig,
+        PasswordDataManager passwordDataManager)
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
 
@@ -50,7 +53,7 @@ namespace Odin.Services.Authentication.Owner
         {
             var eccKeyList = await GetOfflineEccKeyListAsync();
             var key = EccKeyListManagement.GetCurrentKey(eccKeyList);
-            var nonce = NonceData.NewRandomNonce(key);
+            var nonce = NonceData.NewRandomNonce(key, odinCryptoConfig.HashSize);
             await NonceDataStorage.UpsertAsync(tblKeyValue, nonce.Id, nonce);
             return nonce;
         }
@@ -161,7 +164,12 @@ namespace Odin.Services.Authentication.Owner
             var salts = await GetStoredSaltsAsync();
             var (publicKeyCrc32C, publicKeyJwk) = await GetCurrentAuthenticationEccKeyAsync();
 
-            var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyJwk, publicKeyCrc32C);
+            var nonce = new NonceData(
+                salts.SaltPassword64,
+                salts.SaltKek64,
+                publicKeyJwk,
+                publicKeyCrc32C,
+                odinCryptoConfig.HashSize);
 
             var r = new NonceRecord()
             {
@@ -190,7 +198,7 @@ namespace Odin.Services.Authentication.Owner
             // TODO SECURITY
             // TODO XXX Where the heck do we validate the server has the nonce64 (prevent replay)
 
-            PasswordDataManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+            passwordDataManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
         }
 
         public async Task ResetPasswordUsingRecoveryKeyAsync(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext)
@@ -234,7 +242,7 @@ namespace Odin.Services.Authentication.Owner
 
             var keys = await this.GetOfflineEccKeyListAsync();
 
-            PasswordData pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys, masterKey);
+            var pk = passwordDataManager.SetInitialPassword(originalNoncePackage, reply, keys, masterKey);
             await PasswordDataStorage.UpsertAsync(tblKeyValue, PasswordKeyStorageId, pk);
 
             //delete the temporary salts

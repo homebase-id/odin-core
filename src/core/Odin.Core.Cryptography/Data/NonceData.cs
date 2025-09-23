@@ -8,13 +8,13 @@ namespace Odin.Core.Cryptography.Data
     /// </summary>
     public sealed class NonceData
     {
-        public static NonceData NewRandomNonce(EccPublicKeyData keyData)
+        public static NonceData NewRandomNonce(EccPublicKeyData keyData, int hashSize)
         {
             var np = new NonceData()
             {
-                Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
-                SaltPassword64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
-                SaltKek64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE)),
+                Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(hashSize)),
+                SaltPassword64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(hashSize)),
+                SaltKek64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(hashSize)),
                 PublicJwk = keyData.PublicKeyJwk(),
                 CRC = keyData.crc32c
             };
@@ -32,14 +32,12 @@ namespace Odin.Core.Cryptography.Data
         /// <summary>
         /// Creates a new NoncePackage using specified salts and generates a random <see cref="Nonce64"/> value
         /// </summary>
-        /// <param name="saltPassword64"></param>
-        /// <param name="saltKek64"></param>
-        public NonceData(string saltPassword64, string saltKek64, string jwk, UInt32 crc)
+        public NonceData(string saltPassword64, string saltKek64, string jwk, UInt32 crc, int hashSize)
         {
             // Guard.Argument(saltPassword, nameof(saltPassword)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
             // Guard.Argument(saltKek, nameof(saltKek)).NotEmpty().Require(x => x.Length == IdentityKeySecurity.SALT_SIZE);
 
-            Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(CryptographyConstants.SALT_SIZE));
+            Nonce64 = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(hashSize));
             SaltPassword64 = saltPassword64;
             SaltKek64 = saltKek64;
             PublicJwk = jwk;
