@@ -24,7 +24,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: false);
+            _scaffold.RunBeforeAnyTests(initializeIdentity: false, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo });
         }
 
         [OneTimeTearDown]
@@ -50,7 +50,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task CanInitializeSystem_WithAllRsaKeys()
         {
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
             //success = system drives created, other drives created
             var getIsIdentityConfiguredResponse1 = await ownerClient.Configuration.IsIdentityConfigured();
@@ -113,7 +113,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
         {
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
             //success = system drives created, other drives created
 

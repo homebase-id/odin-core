@@ -1,8 +1,3 @@
-using System.Collections;
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage;
@@ -10,6 +5,12 @@ using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Reactions;
 
@@ -25,7 +26,7 @@ public class ReactionTestsLocalIdentityOnly
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Pippin });
     }
 
     [OneTimeTearDown]

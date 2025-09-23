@@ -91,7 +91,8 @@ namespace Odin.Hosting.Tests
         {
             if (identities == null)
             {
-                InitializedIdentities = Defaults.ToDictionary(i => (string)i.OdinId, i => i);
+                // InitializedIdentities = Defaults.ToDictionary(i => (string)i.OdinId, i => i);
+                InitializedIdentities = new Dictionary<string, TestIdentity>() { };
             }
             else
             {

@@ -1,6 +1,3 @@
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -10,6 +7,10 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections.Introductions;
 
@@ -22,7 +23,7 @@ public class SendingFilesToIntroducedIdentityTests
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Merry, TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]

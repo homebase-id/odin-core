@@ -1,13 +1,14 @@
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections.Introductions;
 
@@ -20,7 +21,7 @@ public class SendingIntroductionsTests
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Merry, TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]
@@ -316,9 +317,9 @@ public class SendingIntroductionsTests
     public async Task WillFailToSendConnectionRequestWhenRecipientIsBlocked()
     {
         var frodo = TestIdentities.Frodo.OdinId;
-        var pippin = TestIdentities.Pippin.OdinId;
+        var sam = TestIdentities.Samwise.OdinId;
 
-        var pippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Pippin);
+        var pippinOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var frodoOnwerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
         var blockResponse = await pippinOwnerClient.Network.BlockConnection(frodo);
@@ -328,7 +329,7 @@ public class SendingIntroductionsTests
         ClassicAssert.IsTrue(frodoInfoResponse.IsSuccessStatusCode);
         ClassicAssert.IsTrue(frodoInfoResponse.Content.Status == ConnectionStatus.Blocked);
 
-        var requestToPippinResponse = await frodoOnwerClient.Connections.SendConnectionRequest(pippin);
+        var requestToPippinResponse = await frodoOnwerClient.Connections.SendConnectionRequest(sam);
         ClassicAssert.IsTrue(requestToPippinResponse.StatusCode == HttpStatusCode.Forbidden);
 
         var unblockResponse = await pippinOwnerClient.Network.UnblockConnection(frodo);

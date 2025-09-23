@@ -47,7 +47,7 @@ public class AdminControllerTest
             { "Admin__Domain", "admin.dotyou.cloud" },
             { "Admin__ExportTargetPath", _exportTargetPath },
         };
-        _scaffold.RunBeforeAnyTests(envOverrides: env);
+        _scaffold.RunBeforeAnyTests(envOverrides: env, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo });
 
         _tenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath") ?? "";
         Assert.That(_tenantDataRootPath, Is.Not.Empty);

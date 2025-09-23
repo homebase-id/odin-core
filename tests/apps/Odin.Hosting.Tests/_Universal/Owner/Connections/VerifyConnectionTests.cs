@@ -1,8 +1,9 @@
+using NUnit.Framework;
+using NUnit.Framework.Legacy;
+using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections;
 
@@ -15,7 +16,7 @@ public class VerifyConnectionTests
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Merry, TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]

@@ -38,7 +38,7 @@ public class PeerUpdateOriginalAuthorTests
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: TestIdentities.Defaults);
     }
 
     [OneTimeTearDown]

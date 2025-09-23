@@ -16,7 +16,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: true);
+            _scaffold.RunBeforeAnyTests(initializeIdentity: true, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo });
         }
 
         [OneTimeTearDown]
