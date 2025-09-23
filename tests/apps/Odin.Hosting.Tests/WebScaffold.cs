@@ -1,24 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
+using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Serialization;
-using Odin.Services.Base;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.App;
@@ -29,9 +21,18 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
@@ -107,6 +108,7 @@ namespace Odin.Hosting.Tests
         {
             // Default to all identities
             TestIdentities.SetCurrent(testIdentities);
+            CryptographyConstants.ITERATIONS = 3;  // Override for tests
 
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
