@@ -236,7 +236,7 @@ namespace Odin.Hosting.Tests
                 //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
                 // }
 
-                Parallel.ForEach(testIdentities.Select(i => i.OdinId),
+                Parallel.ForEach(TestIdentities.InitializedIdentities.Values.Select(i => i.OdinId),
                     odinId => { _oldOwnerApi.SetupOwnerAccount(odinId, initializeIdentity).GetAwaiter().GetResult(); });
 
                 //Parallel.ForEach(TestIdentities.All.Keys,
