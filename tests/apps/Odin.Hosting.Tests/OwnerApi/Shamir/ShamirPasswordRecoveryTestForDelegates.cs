@@ -5,9 +5,11 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.OwnerToken.Security;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Drives;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 using Serilog.Events;
 
 namespace Odin.Hosting.Tests.OwnerApi.Shamir
@@ -147,27 +149,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             //
             foreach (var peer in peerIdentities)
             {
-                var shardId = config.Envelopes.Single(e => e.Player.OdinId == peer).ShardId;
-
                 var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
-                var getListOfShardRequestsResponse = await peerOwnerClient.Security.GetShardRequestList();
-
-                Assert.That(getListOfShardRequestsResponse.IsSuccessful, Is.True);
-                Assert.That(getListOfShardRequestsResponse.Content, Is.Not.Null);
-
-                var list = getListOfShardRequestsResponse.Content;
-
-                var item = list.SingleOrDefault(item => item.ShardId == shardId);
+                var item = await GetPlayerShardRequest(config, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+                var shardId = item.ShardId;
 
                 // now release the shard
-
                 var approveResponse = await peerOwnerClient.Security.ApproveShardRequest(new ApproveShardRequest
                 {
                     OdinId = dealer.OdinId,
                     ShardId = shardId
                 });
-                
+
                 Assert.That(approveResponse.IsSuccessStatusCode, Is.True, $"Code was {approveResponse.StatusCode}");
             }
 
@@ -175,8 +168,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             var recoverStatus = await frodoClient.Security.WaitForShamirStatus(ShamirRecoveryState.AwaitingOwnerFinalization);
 
             // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
-            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingOwnerFinalization); 
-            
+            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingOwnerFinalization);
+
             await ExitRecoveryMode();
 
             //
@@ -184,8 +177,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             //
             await CleanupConnections(peerIdentities);
         }
-        
-        public async Task DelegatePlayersCanApproveRejectRequests()
+
+        [Test]
+#if !DEBUG
+        [Ignore("Ignored for release tests due to how we test recovery mode")]
+#endif
+        public async Task DelegatePlayersCanRejectRequestsAndRecoveryFails()
         {
             var dealer = TestIdentities.Frodo;
             List<OdinId> peerIdentities =
@@ -218,42 +215,129 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             //
             foreach (var peer in peerIdentities)
             {
-                var shardId = config.Envelopes.Single(e => e.Player.OdinId == peer).ShardId;
-
                 var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
-                var getListOfShardRequestsResponse = await peerOwnerClient.Security.GetShardRequestList();
-
-                Assert.That(getListOfShardRequestsResponse.IsSuccessful, Is.True);
-                Assert.That(getListOfShardRequestsResponse.Content, Is.Not.Null);
-
-                var list = getListOfShardRequestsResponse.Content;
-
-                var item = list.SingleOrDefault(item => item.ShardId == shardId);
+                var item = await GetPlayerShardRequest(config, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-
+                var shardId = item.ShardId;
+                
                 // now release the shard
 
-                var approveResponse = await peerOwnerClient.Security.ApproveShardRequest(new ApproveShardRequest
+                var rejectResponse = await peerOwnerClient.Security.RejectShardRequest(new RejectShardRequest()
                 {
                     OdinId = dealer.OdinId,
                     ShardId = shardId
                 });
-                
-                Assert.That(approveResponse.IsSuccessStatusCode, Is.True, $"Code was {approveResponse.StatusCode}");
+
+                Assert.That(rejectResponse.IsSuccessStatusCode, Is.True, $"Code was {rejectResponse.StatusCode}");
             }
 
             // Wait for status
-            var recoverStatus = await frodoClient.Security.WaitForShamirStatus(ShamirRecoveryState.AwaitingOwnerFinalization);
+            var getRecoveryStatusResponse = await frodoClient.Security.GetShamirRecoveryStatus();
+            Assert.That(getRecoveryStatusResponse.IsSuccessStatusCode, Is.True);
+            var recoverStatus = getRecoveryStatusResponse.Content;
+            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
 
-            // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
-            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingOwnerFinalization); 
-            
             await ExitRecoveryMode();
 
             //
             // Cleanup
             //
             await CleanupConnections(peerIdentities);
+        }
+
+        [Test]
+#if !DEBUG
+        [Ignore("Ignored for release tests due to how we test recovery mode")]
+#endif
+        public async Task DelegatePlayersCanRejectRequestsAndRecoveryFailsThenResubmitRecoveryModeASecondTime()
+        {
+            var dealer = TestIdentities.Frodo;
+            List<OdinId> peerIdentities =
+            [
+                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId, TestIdentities.TomBombadil.OdinId
+            ];
+
+            var frodoClient = _scaffold.CreateOwnerApiClientRedux(dealer);
+
+            //
+            // Setup - distribute delegate shards
+            //
+            await PrepareConnections(peerIdentities);
+
+            await DistributeAndVerifyDelegateShards(peerIdentities);
+
+            var getConfigResponse = await frodoClient.Security.GetDealerShardConfig();
+            Assert.That(getConfigResponse.IsSuccessful, Is.True);
+            Assert.That(getConfigResponse.Content, Is.Not.Null);
+
+            var config = getConfigResponse.Content;
+
+            //
+            // Act - enter recovery mode
+            //
+            await EnterRecoveryMode();
+
+            //
+            // Assert - all player delegates have a request in their list
+            //
+            foreach (var peer in peerIdentities)
+            {
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var item = await GetPlayerShardRequest(config, peerOwnerClient);
+                Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+                var shardId = item.ShardId;
+
+                // now release the shard
+                var rejectResponse = await peerOwnerClient.Security.RejectShardRequest(new RejectShardRequest()
+                {
+                    OdinId = dealer.OdinId,
+                    ShardId = shardId
+                });
+
+                Assert.That(rejectResponse.IsSuccessStatusCode, Is.True, $"Code was {rejectResponse.StatusCode}");
+            }
+
+            // Wait for status
+            var getRecoveryStatusResponse = await frodoClient.Security.GetShamirRecoveryStatus();
+            Assert.That(getRecoveryStatusResponse.IsSuccessStatusCode, Is.True);
+            var recoverStatus = getRecoveryStatusResponse.Content;
+            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
+
+            //
+            // If I don't get sufficient responses, i need to restart.
+            // this should clear my responses
+            await ExitRecoveryMode();
+
+
+            // re-enter recovery mode and validate delegates got a new request
+            await EnterRecoveryMode();
+
+            foreach (var peer in peerIdentities)
+            {
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var item = await GetPlayerShardRequest(config, peerOwnerClient);
+                Assert.That(item, Is.Not.Null, "Release request for shard was not found");
+            }
+
+            //
+            // Cleanup
+            //
+            await CleanupConnections(peerIdentities);
+        }
+
+        private async Task<ShardApprovalRequest> GetPlayerShardRequest(DealerShardConfig config, OwnerApiClientRedux peerOwnerClient)
+        {
+            var peer = peerOwnerClient.OdinId;
+            var shardId = config.Envelopes.Single(e => e.Player.OdinId == peer).ShardId;
+            var getListOfShardRequestsResponse = await peerOwnerClient.Security.GetShardRequestList();
+
+            Assert.That(getListOfShardRequestsResponse.IsSuccessful, Is.True);
+            Assert.That(getListOfShardRequestsResponse.Content, Is.Not.Null);
+
+            var list = getListOfShardRequestsResponse.Content;
+
+            var item = list.SingleOrDefault(item => item.ShardId == shardId);
+            return item;
         }
 
         private async Task PrepareConnections(List<OdinId> peers)

@@ -187,14 +187,15 @@ public class ShamirRecoveryService
     public async Task ExitRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
     {
         await _recoveryEmailer.GetNonceDataOrFail(nonceId);
-        await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
+        await ExitRecoveryModeInternal(odinContext);
     }
 
     public async Task ForceExitRecoveryMode(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
+        await ExitRecoveryModeInternal(odinContext);
     }
+
 
     public async Task<RetrieveShardResult> HandleReleaseShardRequest(RetrieveShardRequest request, IOdinContext odinContext)
     {
