@@ -57,9 +57,11 @@ namespace Odin.Services.Authentication.Owner
 
         private readonly IIdentityRegistry _identityRegistry;
         private readonly OdinContextCache _cache;
+        private readonly OwnerConsoleTokenManager _ownerConsoleTokenManager;
         private readonly ILogger<OwnerAuthenticationService> _logger;
         private readonly IDriveManager _driveManager;
         private readonly TenantContext _tenantContext;
+        private readonly OdinConfiguration _config;
         private readonly IcrKeyService _icrKeyService;
         private readonly TenantConfigService _tenantConfigService;
 
@@ -75,12 +77,14 @@ namespace Odin.Services.Authentication.Owner
             OdinConfiguration configuration,
             TableKeyValueCached tblKeyValue,
             ShamirRecoveryService shamirRecoveryService,
-            OdinContextCache cache)
+            OdinContextCache cache,
+            OwnerConsoleTokenManager ownerConsoleTokenManager)
         {
             _logger = logger;
             _secretService = secretService;
 
             _tenantContext = tenantContext;
+            _config = config;
             _driveManager = driveManager;
             _icrKeyService = icrKeyService;
             _tenantConfigService = tenantConfigService;
@@ -91,6 +95,7 @@ namespace Odin.Services.Authentication.Owner
             _shamirRecoveryService = shamirRecoveryService;
 
             _cache = cache;
+            _ownerConsoleTokenManager = ownerConsoleTokenManager;
         }
 
         /// <summary>
@@ -107,7 +112,7 @@ namespace Odin.Services.Authentication.Owner
 
             //now that the password key matches, we set return the client auth token
             var keys = await this._secretService.GetOfflineEccKeyListAsync();
-            var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
+            var (clientToken, serverToken) = _ownerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
             await ServerTokenStorage.UpsertAsync(_tblKeyValue, serverToken.Id, serverToken);
 

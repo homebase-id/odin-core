@@ -41,6 +41,8 @@ namespace Odin.Services.Configuration
 
         public S3PayloadStorageSection S3PayloadStorage { get; init; } = new();
 
+        public CryptoSection Crypto { get; init; } = new();
+
         public OdinConfiguration()
         {
             // Mockable support
@@ -69,6 +71,7 @@ namespace Odin.Services.Configuration
             Redis = new RedisSection(config);
             Cache = new CacheSection(config);
             S3PayloadStorage = new S3PayloadStorageSection(config);
+            Crypto = new CryptoSection(config);
         }
 
         //
@@ -520,6 +523,29 @@ namespace Odin.Services.Configuration
                     BucketName = config.Required<string>("S3PayloadStorage:BucketName");
                     RootPath = config.GetOrDefault("S3PayloadStorage:RootPath", "payloads");
                 }
+            }
+        }
+
+        //
+
+        public class CryptoSection
+        {
+            public int SaltSize { get; init; }
+            public int HashSize { get; init; }
+            public int Iterations { get; init; }
+            public int NonceSize { get; init; }
+
+            public CryptoSection()
+            {
+                // Mockable support
+            }
+
+            public CryptoSection(IConfiguration config)
+            {
+                SaltSize = config.GetOrDefault("Crypto:SaltSize", 16);
+                HashSize = config.GetOrDefault("Crypto:HashSize", 16);
+                Iterations = config.GetOrDefault("Crypto:Iterations", 100000);
+                NonceSize = config.GetOrDefault("Crypto:NonceSize", 16);
             }
         }
     }

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
+using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Core.Identity;
@@ -29,6 +30,7 @@ using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Configuration;
 using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
@@ -45,6 +47,8 @@ namespace Odin.Hosting.Tests
         /// to use the client api (where each test will support it's own payload key)
         /// </summary>
         public const string PAYLOAD_KEY = "test_key";
+
+        private const int CryptoIterations = 1;
 
         // count TIME_WAIT: netstat -p tcp | grep TIME_WAIT | wc -l
         public static readonly IDynamicHttpClientFactory HttpClientFactory =
@@ -208,6 +212,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Admin__ApiPort", AdminPort);
             Environment.SetEnvironmentVariable("Admin__Domain", "admin.dotyou.cloud");
 
+            Environment.SetEnvironmentVariable("Crypto__Iterations", CryptoIterations.ToString());
+
             if (envOverrides != null)
             {
                 foreach (var (key, value) in envOverrides)
@@ -222,6 +228,7 @@ namespace Odin.Hosting.Tests
             _webserver = Program.CreateHostBuilder([]).Build().BeforeApplicationStarting([]);
             _webserver.Start();
 
+            var cryptoConfig = Services.GetRequiredService<OdinCryptoConfig>();
             if (setupOwnerAccounts)
             {
                 // foreach (var odinId in TestIdentities.All.Keys)
@@ -230,7 +237,7 @@ namespace Odin.Hosting.Tests
                 // }
 
                 Parallel.ForEach(TestIdentities.All.Keys,
-                    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
+                    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity, cryptoConfig).GetAwaiter().GetResult(); });
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);
@@ -507,5 +514,16 @@ namespace Odin.Hosting.Tests
             var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
             ClassicAssert.IsTrue(expectedEvent.Count() == count);
         }
+
+        public OdinConfiguration GetOdinConfiguration()
+        {
+            return Services.GetRequiredService<OdinConfiguration>();
+        }
+
+        public OdinCryptoConfig GetCryptoConfig()
+        {
+            return Services.GetRequiredService<OdinCryptoConfig>();
+        }
+
     }
 }

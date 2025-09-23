@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
+using Docker.DotNet;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Cryptography;
@@ -21,6 +22,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
     public class ResetPasswordTests
     {
         private WebScaffold _scaffold;
+        private OdinCryptoConfig _cryptoConfig;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -41,6 +43,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             _scaffold.ClearAssertLogEventsAction();
             _scaffold.ClearLogEvents();
+            _cryptoConfig = _scaffold.GetCryptoConfig();
         }
 
         [TearDown]
@@ -58,7 +61,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             const string password = "8833CC039d!!~!";
             const string newPassword = "672c~!!9402044";
 
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, _cryptoConfig, password);
             var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
             //Ensure we can login using the first password
@@ -67,7 +70,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
-            var resetPasswordResponse = await ownerClient.Security.ResetPassword(password, newPassword);
+            var resetPasswordResponse = await ownerClient.Security.ResetPassword(password, newPassword, _cryptoConfig);
             ClassicAssert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key");
 
             //login with the password
@@ -91,7 +94,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             const string newPassword = "672c~!!9402044";
             const string invalidOldPassword = password + "382";
 
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, _cryptoConfig, password);
             var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
             //Ensure we can login using the first password
@@ -100,7 +103,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
-            var resetPasswordResponse = await ownerClient.Security.ResetPassword(invalidOldPassword, newPassword);
+            var resetPasswordResponse = await ownerClient.Security.ResetPassword(invalidOldPassword, newPassword, _cryptoConfig);
             ClassicAssert.IsFalse(resetPasswordResponse.IsSuccessStatusCode, $"Should have failed to reset password using invalid old password");
 
             //Ensure we can still login using the first password
@@ -114,7 +117,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var reply = await _scaffold.OldOwnerApi.CalculateAuthenticationPasswordReply(authClient, password, clientEccFullKey);
+            var reply = await _scaffold.OldOwnerApi.CalculateAuthenticationPasswordReply(authClient, password, clientEccFullKey, _cryptoConfig);
             var response = await svc.Authenticate(reply);
             return response;
         }

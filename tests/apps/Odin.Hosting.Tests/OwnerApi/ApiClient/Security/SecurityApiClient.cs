@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Cryptography;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -33,7 +34,7 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword)
+    public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword, OdinCryptoConfig odinCryptoConfig)
     {
         using var authClient = ownerApi.CreateAnonymousClient(identity.OdinId);
         var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
@@ -41,8 +42,8 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         var request = new ResetPasswordRequest()
         {
             CurrentAuthenticationPasswordReply =
-                await ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey),
-            NewPasswordReply = await ownerApi.CalculatePasswordReply(authClient, newPassword, clientEccFullKey)
+                await ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword, clientEccFullKey, odinCryptoConfig),
+            NewPasswordReply = await ownerApi.CalculatePasswordReply(authClient, newPassword, clientEccFullKey, odinCryptoConfig)
         };
 
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
@@ -53,9 +54,9 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string recoveryKey, string newPassword)
+    public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string recoveryKey, string newPassword, OdinCryptoConfig odinCryptoConfig)
     {
-        return await ownerApi.ResetPasswordUsingRecoveryKey(identity.OdinId, recoveryKey, newPassword);
+        return await ownerApi.ResetPasswordUsingRecoveryKey(identity.OdinId, recoveryKey, newPassword, odinCryptoConfig);
     }
 
     public async Task<ApiResponse<HttpContent>> ConfigureShards(ConfigureShardsRequest request)

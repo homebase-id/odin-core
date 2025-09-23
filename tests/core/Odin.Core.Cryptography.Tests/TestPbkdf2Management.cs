@@ -7,6 +7,8 @@ namespace Odin.Core.Cryptography.Tests
 {
     public class TestPbkdf2Management
     {
+        private readonly OdinCryptoConfig _cryptoConfig = new(Iterations: 1);
+
         [SetUp]
         public void Setup()
         {
@@ -41,7 +43,7 @@ namespace Odin.Core.Cryptography.Tests
 
             sw.Start();
             // Hash the user password + user salt
-            var HashPassword = KeyDerivation.Pbkdf2("EnSøienØ", saltArray, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, 16);
+            var HashPassword = KeyDerivation.Pbkdf2("EnSøienØ", saltArray, KeyDerivationPrf.HMACSHA256, _cryptoConfig.Iterations, 16);
             sw.Stop();
 
             Console.WriteLine("Elapsed={0}", sw.Elapsed);

@@ -83,7 +83,9 @@ public abstract class YouAuthIntegrationTestBase
         string sharedSecret;
         {
             var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
-            var passwordReply = PasswordDataManager.CalculatePasswordReply(YouAuthTestHelper.Password, nonceData, clientEccFullKey);
+            var cryptoConfig = Scaffold.GetCryptoConfig();
+            var passwordDataManager = new PasswordDataManager(cryptoConfig);
+            var passwordReply = passwordDataManager.CalculatePasswordReply(YouAuthTestHelper.Password, nonceData, clientEccFullKey);
             var json = YouAuthTestHelper.Serialize(passwordReply);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var response = await apiClient.PostAsync($"https://{identity}:{WebScaffold.HttpsPort}/api/owner/v1/authentication", content);

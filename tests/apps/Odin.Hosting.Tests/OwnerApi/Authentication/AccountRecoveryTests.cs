@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
@@ -17,6 +18,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
     public class AccountRecoveryTests
     {
         private WebScaffold _scaffold;
+        private OdinCryptoConfig _cryptoConfig = null!;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
@@ -50,7 +52,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         public async Task CanGetAccountRecoveryKey()
         {
             var identity = TestIdentities.Frodo;
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false, _cryptoConfig);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
             var response = await ownerClient.Security.GetAccountRecoveryKey();
@@ -74,7 +76,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             const string password = "8833CC039d!!~!";
             const string newPassword = "672c~!!9402044";
 
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, _cryptoConfig, password);
 
             var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
@@ -94,7 +96,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             //encrypt using RSA
             // _publicPrivateKeyService.EncryptPayload(RsaKeyType.OfflineKey, payload)
             
-            var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(key, newPassword);
+            var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(key, newPassword, _cryptoConfig);
             ClassicAssert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key [{key}]");
 
             //login with the password
@@ -113,7 +115,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             const string password = "8833CC039d!!~!";
             const string newPassword = "672c~!!9402044";
 
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, _cryptoConfig, password);
             var clientEccFullKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
             //Ensure we can login using the first password
@@ -125,7 +127,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
             var invalidRecoveryKey = Guid.NewGuid().ToString("N");
-            var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(invalidRecoveryKey, newPassword);
+            var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(invalidRecoveryKey, newPassword, _cryptoConfig);
             ClassicAssert.IsFalse(resetPasswordResponse.IsSuccessStatusCode,
                 $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
 
@@ -151,12 +153,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             ClassicAssert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
 
-            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicJwk, clientNonce.CRC)
+            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicJwk, clientNonce.CRC, _cryptoConfig.HashSize)
             {
                 Nonce64 = clientNonce.Nonce64
             };
 
-            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce, clientEccFullKey);
+            var passwordDataManager = new PasswordDataManager(_cryptoConfig);
+            var reply = passwordDataManager.CalculatePasswordReply(password, nonce, clientEccFullKey);
             var response = await svc.Authenticate(reply);
             return response;
         }

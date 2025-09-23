@@ -59,7 +59,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         public async Task FailToGetAccountRecoveryKeyOutsideOfTimeWindow()
         {
             var identity = TestIdentities.Merry;
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true);
+            var cryptoConfig = _scaffold.GetCryptoConfig();
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, cryptoConfig);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
             
