@@ -26,7 +26,8 @@ public class RecoveryEmailer(
     /// <summary>
     /// Uses for integration testing so I can get the nonceId from the log during ShamirPasswordRecoveryTests
     /// </summary>
-    public const string NoncePropertyName = "nonceId";
+    public const string EnterNoncePropertyName = "enterNonceId";
+    public const string ExitNoncePropertyName = "exitNonceId";
 
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
@@ -106,7 +107,14 @@ public class RecoveryEmailer(
 
 #if DEBUG
         var link = job.CreateLink();
-        logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, job.Data.NonceId);
+        if (emailType == RecoveryEmailType.EnterRecoveryMode)
+        {
+            logger.LogInformation("\n\n\n{link}\n\n\n{enterNonceId}", link, job.Data.NonceId);
+        }
+        else
+        {
+            logger.LogInformation("\n\n\n{link}\n\n\n{exitNonceId}", link, job.Data.NonceId);
+        }
 #endif
 
         if (configuration.Mailgun.Enabled)

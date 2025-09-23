@@ -191,7 +191,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         public HttpClient CreateAnonymousClient(OdinId identity)
         {
-            HttpClient authClient = new();
+            var handler = new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            };
+            
+            HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             return authClient;
         }

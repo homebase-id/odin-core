@@ -26,13 +26,13 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     /// <summary>
     /// Saves the request for approval
     /// </summary>
-    /// <param name="shardApproval"></param>
+    /// <param name="request"></param>
     /// <param name="odinContext"></param>
-    public async Task SaveRequest(ShardApprovalRequest shardApproval, IOdinContext odinContext)
+    public async Task SaveRequest(ShardApprovalRequest request, IOdinContext odinContext)
     {
         var targetDrive = SystemDriveConstants.ShardRecoveryDrive;
         var driveId = targetDrive.Alias;
-        var shardId = shardApproval.ShardId;
+        var shardId = request.ShardId;
 
         // we have to grant the dealer write access to the drive since they
         // are coming in authenticated (due to ssl cert) but there is no CAT 
@@ -41,17 +41,17 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         var existingFile = await fileSystem.Query.GetSingleFileByTag(driveId, tag: shardId, contextUpgrade);
         if (existingFile == null)
         {
-            await WriteNewFile(shardApproval, contextUpgrade);
+            await WriteNewFile(request, contextUpgrade);
         }
         else
         {
-            await OverwriteFile(shardApproval, existingFile.FileId, contextUpgrade);
+            await OverwriteFile(request, existingFile.FileId, contextUpgrade);
         }
 
         await mediator.Publish(new ShamirPasswordRecoveryShardRequestedNotification
         {
             OdinContext = odinContext,
-            Sender = shardApproval.Dealer,
+            Sender = request.Dealer,
             AdditionalMessage = ""
         });
     }
@@ -107,7 +107,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
         return batch.SearchResults.ToList();
     }
 
-    private async Task WriteNewFile(ShardApprovalRequest shardApproval, IOdinContext odinContext)
+    private async Task WriteNewFile(ShardApprovalRequest request, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var file = await fileSystem.Storage.CreateInternalFileId(driveId);
@@ -120,8 +120,8 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
             AppData = new AppFileMetaData()
             {
                 FileType = CollectedShardRequestFileType,
-                Content = ShardApprovalRequest.Serialize(shardApproval),
-                Tags = [shardApproval.ShardId]
+                Content = ShardApprovalRequest.Serialize(request),
+                Tags = [request.ShardId]
             },
 
             IsEncrypted = false,

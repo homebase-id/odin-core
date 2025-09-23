@@ -58,5 +58,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         
         [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/config")]
         Task<ApiResponse<DealerShardConfig>> GetShardConfig();
+        
+        [Get(OwnerApiPathConstants.SecurityRecoveryV1 + "/status")]
+        Task<ApiResponse<ShamirRecoveryStatusRedacted>> GetShamirRecoverStatus();
     }
 }

@@ -336,7 +336,7 @@ public class ShamirRecoveryService
         return requests.ToList();
     }
 
-    public async Task ApproveShardRequest(Guid shardId, IOdinContext odinContext)
+    public async Task ApproveShardRequest(Guid shardId, OdinId odinId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsOwner();
 
@@ -346,9 +346,18 @@ public class ShamirRecoveryService
             throw new OdinClientException("Invalid shard id");
         }
 
-        // var tx = await _db.BeginStackedTransactionAsync();
+        if (request.Dealer != odinId)
+        {
+            throw new OdinClientException("Invalid dealer on shard id");
+        }
+
         var (shard, sender) = await _configurationService.GetShardStoredForDealer(shardId, odinContext);
 
+        if (sender != odinId)
+        {
+            throw new OdinClientException("Invalid dealer on shard id");
+        }
+        
         if (null == shard)
         {
             throw new OdinClientException("Invalid shard id");
@@ -365,9 +374,21 @@ public class ShamirRecoveryService
         // tx.Commit();
     }
 
-    public async Task RejectShardRequest(Guid shardId, OdinId dealerId, IOdinContext odinContext)
+    public async Task RejectShardRequest(Guid shardId, OdinId odinId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsOwner();
+        
+        var request = await _approvalCollector.GetRequest(shardId, odinContext);
+        if (null == request)
+        {
+            throw new OdinClientException("Invalid shard id");
+        }
+
+        if (request.Dealer != odinId)
+        {
+            throw new OdinClientException("Invalid dealer on shard id");
+        }
+        
         await _approvalCollector.DeleteRequest(shardId, odinContext);
     }
 
