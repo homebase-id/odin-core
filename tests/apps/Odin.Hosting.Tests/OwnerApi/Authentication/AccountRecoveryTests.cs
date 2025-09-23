@@ -39,6 +39,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             _scaffold.ClearAssertLogEventsAction();
             _scaffold.ClearLogEvents();
+            _cryptoConfig = _scaffold.GetCryptoConfig();
         }
 
         [TearDown]
