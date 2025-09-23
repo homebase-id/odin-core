@@ -17,6 +17,7 @@ using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -38,6 +39,7 @@ public class ShamirRecoveryService
     private readonly CircleNetworkService _circleNetworkService;
     private readonly RecoveryEmailer _recoveryEmailer;
     private readonly PasswordKeyRecoveryService _passwordKeyRecoveryService;
+    private readonly IDriveManager _driveManager;
     private readonly IdentityDatabase _db;
     private readonly IMediator _mediator;
     private readonly ILogger<ShamirRecoveryService> _logger;
@@ -57,6 +59,7 @@ public class ShamirRecoveryService
         CircleNetworkService circleNetworkService,
         RecoveryEmailer recoveryEmailer,
         PasswordKeyRecoveryService passwordKeyRecoveryService,
+        IDriveManager driveManager,
         ILogger<ShamirRecoveryService> logger)
     {
         _configurationService = configurationService;
@@ -69,6 +72,7 @@ public class ShamirRecoveryService
         _circleNetworkService = circleNetworkService;
         _recoveryEmailer = recoveryEmailer;
         _passwordKeyRecoveryService = passwordKeyRecoveryService;
+        _driveManager = driveManager;
 
         _playerShardCollector = new PlayerShardCollector(fileSystem);
         _approvalCollector = new ShardRequestApprovalCollector(fileSystem, mediator);
@@ -479,6 +483,11 @@ public class ShamirRecoveryService
     private async Task ExitRecoveryModeInternal(IOdinContext odinContext)
     {
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
-        await _playerShardCollector.DeleteCollectedShards(odinContext);
+
+        var drive = await _driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias, false);
+        if(null != drive)
+        {
+            await _playerShardCollector.DeleteCollectedShards(odinContext);
+        }
     }
 }
