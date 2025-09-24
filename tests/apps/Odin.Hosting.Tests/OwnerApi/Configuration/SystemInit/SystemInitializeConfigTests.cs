@@ -24,7 +24,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: false);
+            _scaffold.RunBeforeAnyTests(initializeIdentity: false,
+                testIdentities: [TestIdentities.Frodo, TestIdentities.Pippin, TestIdentities.Samwise]);
         }
 
         [OneTimeTearDown]
@@ -176,13 +177,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 7);
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
+                dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+                dg.PermissionedDrive.Permission == DrivePermission.Read));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
-            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Permissions.Keys.Count == 1, "By default, the system circle should have 1 permission");
-            ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
+            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Permissions.Keys.Count == 1,
+                "By default, the system circle should have 1 permission");
+            ClassicAssert.IsNotNull(
+                connectedIdentitiesSystemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
@@ -299,7 +303,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             foreach (var expectedDrive in expectedDrives)
             {
-                ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive), $"expected drive [{expectedDrive}] not found");
+                ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive),
+                    $"expected drive [{expectedDrive}] not found");
             }
 
             var getCircleDefinitionsResponse = await ownerClient.Membership.GetCircleDefinitions(includeSystemCircle: true);
@@ -316,7 +321,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
             ClassicAssert.IsTrue(systemCircle.Name == "Confirmed Connected Identities");
             ClassicAssert.IsTrue(systemCircle.Description ==
-                          "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection");
+                                 "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection");
             ClassicAssert.IsTrue(systemCircle.Permissions.Keys.Count == 1, "By default, the system circle should have 1 permission");
             ClassicAssert.IsNotNull(systemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
 
@@ -344,7 +349,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsNotNull(additionalCircle);
             ClassicAssert.IsTrue(additionalCircle.Name == "le circle");
             ClassicAssert.IsTrue(additionalCircle.Description == "an additional circle");
-            ClassicAssert.IsTrue(additionalCircle.DriveGrants.Count(dg => dg.PermissionedDrive == additionalCircle.DriveGrants.Single().PermissionedDrive) == 1,
+            ClassicAssert.IsTrue(
+                additionalCircle.DriveGrants.Count(dg => dg.PermissionedDrive == additionalCircle.DriveGrants.Single().PermissionedDrive) ==
+                1,
                 "The contact drive should be in the additional circle");
         }
 

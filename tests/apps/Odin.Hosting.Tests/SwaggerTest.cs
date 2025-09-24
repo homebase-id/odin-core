@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ public class SwaggerTest
     {
         var folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests(initializeIdentity: true);
+        _scaffold.RunBeforeAnyTests(initializeIdentity: true, testIdentities: new List<TestIdentity>() { TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]

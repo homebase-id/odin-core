@@ -42,7 +42,7 @@ public class PeerUpdateFileTests
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Pippin, TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]

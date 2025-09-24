@@ -1,10 +1,11 @@
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Services.Drives;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.ReactionPreview;
 
@@ -19,7 +20,7 @@ public class DirectDriveReactionPreviewTests
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Pippin });
     }
 
     [OneTimeTearDown]

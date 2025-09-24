@@ -1,11 +1,12 @@
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Controllers.Base.Transit;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.Query;
 
@@ -20,7 +21,7 @@ public class PeerQueryTests
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Pippin, TestIdentities.Samwise, TestIdentities.Merry, TestIdentities.Frodo });
     }
 
     [OneTimeTearDown]

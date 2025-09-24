@@ -90,7 +90,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             {
                 var shardId = config.Envelopes.Single(e => e.Player.OdinId == peer).ShardId;
 
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var getListOfShardRequestsResponse = await peerOwnerClient.Security.GetShardRequestList();
 
                 Assert.That(getListOfShardRequestsResponse.IsSuccessful, Is.True);
@@ -149,7 +149,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             //
             foreach (var peer in peerIdentities)
             {
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var item = await GetPlayerShardRequest(config, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
                 var shardId = item.ShardId;
@@ -215,7 +215,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             //
             foreach (var peer in peerIdentities)
             {
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var item = await GetPlayerShardRequest(config, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
                 var shardId = item.ShardId;
@@ -282,7 +282,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             //
             foreach (var peer in peerIdentities)
             {
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var item = await GetPlayerShardRequest(config, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
                 var shardId = item.ShardId;
@@ -314,7 +314,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             foreach (var peer in peerIdentities)
             {
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var item = await GetPlayerShardRequest(config, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
             }
@@ -349,7 +349,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                 var sendConnectionRequestResponse = await frodo.Connections.SendConnectionRequest(peer);
                 Assert.That(sendConnectionRequestResponse.IsSuccessful, Is.True);
 
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var acceptConnectionRequestResponse = await peerOwnerClient.Connections.AcceptConnectionRequest(frodo.OdinId);
                 Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
             }
@@ -395,7 +395,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                 var sendConnectionRequestResponse = await frodo.Connections.DisconnectFrom(peer);
                 Assert.That(sendConnectionRequestResponse.IsSuccessful, Is.True);
 
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var acceptConnectionRequestResponse = await peerOwnerClient.Connections.DisconnectFrom(frodo.OdinId);
                 Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
             }

@@ -221,7 +221,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                 var sendConnectionRequestResponse = await frodo.Connections.SendConnectionRequest(peer);
                 Assert.That(sendConnectionRequestResponse.IsSuccessful, Is.True);
 
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var acceptConnectionRequestResponse = await peerOwnerClient.Connections.AcceptConnectionRequest(frodo.OdinId);
                 Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
             }
@@ -236,7 +236,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                 var sendConnectionRequestResponse = await frodo.Connections.DisconnectFrom(peer);
                 Assert.That(sendConnectionRequestResponse.IsSuccessful, Is.True);
 
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[peer]);
+                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
                 var acceptConnectionRequestResponse = await peerOwnerClient.Connections.DisconnectFrom(frodo.OdinId);
                 Assert.That(acceptConnectionRequestResponse.IsSuccessful, Is.True);
             }
