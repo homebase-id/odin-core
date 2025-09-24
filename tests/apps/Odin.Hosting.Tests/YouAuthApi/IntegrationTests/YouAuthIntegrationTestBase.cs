@@ -32,7 +32,7 @@ public abstract class YouAuthIntegrationTestBase
     {
         var folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         Scaffold = new WebScaffold(folder);
-        Scaffold.RunBeforeAnyTests();
+        Scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise, TestIdentities.Pippin, TestIdentities.Merry });
     }
 
     //
