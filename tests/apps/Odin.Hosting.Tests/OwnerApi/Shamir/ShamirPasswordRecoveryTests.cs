@@ -21,8 +21,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: true, setupOwnerAccounts: true);
-
+            _scaffold.RunBeforeAnyTests(initializeIdentity: true, setupOwnerAccounts: true,
+                testIdentities:
+                [
+                    TestIdentities.Frodo,
+                    TestIdentities.Samwise,
+                    TestIdentities.Merry,
+                    TestIdentities.Pippin,
+                    TestIdentities.TomBombadil
+                ]);
             _scaffold.AssertLogEvents();
         }
 
@@ -120,47 +127,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             await CleanupConnections(peerIdentities);
         }
-
-        [Test]
-        [Ignore("dark launched")]
-        public async Task FailToDistributeWhenOneOrMorePeersIsNotConnected()
-        {
-            _scaffold.SetAssertLogEventsAction(logEvents =>
-            {
-                var errorLogs = logEvents[Serilog.Events.LogEventLevel.Error];
-                Assert.That(errorLogs.Count, Is.EqualTo(1), "Unexpected number of Error log events");
-                var error = errorLogs.First();
-                Assert.That(error.MessageTemplate.Text.StartsWith("Failed while creating outbox item"), Is.True);
-            });
-
-            List<OdinId> connectedIdentities =
-            [
-                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId
-            ];
-
-            await PrepareConnections(connectedIdentities);
-
-            // add one who is not connected
-            List<OdinId> peerIdentities = connectedIdentities.Concat([TestIdentities.TomBombadil.OdinId]).ToList();
-
-            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-
-            var shardRequest = new ConfigureShardsRequest
-            {
-                Players = peerIdentities.Select(d => new ShamiraPlayer()
-                {
-                    OdinId = d,
-                    Type = PlayerType.Delegate
-                }).ToList(),
-                MinMatchingShards = 2
-            };
-
-            var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
-            Assert.That(configureShardsResponse.IsSuccessful, Is.False);
-
-            await CleanupConnections(connectedIdentities);
-        }
-
+        
         private async Task PrepareConnections(List<OdinId> peers)
         {
             // Note: no circles

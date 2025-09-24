@@ -23,7 +23,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: true, setupOwnerAccounts: true);
+            _scaffold.RunBeforeAnyTests(initializeIdentity: true, setupOwnerAccounts: true,
+                testIdentities:
+                [
+                    TestIdentities.Frodo,
+                    TestIdentities.Samwise,
+                    TestIdentities.Merry,
+                    TestIdentities.Pippin,
+                    TestIdentities.TomBombadil
+                ]);
 
             _scaffold.AssertLogEvents();
         }
@@ -219,7 +227,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                 var item = await GetPlayerShardRequest(config, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
                 var shardId = item.ShardId;
-                
+
                 // now release the shard
 
                 var rejectResponse = await peerOwnerClient.Security.RejectShardRequest(new RejectShardRequest()

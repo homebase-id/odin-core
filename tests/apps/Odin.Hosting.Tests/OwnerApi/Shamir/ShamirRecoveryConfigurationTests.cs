@@ -22,8 +22,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: true, setupOwnerAccounts: true);
-
+            _scaffold.RunBeforeAnyTests(initializeIdentity: true, setupOwnerAccounts: true,
+                testIdentities:
+                [
+                    TestIdentities.Frodo,
+                    TestIdentities.Samwise,
+                    TestIdentities.Merry,
+                    TestIdentities.Pippin,
+                    TestIdentities.TomBombadil
+                ]);
             _scaffold.AssertLogEvents();
         }
 
@@ -65,7 +72,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                     OdinId = d,
                     Type = PlayerType.Delegate
                 }).ToList(),
-                MinMatchingShards = 2
+                MinMatchingShards = ShamirConfigurationService.MinimumPlayerCount
             };
 
             var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
@@ -104,7 +111,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                     OdinId = d,
                     Type = PlayerType.Delegate
                 }).ToList(),
-                MinMatchingShards = 2
+                MinMatchingShards = peerIdentities.Count
             };
 
             var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);
@@ -203,7 +210,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
                     OdinId = d,
                     Type = PlayerType.Delegate
                 }).ToList(),
-                MinMatchingShards = 2
+                MinMatchingShards = peerIdentities.Count
             };
 
             var configureShardsResponse = await frodo.Security.ConfigureShards(shardRequest);

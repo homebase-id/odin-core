@@ -101,11 +101,11 @@ namespace Odin.Hosting.Tests
             bool setupOwnerAccounts = true,
             Dictionary<string, string> envOverrides = null,
             List<TestIdentity> testIdentities = null
-            )
+        )
         {
             // Default to all identities
             TestIdentities.SetCurrent(testIdentities);
-            CryptographyConstants.ITERATIONS = 3;  // Override for tests
+            CryptographyConstants.ITERATIONS = 3; // Override for tests
 
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
@@ -514,18 +514,19 @@ namespace Odin.Hosting.Tests
             var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
             ClassicAssert.IsTrue(expectedEvent.Count() == count);
         }
-        
-        public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel,
-            TimeSpan? maxWaitTime = null)
+
+        public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel, TimeSpan? maxWaitTime = null)
         {
             var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
 
             var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
 
             var sw = Stopwatch.StartNew();
+
             while (true)
             {
                 var infoEvents = logEvents[logLevel];
+                infoEvents.Reverse(); // note: we reverse since we are always looking for the most recent property
                 foreach (var infoEvent in infoEvents)
                 {
                     if (infoEvent.Properties.TryGetValue(propertyName, out var value))
