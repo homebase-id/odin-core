@@ -33,6 +33,8 @@ using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
 using System;
+using Testcontainers.Minio;
+using Testcontainers.PostgreSql;
 
 namespace Odin.Hosting.Tests
 {
