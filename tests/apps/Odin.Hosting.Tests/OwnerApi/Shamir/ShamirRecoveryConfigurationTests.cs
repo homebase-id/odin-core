@@ -93,6 +93,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         }
 
         [Test]
+        [Ignore("work in progress, need to setup testing so we have no recovery email")]
         public async Task FailShardDistributionWhenNoRecoveryEmailConfigured()
         {
             List<OdinId> peerIdentities =
