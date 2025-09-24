@@ -1,12 +1,13 @@
-using System;
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Time;
 using Odin.Services.Configuration.Eula;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -19,7 +20,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: false);
+            _scaffold.RunBeforeAnyTests(initializeIdentity: false, testIdentities: new List<TestIdentity>() { TestIdentities.Pippin });
         }
 
         [OneTimeTearDown]

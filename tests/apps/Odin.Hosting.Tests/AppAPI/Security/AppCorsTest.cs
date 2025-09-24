@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -19,7 +20,7 @@ namespace Odin.Hosting.Tests.AppAPI.Security
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo });
         }
 
         [OneTimeTearDown]

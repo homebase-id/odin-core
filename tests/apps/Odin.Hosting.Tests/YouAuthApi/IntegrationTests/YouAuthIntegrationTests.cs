@@ -176,7 +176,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         [Test]
         public async Task b1_domain_AuthorizeEndpointMust400IfMissingClientId()
         {
-            const string hobbit = "sam.dotyou.cloud";
+            string hobbit = TestIdentities.Samwise.OdinId.DomainName;
             var apiClient = WebScaffold.HttpClientFactory.CreateClient($"{hobbit}:{WebScaffold.HttpsPort}");
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 

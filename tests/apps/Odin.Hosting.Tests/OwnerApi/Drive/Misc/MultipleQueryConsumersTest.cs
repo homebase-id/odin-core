@@ -1,14 +1,15 @@
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Core.Storage;
-using Odin.Core.Time;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 {
@@ -21,7 +22,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo });
         }
 
         [OneTimeTearDown]

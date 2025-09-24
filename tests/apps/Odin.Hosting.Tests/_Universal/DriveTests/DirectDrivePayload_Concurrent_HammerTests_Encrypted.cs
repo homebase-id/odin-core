@@ -38,7 +38,7 @@ public class DirectDrivePayload_Concurrent_HammerTests_Encrypted
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Pippin });
     }
 
     [OneTimeTearDown]

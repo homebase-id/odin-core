@@ -41,7 +41,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
                 { "Job__Enabled", "true" },
             };
 
-            _scaffold.RunBeforeAnyTests(envOverrides: env);
+            _scaffold.RunBeforeAnyTests(envOverrides: env, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise });
         }
 
         [OneTimeTearDown]
@@ -297,7 +297,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             var recipientFiles = new Dictionary<string, SharedSecretEncryptedFileHeader>();
             foreach (var recipient in transitOptions.Recipients)
             {
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
                 var recipientFileResponse = await client.DriveRedux.QueryByGlobalTransitId(uploadResult1.GlobalTransitIdFileIdentifier);
                 ClassicAssert.IsTrue(recipientFileResponse.IsSuccessStatusCode);
                 var file = recipientFileResponse.Content.SearchResults.SingleOrDefault();

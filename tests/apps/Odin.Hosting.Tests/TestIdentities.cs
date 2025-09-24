@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using Odin.Core.Identity;
 using Odin.Services.Membership.Connections.Requests;
-
 namespace Odin.Hosting.Tests
 {
     [DebuggerDisplay("{OdinId.DomainName}")]
@@ -13,21 +12,18 @@ namespace Odin.Hosting.Tests
         public OdinId OdinId { get; set; }
         public ContactRequestData ContactData { get; set; }
     }
-
     public static class TestIdentities
     {
         public static List<string> ToStringList(this IEnumerable<TestIdentity> list)
         {
             return list.Select(d => (string)d.OdinId).ToList();
         }
-
         //Note: this is not used as a test identity but rather tested against (i.e. auto-follow)
         public static readonly TestIdentity HomebaseId = new TestIdentity()
         {
             OdinId = (OdinId)"id.homebase.id",
             ContactData = new ContactRequestData()
         };
-
         public static readonly TestIdentity Collab = new TestIdentity()
         {
             OdinId = (OdinId)"collab.dotyou.cloud",
@@ -37,7 +33,6 @@ namespace Odin.Hosting.Tests
                 ImageId = new Guid()
             }
         };
-
         public static readonly TestIdentity TomBombadil = new TestIdentity()
         {
             OdinId = (OdinId)"tom.dotyou.cloud",
@@ -47,7 +42,6 @@ namespace Odin.Hosting.Tests
                 ImageId = new Guid()
             }
         };
-
         public static readonly TestIdentity Frodo = new TestIdentity()
         {
             OdinId = (OdinId)"frodo.dotyou.cloud",
@@ -57,7 +51,6 @@ namespace Odin.Hosting.Tests
                 ImageId = new Guid()
             }
         };
-
         public static readonly TestIdentity Samwise = new TestIdentity()
         {
             OdinId = (OdinId)"sam.dotyou.cloud",
@@ -67,8 +60,7 @@ namespace Odin.Hosting.Tests
                 ImageId = new Guid()
             }
         };
-
-        public static readonly TestIdentity Merry = new()
+        public static readonly TestIdentity Merry = new TestIdentity()
         {
             OdinId = (OdinId)"merry.dotyou.cloud",
             ContactData = new ContactRequestData()
@@ -76,8 +68,7 @@ namespace Odin.Hosting.Tests
                 Name = "Merry Brandybuck"
             }
         };
-
-        public static readonly TestIdentity Pippin = new()
+        public static readonly TestIdentity Pippin = new TestIdentity()
         {
             OdinId = (OdinId)"pippin.dotyou.cloud",
             ContactData = new ContactRequestData()
@@ -85,15 +76,28 @@ namespace Odin.Hosting.Tests
                 Name = "Pippin Took"
             }
         };
-
-        public static Dictionary<string, TestIdentity> All = new Dictionary<string, TestIdentity>()
+        public static readonly List<TestIdentity> Defaults = new List<TestIdentity>
         {
-            { Frodo.OdinId, Frodo },
-            { Samwise.OdinId, Samwise },
-            { Merry.OdinId, Merry },
-            { Pippin.OdinId, Pippin },
-            { TomBombadil.OdinId, TomBombadil },
-            { Collab.OdinId, Collab }
+            Frodo,
+            Samwise,
+            Merry,
+            Pippin,
+            TomBombadil,
+            Collab
         };
+        public static Dictionary<string, TestIdentity> InitializedIdentities { get; private set; }
+
+        public static void SetCurrent(IEnumerable<TestIdentity> identities)
+        {
+            if (identities == null)
+            {
+                // InitializedIdentities = Defaults.ToDictionary(i => (string)i.OdinId, i => i);
+                InitializedIdentities = new Dictionary<string, TestIdentity>() { };
+            }
+            else
+            {
+                InitializedIdentities = identities.ToDictionary(i => (string)i.OdinId, i => i);
+            }
+        }
     }
 }

@@ -1,12 +1,15 @@
-﻿using System;
+﻿using NUnit.Framework;
+using NUnit.Framework.Legacy;
+using Odin.Hosting.Tests.Anonymous.Ident;
+using Odin.Hosting.Tests.OwnerApi.Utils;
+using Refit;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using NUnit.Framework.Legacy;
-using Odin.Hosting.Tests.Anonymous.Ident;
-using Refit;
 
 namespace Odin.Hosting.Tests.Performance
 {
@@ -73,6 +76,28 @@ namespace Odin.Hosting.Tests.Performance
         public async Task TaskPerformanceTest_Ident()
         {
             await PerformanceFramework.ThreadedTestAsync(MAXTHREADS, MAXITERATIONS, DoIdent);
+            Assert.Pass();
+        }
+
+        [Test]
+        [Explicit]
+        public void TaskPerformanceTest_CreateHobbits()
+        {
+            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+
+            var clock = Stopwatch.StartNew();
+
+            var testIdentities = new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise, TestIdentities.Collab, TestIdentities.Pippin, TestIdentities.Merry,
+              TestIdentities.TomBombadil };
+            TestIdentities.SetCurrent(testIdentities);
+
+            var _oldOwnerApi = new OwnerApiTestUtils(Guid.NewGuid());
+
+            Parallel.ForEach(TestIdentities.InitializedIdentities.Values.Select(i => i.OdinId),
+                odinId => { _oldOwnerApi.SetupOwnerAccount(odinId, true).GetAwaiter().GetResult(); });
+
+            var elapsedTime = clock.Elapsed;
+
             Assert.Pass();
         }
 

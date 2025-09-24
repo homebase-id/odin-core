@@ -592,7 +592,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         
         public async Task WaitForEmptyOutbox(OdinId sender, TargetDrive targetDrive)
         {
-            var c = new TransitApiClient(this, TestIdentities.All[sender]);
+            var c = new TransitApiClient(this, TestIdentities.InitializedIdentities[sender]);
             await c.WaitForEmptyOutbox(targetDrive);
         }
 
@@ -608,12 +608,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         public async Task CreateConnection(OdinId sender, OdinId recipient, CreateConnectionOptions createConnectionOptions = null)
         {
-            if (!TestIdentities.All.TryGetValue(sender, out var senderIdentity))
+            if (!TestIdentities.InitializedIdentities.TryGetValue(sender, out var senderIdentity))
             {
                 throw new NotImplementedException("need to add your sender to the list of identities");
             }
 
-            if (!TestIdentities.All.TryGetValue(recipient, out var recipientIdentity))
+            if (!TestIdentities.InitializedIdentities.TryGetValue(recipient, out var recipientIdentity))
             {
                 throw new NotImplementedException("need to add your recipient to the list of identities");
             }

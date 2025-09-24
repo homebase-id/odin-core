@@ -42,7 +42,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
                 {"Job__Enabled", "true"},
             };
         
-            _scaffold.RunBeforeAnyTests(envOverrides: env);
+            _scaffold.RunBeforeAnyTests(envOverrides: env, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise });
         }
 
         [OneTimeTearDown]
