@@ -22,7 +22,8 @@ public sealed class VersionUpgradeScheduler(
 
     public async Task EnsureScheduledAsync(
         ClientAuthenticationToken token,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        bool force = false)
     {
         if (!odinContext.Caller.HasMasterKey)
         {
@@ -37,18 +38,26 @@ public sealed class VersionUpgradeScheduler(
         }
 
         var (upgradeRequired, currentVersion, failureInfo) = await RequiresUpgradeAsync();
-        if (!upgradeRequired)
-        {
-            var failureText = "";
-            if (failureInfo != null)
-            {
-                failureText = $"(Failure Info: {failureInfo.BuildVersion} " +
-                              $"Last Attempt: {failureInfo.LastAttempted} " +
-                              $"Failed version: {failureInfo.FailedDataVersionNumber})";
-            }
 
-            logger.LogDebug("VersionUpgradeScheduler -> Tenant is on v{cv}.  Upgrade not required {fi}", currentVersion, failureText);
-            return;
+        if (force)
+        {
+            logger.LogDebug("VersionUpgradeScheduler -> Tenant is on v{cv}.  Forcing version upgrade", currentVersion);
+        }
+        else 
+        {
+            if (!upgradeRequired)
+            {
+                var failureText = "";
+                if (failureInfo != null)
+                {
+                    failureText = $"(Failure Info: {failureInfo.BuildVersion} " +
+                                  $"Last Attempt: {failureInfo.LastAttempted} " +
+                                  $"Failed version: {failureInfo.FailedDataVersionNumber})";
+                }
+
+                logger.LogDebug("VersionUpgradeScheduler -> Tenant is on v{cv}.  Upgrade not required {fi}", currentVersion, failureText);
+                return;
+            }
         }
 
         var job = _jobManager.NewJob<VersionUpgradeJob>();

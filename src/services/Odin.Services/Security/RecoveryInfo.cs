@@ -16,6 +16,8 @@ public class RecoveryInfo
     public UnixTimeUtc? ConfigurationUpdated { get; set; }
 
     public string Email { get; init; }
+    public UnixTimeUtc? EmailLastVerified { get; set; }
+
     public VerificationStatus Status { get; init; }
     public DealerRecoveryRiskReport RecoveryRisk { get; set; }
 }

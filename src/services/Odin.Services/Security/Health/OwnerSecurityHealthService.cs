@@ -10,7 +10,6 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -64,7 +63,7 @@ public class OwnerSecurityHealthService(
         odinContext.Caller.AssertHasMasterKey();
 
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
-        var recoveryEmail = await recoveryService.GetRecoveryEmail();
+        var recoveryInfo = await recoveryService.GetRecoveryEmail();
 
 
         if (package == null)
@@ -73,8 +72,9 @@ public class OwnerSecurityHealthService(
             {
                 IsConfigured = false,
                 ConfigurationUpdated = null,
-                Email = recoveryEmail,
-                Status = null,
+                Email = recoveryInfo?.Email,
+                EmailLastVerified = recoveryInfo?.EmailLastVerified,
+                Status = await GetVerificationStatusInternalAsync(),
                 RecoveryRisk = null
             };
         }
@@ -95,7 +95,8 @@ public class OwnerSecurityHealthService(
         {
             IsConfigured = true,
             ConfigurationUpdated = package.Updated,
-            Email = recoveryEmail,
+            Email = recoveryInfo?.Email,
+            EmailLastVerified = recoveryInfo?.EmailLastVerified,
             Status = await GetVerificationStatusInternalAsync(),
             RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)
         };
@@ -107,7 +108,7 @@ public class OwnerSecurityHealthService(
     public async Task StartUpdateRecoveryEmail(string newEmail, PasswordReply passwordReply, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        if (MailAddress.TryCreate(newEmail, out var email))
+        if (!MailAddress.TryCreate(newEmail, out var email))
         {
             throw new OdinClientException("Invalid email address", OdinClientErrorCode.InvalidEmail);
         }

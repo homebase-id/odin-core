@@ -27,6 +27,7 @@ public class RecoveryEmailer(
     /// Uses for integration testing so I can get the nonceId from the log during ShamirPasswordRecoveryTests
     /// </summary>
     public const string EnterNoncePropertyName = "enterNonceId";
+
     public const string ExitNoncePropertyName = "exitNonceId";
 
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
@@ -40,11 +41,9 @@ public class RecoveryEmailer(
         return record.data;
     }
 
-    public async Task EnqueueVerifyNewRecoveryEmailAddress(MailAddress email)
+    public async Task EnqueueVerifyRecoveryEmailAddress(MailAddress email)
     {
         logger.LogDebug("Enqueueing verify new recovery email address");
-
-        AssertEmailEnabled();
 
         var tenant = tenantContext.HostOdinId;
         var nonceId = await MakeNonce(email.Address);
@@ -55,29 +54,22 @@ public class RecoveryEmailer(
         logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
 #endif
 
-        var job = jobManager.NewJob<SendEmailJob>();
-        job.Data = new SendEmailJobData()
-        {
-            Envelope = new Envelope
-            {
-                To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
-                Subject = "Please verify your new recovery email address!",
-                TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
-                HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
-            },
-        };
-
-        await jobManager.ScheduleJobAsync(job, new JobSchedule
-        {
-            RunAt = DateTimeOffset.Now.AddSeconds(1),
-            MaxAttempts = 20,
-            RetryDelay = TimeSpan.FromMinutes(1),
-            OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-            OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
-        });
+        AssertEmailEnabled();
 
         if (configuration.Mailgun.Enabled)
         {
+            var job = jobManager.NewJob<SendEmailJob>();
+            job.Data = new SendEmailJobData()
+            {
+                Envelope = new Envelope
+                {
+                    To = [new NameAndEmailAddress { Name = email.DisplayName, Email = email.Address }],
+                    Subject = "Please verify your new recovery email address!",
+                    TextMessage = RecoveryEmails.VerifyNewRecoveryEmailText(tenant, link),
+                    HtmlMessage = RecoveryEmails.VerifyNewRecoveryEmailHtml(tenant, link)
+                },
+            };
+
             await jobManager.ScheduleJobAsync(job, new JobSchedule
             {
                 RunAt = DateTimeOffset.Now.AddSeconds(1),

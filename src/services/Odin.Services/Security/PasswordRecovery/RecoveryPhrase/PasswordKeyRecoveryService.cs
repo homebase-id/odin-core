@@ -105,26 +105,35 @@ public class PasswordKeyRecoveryService(
     /// <summary>
     /// Gets the official recovery email used for resetting passwords or account recovery
     /// </summary>
-    public async Task<string> GetRecoveryEmail()
+    public async Task<AccountRecoveryInfo> GetRecoveryEmail()
     {
         var recovery = await AccountRecoveryInfoStorage.GetAsync<AccountRecoveryInfo>(tblKeyValue, _accountRecoveryInfoStorageId);
-        return recovery?.Email ?? tenantContext.Email;
+        if (recovery != null)
+        {
+            return recovery;
+        }
+
+        return new AccountRecoveryInfo()
+        {
+            Email = tenantContext.Email,
+            EmailLastVerified = null
+        };
     }
-    
+
     public async Task<Guid> GetHashedRecoveryEmail()
     {
-        var recoveryEmail = await GetRecoveryEmail();
-        OdinValidationUtils.AssertValidEmail(recoveryEmail, "Recovery email must be set to configure sharding");
-        var hash = ByteArrayUtil.ReduceSHA256Hash(recoveryEmail);
+        var recoveryInfo = await GetRecoveryEmail();
+        OdinValidationUtils.AssertValidEmail(recoveryInfo?.Email, "Recovery email must be set to configure sharding");
+        var hash = ByteArrayUtil.ReduceSHA256Hash(recoveryInfo?.Email);
         return hash;
     }
-        
 
     public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {
         var email = await recoveryEmailer.GetNonceDataOrFail(nonceId);
-        var recovery = await GetAccountRecoveryInfo();
+        var recovery = await GetAccountRecoveryInfo() ?? new AccountRecoveryInfo();
         recovery.Email = email;
+        recovery.EmailLastVerified = UnixTimeUtc.Now();
         await AccountRecoveryInfoStorage.UpsertAsync(tblKeyValue, _accountRecoveryInfoStorageId, recovery);
     }
 
@@ -158,6 +167,6 @@ public class PasswordKeyRecoveryService(
     public async Task StartUpdateRecoveryEmail(MailAddress email, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        await recoveryEmailer.EnqueueVerifyNewRecoveryEmailAddress(email);
+        await recoveryEmailer.EnqueueVerifyRecoveryEmailAddress(email);
     }
 }

@@ -55,10 +55,12 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
     }
 
     [HttpGet("verify-email")]
-    public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string nonceId)
+    public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string id)
     {
-        await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(nonceId), WebOdinContext);
-        return Ok();
+        await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(id), WebOdinContext);
+        
+        const string redirect = "/owner/security/overview?fv=1";
+        return Redirect(redirect);
     }
 
     [HttpGet("recovery-risk-report")]

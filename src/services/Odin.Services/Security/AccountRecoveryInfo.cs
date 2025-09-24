@@ -1,3 +1,5 @@
+using Odin.Core.Time;
+
 namespace Odin.Services.Security;
 
 /// <summary>
@@ -6,4 +8,5 @@ namespace Odin.Services.Security;
 public class AccountRecoveryInfo
 {
     public string Email { get; set; }
+    public UnixTimeUtc? EmailLastVerified { get; set; }
 }
