@@ -35,6 +35,7 @@ using Serilog.Events;
 using System;
 using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
+using Testcontainers.Redis;
 
 namespace Odin.Hosting.Tests
 {

@@ -60,10 +60,16 @@ public class SecurityHealthCheckJob(
                 logger.LogInformation("No certificate found for domain {domain}. Waiting one minute", Data.Tenant);
                 return JobExecutionResult.Reschedule(DateTimeOffset.UtcNow.AddMinutes(1));
             }
-            
+
+            var tenantScope = tenantContainer.LookupTenantScope(Data.Tenant!);
+            if (tenantScope == null)
+            {
+                return JobExecutionResult.Abort();
+            }
+
             // Create a new lifetime scope for the tenant so db connections are isolated
-            await using var scope = tenantContainer.GetTenantScope(Data.Tenant!)
-                .BeginLifetimeScope($"{nameof(SecurityHealthCheckJob)}:Run:{Data.Tenant}:{Guid.NewGuid()}");
+            await using var scope =
+                tenantScope.BeginLifetimeScope($"{nameof(SecurityHealthCheckJob)}:Run:{Data.Tenant}:{Guid.NewGuid()}");
 
             var stickyHostnameContext = scope.Resolve<IStickyHostname>();
             stickyHostnameContext.Hostname = $"{Data.Tenant}&";
