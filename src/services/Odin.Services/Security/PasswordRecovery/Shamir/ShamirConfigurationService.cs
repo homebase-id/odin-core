@@ -80,7 +80,7 @@ public class ShamirConfigurationService(
         };
 
         await using var tx = await db.BeginStackedTransactionAsync();
-
+        tx.AddPostCommitAction(transferService.ProcessOutboxNow);
         await SaveDealerPackage(package, odinContext);
 
         var enqueueResults = await EnqueueShardsForDistribution(shards.PlayerShards, odinContext);
