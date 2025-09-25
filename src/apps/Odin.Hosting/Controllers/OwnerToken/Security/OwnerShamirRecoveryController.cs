@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;

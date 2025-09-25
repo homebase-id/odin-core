@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Bitcoin.BIP39;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +6,9 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Security;
+using Odin.Services.Security.Health;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
@@ -37,9 +41,32 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         return new OkResult();
     }
 
-    [HttpGet("verification-status")]
-    public async Task<VerificationStatus> GetStatus()
+    [HttpGet("recovery-info")]
+    public async Task<RecoveryInfo> GetRecoveryInfo([FromQuery] bool live = false)
     {
-        return await securityHealthService.GetVerificationStatusAsync(WebOdinContext);
+        return await securityHealthService.GetRecoveryInfo(live, WebOdinContext);
+    }
+
+    [HttpPost("update-recovery-email")]
+    public async Task<IActionResult> UpdateRecoveryEmail([FromBody] UpdateRecoveryEmailRequest request)
+    {
+        await securityHealthService.StartUpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
+        return Ok();
+    }
+
+    [HttpGet("verify-email")]
+    public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string id)
+    {
+        await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(id), WebOdinContext);
+        
+        const string redirect = "/owner/security/overview?fv=1";
+        return Redirect(redirect);
+    }
+
+    [HttpGet("recovery-risk-report")]
+    public async Task<IActionResult> GetHealthCheck()
+    {
+        var check = await securityHealthService.RunHeathCheck(WebOdinContext);
+        return Ok(check);
     }
 }

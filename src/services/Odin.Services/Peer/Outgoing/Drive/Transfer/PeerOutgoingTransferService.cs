@@ -82,11 +82,15 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+            await ProcessOutboxNow();
 
             return outboxStatus;
         }
 
+        public async Task ProcessOutboxNow()
+        {
+            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+        }
 
         /// <summary>
         /// Updates a remote file

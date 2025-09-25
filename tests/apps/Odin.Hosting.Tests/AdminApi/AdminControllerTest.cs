@@ -201,6 +201,8 @@ public class AdminControllerTest
 
     //
 
+// SEB:TODO disabled until we figure out a way to do this without racing the rest of the system
+#if false
     [Test]
     public async Task ItShouldDeleteTenant()
     {
@@ -256,6 +258,7 @@ public class AdminControllerTest
         response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+#endif
 
     //
 

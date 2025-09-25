@@ -23,7 +23,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 // Goals here are that:
 //   * the password never leaves the clients.
@@ -67,7 +67,6 @@ namespace Odin.Services.Authentication.Owner
             ILogger<OwnerAuthenticationService> logger,
             OwnerSecretService secretService,
             TenantContext tenantContext,
-            OdinConfiguration config,
             IDriveManager driveManager,
             IcrKeyService icrKeyService,
             TenantConfigService tenantConfigService,

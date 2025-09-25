@@ -30,5 +30,6 @@ public class FailedUpgradeVersionInfo
     /// The version on which the upgrade failed 
     /// </summary>
     public string BuildVersion { get; set; }
-    
+
+    public string CorrelationId { get; set; }
 }

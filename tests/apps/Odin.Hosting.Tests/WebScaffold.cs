@@ -1,4 +1,10 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,7 +22,6 @@ using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
-using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
@@ -28,11 +33,6 @@ using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
@@ -104,11 +104,11 @@ namespace Odin.Hosting.Tests
             bool setupOwnerAccounts = true,
             Dictionary<string, string> envOverrides = null,
             List<TestIdentity> testIdentities = null
-            )
+        )
         {
             // Default to all identities
             TestIdentities.SetCurrent(testIdentities);
-            CryptographyConstants.ITERATIONS = 3;  // Override for tests
+            CryptographyConstants.ITERATIONS = 3; // Override for tests
 
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
@@ -516,6 +516,35 @@ namespace Odin.Hosting.Tests
             var logEvents = GetLogEvents();
             var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
             ClassicAssert.IsTrue(expectedEvent.Count() == count);
+        }
+
+        public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel, TimeSpan? maxWaitTime = null)
+        {
+            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+
+            var sw = Stopwatch.StartNew();
+
+            while (true)
+            {
+                var infoEvents = logEvents[logLevel];
+                infoEvents.Reverse(); // note: we reverse since we are always looking for the most recent property
+                foreach (var infoEvent in infoEvents)
+                {
+                    if (infoEvent.Properties.TryGetValue(propertyName, out var value))
+                    {
+                        return value?.ToString();
+                    }
+                }
+
+                if (sw.Elapsed > maxWait)
+                {
+                    throw new TimeoutException($"Failed waiting to find log property {propertyName} in logLevel {logLevel}");
+                }
+
+                await Task.Delay(100);
+            }
         }
     }
 }

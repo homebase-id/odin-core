@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
@@ -20,6 +21,7 @@ using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Util;
 
 namespace Odin.Services.Configuration;
@@ -41,6 +43,7 @@ public class TenantConfigService
     private readonly IcrKeyService _icrKeyService;
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IAppRegistrationService _appRegistrationService;
+    private readonly ICorrelationContext _correlationContext;
     private readonly IdentityDatabase _identityDatabase;
 
     public TenantConfigService(
@@ -53,6 +56,7 @@ public class TenantConfigService
         PasswordKeyRecoveryService recoverService,
         CircleMembershipService circleMembershipService,
         IAppRegistrationService appRegistrationService,
+        ICorrelationContext correlationContext,
         IdentityDatabase identityDatabase)
     {
         _dbs = dbs;
@@ -64,6 +68,7 @@ public class TenantConfigService
         _recoverService = recoverService;
         _circleMembershipService = circleMembershipService;
         _appRegistrationService = appRegistrationService;
+        _correlationContext = correlationContext;
         _identityDatabase = identityDatabase;
     }
 
@@ -118,7 +123,8 @@ public class TenantConfigService
         {
             FailedDataVersionNumber = dataVersionNumber,
             BuildVersion = Version.VersionText,
-            LastAttempted = UnixTimeUtc.Now().milliseconds
+            LastAttempted = UnixTimeUtc.Now().milliseconds,
+            CorrelationId = _correlationContext?.Id
         };
 
         await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key, info);
@@ -373,6 +379,10 @@ public class TenantConfigService
         await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, OwnerAppSettings.ConfigKey, newSettings);
     }
 
+    public async Task DeleteFailureInfo()
+    {
+        await ConfigStorage.DeleteAsync(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
+    }
     //
 
     public async Task EnsureBuiltInApps(IOdinContext odinContext)
