@@ -10,6 +10,11 @@ public class RemoteShardVerificationResult
 
 public class ShardVerificationResult
 {
+    /// <summary>
+    /// When true, teh remote server is not capable of verifying the
+    /// shard so clients should not retry (i.e. the drive is not created, etc.)
+    /// </summary>
+    public bool RemoteServerError { get; init; }
     public bool IsValid { get; set; }
     public UnixTimeUtc Created { get; init; }
     public ShardTrustLevel TrustLevel { get; set; }

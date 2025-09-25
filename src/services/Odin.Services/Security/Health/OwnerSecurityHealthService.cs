@@ -10,6 +10,8 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
+using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -25,6 +27,7 @@ public class OwnerSecurityHealthService(
     PasswordKeyRecoveryService recoveryService,
     ShamirConfigurationService shamirConfigurationService,
     PublicPrivateKeyService publicPrivateKeyService,
+    IDriveManager driveManager,
     TableKeyValueCached keyValueTable)
 {
     private static readonly Guid VerificationStorageId = Guid.Parse("475c72c0-bb9c-4dc9-a565-7e72319ff2b8");
@@ -135,6 +138,16 @@ public class OwnerSecurityHealthService(
     /// </summary>
     public async Task<PeriodicSecurityHealthCheckStatus> RunHeathCheck(IOdinContext odinContext)
     {
+        var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+        if (null == shardDrive)
+        {
+            return new PeriodicSecurityHealthCheckStatus()
+            {
+                LastUpdated = UnixTimeUtc.Now(),
+                IsConfigured = false
+            };
+        }
+        
         var dealerShardPackage = await shamirConfigurationService.GetDealerShardPackage(odinContext);
 
         if (null == dealerShardPackage)

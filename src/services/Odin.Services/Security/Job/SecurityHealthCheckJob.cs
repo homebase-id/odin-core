@@ -16,6 +16,7 @@ using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Security.Health;
@@ -45,7 +46,6 @@ public class SecurityHealthCheckJob(
     {
         try
         {
-            
             if (!Data.Tenant.HasValue())
             {
                 logger.LogError("Security health check job received empty tenant; aborting");
@@ -73,9 +73,8 @@ public class SecurityHealthCheckJob(
 
             var stickyHostnameContext = scope.Resolve<IStickyHostname>();
             stickyHostnameContext.Hostname = $"{Data.Tenant}&";
-            
-            await RunHealthCheck(scope);
 
+            await RunHealthCheck(scope);
         }
         catch (Exception e)
         {
@@ -84,7 +83,6 @@ public class SecurityHealthCheckJob(
         }
 
         return JobExecutionResult.Reschedule(DateTimeOffset.UtcNow.AddDays(30));
-
     }
 
     public override string? CreateJobHash()
@@ -116,6 +114,15 @@ public class SecurityHealthCheckJob(
         var isConfigured = await configService.IsIdentityServerConfiguredAsync();
         if (!isConfigured)
         {
+            return;
+        }
+
+        var driveManager = lifetimeScope.Resolve<IDriveManager>();
+        var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+        if (null == shardDrive)
+        {
+            logger.LogWarning("{job} -> Sharding drive not yet configured (Tenant probably needs to upgrade)",
+                nameof(SecurityHealthCheckJob));
             return;
         }
 
