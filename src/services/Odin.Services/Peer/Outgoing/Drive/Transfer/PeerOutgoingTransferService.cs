@@ -89,6 +89,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
         public async Task ProcessOutboxNow()
         {
+            logger.LogDebug("Processing outbox now called");
             await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
         }
 

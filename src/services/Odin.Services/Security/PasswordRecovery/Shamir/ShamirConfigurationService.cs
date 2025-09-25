@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -87,6 +86,7 @@ public class ShamirConfigurationService(
         tx.AddPostCommitAction(transferService.ProcessOutboxNow);
         await SaveDealerPackage(package, odinContext);
 
+        logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
         var enqueueResults = await EnqueueShardsForDistribution(shards.PlayerShards, odinContext);
         var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
         if (failures.Any())
@@ -97,6 +97,7 @@ public class ShamirConfigurationService(
         await SaveDistributableKey(distributionKey, odinContext);
 
         tx.Commit();
+        logger.LogDebug("Commited shard distribution data");
 
         distributionKey.Wipe();
     }
@@ -111,6 +112,7 @@ public class ShamirConfigurationService(
 
         if (package == null)
         {
+            logger.LogDebug("Sharding for dealer {d} not configured.", odinContext.Caller);
             throw new OdinClientException("Sharding not configured");
         }
 
@@ -142,11 +144,6 @@ public class ShamirConfigurationService(
             {
                 return response.Content;
             }
-
-            if (response.StatusCode == HttpStatusCode.BadRequest)
-            {
-                // TODO: how to handle this?
-            }
         }
         catch (Exception e)
         {
@@ -155,7 +152,7 @@ public class ShamirConfigurationService(
 
         return new ShardVerificationResult
         {
-            RemoteServerError = false,
+            RemoteServerError = true,
             IsValid = false,
             Created = UnixTimeUtc.Now(),
             TrustLevel = ShardTrustLevel.Critical
@@ -173,6 +170,7 @@ public class ShamirConfigurationService(
         try
         {
             var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+            
             if (null == shardDrive)
             {
                 logger.LogDebug("Could not perform shard verification; Sharding drive not yet configured (Tenant probably needs to upgrade)");
@@ -294,6 +292,14 @@ public class ShamirConfigurationService(
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var shardDrive = await driveManager.GetDriveAsync(driveId);
+            
+        if (null == shardDrive)
+        {
+            logger.LogDebug("Shard drive not yet configured (Tenant probably needs to upgrade).  So GetDealerShardPackage will return null.");
+            return null;
+        }
+        
         var uid = Guid.Parse(DealerShardConfigUid);
         var options = new ResultOptions
         {

@@ -5,6 +5,7 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
 public class RemoteShardVerificationResult
 {
+    public bool RemoteServerError { get; init; }
     public Dictionary<string, ShardVerificationResult> Players { get; init; } = new();
 }
 
