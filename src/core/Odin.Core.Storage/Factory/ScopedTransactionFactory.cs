@@ -32,6 +32,8 @@ public interface IScopedTransaction : IDisposable, IAsyncDisposable
     ITransactionWrapper Transaction { get; }
     ICommandWrapper CreateCommand();
     void Commit();
+    void AddPostCommitAction(Func<Task> action);
+    void AddPostRollbackAction(Func<Task> action);
 }
 
 //
@@ -75,6 +77,16 @@ public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnec
         public void Commit()
         {
             tx.Commit();
+        }
+
+        public void AddPostCommitAction(Func<Task> action)
+        {
+            tx.AddPostCommitAction(action);
+        }
+
+        public void AddPostRollbackAction(Func<Task> action)
+        {
+            tx.AddPostRollbackAction(action);
         }
 
         // There is no explicit rollback support. This is by design to make reference counting easier.
