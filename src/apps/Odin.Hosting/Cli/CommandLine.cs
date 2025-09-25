@@ -299,6 +299,18 @@ public class CommandLine
             return (true, 0);
         }
 
+        //
+        // Command line: Log tenant versions
+        //
+        // examples:
+        //   dotnet run -- log-tenant-versions
+        //
+        if (args.Length > 0 && args[0] == "log-tenant-versions")
+        {
+            LogTenantVersions.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
         return (false, 0);
     }
 }
