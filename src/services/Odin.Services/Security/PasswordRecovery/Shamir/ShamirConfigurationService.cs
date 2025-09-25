@@ -20,6 +20,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
+using Odin.Services.Drives.Management;
 using Odin.Services.LastSeen;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
@@ -38,6 +39,7 @@ public class ShamirConfigurationService(
     TableKeyValueCached tblKeyValue,
     IdentityDatabase db,
     StandardFileSystem fileSystem,
+    IDriveManager driveManager,
     ILastSeenService lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
@@ -55,11 +57,12 @@ public class ShamirConfigurationService(
     {
         return playerCount - MinimumMatchingShardsOffset;
     }
-    
+
     public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(players, nameof(players));
-        OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount, $"You need at least {MinimumPlayerCount} trusted connections");
+        OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount,
+            $"You need at least {MinimumPlayerCount} trusted connections");
         OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
 
         var minAllowedShards = CalculateMinAllowedShardCount(players.Count);
@@ -83,6 +86,7 @@ public class ShamirConfigurationService(
         tx.AddPostCommitAction(transferService.ProcessOutboxNow);
         await SaveDealerPackage(package, odinContext);
 
+        logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
         var enqueueResults = await EnqueueShardsForDistribution(shards.PlayerShards, odinContext);
         var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
         if (failures.Any())
@@ -93,6 +97,7 @@ public class ShamirConfigurationService(
         await SaveDistributableKey(distributionKey, odinContext);
 
         tx.Commit();
+        logger.LogDebug("Commited shard distribution data");
 
         distributionKey.Wipe();
     }
@@ -107,6 +112,7 @@ public class ShamirConfigurationService(
 
         if (package == null)
         {
+            logger.LogDebug("Sharding for dealer {d} not configured.", odinContext.Caller);
             throw new OdinClientException("Sharding not configured");
         }
 
@@ -131,8 +137,7 @@ public class ShamirConfigurationService(
             var client = CreateClientAsync(player, odinContext);
             var response = await client.VerifyShard(new VerifyShardRequest()
             {
-                ShardId = shardId,
-                RecoveryEmailHash = await passwordKeyRecoveryService.GetHashedRecoveryEmail()
+                ShardId = shardId
             });
 
             if (response.IsSuccessStatusCode)
@@ -147,6 +152,7 @@ public class ShamirConfigurationService(
 
         return new ShardVerificationResult
         {
+            RemoteServerError = true,
             IsValid = false,
             Created = UnixTimeUtc.Now(),
             TrustLevel = ShardTrustLevel.Critical
@@ -158,43 +164,72 @@ public class ShamirConfigurationService(
     /// </summary>
     public async Task<ShardVerificationResult> VerifyDealerShard(
         Guid shardId,
-        Guid recoveryEmailHash,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsAuthenticated();
-
-        var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
-        var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
-
-        var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
-        var trustLevel = ShardTrustLevel.Critical; // default = worst case
-
-        if (lastSeen.HasValue)
+        try
         {
-            var now = DateTime.UtcNow;
-            var elapsed = now - lastSeen.Value.ToDateTime();
+            var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+            
+            if (null == shardDrive)
+            {
+                logger.LogDebug("Could not perform shard verification; Sharding drive not yet configured (Tenant probably needs to upgrade)");
+                return new ShardVerificationResult
+                {
+                    RemoteServerError = true,
+                    IsValid = false,
+                    TrustLevel = ShardTrustLevel.Critical,
+                    Created = UnixTimeUtc.Now()
+                };
+            }
 
-            if (elapsed < TimeSpan.FromDays(14))
+            var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
+            var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
+
+            var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
+            var trustLevel = ShardTrustLevel.Critical; // default = worst case
+
+            if (lastSeen.HasValue)
             {
-                trustLevel = ShardTrustLevel.High;
+                var now = DateTime.UtcNow;
+                var elapsed = now - lastSeen.Value.ToDateTime();
+
+                if (elapsed < TimeSpan.FromDays(14))
+                {
+                    trustLevel = ShardTrustLevel.High;
+                }
+                else if (elapsed < TimeSpan.FromDays(30))
+                {
+                    trustLevel = ShardTrustLevel.Low;
+                }
+                else if (elapsed < TimeSpan.FromDays(90))
+                {
+                    trustLevel = ShardTrustLevel.Medium;
+                }
+                // otherwise remains Critical
             }
-            else if (elapsed < TimeSpan.FromDays(30))
+
+            return new ShardVerificationResult
             {
-                trustLevel = ShardTrustLevel.Low;
-            }
-            else if (elapsed < TimeSpan.FromDays(90))
-            {
-                trustLevel = ShardTrustLevel.Medium;
-            }
-            // otherwise remains Critical
+                RemoteServerError = false,
+                IsValid = isValid,
+                TrustLevel = trustLevel,
+                Created = shard?.Created ?? 0
+            };
         }
-
-        return new ShardVerificationResult
+        catch (Exception e)
         {
-            IsValid = isValid,
-            TrustLevel = trustLevel,
-            Created = shard?.Created ?? 0
-        };
+            logger.LogError(e, "Could not perform shard verification");
+            // if anything fails, just tell the caller this
+            // server is not capable of sharding right now
+            return new ShardVerificationResult
+            {
+                RemoteServerError = true,
+                IsValid = false,
+                TrustLevel = ShardTrustLevel.Critical,
+                Created = UnixTimeUtc.Now()
+            };
+        }
     }
 
     public async Task<DealerShardConfig> GetRedactedConfig(IOdinContext odinContext)
@@ -257,6 +292,14 @@ public class ShamirConfigurationService(
     public async Task<DealerShardPackage> GetDealerShardPackage(IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
+        var shardDrive = await driveManager.GetDriveAsync(driveId);
+            
+        if (null == shardDrive)
+        {
+            logger.LogDebug("Shard drive not yet configured (Tenant probably needs to upgrade).  So GetDealerShardPackage will return null.");
+            return null;
+        }
+        
         var uid = Guid.Parse(DealerShardConfigUid);
         var options = new ResultOptions
         {

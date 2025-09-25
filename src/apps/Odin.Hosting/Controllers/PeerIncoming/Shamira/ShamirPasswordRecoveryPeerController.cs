@@ -21,7 +21,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
         [HttpPost("verify-shard")]
         public async Task<IActionResult> VerifyShard(VerifyShardRequest request)
         {
-            var result = await configurationService.VerifyDealerShard(request.ShardId, request.RecoveryEmailHash, WebOdinContext);
+            var result = await configurationService.VerifyDealerShard(request.ShardId, WebOdinContext);
             return Ok(result);
         }
 

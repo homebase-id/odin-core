@@ -13,6 +13,7 @@ public enum OdinClientErrorCode
     InvalidAuthToken = 1001,
     SharedSecretEncryptionIsInvalid = 1002,
     PublicKeyEncryptionIsInvalid = 1004,
+    PasswordRecoveryNotConfigured = 1005,
 
     // Notifcation Errors 20xx
     InvalidNotificationType = 2001,

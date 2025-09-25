@@ -101,6 +101,12 @@ public class ShamirRecoveryService
             odinContext);
 
         var pkg = await _configurationService.GetDealerShardPackage(odinContext);
+
+        if (null == pkg)
+        {
+            throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
+        }
+        
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
