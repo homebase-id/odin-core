@@ -6,6 +6,7 @@ using Autofac.Extensions.DependencyInjection;
 using DnsClient;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -13,7 +14,7 @@ using Odin.Core.Dns;
 using Odin.Core.Http;
 using Odin.Core.Logging;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Factory;
 using Odin.Core.X509;
@@ -115,16 +116,24 @@ public class CertificateServiceTests
             await _redisContainer.StartAsync();
         }
 
-        var builder = WebApplication.CreateBuilder();
-
         //
         // Register services
         //
 
+        var services = new ServiceCollection();
+        services.AddCoreCacheServices(new CacheConfiguration
+        {
+            Level2CacheType = useRedis ? Level2CacheType.Redis : Level2CacheType.None
+        });
+
+        var builder = WebApplication.CreateBuilder();
         builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
         builder.Host.ConfigureContainer<ContainerBuilder>(cb =>
         {
+            cb.Populate(services);
+
             cb.RegisterInstance<OdinConfiguration>(config);
+            cb.AddSystemCaches();
 
             if (useRedis)
             {
@@ -144,14 +153,14 @@ public class CertificateServiceTests
             cb.RegisterType<DynamicHttpClientFactory>().As<IDynamicHttpClientFactory>().SingleInstance();
             cb.RegisterType<AuthoritativeDnsLookup>().As<IAuthoritativeDnsLookup>().SingleInstance();
             cb.RegisterType<DnsLookupService>().As<IDnsLookupService>().SingleInstance();
-            cb.RegisterType<AcmeHttp01TokenCache>().As<IAcmeHttp01TokenCache>().SingleInstance();
             cb.RegisterInstance<AcmeAccountConfig>(new AcmeAccountConfig
             {
                 AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
             });
             cb.Register(c =>
                 new CertesAcme(
-                    c.Resolve<ILogger<CertesAcme>>(), c.Resolve<IAcmeHttp01TokenCache>(),
+                    c.Resolve<ILogger<CertesAcme>>(),
+                    c.Resolve<ISystemLevel2Cache<CertesAcme>>(),
                     c.Resolve<IDynamicHttpClientFactory>(),
                     isProduction: false))
                 .As<ICertesAcme>().SingleInstance();

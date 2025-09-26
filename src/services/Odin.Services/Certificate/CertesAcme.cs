@@ -8,10 +8,10 @@ using Certes;
 using Certes.Acme;
 using Certes.Acme.Resource;
 using Certes.Pkcs;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
+using Odin.Core.Storage.Cache;
 
 namespace Odin.Services.Certificate;
 
@@ -27,7 +27,7 @@ namespace Odin.Services.Certificate;
 public sealed class CertesAcme : ICertesAcme
 {
     private readonly ILogger<CertesAcme> _logger;
-    private readonly IAcmeHttp01TokenCache _tokenCache;
+    private readonly ISystemLevel2Cache<CertesAcme> _tokenCache;
     private readonly IDynamicHttpClientFactory _httpClientFactory;
     private readonly Uri _directoryUri;
     
@@ -35,7 +35,7 @@ public sealed class CertesAcme : ICertesAcme
 
     public CertesAcme(
         ILogger<CertesAcme> logger, 
-        IAcmeHttp01TokenCache tokenCache, 
+        ISystemLevel2Cache<CertesAcme> tokenCache,
         IDynamicHttpClientFactory httpClientFactory,
         bool isProduction)
     {
@@ -119,7 +119,11 @@ public sealed class CertesAcme : ICertesAcme
             var challenge = await authz.Http();
 
             _logger.LogDebug("Adding challenge token {token}", challenge.Token);
-            _tokenCache.Set(challenge.Token, challenge.KeyAuthz);
+            await _tokenCache.SetAsync(
+                challenge.Token,
+                challenge.KeyAuthz,
+                TimeSpan.FromMinutes(60),
+                cancellationToken: cancellationToken);
 
             cancellationToken.ThrowIfCancellationRequested();
             await challenge.Validate();
@@ -247,33 +251,3 @@ public sealed class CertesAcme : ICertesAcme
 
 //
 
-public sealed class AcmeHttp01TokenCache : IAcmeHttp01TokenCache
-{
-    private readonly MemoryCache _cache = new(new MemoryCacheOptions());
-
-    //
-
-    public bool TryGet(string token, out string keyAuth)
-    {
-        var found = _cache.TryGetValue(token, out string? key);
-
-        if (found && key != null)
-        {
-            keyAuth = key;
-            return true;
-        }
-
-        keyAuth = "";
-        return false;
-    }
-
-    //
-
-    public void Set(string token, string keyAuth)
-    {
-        _cache.Set(token, keyAuth, TimeSpan.FromMinutes(60));
-    }
-
-    //
-
-}

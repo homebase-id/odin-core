@@ -155,7 +155,6 @@ public static class SystemServices
             AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
         });
         services.AddSingleton<ILookupClient>(new LookupClient());
-        services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
 
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
 
@@ -170,7 +169,7 @@ public static class SystemServices
 
         services.AddSingleton<ICertesAcme>(sp => new CertesAcme(
             sp.GetRequiredService<ILogger<CertesAcme>>(),
-            sp.GetRequiredService<IAcmeHttp01TokenCache>(),
+            sp.GetRequiredService<ISystemLevel2Cache<CertesAcme>>(),
             sp.GetRequiredService<IDynamicHttpClientFactory>(),
             config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
