@@ -9,9 +9,9 @@ namespace Odin.Core.Threading;
 public sealed class KeyedAsyncLock
 {
     // SEB:NOTE we can't use a ConcurrentDictionary because the delegates called in AddOrUpdate and GetOrAdd
-    // are not thread safe, so we use explicit locking instead.
+    // are missing atomic read-modify-write, so we use explicit locking instead.
     private readonly Dictionary<string, (AsyncLock asyncLock, int refCount)> _refCountedLocks = new ();
-    private readonly object _mutex = new ();
+    private readonly Lock _lock = new ();
 
     /// <summary>
     /// Asynchronously acquires an exclusive lock associated with the specified key.
@@ -32,8 +32,33 @@ public sealed class KeyedAsyncLock
     /// </example>
     public async Task<IDisposable> LockAsync(string key, CancellationToken cancellationToken = default)
     {
-        var disposer = await GetOrCreateRefCountedLock(key).asyncLock.LockAsync(cancellationToken);
-        return new Releaser(this, key, disposer);
+        ArgumentException.ThrowIfNullOrEmpty(key, nameof(key));
+
+        AsyncLock asyncLock;
+        lock (_lock)
+        {
+            if (_refCountedLocks.TryGetValue(key, out var value))
+            {
+                _refCountedLocks[key] = (value.asyncLock, value.refCount + 1);
+                asyncLock = value.asyncLock;
+            }
+            else
+            {
+                asyncLock = new AsyncLock();
+                _refCountedLocks[key] = (asyncLock, 1);
+            }
+        }
+
+        try
+        {
+            var disposer = await asyncLock.LockAsync(cancellationToken);
+            return new Releaser(this, key, disposer);
+        }
+        catch
+        {
+            DecrementRefCount(key);
+            throw;
+        }
     }
 
     //
@@ -57,33 +82,53 @@ public sealed class KeyedAsyncLock
     /// </example>
     public IDisposable Lock(string key, CancellationToken cancellationToken = default)
     {
-        var disposer = GetOrCreateRefCountedLock(key).asyncLock.Lock(cancellationToken);
-        return new Releaser(this, key, disposer);
+        ArgumentException.ThrowIfNullOrEmpty(key, nameof(key));
+
+        AsyncLock asyncLock;
+        lock (_lock)
+        {
+            if (_refCountedLocks.TryGetValue(key, out var value))
+            {
+                _refCountedLocks[key] = (value.asyncLock, value.refCount + 1);
+                asyncLock = value.asyncLock;
+            }
+            else
+            {
+                asyncLock = new AsyncLock();
+                _refCountedLocks[key] = (asyncLock, 1);
+            }
+        }
+
+        try
+        {
+            var disposer = asyncLock.Lock(cancellationToken);
+            return new Releaser(this, key, disposer);
+        }
+        catch
+        {
+            DecrementRefCount(key);
+            throw;
+        }
     }
 
     //
 
-    private (AsyncLock asyncLock, int refCount) GetOrCreateRefCountedLock(string key)
+    private void DecrementRefCount(string key)
     {
-        (AsyncLock asyncLock, int refCount) refCountedLock;
-
-        lock (_mutex)
+        lock (_lock)
         {
             if (_refCountedLocks.TryGetValue(key, out var value))
             {
-                // Increment the reference count if the refCountedLock already exists
-                refCountedLock = (value.asyncLock, value.refCount + 1);
-                _refCountedLocks[key] = refCountedLock;
-            }
-            else
-            {
-                // Add a new mutex asyncLock reference count of 1
-                refCountedLock = (new AsyncLock(), 1);
-                _refCountedLocks[key] = refCountedLock;
+                if (value.refCount == 1)
+                {
+                    _refCountedLocks.Remove(key);
+                }
+                else
+                {
+                    _refCountedLocks[key] = (value.asyncLock, value.refCount - 1);
+                }
             }
         }
-
-        return refCountedLock;
     }
 
     //
@@ -98,22 +143,7 @@ public sealed class KeyedAsyncLock
             }
             finally
             {
-                lock (parent._mutex)
-                {
-                    if (parent._refCountedLocks.TryGetValue(key, out var asyncLock))
-                    {
-                        if (asyncLock.refCount == 1)
-                        {
-                            // Last reference, remove the lock
-                            parent._refCountedLocks.Remove(key);
-                        }
-                        else
-                        {
-                            // Decrement the reference count
-                            parent._refCountedLocks[key] = (asyncLock.asyncLock, asyncLock.refCount - 1);
-                        }
-                    }
-                }
+                parent.DecrementRefCount(key);
             }
         }
     }
@@ -124,7 +154,7 @@ public sealed class KeyedAsyncLock
     {
         get
         {
-            lock(_mutex)
+            lock(_lock)
             {
                 return _refCountedLocks.Count;
             }
