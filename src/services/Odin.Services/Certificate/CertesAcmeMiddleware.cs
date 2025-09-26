@@ -1,30 +1,34 @@
+using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Odin.Core.Storage.Cache;
 
 namespace Odin.Services.Certificate;
 
 #nullable enable
 
-public sealed class CertesAcmeMiddleware(RequestDelegate next, IAcmeHttp01TokenCache cache)
+public sealed class CertesAcmeMiddleware(RequestDelegate next, ISystemLevel2Cache<CertesAcme> tokenCache)
 {
     //
 
-    public Task Invoke(HttpContext context)
+    public async Task Invoke(HttpContext context)
     {
         var path = context.Request.Path.Value ?? "";
 
         // Quickly bail if request is not acme-challenge related
         if (!HttpMethods.IsGet(context.Request.Method) || !path.StartsWith("/.well-known/acme-challenge/"))
         {
-            return next(context);
+            await next(context);
+            return;
         }
 
         // Handy for testing connectivity
         if (path == "/.well-known/acme-challenge/ping")
         {
             context.Response.StatusCode = StatusCodes.Status200OK;
-            return context.Response.WriteAsync("pong");
+            await context.Response.WriteAsync("pong");
+            return;
         }
 
         // Respond to challenge
@@ -32,15 +36,23 @@ public sealed class CertesAcmeMiddleware(RequestDelegate next, IAcmeHttp01TokenC
         if (match.Success)
         {
             var token = match.Groups[1].Value;
-            if (cache.TryGet(token, out var keyAuth))
+
+            // We cache nulls here to avoid hitting L2 repeatedly for non-existing tokens
+            var keyAuth = await tokenCache.GetOrSetAsync(
+                token,
+                _ => Task.FromResult<string?>(null),
+                TimeSpan.FromMinutes(60));
+
+            if (!string.IsNullOrEmpty(keyAuth))
             {
                 context.Response.StatusCode = StatusCodes.Status200OK;
-                return context.Response.WriteAsync(keyAuth);
+                await context.Response.WriteAsync(keyAuth);
+                return;
             }
         }
 
         context.Response.StatusCode = StatusCodes.Status404NotFound;
-        return context.Response.WriteAsync("Not found");
+        await context.Response.WriteAsync("Not found");
     }
 
     //
