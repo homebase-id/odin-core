@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.Registry.Registration;
 
@@ -18,6 +19,7 @@ namespace Odin.Services.Certificate;
 public class CertificateService : ICertificateService
 {
     private readonly ILogger<CertificateService> _logger;
+    private readonly INodeLock _nodeLock;
     private readonly ICertificateStore _certificateStore;
     private readonly ICertesAcme _certesAcme;
     private readonly IDnsLookupService _dnsLookupService;
@@ -25,10 +27,9 @@ public class CertificateService : ICertificateService
     private readonly IServiceProvider _serviceProvider;
     private readonly string _accountKey;
 
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> DomainSemaphores = new();
-
     public CertificateService(
         ILogger<CertificateService> logger,
+        INodeLock nodeLock,
         ICertificateStore certificateStore,
         ICertesAcme certesAcme,
         IDnsLookupService dnsLookupService,
@@ -36,6 +37,7 @@ public class CertificateService : ICertificateService
         IServiceProvider serviceProvider)
     {
         _logger = logger;
+        _nodeLock = nodeLock;
         _certificateStore = certificateStore;
         _certesAcme = certesAcme;
         _dnsLookupService = dnsLookupService;
@@ -75,22 +77,15 @@ public class CertificateService : ICertificateService
         string[] sans,
         CancellationToken cancellationToken = default)
     {
-        var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
-        await mutex.WaitAsync(cancellationToken);
-        try
+        await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken);
+
+        var x509 = await GetCertificateAsync(domain);
+        if (x509 != null)
         {
-            var x509 = await GetCertificateAsync(domain);
-            if (x509 != null)
-            {
-                _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
-                return x509;
-            }
-            return await InternalCreateCertificateAsync(domain, sans, cancellationToken);
+            _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
+            return x509;
         }
-        finally
-        {
-            mutex.Release();
-        }
+        return await InternalCreateCertificateAsync(domain, sans, cancellationToken);
     }
 
     //
@@ -104,32 +99,25 @@ public class CertificateService : ICertificateService
 
     public async Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default)
     {
-        var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
-        await mutex.WaitAsync(cancellationToken);
-        try
+        await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken);
+
+        var x509 = await GetCertificateAsync(domain);
+        if (x509 == null || AboutToExpire(x509))
         {
-            var x509 = await GetCertificateAsync(domain);
-            if (x509 == null || AboutToExpire(x509))
+            _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
+            x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
+            if (x509 != null)
             {
-                _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
-                x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
-                if (x509 != null)
-                {
-                    _logger.LogDebug("Completed background renew of {domain} certificate", domain);
-                    return true;
-                }
-                else
-                {
-                    _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
-                    return false;
-                }
+                _logger.LogDebug("Completed background renew of {domain} certificate", domain);
+                return true;
             }
-            return false;
+            else
+            {
+                _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
+                return false;
+            }
         }
-        finally
-        {
-            mutex.Release();
-        }
+        return false;
     }
 
     //
@@ -239,6 +227,10 @@ public class CertificateService : ICertificateService
     {
         return DateTime.Now + TimeSpan.FromDays(7) > certificate.NotAfter;
     }
+
+    //
+
+    private static NodeLockKey LockKey(string domain) => NodeLockKey.Create("CertificateServiceLock:" + domain);
 
     //
 

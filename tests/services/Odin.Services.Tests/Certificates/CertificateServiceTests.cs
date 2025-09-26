@@ -14,6 +14,7 @@ using Odin.Core.Http;
 using Odin.Core.Logging;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Factory;
 using Odin.Core.X509;
 using Odin.Services.Certificate;
@@ -21,6 +22,8 @@ using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 using Testcontainers.PostgreSql;
 using Odin.Core.Storage.Database.System;
+using StackExchange.Redis;
+using Testcontainers.Redis;
 
 namespace Odin.Services.Tests.Certificates;
 
@@ -28,9 +31,22 @@ public class CertificateServiceTests
 {
     private string _tempDir = null!;
     private PostgreSqlContainer? _postgresContainer;
+    private RedisContainer? _redisContainer;
     private WebApplication _webServer = null!;
     private ICertificateService _certificateService = null!;
     private ILifetimeScope _autofacContainer = null!;
+
+    #if RUN_POSTGRES_TESTS
+    private const DatabaseType DatabaseTypeUnderTest = DatabaseType.Postgres;
+    #else
+    private const DatabaseType DatabaseTypeUnderTest = DatabaseType.Sqlite;
+    #endif
+
+    #if RUN_S3_TESTS
+    private const bool UseRedis = true;
+    #else
+    private const bool UseRedis = false;
+    #endif
 
     [SetUp]
     public void Setup()
@@ -53,12 +69,19 @@ public class CertificateServiceTests
             _postgresContainer = null;
         }
 
+        if (_redisContainer != null)
+        {
+            await _redisContainer.StopAsync();
+            await _redisContainer.DisposeAsync();
+            _redisContainer = null;
+        }
+
         Directory.Delete(_tempDir, true);
     }
 
     //
 
-    private async Task StartWebServerAsync(DatabaseType databaseType)
+    private async Task StartWebServerAsync(DatabaseType databaseType, bool useRedis)
     {
         var config = new OdinConfiguration
         {
@@ -84,6 +107,14 @@ public class CertificateServiceTests
             await _postgresContainer.StartAsync();
         }
 
+        if (useRedis)
+        {
+            _redisContainer = new RedisBuilder()
+                .WithImage("redis:latest")
+                .Build();
+            await _redisContainer.StartAsync();
+        }
+
         var builder = WebApplication.CreateBuilder();
 
         //
@@ -94,6 +125,21 @@ public class CertificateServiceTests
         builder.Host.ConfigureContainer<ContainerBuilder>(cb =>
         {
             cb.RegisterInstance<OdinConfiguration>(config);
+
+            if (useRedis)
+            {
+                // Distributed lock:
+                cb.RegisterType<RedisLock>().As<INodeLock>().SingleInstance();
+                var redisConfig = _redisContainer?.GetConnectionString() ?? throw new InvalidOperationException();
+                cb.RegisterInstance<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConfig));
+                cb.RegisterType<RedisLock>().As<INodeLock>().SingleInstance();
+            }
+            else
+            {
+                // Node-wide lock:
+                cb.RegisterType<NodeLock>().As<INodeLock>().SingleInstance();
+            }
+
             cb.RegisterInstance<ILookupClient>(new LookupClient());
             cb.RegisterType<DynamicHttpClientFactory>().As<IDynamicHttpClientFactory>().SingleInstance();
             cb.RegisterType<AuthoritativeDnsLookup>().As<IAuthoritativeDnsLookup>().SingleInstance();
@@ -160,15 +206,11 @@ public class CertificateServiceTests
     // - The DNS records must be set up correctly in the DNS server
     // - Port 80 must be open and accessible for HTTP-01 challenges
     [Test, Explicit]
-    [TestCase(DatabaseType.Sqlite, "regression-test-apex-a.dominion.id")]
-    [TestCase(DatabaseType.Sqlite, "regression-test-apex-alias.dominion.id")]
-#if RUN_POSTGRES_TESTS
-    [TestCase(DatabaseType.Postgres, "regression-test-apex-a.dominion.id")]
-    [TestCase(DatabaseType.Postgres, "regression-test-apex-alias.dominion.id")]
-#endif
-    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithoutSans(DatabaseType databaseType, string domain)
+    [TestCase(DatabaseTypeUnderTest, UseRedis, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseTypeUnderTest, UseRedis, "regression-test-apex-alias.dominion.id")]
+    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithoutSans(DatabaseType databaseType, bool useRedis, string domain)
     {
-        await StartWebServerAsync(databaseType);
+        await StartWebServerAsync(databaseType, useRedis);
 
         var certificate = await _certificateService.CreateCertificateAsync(domain)
             .WaitAsync(TimeSpan.FromSeconds(30));
@@ -187,15 +229,11 @@ public class CertificateServiceTests
     // - The DNS records must be set up correctly in the DNS server
     // - Port 80 must be open and accessible for HTTP-01 challenges
     [Test, Explicit]
-    [TestCase(DatabaseType.Sqlite, "regression-test-apex-a.dominion.id")]
-    [TestCase(DatabaseType.Sqlite, "regression-test-apex-alias.dominion.id")]
-#if RUN_POSTGRES_TESTS
-    [TestCase(DatabaseType.Postgres, "regression-test-apex-a.dominion.id")]
-    [TestCase(DatabaseType.Postgres, "regression-test-apex-alias.dominion.id")]
-#endif
-    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithSans(DatabaseType databaseType, string domain)
+    [TestCase(DatabaseTypeUnderTest, UseRedis, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseTypeUnderTest, UseRedis, "regression-test-apex-alias.dominion.id")]
+    public async Task CreateCertificateAsync_ShouldCreateCertificate_WithSans(DatabaseType databaseType, bool useRedis, string domain)
     {
-        await StartWebServerAsync(databaseType);
+        await StartWebServerAsync(databaseType, useRedis);
 
         var sans = new[] { $"capi.{domain}", $"file.{domain}" };
         var certificate = await _certificateService.CreateCertificateAsync(domain, sans)
@@ -215,15 +253,11 @@ public class CertificateServiceTests
     // - The DNS records must be set up correctly in the DNS server
     // - Port 80 must be open and accessible for HTTP-01 challenges
     [Test, Explicit]
-    [TestCase(DatabaseType.Sqlite, "regression-test-apex-a.dominion.id")]
-    [TestCase(DatabaseType.Sqlite, "regression-test-apex-alias.dominion.id")]
-#if RUN_POSTGRES_TESTS
-    [TestCase(DatabaseType.Postgres, "regression-test-apex-a.dominion.id")]
-    [TestCase(DatabaseType.Postgres, "regression-test-apex-alias.dominion.id")]
-#endif
-    public async Task Renew_ShouldRenewCertAboutToExpire(DatabaseType databaseType, string domain)
+    [TestCase(DatabaseTypeUnderTest, UseRedis, "regression-test-apex-a.dominion.id")]
+    [TestCase(DatabaseTypeUnderTest, UseRedis, "regression-test-apex-alias.dominion.id")]
+    public async Task Renew_ShouldRenewCertAboutToExpire(DatabaseType databaseType, bool useRedis, string domain)
     {
-        await StartWebServerAsync(databaseType);
+        await StartWebServerAsync(databaseType, useRedis);
 
         var oldX509 = X509Extensions.CreateSelfSignedEcDsaCertificate(
             domain,
