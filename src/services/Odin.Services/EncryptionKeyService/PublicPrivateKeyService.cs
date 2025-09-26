@@ -372,7 +372,7 @@ namespace Odin.Services.EncryptionKeyService
                 await KeyCreationLock.WaitAsync();
                 var mk = odinContext.Caller.GetMasterKey();
 
-                await this.CreateNewRsaKeysAsync(mk, _onlineKeyStorageId);
+                // await this.CreateNewRsaKeysAsync(mk, _onlineKeyStorageId);
 
                 await this.CreateNewEccKeysAsync(mk, _signingKeyStorageId);
                 await this.CreateNewEccKeysAsync(mk, _onlineEccKeyStorageId);
@@ -383,7 +383,7 @@ namespace Odin.Services.EncryptionKeyService
                 var icrKey = await _icrKeyService.GetDecryptedIcrKeyAsync(odinContext);
                 await this.CreateNewEccKeysAsync(icrKey, _onlineIcrEncryptedEccKeyStorageId);
 
-                await this.CreateNewRsaKeysAsync(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
+                // await this.CreateNewRsaKeysAsync(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
 
                 await this.CreateNotificationEccKeysAsync();
             }
