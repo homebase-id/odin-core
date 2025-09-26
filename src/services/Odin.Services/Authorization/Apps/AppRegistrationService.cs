@@ -216,27 +216,27 @@ namespace Odin.Services.Authorization.Apps
             await ResetAppPermissionContextCacheAsync();
         }
 
-        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
-            byte[] clientPublicKey,
-            string friendlyName, IOdinContext odinContext)
-        {
-            var (cat, corsHostName) = await RegisterClientAsync(appId, friendlyName, odinContext);
-
-            var data = cat.ToPortableBytes();
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-            var encryptedData = publicKey.Encrypt(data);
-
-            data.Wipe();
-
-            var response = new AppClientRegistrationResponse()
-            {
-                EncryptionVersion = 1,
-                Token = cat.Id,
-                Data = encryptedData
-            };
-
-            return (response, corsHostName);
-        }
+        // public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
+        //     byte[] clientPublicKey,
+        //     string friendlyName, IOdinContext odinContext)
+        // {
+        //     var (cat, corsHostName) = await RegisterClientAsync(appId, friendlyName, odinContext);
+        //
+        //     var data = cat.ToPortableBytes();
+        //     var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
+        //     var encryptedData = publicKey.Encrypt(data);
+        //
+        //     data.Wipe();
+        //
+        //     var response = new AppClientRegistrationResponse()
+        //     {
+        //         EncryptionVersion = 1,
+        //         Token = cat.Id,
+        //         Data = encryptedData
+        //     };
+        //
+        //     return (response, corsHostName);
+        // }
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName,
             IOdinContext odinContext)

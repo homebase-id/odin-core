@@ -562,8 +562,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             {
                 var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
-                var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-                var clientKeyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
+                var clientPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+                var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccKeySize.P384, 1);
 
                 var request = new AppClientEccRegistrationRequest()
                 {
@@ -582,7 +582,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(reply.ExchangePublicKeyJwkBase64Url);
                 var remoteSalt = Convert.FromBase64String(reply.ExchangeSalt64);
 
-                var exchangeSecret = clientKeyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, remoteSalt);
+                var exchangeSecret = clientKeyPair.GetEcdhSharedSecret(clientPrivateKey, remotePublicKey, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
 
@@ -590,6 +590,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 {
                     SecretDigest = exchangeSecretDigest
                 });
+                
                 var token = youAuthResponse.Content;
                 Assert.That(token, Is.Not.Null);
 

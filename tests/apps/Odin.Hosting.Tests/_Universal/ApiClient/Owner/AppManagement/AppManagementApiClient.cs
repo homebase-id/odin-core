@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
@@ -13,6 +14,8 @@ using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -22,33 +25,66 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
 {
     public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> RegisterAppClient(Guid appId)
     {
-        var rsa = new RsaFullKeyData(RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
-
-        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity.OdinId, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
-            var request = new AppClientRegistrationRequest()
+            var clientPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccKeySize.P384, 1);
+
+            var request = new AppClientEccRegistrationRequest()
             {
                 AppId = appId,
-                ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey),
+                JwkBase64UrlPublicKey = clientKeyPair.PublicKeyJwkBase64Url(),
                 ClientFriendlyName = "Some phone"
             };
 
-            var regResponse = await svc.RegisterAppOnClient(request);
+            var regResponse = await svc.RegisterAppOnClientUsingEcc(request);
             ClassicAssert.IsTrue(regResponse.IsSuccessStatusCode);
             ClassicAssert.IsNotNull(regResponse.Content);
 
             var reply = regResponse.Content;
-            var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
+            Assert.That(reply, Is.Not.Null);
 
-            //only supporting version 1 for now
+            var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(reply.ExchangePublicKeyJwkBase64Url);
+            var remoteSalt = Convert.FromBase64String(reply.ExchangeSalt64);
+
+            var exchangeSecret = clientKeyPair.GetEcdhSharedSecret(clientPrivateKey, remotePublicKey, remoteSalt);
+            var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
             Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
-            Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
-            Assert.That(decryptedData, Is.Not.Null);
-            Assert.That(decryptedData.Length, Is.EqualTo(49));
 
-            var cat = ClientAccessToken.FromPortableBytes(decryptedData);
+            var youAuthResponse = await svc.ExchangeDigestForToken(new YouAuthTokenRequest()
+            {
+                SecretDigest = exchangeSecretDigest
+            });
+
+            var token = youAuthResponse.Content;
+            Assert.That(token, Is.Not.Null);
+
+            Assert.That(token.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+            Assert.That(token.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+            Assert.That(token.Base64ClientAuthTokenCipher, Is.Not.Null.And.Not.Empty);
+            Assert.That(token.Base64ClientAuthTokenIv, Is.Not.Null.And.Not.Empty);
+
+            var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+            var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+            var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
+            Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+
+            var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
+            var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
+            var clientAuthTokenBytes = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
+            Assert.That(clientAuthTokenBytes, Is.Not.Null.And.Not.Empty);
+
+            var authToken = ClientAuthenticationToken.FromPortableBytes(clientAuthTokenBytes);
+            var cat = new ClientAccessToken
+            {
+                Id = authToken.Id,
+                AccessTokenHalfKey = authToken.AccessTokenHalfKey,
+                ClientTokenType = authToken.ClientTokenType,
+                SharedSecret = sharedSecret.ToSensitiveByteArray()
+            };
+
             ClassicAssert.IsFalse(cat.Id == Guid.Empty);
             ClassicAssert.IsNotNull(cat.AccessTokenHalfKey);
             Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
@@ -113,7 +149,7 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
         {
             throw new Exception("Failed to register app");
         }
-        
+
         var appClient = await this.RegisterAppClient(appId);
         return new ClientAccessToken
         {
