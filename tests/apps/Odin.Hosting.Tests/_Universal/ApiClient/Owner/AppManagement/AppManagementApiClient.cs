@@ -18,22 +18,13 @@ using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
 
-public class AppManagementApiClient
+public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
 {
-    private readonly TestIdentity _identity;
-    private readonly OwnerApiTestUtils _ownerApi;
-
-    public AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
-    {
-        _ownerApi = ownerApi;
-        _identity = identity;
-    }
-
     public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> RegisterAppClient(Guid appId)
     {
         var rsa = new RsaFullKeyData(RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
 
@@ -73,7 +64,7 @@ public class AppManagementApiClient
 
     public async Task<ApiResponse<NoResultResponse>> RevokeApp(Guid appId)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
 
@@ -84,7 +75,7 @@ public class AppManagementApiClient
     public async Task<ApiResponse<HttpContent>> UpdateAppAuthorizedCircles(Guid appId, List<Guid> authorizedCircles,
         PermissionSetGrantRequest grant)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
 
@@ -99,7 +90,7 @@ public class AppManagementApiClient
 
     public async Task<ApiResponse<HttpContent>> UpdateAppPermissions(Guid appId, PermissionSetGrantRequest grant)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
 
@@ -143,7 +134,7 @@ public class AppManagementApiClient
         List<Guid> authorizedCircles = null,
         PermissionSetGrantRequest circleMemberGrantRequest = null)
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
 
@@ -173,7 +164,7 @@ public class AppManagementApiClient
 
     public async Task<ApiResponse<RedactedAppRegistration>> GetAppRegistration(Guid appId)
     {
-        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
@@ -184,7 +175,7 @@ public class AppManagementApiClient
 
     public async Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients(GuidId appId)
     {
-        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredClients(new GetAppRequest() { AppId = appId });
