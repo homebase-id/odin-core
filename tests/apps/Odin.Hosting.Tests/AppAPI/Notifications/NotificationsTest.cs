@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -65,11 +64,12 @@ public class NotificationsTest
             targetDrive: appDrive,
             driveAllowAnonymousReads: false);
 
+        
         //
         // Create a device use the app
         //
-        var (deviceClientAuthToken, deviceSharedSecret) =
-            await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var (deviceClientAuthToken, deviceSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
 
         // Connect the drive to websockets
         // use the client auth token
@@ -151,9 +151,9 @@ public class NotificationsTest
         //
         // Create a device use the app
         //
-        var (deviceClientAuthToken, deviceSharedSecret) =
-            await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
-
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var (deviceClientAuthToken, deviceSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
+        
         // Connect the drive to websockets
         // use the client auth token
         ClientWebSocket socket = new ClientWebSocket();
