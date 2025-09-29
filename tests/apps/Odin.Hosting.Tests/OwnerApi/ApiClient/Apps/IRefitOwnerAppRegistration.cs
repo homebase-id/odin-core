@@ -46,9 +46,6 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps
         [Post(RootPath + "/clients")]
         Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients([Body] GetAppRequest request);
 
-        [Post(RootPath + "/register/client")]
-        Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);
-
         [Post(RootPath + "/register/client-ecc")]
         Task<ApiResponse<AppClientEccRegistrationResponse>> RegisterAppOnClientUsingEcc([Body] AppClientEccRegistrationRequest appClientRegistration);
         

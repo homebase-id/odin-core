@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Web;
@@ -32,38 +33,27 @@ using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
-using Odin.Services.Peer.Incoming;
-using Odin.Services.Peer.Incoming.Drive;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
-using Odin.Services.Peer.Outgoing;
-using Odin.Services.Registry.Registration;
 using Odin.Core.Storage;
 using Odin.Core.Time;
-using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.System;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
-using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests.AppAPI.Transit;
-using Odin.Hosting.Tests.AppAPI.Utils;
-using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
-using Odin.Hosting.Tests.OwnerApi.Apps;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
-using Odin.Hosting.Tests.OwnerApi.Configuration;
 using Odin.Hosting.Tests.OwnerApi.Drive.Management;
-using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
-using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 using Refit;
-using System.Text;
 using NUnit.Framework.Legacy;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Services.Security;
+using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
@@ -78,7 +68,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             SystemProcessApiKey = systemProcessApiKey;
         }
 
-        internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
+        internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate,
+            X509Chain chain,
             SslPolicyErrors sslErrors)
         {
             // It is possible to inspect the certificate provided by the server.
@@ -172,7 +163,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         /// <summary>
         /// Creates a password reply for use when you are authenticating as the owner
         /// </summary>
-        public async Task<PasswordReply> CalculateAuthenticationPasswordReply(HttpClient authClient, string password, EccFullKeyData clientEccFullKey)
+        public async Task<PasswordReply> CalculateAuthenticationPasswordReply(HttpClient authClient, string password,
+            EccFullKeyData clientEccFullKey)
         {
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
@@ -195,7 +187,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 AllowAutoRedirect = false
             };
-            
+
             HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity.DomainName}:{WebScaffold.HttpsPort}");
             return authClient;
@@ -219,7 +211,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             var keyHeader = KeyHeader.NewRandom16();
 
-            var transferSharedSecret = clientEccFullKey.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicKey, saltyReply.Nonce64.FromBase64());
+            var transferSharedSecret = clientEccFullKey.GetEcdhSharedSecret(EccKeyListManagement.zeroSensitiveKey, hostPublicKey,
+                saltyReply.Nonce64.FromBase64());
 
             var encryptedRecoveryKey = new EccEncryptedPayload()
             {
@@ -242,7 +235,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
         }
 
-        public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(OdinId identity, string password, EccFullKeyData clientEccFullKey)
+        public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(OdinId identity,
+            string password, EccFullKeyData clientEccFullKey)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -407,7 +401,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                             OwnerOnly = ownerOnlyDrive
                         });
 
-                    ClassicAssert.IsTrue(createDriveResponse.IsSuccessStatusCode, $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
+                    ClassicAssert.IsTrue(createDriveResponse.IsSuccessStatusCode,
+                        $"Failed to create drive.  Response was {createDriveResponse.StatusCode}");
 
                     drives.Add(new DriveGrantRequest()
                     {
@@ -448,38 +443,74 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
         private async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> AddAppClient(OdinId identity, Guid appId)
         {
-            var rsa = new RsaFullKeyData(RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
-
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
-                var request = new AppClientRegistrationRequest()
+                var clientPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+                var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccKeySize.P384, 1);
+
+                var request = new AppClientEccRegistrationRequest()
                 {
                     AppId = appId,
-                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey),
+                    JwkBase64UrlPublicKey = clientKeyPair.PublicKeyJwkBase64Url(),
                     ClientFriendlyName = "Some phone"
                 };
 
-                var regResponse = await svc.RegisterAppOnClient(request);
+                var regResponse = await svc.RegisterAppOnClientUsingEcc(request);
                 ClassicAssert.IsTrue(regResponse.IsSuccessStatusCode);
                 ClassicAssert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
-                var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
+                Assert.That(reply, Is.Not.Null);
 
-                //only supporting version 1 for now
+                var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(reply.ExchangePublicKeyJwkBase64Url);
+                var remoteSalt = Convert.FromBase64String(reply.ExchangeSalt64);
+
+                var exchangeSecret = clientKeyPair.GetEcdhSharedSecret(clientPrivateKey, remotePublicKey, remoteSalt);
+                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
-                Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(decryptedData, Is.Not.Null);
-                Assert.That(decryptedData.Length, Is.EqualTo(49));
 
-                var cat = ClientAccessToken.FromPortableBytes(decryptedData);
+                var youAuthResponse = await svc.ExchangeDigestForToken(new YouAuthTokenRequest()
+                {
+                    SecretDigest = exchangeSecretDigest
+                });
+
+                var token = youAuthResponse.Content;
+                Assert.That(token, Is.Not.Null);
+
+                Assert.That(token.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenIv, Is.Not.Null.And.Not.Empty);
+
+                var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
+                Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
+                var clientAuthTokenBytes = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
+                Assert.That(clientAuthTokenBytes, Is.Not.Null.And.Not.Empty);
+
+                var authToken = ClientAuthenticationToken.FromPortableBytes(clientAuthTokenBytes);
+                var cat = new ClientAccessToken
+                {
+                    Id = authToken.Id,
+                    AccessTokenHalfKey = authToken.AccessTokenHalfKey,
+                    ClientTokenType = authToken.ClientTokenType,
+                    SharedSecret = sharedSecret.ToSensitiveByteArray()
+                };
+
                 ClassicAssert.IsFalse(cat.Id == Guid.Empty);
                 ClassicAssert.IsNotNull(cat.AccessTokenHalfKey);
                 Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
                 ClassicAssert.IsTrue(cat.AccessTokenHalfKey.IsSet());
                 ClassicAssert.IsTrue(cat.IsValid());
+
+                ClassicAssert.IsNotNull(cat.SharedSecret);
+                Assert.That(cat.SharedSecret.GetKey().Length, Is.EqualTo(16));
 
                 return (cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
             }
@@ -495,7 +526,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task UpdateAppAuthorizedCircles(OdinId identity, Guid appId, List<Guid> authorizedCircles, PermissionSetGrantRequest grant)
+        public async Task UpdateAppAuthorizedCircles(OdinId identity, Guid appId, List<Guid> authorizedCircles,
+            PermissionSetGrantRequest grant)
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
@@ -550,7 +582,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 };
             }
 
-            await this.AddAppWithAllDrivePermissions(identity.OdinId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive,
+            await this.AddAppWithAllDrivePermissions(identity.OdinId, appId, targetDrive, true, canReadConnections,
+                driveAllowAnonymousReads, ownerOnlyDrive,
                 authorizedCircles, circleMemberGrantRequest, appCorsHostName: appCorsHostName, canUseTransit);
 
             var (authResult, sharedSecret) = await this.AddAppClient(identity.OdinId, appId);
@@ -566,7 +599,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         }
 
 
-       public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
+        public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
         {
             Guid appId = Guid.NewGuid();
             TargetDrive targetDrive = new TargetDrive()
@@ -595,19 +628,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 await AssertConnectionStatus(client, ownerSharedSecret, odinId1, ConnectionStatus.None);
             }
         }
-        
+
         public async Task WaitForEmptyOutbox(OdinId sender, TargetDrive targetDrive)
         {
             var c = new TransitApiClient(this, TestIdentities.InitializedIdentities[sender]);
             await c.WaitForEmptyOutbox(targetDrive);
         }
 
-        private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
+        private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId,
+            ConnectionStatus expected)
         {
             var svc = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
             var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });
 
-            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode,
+                $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
             ClassicAssert.IsNotNull(response.Content, $"No status for {odinId} found");
             ClassicAssert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
         }
@@ -642,7 +677,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
-                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed sending the request.  Response code was [{response.StatusCode}]");
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode,
+                    $"Failed sending the request.  Response code was [{response.StatusCode}]");
                 ClassicAssert.IsTrue(response!.Content, "Failed sending the request");
             }
 
@@ -658,11 +694,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                     ContactData = recipientIdentity.ContactData
                 };
                 var acceptResponse = await svc.AcceptConnectionRequest(header);
-                ClassicAssert.IsTrue(acceptResponse.IsSuccessStatusCode, $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
+                ClassicAssert.IsTrue(acceptResponse.IsSuccessStatusCode,
+                    $"Accept Connection request failed with status code [{acceptResponse.StatusCode}]");
             }
         }
 
-        public async Task CreateDrive(OdinId identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false)
+        public async Task CreateDrive(OdinId identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads,
+            bool ownerOnly = false)
         {
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
@@ -714,7 +752,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task<UploadTestUtilsContext> Upload(OdinId identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        public async Task<UploadTestUtilsContext> Upload(OdinId identity, UploadFileMetadata fileMetadata,
+            TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var targetDrive = new TargetDrive()
@@ -737,11 +776,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             return await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<UploadTestUtilsContext> UploadFile(OdinId identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
+        public async Task<UploadTestUtilsContext> UploadFile(OdinId identity, UploadInstructionSet instructionSet,
+            UploadFileMetadata fileMetadata,
             string payloadData,
-            bool encryptPayload = true, ThumbnailContent thumbnail = null, KeyHeader keyHeader = null, FileSystemType fileSystemType = FileSystemType.Standard)
+            bool encryptPayload = true, ThumbnailContent thumbnail = null, KeyHeader keyHeader = null,
+            FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            ClassicAssert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
+            ClassicAssert.IsNull(instructionSet.TransitOptions?.Recipients,
+                "This method will not send transfers; please ensure recipients are null");
 
             await this.EnsureDriveExists(identity, instructionSet.StorageOptions.Drive, false);
 
@@ -782,9 +824,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 if (thumbnail == null)
                 {
                     response = await transitSvc.Upload(
-                        new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                        new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                        new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                        new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                            Enum.GetName(MultipartUploadParts.Instructions)),
+                        new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                            Enum.GetName(MultipartUploadParts.Metadata)),
+                        new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                            Enum.GetName(MultipartUploadParts.Payload)));
                 }
                 else
                 {
@@ -793,10 +838,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                         : payloadKeyHeader.EncryptDataAesAsStream(thumbnail.Content);
 
                     response = await transitSvc.Upload(
-                        new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                        new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                        new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                        new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                        new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                            Enum.GetName(MultipartUploadParts.Instructions)),
+                        new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                            Enum.GetName(MultipartUploadParts.Metadata)),
+                        new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                            Enum.GetName(MultipartUploadParts.Payload)),
+                        new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType,
+                            Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -821,7 +870,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        private async Task<UploadTestUtilsContext> TransferFile(OdinId sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
+        private async Task<UploadTestUtilsContext> TransferFile(OdinId sender, UploadInstructionSet instructionSet,
+            UploadFileMetadata fileMetadata,
             TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
@@ -871,13 +921,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
 
                 payloadData = options?.PayloadData ?? payloadData;
-                Stream payloadCipher = options.EncryptPayload ? keyHeader.EncryptDataAesAsStream(payloadData) : new MemoryStream(payloadData.ToUtf8ByteArray());
+                Stream payloadCipher = options.EncryptPayload
+                    ? keyHeader.EncryptDataAesAsStream(payloadData)
+                    : new MemoryStream(payloadData.ToUtf8ByteArray());
 
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await transitSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                        Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                        Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, WebScaffold.PAYLOAD_KEY, "application/x-binary",
+                        Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -895,7 +950,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
-                        ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        ClassicAssert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient),
+                            $"Could not find matching recipient {recipient}");
                         ClassicAssert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Enqueued,
                             $"transfer key not created for {recipient}");
                     }
@@ -940,7 +996,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task<CircleDefinition> CreateCircleWithDrive(OdinId identity, string circleName, IEnumerable<int> permissionKeys, PermissionedDrive drive)
+        public async Task<CircleDefinition> CreateCircleWithDrive(OdinId identity, string circleName, IEnumerable<int> permissionKeys,
+            PermissionedDrive drive)
         {
             return await this.CreateCircleWithDrive(identity, circleName, permissionKeys, new List<PermissionedDrive>() { drive });
         }
@@ -967,10 +1024,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
-                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {createCircleResponse.StatusCode}");
+                ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode,
+                    $"Failed.  Actual response {createCircleResponse.StatusCode}");
 
                 var getCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
+                ClassicAssert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode,
+                    $"Failed.  Actual response {getCircleDefinitionsResponse.StatusCode}");
 
                 var definitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(definitionList);
