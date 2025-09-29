@@ -2,15 +2,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -213,27 +216,27 @@ namespace Odin.Services.Authorization.Apps
             await ResetAppPermissionContextCacheAsync();
         }
 
-        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
-            byte[] clientPublicKey,
-            string friendlyName, IOdinContext odinContext)
-        {
-            var (cat, corsHostName) = await RegisterClientAsync(appId, friendlyName, odinContext);
-
-            var data = cat.ToPortableBytes();
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-            var encryptedData = publicKey.Encrypt(data);
-
-            data.Wipe();
-
-            var response = new AppClientRegistrationResponse()
-            {
-                EncryptionVersion = 1,
-                Token = cat.Id,
-                Data = encryptedData
-            };
-
-            return (response, corsHostName);
-        }
+        // public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
+        //     byte[] clientPublicKey,
+        //     string friendlyName, IOdinContext odinContext)
+        // {
+        //     var (cat, corsHostName) = await RegisterClientAsync(appId, friendlyName, odinContext);
+        //
+        //     var data = cat.ToPortableBytes();
+        //     var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
+        //     var encryptedData = publicKey.Encrypt(data);
+        //
+        //     data.Wipe();
+        //
+        //     var response = new AppClientRegistrationResponse()
+        //     {
+        //         EncryptionVersion = 1,
+        //         Token = cat.Id,
+        //         Data = encryptedData
+        //     };
+        //
+        //     return (response, corsHostName);
+        // }
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName,
             IOdinContext odinContext)

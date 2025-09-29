@@ -6,6 +6,7 @@ using Odin.Core.Fluff;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps
@@ -45,9 +46,12 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps
         [Post(RootPath + "/clients")]
         Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients([Body] GetAppRequest request);
 
-        [Post(RootPath + "/register/client")]
-        Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);
-
+        [Post(RootPath + "/register/client-ecc")]
+        Task<ApiResponse<AppClientEccRegistrationResponse>> RegisterAppOnClientUsingEcc([Body] AppClientRegistrationRequest appClientRegistration);
+        
+        [Post(RootPath + "/register/client-ecc-exchange")]
+        Task<ApiResponse<YouAuthTokenResponse>> ExchangeDigestForToken([Body] YouAuthTokenRequest request);
+        
         [Post(RootPath + "/register/updateauthorizedcircles")]
         Task UpdateAuthorizedCircles([Body] UpdateAuthorizedCirclesRequest request);
 

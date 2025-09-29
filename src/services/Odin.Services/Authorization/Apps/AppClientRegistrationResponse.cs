@@ -22,4 +22,17 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         public byte[] Data { get; set; }
     }
+    
+    public class AppClientEccRegistrationResponse
+    {
+        public int EncryptionVersion { get; set; }
+        
+        /// <summary>
+        ///  The public key given by the server 
+        /// </summary>
+        public string ExchangePublicKeyJwkBase64Url { get; set; }
+        
+        
+        public string ExchangeSalt64 { get; set; }
+    }
 }

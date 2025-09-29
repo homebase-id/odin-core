@@ -4,9 +4,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Fluff;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Apps;
-using Odin.Services.Base;
 using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
@@ -14,25 +15,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
     [ApiController]
     [Route(OwnerApiPathConstants.AppManagementV1)]
     [AuthorizeValidOwnerToken]
-    public class AppRegistrationController : OdinControllerBase
+    public class AppRegistrationController(IAppRegistrationService appRegistrationService, IYouAuthUnifiedService youAuthUnifiedService)
+        : OdinControllerBase
     {
-        private readonly IAppRegistrationService _appRegistrationService;
-
-
-        public AppRegistrationController(IAppRegistrationService appRegistrationService)
-        {
-            _appRegistrationService = appRegistrationService;
-            
-        }
-
-
         /// <summary>
         /// Returns a list of registered apps
         /// </summary>
         [HttpGet("list")]
         public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
-            var apps = await _appRegistrationService.GetRegisteredAppsAsync(WebOdinContext);
+            var apps = await appRegistrationService.GetRegisteredAppsAsync(WebOdinContext);
             return apps;
         }
 
@@ -42,8 +34,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("app")]
         public async Task<RedactedAppRegistration> GetRegisteredApp([FromBody] GetAppRequest request)
         {
-            
-            var reg = await _appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
+            var reg = await appRegistrationService.GetAppRegistration(request.AppId, WebOdinContext);
             return reg;
         }
 
@@ -58,7 +49,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
             OdinValidationUtils.AssertNotNull(appRegistration, nameof(appRegistration));
             OdinValidationUtils.AssertIsTrue(appRegistration.IsValid(), "The app registration is invalid");
 
-            var reg = await _appRegistrationService.RegisterAppAsync(appRegistration, WebOdinContext);
+            var reg = await appRegistrationService.RegisterAppAsync(appRegistration, WebOdinContext);
             return reg;
         }
 
@@ -69,8 +60,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("register/updateapppermissions")]
         public async Task UpdateAppPermissions([FromBody] UpdateAppPermissionsRequest request)
         {
-            
-            await _appRegistrationService.UpdateAppPermissionsAsync(request, WebOdinContext);
+            await appRegistrationService.UpdateAppPermissionsAsync(request, WebOdinContext);
         }
 
         /// <summary>
@@ -79,8 +69,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("register/updateauthorizedcircles")]
         public async Task UpdateAuthorizedCircles([FromBody] UpdateAuthorizedCirclesRequest request)
         {
-            
-            await _appRegistrationService.UpdateAuthorizedCirclesAsync(request, WebOdinContext);
+            await appRegistrationService.UpdateAuthorizedCirclesAsync(request, WebOdinContext);
         }
 
         /// <summary>
@@ -91,7 +80,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("revoke")]
         public async Task<NoResultResponse> RevokeApp([FromBody] GetAppRequest request)
         {
-            await _appRegistrationService.RevokeAppAsync(request.AppId, WebOdinContext);
+            await appRegistrationService.RevokeAppAsync(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -103,8 +92,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("allow")]
         public async Task<NoResultResponse> AllowApp([FromBody] GetAppRequest request)
         {
-            
-            await _appRegistrationService.RemoveAppRevocationAsync(request.AppId, WebOdinContext);
+            await appRegistrationService.RemoveAppRevocationAsync(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -116,8 +104,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("deleteApp")]
         public async Task<NoResultResponse> DeleteApp([FromBody] GetAppRequest request)
         {
-            
-            await _appRegistrationService.DeleteAppAsync(request.AppId, WebOdinContext);
+            await appRegistrationService.DeleteAppAsync(request.AppId, WebOdinContext);
             return new NoResultResponse(true);
         }
 
@@ -129,7 +116,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("clients")]
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients([FromBody] GetAppRequest request)
         {
-            var result = await _appRegistrationService.GetRegisteredClientsAsync(request.AppId, WebOdinContext);
+            var result = await appRegistrationService.GetRegisteredClientsAsync(request.AppId, WebOdinContext);
             return result;
         }
 
@@ -139,8 +126,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("revokeClient")]
         public async Task RevokeClient(GetAppClientRequest request)
         {
-            
-            await _appRegistrationService.RevokeClientAsync(request.AccessRegistrationId, WebOdinContext);
+            await appRegistrationService.RevokeClientAsync(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -149,8 +135,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("allowClient")]
         public async Task EnableClient(GetAppClientRequest request)
         {
-            
-            await _appRegistrationService.AllowClientAsync(request.AccessRegistrationId, WebOdinContext);
+            await appRegistrationService.AllowClientAsync(request.AccessRegistrationId, WebOdinContext);
         }
 
         /// <summary>
@@ -159,38 +144,51 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("deleteClient")]
         public async Task DeleteClient(GetAppClientRequest request)
         {
-            
-            await _appRegistrationService.DeleteClientAsync(request.AccessRegistrationId, WebOdinContext);
+            await appRegistrationService.DeleteClientAsync(request.AccessRegistrationId, WebOdinContext);
         }
 
-        /// <summary>
-        /// Registers a new client for using a specific app (a browser, app running on a phone, etc)
-        /// </summary>
-        /// <remarks>
-        /// This method registers a new client (or device) for use with a specific app.
-        /// <br/>
-        /// <br/>
-        /// It will fail if the app is not registered or is revoked
-        /// <br/>
-        /// The friendly name is good for identifying the client in the owner console at a later time.  (i.e. I want to see all devices/clients using
-        /// an app.  Set it to something like the computer name or phone name (i.e. Todd's android).
-        /// 
-        /// The ClientPublicKey64 is a base64 encoded byte array of an RSA public key generated by the client.  This will be used to encrypt the response
-        /// as it contains sensitive data.
-        /// </remarks>
-        [HttpPost("register/client")]
-        public async Task<AppClientRegistrationResponse> RegisterClient([FromBody] AppClientRegistrationRequest request)
+        [HttpPost("register/client-ecc")]
+        public async Task<AppClientEccRegistrationResponse> RegisterClientUsingEcc([FromBody] AppClientRegistrationRequest request)
         {
-            // var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
-            var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
-
             OdinValidationUtils.AssertNotNull(request, nameof(request));
             OdinValidationUtils.AssertIsTrue(request.AppId != Guid.Empty, "missing app id");
             OdinValidationUtils.AssertNotNullOrEmpty(request.ClientFriendlyName, nameof(request.ClientFriendlyName));
 
-            
-            var (reg, _) = await _appRegistrationService.RegisterClientPkAsync(request.AppId, clientPublicKey, request.ClientFriendlyName, WebOdinContext);
-            return reg;
+            var (exchangePublicKeyJwkBase64Url, exchangeSalt) = await youAuthUnifiedService.CreateClientAccessTokenAsync(
+                ClientType.app,
+                request.AppId.ToString(),
+                request.ClientFriendlyName,
+                permissionRequest: "",
+                jwkbase64UrlPublicKey: request.JwkBase64UrlPublicKey,
+                WebOdinContext);
+
+            return new AppClientEccRegistrationResponse
+            {
+                EncryptionVersion = 1,
+                ExchangePublicKeyJwkBase64Url = exchangePublicKeyJwkBase64Url,
+                ExchangeSalt64 = exchangeSalt
+            };
+        }
+
+        [HttpPost("register/client-ecc-exchange")]
+        public async Task<ActionResult<YouAuthTokenResponse>> Exchange([FromBody] YouAuthTokenRequest request)
+        {
+            var accessToken = await youAuthUnifiedService.ExchangeDigestForEncryptedToken(request.SecretDigest);
+
+            if (null == accessToken)
+            {
+                return NotFound();
+            }
+
+            var result = new YouAuthTokenResponse
+            {
+                Base64SharedSecretCipher = Convert.ToBase64String(accessToken.SharedSecretCipher),
+                Base64SharedSecretIv = Convert.ToBase64String(accessToken.SharedSecretIv),
+                Base64ClientAuthTokenCipher = Convert.ToBase64String(accessToken.ClientAuthTokenCipher),
+                Base64ClientAuthTokenIv = Convert.ToBase64String(accessToken.ClientAuthTokenIv),
+            };
+
+            return result;
         }
     }
 }

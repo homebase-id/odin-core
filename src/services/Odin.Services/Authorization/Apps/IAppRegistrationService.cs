@@ -57,9 +57,9 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         Task RemoveAppRevocationAsync(GuidId appId, IOdinContext odinContext);
 
-        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
-            byte[] clientPublicKey,
-            string friendlyName, IOdinContext odinContext);
+        // Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
+        //     byte[] clientPublicKey,
+        //     string friendlyName, IOdinContext odinContext);
 
 
         /// <summary>
@@ -68,7 +68,6 @@ namespace Odin.Services.Authorization.Apps
         /// <param name="appId"></param>
         /// <param name="friendlyName"></param>
         /// <param name="odinContext"></param>
-        /// <param name="cn"></param>
         /// <returns></returns>
         Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName, IOdinContext odinContext);
 
