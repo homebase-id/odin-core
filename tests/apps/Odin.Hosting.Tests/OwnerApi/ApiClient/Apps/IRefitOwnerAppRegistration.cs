@@ -47,7 +47,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Apps
         Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients([Body] GetAppRequest request);
 
         [Post(RootPath + "/register/client-ecc")]
-        Task<ApiResponse<AppClientEccRegistrationResponse>> RegisterAppOnClientUsingEcc([Body] AppClientEccRegistrationRequest appClientRegistration);
+        Task<ApiResponse<AppClientEccRegistrationResponse>> RegisterAppOnClientUsingEcc([Body] AppClientRegistrationRequest appClientRegistration);
         
         [Post(RootPath + "/register/client-ecc-exchange")]
         Task<ApiResponse<YouAuthTokenResponse>> ExchangeDigestForToken([Body] YouAuthTokenRequest request);

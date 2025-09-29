@@ -12,7 +12,6 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Peer.Encryption;
 using WebPush;
 
 namespace Odin.Services.EncryptionKeyService
@@ -25,8 +24,6 @@ namespace Odin.Services.EncryptionKeyService
 
     public class PublicPrivateKeyService
     {
-        private readonly Guid _offlineKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
-        private readonly Guid _onlineKeyStorageId = Guid.Parse("fc187615-deb4-4222-bcb5-35411bae25e3");
         private readonly Guid _signingKeyStorageId = Guid.Parse("d61a2789-2bc0-46c9-b6b9-19dcb3d076ab");
         private readonly Guid _onlineEccKeyStorageId = Guid.Parse("0d4cbb31-bd2e-4910-806c-42a516e63174");
 
@@ -68,15 +65,6 @@ namespace Odin.Services.EncryptionKeyService
         {
             GuidId cacheKey = GetEccCacheKey(keyType, recipient.DomainName);
             await _storage.DeleteAsync(_tblKeyValue, cacheKey);
-        }
-
-        /// <summary>
-        /// Gets the latest effective offline public key
-        /// </summary>
-        public async Task<RsaPublicKeyData> GetOfflineRsaPublicKeyAsync()
-        {
-            var k = await GetCurrentRsaKeyFromStorageAsync(_offlineKeyStorageId);
-            return RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey);
         }
 
         private async Task<EccPublicKeyData> ResolveRecipientEccPublicKeyAsync(PublicPrivateKeyType keyType, OdinId recipient,
@@ -271,34 +259,7 @@ namespace Odin.Services.EncryptionKeyService
             var keys = await _storage.GetAsync<NotificationEccKeys>(_tblKeyValue, _offlineNotificationsKeyStorageId);
             return keys;
         }
-
-        public async Task<RsaPublicKeyData> GetOnlineRsaPublicKeyPublic()
-        {
-            var keyPair = await GetCurrentRsaKeyFromStorageAsync(_onlineKeyStorageId);
-            return RsaPublicKeyData.FromDerEncodedPublicKey(keyPair.publicKey);
-        }
-
-        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> RsaDecryptPayloadAsync(PublicPrivateKeyType keyType,
-            RsaEncryptedPayload payload,
-            IOdinContext odinContext)
-        {
-            var (isValidPublicKey, keyHeader) =
-                await RsaDecryptKeyHeaderAsync(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32, odinContext);
-
-            if (!isValidPublicKey)
-            {
-                return (false, null);
-            }
-
-            var key = keyHeader.AesKey;
-            var bytes = AesCbc.Decrypt(
-                cipherText: payload.KeyHeaderEncryptedData,
-                key: key,
-                iv: keyHeader.Iv);
-
-            return (true, bytes);
-        }
-
+        
         public async Task<EccPublicKeyData> GetPublicEccKeyAsync(PublicPrivateKeyType keyType)
         {
             switch (keyType)
@@ -316,22 +277,7 @@ namespace Odin.Services.EncryptionKeyService
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
         }
-
-
-        public async Task<RsaPublicKeyData> GetPublicRsaKey(PublicPrivateKeyType keyType)
-        {
-            switch (keyType)
-            {
-                case PublicPrivateKeyType.OfflineKey:
-                    return await this.GetOfflineRsaPublicKeyAsync();
-                case PublicPrivateKeyType.OnlineKey:
-                    return await this.GetOnlineRsaPublicKeyPublic();
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
-            }
-        }
-
-
+        
         /// <summary>
         /// Gets the Ecc key from the storage based on the CRC
         /// </summary>
@@ -361,7 +307,7 @@ namespace Odin.Services.EncryptionKeyService
         }
 
         /// <summary>
-        /// Creates the initial set of RSA keys required by an identity
+        /// Creates the initial set of keys required by an identity
         /// </summary>
         internal async Task CreateInitialKeysAsync(IOdinContext odinContext)
         {
@@ -387,56 +333,6 @@ namespace Odin.Services.EncryptionKeyService
             {
                 KeyCreationLock.Release();
             }
-        }
-
-        private async Task<(bool, KeyHeader)> RsaDecryptKeyHeaderAsync(PublicPrivateKeyType keyType, byte[] encryptedData,
-            uint publicKeyCrc32,
-            IOdinContext odinContext,
-            bool failIfNoMatchingPublicKey = true)
-        {
-            var (rsaKey, decryptionKey) = await ResolveRsaKeyForDecryptionAsync(keyType, publicKeyCrc32, odinContext);
-
-            if (null == rsaKey)
-            {
-                if (failIfNoMatchingPublicKey)
-                {
-                    throw new OdinSecurityException("Invalid public key");
-                }
-
-                return (false, null);
-            }
-
-            var bytes = rsaKey.Decrypt(decryptionKey, encryptedData);
-            var keyHeader = KeyHeader.FromCombinedBytes(bytes);
-
-            return (true, keyHeader);
-        }
-
-        private async Task<(RsaFullKeyData RsaKey, SensitiveByteArray DecryptionKey)> ResolveRsaKeyForDecryptionAsync(
-            PublicPrivateKeyType keyType, uint crc32,
-            IOdinContext odinContext)
-        {
-            RsaFullKeyListData keyList;
-            SensitiveByteArray decryptionKey;
-
-            switch (keyType)
-            {
-                case PublicPrivateKeyType.OfflineKey:
-                    keyList = await this.GetRsaKeyListFromStorageAsync(_offlineKeyStorageId);
-                    decryptionKey = OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray();
-                    break;
-
-                case PublicPrivateKeyType.OnlineKey:
-                    keyList = await this.GetRsaKeyListFromStorageAsync(_onlineKeyStorageId);
-                    decryptionKey = odinContext.Caller.GetMasterKey();
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
-            }
-
-            var pk = RsaKeyListManagement.FindKey(keyList, crc32);
-            return (pk, decryptionKey);
         }
 
         private async Task CreateNotificationEccKeysAsync()
@@ -476,17 +372,6 @@ namespace Odin.Services.EncryptionKeyService
                 EccKeyListManagement.DefaultHoursOnlineKey);
 
             await _storage.UpsertAsync(_tblKeyValue, storageKey, eccKeyList);
-        }
-
-        private async Task<RsaFullKeyData> GetCurrentRsaKeyFromStorageAsync(Guid storageKey)
-        {
-            var keyList = await GetRsaKeyListFromStorageAsync(storageKey);
-            return RsaKeyListManagement.GetCurrentKey(keyList);
-        }
-
-        private async Task<RsaFullKeyListData> GetRsaKeyListFromStorageAsync(Guid storageKey)
-        {
-            return await _storage.GetAsync<RsaFullKeyListData>(_tblKeyValue, storageKey);
         }
 
         private async Task<EccFullKeyData> GetCurrentEccKeyFromStorageAsync(Guid storageKey)

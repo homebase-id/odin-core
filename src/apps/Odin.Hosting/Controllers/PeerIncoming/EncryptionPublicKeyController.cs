@@ -2,11 +2,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
 using Odin.Hosting.Authentication.Peer;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.PeerIncoming
 {
@@ -20,19 +18,6 @@ namespace Odin.Hosting.Controllers.PeerIncoming
         PublicPrivateKeyService publicPrivateKeyService,
         ILogger<EncryptionPublicKeyController> logger) : ControllerBase
     {
-        [HttpGet("rsa_public_key")]
-        public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
-        {
-            
-            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType);
-            return new GetPublicKeyResponse()
-            {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c,
-                Expiration = key.expiration.milliseconds
-            };
-        }
-
         [HttpGet("ecc_public_key")]
         public async Task<IActionResult> GetEccKey(PublicPrivateKeyType keyType)
         {

@@ -450,7 +450,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var clientPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
                 var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccKeySize.P384, 1);
 
-                var request = new AppClientEccRegistrationRequest()
+                var request = new AppClientRegistrationRequest()
                 {
                     AppId = appId,
                     JwkBase64UrlPublicKey = clientKeyPair.PublicKeyJwkBase64Url(),

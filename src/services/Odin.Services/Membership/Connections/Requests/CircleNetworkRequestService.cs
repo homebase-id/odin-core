@@ -88,7 +88,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 return null;
             }
 
-            bool isValidPublicKey;
             byte[] payloadBytes;
 
             // Updated to fall back to ecc encryption until we fully remove RSA
@@ -104,13 +103,15 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             else
             {
-                (isValidPublicKey, payloadBytes) =
-                    await publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext);
-
-                if (isValidPublicKey == false)
-                {
-                    throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
-                }
+                logger.LogError("GetPendingRequest from {odinId} is old and uses RSA encryption.  This must be deleted and recent", sender);
+                throw new OdinClientException("Request is out of date and must be resent");
+                // (isValidPublicKey, payloadBytes) =
+                //     await publicPrivateKeyService.RsaDecryptPayloadAsync(PublicPrivateKeyType.OnlineKey, header.Payload, odinContext);
+                //
+                // if (isValidPublicKey == false)
+                // {
+                //     throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
+                // }
             }
 
             // To use an online key, we need to store most of the payload encrypted but need to know who it's from
