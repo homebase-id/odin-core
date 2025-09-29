@@ -372,8 +372,6 @@ namespace Odin.Services.EncryptionKeyService
                 await KeyCreationLock.WaitAsync();
                 var mk = odinContext.Caller.GetMasterKey();
 
-                // await this.CreateNewRsaKeysAsync(mk, _onlineKeyStorageId);
-
                 await this.CreateNewEccKeysAsync(mk, _signingKeyStorageId);
                 await this.CreateNewEccKeysAsync(mk, _onlineEccKeyStorageId);
                 await this.CreateNewEccKeysAsync(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineEccKeyStorageId);
@@ -382,8 +380,6 @@ namespace Odin.Services.EncryptionKeyService
                 // yet as it was just created during identity-init
                 var icrKey = await _icrKeyService.GetDecryptedIcrKeyAsync(odinContext);
                 await this.CreateNewEccKeysAsync(icrKey, _onlineIcrEncryptedEccKeyStorageId);
-
-                // await this.CreateNewRsaKeysAsync(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
 
                 await this.CreateNotificationEccKeysAsync();
             }
@@ -441,24 +437,6 @@ namespace Odin.Services.EncryptionKeyService
 
             var pk = RsaKeyListManagement.FindKey(keyList, crc32);
             return (pk, decryptionKey);
-        }
-
-        private async Task CreateNewRsaKeysAsync(SensitiveByteArray encryptionKey, Guid storageKey)
-        {
-            var existingKeys = await _storage.GetAsync<RsaFullKeyListData>(_tblKeyValue, storageKey);
-            if (null != existingKeys)
-            {
-                _logger.LogInformation("Attempt to create new RSA keys with storage key {storageKey}.  Already exist; ignoring request",
-                    storageKey);
-                return;
-            }
-
-            //create a new key list
-            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(encryptionKey,
-                RsaKeyListManagement.DefaultMaxOnlineKeys,
-                RsaKeyListManagement.DefaultHoursOnlineKey);
-
-            await _storage.UpsertAsync(_tblKeyValue, storageKey, rsaKeyList);
         }
 
         private async Task CreateNotificationEccKeysAsync()
