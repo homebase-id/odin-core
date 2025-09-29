@@ -10,9 +10,8 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Util;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Mediator;
@@ -22,14 +21,23 @@ using Odin.Services.Util;
 
 namespace Odin.Services.Drives.Management;
 
+#nullable enable
+
 /// <summary>
 /// Manages drive creation, metadata updates, and their overall definitions
 /// </summary>
 public class DriveManager : IDriveManager
 {
-    private readonly ILogger<DriveManager> _logger;
-    private readonly SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> _driveCache;
+    private const string CacheKeyDrive = "drive:";
+    private const string CacheKeyAllDrives = "alldrives";
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(2);
+    private static readonly List<string> RootInvalidationTag = [TableDrivesCached.RootInvalidationTag];
 
+    // IMPORTANT: We're not using the generic variant of ITenantLevel2Cache<> here.
+    // This is so "invalidation tags" are in the same "namespace" as the ones in TableDrivesCached.
+    private readonly ITenantLevel2Cache _driveCache;
+
+    private readonly ILogger<DriveManager> _logger;
     private readonly IMediator _mediator;
     private readonly TenantContext _tenantContext;
     private readonly TableDrivesCached _tableDrives;
@@ -37,8 +45,9 @@ public class DriveManager : IDriveManager
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
     /// </summary>
-    public DriveManager(ILogger<DriveManager> logger,
-        SharedConcurrentDictionary<DriveManager, Guid, StorageDrive> driveCache,
+    public DriveManager(
+        ILogger<DriveManager> logger,
+        ITenantLevel2Cache driveCache,
         IMediator mediator,
         TenantContext tenantContext,
         TableDrivesCached tableDrives)
@@ -52,7 +61,7 @@ public class DriveManager : IDriveManager
 
     public async Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
-        if (string.IsNullOrEmpty(request?.Name))
+        if (string.IsNullOrEmpty(request.Name))
         {
             throw new OdinClientException("Name cannot be empty");
         }
@@ -112,11 +121,7 @@ public class DriveManager : IDriveManager
 
         try
         {
-            await _tableDrives.InsertAsync(record);
-        }
-        catch (OdinDatabaseException e)
-        {
-            if (e.IsUniqueConstraintViolation)
+            if (!await _tableDrives.TryInsertAsync(record))
             {
                 throw new OdinClientException("Existing drive", OdinClientErrorCode.InvalidDrive);
             }
@@ -129,9 +134,7 @@ public class DriveManager : IDriveManager
         var storageDrive = ToStorageDrive(record);
         storageDrive.CreateDirectories();
 
-        _logger.LogDebug($"Created a new Drive - {storageDrive.TargetDriveInfo}");
-        CacheDrive(storageDrive);
-        _logger.LogDebug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
+        _logger.LogDebug("Created a new Drive - {drive}", storageDrive.TargetDriveInfo);
 
         await _mediator.Publish(new DriveDefinitionAddedNotification
         {
@@ -146,7 +149,12 @@ public class DriveManager : IDriveManager
     public async Task SetDriveReadModeAsync(Guid driveId, bool allowAnonymous, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        StorageDrive storageDrive = await GetDriveAsync(driveId);
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
 
         if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
         {
@@ -165,8 +173,6 @@ public class DriveManager : IDriveManager
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive));
 
-            CacheDrive(storageDrive);
-
             await _mediator.Publish(new DriveDefinitionAddedNotification
             {
                 IsNewDrive = false,
@@ -179,7 +185,12 @@ public class DriveManager : IDriveManager
     public async Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        StorageDrive storageDrive = await GetDriveInternal(driveId);
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
 
         if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
         {
@@ -198,8 +209,6 @@ public class DriveManager : IDriveManager
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive));
 
-            CacheDrive(storageDrive);
-
             await _mediator.Publish(new DriveDefinitionAddedNotification
             {
                 IsNewDrive = false,
@@ -213,23 +222,21 @@ public class DriveManager : IDriveManager
     {
         odinContext.Caller.AssertHasMasterKey();
 
-        StorageDrive storageDrive = await GetDriveInternal(driveId);
-        if (null == storageDrive)
+        var storageDrive = await GetDriveInternal(driveId);
+        if (storageDrive == null)
         {
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
         storageDrive.Metadata = metadata;
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
-
-        CacheDrive(storageDrive);
     }
 
     public async Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        StorageDrive storageDrive = await GetDriveInternal(driveId);
-        
-        if (null == storageDrive)
+
+        var storageDrive = await GetDriveInternal(driveId);
+        if (storageDrive == null)
         {
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
@@ -237,29 +244,21 @@ public class DriveManager : IDriveManager
         storageDrive.Attributes = attributes;
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
-
-        CacheDrive(storageDrive);
     }
 
-    public async Task<StorageDrive> GetDriveAsync(Guid driveId, bool failIfInvalid = false)
+    public async Task<StorageDrive?> GetDriveAsync(Guid driveId, bool failIfInvalid = false)
     {
-        if (_driveCache.TryGetValue(driveId, out var cachedDrive))
+        var drive = await _driveCache.GetOrSetAsync(
+            CacheKeyDrive + driveId,
+            _ => GetDriveInternal(driveId),
+            CacheTtl,
+            RootInvalidationTag);
+
+        if (drive == null && failIfInvalid)
         {
-            return cachedDrive;
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
 
-        var drive = await GetDriveInternal(driveId);
-        if (drive == null)
-        {
-            if (failIfInvalid)
-            {
-                throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
-            }
-
-            return null;
-        }
-
-        CacheDrive(drive);
         return drive;
     }
 
@@ -271,7 +270,7 @@ public class DriveManager : IDriveManager
             predicate = drive => drive.AllowAnonymousReads && drive.OwnerOnly == false;
         }
 
-        var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext);
+        var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
@@ -286,7 +285,7 @@ public class DriveManager : IDriveManager
             predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads && drive.OwnerOnly == false;
         }
 
-        var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext);
+        var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(predicate).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
@@ -294,16 +293,16 @@ public class DriveManager : IDriveManager
 
     public async Task<PagedResult<StorageDrive>> GetAnonymousDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
     {
-        var page = await this.GetDrivesInternalAsync(false, pageOptions, odinContext);
+        var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
         var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
 
-    private async Task<StorageDrive> GetDriveInternal(Guid driveId)
+    private async Task<StorageDrive?> GetDriveInternal(Guid driveId)
     {
         var record = await _tableDrives.GetAsync(driveId);
-        if (null == record)
+        if (record == null)
         {
             return null;
         }
@@ -312,7 +311,7 @@ public class DriveManager : IDriveManager
         return drive;
     }
 
-    private DrivesRecord ToRecord(StorageDrive storageDrive)
+    private static DrivesRecord ToRecord(StorageDrive storageDrive)
     {
         var details = new StorageDriveDetails
         {
@@ -341,22 +340,20 @@ public class DriveManager : IDriveManager
         return record;
     }
 
-    private async Task<PagedResult<StorageDrive>> GetDrivesInternalAsync(bool enforceSecurity, PageOptions pageOptions,
+    private async Task<PagedResult<StorageDrive>> GetDrivesInternalAsync(
+        bool enforceSecurity,
+        PageOptions pageOptions,
         IOdinContext odinContext)
     {
-        List<StorageDrive> allDrives;
-
-        if (_driveCache.Any())
-        {
-            allDrives = _driveCache.Values.ToList();
-            _logger.LogTrace($"GetDrivesInternal - cache read:  Count: {allDrives.Count}");
-        }
-        else
-        {
-            var (storageDrives, _, _) = await _tableDrives.GetList(Int32.MaxValue, null);
-            allDrives = storageDrives.Select(ToStorageDrive).ToList();
-            _logger.LogTrace($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
-        }
+        var allDrives = await _driveCache.GetOrSetAsync(
+            CacheKeyAllDrives,
+            async _ =>
+            {
+                var (drives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+                return drives.Select(ToStorageDrive).ToList();
+            },
+            CacheTtl,
+            RootInvalidationTag);
 
         var caller = odinContext.Caller;
         if (caller?.IsOwner ?? false)
@@ -373,7 +370,7 @@ public class DriveManager : IDriveManager
         Func<StorageDrive, bool> predicate = drive => drive.OwnerOnly == false;
         if (enforceSecurity)
         {
-            if (caller.IsAnonymous) //default to anonymous 
+            if (caller is { IsAnonymous: true }) //default to anonymous
             {
                 predicate = drive => drive.AllowAnonymousReads && drive.OwnerOnly == false;
             }
@@ -392,9 +389,9 @@ public class DriveManager : IDriveManager
             Id = record.DriveId,
             TempOriginalDriveId = record.TempOriginalDriveId,
             Name = record.DriveName,
-            TargetDriveInfo = new TargetDrive()
+            TargetDriveInfo = new TargetDrive
             {
-                Alias = driveDetails.TargetDriveInfo.Alias,
+                Alias = driveDetails?.TargetDriveInfo.Alias ?? throw new OdinSystemException("driveDetails is null"),
                 Type = record.DriveType
             },
 
@@ -413,21 +410,5 @@ public class DriveManager : IDriveManager
         };
 
         return new StorageDrive(_tenantContext.TenantPathManager, sdb);
-    }
-
-    private void CacheDrive(StorageDrive drive)
-    {
-        _logger.LogTrace("Cached Drive {drive}", drive.TargetDriveInfo);
-        // _driveCacheNope.Set(GetCacheKey(drive.Id), drive, TimeSpan.FromMinutes(30));
-        _driveCache[drive.Id] = drive;
-    }
-
-    public async Task LoadCacheAsync()
-    {
-        var (storageDrives, _, _) = await _tableDrives.GetList(Int32.MaxValue, null);
-        foreach (var drive in storageDrives.Select(ToStorageDrive).ToList())
-        {
-            CacheDrive(drive);
-        }
     }
 }
