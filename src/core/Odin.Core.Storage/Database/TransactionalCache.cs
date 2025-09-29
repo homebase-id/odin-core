@@ -146,10 +146,10 @@ public sealed class TransactionalCache
         var hit = true;
         var result = await _cache.GetOrSetAsync(
             cacheKey,
-            async _ =>
+            _ =>
             {
                 hit = false;
-                return await factory(cancellationToken);
+                return factory(cancellationToken);
             },
             ttl,
             CombineAllTagsWithRoot(tags),
@@ -171,14 +171,14 @@ public sealed class TransactionalCache
 
     //
 
-    public async Task<TValue> GetOrSetAsync<TValue>(
+    public Task<TValue> GetOrSetAsync<TValue>(
         byte[] key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        return await GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTagsWithRoot(tags), cancellationToken);
+        return GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTagsWithRoot(tags), cancellationToken);
     }
 
     //
