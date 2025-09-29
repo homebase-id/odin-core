@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Caching.Memory;
 using Odin.Core;
-using Odin.Core.Cache;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
@@ -119,7 +116,7 @@ public sealed class YouAuthUnifiedService(
         string clientId,
         string clientInfo,
         string permissionRequest,
-        string publicKey,
+        string jwkbase64UrlPublicKey,
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -167,7 +164,7 @@ public sealed class YouAuthUnifiedService(
         var keyPair = new EccFullKeyData(privateKey, EccKeySize.P384, 1);
         var exchangeSalt = ByteArrayUtil.GetRndByteArray(16);
 
-        var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(publicKey);
+        var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(jwkbase64UrlPublicKey);
         var exchangeSharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, exchangeSalt);
         var exchangeSharedSecretDigest = SHA256.Create().ComputeHash(exchangeSharedSecret.GetKey()).ToBase64();
 

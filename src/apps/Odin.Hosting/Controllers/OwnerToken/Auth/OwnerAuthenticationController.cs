@@ -34,7 +34,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
                 var isValid = await authService.IsValidTokenAsync(result.Id);
                 if (isValid)
                 {
-                    await base.AddUpgradeRequiredHeaderAsync();
+                    await AddUpgradeRequiredHeaderAsync();
                 }
 
                 return new JsonResult(isValid);
@@ -130,18 +130,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             var salts = await ss.GenerateNewSaltsAsync();
             return salts;
-        }
-
-        [HttpGet("publickey")]
-        public async Task<GetPublicKeyResponse> GetRsaKey(PublicPrivateKeyType keyType)
-        {
-            var key = await publicPrivateKeyService.GetPublicRsaKey(keyType);
-            return new GetPublicKeyResponse()
-            {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c,
-                Expiration = key.expiration.milliseconds
-            };
         }
 
         [HttpGet("publickey_ecc")]
