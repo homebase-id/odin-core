@@ -49,7 +49,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
 
         [Test]
-        public async Task CanInitializeSystem_WithAllRsaKeys()
+        public async Task CanInitializeSystem_WithAllKeys()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
 
@@ -80,13 +80,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(signingKey.Crc32 > 0);
 
             //
-            // Online key should exist
-            //
-            var onlinePublicKey = await ownerClient.PublicPrivateKey.GetOnlinePublicKey();
-            ClassicAssert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
-            ClassicAssert.IsTrue(onlinePublicKey.Crc32 > 0);
-
-            //
             // Online Ecc key should exist
             var onlineEccPk = await ownerClient.PublicPrivateKey.GetEccOnlinePublicKey();
             ClassicAssert.IsTrue(onlineEccPk.PublicKeyJwkBase64Url.Length > 0);
@@ -100,15 +93,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             // ClassicAssert.IsTrue(offlineEccPk.PublicKey.Length > 0);
             // ClassicAssert.IsTrue(offlineEccPk.Crc32 > 0);
 
-            //
-            // offline key should exist
-            //
-            var offlinePublicKey = await ownerClient.PublicPrivateKey.GetOfflinePublicKey();
-            ClassicAssert.IsTrue(offlinePublicKey.PublicKey.Length > 0);
-            ClassicAssert.IsTrue(offlinePublicKey.Crc32 > 0);
-
-            CollectionAssert.AreNotEquivalent(signingKey.PublicKey, onlinePublicKey.PublicKey);
-            CollectionAssert.AreNotEquivalent(onlinePublicKey.PublicKey, offlinePublicKey.PublicKey);
         }
 
         [Test]
