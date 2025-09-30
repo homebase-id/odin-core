@@ -7,10 +7,11 @@ using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
+using Odin.Core.Storage;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.EncryptionKeyService;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
@@ -131,6 +132,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
             Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
 
+            //
+            // Cleanup connections before resetting the password so we can still use the old context
+            //
+            await CleanupConnections(peerIdentities);
+            
             const string newPassword = "bipbopboop";
 
             using var authClient = _scaffold.OldOwnerApi.CreateAnonymousClient(frodoClient.OdinId);
@@ -146,11 +152,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             });
 
             Assert.That(finalizeRecoveryResponse.IsSuccessful, Is.True);
-
-            //
-            // Cleanup connections before resetting the password so we can still use the old context
-            //
-            await CleanupConnections(peerIdentities);
 
             //login with the new password
             var loginEccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
@@ -246,12 +247,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             });
 
             Assert.That(finalizeRecoveryResponse.IsSuccessful, Is.True);
-
-            //
-            // Cleanup connections before resetting the password so we can still use the old context
-            //
-            await CleanupConnections(peerIdentities);
-
+            
             //login with the new password
             var loginEccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
             var secondLogin = await _scaffold.OldOwnerApi.LoginToOwnerConsole(frodoClient.OdinId, newPassword, loginEccKey);
@@ -260,8 +256,26 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(secondLogin.sharedSecret.IsSet, Is.True);
 
             // the system should configure shards again
+            // so lets call something on the owner console to stoke the auth handler
+            var newClient = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodoClient.OdinId, 
+                secondLogin.cat, 
+                secondLogin.sharedSecret,
+                FileSystemType.Standard);
+            
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(newClient, secondLogin.sharedSecret);
+            var settingsResponse = await svc.GetTenantSettings();
+            Assert.That(settingsResponse.IsSuccessful, Is.True);
+            // var settings = settingsResponse.Content;
+            
+            // now just see if the log is updated with an entry that we rotated shards
 
-            // how do i test this?
+            _scaffold.AssertHasDebugLogEvent(message: ShamirConfigurationService.RotateShardsHasStarted, count: 1);
+            
+            // TODO: need to reset the test scaffolds login stuff
+            //
+            // cleanup connections
+            //
+            // await CleanupConnections(peerIdentities);
         }
 
         private async Task<ShardApprovalRequest> GetPlayerShardRequest(DealerShardConfig config, OwnerApiClientRedux peerOwnerClient)

@@ -54,6 +54,7 @@ public class ShamirConfigurationService(
 
     public const int MinimumPlayerCount = 3;
     public const int MinimumMatchingShardsOffset = 1;
+    public const string RotateShardsHasStarted = "Rotate shards has started";
 
     public static int CalculateMinAllowedShardCount(int playerCount)
     {
@@ -365,7 +366,7 @@ public class ShamirConfigurationService(
         // if the package was updated before the password was changed, we need to rotate it
         if (package.Updated < passwordLastUpdated.Value)
         {
-            logger.LogDebug("Shard rotation started");
+            logger.LogDebug(RotateShardsHasStarted);
             var players = package.Envelopes.Select(e => e.Player).ToList();
             await this.ConfigureShards(players, package.MinMatchingShards, odinContext);
         }
