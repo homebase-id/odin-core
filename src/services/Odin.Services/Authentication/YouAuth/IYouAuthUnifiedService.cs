@@ -34,7 +34,7 @@ public interface IYouAuthUnifiedService
         string clientId,
         string clientInfo,
         string permissionRequest,
-        string publicKey,
+        string jwkbase64UrlPublicKey,
         IOdinContext odinContext);
 
     Task<EncryptedTokenExchange?> ExchangeDigestForEncryptedToken(string exchangeSharedSecretDigest);

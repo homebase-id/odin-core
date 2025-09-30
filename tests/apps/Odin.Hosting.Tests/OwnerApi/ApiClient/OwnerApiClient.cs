@@ -10,7 +10,7 @@ using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.CircleMembership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit.Query;

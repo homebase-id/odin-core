@@ -14,7 +14,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("signing")]
         public async Task<GetPublicKeyResponse> GetSigningKey()
         {
-            
             var key = await publicKeyService.GetSigningPublicKeyAsync();
 
             if (key == null)
@@ -24,21 +23,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             {
                 PublicKey = key?.publicKey,
                 Crc32 = key?.crc32c ?? 0
-            };
-        }
-
-        [HttpGet("online")]
-        public async Task<GetPublicKeyResponse> GetOnlineKey()
-        {
-            var key = await publicKeyService.GetOnlineRsaPublicKeyPublic();
-
-            if (key == null)
-                throw new NotFoundException("Online RSA public key not found.");
-
-            return new GetPublicKeyResponse()
-            {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c
             };
         }
 
@@ -85,22 +69,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             //     PublicKey = key.publicKey,
             //     Crc32 = key.crc32c
             // };
-        }
-
-        [HttpGet("offline")]
-        public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
-        {
-            
-            var key = await publicKeyService.GetOfflineRsaPublicKeyAsync();
-
-            if (key == null)
-                throw new NotFoundException("Offline RSA public key not found.");
-
-            return new GetPublicKeyResponse()
-            {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c
-            };
         }
     }
 }
