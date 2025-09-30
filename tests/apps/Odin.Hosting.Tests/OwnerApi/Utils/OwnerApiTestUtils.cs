@@ -285,6 +285,17 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             throw new Exception($"No token found for {identity}");
         }
 
+        public void UpdateOwnerAuthContext(OdinId identity, ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)
+        {
+            var context = new OwnerAuthTokenContext()
+            {
+                AuthenticationResult = cat,
+                SharedSecret = sharedSecret
+            };
+
+            _ownerLoginTokens[identity] = context;
+        }
+
         public async Task SetupOwnerAccount(OdinId identity, bool initializeIdentity, string password = null)
         {
             var pwd = password ?? this._defaultOwnerPassword;
@@ -724,8 +735,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var page = getDrivesResponse.Content;
 
                 ClassicAssert.NotNull(page);
-                ClassicAssert.NotNull(page.Results.SingleOrDefault(drive =>
-                    drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
+                ClassicAssert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias &&
+                                                                            drive.TargetDriveInfo.Type == targetDrive.Type));
             }
         }
 

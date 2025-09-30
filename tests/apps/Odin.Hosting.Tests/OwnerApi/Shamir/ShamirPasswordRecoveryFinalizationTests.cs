@@ -11,6 +11,7 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Services.Drives;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -131,11 +132,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
             Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
-
-            //
-            // Cleanup connections before resetting the password so we can still use the old context
-            //
-            await CleanupConnections(peerIdentities);
             
             const string newPassword = "bipbopboop";
 
@@ -159,6 +155,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(secondLogin.cat.Id, Is.Not.EqualTo(Guid.Empty));
             Assert.That(secondLogin.cat.AccessTokenHalfKey.IsSet(), Is.True);
             Assert.That(secondLogin.sharedSecret.IsSet, Is.True);
+            
+            _scaffold.OldOwnerApi.UpdateOwnerAuthContext(frodoClient.OdinId, secondLogin.cat, secondLogin.sharedSecret);
+
+            //
+            // Cleanup connections before resetting the password so we can still use the old context
+            //
+            await CleanupConnections(peerIdentities);
+
         }
 
         [Test]
@@ -186,7 +190,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(getConfigResponse.IsSuccessful, Is.True);
             Assert.That(getConfigResponse.Content, Is.Not.Null);
 
-            var config = getConfigResponse.Content;
+            var firstShardConfig = getConfigResponse.Content;
 
             //
             // Act - enter recovery mode
@@ -199,7 +203,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             foreach (var peer in peerIdentities)
             {
                 var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
-                var item = await GetPlayerShardRequest(config, peerOwnerClient);
+                var item = await GetPlayerShardRequest(firstShardConfig, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
                 var shardId = item.ShardId;
 
@@ -247,7 +251,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             });
 
             Assert.That(finalizeRecoveryResponse.IsSuccessful, Is.True);
-            
+
             //login with the new password
             var loginEccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
             var secondLogin = await _scaffold.OldOwnerApi.LoginToOwnerConsole(frodoClient.OdinId, newPassword, loginEccKey);
@@ -257,25 +261,46 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             // the system should configure shards again
             // so lets call something on the owner console to stoke the auth handler
-            var newClient = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodoClient.OdinId, 
-                secondLogin.cat, 
+            var newClient = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodoClient.OdinId,
+                secondLogin.cat,
                 secondLogin.sharedSecret,
                 FileSystemType.Standard);
-            
+
+            // just a random call
             var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(newClient, secondLogin.sharedSecret);
             var settingsResponse = await svc.GetTenantSettings();
             Assert.That(settingsResponse.IsSuccessful, Is.True);
             // var settings = settingsResponse.Content;
-            
+
             // now just see if the log is updated with an entry that we rotated shards
 
             _scaffold.AssertHasDebugLogEvent(message: ShamirConfigurationService.RotateShardsHasStarted, count: 1);
-            
-            // TODO: need to reset the test scaffolds login stuff
+
+            // test that the shards were rotated
+            var shardClient = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(newClient, secondLogin.sharedSecret);
+            var getConfigResponse2 = await shardClient.GetShardConfig();
+            Assert.That(getConfigResponse2.IsSuccessful, Is.True);
+            var secondShardingConfig = getConfigResponse2.Content;
+            Assert.That(secondShardingConfig, Is.Not.Null);
+            Assert.That(secondShardingConfig.Updated > firstShardConfig.Updated, Is.True);
+
+            Assert.That(firstShardConfig.Envelopes.Count, Is.EqualTo(secondShardingConfig.Envelopes.Count));
+            Assert.That(firstShardConfig.MinMatchingShards, Is.EqualTo(secondShardingConfig.MinMatchingShards));
+
+            foreach (var firstEnvelope in firstShardConfig.Envelopes)
+            {
+                var secondEnvelope = secondShardingConfig.Envelopes.SingleOrDefault(e => e.Player.OdinId == firstEnvelope.Player.OdinId);
+                Assert.That(secondEnvelope, Is.Not.Null);
+                Assert.That(secondEnvelope.ShardId, Is.Not.EqualTo(firstEnvelope.ShardId));
+                Assert.That(secondEnvelope.Player.Type, Is.EqualTo(firstEnvelope.Player.Type));
+            }
+
+            _scaffold.OldOwnerApi.UpdateOwnerAuthContext(frodoClient.OdinId, secondLogin.cat, secondLogin.sharedSecret);
+
             //
             // cleanup connections
             //
-            // await CleanupConnections(peerIdentities);
+            await CleanupConnections(peerIdentities);
         }
 
         private async Task<ShardApprovalRequest> GetPlayerShardRequest(DealerShardConfig config, OwnerApiClientRedux peerOwnerClient)
@@ -381,8 +406,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(exitEnterResponse.IsSuccessful, Is.True, $"Response was {exitEnterResponse.StatusCode}");
 
             // Assert
-            var exitRecoveryNonceId =
-                await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.ExitNoncePropertyName, LogEventLevel.Information);
+            var exitRecoveryNonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.ExitNoncePropertyName,
+                LogEventLevel.Information);
 
             var verifyExitRecoveryModeResponse = await frodo.Security.VerifyExitRecoveryMode(exitRecoveryNonceId);
             Assert.That(verifyExitRecoveryModeResponse.StatusCode == HttpStatusCode.Redirect, Is.True,

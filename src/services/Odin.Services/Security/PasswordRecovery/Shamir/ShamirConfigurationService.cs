@@ -350,25 +350,32 @@ public class ShamirConfigurationService(
     /// </summary>
     public async Task RotateShardKeysIfNeeded(IOdinContext odinContext)
     {
-        var package = await this.GetDealerShardPackage(odinContext);
-        if (null == package)
+        try
         {
-            return;
-        }
+            var package = await this.GetDealerShardPackage(odinContext);
+            if (null == package)
+            {
+                return;
+            }
 
-        var passwordLastUpdated = await secretService.GetPasswordLastUpdated();
-        if (passwordLastUpdated == null)
-        {
-            // password never changed
-            return;
-        }
+            var passwordLastUpdated = await secretService.GetPasswordLastUpdated();
+            if (passwordLastUpdated == null)
+            {
+                // password never changed
+                return;
+            }
 
-        // if the package was updated before the password was changed, we need to rotate it
-        if (package.Updated < passwordLastUpdated.Value)
+            // if the package was updated before the password was changed, we need to rotate it
+            if (package.Updated < passwordLastUpdated.Value)
+            {
+                logger.LogDebug(RotateShardsHasStarted);
+                var players = package.Envelopes.Select(e => e.Player).ToList();
+                await this.ConfigureShards(players, package.MinMatchingShards, odinContext);
+            }
+        }
+        catch (Exception e)
         {
-            logger.LogDebug(RotateShardsHasStarted);
-            var players = package.Envelopes.Select(e => e.Player).ToList();
-            await this.ConfigureShards(players, package.MinMatchingShards, odinContext);
+            logger.LogError(e, "Failed to start shard rotation shards");
         }
     }
 

@@ -6,7 +6,6 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,7 +19,6 @@ using Odin.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Configuration.VersionUpgrade;
-using Odin.Services.Membership.Connections;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Tenant;
 
@@ -40,7 +38,8 @@ namespace Odin.Hosting.Authentication.Owner
             VersionUpgradeScheduler versionUpgradeScheduler,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            ITenantProvider tenantProvider, ShamirConfigurationService shamirConfigurationService) : base(options, logger, encoder)
+            ITenantProvider tenantProvider,
+            ShamirConfigurationService shamirConfigurationService) : base(options, logger, encoder)
         {
             _versionUpgradeScheduler = versionUpgradeScheduler;
             _tenantProvider = tenantProvider;

@@ -24,8 +24,7 @@ namespace Odin.Services.Authentication.Owner
         PasswordKeyRecoveryService recoveryService,
         PublicPrivateKeyService publicPrivateKeyService,
         TableKeyValueCached tblKeyValue,
-        TableNonce nonceTable,
-        IMediator mediator)
+        TableNonce nonceTable)
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
 
