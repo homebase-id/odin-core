@@ -30,6 +30,9 @@ public class RecoveryEmailer(
 
     public const string ExitNoncePropertyName = "exitNonceId";
 
+    public const string FinalRecoveryNonceIdPropertyName = "finalRecoveryEmailNonceId";
+    public const string FinalRecoveryKeyPropertyName = "finalRecoveryKey";
+
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
         var record = await nonceTable.PopAsync(nonceId);
@@ -130,7 +133,7 @@ public class RecoveryEmailer(
             finalRecoveryKey.ToString());
 
 #if DEBUG
-        logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
+        logger.LogInformation("\n\n\n{link}\n\n\n{finalRecoveryEmailNonceId} with token {finalRecoveryKey}", link, nonceId, finalRecoveryKey);
 #endif
 
         AssertEmailEnabled();

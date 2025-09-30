@@ -1,4 +1,5 @@
 ﻿using Odin.Core.Cryptography.Data;
+using Odin.Core.Time;
 
 namespace Odin.Core.Cryptography.Login
 {
@@ -22,7 +23,7 @@ namespace Odin.Core.Cryptography.Login
         /// <summary>
         /// This is the DeK (encrypted with the KeK). You'll derive the KeK from the 
         /// LoginTokenData when the client and server halves meet. The KeK is sent
-        /// RSA encrypted from the client to the host.
+        /// ECC encrypted from the client to the host.
         /// </summary>
         public SymmetricKeyEncryptedAes KekEncryptedMasterKey { get; set; }
         
@@ -31,5 +32,9 @@ namespace Odin.Core.Cryptography.Login
         /// </summary>
         public SymmetricKeyEncryptedAes MasterKeyEncryptedConnectionKey { get; set; }
 
+        /// <summary>
+        /// When the password was last updated
+        /// </summary>
+        public UnixTimeUtc? Updated { get; set; }
     }
 }

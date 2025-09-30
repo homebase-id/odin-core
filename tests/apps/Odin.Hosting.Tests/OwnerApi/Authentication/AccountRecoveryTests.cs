@@ -91,9 +91,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var key = decryptedRecoveryKey.Key;
             
-            //encrypt using RSA
-            // _publicPrivateKeyService.EncryptPayload(RsaKeyType.OfflineKey, payload)
-            
             var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(key, newPassword);
             ClassicAssert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key [{key}]");
 

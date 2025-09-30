@@ -14,6 +14,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -40,6 +41,7 @@ public class ShamirConfigurationService(
     IdentityDatabase db,
     StandardFileSystem fileSystem,
     IDriveManager driveManager,
+    OwnerSecretService secretService,
     ILastSeenService lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
@@ -170,10 +172,11 @@ public class ShamirConfigurationService(
         try
         {
             var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
-            
+
             if (null == shardDrive)
             {
-                logger.LogDebug("Could not perform shard verification; Sharding drive not yet configured (Tenant probably needs to upgrade)");
+                logger.LogDebug(
+                    "Could not perform shard verification; Sharding drive not yet configured (Tenant probably needs to upgrade)");
                 return new ShardVerificationResult
                 {
                     RemoteServerError = true,
@@ -293,13 +296,14 @@ public class ShamirConfigurationService(
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var shardDrive = await driveManager.GetDriveAsync(driveId);
-            
+
         if (null == shardDrive)
         {
-            logger.LogDebug("Shard drive not yet configured (Tenant probably needs to upgrade).  So GetDealerShardPackage will return null.");
+            logger.LogDebug(
+                "Shard drive not yet configured (Tenant probably needs to upgrade).  So GetDealerShardPackage will return null.");
             return null;
         }
-        
+
         var uid = Guid.Parse(DealerShardConfigUid);
         var options = new ResultOptions
         {
@@ -338,6 +342,33 @@ public class ShamirConfigurationService(
         recoveryKey.Wipe();
 
         return text;
+    }
+
+    /// <summary>
+    /// Rotates keys in the shares using all existing players
+    /// </summary>
+    public async Task RotateShardKeysIfNeeded(IOdinContext odinContext)
+    {
+        var package = await this.GetDealerShardPackage(odinContext);
+        if (null == package)
+        {
+            return;
+        }
+
+        var passwordLastUpdated = await secretService.GetPasswordLastUpdated();
+        if (passwordLastUpdated == null)
+        {
+            // password never changed
+            return;
+        }
+
+        // if the package was updated before the password was changed, we need to rotate it
+        if (package.Updated < passwordLastUpdated.Value)
+        {
+            logger.LogDebug("Shard rotation started");
+            var players = package.Envelopes.Select(e => e.Player).ToList();
+            await this.ConfigureShards(players, package.MinMatchingShards, odinContext);
+        }
     }
 
     private IPeerPasswordRecoveryHttpClient CreateClientAsync(OdinId odinId, IOdinContext odinContext)

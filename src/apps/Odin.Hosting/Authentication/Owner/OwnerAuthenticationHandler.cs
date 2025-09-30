@@ -21,6 +21,7 @@ using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Authentication.Owner
@@ -31,20 +32,19 @@ namespace Odin.Hosting.Authentication.Owner
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
-        private readonly CircleNetworkService _circleNetworkService;
+        private readonly ShamirConfigurationService _shamirConfigurationService;
         private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options,
             VersionUpgradeScheduler versionUpgradeScheduler,
-            CircleNetworkService circleNetworkService,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            ITenantProvider tenantProvider) : base(options, logger, encoder)
+            ITenantProvider tenantProvider, ShamirConfigurationService shamirConfigurationService) : base(options, logger, encoder)
         {
             _versionUpgradeScheduler = versionUpgradeScheduler;
-            _circleNetworkService = circleNetworkService;
             _tenantProvider = tenantProvider;
+            _shamirConfigurationService = shamirConfigurationService;
         }
 
         /// <summary/>
@@ -97,6 +97,7 @@ namespace Odin.Hosting.Authentication.Owner
                     }
 
                     await _versionUpgradeScheduler.EnsureScheduledAsync(authResult, odinContext);
+                    await _shamirConfigurationService.RotateShardKeysIfNeeded(odinContext);
                 }
                 catch (OdinSecurityException e)
                 {

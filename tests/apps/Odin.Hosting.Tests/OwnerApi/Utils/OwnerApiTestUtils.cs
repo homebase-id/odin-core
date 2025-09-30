@@ -57,16 +57,11 @@ using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
-    public class OwnerApiTestUtils
+    public class OwnerApiTestUtils(Guid systemProcessApiKey)
     {
-        public readonly Guid SystemProcessApiKey;
+        public readonly Guid SystemProcessApiKey = systemProcessApiKey;
         private readonly string _defaultOwnerPassword = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
-
-        public OwnerApiTestUtils(Guid systemProcessApiKey)
-        {
-            SystemProcessApiKey = systemProcessApiKey;
-        }
 
         internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate,
             X509Chain chain,

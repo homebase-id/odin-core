@@ -67,9 +67,14 @@ public class OwnerShamirRecoveryController : OdinControllerBase
     }
 
     [HttpPost("finalize")]
-    public async Task<FinalRecoveryResult> FinalizeRecovery([FromBody] FinalRecoveryRequest request)
+    public async Task<IActionResult> FinalizeRecovery([FromBody] FinalRecoveryRequest request)
     {
         OdinValidationUtils.AssertNotNullOrEmpty(request.Id, nameof(request.Id));
-        return await _recoveryService.FinalizeRecovery(Guid.Parse(request.Id), Guid.Parse(request.FinalKey), WebOdinContext);
+        await _recoveryService.FinalizeRecovery(
+            Guid.Parse(request.Id),
+            Guid.Parse(request.FinalKey), 
+            request.PasswordReply,
+            WebOdinContext);
+        return Ok();
     }
 }
