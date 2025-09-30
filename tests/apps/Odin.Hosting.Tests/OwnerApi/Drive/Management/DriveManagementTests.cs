@@ -70,6 +70,7 @@ public class DriveManagementTests
             ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             ClassicAssert.IsNotNull(response.Content);
 
+            // Cache miss
             var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
             ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
             var page = getDrivesResponse.Content;
@@ -79,6 +80,11 @@ public class DriveManagementTests
                 drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
             ClassicAssert.NotNull(drive);
             ClassicAssert.IsTrue(drive.Attributes["some_attribute"] == "a_value");
+
+            // Cache hit
+            getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+
         }
     }
 

@@ -8,8 +8,12 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 #nullable enable
 
 public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, RootInvalidationTag)
 {
+    public const string RootInvalidationTag = nameof(TableDrives);
+
+    //
+
     private string GetDriveIdCacheKey(Guid driveId)
     {
         return "driveId:" + driveId;
@@ -71,6 +75,18 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
     {
         var result = await table.InsertAsync(item);
         await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
+    public async Task<bool> TryInsertAsync(DrivesRecord item)
+    {
+        var result = await table.TryInsertAsync(item);
+        if (result)
+        {
+            await Cache.InvalidateAllAsync();
+        }
         return result;
     }
 
