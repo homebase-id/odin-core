@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
-using Odin.Services.ShamiraPasswordRecovery;
-using Odin.Services.ShamiraPasswordRecovery.ShardRequestApproval;
+using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
@@ -30,6 +30,7 @@ public class SecurityConfigurationController(ShamirConfigurationService shamirCo
     [HttpPost("verify-remote-shards")]
     public async Task<RemoteShardVerificationResult> Verify()
     {
+        WebOdinContext.Caller.AssertHasMasterKey();
         var results = await shamirConfigurationService.VerifyRemotePlayerShards(WebOdinContext);
         return results;
     }
@@ -50,7 +51,7 @@ public class SecurityConfigurationController(ShamirConfigurationService shamirCo
     [HttpPost("approve-shard-request")]
     public async Task<IActionResult> ApproveShardRequest([FromBody] ApproveShardRequest request)
     {
-        await recoveryService.ApproveShardRequest(request.ShardId, WebOdinContext);
+        await recoveryService.ApproveShardRequest(request.ShardId, request.OdinId, WebOdinContext);
         return Ok();
     }
 

@@ -31,7 +31,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]

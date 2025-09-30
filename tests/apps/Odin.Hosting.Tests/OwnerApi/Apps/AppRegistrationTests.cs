@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authorization.Apps;
@@ -13,6 +14,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
 
 namespace Odin.Hosting.Tests.OwnerApi.Apps
@@ -30,7 +32,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo });
         }
 
         [OneTimeTearDown]
@@ -60,7 +62,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var corsHostName = "photos.odin.earth";
 
-            var newId = await AddSampleAppNoDrive(appId, name, corsHostName);
+            await AddSampleAppNoDrive(appId, name, corsHostName);
         }
 
 
@@ -91,12 +93,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var registeredApp = appResponse.Content;
                 ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                ClassicAssert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should have use transit read permission");
+                ClassicAssert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite),
+                    "App should have use transit read permission");
                 ClassicAssert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
 
-                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                    SystemDriveConstants.TransientTempDrive);
                 ClassicAssert.IsNotNull(transientDriveGrant);
-                ClassicAssert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
+                ClassicAssert.IsTrue(transientDriveGrant!.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
             }
         }
 
@@ -128,12 +132,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var registeredApp = appResponse.Content;
                 ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                ClassicAssert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should have use transit read permission");
+                ClassicAssert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead),
+                    "App should have use transit read permission");
                 ClassicAssert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
 
-                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                    SystemDriveConstants.TransientTempDrive);
                 ClassicAssert.IsNotNull(transientDriveGrant);
-                ClassicAssert.IsTrue(transientDriveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
+                ClassicAssert.IsTrue(transientDriveGrant!.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite));
             }
         }
 
@@ -164,10 +170,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var registeredApp = appResponse.Content;
                 ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                ClassicAssert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite), "App should not have UseTransit");
-                ClassicAssert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+                ClassicAssert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite),
+                    "App should not have UseTransit");
+                ClassicAssert.IsFalse(registeredApp.Grant.HasIcrKey,
+                    "Icr key should not be present when UseTransit permission is not given");
 
-                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                    SystemDriveConstants.TransientTempDrive);
                 ClassicAssert.IsNull(transientDriveGrant);
             }
         }
@@ -200,10 +209,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var registeredApp = appResponse.Content;
                 ClassicAssert.IsNotNull(registeredApp, "App should exist");
 
-                ClassicAssert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead), "App should not have UseTransit");
-                ClassicAssert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+                ClassicAssert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead),
+                    "App should not have UseTransit");
+                ClassicAssert.IsFalse(registeredApp.Grant.HasIcrKey,
+                    "Icr key should not be present when UseTransit permission is not given");
 
-                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+                var transientDriveGrant = registeredApp.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                    SystemDriveConstants.TransientTempDrive);
                 ClassicAssert.IsNull(transientDriveGrant);
             }
         }
@@ -217,7 +229,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             var appPermissionsGrant = new PermissionSetGrantRequest()
             {
                 Drives = null,
-                PermissionSet = new PermissionSet(new List<int>() { })
+                PermissionSet = new PermissionSet([])
             };
 
             await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
@@ -229,9 +241,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             ClassicAssert.IsNotNull(appReg);
             ClassicAssert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
             ClassicAssert.IsFalse(appReg.Grant.HasIcrKey);
-            ClassicAssert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
+            ClassicAssert.IsNull(
+                appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
 
-            appPermissionsGrant.PermissionSet = new PermissionSet(new List<int>() {PermissionKeys.UseTransitWrite}); 
+            appPermissionsGrant.PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransitWrite });
             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
 
             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
@@ -239,7 +252,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             ClassicAssert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
             ClassicAssert.IsTrue(updatedAppReg.Grant.HasIcrKey);
 
-            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                                                                                            SystemDriveConstants.TransientTempDrive);
             ClassicAssert.IsNotNull(transientDriveGrant);
         }
 
@@ -252,7 +266,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             var appPermissionsGrant = new PermissionSetGrantRequest()
             {
                 Drives = null,
-                PermissionSet = new PermissionSet(new List<int>() { })
+                PermissionSet = new PermissionSet(new List<int>())
             };
 
             await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
@@ -264,9 +278,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             ClassicAssert.IsNotNull(appReg);
             ClassicAssert.IsFalse(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
             ClassicAssert.IsFalse(appReg.Grant.HasIcrKey);
-            ClassicAssert.IsNull(appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
+            ClassicAssert.IsNull(
+                appReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive));
 
-            appPermissionsGrant.PermissionSet = new PermissionSet(new List<int>() {PermissionKeys.UseTransitRead}); 
+            appPermissionsGrant.PermissionSet = new PermissionSet(new List<int> { PermissionKeys.UseTransitRead });
             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
 
             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
@@ -274,7 +289,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             ClassicAssert.IsTrue(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
             ClassicAssert.IsTrue(updatedAppReg.Grant.HasIcrKey);
 
-            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                                                                                            SystemDriveConstants.TransientTempDrive);
             ClassicAssert.IsNotNull(transientDriveGrant);
         }
 
@@ -305,7 +321,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             ClassicAssert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitWrite));
             ClassicAssert.IsFalse(updatedAppReg.Grant.HasIcrKey);
 
-            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                                                                                            SystemDriveConstants.TransientTempDrive);
             ClassicAssert.IsNull(transientDriveGrant);
         }
 
@@ -336,7 +353,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             ClassicAssert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransitRead));
             ClassicAssert.IsFalse(updatedAppReg.Grant.HasIcrKey);
 
-            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.TransientTempDrive);
+            var transientDriveGrant = updatedAppReg.Grant.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==
+                                                                                            SystemDriveConstants.TransientTempDrive);
             ClassicAssert.IsNull(transientDriveGrant);
         }
 
@@ -367,8 +385,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 var response = await svc.RegisterApp(request);
 
-                ClassicAssert.IsFalse(response.IsSuccessStatusCode, $"Should have failed to add app registration.  Status code was {response.StatusCode}");
-                var appReg = response.Content;
+                ClassicAssert.IsFalse(response.IsSuccessStatusCode,
+                    $"Should have failed to add app registration.  Status code was {response.StatusCode}");
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
                 ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
@@ -398,12 +416,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var response = await svc.RegisterApp(request);
 
                 ClassicAssert.IsTrue(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
-                var appReg = response.Content;
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
                 ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
                 ClassicAssert.IsNotNull(appResponse.Content, "There should be no app");
-                ClassicAssert.IsTrue(appResponse.Content.CorsHostName == corsHostName);
+                ClassicAssert.IsTrue(appResponse.Content!.CorsHostName == corsHostName);
             }
         }
 
@@ -429,7 +446,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var response = await svc.RegisterApp(request);
 
                 ClassicAssert.IsFalse(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
-                var appReg = response.Content;
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
                 ClassicAssert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
@@ -466,7 +482,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys,
+                circle1Drives);
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
@@ -476,7 +493,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                     AppId = applicationId,
                     Name = name,
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
+                    PermissionSet = new PermissionSet(new List<int>()
+                        { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
                     AuthorizedCircles = new List<Guid>() { circle1Definition.Id },
                     CircleMemberPermissionGrant = new PermissionSetGrantRequest()
                     {
@@ -501,9 +519,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                     request.Drives.Select(p => p.PermissionedDrive));
                 ClassicAssert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                CollectionAssert.AreEquivalent(
+                    savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet ==
+                                     request.CircleMemberPermissionGrant.PermissionSet);
             }
         }
 
@@ -514,7 +534,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-revoke";
             var corsHostName = "photos.odin.earth";
 
-            var newId = await AddSampleAppNoDrive(appId, name, corsHostName);
+            await AddSampleAppNoDrive(appId, name, corsHostName);
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
@@ -533,7 +553,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         [Test]
         public async Task RegisterAppOnClient()
         {
-            var rsa = new RsaFullKeyData(RsaKeyListManagement.zeroSensitiveKey, 1);
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
             var corsHostName = "app.somewhere.org";
@@ -543,27 +562,62 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
             {
                 var svc = _scaffold.RestServiceFor<IRefitOwnerAppRegistration>(client, ownerSharedSecret);
 
+                var clientPrivateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+                var clientKeyPair = new EccFullKeyData(clientPrivateKey, EccKeySize.P384, 1);
+
                 var request = new AppClientRegistrationRequest()
                 {
                     AppId = appId,
-                    ClientPublicKey64 = Convert.ToBase64String(rsa.publicKey),
+                    JwkBase64UrlPublicKey = clientKeyPair.PublicKeyJwkBase64Url(),
                     ClientFriendlyName = "Some phone"
                 };
 
-                var regResponse = await svc.RegisterAppOnClient(request);
+                var regResponse = await svc.RegisterAppOnClientUsingEcc(request);
                 ClassicAssert.IsTrue(regResponse.IsSuccessStatusCode);
                 ClassicAssert.IsNotNull(regResponse.Content);
 
                 var reply = regResponse.Content;
-                var decryptedData = rsa.Decrypt(RsaKeyListManagement.zeroSensitiveKey, reply.Data); // TODO
+                Assert.That(reply, Is.Not.Null);
 
-                //only supporting version 1 for now
+                var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(reply.ExchangePublicKeyJwkBase64Url);
+                var remoteSalt = Convert.FromBase64String(reply.ExchangeSalt64);
+
+                var exchangeSecret = clientKeyPair.GetEcdhSharedSecret(clientPrivateKey, remotePublicKey, remoteSalt);
+                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
                 Assert.That(reply.EncryptionVersion, Is.EqualTo(1));
-                Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
-                Assert.That(decryptedData, Is.Not.Null);
-                Assert.That(decryptedData.Length, Is.EqualTo(49));
 
-                var cat = ClientAccessToken.FromPortableBytes(decryptedData);
+                var youAuthResponse = await svc.ExchangeDigestForToken(new YouAuthTokenRequest()
+                {
+                    SecretDigest = exchangeSecretDigest
+                });
+                
+                var token = youAuthResponse.Content;
+                Assert.That(token, Is.Not.Null);
+
+                Assert.That(token.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenIv, Is.Not.Null.And.Not.Empty);
+
+                var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, exchangeSecret, sharedSecretIv);
+                Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
+                var clientAuthTokenBytes = AesCbc.Decrypt(clientAuthTokenCipher, exchangeSecret, clientAuthTokenIv);
+                Assert.That(clientAuthTokenBytes, Is.Not.Null.And.Not.Empty);
+
+                var authToken = ClientAuthenticationToken.FromPortableBytes(clientAuthTokenBytes);
+                var cat = new ClientAccessToken
+                {
+                    Id = authToken.Id,
+                    AccessTokenHalfKey = authToken.AccessTokenHalfKey,
+                    ClientTokenType = authToken.ClientTokenType,
+                    SharedSecret = sharedSecret.ToSensitiveByteArray()
+                };
+
                 ClassicAssert.IsFalse(cat.Id == Guid.Empty);
                 ClassicAssert.IsNotNull(cat.AccessTokenHalfKey);
                 Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
@@ -613,7 +667,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys,
+                circle1Drives);
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
@@ -623,7 +678,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                     AppId = applicationId,
                     Name = name,
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
+                    PermissionSet = new PermissionSet(new List<int>()
+                        { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
                     AuthorizedCircles = new List<Guid>() { circle1Definition.Id },
                     CircleMemberPermissionGrant = new PermissionSetGrantRequest()
                     {
@@ -648,9 +704,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                     request.Drives.Select(p => p.PermissionedDrive));
                 ClassicAssert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                CollectionAssert.AreEquivalent(
+                    savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet ==
+                                     request.CircleMemberPermissionGrant.PermissionSet);
 
                 var updateRequest = new UpdateAppPermissionsRequest()
                 {
@@ -669,9 +727,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
                 // be sure the other fields did not change
                 CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, request.AuthorizedCircles);
-                CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                CollectionAssert.AreEquivalent(
+                    updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet ==
+                                     request.CircleMemberPermissionGrant.PermissionSet);
             }
         }
 
@@ -713,11 +773,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys,
+                circle1Drives);
 
             var circle2PermissionKeys = new List<int>() { PermissionKeys.ReadConnections };
             var circle2Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Write } };
-            var circle2Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 2", circle2PermissionKeys, circle2Drives);
+            var circle2Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 2", circle2PermissionKeys,
+                circle2Drives);
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
@@ -727,7 +789,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                     AppId = applicationId,
                     Name = name,
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
+                    PermissionSet = new PermissionSet(new List<int>()
+                        { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
                     AuthorizedCircles = new List<Guid>() { circle1Definition.Id },
                     CircleMemberPermissionGrant = new PermissionSetGrantRequest()
                     {
@@ -752,9 +815,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                     request.Drives.Select(p => p.PermissionedDrive));
                 ClassicAssert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                CollectionAssert.AreEquivalent(
+                    savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet ==
+                                     request.CircleMemberPermissionGrant.PermissionSet);
 
                 var updateRequest = new UpdateAuthorizedCirclesRequest()
                 {
@@ -772,10 +837,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 var updatedApp = await GetSampleApp(applicationId);
                 // be sure the permissions are updated 
                 CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, updateRequest.AuthorizedCircles);
-                CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                CollectionAssert.AreEquivalent(
+                    updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     updateRequest.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
 
-                ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == updateRequest.CircleMemberPermissionGrant.PermissionSet);
+                ClassicAssert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet ==
+                                     updateRequest.CircleMemberPermissionGrant.PermissionSet);
                 // be sure the other fields did not change
 
                 CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),

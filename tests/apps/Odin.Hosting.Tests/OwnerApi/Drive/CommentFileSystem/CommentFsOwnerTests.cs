@@ -6,6 +6,7 @@ using NUnit.Framework.Legacy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
+using System.Collections.Generic;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 {
@@ -18,7 +19,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Samwise });
         }
 
         [OneTimeTearDown]

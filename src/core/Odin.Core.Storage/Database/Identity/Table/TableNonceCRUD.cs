@@ -308,7 +308,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,expiration,data,created,modified FROM Nonce " +
-                                             "WHERE identityId = @identityId AND id = @id LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND id = @id LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);

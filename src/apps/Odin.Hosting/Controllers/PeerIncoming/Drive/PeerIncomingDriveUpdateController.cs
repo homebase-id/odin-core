@@ -100,6 +100,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
                 var metadata = await Initialize(updateInstructionSet, reader);
 
+                metadata.Validate(WebOdinContext.Tenant);
+                
                 //
 
                 var section = await reader.ReadNextSectionAsync();

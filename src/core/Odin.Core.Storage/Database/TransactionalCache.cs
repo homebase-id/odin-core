@@ -65,7 +65,7 @@ public sealed class TransactionalCache
         _cacheStats = cacheStats;
         _scopedConnectionFactory = scopedConnectionFactory;
         _keyPrefix = keyPrefix;
-        _rootTag = [_cache.CacheKeyPrefix + ":" + rootTag];
+        _rootTag = [rootTag];
         RootTag = _rootTag.First();
     }
 
@@ -146,10 +146,10 @@ public sealed class TransactionalCache
         var hit = true;
         var result = await _cache.GetOrSetAsync(
             cacheKey,
-            async _ =>
+            _ =>
             {
                 hit = false;
-                return await factory(cancellationToken);
+                return factory(cancellationToken);
             },
             ttl,
             CombineAllTagsWithRoot(tags),
@@ -171,14 +171,14 @@ public sealed class TransactionalCache
 
     //
 
-    public async Task<TValue> GetOrSetAsync<TValue>(
+    public Task<TValue> GetOrSetAsync<TValue>(
         byte[] key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        return await GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTagsWithRoot(tags), cancellationToken);
+        return GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTagsWithRoot(tags), cancellationToken);
     }
 
     //
@@ -210,6 +210,7 @@ public sealed class TransactionalCache
         if (InDatabaseTransaction)
         {
             _scopedConnectionFactory.AddPostCommitAction(async () => await _cache.RemoveByTagAsync(_rootTag));
+            _scopedConnectionFactory.AddPostRollbackAction(async () => await _cache.RemoveByTagAsync(_rootTag));
         }
         else
         {
@@ -230,10 +231,8 @@ public sealed class TransactionalCache
 
         if (InDatabaseTransaction)
         {
-            _scopedConnectionFactory.AddPostCommitAction(async () =>
-            {
-                await Task.WhenAll(actionsArray.Select(a => a()));
-            });
+            _scopedConnectionFactory.AddPostCommitAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
+            _scopedConnectionFactory.AddPostRollbackAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
         }
         else
         {

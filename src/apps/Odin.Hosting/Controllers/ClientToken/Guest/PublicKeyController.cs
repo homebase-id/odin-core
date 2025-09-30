@@ -1,8 +1,9 @@
-﻿using System;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Odin.Hosting.ApiExceptions.Client;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
+using System;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
@@ -13,8 +14,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         [HttpGet("signing")]
         public async Task<GetPublicKeyResponse> GetSigningKey()
         {
-            
             var key = await publicKeyService.GetSigningPublicKeyAsync();
+
+            if (key == null)
+                throw new NotFoundException("Signing ECC public key not found.");
 
             return new GetPublicKeyResponse()
             {
@@ -23,23 +26,14 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             };
         }
 
-        [HttpGet("online")]
-        public async Task<GetPublicKeyResponse> GetOnlineKey()
-        {
-            var key = await publicKeyService.GetOnlineRsaPublicKeyPublic();
-
-            return new GetPublicKeyResponse()
-            {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c
-            };
-        }
-
         [HttpGet("online_ecc")]
         public async Task<GetEccPublicKeyResponse> GetOnlineEccKey()
         {
             
             var key = await publicKeyService.GetOnlineEccPublicKeyAsync();
+
+            if (key == null)
+                throw new NotFoundException("Online ECC public key not found.");
 
             return new GetEccPublicKeyResponse()
             {
@@ -53,6 +47,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
         public async Task<string> GetOfflineEccPublicKey()
         {
             var key = await publicKeyService.GetOfflineEccPublicKeyAsync();
+
+            if (key == null)
+                throw new NotFoundException("Offline ECC public key not found.");
+
             var expiration = Math.Min(key.expiration.seconds, 3600);
             Response.Headers.CacheControl = $"public,max-age={expiration}";
             return key?.PublicKeyJwkBase64Url();
@@ -71,18 +69,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Guest
             //     PublicKey = key.publicKey,
             //     Crc32 = key.crc32c
             // };
-        }
-
-        [HttpGet("offline")]
-        public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
-        {
-            
-            var key = await publicKeyService.GetOfflineRsaPublicKeyAsync();
-            return new GetPublicKeyResponse()
-            {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c
-            };
         }
     }
 }

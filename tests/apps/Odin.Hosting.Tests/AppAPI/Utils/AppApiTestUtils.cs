@@ -238,7 +238,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
 
                 if (options is { ProcessOutbox: true })
                 {
-                    var c = new TransitApiClient(_ownerApi, TestIdentities.All[senderAppContext.Identity]);
+                    var c = new TransitApiClient(_ownerApi, TestIdentities.InitializedIdentities[senderAppContext.Identity]);
                     await c.WaitForEmptyOutbox(instructionSet.StorageOptions.Drive);
                     // await _ownerApi.ProcessOutbox(senderAppContext.Identity, batchSize);
                 }
@@ -397,7 +397,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             var recipientContexts = new Dictionary<OdinId, TestAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
-                var recipient = TestIdentities.All[r];
+                var recipient = TestIdentities.InitializedIdentities[r];
                 var ctx = await _ownerApi.SetupTestSampleApp(testAppContext.AppId, recipient, false, testAppContext.TargetDrive);
                 recipientContexts.Add(recipient.OdinId, ctx);
 

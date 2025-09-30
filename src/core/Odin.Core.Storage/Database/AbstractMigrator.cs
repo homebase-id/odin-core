@@ -68,7 +68,8 @@ public abstract class AbstractMigrator
 
         if (direction == Direction.Nowhere)
         {
-            _logger.LogDebug("Nothing to migrate for ID {MigratorId}", _migratorId);
+            _logger.LogDebug("Nothing to migrate for migrator ID {MigratorId} (current version: {version})",
+                _migratorId, currentVersion);
             return;
         }
 
@@ -79,7 +80,8 @@ public abstract class AbstractMigrator
         var groupedMigrations = GroupMigrationsByVersion();
         if (groupedMigrations.Count == 0)
         {
-            _logger.LogDebug("Nothing to migrate for ID {MigratorId}", _migratorId);
+            _logger.LogDebug("Nothing to migrate for migrator ID {MigratorId} (current version: {version})",
+                _migratorId, currentVersion);
             return;
         }
 
@@ -117,7 +119,8 @@ public abstract class AbstractMigrator
             groupedMigrations, direction, currentVersion, requestedVersion);
         if (filteredMigrations.Count == 0)
         {
-            _logger.LogDebug("Nothing to migrate for ID {MigratorId}", _migratorId);
+            _logger.LogDebug("Nothing to migrate for migrator ID {MigratorId} (current version: {version})",
+                _migratorId, currentVersion);
             return;
         }
 

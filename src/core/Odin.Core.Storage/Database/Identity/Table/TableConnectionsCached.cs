@@ -38,12 +38,12 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
 
     //
 
-    public async Task<ConnectionsRecord?> GetAsync(OdinId identity, TimeSpan ttl)
+    public async Task<ConnectionsRecord?> GetAsync(OdinId identity, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetCacheKey(identity),
             _ => table.GetAsync(identity),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 
@@ -88,12 +88,12 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
     public async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(
         int count,
         string? inCursor,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, inCursor),
-            ttl,
+            ttl ?? DefaultTtl,
             PagingByTags);
         return result;
     }
@@ -104,12 +104,12 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
         int count,
         int status,
         string? inCursor,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + status + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, status, inCursor),
-            ttl,
+            ttl ?? DefaultTtl,
             PagingByTags);
         return result;
     }
@@ -120,12 +120,12 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
         int count,
         int status,
         string? cursorString,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + status + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, status, cursorString),
-            ttl,
+            ttl ?? DefaultTtl,
             PagingByTags);
         return result;
     }
@@ -135,12 +135,12 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
     public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(
         int count,
         string? cursorString,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, cursorString),
-            ttl,
+            ttl ?? DefaultTtl,
             PagingByTags);
         return result;
     }

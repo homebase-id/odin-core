@@ -332,7 +332,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,unread,senderId,timestamp,data,created,modified FROM AppNotifications " +
-                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND notificationId = @notificationId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);

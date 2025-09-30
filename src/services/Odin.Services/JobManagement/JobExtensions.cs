@@ -1,10 +1,12 @@
 using System;
 using Autofac;
 using Odin.Services.Admin.Tenants.Jobs;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry.Registration;
-using Odin.Services.ShamiraPasswordRecovery;
+using Odin.Services.Security.Email;
+using Odin.Services.Security.Job;
 
 namespace Odin.Services.JobManagement;
 
@@ -31,6 +33,8 @@ public static class JobExtensions
         jobTypeRegistry.RegisterJobType<VersionUpgradeJob>(cb, VersionUpgradeJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<SendRecoveryModeVerificationEmailJob>(cb, SendRecoveryModeVerificationEmailJob.JobTypeId);
         jobTypeRegistry.RegisterJobType<SendEmailJob>(cb, SendEmailJob.JobTypeId);
+        jobTypeRegistry.RegisterJobType<SecurityHealthCheckJob>(cb, SecurityHealthCheckJob.JobTypeId);
+        
 
         //
         // Deprecated job types here.

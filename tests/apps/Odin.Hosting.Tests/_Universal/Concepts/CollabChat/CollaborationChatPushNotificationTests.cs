@@ -38,7 +38,7 @@ public class CollaborationChatPushNotificationTests
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Collab, TestIdentities.Merry, TestIdentities.Pippin});
     }
 
     [OneTimeTearDown]
@@ -133,7 +133,7 @@ public class CollaborationChatPushNotificationTests
             //
             foreach (var recipient in notificationOptions.Recipients)
             {
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
                 ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 
@@ -216,7 +216,7 @@ public class CollaborationChatPushNotificationTests
             //
             foreach (var recipient in notificationOptions.Recipients)
             {
-                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.All[recipient]);
+                var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipient]);
                 var getNotificationResponse = await client.AppNotifications.GetList(1000);
                 ClassicAssert.IsTrue(getNotificationResponse.IsSuccessStatusCode);
 

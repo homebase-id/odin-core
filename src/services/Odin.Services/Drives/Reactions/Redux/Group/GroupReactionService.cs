@@ -57,7 +57,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor();
+            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
         }
 
         return result;
@@ -86,7 +86,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            backgroundServiceTrigger.PulseBackgroundProcessor();
+            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
         }
 
         return result;

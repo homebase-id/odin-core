@@ -44,9 +44,6 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement
         [Post(RootPath + "/clients")]
         Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients([Body] GetAppRequest request);
 
-        [Post(RootPath + "/register/client")]
-        Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);
-
         [Post(RootPath + "/register/updateauthorizedcircles")]
         Task<ApiResponse<HttpContent>> UpdateAuthorizedCircles([Body] UpdateAuthorizedCirclesRequest request);
 

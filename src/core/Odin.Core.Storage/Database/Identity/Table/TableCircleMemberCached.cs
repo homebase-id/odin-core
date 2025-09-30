@@ -86,23 +86,23 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     //
 
-    public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId, TimeSpan ttl)
+    public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetCircleCacheKey(circleId),
             _ => table.GetCircleMembersAsync(circleId),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 
     //
 
-    public async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId, TimeSpan ttl)
+    public async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId, TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetMemberCacheKey(memberId),
             _ => table.GetMemberCirclesAndDataAsync(memberId),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 
@@ -138,12 +138,12 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     //
 
-    public async Task<List<CircleMemberRecord>> GetAllCirclesAsync(TimeSpan ttl)
+    public async Task<List<CircleMemberRecord>> GetAllCirclesAsync(TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             CacheKeyAll,
             _ => table.GetAllCirclesAsync(),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 

@@ -1,5 +1,5 @@
-﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -11,27 +11,28 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
+using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Serialization;
-using Odin.Services.Base;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Storage;
 using Odin.Core.Util;
 using Odin.Hosting.Tests._Universal.ApiClient.App;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests.AppAPI.ApiClient;
-using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
+using System;
 using Testcontainers.Minio;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
@@ -101,8 +102,14 @@ namespace Odin.Hosting.Tests
         public void RunBeforeAnyTests(
             bool initializeIdentity = true,
             bool setupOwnerAccounts = true,
-            Dictionary<string, string> envOverrides = null)
+            Dictionary<string, string> envOverrides = null,
+            List<TestIdentity> testIdentities = null
+        )
         {
+            // Default to all identities
+            TestIdentities.SetCurrent(testIdentities);
+            CryptographyConstants.ITERATIONS = 3; // Override for tests
+
             // This will trigger any finalizers that are waiting to be run.
             // This is useful to verify that all db's are correctly disposed.
             GC.Collect();
@@ -160,7 +167,7 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
-                $"[{string.Join(",", TestIdentities.All.Values.Select(v => $"\"{v.OdinId}\""))}]");
+                $"[{string.Join(",", TestIdentities.InitializedIdentities.Values.Select(v => $"\"{v.OdinId}\""))}]");
 
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning.dotyou.cloud");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dotyou.cloud\"]");
@@ -229,8 +236,11 @@ namespace Odin.Hosting.Tests
                 //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
                 // }
 
-                Parallel.ForEach(TestIdentities.All.Keys,
-                    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
+                Parallel.ForEach(TestIdentities.InitializedIdentities.Values.Select(i => i.OdinId),
+                    odinId => { _oldOwnerApi.SetupOwnerAccount(odinId, initializeIdentity).GetAwaiter().GetResult(); });
+
+                //Parallel.ForEach(TestIdentities.All.Keys,
+                //    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);
@@ -506,6 +516,35 @@ namespace Odin.Hosting.Tests
             var logEvents = GetLogEvents();
             var expectedEvent = logEvents[LogEventLevel.Debug].Where(l => l.RenderMessage() == message);
             ClassicAssert.IsTrue(expectedEvent.Count() == count);
+        }
+
+        public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel, TimeSpan? maxWaitTime = null)
+        {
+            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+
+            var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
+
+            var sw = Stopwatch.StartNew();
+
+            while (true)
+            {
+                var infoEvents = logEvents[logLevel];
+                infoEvents.Reverse(); // note: we reverse since we are always looking for the most recent property
+                foreach (var infoEvent in infoEvents)
+                {
+                    if (infoEvent.Properties.TryGetValue(propertyName, out var value))
+                    {
+                        return value?.ToString();
+                    }
+                }
+
+                if (sw.Elapsed > maxWait)
+                {
+                    throw new TimeoutException($"Failed waiting to find log property {propertyName} in logLevel {logLevel}");
+                }
+
+                await Task.Delay(100);
+            }
         }
     }
 }

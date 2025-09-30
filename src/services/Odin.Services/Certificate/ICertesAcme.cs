@@ -30,12 +30,5 @@ public interface ICertesAcme
 
 //
 
-public interface IAcmeHttp01TokenCache
-{
-    bool TryGet(string token, out string keyAuth);
-    public void Set(string token, string keyAuth);
-}
-
-//
 
 

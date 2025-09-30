@@ -1,26 +1,15 @@
 using System.Threading.Tasks;
-using Odin.Services.EncryptionKeyService;
-using Odin.Hosting.Controllers.Base;
-using Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using Odin.Services.EncryptionKeyService;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey;
 
-public class PublicPrivateKeyApiClient
+public class PublicPrivateKeyApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
 {
-    private readonly TestIdentity _identity;
-    private readonly OwnerApiTestUtils _ownerApi;
-
-    public PublicPrivateKeyApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
-    {
-        _ownerApi = ownerApi;
-        _identity = identity;
-    }
-
     public async Task<GetPublicKeyResponse> GetSigningPublicKey()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RestService.For<IPublicPrivateKeyHttpClientForOwner>(client);
             var resp = await svc.GetSigningPublicKey();
@@ -31,7 +20,7 @@ public class PublicPrivateKeyApiClient
     
     public async Task<GetPublicKeyResponse> GetOnlinePublicKey()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RestService.For<IPublicPrivateKeyHttpClientForOwner>(client);
             var resp = await svc.GetOnlinePublicKey();
@@ -41,7 +30,7 @@ public class PublicPrivateKeyApiClient
     
     public async Task<GetEccPublicKeyResponse> GetEccOnlinePublicKey()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RestService.For<IPublicPrivateKeyHttpClientForOwner>(client);
             var resp = await svc.GetEccOnlinePublicKey();
@@ -51,7 +40,7 @@ public class PublicPrivateKeyApiClient
     
     public async Task<string> GetEccOfflinePublicKey()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RestService.For<IPublicPrivateKeyHttpClientForOwner>(client);
             var resp = await svc.GetEccOfflinePublicKey();
@@ -61,7 +50,7 @@ public class PublicPrivateKeyApiClient
     
     public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
     {
-        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RestService.For<IPublicPrivateKeyHttpClientForOwner>(client);
             var resp = await svc.GetOfflinePublicKey();

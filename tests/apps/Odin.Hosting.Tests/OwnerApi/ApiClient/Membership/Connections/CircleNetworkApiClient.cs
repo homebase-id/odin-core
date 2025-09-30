@@ -79,7 +79,7 @@ public class CircleNetworkApiClient
 
     public async Task DeleteConnectionRequestFrom(TestIdentity sender)
     {
-        if (!TestIdentities.All.TryGetValue(sender.OdinId, out var senderIdentity))
+        if (!TestIdentities.InitializedIdentities.TryGetValue(sender.OdinId, out var senderIdentity))
         {
             throw new NotImplementedException("need to add your recipient to the list of identities");
         }
@@ -98,11 +98,10 @@ public class CircleNetworkApiClient
 
     public async Task DeleteSentRequestTo(TestIdentity recipient)
     {
-        if (!TestIdentities.All.TryGetValue(recipient.OdinId, out var senderIdentity))
+        if (!TestIdentities.InitializedIdentities.TryGetValue(recipient.OdinId, out var senderIdentity))
         {
             throw new NotImplementedException("need to add your recipient to the list of identities");
         }
-
 
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -118,7 +117,7 @@ public class CircleNetworkApiClient
 
     public async Task SendConnectionRequestTo(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
     {
-        if (!TestIdentities.All.TryGetValue(recipient.OdinId, out var recipientIdentity))
+        if (!TestIdentities.InitializedIdentities.TryGetValue(recipient.OdinId, out var recipientIdentity))
         {
             throw new NotImplementedException("need to add your recipient to the list of identities");
         }
@@ -131,7 +130,7 @@ public class CircleNetworkApiClient
 
     public async Task<ApiResponse<bool>> SendConnectionRequestRaw(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient = null)
     {
-        if (!TestIdentities.All.TryGetValue(recipient.OdinId, out var recipientIdentity))
+        if (!TestIdentities.InitializedIdentities.TryGetValue(recipient.OdinId, out var recipientIdentity))
         {
             throw new NotImplementedException("need to add your recipient to the list of identities");
         }

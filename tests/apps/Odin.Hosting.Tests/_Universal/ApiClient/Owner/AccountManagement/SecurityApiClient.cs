@@ -6,6 +6,8 @@ using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Services.Security;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement;
 

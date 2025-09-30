@@ -291,7 +291,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,data FROM KeyValue " +
-                                             "WHERE identityId = @identityId AND key = @key LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND key = @key LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);

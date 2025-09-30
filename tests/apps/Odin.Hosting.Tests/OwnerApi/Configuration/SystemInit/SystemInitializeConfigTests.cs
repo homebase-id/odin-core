@@ -24,7 +24,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: false);
+            _scaffold.RunBeforeAnyTests(initializeIdentity: false,
+                testIdentities: [TestIdentities.Frodo, TestIdentities.Pippin, TestIdentities.Samwise]);
         }
 
         [OneTimeTearDown]
@@ -48,7 +49,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
 
         [Test]
-        public async Task CanInitializeSystem_WithAllRsaKeys()
+        public async Task CanInitializeSystem_WithAllKeys()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
 
@@ -79,13 +80,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(signingKey.Crc32 > 0);
 
             //
-            // Online key should exist
-            //
-            var onlinePublicKey = await ownerClient.PublicPrivateKey.GetOnlinePublicKey();
-            ClassicAssert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
-            ClassicAssert.IsTrue(onlinePublicKey.Crc32 > 0);
-
-            //
             // Online Ecc key should exist
             var onlineEccPk = await ownerClient.PublicPrivateKey.GetEccOnlinePublicKey();
             ClassicAssert.IsTrue(onlineEccPk.PublicKeyJwkBase64Url.Length > 0);
@@ -99,15 +93,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             // ClassicAssert.IsTrue(offlineEccPk.PublicKey.Length > 0);
             // ClassicAssert.IsTrue(offlineEccPk.Crc32 > 0);
 
-            //
-            // offline key should exist
-            //
-            var offlinePublicKey = await ownerClient.PublicPrivateKey.GetOfflinePublicKey();
-            ClassicAssert.IsTrue(offlinePublicKey.PublicKey.Length > 0);
-            ClassicAssert.IsTrue(offlinePublicKey.Crc32 > 0);
-
-            CollectionAssert.AreNotEquivalent(signingKey.PublicKey, onlinePublicKey.PublicKey);
-            CollectionAssert.AreNotEquivalent(onlinePublicKey.PublicKey, offlinePublicKey.PublicKey);
         }
 
         [Test]
@@ -176,13 +161,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 7);
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
-                dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
+                dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
+                dg.PermissionedDrive.Permission == DrivePermission.Read));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
-            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Permissions.Keys.Count == 1, "By default, the system circle should have 1 permission");
-            ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
+            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Permissions.Keys.Count == 1,
+                "By default, the system circle should have 1 permission");
+            ClassicAssert.IsNotNull(
+                connectedIdentitiesSystemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MailDrive &&
@@ -299,7 +287,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             foreach (var expectedDrive in expectedDrives)
             {
-                ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive), $"expected drive [{expectedDrive}] not found");
+                ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == expectedDrive),
+                    $"expected drive [{expectedDrive}] not found");
             }
 
             var getCircleDefinitionsResponse = await ownerClient.Membership.GetCircleDefinitions(includeSystemCircle: true);
@@ -316,7 +305,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
             ClassicAssert.IsTrue(systemCircle.Name == "Confirmed Connected Identities");
             ClassicAssert.IsTrue(systemCircle.Description ==
-                          "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection");
+                                 "Contains identities which you have confirmed as a connection, either by approving the connection yourself or upgrading an introduced connection");
             ClassicAssert.IsTrue(systemCircle.Permissions.Keys.Count == 1, "By default, the system circle should have 1 permission");
             ClassicAssert.IsNotNull(systemCircle.Permissions.Keys.SingleOrDefault(k => k == PermissionKeys.AllowIntroductions));
 
@@ -344,7 +333,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsNotNull(additionalCircle);
             ClassicAssert.IsTrue(additionalCircle.Name == "le circle");
             ClassicAssert.IsTrue(additionalCircle.Description == "an additional circle");
-            ClassicAssert.IsTrue(additionalCircle.DriveGrants.Count(dg => dg.PermissionedDrive == additionalCircle.DriveGrants.Single().PermissionedDrive) == 1,
+            ClassicAssert.IsTrue(
+                additionalCircle.DriveGrants.Count(dg => dg.PermissionedDrive == additionalCircle.DriveGrants.Single().PermissionedDrive) ==
+                1,
                 "The contact drive should be in the additional circle");
         }
 

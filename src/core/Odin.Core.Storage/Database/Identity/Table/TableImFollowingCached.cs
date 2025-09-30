@@ -47,12 +47,12 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
 
     //
 
-    public async Task<List<ImFollowingRecord>> GetAsync(OdinId identity, TimeSpan ttl)
+    public async Task<List<ImFollowingRecord>> GetAsync(OdinId identity, TimeSpan? ttl = null)
     {
         var result =  await Cache.GetOrSetAsync(
             GetCacheKey(identity),
             _ => table.GetAsync(identity),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 
@@ -70,12 +70,12 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
     public async Task<(List<string> followers, string nextCursor)> GetAllFollowersAsync(
         int count,
         string? inCursor,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "GetAllFollowers" + ":" + count + ":" + inCursor,
             _ => table.GetAllFollowersAsync(count, inCursor),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 
@@ -85,12 +85,12 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
         int count,
         Guid driveId,
         string? inCursor,
-        TimeSpan ttl)
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             "GetFollowers" + ":" + count + ":" + driveId + ":" + inCursor,
             _ => table.GetFollowersAsync(count, driveId, inCursor),
-            ttl);
+            ttl ?? DefaultTtl);
         return result;
     }
 

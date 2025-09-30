@@ -22,24 +22,44 @@ public sealed class VersionUpgradeScheduler(
 
     public async Task EnsureScheduledAsync(
         ClientAuthenticationToken token,
-        IOdinContext odinContext)
+        IOdinContext odinContext,
+        bool force = false)
     {
         if (!odinContext.Caller.HasMasterKey)
         {
+            logger.LogDebug("VersionUpgradeScheduler -> Caller does not have master key");
             return;
         }
 
         if (string.IsNullOrEmpty(odinContext.Tenant.DomainName))
         {
+            logger.LogDebug("VersionUpgradeScheduler -> No tenant domain name");
             return;
         }
-        
-        var (upgradeRequired, _, _) = await RequiresUpgradeAsync();
-        if (!upgradeRequired)
+
+        var (upgradeRequired, currentVersion, failureInfo) = await RequiresUpgradeAsync();
+
+        if (force)
         {
-            return;
+            logger.LogDebug("VersionUpgradeScheduler -> Tenant is on v{cv}.  Forcing version upgrade", currentVersion);
         }
-        
+        else 
+        {
+            if (!upgradeRequired)
+            {
+                var failureText = "";
+                if (failureInfo != null)
+                {
+                    failureText = $"(Failure Info: {failureInfo.BuildVersion} " +
+                                  $"Last Attempt: {failureInfo.LastAttempted} " +
+                                  $"Failed version: {failureInfo.FailedDataVersionNumber})";
+                }
+
+                logger.LogDebug("VersionUpgradeScheduler -> Tenant is on v{cv}.  Upgrade not required {fi}", currentVersion, failureText);
+                return;
+            }
+        }
+
         var job = _jobManager.NewJob<VersionUpgradeJob>();
 
         var (iv, encryptedToken) = AesCbc.Encrypt(token.ToPortableBytes(), tenantContext.TemporalEncryptionKey);
@@ -51,7 +71,7 @@ public sealed class VersionUpgradeScheduler(
             EncryptedToken = encryptedToken
         };
 
-        logger.LogInformation("Scheduling version upgrade job");
+        logger.LogInformation("Scheduling version upgrade job. Tenant current version: {cv}.", currentVersion);
         await _jobManager.ScheduleJobAsync(job, new JobSchedule
         {
             RunAt = DateTimeOffset.Now,

@@ -214,11 +214,11 @@ public class DriveQuery(
             DriveMainIndexRecord ru = null;
             DriveMainIndexRecord rt = null;
 
-            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+            rf = await tblDriveMainIndex.GetAsync(drive.Id, fileMetadata.File.FileId);
             if (fileMetadata.AppData.UniqueId.HasValue)
-                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+                ru = await tblDriveMainIndex.GetByUniqueIdAsync(drive.Id, fileMetadata.AppData.UniqueId.Value);
             if (fileMetadata.GlobalTransitId.HasValue)
-                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+                rt = await tblDriveMainIndex.GetByGlobalTransitIdAsync(drive.Id, fileMetadata.GlobalTransitId.Value);
 
             string s = "";
             DriveMainIndexRecord r = null;
@@ -293,7 +293,7 @@ public class DriveQuery(
 
     public async Task<ServerFileHeader> GetFileHeaderAsync(StorageDrive drive, Guid fileId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+        var record = await tblDriveMainIndex.GetAsync(drive.Id, fileId);
 
         if (null == record || record.fileSystemType != (int)fileSystemType)
         {
@@ -323,11 +323,12 @@ public class DriveQuery(
 
     public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete)
     {
-        bool success = false;
+        bool inserted = false;
 
         await using (var tx = await db.BeginStackedTransactionAsync())
         {
-            success = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
+            // inserted will be false if the reaction was already in the database
+            inserted = await tblDriveReactions.TryInsertAsync(new DriveReactionsRecord()
             {
                 driveId = drive.Id,
                 identity = odinId,
@@ -335,30 +336,23 @@ public class DriveQuery(
                 singleReaction = reaction
             });
 
-            if (success)
+            if (markComplete != null)
             {
-                if (markComplete != null)
-                {
-                    var n = await markComplete.ExecuteAsync();
+                int n = await markComplete.ExecuteAsync();
 
-                    if (n != 1)
-                        throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
-                }
+                if (n != 1)
+                    throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
             }
 
-            if (success)
-                tx.Commit();
+            tx.Commit();
         }
 
         // Both these exception need to be scrutinized. Look up in the inbox handler. We need to 
         // be very deliberate about when we remove it from the inbox and when we try again. If for
         // example we fail to markComplete, but the reaction insert was successful, we should try again,
         // but otherwise we should delete from inbox !!
-
-        if (!success)
-        {
+        if (!inserted)
             throw new OdinClientException("Cannot add duplicate reaction");
-        }
     }
 
     public async Task DeleteReactionsAsync(StorageDrive drive, OdinId odinId, Guid fileId)
@@ -427,13 +421,13 @@ public class DriveQuery(
 
     public async Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive)
     {
-        var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(drive.Id, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+        var (count, size) = await tblDriveMainIndex.GetDriveSizeAsync(drive.Id);
         return (count, size);
     }
 
     public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+        var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
         if (null == record)
         {
             return null;
@@ -449,7 +443,7 @@ public class DriveQuery(
 
     public async Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
     {
-        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromMinutes(10)); // MS:TODO ttl
+        var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
 
         if (null == record)
         {

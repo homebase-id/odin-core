@@ -1,14 +1,15 @@
-using System;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
-using Odin.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests.AppAPI.Circle
 {
@@ -21,7 +22,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise });
         }
 
         [OneTimeTearDown]

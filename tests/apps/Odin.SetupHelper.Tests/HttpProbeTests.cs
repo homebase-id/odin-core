@@ -26,6 +26,7 @@ public class HttpProbeTests
     }
     
     [Test]
+    [Explicit] // Not always available
     public async Task ItShouldProbePortHttpPort()
     {
         var correlationId = Guid.NewGuid();
@@ -39,6 +40,7 @@ public class HttpProbeTests
     }
     
     [Test]
+    [Explicit] // Not always available
     public async Task ItShouldProbePortHttpsPort()
     {
         var correlationId = Guid.NewGuid();

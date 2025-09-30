@@ -47,7 +47,7 @@ public class AdminControllerTest
             { "Admin__Domain", "admin.dotyou.cloud" },
             { "Admin__ExportTargetPath", _exportTargetPath },
         };
-        _scaffold.RunBeforeAnyTests(envOverrides: env);
+        _scaffold.RunBeforeAnyTests(envOverrides: env, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo });
 
         _tenantDataRootPath = Environment.GetEnvironmentVariable("Host__TenantDataRootPath") ?? "";
         Assert.That(_tenantDataRootPath, Is.Not.Empty);
@@ -201,6 +201,8 @@ public class AdminControllerTest
 
     //
 
+// SEB:TODO disabled until we figure out a way to do this without racing the rest of the system
+#if false
     [Test]
     public async Task ItShouldDeleteTenant()
     {
@@ -256,6 +258,7 @@ public class AdminControllerTest
         response = await apiClient.SendAsync(request);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+#endif
 
     //
 

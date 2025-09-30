@@ -300,7 +300,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,value,created,modified FROM Settings " +
-                                             "WHERE key = @key LIMIT 1;"+
+                                             "WHERE key = @key LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@key", DbType.String, key);

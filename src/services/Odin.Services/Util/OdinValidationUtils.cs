@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 using System.Text.RegularExpressions;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -150,5 +151,13 @@ public static class OdinValidationUtils
     public static void AssertMaxStringLength(string content, int maxLength, string message)
     {
         AssertIsTrue((content?.Length ?? 0) < maxLength, message);
+    }
+
+    public static void AssertValidEmail(string email, string message)
+    {
+        if (!MailAddress.TryCreate(email, out _))
+        {
+            throw new OdinClientException(message, OdinClientErrorCode.InvalidEmail);
+        }
     }
 }

@@ -1,13 +1,14 @@
-using System;
-using System.Collections;
-using System.Net;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.DriveTests.LocalAppMetadata;
 
@@ -20,7 +21,7 @@ public class LocalAppMetadataContentTests
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Pippin });
     }
 
     [OneTimeTearDown]

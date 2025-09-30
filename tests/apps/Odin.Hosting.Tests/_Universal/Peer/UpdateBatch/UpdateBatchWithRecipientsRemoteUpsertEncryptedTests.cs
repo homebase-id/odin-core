@@ -33,7 +33,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: TestIdentities.Defaults );
     }
 
     [OneTimeTearDown]

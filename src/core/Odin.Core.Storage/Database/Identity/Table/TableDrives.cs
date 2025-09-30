@@ -14,39 +14,45 @@ public class TableDrives(
 {
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    public async Task<DrivesRecord> GetAsync(Guid driveId)
+    internal async Task<DrivesRecord> GetAsync(Guid driveId)
     {
         return await base.GetByDriveIdAsync(odinIdentity, driveId);
     }
 
-    public async Task<List<DrivesRecord>> GetDrivesByType(Guid driveType)
+    internal async Task<List<DrivesRecord>> GetDrivesByTypeAsync(Guid driveType)
     {
         return await base.GetByDriveTypeAsync(odinIdentity, driveType);
     }
 
-    public new async Task<int> InsertAsync(DrivesRecord item)
+    internal new async Task<int> InsertAsync(DrivesRecord item)
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
     }
 
-    public new async Task<int> UpsertAsync(DrivesRecord item)
+    internal new async Task<bool> TryInsertAsync(DrivesRecord item)
+    {
+        item.identityId = odinIdentity;
+        return await base.TryInsertAsync(item);
+    }
+
+    internal new async Task<int> UpsertAsync(DrivesRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
 
-    public async Task<(List<DrivesRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor)
+    internal async Task<(List<DrivesRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor)
     {
         return await base.PagingByCreatedAsync(count, odinIdentity, inCursor, null);
     }
 
-    public async Task<DrivesRecord> GetByTargetDriveAsync(Guid driveAlias, Guid driveType)
+    internal async Task<DrivesRecord> GetByTargetDriveAsync(Guid driveAlias, Guid driveType)
     {
         return await base.GetByTargetDriveAsync(odinIdentity, driveAlias, driveType);
     }
 
-    public new async Task<int> GetCountAsync()
+    internal new async Task<int> GetCountAsync()
     {
         return await base.GetCountAsync();
     }

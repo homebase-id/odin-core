@@ -500,9 +500,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var tc = CreateTenantContext(registration.PrimaryDomainName);
         tenantContext.Update(tc);
 
-        var driveManager = scope.Resolve<IDriveManager>();
-        await driveManager.LoadCacheAsync();
-
         var tenantConfigService = scope.Resolve<TenantConfigService>();
         await tenantConfigService.InitializeAsync();
     }

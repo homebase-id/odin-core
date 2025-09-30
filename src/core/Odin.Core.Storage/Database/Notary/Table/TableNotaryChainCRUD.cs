@@ -353,7 +353,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKeyJwkBase64Url,recordHash FROM NotaryChain " +
-                                             "WHERE notarySignature = @notarySignature LIMIT 1;"+
+                                             "WHERE notarySignature = @notarySignature LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@notarySignature", DbType.Binary, notarySignature);

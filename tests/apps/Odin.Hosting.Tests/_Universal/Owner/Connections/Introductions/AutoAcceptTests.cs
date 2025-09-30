@@ -1,9 +1,3 @@
-using System;
-using System.Collections;
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
@@ -12,6 +6,13 @@ using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections.Introductions;
 
@@ -24,7 +25,7 @@ public class AutoAcceptTests
     {
         string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests();
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Merry, TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]

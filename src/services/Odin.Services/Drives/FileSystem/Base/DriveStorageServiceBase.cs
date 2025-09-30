@@ -1257,7 +1257,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
+            _logger.LogDebug("Calling header.validate on gtid: {file}", header.FileMetadata.GlobalTransitId);
             header.Validate(odinContext);
+            
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
 

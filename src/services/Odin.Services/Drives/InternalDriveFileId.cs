@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Odin.Core.Exceptions;
 
 
 namespace Odin.Services.Drives
@@ -36,7 +37,16 @@ namespace Odin.Services.Drives
         {
             return DriveId != Guid.Empty && FileId != Guid.Empty;
         }
-        
+
+        public void Validate()
+        {
+            if (!IsValid())
+            {
+                throw new OdinSystemException($"InternalDriveFileId is not valid " + ToString());
+            }
+        }
+
+
         public TempFile AsTempFileUpload()
         {
             return new TempFile()

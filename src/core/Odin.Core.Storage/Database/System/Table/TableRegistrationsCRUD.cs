@@ -348,7 +348,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,email,primaryDomainName,firstRunToken,disabled,markedForDeletionDate,planId,json,created,modified FROM Registrations " +
-                                             "WHERE identityId = @identityId LIMIT 1;"+
+                                             "WHERE identityId = @identityId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);

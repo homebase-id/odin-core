@@ -43,7 +43,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
 
         public async Task ValidateUpgradeAsync(IOdinContext odinContext, CancellationToken cancellationToken)
         {
-            var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
+            var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias, false);
 
             if (shardDrive == null)
             {

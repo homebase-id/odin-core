@@ -284,7 +284,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,circleName,data FROM Circle " +
-                                             "WHERE identityId = @identityId AND circleId = @circleId LIMIT 1;"+
+                                             "WHERE identityId = @identityId AND circleId = @circleId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);

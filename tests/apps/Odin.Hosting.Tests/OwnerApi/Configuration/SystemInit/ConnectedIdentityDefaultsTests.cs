@@ -7,6 +7,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
+using System.Collections.Generic;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -19,7 +20,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests(initializeIdentity: false);
+            _scaffold.RunBeforeAnyTests(initializeIdentity: false, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Merry });
         }
 
         [OneTimeTearDown]
