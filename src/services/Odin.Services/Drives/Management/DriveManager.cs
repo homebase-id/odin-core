@@ -384,7 +384,7 @@ public class DriveManager : IDriveManager
     {
         var driveDetails = OdinSystemSerializer.Deserialize<StorageDriveDetails>(record.detailsJson);
 
-        StorageDriveBase sdb = new()
+        var sdd = new StorageDriveData()
         {
             Id = record.DriveId,
             TempOriginalDriveId = record.TempOriginalDriveId,
@@ -409,6 +409,6 @@ public class DriveManager : IDriveManager
             Attributes = driveDetails.Attributes
         };
 
-        return new StorageDrive(_tenantContext.TenantPathManager, sdb);
+        return new StorageDrive(_tenantContext.TenantPathManager, sdd);
     }
 }
