@@ -80,7 +80,6 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
-
         var existingDriveByTargetDriveAsync = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
         if (null != existingDriveByTargetDriveAsync)
         {
@@ -131,7 +130,7 @@ public class DriveManager : IDriveManager
             storageKey.Wipe();
         }
 
-        var storageDrive = ToStorageDrive(record);
+        var storageDrive = ToStorageDrive(ToStorageDriveData(record));
         storageDrive.CreateDirectories();
 
         _logger.LogDebug("Created a new Drive - {drive}", storageDrive.TargetDriveInfo);
@@ -171,7 +170,7 @@ public class DriveManager : IDriveManager
         {
             storageDrive.AllowAnonymousReads = allowAnonymous;
 
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
             await _mediator.Publish(new DriveDefinitionAddedNotification
             {
@@ -207,7 +206,7 @@ public class DriveManager : IDriveManager
         {
             storageDrive.AllowSubscriptions = allowSubscriptions;
 
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive));
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
             await _mediator.Publish(new DriveDefinitionAddedNotification
             {
@@ -248,18 +247,23 @@ public class DriveManager : IDriveManager
 
     public async Task<StorageDrive?> GetDriveAsync(Guid driveId, bool failIfInvalid = false)
     {
-        var drive = await _driveCache.GetOrSetAsync(
+        var driveData = await _driveCache.GetOrSetAsync(
             CacheKeyDrive + driveId,
             _ => GetDriveInternal(driveId),
             CacheTtl,
             RootInvalidationTag);
 
-        if (drive == null && failIfInvalid)
+        if (driveData == null)
         {
-            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+            if (failIfInvalid)
+            {
+                throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+            }
+
+            return null;
         }
 
-        return drive;
+        return ToStorageDrive(driveData);
     }
 
     public async Task<PagedResult<StorageDrive>> GetDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
@@ -299,7 +303,7 @@ public class DriveManager : IDriveManager
         return results;
     }
 
-    private async Task<StorageDrive?> GetDriveInternal(Guid driveId)
+    private async Task<StorageDriveData?> GetDriveInternal(Guid driveId)
     {
         var record = await _tableDrives.GetAsync(driveId);
         if (record == null)
@@ -307,11 +311,11 @@ public class DriveManager : IDriveManager
             return null;
         }
 
-        var drive = ToStorageDrive(record);
+        var drive = ToStorageDriveData(record);
         return drive;
     }
 
-    private static DrivesRecord ToRecord(StorageDrive storageDrive)
+    private static DrivesRecord ToRecord(StorageDriveData storageDrive)
     {
         var details = new StorageDriveDetails
         {
@@ -345,15 +349,17 @@ public class DriveManager : IDriveManager
         PageOptions pageOptions,
         IOdinContext odinContext)
     {
-        var allDrives = await _driveCache.GetOrSetAsync(
+        var allDrivesData = await _driveCache.GetOrSetAsync(
             CacheKeyAllDrives,
             async _ =>
             {
                 var (drives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-                return drives.Select(ToStorageDrive).ToList();
+                return drives.Select(ToStorageDriveData);
             },
             CacheTtl,
             RootInvalidationTag);
+
+        var allDrives = allDrivesData.Select(ToStorageDrive).ToList();
 
         var caller = odinContext.Caller;
         if (caller?.IsOwner ?? false)
@@ -380,11 +386,11 @@ public class DriveManager : IDriveManager
         return result;
     }
 
-    private StorageDrive ToStorageDrive(DrivesRecord record)
+    private StorageDriveData ToStorageDriveData(DrivesRecord record)
     {
         var driveDetails = OdinSystemSerializer.Deserialize<StorageDriveDetails>(record.detailsJson);
 
-        var sdd = new StorageDriveData()
+        var sdd = new StorageDriveData
         {
             Id = record.DriveId,
             TempOriginalDriveId = record.TempOriginalDriveId,
@@ -409,6 +415,12 @@ public class DriveManager : IDriveManager
             Attributes = driveDetails.Attributes
         };
 
+        return sdd;
+    }
+
+    private StorageDrive ToStorageDrive(StorageDriveData sdd)
+    {
         return new StorageDrive(_tenantContext.TenantPathManager, sdd);
     }
+
 }

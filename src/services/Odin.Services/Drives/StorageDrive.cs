@@ -17,41 +17,43 @@ namespace Odin.Services.Drives;
 [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
 public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDriveData data)
 {
-    public Guid Id => data.Id;
-    public string Name => data.Name;
-    public TargetDrive TargetDriveInfo => data.TargetDriveInfo;
-    public Guid TempOriginalDriveId => data.TempOriginalDriveId;
+    internal StorageDriveData Data { get; } = data;
+
+    public Guid Id => Data.Id;
+    public string Name => Data.Name;
+    public TargetDrive TargetDriveInfo => Data.TargetDriveInfo;
+    public Guid TempOriginalDriveId => Data.TempOriginalDriveId;
     public string Metadata
     {
-        get => data.Metadata;
-        set => data.Metadata = value;
+        get => Data.Metadata;
+        set => Data.Metadata = value;
     }
     public bool IsReadonly
     {
-        get => data.IsReadonly;
-        set => data.IsReadonly = value;
+        get => Data.IsReadonly;
+        set => Data.IsReadonly = value;
     }
     public bool AllowSubscriptions
     {
-        get => data.AllowSubscriptions;
-        set => data.AllowSubscriptions = value;
+        get => Data.AllowSubscriptions;
+        set => Data.AllowSubscriptions = value;
     }
-    public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => data.MasterKeyEncryptedStorageKey;
-    public byte[] EncryptedIdIv => data.EncryptedIdIv;
-    public byte[] EncryptedIdValue => data.EncryptedIdValue;
+    public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => Data.MasterKeyEncryptedStorageKey;
+    public byte[] EncryptedIdIv => Data.EncryptedIdIv;
+    public byte[] EncryptedIdValue => Data.EncryptedIdValue;
     public bool AllowAnonymousReads
     {
-        get => data.AllowAnonymousReads;
-        set => data.AllowAnonymousReads = value;
+        get => Data.AllowAnonymousReads;
+        set => Data.AllowAnonymousReads = value;
     }
 
     public Dictionary<string, string> Attributes
     {
-        get => data.Attributes ?? new Dictionary<string, string>();
-        set => data.Attributes = value;
+        get => Data.Attributes ?? new Dictionary<string, string>();
+        set => Data.Attributes = value;
     }
 
-    public bool OwnerOnly => data.OwnerOnly;
+    public bool OwnerOnly => Data.OwnerOnly;
 
     public string GetDrivePayloadPath()
     {
