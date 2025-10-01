@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Caller;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -37,7 +38,7 @@ namespace Odin.Hosting.Middleware
         }
 
         /// <summary/>
-        public async Task Invoke(HttpContext httpContext, IOdinContext odinContext)
+        public async Task Invoke(HttpContext httpContext, IOdinContext odinContext, ICallerLogContext callerLogContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -50,6 +51,8 @@ namespace Odin.Hosting.Middleware
                 {
                     odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                     await LoadLinkPreviewContextAsync(httpContext, odinContext);
+                    callerLogContext.Caller = odinContext?.Caller?.OdinId ?? "anonymous";
+
                 }
                 catch (Exception e)
                 {
@@ -68,6 +71,8 @@ namespace Odin.Hosting.Middleware
             if (authType == PeerAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContextAsync(httpContext, odinContext);
+                callerLogContext.Caller = odinContext?.Caller?.OdinId;
+
                 await _next(httpContext);
                 return;
             }
@@ -75,6 +80,8 @@ namespace Odin.Hosting.Middleware
             if (authType == PeerAuthConstants.FeedAuthScheme)
             {
                 await LoadIdentitiesIFollowContextAsync(httpContext, odinContext);
+                callerLogContext.Caller = odinContext?.Caller?.OdinId;
+
                 await _next(httpContext);
                 return;
             }
@@ -90,10 +97,13 @@ namespace Odin.Hosting.Middleware
             if (authType == PeerAuthConstants.PublicTransitAuthScheme)
             {
                 await LoadPublicTransitContextAsync(httpContext, odinContext);
+                callerLogContext.Caller = odinContext?.Caller?.OdinId;
+ 
                 await _next(httpContext);
                 return;
             }
 
+            callerLogContext.Caller = odinContext?.Caller?.OdinId;
             await _next(httpContext);
         }
 
