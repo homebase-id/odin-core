@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Serialization;
@@ -21,6 +22,12 @@ using Odin.Services.Drives.FileSystem.Standard;
 
 namespace Odin.Services.Optimization.Cdn;
 
+// Filenames (now used as db keys):
+// - sitedata.json: https://frodo.dotyou.cloud
+// - public_image.json: https://frodo.dotyou.cloud/pub/image
+// - public_profile.json: https://frodo.dotyou.cloud/pub/profile
+// - public.json: ???
+
 public enum CrossOriginBehavior
 {
     /// <summary>
@@ -36,7 +43,7 @@ public enum CrossOriginBehavior
     //Whitelist = 2,
 }
 
-public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDatabase db)
+public class StaticFileContentService(ILogger<StaticFileContentService> logger, StandardFileSystem fileSystem, IdentityDatabase db)
 {
     private static readonly SingleKeyValueStorage StaticFileConfigStorage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("3609449a-2f7f-4111-b300-3408a920aa2e"));
@@ -68,6 +75,14 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
         };
 
         var sectionOutputList = new List<SectionOutput>();
+
+        var timestamp = new SectionOutput
+        {
+            Name = "_ts:" + DateTimeOffset.Now.ToString("O"),
+            Files = []
+        };
+        sectionOutputList.Add(timestamp);
+
 
         foreach (var section in sections)
         {
@@ -136,14 +151,19 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
             });
         }
 
-        var data = OdinSystemSerializer.Serialize(sectionOutputList).ToUtf8ByteArray();
+        var data = OdinSystemSerializer.Serialize(sectionOutputList);
 
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
 
-        await using var tx = await db.BeginStackedTransactionAsync();
-        await StaticFileConfigStorage.UpsertAsync(db.KeyValueCached, GetConfigKey(filename), config);
-        await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), data);
+        await using (var tx = await db.BeginStackedTransactionAsync())
+        {
+            await StaticFileConfigStorage.UpsertAsync(db.KeyValueCached, GetConfigKey(filename), config);
+            await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), data.ToUtf8ByteArray());
+            tx.Commit();
+        }
+
+        logger.LogDebug("Wrote static file {Filename}", filename);
 
         return result;
     }
@@ -163,6 +183,7 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
         await using var tx = await db.BeginStackedTransactionAsync();
         await StaticFileConfigStorage.UpsertAsync(db.KeyValueCached, GetConfigKey(filename), config);
         await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), imageBytes);
+        tx.Commit();
     }
 
     public async Task PublishProfileCardAsync(string json)
@@ -179,6 +200,7 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
         await using var tx = await db.BeginStackedTransactionAsync();
         await StaticFileConfigStorage.UpsertAsync(db.KeyValueCached, GetConfigKey(filename), config);
         await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), json.ToUtf8ByteArray());
+        tx.Commit();
     }
 
     private GuidId GetConfigKey(string filename)
@@ -192,7 +214,7 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
     }
 
 
-    public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStreamAsync(
+    public async Task<(StaticFileConfiguration config, bool fileExists, byte[] bytes)> GetStaticFileStreamAsync(
         string filename,
         UnixTimeUtc? ifModifiedSince = null)
     {
@@ -200,7 +222,7 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
 
         if (config == null)
         {
-            return (null, false, Stream.Null);
+            return (null, false, null);
         }
 
         if (ifModifiedSince != null) //I was asked to check...
@@ -208,20 +230,17 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
             bool wasModified = config.LastModified > ifModifiedSince;
             if (!wasModified)
             {
-                return (config, fileExists: true, Stream.Null);
+                return (config, fileExists: true, null);
             }
         }
 
         var bytes = await StaticFileConfigStorage.GetBytesAsync(db.KeyValueCached, GetDataKey(filename));
-        if (bytes == null || bytes.Length == 0)
+        if (bytes == null)
         {
-            return (config, false, Stream.Null);
+            return (config, false, null);
         }
 
-        var data = new MemoryStream(bytes, writable: false);
-
-        // SEB:NOTE we could change the caller to return FileContentResult(bytes, config.ContentType), the we won't need the stream
-        return (config, fileExists: true, data);
+        return (config, fileExists: true, bytes);
     }
 
     private IEnumerable<SharedSecretEncryptedFileHeader> Filter(IEnumerable<SharedSecretEncryptedFileHeader> headers)

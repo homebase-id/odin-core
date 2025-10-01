@@ -7,6 +7,7 @@ using Odin.Services.Optimization.Cdn;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -33,22 +34,14 @@ public class DidService(
     {
         var domain = context.Tenant.DomainName;
 
-        var (_, fileExists, fileStream) = await staticFileContentService.GetStaticFileStreamAsync(
+        var (_, fileExists, bytes) = await staticFileContentService.GetStaticFileStreamAsync(
             StaticFileConstants.PublicProfileCardFileName);
 
         var profile = new StaticPublicProfile();
-        if (fileExists && fileStream != null)
+        if (fileExists && bytes is { Length: > 0 })
         {
-            try
-            {
-                using var reader = new StreamReader(fileStream);
-                var content = await reader.ReadToEndAsync();
-                profile = OdinSystemSerializer.DeserializeOrThrow<StaticPublicProfile>(content);
-            }
-            finally
-            {
-                await fileStream.DisposeAsync();
-            }
+            var s = Encoding.UTF8.GetString(bytes);
+            profile = OdinSystemSerializer.DeserializeOrThrow<StaticPublicProfile>(s);
         }
 
         var signingPublicKey = await publicKeyService.GetSigningPublicKeyAsync();
