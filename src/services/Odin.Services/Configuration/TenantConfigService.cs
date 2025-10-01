@@ -8,7 +8,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Services.Apps;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -151,6 +150,13 @@ public class TenantConfigService
         //ok for anonymous to query this as long as we're only returning a bool
         var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValueCached, FirstRunInfo.Key);
         return firstRunInfo != null;
+    }
+    
+    public async Task<UnixTimeUtc?> GetFirstRunDateAsync()
+    {
+        //ok for anonymous to query this as long as we're only returning a bool
+        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValueCached, FirstRunInfo.Key);
+        return firstRunInfo?.FirstRunDate;
     }
 
     public async Task<bool> IsEulaSignatureRequiredAsync(IOdinContext odinContext)

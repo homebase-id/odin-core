@@ -41,10 +41,23 @@ public class OwnerSecurityController : OdinControllerBase
         return WebOdinContext.Redacted();
     }
 
+    [HttpPost("confirm-stored-recovery-key")]
+    public async Task ConfirmStoredRecoveryKey()
+    {
+        await _recoveryService.ConfirmInitialRecoveryKeyStorage(WebOdinContext);
+    }
+
     [HttpGet("recovery-key")]
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
         return await _recoveryService.GetKeyAsync(byPassWaitingPeriod: false, WebOdinContext);
+    }
+
+    [HttpPost("request-recovery-key")]
+    public async Task<ActionResult<RequestRecoveryKeyResult>> RequestRecoveryKey()
+    {
+        var result = await _recoveryService.RequestRecoveryKey(WebOdinContext);
+        return result;
     }
 
     [HttpPost("resetpasswd")]

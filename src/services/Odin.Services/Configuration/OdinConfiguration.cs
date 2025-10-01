@@ -114,12 +114,10 @@ namespace Odin.Services.Configuration
             {
                 PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", new List<string>());
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
-                RecoveryKeyWaitingPeriodSeconds = config.Required<int>("Development:RecoveryKeyWaitingPeriodSeconds");
             }
 
             public List<string> PreconfiguredDomains { get; init; }
             public string SslSourcePath { get; init; }
-            public double RecoveryKeyWaitingPeriodSeconds { get; init; }
         }
 
         public class RegistrySection
