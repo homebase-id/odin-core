@@ -42,7 +42,7 @@ public enum CrossOriginBehavior
     //Whitelist = 2,
 }
 
-public class StaticFileContentService(ILogger<StaticFileContentService> logger, StandardFileSystem fileSystem, IdentityDatabase db)
+public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDatabase db)
 {
     private static readonly SingleKeyValueStorage StaticFileConfigStorage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("3609449a-2f7f-4111-b300-3408a920aa2e"));
@@ -160,8 +160,6 @@ public class StaticFileContentService(ILogger<StaticFileContentService> logger, 
             await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), data.ToUtf8ByteArray());
             tx.Commit();
         }
-
-        // logger.LogDebug("Wrote static file {Filename}", filename);
 
         return result;
     }
