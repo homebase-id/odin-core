@@ -30,6 +30,12 @@ public class TableDrives(
         return await base.InsertAsync(item);
     }
 
+    internal new async Task<bool> TryInsertAsync(DrivesRecord item)
+    {
+        item.identityId = odinIdentity;
+        return await base.TryInsertAsync(item);
+    }
+
     internal new async Task<int> UpsertAsync(DrivesRecord item)
     {
         item.identityId = odinIdentity;

@@ -65,7 +65,7 @@ public sealed class TransactionalCache
         _cacheStats = cacheStats;
         _scopedConnectionFactory = scopedConnectionFactory;
         _keyPrefix = keyPrefix;
-        _rootTag = [_cache.CacheKeyPrefix + ":" + rootTag];
+        _rootTag = [rootTag];
         RootTag = _rootTag.First();
     }
 
