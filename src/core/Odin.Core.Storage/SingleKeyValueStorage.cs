@@ -46,6 +46,12 @@ public class SingleKeyValueStorage
         return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
+    public async Task<byte[]> GetBytesAsync(TableKeyValueCached tblKeyValue, Guid key)
+    {
+        var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
+        return item?.data;
+    }
+
     public async Task UpsertManyAsync<T>(TableKeyValueCached tblKeyValue, List<(Guid key, T value)> keyValuePairs)
     {
         var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
@@ -61,6 +67,11 @@ public class SingleKeyValueStorage
     {
         var json = OdinSystemSerializer.Serialize(value);
         return await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+    }
+
+    public async Task<int> UpsertBytesAsync(TableKeyValueCached tblKeyValue, Guid key, byte[] value)
+    {
+        return await tblKeyValue.UpsertAsync(new KeyValueRecord { key = MakeStorageKey(key), data = value });
     }
 
     public async Task DeleteAsync(TableKeyValueCached tblKeyValue, Guid key)
