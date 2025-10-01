@@ -52,7 +52,7 @@ public static class ImportStaticFiles
         {
             var data = await File.ReadAllBytesAsync(path);
 
-            logger.LogInformation("Tenant: {tenantId} importing: {path} size: {size}", tenantContext.HostOdinId, path, data.Length);
+            logger.LogInformation("Tenant: {tenantId}   importing: {path} size: {size}", tenantContext.HostOdinId, path, data.Length);
 
             await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), data);
         }
