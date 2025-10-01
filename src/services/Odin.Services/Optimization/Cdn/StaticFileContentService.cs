@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
@@ -76,13 +75,12 @@ public class StaticFileContentService(ILogger<StaticFileContentService> logger, 
 
         var sectionOutputList = new List<SectionOutput>();
 
-        var timestamp = new SectionOutput
-        {
-            Name = "_ts:" + DateTimeOffset.Now.ToString("O"),
-            Files = []
-        };
-        sectionOutputList.Add(timestamp);
-
+        // var timestamp = new SectionOutput
+        // {
+        //     Name = "_ts:" + DateTimeOffset.Now.ToString("O"),
+        //     Files = []
+        // };
+        // sectionOutputList.Add(timestamp);
 
         foreach (var section in sections)
         {
@@ -163,7 +161,7 @@ public class StaticFileContentService(ILogger<StaticFileContentService> logger, 
             tx.Commit();
         }
 
-        logger.LogDebug("Wrote static file {Filename}", filename);
+        // logger.LogDebug("Wrote static file {Filename}", filename);
 
         return result;
     }
