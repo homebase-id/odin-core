@@ -45,7 +45,6 @@ public class TenantPathManager
     public const string HeadersFolder = "headers";
     public const string TempFolder = "temp";
     public const string PayloadsFolder = "payloads";
-    public const string StaticFolder = "static";
     public const string UploadFolder = "uploads";
     public const string InboxFolder = "inbox";
     public const string FilesFolder = "files";
@@ -58,7 +57,6 @@ public class TenantPathManager
 
     public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
     public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
-    public readonly string StaticPath;  // e.g. /data/tenants/registrations/<tenant-id>/static
     public readonly string TempPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
     public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
 
@@ -91,7 +89,6 @@ public class TenantPathManager
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
         TempPath = Path.Combine(RegistrationPath, TempFolder);
         TempDrivesPath = Path.Combine(TempPath, DrivesFolder);
-        StaticPath = Path.Combine(RegistrationPath, StaticFolder);
 
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
         PayloadsDrivesPath = Path.Combine(PayloadsPath, DrivesFolder);
@@ -255,7 +252,6 @@ public class TenantPathManager
     {
         Directory.CreateDirectory(HeadersPath);
         Directory.CreateDirectory(TempPath);
-        Directory.CreateDirectory(StaticPath);
 
         if (!S3PayloadsEnabled)
         {

@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -18,9 +18,14 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
-using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Optimization.Cdn;
+
+// Filenames (now used as db keys):
+// - sitedata.json: https://frodo.dotyou.cloud
+// - public_image.json: https://frodo.dotyou.cloud/pub/image
+// - public_profile.json: https://frodo.dotyou.cloud/pub/profile
+// - public.json: ???
 
 public enum CrossOriginBehavior
 {
@@ -37,35 +42,16 @@ public enum CrossOriginBehavior
     //Whitelist = 2,
 }
 
-public class StaticFileContentService
+public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDatabase db)
 {
-    private readonly IDriveManager _driveManager;
-    private readonly StandardFileSystem _fileSystem;
-    private readonly TenantContext _tenantContext;
-    private readonly SingleKeyValueStorage _staticFileConfigStorage;
-    private readonly FileReaderWriter _fileReaderWriter;
-    private readonly TableKeyValueCached _tableKeyValue;
+    private static readonly SingleKeyValueStorage StaticFileConfigStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("3609449a-2f7f-4111-b300-3408a920aa2e"));
 
-    public StaticFileContentService(
-        TenantContext tenantContext,
-        IDriveManager driveManager,
-        StandardFileSystem fileSystem,
-        FileReaderWriter driveFileReaderWriter,
-        TableKeyValueCached tableKeyValue)
-    {
-        _tenantContext = tenantContext;
-
-        _driveManager = driveManager;
-        _fileSystem = fileSystem;
-        _fileReaderWriter = driveFileReaderWriter;
-        _tableKeyValue = tableKeyValue;
-
-        const string staticFileContextKey = "3609449a-2f7f-4111-b300-3408a920aa2e";
-        _staticFileConfigStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(staticFileContextKey));
-    }
-
-    public async Task<StaticFilePublishResult> PublishAsync(string filename, StaticFileConfiguration config,
-        List<QueryParamSection> sections, IOdinContext odinContext)
+    public async Task<StaticFilePublishResult> PublishAsync(
+        string filename,
+        StaticFileConfiguration config,
+        List<QueryParamSection> sections,
+        IOdinContext odinContext)
     {
         
 
@@ -76,7 +62,6 @@ public class StaticFileContentService
         //Note: I need to add a permission that better describes that we only wnt this done when the owner is in full
         //admin mode, not just from an app.  master key indicates you're in full admin mode
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.PublishStaticContent);
-        string targetFolder = EnsurePath();
         foreach (var s in sections)
         {
             s.AssertIsValid();
@@ -89,6 +74,13 @@ public class StaticFileContentService
         };
 
         var sectionOutputList = new List<SectionOutput>();
+
+        // var timestamp = new SectionOutput
+        // {
+        //     Name = "_ts:" + DateTimeOffset.Now.ToString("O"),
+        //     Files = []
+        // };
+        // sectionOutputList.Add(timestamp);
 
         foreach (var section in sections)
         {
@@ -103,7 +95,7 @@ public class StaticFileContentService
                 MaxRecords = int.MaxValue //TODO: Consider
             };
 
-            var results = await _fileSystem.Query.GetBatch(driveId, qp, options,odinContext);
+            var results = await fileSystem.Query.GetBatch(driveId, qp, options,odinContext);
             var filteredHeaders = Filter(results.SearchResults);
 
             var sectionOutput = new SectionOutput()
@@ -132,7 +124,7 @@ public class StaticFileContentService
                             continue;
                         }
 
-                        using var ps = await _fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
+                        using var ps = await fileSystem.Storage.GetPayloadStreamAsync(internalFileId, pd.Key, null,odinContext);
                         payloads.Add(new PayloadStaticFileResponse()
                         {
                             Key = ps.Key,
@@ -157,60 +149,54 @@ public class StaticFileContentService
             });
         }
 
-        var ms = new MemoryStream();
-        await OdinSystemSerializer.Serialize(ms, sectionOutputList, sectionOutputList.GetType());
-        var finalTargetPath = Path.Combine(targetFolder, filename);
-        ms.Seek(0L, SeekOrigin.Begin);
-        await _fileReaderWriter.WriteStreamAsync(finalTargetPath, ms);
+        var data = OdinSystemSerializer.Serialize(sectionOutputList);
 
         config.ContentType = MediaTypeNames.Application.Json;
         config.LastModified = UnixTimeUtc.Now();
 
-        await _staticFileConfigStorage.UpsertAsync(_tableKeyValue, GetConfigKey(filename), config);
+        await using (var tx = await db.BeginStackedTransactionAsync())
+        {
+            await StaticFileConfigStorage.UpsertAsync(db.KeyValueCached, GetConfigKey(filename), config);
+            await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), data.ToUtf8ByteArray());
+            tx.Commit();
+        }
 
         return result;
     }
 
     public async Task PublishProfileImageAsync(string image64, string contentType)
     {
-        
-
-        string filename = StaticFileConstants.ProfileImageFileName;
-        string targetFolder = EnsurePath();
-
-        string finalTargetPath = Path.Combine(targetFolder, filename);
+        var filename = StaticFileConstants.ProfileImageFileName;
         var imageBytes = Convert.FromBase64String(image64);
-        await _fileReaderWriter.WriteAllBytesAsync(finalTargetPath, imageBytes);
 
-        var config = new StaticFileConfiguration()
+        var config = new StaticFileConfiguration
         {
             ContentType = contentType,
             LastModified = UnixTimeUtc.Now(),
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
-        await _staticFileConfigStorage.UpsertAsync(_tableKeyValue, GetConfigKey(filename), config);
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await StaticFileConfigStorage.UpsertAsync(db.KeyValueCached, GetConfigKey(filename), config);
+        await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), imageBytes);
+        tx.Commit();
     }
 
     public async Task PublishProfileCardAsync(string json)
     {
-        
+        var filename = StaticFileConstants.PublicProfileCardFileName;
 
-        string filename = StaticFileConstants.PublicProfileCardFileName;
-        string targetFolder = EnsurePath();
-
-        string finalTargetPath = Path.Combine(targetFolder, filename);
-        await _fileReaderWriter.WriteStringAsync(finalTargetPath, json);
-
-        var config = new StaticFileConfiguration()
+        var config = new StaticFileConfiguration
         {
             LastModified = UnixTimeUtc.Now(),
             ContentType = MediaTypeNames.Application.Json,
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
 
-        config.ContentType = MediaTypeNames.Application.Json;
-        await _staticFileConfigStorage.UpsertAsync(_tableKeyValue, GetConfigKey(filename), config);
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await StaticFileConfigStorage.UpsertAsync(db.KeyValueCached, GetConfigKey(filename), config);
+        await StaticFileConfigStorage.UpsertBytesAsync(db.KeyValueCached, GetDataKey(filename), json.ToUtf8ByteArray());
+        tx.Commit();
     }
 
     private GuidId GetConfigKey(string filename)
@@ -218,16 +204,21 @@ public class StaticFileContentService
         return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower()));
     }
 
-    public async Task<(StaticFileConfiguration config, bool fileExists, Stream fileStream)> GetStaticFileStreamAsync(string filename,
+    private GuidId GetDataKey(string filename)
+    {
+        return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower() + "_data"));
+    }
+
+
+    public async Task<(StaticFileConfiguration config, bool fileExists, byte[] bytes)> GetStaticFileStreamAsync(
+        string filename,
         UnixTimeUtc? ifModifiedSince = null)
     {
-        
-        var config = await _staticFileConfigStorage.GetAsync<StaticFileConfiguration>(_tableKeyValue, GetConfigKey(filename));
-        var targetFile = Path.Combine(_tenantContext.TenantPathManager.StaticPath, filename);
+        var config = await StaticFileConfigStorage.GetAsync<StaticFileConfiguration>(db.KeyValueCached, GetConfigKey(filename));
 
-        if (config == null || !File.Exists(targetFile))
+        if (config == null)
         {
-            return (null, false, Stream.Null);
+            return (null, false, null);
         }
 
         if (ifModifiedSince != null) //I was asked to check...
@@ -235,19 +226,17 @@ public class StaticFileContentService
             bool wasModified = config.LastModified > ifModifiedSince;
             if (!wasModified)
             {
-                return (config, fileExists: true, Stream.Null);
+                return (config, fileExists: true, null);
             }
         }
 
-        var fileStream = _fileReaderWriter.OpenStreamForReading(targetFile);
-        return (config, fileExists: true, fileStream);
-    }
+        var bytes = await StaticFileConfigStorage.GetBytesAsync(db.KeyValueCached, GetDataKey(filename));
+        if (bytes == null)
+        {
+            return (config, false, null);
+        }
 
-    private string EnsurePath()
-    {
-        string targetFolder = _tenantContext.TenantPathManager.StaticPath;
-        _fileReaderWriter.CreateDirectory(targetFolder);
-        return targetFolder;
+        return (config, fileExists: true, bytes);
     }
 
     private IEnumerable<SharedSecretEncryptedFileHeader> Filter(IEnumerable<SharedSecretEncryptedFileHeader> headers)

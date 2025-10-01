@@ -43,16 +43,15 @@ public class HomebaseProfileContentService(
     public async Task<PersonSchema> LoadPersonSchema()
     {
         // read the profile file.
-        var (_, fileExists, fileStream) = await staticFileContentService
+        var (_, fileExists, bytes) = await staticFileContentService
             .GetStaticFileStreamAsync(StaticFileConstants.PublicProfileCardFileName);
 
         FrontEndProfile profile = null;
 
-        if (fileExists)
+        if (fileExists && bytes is { Length: > 0 })
         {
-            using var reader = new StreamReader(fileStream);
-            var data = await reader.ReadToEndAsync();
-            profile = OdinSystemSerializer.Deserialize<FrontEndProfile>(data);
+            var s = Encoding.UTF8.GetString(bytes);
+            profile = OdinSystemSerializer.DeserializeOrThrow<FrontEndProfile>(s);
         }
 
         var context = httpContextAccessor.HttpContext;
@@ -84,16 +83,15 @@ public class HomebaseProfileContentService(
     public async Task<List<FrontEndProfileLink>> LoadLinks()
     {
         // read the profile file.
-        var (_, fileExists, fileStream) = await staticFileContentService.GetStaticFileStreamAsync(
+        var (_, fileExists, bytes) = await staticFileContentService.GetStaticFileStreamAsync(
             StaticFileConstants.PublicProfileCardFileName);
 
         FrontEndProfile profile = null;
 
-        if (fileExists)
+        if (fileExists && bytes is { Length: > 0 })
         {
-            using var reader = new StreamReader(fileStream);
-            var data = await reader.ReadToEndAsync();
-            profile = OdinSystemSerializer.Deserialize<FrontEndProfile>(data);
+            var s = Encoding.UTF8.GetString(bytes);
+            profile = OdinSystemSerializer.DeserializeOrThrow<FrontEndProfile>(s);
         }
 
         return profile?.Links ?? [];
