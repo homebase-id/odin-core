@@ -311,7 +311,20 @@ public class CommandLine
             return (true, 0);
         }
 
+        //
+        // Command line:
+        //
+        // examples:
+        //   dotnet run -- import-static-files
+        //
+        if (args.Length > 0 && args[0] == "import-static-files")
+        {
+            ImportStaticFiles.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
         return (false, 0);
+
     }
 }
 

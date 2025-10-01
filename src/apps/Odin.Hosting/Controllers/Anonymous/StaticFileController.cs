@@ -61,15 +61,15 @@ namespace Odin.Hosting.Controllers.Anonymous
         private async Task<IActionResult> SendStream(string filename)
         {
             OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
-            var (config, fileExists, stream) = await staticFileContentService.GetStaticFileStreamAsync(filename, GetIfModifiedSince());
+            var (config, fileExists, bytes) = await staticFileContentService.GetStaticFileStreamAsync(filename, GetIfModifiedSince());
 
-            if (fileExists && stream == Stream.Null)
+            if (fileExists && bytes == null)
             {
                 return StatusCode((int)HttpStatusCode.NotModified);
             }
 
             //sanity
-            if (!fileExists || (null == stream || stream == Stream.Null))
+            if (!fileExists || bytes == null || bytes.Length == 0)
             {
                 return NotFound();
             }
@@ -87,7 +87,7 @@ namespace Odin.Hosting.Controllers.Anonymous
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(config.LastModified);
             this.Response.Headers.TryAdd("Cache-Control", "max-age=3600, stale-while-revalidate=31536000");
 
-            return new FileStreamResult(stream, config.ContentType);
+            return new FileContentResult(bytes, config.ContentType);
         }
 
         //

@@ -601,16 +601,15 @@ public class LinkPreviewService(
     private async Task<PersonSchema> GeneratePersonSchema()
     {
         // read the profile file.
-        var (_, fileExists, fileStream) =
+        var (_, fileExists, bytes) =
             await staticFileContentService.GetStaticFileStreamAsync(StaticFileConstants.PublicProfileCardFileName);
 
         FrontEndProfile profile = null;
 
-        if (fileExists)
+        if (fileExists && bytes is { Length: > 0 })
         {
-            using var reader = new StreamReader(fileStream);
-            var data = await reader.ReadToEndAsync();
-            profile = OdinSystemSerializer.Deserialize<FrontEndProfile>(data);
+            var s = Encoding.UTF8.GetString(bytes);
+            profile = OdinSystemSerializer.DeserializeOrThrow<FrontEndProfile>(s);
         }
 
         var context = httpContextAccessor.HttpContext;
