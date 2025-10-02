@@ -146,7 +146,7 @@ namespace Odin.Services.Configuration
                 PowerDnsHostAddress = config.GetOrDefault("Registry:PowerDnsHostAddress", "localhost");
                 PowerDnsApiKey = config.GetOrDefault("Registry:PowerDnsApiKey", "");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
-                ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", false);
+                ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", true);
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
                 ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
                 DnsResolvers = config.GetOrDefault("Registry:DnsResolvers", new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
