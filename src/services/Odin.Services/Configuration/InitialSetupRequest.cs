@@ -12,6 +12,8 @@ public class InitialSetupRequest
 {
     public Guid? FirstRunToken { get; set; }
     
+    public bool UseAutomatedPasswordRecovery { get; init; }
+    
     /// <summary>
     /// Drives to be created
     /// </summary>

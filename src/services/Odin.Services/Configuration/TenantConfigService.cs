@@ -241,6 +241,20 @@ public class TenantConfigService
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
+        if (request.UseAutomatedPasswordRecovery)
+        {
+            // store this in config somewhere (perhaps better in the recovery service?)
+            
+            // await tenantConfigService.UpdateSystemFlagAsync(new UpdateFlagRequest
+            // {
+            //     FlagName = null,
+            //     Value = null
+            // }, odinContext);
+            
+            // how do i kick off the recovery>?
+            
+        }
+        
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _circleMembershipService.CreateSystemCirclesAsync(odinContext);
