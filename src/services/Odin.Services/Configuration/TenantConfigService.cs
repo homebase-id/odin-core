@@ -243,16 +243,17 @@ public class TenantConfigService
 
         if (request.UseAutomatedPasswordRecovery)
         {
+            throw new NotImplementedException("TODO");
             // store this in config somewhere (perhaps better in the recovery service?)
-            
+
             // await tenantConfigService.UpdateSystemFlagAsync(new UpdateFlagRequest
             // {
             //     FlagName = null,
             //     Value = null
             // }, odinContext);
-            
+
             // how do i kick off the recovery>?
-            
+
         }
         
         //Note: the order here is important.  if the request or system drives include any anonymous
