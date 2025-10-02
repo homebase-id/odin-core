@@ -478,11 +478,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 qp,
                 options);
 
-            _logger.LogInformation("Found {fc} files in db", fileIdList.Count());
-
             var (headers, _) = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
-
-            _logger.LogInformation("Loaded header count {fc}", headers.Count());
 
             return new QueryBatchResult()
             {
