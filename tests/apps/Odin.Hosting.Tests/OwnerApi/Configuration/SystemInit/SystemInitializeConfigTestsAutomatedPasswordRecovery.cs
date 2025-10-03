@@ -3,15 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using DotNetEnv;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -25,7 +28,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests(initializeIdentity: false,
-                testIdentities: [TestIdentities.Frodo, TestIdentities.Pippin, TestIdentities.Samwise]);
+                testIdentities:
+                [
+                    TestIdentities.Frodo, TestIdentities.Pippin, TestIdentities.Samwise,
+                    TestIdentities.Collab, TestIdentities.Merry, TestIdentities.TomBombadil
+                ]);
         }
 
         [OneTimeTearDown]
@@ -51,7 +58,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task CanInitializeSystem_WithAutomatedPasswordRecovery()
         {
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+            // initialize everyone else
+
+            List<OdinId> devAutoPlayers =
+            [
+                new("tom.dotyou.cloud"),
+                new("collab.dotyou.cloud"),
+                new("merry.dotyou.cloud"),
+                new("pippin.dotyou.cloud"),
+            ];
+
+            foreach (var odinId in devAutoPlayers)
+            {
+                var client = _scaffold.CreateOwnerApiClient(TestIdentities.InitializedIdentities[odinId]);
+                await client.Configuration.InitializeIdentity(new InitialSetupRequest());
+            }
+
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
             //success = system drives created, other drives created
             var getIsIdentityConfiguredResponse1 = await ownerClient.Configuration.IsIdentityConfigured();
@@ -73,13 +96,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.Content);
 
 
-            var shardConfig = await ownerClient.Security.GetDealerShardConfig();
+            var shardConfigResponse = await ownerClient.Security.GetDealerShardConfig();
             // should have the automated identities configured
-            
+            var config = shardConfigResponse.Content;
 
+            Assert.That(config, Is.Not.Null);
 
+            Assert.That(config.Envelopes.SingleOrDefault(e => e.Player.OdinId == TestIdentities.Pippin.OdinId &&
+                                                              e.Player.Type == PlayerType.Automatic), Is.Not.Null);
+            Assert.That(config.Envelopes.SingleOrDefault(e => e.Player.OdinId == TestIdentities.Collab.OdinId &&
+                                                              e.Player.Type == PlayerType.Automatic), Is.Not.Null);
+            Assert.That(config.Envelopes.SingleOrDefault(e => e.Player.OdinId == TestIdentities.Merry.OdinId &&
+                                                              e.Player.Type == PlayerType.Automatic), Is.Not.Null);
+            Assert.That(config.Envelopes.SingleOrDefault(e => e.Player.OdinId == TestIdentities.TomBombadil.OdinId &&
+                                                              e.Player.Type == PlayerType.Automatic), Is.Not.Null);
 
+            Assert.That(config.MinMatchingShards, Is.EqualTo(ShamirConfigurationService.MinimumPlayerCount));
         }
-        
     }
 }

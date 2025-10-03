@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
@@ -96,7 +97,7 @@ namespace Odin.Services.Configuration
             {
                 MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);
             }
-            
+
             public int MaxCommentsInPreview { get; init; }
         }
 
@@ -122,6 +123,11 @@ namespace Odin.Services.Configuration
 
         public class RegistrySection
         {
+            /// <summary>
+            /// The identities to use when users enable automated password recovery
+            /// </summary>
+            public List<OdinId> AutomatedPasswordRecoveryIdentities { get; init; } = new();
+
             public List<string> InvitationCodes { get; init; }
 
             public string PowerDnsHostAddress { get; init; }
@@ -129,7 +135,7 @@ namespace Odin.Services.Configuration
 
             public string ProvisioningDomain { get; init; }
             public bool ProvisioningEnabled { get; init; }
-            
+
             public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
 
             public DnsConfigurationSet DnsConfigurationSet { get; init; }
@@ -149,13 +155,29 @@ namespace Odin.Services.Configuration
                 ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", true);
                 AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
                 ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
-                DnsResolvers = config.GetOrDefault("Registry:DnsResolvers", new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
+                DnsResolvers = config.GetOrDefault("Registry:DnsResolvers",
+                    new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
                 DnsConfigurationSet = new DnsConfigurationSet(
-                    config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords").First(), // SEB:NOTE we currently only allow one A record
+                    config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords")
+                        .First(), // SEB:NOTE we currently only allow one A record
                     config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
 
                 InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", new List<string>());
 
+#if DEBUG
+
+                List<OdinId> devAutoPlayers =
+                [
+                    new OdinId("tom.dotyou.cloud"),
+                    new OdinId("collab.dotyou.cloud"),
+                    new OdinId("merry.dotyou.cloud"),
+                    new OdinId("pippin.dotyou.cloud"),
+                ];
+                
+                AutomatedPasswordRecoveryIdentities = config.GetOrDefault("Registry:AutomatedPasswordRecoveryIdentities",
+                    devAutoPlayers);
+
+#endif
                 DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             }
 
@@ -182,7 +204,7 @@ namespace Odin.Services.Configuration
 
             public int ShutdownTimeoutSeconds { get; init; }
             public Guid SystemProcessApiKey { get; set; }
-            
+
             public int IpRateLimitRequestsPerSecond { get; init; }
 
             public HostSection()
@@ -192,11 +214,9 @@ namespace Odin.Services.Configuration
 
             public HostSection(IConfiguration config)
             {
-                TenantDataRootPath =
-                    Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:TenantDataRootPath"));
-                
-                SystemDataRootPath =                 
-                    Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:SystemDataRootPath"));
+                TenantDataRootPath = Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:TenantDataRootPath"));
+
+                SystemDataRootPath = Env.ExpandEnvironmentVariablesCrossPlatform(config.Required<string>("Host:SystemDataRootPath"));
 
                 DataProtectionKeyPath = Path.Combine(SystemDataRootPath, "asp-data-protection-keys");
 
@@ -258,7 +278,7 @@ namespace Odin.Services.Configuration
             public int PushNotificationBatchSize { get; set; }
             public int PeerOperationMaxAttempts { get; init; }
             public int OutboxOperationMaxAttempts { get; init; }
-            
+
             public TimeSpan PeerOperationDelayMs { get; init; }
 
             /// <summary>
@@ -297,8 +317,10 @@ namespace Odin.Services.Configuration
 
             public BackgroundServicesSection(IConfiguration config)
             {
-                EnsureCertificateProcessorIntervalSeconds = config.Required<int>("BackgroundServices:EnsureCertificateProcessorIntervalSeconds");
-                InboxOutboxReconciliationIntervalSeconds = config.Required<int>("BackgroundServices:InboxOutboxReconciliationIntervalSeconds");
+                EnsureCertificateProcessorIntervalSeconds =
+                    config.Required<int>("BackgroundServices:EnsureCertificateProcessorIntervalSeconds");
+                InboxOutboxReconciliationIntervalSeconds =
+                    config.Required<int>("BackgroundServices:InboxOutboxReconciliationIntervalSeconds");
                 JobCleanUpIntervalSeconds = config.Required<int>("BackgroundServices:JobCleanUpIntervalSeconds");
                 SystemBackgroundServicesEnabled = config.GetOrDefault("BackgroundServices:SystemBackgroundServicesEnabled", true);
                 TenantBackgroundServicesEnabled = config.GetOrDefault("BackgroundServices:TenantBackgroundServicesEnabled", true);
@@ -339,7 +361,8 @@ namespace Odin.Services.Configuration
 
             public CertificateRenewalSection(IConfiguration config)
             {
-                UseCertificateAuthorityProductionServers = config.Required<bool>("CertificateRenewal:UseCertificateAuthorityProductionServers");
+                UseCertificateAuthorityProductionServers =
+                    config.Required<bool>("CertificateRenewal:UseCertificateAuthorityProductionServers");
                 CertificateAuthorityAssociatedEmail = config.Required<string>("CertificateRenewal:CertificateAuthorityAssociatedEmail");
                 StorageKey = Convert.FromHexString(config.Required<string>("CertificateRenewal:StorageKey"));
                 if (StorageKey.Length != 32)
@@ -425,7 +448,7 @@ namespace Odin.Services.Configuration
                 BaseUrl = config.GetOrDefault("PushNotification:BaseUrl", "https://push.homebase.id");
             }
         }
-        
+
         //
 
         public class DatabaseSection
@@ -443,7 +466,7 @@ namespace Odin.Services.Configuration
                 Type = config.GetOrDefault("Database:Type", DatabaseType.Sqlite);
                 if (Type != DatabaseType.Sqlite) // Sqlite doesn't require a connection string
                 {
-                    ConnectionString = config.Required<string>("Database:ConnectionString");        
+                    ConnectionString = config.Required<string>("Database:ConnectionString");
                 }
             }
         }

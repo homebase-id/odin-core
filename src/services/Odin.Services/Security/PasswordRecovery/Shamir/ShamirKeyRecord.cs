@@ -12,5 +12,7 @@ public class ShamirKeyRecord
     /// </summary>
     public SymmetricKeyEncryptedAes ShamirDistributionKeyEncryptedRecoveryKey { get; set; }
 
+    public bool UsesAutomatedRecoveryKey { get; set; }
+    
     public UnixTimeUtc Created { get; set; }
 }

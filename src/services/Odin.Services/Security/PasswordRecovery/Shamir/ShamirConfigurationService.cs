@@ -11,12 +11,14 @@ using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -42,6 +44,7 @@ public class ShamirConfigurationService(
     StandardFileSystem fileSystem,
     IDriveManager driveManager,
     OwnerSecretService secretService,
+    OdinConfiguration configuration,
     ILastSeenService lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
@@ -61,48 +64,93 @@ public class ShamirConfigurationService(
         return playerCount - MinimumMatchingShardsOffset;
     }
 
-    public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
+    public async Task ConfigureAutomatedRecovery(IOdinContext odinContext)
     {
-        OdinValidationUtils.AssertNotNull(players, nameof(players));
-        OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount,
-            $"You need at least {MinimumPlayerCount} trusted connections");
-        OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
+        var autoPlayers = configuration.Registry.AutomatedPasswordRecoveryIdentities;
 
-        var minAllowedShards = CalculateMinAllowedShardCount(players.Count);
-        OdinValidationUtils.AssertIsTrue(minShards >= minAllowedShards, "The minimum number of matching shards must be " +
-                                                                        $"at least {minAllowedShards} since you have {players.Count} " +
-                                                                        $"trusted connections selected");
-
-        OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
-
-        var hashedRecoveryEmail = await passwordKeyRecoveryService.GetHashedRecoveryEmail();
-        var distributionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-        var shards = await CreateShards(players, minShards, distributionKey, hashedRecoveryEmail, odinContext);
-
-        var package = new DealerShardPackage
+        if (autoPlayers.Count() < MinimumPlayerCount)
         {
-            MinMatchingShards = minShards,
-            Envelopes = shards.DealerEnvelops
-        };
-
-        await using var tx = await db.BeginStackedTransactionAsync();
-        tx.AddPostCommitAction(transferService.ProcessOutboxNow);
-        await SaveDealerPackage(package, odinContext);
-
-        logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
-        var enqueueResults = await EnqueueShardsForDistribution(shards.PlayerShards, odinContext);
-        var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
-        if (failures.Any())
-        {
-            throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
+            logger.LogError("Tried to auto-configure password recovery but too few auto-players are configured. Minimum is {min}",
+                MinimumPlayerCount);
         }
 
-        await SaveDistributableKey(distributionKey, odinContext);
+        var players = autoPlayers.Select(p => new ShamiraPlayer()
+        {
+            OdinId = p,
+            Type = PlayerType.Automatic
+        }).ToList();
+
+        var (distributionKey, tx) = await ConfigureShardsInternal(players, 3, odinContext);
+        await using var scopedTransaction = tx;
+
+        await SaveDistributableKey(distributionKey, true, odinContext);
+
+        tx.Commit();
+        logger.LogDebug("Commited shard distribution data (auto)");
+
+        distributionKey.Wipe();
+    }
+
+    public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
+    {
+        var (distributionKey, tx) = await ConfigureShardsInternal(players, minShards, odinContext);
+        await using var scopedTransaction = tx;
+
+        await SaveDistributableKey(distributionKey, false, odinContext);
 
         tx.Commit();
         logger.LogDebug("Commited shard distribution data");
 
         distributionKey.Wipe();
+    }
+
+    private async Task<(SensitiveByteArray distributionKey, IScopedTransaction tx)> ConfigureShardsInternal(List<ShamiraPlayer> players,
+        int minShards, IOdinContext odinContext)
+    {
+        IScopedTransaction tx = null;
+        try
+        {
+            OdinValidationUtils.AssertNotNull(players, nameof(players));
+            OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount,
+                $"You need at least {MinimumPlayerCount} trusted connections");
+            OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
+
+            var minAllowedShards = CalculateMinAllowedShardCount(players.Count);
+            OdinValidationUtils.AssertIsTrue(minShards >= minAllowedShards, "The minimum number of matching shards must be " +
+                                                                            $"at least {minAllowedShards} since you have {players.Count} " +
+                                                                            $"trusted connections selected");
+
+            OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
+
+            var hashedRecoveryEmail = await passwordKeyRecoveryService.GetHashedRecoveryEmail();
+            var distributionKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var shards = await CreateShards(players, minShards, distributionKey, hashedRecoveryEmail, odinContext);
+
+            var package = new DealerShardPackage
+            {
+                MinMatchingShards = minShards,
+                Envelopes = shards.DealerEnvelops
+            };
+
+            tx = await db.BeginStackedTransactionAsync();
+            tx.AddPostCommitAction(transferService.ProcessOutboxNow);
+            await SaveDealerPackage(package, odinContext);
+
+            logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
+            var enqueueResults = await EnqueueShardsForDistribution(shards.PlayerShards, odinContext);
+            var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
+            if (failures.Any())
+            {
+                throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
+            }
+
+            return (distributionKey, tx);
+        }
+        catch
+        {
+            await tx.DisposeAsync();
+            throw;
+        }
     }
 
     /// <summary>
@@ -592,7 +640,7 @@ public class ShamirConfigurationService(
     /// <summary>
     /// Saves the key used to decrypt the <see cref="PlayerEncryptedShard"/>s
     /// </summary>
-    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, IOdinContext odinContext)
+    private async Task SaveDistributableKey(SensitiveByteArray distributionKey, bool usesAutomatic, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
 
@@ -608,6 +656,7 @@ public class ShamirConfigurationService(
             MasterKeyEncryptedShamirDistributionKey = new SymmetricKeyEncryptedAes(secret: masterKey, dataToEncrypt: recoveryKey),
             Created = UnixTimeUtc.Now(),
             ShamirDistributionKeyEncryptedRecoveryKey = new SymmetricKeyEncryptedAes(secret: distributionKey, dataToEncrypt: recoveryKey),
+            UsesAutomatedRecoveryKey = usesAutomatic
         };
 
         var n = await Storage.UpsertAsync(tblKeyValue, ShamirRecordStorageId, record);
