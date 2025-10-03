@@ -8,6 +8,10 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir
     public interface IPeerPasswordRecoveryHttpClient
     {
         private const string PasswdRoot = PeerApiPathConstants.PasswordRecoveryV1;
+        private const string ReceiveShardOnAutomaticIdentity = "/receive-player-shard";
+
+        [Post(PasswdRoot + "/" + ReceiveShardOnAutomaticIdentity)]
+        Task<ApiResponse<PeerTransferResponse>> SendShardToAutomatedIdentity([Body] PlayerEncryptedShard shard);
 
         [Post(PasswdRoot + "/verify-shard")]
         Task<ApiResponse<ShardVerificationResult>> VerifyShard([Body] VerifyShardRequest request);

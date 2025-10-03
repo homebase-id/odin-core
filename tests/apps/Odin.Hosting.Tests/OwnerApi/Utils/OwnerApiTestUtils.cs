@@ -57,16 +57,11 @@ using AesGcm = Odin.Core.Cryptography.Crypto.AesGcm;
 
 namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
-    public class OwnerApiTestUtils
+    public class OwnerApiTestUtils(Guid systemProcessApiKey)
     {
-        public readonly Guid SystemProcessApiKey;
+        public readonly Guid SystemProcessApiKey = systemProcessApiKey;
         private readonly string _defaultOwnerPassword = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
-
-        public OwnerApiTestUtils(Guid systemProcessApiKey)
-        {
-            SystemProcessApiKey = systemProcessApiKey;
-        }
 
         internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate,
             X509Chain chain,
@@ -288,6 +283,17 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             }
 
             throw new Exception($"No token found for {identity}");
+        }
+
+        public void UpdateOwnerAuthContext(OdinId identity, ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)
+        {
+            var context = new OwnerAuthTokenContext()
+            {
+                AuthenticationResult = cat,
+                SharedSecret = sharedSecret
+            };
+
+            _ownerLoginTokens[identity] = context;
         }
 
         public async Task SetupOwnerAccount(OdinId identity, bool initializeIdentity, string password = null)
@@ -729,8 +735,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 var page = getDrivesResponse.Content;
 
                 ClassicAssert.NotNull(page);
-                ClassicAssert.NotNull(page.Results.SingleOrDefault(drive =>
-                    drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
+                ClassicAssert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias &&
+                                                                            drive.TargetDriveInfo.Type == targetDrive.Type));
             }
         }
 

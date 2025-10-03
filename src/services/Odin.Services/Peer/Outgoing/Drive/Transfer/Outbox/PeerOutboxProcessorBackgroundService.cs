@@ -21,6 +21,7 @@ using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Files;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Introductions;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Notifications;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.PasswordRecovery;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox.Reactions;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
@@ -241,6 +242,9 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.ConnectIntroducee:
                     return await ConnectIntroducee(childScope, fileItem, odinContext, cancellationToken);
 
+                case OutboxItemType.DistributePasswordRecoveryShardToAutomaticIdentity:
+                    return await SendShardToAutomaticIdentity(childScope, fileItem, odinContext, cancellationToken);
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -398,6 +402,24 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 workLogger,
                 odinConfiguration,
                 introductionService);
+
+            return await worker.Send(odinContext, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendShardToAutomaticIdentity(
+            ILifetimeScope childScope,
+            OutboxFileItem fileItem,
+            IOdinContext odinContext,
+            CancellationToken cancellationToken)
+        {
+            var fileSystemResolver = childScope.Resolve<FileSystemResolver>();
+            var workLogger = loggerFactory.CreateLogger<SendShardToAutomatedIdentityOutboxWorker>();
+            var worker = new SendShardToAutomatedIdentityOutboxWorker(fileItem,
+                    fileSystemResolver,
+                    workLogger,
+                    odinConfiguration,
+                    odinHttpClientFactory
+                );
 
             return await worker.Send(odinContext, cancellationToken);
         }

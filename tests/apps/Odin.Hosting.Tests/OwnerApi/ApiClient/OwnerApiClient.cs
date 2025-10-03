@@ -87,18 +87,5 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public DriveApiClient Drive => _driveApiClient;
 
         public DriveApiClientRedux DriveRedux => _driveApiClientRedux;
-
-        public async Task InitializeIdentity(InitialSetupRequest setupConfig)
-        {
-            var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
-
-            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
-            var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
-            ClassicAssert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
-
-            var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
-            ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
-            ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.Content);
-        }
     }
 }

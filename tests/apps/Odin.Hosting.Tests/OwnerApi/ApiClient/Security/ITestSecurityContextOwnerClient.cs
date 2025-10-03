@@ -22,6 +22,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
 
         [Get(OwnerApiPathConstants.SecurityV1 + "/recovery-key")]
         Task<ApiResponse<DecryptedRecoveryKey>> GetAccountRecoveryKey();
+        
+        [Post(OwnerApiPathConstants.SecurityV1 + "/request-recovery-key")]
+        Task<ApiResponse<RequestRecoveryKeyResult>> RequestRecoveryKey();
 
         [Post(OwnerApiPathConstants.SecurityV1 + "/resetpasswd")]
         Task<ApiResponse<HttpContent>> ResetPassword(ResetPasswordRequest request);
