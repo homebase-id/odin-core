@@ -9,8 +9,6 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
-using Odin.Services.Certificate;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Email;
 using Odin.Services.Registry.Registration;
 
@@ -126,8 +124,9 @@ namespace Odin.Services.Configuration
             /// <summary>
             /// The identities to use when users enable automated password recovery
             /// </summary>
-            public List<OdinId> AutomatedPasswordRecoveryIdentities { get; init; } = new();
+            public List<string> AutomatedPasswordRecoveryIdentities { get; init; } = new();
 
+            public Guid AutomatedIdentityKey { get; init; }
             public List<string> InvitationCodes { get; init; }
 
             public string PowerDnsHostAddress { get; init; }
@@ -164,20 +163,8 @@ namespace Odin.Services.Configuration
 
                 InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", new List<string>());
 
-#if DEBUG
-
-                List<OdinId> devAutoPlayers =
-                [
-                    new OdinId("tom.dotyou.cloud"),
-                    new OdinId("collab.dotyou.cloud"),
-                    new OdinId("merry.dotyou.cloud"),
-                    new OdinId("pippin.dotyou.cloud"),
-                ];
-                
-                AutomatedPasswordRecoveryIdentities = config.GetOrDefault("Registry:AutomatedPasswordRecoveryIdentities",
-                    devAutoPlayers);
-
-#endif
+                AutomatedIdentityKey = config.Required<Guid>("Registry:AutomatedIdentityKey");
+                AutomatedPasswordRecoveryIdentities = config.Required<List<string>>("Registry:AutomatedPasswordRecoveryIdentities");
                 DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             }
 

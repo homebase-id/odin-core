@@ -115,6 +115,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                                                               e.Player.Type == PlayerType.Automatic), Is.Not.Null);
 
             Assert.That(config.MinMatchingShards, Is.EqualTo(ShamirConfigurationService.MinimumPlayerCount));
+            
+            // scan the players to see if they have the shard?
+            
+            Assert.Fail("TODO - NEED TO CONSIDER IF I CAN USE THE REGULAR FILE XFER W/ THE CLIENT TOKEN INSTEAD OF A SPECIAL ENDPOINT");
         }
     }
 }

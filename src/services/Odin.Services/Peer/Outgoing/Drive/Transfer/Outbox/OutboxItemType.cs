@@ -22,5 +22,7 @@ public enum OutboxItemType
 
     SendIntroduction = 2088,
 
-    ConnectIntroducee = 3088
+    ConnectIntroducee = 3088,
+    
+    DistributePasswordRecoveryShardToAutomaticIdentity = 4088
 }
