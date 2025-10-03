@@ -272,6 +272,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         var request = new IdentityRegistrationRequest()
         {
+            Id = null, // Sanity
             OdinId = (OdinId)domain,
             Email = email,
             PlanId = planId,
