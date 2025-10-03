@@ -9,6 +9,7 @@ namespace Odin.Services.Registry
 {
     public class IdentityRegistrationRequest
     {
+        public Guid? Id { get; init; }
         public OdinId OdinId { get; set; }
         public string Email { get; set; }
         
