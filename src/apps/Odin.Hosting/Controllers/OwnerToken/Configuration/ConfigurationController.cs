@@ -81,6 +81,12 @@ public class OwnerConfigurationController : OdinControllerBase
         return true;
     }
 
+    [HttpPost("system/enable-auto-password-recovery")]
+    public async Task EnableAutoPasswordRecovery()
+    {
+        await _tenantConfigService.EnableAutoPasswordRecovery(WebOdinContext);
+    }
+    
     /// <summary>
     /// Updates the specified flag
     /// </summary>

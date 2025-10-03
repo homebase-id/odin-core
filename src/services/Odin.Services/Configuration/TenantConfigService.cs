@@ -213,7 +213,7 @@ public class TenantConfigService(
         {
             await registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
-        
+
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await circleMembershipService.CreateSystemCirclesAsync(odinContext);
@@ -244,11 +244,6 @@ public class TenantConfigService(
         await ConfigStorage.UpsertManyAsync(identityDatabase.KeyValueCached, keyValuePairs);
 
         tx.Commit();
-        
-        if (request.UseAutomatedPasswordRecovery)
-        {
-            await shamirConfigurationService.ConfigureAutomatedRecovery(odinContext);
-        }
     }
 
     public async Task EnsureSystemDrivesExist(IOdinContext odinContext)
@@ -340,6 +335,16 @@ public class TenantConfigService(
         tenantContext.UpdateSystemConfig(cfg);
     }
 
+    public async Task EnableAutoPasswordRecovery(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        if (!await IsIdentityServerConfiguredAsync())
+        {
+            throw new OdinClientException("Identity must first be configured");
+        }
+
+        await shamirConfigurationService.ConfigureAutomatedRecovery(odinContext);
+    }
 
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {

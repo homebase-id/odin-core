@@ -85,7 +85,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 Drives = null,
                 Circles = null,
-                UseAutomatedPasswordRecovery = true // << testing this here
             };
 
             var initIdentityResponse = await ownerClient.Configuration.InitializeIdentity(setupConfig);
@@ -95,6 +94,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
             ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.Content);
 
+            
+            // now that drives are setup, we can enable auto password recovery
+            var enableAutoPasswordRecoveryResponse = await ownerClient.Configuration.EnableAutoPasswordRecovery();
+            ClassicAssert.IsTrue(enableAutoPasswordRecoveryResponse.IsSuccessStatusCode);
 
             var shardConfigResponse = await ownerClient.Security.GetDealerShardConfig();
             // should have the automated identities configured
