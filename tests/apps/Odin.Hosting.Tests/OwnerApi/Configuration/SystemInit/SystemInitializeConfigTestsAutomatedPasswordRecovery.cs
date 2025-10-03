@@ -1,19 +1,11 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
-using DotNetEnv;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
-using Odin.Core;
 using Odin.Core.Identity;
-using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.Drives.Management;
-using Odin.Services.Membership.Circles;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
@@ -74,10 +66,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 await client.Configuration.InitializeIdentity(new InitialSetupRequest());
             }
 
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
 
             //success = system drives created, other drives created
-            var getIsIdentityConfiguredResponse1 = await ownerClient.Configuration.IsIdentityConfigured();
+            var getIsIdentityConfiguredResponse1 = await frodo.Configuration.IsIdentityConfigured();
             ClassicAssert.IsTrue(getIsIdentityConfiguredResponse1.IsSuccessStatusCode);
             ClassicAssert.IsFalse(getIsIdentityConfiguredResponse1.Content);
 
@@ -87,19 +79,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Circles = null,
             };
 
-            var initIdentityResponse = await ownerClient.Configuration.InitializeIdentity(setupConfig);
+            var initIdentityResponse = await frodo.Configuration.InitializeIdentity(setupConfig);
             ClassicAssert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
 
-            var getIsIdentityConfiguredResponse = await ownerClient.Configuration.IsIdentityConfigured();
+            var getIsIdentityConfiguredResponse = await frodo.Configuration.IsIdentityConfigured();
             ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
             ClassicAssert.IsTrue(getIsIdentityConfiguredResponse.Content);
 
             
             // now that drives are setup, we can enable auto password recovery
-            var enableAutoPasswordRecoveryResponse = await ownerClient.Configuration.EnableAutoPasswordRecovery();
+            var enableAutoPasswordRecoveryResponse = await frodo.Configuration.EnableAutoPasswordRecovery();
             ClassicAssert.IsTrue(enableAutoPasswordRecoveryResponse.IsSuccessStatusCode);
 
-            var shardConfigResponse = await ownerClient.Security.GetDealerShardConfig();
+            var shardConfigResponse = await frodo.Security.GetDealerShardConfig();
             // should have the automated identities configured
             var config = shardConfigResponse.Content;
 
@@ -116,9 +108,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             Assert.That(config.MinMatchingShards, Is.EqualTo(ShamirConfigurationService.MinimumPlayerCount));
             
-            // scan the players to see if they have the shard?
+            // verify the shards made it to the identities
             
-            Assert.Fail("TODO - NEED TO CONSIDER IF I CAN USE THE REGULAR FILE XFER W/ THE CLIENT TOKEN INSTEAD OF A SPECIAL ENDPOINT");
+            await frodo.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+
+            var verifyShardsResponse = await frodo.Security.VerifyShards();
+            Assert.That(verifyShardsResponse.IsSuccessful, Is.True);
+
+            var results = verifyShardsResponse.Content;
+            Assert.That(results, Is.Not.Null);
+            Assert.That(results.Players, Is.Not.Null);
+            Assert.That(results.Players.Count, Is.EqualTo(4), "mismatch number of shards in verified results");
+            Assert.That(results.Players.All(p => p.Value.IsValid), "one or more players not verified");
         }
     }
 }

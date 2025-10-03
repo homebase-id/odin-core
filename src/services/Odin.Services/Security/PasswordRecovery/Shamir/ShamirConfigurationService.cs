@@ -489,7 +489,7 @@ public class ShamirConfigurationService(
             { "automated-shard-permissions", new PermissionGroup(new PermissionSet(), driveGrants, null, null) }
         };
 
-        var permissionContext = new PermissionContext(permissionGroups, null);
+        var permissionContext = new PermissionContext(permissionGroups, sharedSecretKey: Guid.Empty.ToByteArray().ToSensitiveByteArray());
         var callerContext = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
@@ -502,7 +502,6 @@ public class ShamirConfigurationService(
 
         return Task.FromResult<IOdinContext>(dotYouContext);
     }
-
 
     private IPeerPasswordRecoveryHttpClient CreateClientAsync(OdinId odinId, IOdinContext odinContext)
     {
@@ -626,28 +625,26 @@ public class ShamirConfigurationService(
 
         return results;
     }
-    
+
     private async Task<Dictionary<OdinId, TransferStatus>> EnqueueShardsForDistributionForAutomaticIdentities(
         List<PlayerEncryptedShard> shards, IOdinContext odinContext)
     {
-        var results = new Dictionary<OdinId, TransferStatus>();
-        
-        
         var status = new Dictionary<OdinId, TransferStatus>();
         foreach (PlayerEncryptedShard shard in shards)
         {
+            var recipient = shard.Player.OdinId;
+
             var header = await WritePlayerEncryptedShardToTempDrive(shard, odinContext);
             var options = new TransitOptions
             {
                 IsTransient = true,
-                Recipients = [shard.Player.OdinId.DomainName],
+                Recipients = [recipient],
                 DisableTransferHistory = true,
                 UseAppNotification = false,
                 RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
                 Priority = OutboxPriority.High
             };
-            
-            var recipient = shard.Player.OdinId;
+
             try
             {
                 var clientAuthToken = new ClientAccessToken()
@@ -657,7 +654,7 @@ public class ShamirConfigurationService(
                     ClientTokenType = ClientTokenType.AutomatedPasswordRecovery,
                     SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
                 };
-                
+
                 var item = new OutboxFileItem()
                 {
                     Priority = 100,
@@ -692,7 +689,7 @@ public class ShamirConfigurationService(
             }
         }
 
-        return results;
+        return status;
     }
 
     /// <summary>
@@ -858,7 +855,7 @@ public class ShamirConfigurationService(
         var existingKey = await Storage.GetAsync<ShamirKeyRecord>(tblKeyValue, ShamirRecordStorageId);
         return existingKey;
     }
-    
+
     private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
         ClientAccessToken clientAccessToken,
         TargetDrive targetDrive,

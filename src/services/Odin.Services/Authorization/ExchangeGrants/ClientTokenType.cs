@@ -34,5 +34,5 @@ public enum ClientTokenType
     /// </summary>
     RemoteNotificationSubscriber = 254,
 
-    AutomatedPasswordRecovery = 1025
+    AutomatedPasswordRecovery = 4
 }

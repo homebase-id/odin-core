@@ -477,7 +477,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await Task.CompletedTask;
 
             //HACK: if it's not a connected token
-            if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
+            if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower() && odinContext.AuthContext.ToLower() != "AutomatedIdentityAuthScheme".ToLower())
             {
                 return false;
             }
