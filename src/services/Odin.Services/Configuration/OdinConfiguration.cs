@@ -40,6 +40,7 @@ namespace Odin.Services.Configuration
         public CacheSection Cache { get; init; }
 
         public S3PayloadStorageSection S3PayloadStorage { get; init; } = new();
+        public CdnSection Cdn { get; init; } = new();
 
         public OdinConfiguration()
         {
@@ -69,6 +70,7 @@ namespace Odin.Services.Configuration
             Redis = new RedisSection(config);
             Cache = new CacheSection(config);
             S3PayloadStorage = new S3PayloadStorageSection(config);
+            Cdn = new CdnSection(config);
         }
 
         //
@@ -522,5 +524,36 @@ namespace Odin.Services.Configuration
                 }
             }
         }
+
+        //
+
+        public class CdnSection
+        {
+            public bool Enabled { get; init; }
+            public string RootUrl { get; init; } = "";
+
+            public CdnSection()
+            {
+                // Mockable support
+            }
+
+            public CdnSection(IConfiguration config)
+            {
+                Enabled = config.GetOrDefault("CdnSection:Enabled", false);
+                if (Enabled)
+                {
+                    RootUrl = config.Required<string>("CdnSection:RootUrl");
+                    if (!RootUrl.StartsWith("http://") && !RootUrl.StartsWith("https://"))
+                    {
+                        throw new OdinConfigException("CdnSection:RootUrl must being with http:// or https://");
+                    }
+                    if (!RootUrl.EndsWith('/'))
+                    {
+                        RootUrl += '/';
+                    }
+                }
+            }
+        }
+
     }
 }
