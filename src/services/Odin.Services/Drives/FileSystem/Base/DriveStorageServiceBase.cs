@@ -57,6 +57,16 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext);
 
+            //
+            // SEB:TODO CdnPayloadBaseUrl: this is probably a bit too much work for the frontend.
+            //
+            // result.CdnPayloadBaseUrl should follow this pattern:
+            //   https://cdn.dotyou.cloud/payloads/  +    {tenantId}/drives/{driveId}/files/{nibble1}/{nibble2}/{fileId}
+            // The frontend can then append the rest of the path to get to the payload or thumbnail
+            // e.g.:
+            //   https://cdn.dotyou.cloud/payloads//10000000-0000-0000-0000-000000000001/drives/8f12d8c4933813d378488d91ed23b64c/files/b/2/f28f9a19d0ea5700a03984837e256db2-prfl_key-115309086012080128-20x20.thumb
+            //
+
             result.CdnPayloadBaseUrl = config.Cdn.PayloadBaseUrl;
 
             return result;
