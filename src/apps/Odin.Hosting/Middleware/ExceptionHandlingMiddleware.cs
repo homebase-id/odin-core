@@ -71,7 +71,7 @@ namespace Odin.Hosting.Middleware
             // so for now just log whatever it is as an error.
             if (context.WebSockets.IsWebSocketRequest && context.Request.Method == "CONNECT")
             {
-                logger.LogError(exception, "{ErrorText}", exception.Message);
+                logger.LogError(exception, "WS connect: {ErrorText}", exception.Message);
                 return Task.CompletedTask;
             }
 
@@ -104,10 +104,16 @@ namespace Odin.Hosting.Middleware
             switch (problemDetails.Status)
             {
                 case 499:
-                    logger.LogWarning("{WarningText}", exception.Message);
+                    logger.LogWarning("{WarningText} [origin: {method} {path}]",
+                        exception.Message,
+                        context.Request.Method,
+                        context.Request.Path);
                     break;
                 case >= 500:
-                    logger.LogError(exception, "{ErrorText}", exception.Message);
+                    logger.LogError(exception, "{ErrorText}\nException origin: {method} {path}",
+                        exception.Message,
+                        context.Request.Method,
+                        context.Request.Path);
                     break;
             }
 
@@ -135,7 +141,7 @@ namespace Odin.Hosting.Middleware
         // SEB:NOTE
         // This is a last resort exception filter.
         // Exceptions should be caught and handled as close to the source
-        // as possble. Only rely on the below if there are no other way.
+        // as possible. Only rely on the below if there is no other way.
         private static bool IsCancellationException(Exception ex)
         {
             switch (ex)

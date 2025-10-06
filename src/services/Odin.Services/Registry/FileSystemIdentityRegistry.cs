@@ -154,7 +154,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var registration = new IdentityRegistration()
         {
-            Id = Guid.NewGuid(),
+            Id = request.Id ?? Guid.NewGuid(),
             Email = request.Email,
             PlanId = request.PlanId,
             PrimaryDomainName = request.OdinId,

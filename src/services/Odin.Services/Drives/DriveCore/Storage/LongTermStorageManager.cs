@@ -299,15 +299,16 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<Stream> GetPayloadStreamAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, FileChunk chunk = null)
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
-            logger.LogDebug("Get Chunked Stream called on file [{path}]", path);
 
             if (chunk == null)
             {
+                logger.LogDebug("GetPayloadStreamAsync: {path}", path);
                 var bytes = await payloadReaderWriter.GetFileBytesAsync(path);
                 return new MemoryStream(bytes);
             }
             else
             {
+                logger.LogDebug("GetPayloadStreamAsync: {path}, start={start}, length={length}", path, chunk.Start, chunk.Length);
                 var bytes = await payloadReaderWriter.GetFileBytesAsync(path, chunk.Start, chunk.Length);
                 return new MemoryStream(bytes);
             }
