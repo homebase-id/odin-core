@@ -21,7 +21,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
         Task<ApiResponse<RedactedOdinContext>> GetDotYouContext();
 
         [Get(OwnerApiPathConstants.SecurityV1 + "/recovery-key")]
-        Task<ApiResponse<DecryptedRecoveryKey>> GetAccountRecoveryKey();
+        Task<ApiResponse<RecoveryKeyResult>> GetAccountRecoveryKey();
         
         [Post(OwnerApiPathConstants.SecurityV1 + "/request-recovery-key")]
         Task<ApiResponse<RequestRecoveryKeyResult>> RequestRecoveryKey();

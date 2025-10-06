@@ -829,7 +829,7 @@ public class ShamirConfigurationService(
         odinContext.Caller.AssertHasMasterKey();
 
         // encrypt the recover key w/ distribution key
-        var k = await passwordKeyRecoveryService.GetKeyAsync(byPassWaitingPeriod: true, odinContext);
+        var k = await passwordKeyRecoveryService.GetRecoveryKeyAsync(byPassWaitingPeriod: true, odinContext);
         var recoveryKey = BIP39Util.DecodeBIP39(k.Key);
 
         var masterKey = odinContext.Caller.GetMasterKey();

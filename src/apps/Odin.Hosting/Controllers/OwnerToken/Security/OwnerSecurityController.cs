@@ -48,9 +48,9 @@ public class OwnerSecurityController : OdinControllerBase
     }
 
     [HttpGet("recovery-key")]
-    public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
+    public async Task<RecoveryKeyResult> GetAccountRecoveryKey()
     {
-        return await _recoveryService.GetKeyAsync(byPassWaitingPeriod: false, WebOdinContext);
+        return await _recoveryService.GetRecoveryKeyAsync(byPassWaitingPeriod: false, WebOdinContext);
     }
 
     [HttpPost("request-recovery-key")]

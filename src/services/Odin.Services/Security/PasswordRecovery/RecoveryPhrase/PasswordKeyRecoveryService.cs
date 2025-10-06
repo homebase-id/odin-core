@@ -1,7 +1,6 @@
 using System;
 using System.Net.Mail;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -16,7 +15,6 @@ using Odin.Services.Util;
 namespace Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 public class PasswordKeyRecoveryService(
-    ILogger<PasswordKeyRecoveryService> logger,
     TableKeyValueCached tblKeyValue,
     TenantContext tenantContext,
     RecoveryEmailer recoveryEmailer)
@@ -66,10 +64,27 @@ public class PasswordKeyRecoveryService(
 
     public async Task<RequestRecoveryKeyResult> RequestRecoveryKey(IOdinContext odinContext)
     {
-        // set a date that the user has requested to see their recovery key
+        odinContext.Caller.AssertHasMasterKey();
+
+        var recoveryKey = await GetKeyInternalAsync();
+
+        // if they have never viewed the recovery key, allow us to see the key now
+        if (recoveryKey?.InitialRecoveryKeyViewingDate == null)
+        {
+            // mark they viewed it initially and let them view it now
+            await ConfirmInitialRecoveryKeyStorage(odinContext);
+            var tenSecondsAgo = UnixTimeUtc.Now().AddSeconds(-10);
+            return new RequestRecoveryKeyResult()
+            {
+                NextViewableDate = await MarkNextViewableDate(tenSecondsAgo)
+            };
+        }
+
+        // if they have viewed the key before, then we need to wait for the waiting period
+        var nextDate = UnixTimeUtc.Now().AddMilliseconds((Int64)GetWaitingPeriod().TotalMilliseconds);
         return new RequestRecoveryKeyResult()
         {
-            NextViewableDate = await MarkNextViewableDate()
+            NextViewableDate = await MarkNextViewableDate(nextDate)
         };
     }
 
@@ -77,62 +92,65 @@ public class PasswordKeyRecoveryService(
     {
         odinContext.Caller.AssertHasMasterKey();
         var recoveryKey = await GetKeyInternalAsync();
-        recoveryKey.UserConfirmKeyDuringSetupDate = UnixTimeUtc.Now();
+        recoveryKey.InitialRecoveryKeyViewingDate = UnixTimeUtc.Now();
         await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, recoveryKey);
     }
-    
-    public async Task<DecryptedRecoveryKey> GetKeyAsync(bool byPassWaitingPeriod, IOdinContext odinContext)
+
+    public async Task<RecoveryKeyResult> GetRecoveryKeyAsync(bool byPassWaitingPeriod, IOdinContext odinContext)
     {
         var ctx = odinContext;
         ctx.Caller.AssertHasMasterKey();
-
         if (ctx.AuthTokenCreated == null)
         {
             throw new OdinSecurityException("Could not validate token creation date");
         }
 
-        //todo return the next viewable date
-        
-        var keyRecord = await GetKeyInternalAsync();
-
-        if (!byPassWaitingPeriod)
+        async Task<RecoveryKeyResult> DecryptedRecoveryKey(RecoveryKeyRecord recoveryKeyRecord)
         {
-            if (keyRecord.NextViewableDate == null)
-            {
-                if (null == keyRecord.UserConfirmKeyDuringSetupDate)
-                {
-                    logger.LogError("Well, this is strange place to be.  First run date is null but you're requesting a recovery key.");
-                    throw new OdinSystemException("First run date not set.");
-                }
+            var masterKey = odinContext.Caller.GetMasterKey();
+            var recoverKey = recoveryKeyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
 
-                if (UnixTimeUtc.Now() < keyRecord.UserConfirmKeyDuringSetupDate.Value.AddDays(1))
-                {
-                    throw new OdinClientException("You must request a recovery key before you can reveal it");
-                }
-            }
-            else
+            var readableText = BIP39Util.GenerateBIP39(recoverKey.GetKey());
+
+            var decryptedRecoveryKey = new RecoveryKeyResult
             {
-                if (UnixTimeUtc.Now() < keyRecord.NextViewableDate.Value)
-                {
-                    throw new OdinSecurityException(
-                        $"Cannot reveal token before {keyRecord.NextViewableDate.Value.ToDateTime()} days from creation");
-                }
-            }
+                Key = readableText,
+                Created = recoveryKeyRecord.Created,
+                NextViewableDate = null // doesnt matter
+            };
+
+            await ClearNextViewableDate();
+            recoverKey.Wipe();
+            return decryptedRecoveryKey;
         }
 
-        var masterKey = odinContext.Caller.GetMasterKey();
-        var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(masterKey);
-
-        var readableText = BIP39Util.GenerateBIP39(recoverKey.GetKey());
-
-        var rk = new DecryptedRecoveryKey
+        var keyRecord = await GetKeyInternalAsync();
+        if (byPassWaitingPeriod) // short circuit
         {
-            Key = readableText,
-            Created = keyRecord.Created,
-        };
+            return await DecryptedRecoveryKey(keyRecord);
+        }
 
-        await ClearNextViewableDate();
-        recoverKey.Wipe();
+        if (keyRecord.NextViewableDate == null)
+        {
+            return new RecoveryKeyResult
+            {
+                Key = null,
+                Created = default,
+                NextViewableDate = null
+            };
+        }
+
+        if (UnixTimeUtc.Now() < keyRecord.NextViewableDate.Value)
+        {
+            return new RecoveryKeyResult
+            {
+                Key = null,
+                Created = default,
+                NextViewableDate = keyRecord.NextViewableDate
+            };
+        }
+
+        var rk = await DecryptedRecoveryKey(keyRecord);
         return rk;
     }
 
@@ -199,10 +217,9 @@ public class PasswordKeyRecoveryService(
         await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, record);
     }
 
-  
-    private async Task<UnixTimeUtc> MarkNextViewableDate()
+
+    private async Task<UnixTimeUtc> MarkNextViewableDate(UnixTimeUtc nextDate)
     {
-        var nextDate = UnixTimeUtc.Now().AddMilliseconds((Int64)GetWaitingPeriod().TotalMilliseconds);
         var recoveryKey = await GetKeyInternalAsync();
         recoveryKey.NextViewableDate = nextDate;
         await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, recoveryKey);

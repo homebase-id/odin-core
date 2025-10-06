@@ -31,7 +31,7 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         }
     }
 
-    public async Task<ApiResponse<DecryptedRecoveryKey>> GetAccountRecoveryKey()
+    public async Task<ApiResponse<RecoveryKeyResult>> GetAccountRecoveryKey()
     {
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
