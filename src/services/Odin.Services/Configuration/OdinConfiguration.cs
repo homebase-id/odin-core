@@ -529,8 +529,7 @@ namespace Odin.Services.Configuration
 
         public class CdnSection
         {
-            public bool Enabled { get; init; }
-            public string RootUrl { get; init; } = "";
+            public string PayloadBaseUrl { get; init; } = null;
 
             public CdnSection()
             {
@@ -539,17 +538,17 @@ namespace Odin.Services.Configuration
 
             public CdnSection(IConfiguration config)
             {
-                Enabled = config.GetOrDefault("CdnSection:Enabled", false);
-                if (Enabled)
+                PayloadBaseUrl = config.GetOrDefault<string>("Cdn:PayloadBaseUrl", null);
+                if (PayloadBaseUrl != null)
                 {
-                    RootUrl = config.Required<string>("CdnSection:RootUrl");
-                    if (!RootUrl.StartsWith("http://") && !RootUrl.StartsWith("https://"))
+                    if (!PayloadBaseUrl.StartsWith("http://") && !PayloadBaseUrl.StartsWith("https://"))
                     {
-                        throw new OdinConfigException("CdnSection:RootUrl must being with http:// or https://");
+                        throw new OdinConfigException("Cdn:PayloadBaseUrl must being with http:// or https://");
                     }
-                    if (!RootUrl.EndsWith('/'))
+
+                    if (!PayloadBaseUrl.EndsWith('/'))
                     {
-                        RootUrl += '/';
+                        PayloadBaseUrl += '/';
                     }
                 }
             }

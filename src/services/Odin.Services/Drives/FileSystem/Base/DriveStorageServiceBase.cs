@@ -3,10 +3,8 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
-using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
-using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
@@ -23,14 +21,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Services.Configuration;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase(
         ILoggerFactory loggerFactory,
+        OdinConfiguration config,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
@@ -57,6 +56,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             var result = DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext);
+
+            result.CdnPayloadBaseUrl = config.Cdn.PayloadBaseUrl;
+
             return result;
         }
 
