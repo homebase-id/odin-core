@@ -4,6 +4,8 @@ using Nito.AsyncEx;
 
 namespace Odin.Core.Util;
 
+// NOTE: this class does not scale horizontally. Prefer INodeLock if possible.
+
 public class SharedAsyncLock<TRegisteredService> where TRegisteredService : notnull
 {
     private readonly AsyncLock _asyncLock = new();

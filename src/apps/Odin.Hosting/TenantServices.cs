@@ -99,7 +99,6 @@ public static class TenantServices
 
         cb.RegisterInstance(new OdinIdentity(registration.Id, registration.PrimaryDomainName)).SingleInstance();
 
-        cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
 
