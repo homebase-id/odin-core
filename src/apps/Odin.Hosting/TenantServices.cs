@@ -1,7 +1,6 @@
 using System;
 using Autofac;
 using MediatR;
-using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
@@ -100,10 +99,6 @@ public static class TenantServices
 
         cb.RegisterInstance(new OdinIdentity(registration.Id, registration.PrimaryDomainName)).SingleInstance();
 
-        cb.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedConcurrentDictionary<,,>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
-        cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
 
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();

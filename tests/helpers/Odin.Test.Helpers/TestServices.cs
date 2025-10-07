@@ -2,7 +2,6 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Core.Logging;
 using Odin.Core.Storage.Cache;
@@ -102,7 +101,6 @@ public class TestServices : IDisposable
         builder.RegisterModule(new LoggingAutofacModule());
         builder.RegisterGeneric(typeof(TestConsoleLogger<>)).As(typeof(ILogger<>)).SingleInstance();
 
-        builder.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
         builder.RegisterType<LastSeenService>().As<ILastSeenService>().SingleInstance();
 
         builder.AddDatabaseServices();

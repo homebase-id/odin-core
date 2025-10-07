@@ -10,6 +10,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Util;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -35,7 +36,7 @@ namespace Odin.Services.Membership.Connections
     /// </summary>
     public class CircleNetworkService(
         ILogger<CircleNetworkService> logger,
-        SharedKeyedAsyncLock<CircleNetworkService> keyedAsyncLock,
+        INodeLock nodeLock,
         ExchangeGrantService exchangeGrantService,
         TenantContext tenantContext,
         IAppRegistrationService appRegistrationService,
@@ -1211,26 +1212,17 @@ namespace Odin.Services.Membership.Connections
 
         private async Task SaveIcrAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
-            // SEB:TODO does not scale
-            // SEB:TODO delete all these debug logs when we we have gotten rid of the keyed lock
-            logger.LogDebug("SaveIcrAsync -> Acquiring");
-            using (await keyedAsyncLock.LockAsync(icr.OdinId))
+            await using (await nodeLock.LockAsync(NodeLockKey.Create(nameof(CircleNetworkService), odinContext.Tenant)))
             {
                 //TODO: this is a critical change; need to audit this
                 if (icr.Status == ConnectionStatus.None)
                 {
-                    logger.LogDebug("SaveIcrAsync -> before DeleteAsync");
                     await circleNetworkStorage.DeleteAsync(icr.OdinId);
-                    logger.LogDebug("SaveIcrAsync -> after DeleteAsync");
                 }
                 else
                 {
-                    logger.LogDebug("SaveIcrAsync -> before UpsertAsync");
                     await circleNetworkStorage.UpsertAsync(icr, odinContext);
-                    logger.LogDebug("SaveIcrAsync -> after UpsertAsync");
                 }
-
-                logger.LogDebug("SaveIcrAsync -> Releasing");
             }
         }
 
