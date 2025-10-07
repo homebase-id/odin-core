@@ -67,14 +67,14 @@ public class OwnerSecurityHealthService(
 
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
         var recoveryInfo = await recoveryService.GetRecoveryEmail();
-
-
+        
         if (package == null)
         {
             return new RecoveryInfo
             {
                 IsConfigured = false,
                 ConfigurationUpdated = null,
+                UsesAutomaticRecovery = false,
                 Email = recoveryInfo?.Email,
                 EmailLastVerified = recoveryInfo?.EmailLastVerified,
                 Status = await GetVerificationStatusInternalAsync(),
@@ -93,12 +93,13 @@ public class OwnerSecurityHealthService(
             healthCheckStatus = await PeriodicSecurityHealthCheckStatusStorage
                 .GetAsync<PeriodicSecurityHealthCheckStatus>(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId);
         }
-
+        
         return new RecoveryInfo()
         {
             IsConfigured = true,
             ConfigurationUpdated = package.Updated,
             Email = recoveryInfo?.Email,
+            UsesAutomaticRecovery = package.UsesAutomatedRecovery,
             EmailLastVerified = recoveryInfo?.EmailLastVerified,
             Status = await GetVerificationStatusInternalAsync(),
             RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)

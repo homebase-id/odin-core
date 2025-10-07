@@ -163,8 +163,8 @@ namespace Odin.Services.Configuration
 
                 InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", new List<string>());
 
-                AutomatedIdentityKey = config.Required<Guid>("Registry:AutomatedIdentityKey");
-                AutomatedPasswordRecoveryIdentities = config.Required<List<string>>("Registry:AutomatedPasswordRecoveryIdentities");
+                AutomatedIdentityKey = config.GetOrDefault<Guid>("Registry:AutomatedIdentityKey");
+                AutomatedPasswordRecoveryIdentities = config.GetOrDefault<List<string>>("Registry:AutomatedPasswordRecoveryIdentities");
                 DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             }
 

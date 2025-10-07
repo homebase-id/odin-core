@@ -11,8 +11,6 @@ public class ShamirKeyRecord
     /// This is the recovery key from the RecoverKeyService encrypted by the ShamirDistributionKey
     /// </summary>
     public SymmetricKeyEncryptedAes ShamirDistributionKeyEncryptedRecoveryKey { get; set; }
-
-    public bool UsesAutomatedRecoveryKey { get; set; }
     
     public UnixTimeUtc Created { get; set; }
 }
