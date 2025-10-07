@@ -36,7 +36,7 @@ public sealed class NodeLockKey
 
     //
 
-    public static NodeLockKey Create(string[] parts)
+    public static NodeLockKey Create(params string[] parts)
     {
         ArgumentNullException.ThrowIfNull(parts, nameof(parts));
 

@@ -39,8 +39,7 @@ namespace Odin.Core.Storage.Tests.Concurrency
         public void ImplicitOperator_ValidKey_ReturnsKeyAsString2()
         {
             // Arrange
-            var parts = new[] { "part1", "part2" };
-            var nodeLockKey = NodeLockKey.Create(parts);
+            var nodeLockKey = NodeLockKey.Create("part1", "part2");
             const string expected = "part1:part2";
 
             // Act
@@ -54,11 +53,10 @@ namespace Odin.Core.Storage.Tests.Concurrency
         public void Create_ValidParts_ReturnsNodeLockKeyWithJoinedKey()
         {
             // Arrange
-            var parts = new[] { "part1", "part2", "part3" };
             const string expectedKey = "part1:part2:part3";
 
             // Act
-            var nodeLockKey = NodeLockKey.Create(parts);
+            var nodeLockKey = NodeLockKey.Create("part1", "part2", "part3");
 
             // Assert
             Assert.That(nodeLockKey.Key, Is.EqualTo(expectedKey));
@@ -68,11 +66,10 @@ namespace Odin.Core.Storage.Tests.Concurrency
         public void Create_SinglePart_ReturnsNodeLockKeyWithSinglePartKey()
         {
             // Arrange
-            var parts = new[] { "singlePart" };
             const string expectedKey = "singlePart";
 
             // Act
-            var nodeLockKey = NodeLockKey.Create(parts);
+            var nodeLockKey = NodeLockKey.Create(expectedKey);
 
             // Assert
             Assert.That(nodeLockKey.Key, Is.EqualTo(expectedKey));
@@ -87,7 +84,8 @@ namespace Odin.Core.Storage.Tests.Concurrency
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
             {
-                NodeLockKey.Create(parts);
+                // ReSharper disable once ExpressionIsAlwaysNull
+                NodeLockKey.Create(parts!);
             }, "Create should throw ArgumentNullException for null parts.");
         }
 
@@ -107,54 +105,31 @@ namespace Odin.Core.Storage.Tests.Concurrency
         [Test]
         public void Create_PartsWithNullElement_ThrowsArgumentException()
         {
-            // Arrange
-            var parts = new[] { "part1", null!, "part3" };
-
             // Act & Assert
             Assert.Throws<ArgumentException>(() =>
             {
-                NodeLockKey.Create(parts);
+                NodeLockKey.Create("part1", null!, "part3");
             }, "Create should throw ArgumentException for null elements in parts.");
         }
 
         [Test]
         public void Create_PartsWithEmptyString_ThrowsArgumentException()
         {
-            // Arrange
-            var parts = new[] { "part1", "", "part3" };
-
             // Act & Assert
             Assert.Throws<ArgumentException>(() =>
             {
-                NodeLockKey.Create(parts);
+                NodeLockKey.Create("part1", "", "part3");
             }, "Create should throw ArgumentException for empty string in parts.");
         }
 
         [Test]
         public void Create_PartsWithWhitespaceString_ThrowsArgumentException()
         {
-            // Arrange
-            var parts = new[] { "part1", "  ", "part3" };
-
             // Act & Assert
             Assert.Throws<ArgumentException>(() =>
             {
-                NodeLockKey.Create(parts);
+                NodeLockKey.Create("part1", "  ", "part3");
             }, "Create should throw ArgumentException for whitespace string in parts.");
-        }
-
-        [Test]
-        public void Key_Property_CannotBeSetExternally()
-        {
-            // Arrange
-            var parts = new[] { "part1" };
-            var nodeLockKey = NodeLockKey.Create(parts);
-
-            // Act & Assert
-            // This test ensures the Key property is read-only externally.
-            // Since it's 'init-only', it can't be set after initialization, which is enforced by the compiler.
-            // We can't write a direct test for setting it (as it won't compile), so we verify the value remains unchanged.
-            Assert.That(nodeLockKey.Key, Is.EqualTo("part1"));
         }
 
         [Test]
@@ -162,7 +137,7 @@ namespace Odin.Core.Storage.Tests.Concurrency
         {
             // Arrange
             var parts = Enumerable.Range(0, 100).Select(i => $"part{i}").ToArray();
-            string expectedKey = string.Join(":", parts);
+            var expectedKey = string.Join(":", parts);
 
             // Act
             var nodeLockKey = NodeLockKey.Create(parts);
