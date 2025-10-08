@@ -22,7 +22,7 @@ public class OwnerConfigurationController : OdinControllerBase
     private readonly TenantConfigService _tenantConfigService;
 
     public const string InitialSetupEndpoint = "system/initialize";
-    
+
     /// <summary />
     public OwnerConfigurationController(TenantConfigService tenantConfigService)
     {
@@ -86,7 +86,7 @@ public class OwnerConfigurationController : OdinControllerBase
     {
         await _tenantConfigService.EnableAutoPasswordRecovery(WebOdinContext);
     }
-    
+
     /// <summary>
     /// Updates the specified flag
     /// </summary>
@@ -153,13 +153,13 @@ public class OwnerConfigurationController : OdinControllerBase
     }
 
     /// <summary>
-    /// Marks registration for an identity complete
+    /// Gets some information required for setup 
     /// </summary>
     /// <returns></returns>
-    [HttpGet("registration/finalize")]
-    public IActionResult Finalize(Guid frid)
+    [HttpGet("registration/can-use-auto-recovery")]
+    public IActionResult CanUseAutoRecovery()
     {
-        //TODO: how do i finalize from here with teh first run token?
+        _tenantConfigService.AssertCanUseAutoPasswordRecovery(WebOdinContext);
         return Ok();
     }
 }

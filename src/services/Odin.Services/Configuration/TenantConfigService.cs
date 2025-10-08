@@ -346,6 +346,12 @@ public class TenantConfigService(
         await shamirConfigurationService.ConfigureAutomatedRecovery(odinContext);
     }
 
+    public void AssertCanUseAutoPasswordRecovery(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        shamirConfigurationService.AssertCanUseAutomatedRecovery();
+    }
+
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {
         return await ConfigStorage.GetAsync<TenantSettings>(identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ??

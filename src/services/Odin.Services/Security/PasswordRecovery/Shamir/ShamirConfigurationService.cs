@@ -70,15 +70,8 @@ public class ShamirConfigurationService(
 
     public async Task ConfigureAutomatedRecovery(IOdinContext odinContext)
     {
+        AssertCanUseAutomatedRecovery();
         var autoPlayers = configuration.Registry.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
-
-        if (autoPlayers.Count() < MinimumPlayerCount)
-        {
-            logger.LogWarning("Tried to auto-configure password recovery but too few auto-players are configured.  See configuration " +
-                              "Registry::AutomatedPasswordRecoveryIdentities. Minimum is {min}", MinimumPlayerCount);
-            // throw new OdinSystemException("Tried to auto-configure password recovery but too few auto-players are configured");
-            throw new OdinClientException("Tried to auto-configure password recovery but too few auto-players are configured");
-        }
 
         SensitiveByteArray distributionKey = null;
         await using var tx = await db.BeginStackedTransactionAsync();
@@ -114,6 +107,19 @@ public class ShamirConfigurationService(
         finally
         {
             distributionKey?.Wipe();
+        }
+    }
+
+    public void AssertCanUseAutomatedRecovery()
+    {
+        var autoPlayers = configuration.Registry.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
+
+        if (autoPlayers.Count() < MinimumPlayerCount || configuration.Registry.AutomatedIdentityKey == Guid.Empty)
+        {
+            logger.LogWarning("Tried to auto-configure password recovery but too few auto-players are configured.  See configuration " +
+                              "Registry::AutomatedPasswordRecoveryIdentities. Minimum is {min}", MinimumPlayerCount);
+            // throw new OdinSystemException("Tried to auto-configure password recovery but too few auto-players are configured");
+            throw new OdinClientException("Tried to auto-configure password recovery but too few auto-players are configured");
         }
     }
 
