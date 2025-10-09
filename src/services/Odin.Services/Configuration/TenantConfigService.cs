@@ -348,7 +348,6 @@ public class TenantConfigService(
 
     public void AssertCanUseAutoPasswordRecovery(IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
         shamirConfigurationService.AssertCanUseAutomatedRecovery();
     }
 
