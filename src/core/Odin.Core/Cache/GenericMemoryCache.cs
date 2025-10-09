@@ -10,6 +10,7 @@ namespace Odin.Core.Cache;
 
 #nullable enable
 
+// NOTE: if possible, prefer using ILevel1Cache or ILevel2Cache instead of this cache class
 public interface IGenericMemoryCache
 {
     void Clear();
