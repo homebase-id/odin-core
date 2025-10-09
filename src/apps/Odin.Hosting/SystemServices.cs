@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
@@ -31,6 +32,7 @@ using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Admin.Tenants;
+using Odin.Services.AppNotifications.WebSocket.SignalR;
 using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
@@ -234,6 +236,24 @@ public static class SystemServices
                 config.S3PayloadStorage.ForcePathStyle,
                 config.S3PayloadStorage.BucketName,
                 config.S3PayloadStorage.RootPath);
+        }
+
+        // SignalR with Redis backplane
+        services.AddScoped<NotificationService>();
+        var signalR = services.AddSignalR(hubOptions =>
+        {
+            // SEB:TODO make configurable?
+            hubOptions.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+            hubOptions.MaximumReceiveMessageSize = 32 * Constants.OneKiB;
+            hubOptions.StreamBufferCapacity = 10;
+        });
+        if (config.Redis.Enabled)
+        {
+            signalR.AddStackExchangeRedis(config.Redis.Configuration, options =>
+            {
+                // SEB:TODO make configurable?
+                options.Configuration.ChannelPrefix = RedisChannel.Literal("Homebase");
+            });
         }
 
         return services;

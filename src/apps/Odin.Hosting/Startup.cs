@@ -29,6 +29,7 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
 using Odin.Core.Storage.Database.System;
+using Odin.Services.AppNotifications.WebSocket.SignalR;
 
 namespace Odin.Hosting;
 
@@ -140,6 +141,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             }
 
             endpoints.MapControllers();
+            endpoints.MapHub<NotificationHub>("/hubs/notifications");
         });
 
         // Intentionally for dev and production since we don't need to proxy anything
