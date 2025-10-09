@@ -10,6 +10,7 @@ using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging.Caller;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
@@ -48,7 +49,8 @@ namespace Odin.Services.Authentication.Owner
         OdinConfiguration configuration,
         TableKeyValueCached tblKeyValue,
         ShamirRecoveryService shamirRecoveryService,
-        OdinContextCache cache)
+        OdinContextCache cache,
+        ICallerLogContext callerLogContext)
         : INotificationHandler<DriveDefinitionAddedNotification>
     {
         private const string ServerTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
@@ -105,7 +107,7 @@ namespace Odin.Services.Authentication.Owner
 
             return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
-        
+
         /// <summary>
         /// Determines if the <paramref name="sessionTokenId"/> is valid and has not expired.  
         /// </summary>
@@ -300,6 +302,7 @@ namespace Odin.Services.Authentication.Owner
             odinContext.AuthTokenCreated = catTime;
 
             odinContext.Caller = ctx.Caller;
+            callerLogContext.Caller = odinContext.Caller.OdinId;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
             return true;

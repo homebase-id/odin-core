@@ -73,6 +73,8 @@ public class ShamirConfigurationService(
         AssertCanUseAutomatedRecovery();
         var autoPlayers = configuration.Registry.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
 
+        logger.LogDebug("Configuring automated recovery for auto-players: {players}", string.Join(",", autoPlayers));
+
         SensitiveByteArray distributionKey = null;
         await using var tx = await db.BeginStackedTransactionAsync();
         tx.AddPostCommitAction(transferService.ProcessOutboxNow);
@@ -226,8 +228,17 @@ public class ShamirConfigurationService(
 
             if (response.IsSuccessStatusCode)
             {
-                return response.Content;
+                var result = response.Content;
+                logger.LogDebug("Shard verification call succeed for identity: {identity}.  Result " +
+                                "was: IsValid:{isValid}.  remoteServerError: {remoteError}", player,
+                    result.IsValid,
+                    result.RemoteServerError);
+
+                return result;
             }
+
+            logger.LogDebug("Shard verification call failed for identity: {identity}.  Http Status code: {code}", player,
+                response.StatusCode);
         }
         catch (Exception e)
         {
@@ -251,14 +262,16 @@ public class ShamirConfigurationService(
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsAuthenticated();
+        logger.LogDebug("Verifying dealer shard {shardId}", shardId);
         try
         {
             var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
 
             if (null == shardDrive)
             {
-                logger.LogDebug(
-                    "Could not perform shard verification; Sharding drive not yet configured (Tenant probably needs to upgrade)");
+                logger.LogDebug("Could not perform shard verification; Sharding drive not " +
+                                "yet configured (Tenant probably needs to upgrade)");
+
                 return new ShardVerificationResult
                 {
                     RemoteServerError = true,
@@ -271,34 +284,62 @@ public class ShamirConfigurationService(
             var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
             var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
 
-            var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
-            var trustLevel = ShardTrustLevel.Critical; // default = worst case
-
-            if (lastSeen.HasValue)
+            if (isValid)
             {
-                var now = DateTime.UtcNow;
-                var elapsed = now - lastSeen.Value.ToDateTime();
+                var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
+                var trustLevel = ShardTrustLevel.Critical; // default = worst case
 
-                if (elapsed < TimeSpan.FromDays(14))
+                if (shard.Player.Type == PlayerType.Automatic)
                 {
                     trustLevel = ShardTrustLevel.High;
                 }
-                else if (elapsed < TimeSpan.FromDays(30))
+                else
                 {
-                    trustLevel = ShardTrustLevel.Low;
+                    if (lastSeen.HasValue)
+                    {
+                        var now = DateTime.UtcNow;
+                        var elapsed = now - lastSeen.Value.ToDateTime();
+
+                        if (elapsed < TimeSpan.FromDays(14))
+                        {
+                            trustLevel = ShardTrustLevel.High;
+                        }
+                        else if (elapsed < TimeSpan.FromDays(30))
+                        {
+                            trustLevel = ShardTrustLevel.Low;
+                        }
+                        else if (elapsed < TimeSpan.FromDays(90))
+                        {
+                            trustLevel = ShardTrustLevel.Medium;
+                        }
+                    }
                 }
-                else if (elapsed < TimeSpan.FromDays(90))
+
+                return new ShardVerificationResult
                 {
-                    trustLevel = ShardTrustLevel.Medium;
-                }
-                // otherwise remains Critical
+                    RemoteServerError = false,
+                    IsValid = true,
+                    TrustLevel = trustLevel,
+                    Created = shard?.Created ?? 0
+                };
+            }
+
+            // not valid - add some logging to see what's up
+            if (shard == null)
+            {
+                logger.LogDebug("Dealer shard with id: {shardId} is null", shardId);
+            }
+
+            if (sender != odinContext.Caller.OdinId.GetValueOrDefault())
+            {
+                logger.LogDebug("Dealer shard with id: {shardId} has mismatching caller and sender", shardId);
             }
 
             return new ShardVerificationResult
             {
                 RemoteServerError = false,
-                IsValid = isValid,
-                TrustLevel = trustLevel,
+                IsValid = false,
+                TrustLevel = ShardTrustLevel.Critical,
                 Created = shard?.Created ?? 0
             };
         }
