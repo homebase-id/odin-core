@@ -421,7 +421,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(enterResponse.IsSuccessful, Is.True);
 
             // watch for the recovery links
-            var nonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.EnterNoncePropertyName, LogEventLevel.Information);
+            var nonceId = await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.EnterNoncePropertyName, LogEventLevel.Information);
             Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
 
             var verifyEnterResponse = await frodo.Security.VerifyEnterRecoveryMode(nonceId);
@@ -440,7 +440,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             // Assert
             var exitRecoveryNonceId =
-                await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.ExitNoncePropertyName, LogEventLevel.Information);
+                await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName, LogEventLevel.Information);
 
             var verifyExitRecoveryModeResponse = await frodo.Security.VerifyExitRecoveryMode(exitRecoveryNonceId);
             Assert.That(verifyExitRecoveryModeResponse.StatusCode == HttpStatusCode.Redirect, Is.True,

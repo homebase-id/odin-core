@@ -39,7 +39,7 @@ public class ShamirRecoveryService
     private readonly TableKeyValueCached _keyValueTable;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly CircleNetworkService _circleNetworkService;
-    private readonly RecoveryEmailer _recoveryEmailer;
+    private readonly RecoveryNotifier _recoveryNotifier;
     private readonly PasswordKeyRecoveryService _passwordKeyRecoveryService;
     private readonly IDriveManager _driveManager;
     private readonly TableNonce _nonceTable;
@@ -61,7 +61,7 @@ public class ShamirRecoveryService
         IdentityDatabase db,
         IMediator mediator,
         CircleNetworkService circleNetworkService,
-        RecoveryEmailer recoveryEmailer,
+        RecoveryNotifier recoveryNotifier,
         PasswordKeyRecoveryService passwordKeyRecoveryService,
         IDriveManager driveManager,
         TableNonce nonceTable,
@@ -76,7 +76,7 @@ public class ShamirRecoveryService
         _mediator = mediator;
         _logger = logger;
         _circleNetworkService = circleNetworkService;
-        _recoveryEmailer = recoveryEmailer;
+        _recoveryNotifier = recoveryNotifier;
         _passwordKeyRecoveryService = passwordKeyRecoveryService;
         _driveManager = driveManager;
         _nonceTable = nonceTable;
@@ -123,12 +123,12 @@ public class ShamirRecoveryService
             State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode
         });
 
-        await _recoveryEmailer.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode);
+        await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode);
     }
 
     public async Task InitiateRecoveryModeExit(IOdinContext odinContext)
     {
-        await _recoveryEmailer.EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
+        await _recoveryNotifier.EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {
@@ -163,7 +163,7 @@ public class ShamirRecoveryService
     /// </summary>
     public async Task EnterRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
     {
-        await _recoveryEmailer.GetNonceDataOrFail(nonceId);
+        await _recoveryNotifier.GetNonceDataOrFail(nonceId);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord()
         {
@@ -204,7 +204,7 @@ public class ShamirRecoveryService
 
     public async Task ExitRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
     {
-        await _recoveryEmailer.GetNonceDataOrFail(nonceId);
+        await _recoveryNotifier.GetNonceDataOrFail(nonceId);
         await ExitRecoveryModeInternal(odinContext);
     }
 
@@ -299,7 +299,7 @@ public class ShamirRecoveryService
         if (collectedShards.Count >= package.MinMatchingShards)
         {
             var (finalRecoveryKey, finalInfo) = await PrepareFinalKeys(collectedShards, package, odinContext);
-            await _recoveryEmailer.EnqueueFinalizeRecoveryEmail(finalInfo, finalRecoveryKey);
+            await _recoveryNotifier.EnqueueFinalizeRecoveryEmail(finalInfo, finalRecoveryKey);
 
             await UpdateStatus(new ShamirRecoveryStatusRecord
             {
@@ -331,7 +331,7 @@ public class ShamirRecoveryService
         IOdinContext odinContext)
     {
         // get nonce
-        var data = await _recoveryEmailer.GetNonceDataOrFail(nonceId);
+        var data = await _recoveryNotifier.GetNonceDataOrFail(nonceId);
 
         // decrypt the nonce
         var recoveryInfo = OdinSystemSerializer.DeserializeOrThrow<FinalRecoveryInfo>(data);

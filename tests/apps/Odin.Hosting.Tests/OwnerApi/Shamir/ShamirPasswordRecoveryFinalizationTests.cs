@@ -123,11 +123,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             // scan for the nonceId
 
             var finalizeNonceId = await _scaffold.WaitForLogPropertyValue(
-                RecoveryEmailer.FinalRecoveryNonceIdPropertyName,
+                RecoveryNotifier.FinalRecoveryNonceIdPropertyName,
                 LogEventLevel.Information);
 
             var finalRecoveryKey = await _scaffold.WaitForLogPropertyValue(
-                RecoveryEmailer.FinalRecoveryKeyPropertyName,
+                RecoveryNotifier.FinalRecoveryKeyPropertyName,
                 LogEventLevel.Information);
 
             Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
@@ -226,11 +226,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             // scan for the nonceId
 
             var finalizeNonceId = await _scaffold.WaitForLogPropertyValue(
-                RecoveryEmailer.FinalRecoveryNonceIdPropertyName,
+                RecoveryNotifier.FinalRecoveryNonceIdPropertyName,
                 LogEventLevel.Information);
 
             var finalRecoveryKey = await _scaffold.WaitForLogPropertyValue(
-                RecoveryEmailer.FinalRecoveryKeyPropertyName,
+                RecoveryNotifier.FinalRecoveryKeyPropertyName,
                 LogEventLevel.Information);
 
             Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
@@ -388,7 +388,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(enterResponse.IsSuccessful, Is.True);
 
             // watch for the recovery links
-            var nonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.EnterNoncePropertyName, LogEventLevel.Information);
+            var nonceId = await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.EnterNoncePropertyName, LogEventLevel.Information);
             Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
 
             var verifyEnterResponse = await frodo.Security.VerifyEnterRecoveryMode(nonceId);
@@ -406,7 +406,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(exitEnterResponse.IsSuccessful, Is.True, $"Response was {exitEnterResponse.StatusCode}");
 
             // Assert
-            var exitRecoveryNonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.ExitNoncePropertyName,
+            var exitRecoveryNonceId = await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName,
                 LogEventLevel.Information);
 
             var verifyExitRecoveryModeResponse = await frodo.Security.VerifyExitRecoveryMode(exitRecoveryNonceId);

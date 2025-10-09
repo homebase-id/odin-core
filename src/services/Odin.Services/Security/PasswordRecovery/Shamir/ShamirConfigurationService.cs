@@ -62,6 +62,7 @@ public class ShamirConfigurationService(
     public const int MinimumPlayerCount = 3;
     public const int MinimumMatchingShardsOffset = 1;
     public const string RotateShardsHasStarted = "Rotate shards has started";
+    public static Guid SecurityRiskReportNotificationTypeId { get; } = Guid.Parse("959f197f-4f97-4ff1-b36e-eb237b79eda1");
 
     public static int CalculateMinAllowedShardCount(int playerCount)
     {

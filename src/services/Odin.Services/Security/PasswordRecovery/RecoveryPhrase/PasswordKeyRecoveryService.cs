@@ -17,7 +17,7 @@ namespace Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 public class PasswordKeyRecoveryService(
     TableKeyValueCached tblKeyValue,
     TenantContext tenantContext,
-    RecoveryEmailer recoveryEmailer)
+    RecoveryNotifier recoveryNotifier)
 {
     public const int RecoveryKeyWaitingPeriodSecondsForTesting = 5;
 
@@ -183,7 +183,7 @@ public class PasswordKeyRecoveryService(
 
     public async Task UpdateAccountRecoveryEmail(Guid nonceId)
     {
-        var email = await recoveryEmailer.GetNonceDataOrFail(nonceId);
+        var email = await recoveryNotifier.GetNonceDataOrFail(nonceId);
         var recovery = await GetAccountRecoveryInfo() ?? new AccountRecoveryInfo();
         recovery.Email = email;
         recovery.EmailLastVerified = UnixTimeUtc.Now();
@@ -245,6 +245,6 @@ public class PasswordKeyRecoveryService(
     public async Task StartUpdateRecoveryEmail(MailAddress email, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        await recoveryEmailer.EnqueueVerifyRecoveryEmailAddress(email);
+        await recoveryNotifier.EnqueueVerifyRecoveryEmailAddress(email);
     }
 }

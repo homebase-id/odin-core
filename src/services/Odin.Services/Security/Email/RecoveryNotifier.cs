@@ -16,9 +16,9 @@ using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Services.Security.Email;
 
-public class RecoveryEmailer(
+public class RecoveryNotifier(
     OdinConfiguration configuration,
-    ILogger<RecoveryEmailer> logger,
+    ILogger<RecoveryNotifier> logger,
     TenantContext tenantContext,
     TableNonce nonceTable,
     IJobManager jobManager)
