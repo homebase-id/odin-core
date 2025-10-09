@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Configuration;
@@ -8,6 +9,7 @@ using Odin.Services.Configuration.Eula;
 using Odin.Services.Drives;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Registry;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 
@@ -20,13 +22,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 public class OwnerConfigurationController : OdinControllerBase
 {
     private readonly TenantConfigService _tenantConfigService;
+    private readonly IIdentityRegistry _registry;
 
     public const string InitialSetupEndpoint = "system/initialize";
 
     /// <summary />
-    public OwnerConfigurationController(TenantConfigService tenantConfigService)
+    public OwnerConfigurationController(TenantConfigService tenantConfigService, IIdentityRegistry registry)
     {
         _tenantConfigService = tenantConfigService;
+        _registry = registry;
     }
 
     /// <summary>
@@ -152,13 +156,11 @@ public class OwnerConfigurationController : OdinControllerBase
         return settings;
     }
 
-    /// <summary>
-    /// Gets some information required for setup 
-    /// </summary>
-    /// <returns></returns>
-    [HttpGet("registration/can-use-auto-recovery")]
-    public IActionResult CanUseAutoRecovery()
+    [AllowAnonymous]
+    [HttpGet("can-use-auto-recovery")]
+    public IActionResult CanUseAutoRecovery([FromQuery(Name = "frt")] Guid firstRunToken)
     {
+        _registry.AssetValidFirstRunToken(firstRunToken, WebOdinContext);
         _tenantConfigService.AssertCanUseAutoPasswordRecovery(WebOdinContext);
         return Ok();
     }

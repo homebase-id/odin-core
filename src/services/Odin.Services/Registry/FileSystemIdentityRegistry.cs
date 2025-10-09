@@ -279,6 +279,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await this.SaveRegistrationInternal(registration);
     }
 
+    public Task AssetValidFirstRunToken(Guid firstRunToken, IOdinContext odinContext)
+    {
+        var registration = GetByFirstRunToken(firstRunToken);
+        if ((OdinId)registration.PrimaryDomainName != odinContext.Tenant)
+        {
+            throw new OdinSecurityException("Invalid first run token");
+        }
+        
+        return Task.CompletedTask;
+    }
+    
     public async Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken)
     {
         var registration = GetByFirstRunToken(firstRunToken);
