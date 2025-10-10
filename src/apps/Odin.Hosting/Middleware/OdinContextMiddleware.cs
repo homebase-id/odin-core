@@ -270,8 +270,7 @@ namespace Odin.Hosting.Middleware
         private async Task LoadLinkPreviewContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
             var linkPreviewService = httpContext.RequestServices.GetRequiredService<LinkPreviewService>();
-
-            if (!linkPreviewService.IsPostPath() && !httpContext.Request.Path.StartsWithSegments($"/{LinkPreviewDefaults.SsrPath}"))
+            if(!linkPreviewService.IsAllowedPath())
             {
                 return;
             }
