@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -13,20 +12,13 @@ using System.Web;
 using AngleSharp.Io;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
-using Odin.Services.Apps;
 using Odin.Services.Base;
-using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.FileSystem.Standard;
-using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
-using Odin.Services.Optimization.Cdn;
 
 namespace Odin.Services.LinkPreview;
 
@@ -34,23 +26,16 @@ public class LinkPreviewService(
     ISystemLevel1Cache globalCache,
     ITenantLevel1Cache<LinkPreviewService> tenantCache,
     HomebaseProfileContentService profileContentService,
+    HomebaseChannelContentService channelContentService,
     IHttpContextAccessor httpContextAccessor,
-    StandardFileSystem fileSystem,
-    IDriveManager driveManager,
     HomebaseSsrService ssrService,
     ILogger<LinkPreviewService> logger)
 {
     private const string IndexFileKey = "link-preview-service-index-file";
     private const string GenericLinkPreviewCacheKey = "link-preview-service-index-file";
-    private const string DefaultPayloadKey = "dflt_key";
-
 
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
-
-
-    public const int PostFileType = 101;
-    private const int ChannelDefinitionFileType = 103;
 
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
     {
@@ -72,10 +57,15 @@ public class LinkPreviewService(
             return;
         }
 
+        if (await TryWriteChannelPreview(indexFilePath, odinContext))
+        {
+            return;
+        }
+
         await WriteGenericPreview(indexFilePath, odinContext);
     }
 
-    public bool IsPostPath()
+    private bool IsPostPath()
     {
         return IsPath("/posts");
     }
@@ -86,11 +76,53 @@ public class LinkPreviewService(
         return context.Request.Path.StartsWithSegments(path);
     }
 
+    private async Task<bool> TryWriteChannelPreview(string indexFilePath, IOdinContext odinContext)
+    {
+        try
+        {
+            var (success, channelKey, thisChannel, posts) = await TryGetChannelData(odinContext);
+
+            if (!success)
+            {
+                return false;
+            }
+
+            var context = httpContextAccessor.HttpContext;
+            string odinId = context.Request.Host.Host;
+            var person = await GeneratePersonSchema();
+
+            var title = thisChannel.Name;
+            var imageUrl = $"{context.Request.Scheme}://{odinId}/{LinkPreviewDefaults.PublicImagePath}";
+            var description = thisChannel.Description ?? LinkPreviewDefaults.DefaultDescription;
+
+            StringBuilder noScriptContentBuilder = new StringBuilder();
+            ssrService.WriteChannelPostListBody(channelKey, thisChannel, noScriptContentBuilder, posts);
+
+            var content = await PrepareIndexHtml(indexFilePath,
+                title,
+                imageUrl,
+                description,
+                person,
+                siteType: "website",
+                robotsTag: "index, follow",
+                noScriptContent: noScriptContentBuilder.ToString(),
+                odinContext);
+
+            await WriteAsync(content);
+            return true;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to parse channel definition");
+            return false;
+        }
+    }
+
     private async Task<bool> TryWritePostPreview(string indexFilePath, IOdinContext odinContext)
     {
         try
         {
-            var (success, description, imageUrl, title, _) = await TryGetPostData(odinContext);
+            var (success, description, imageUrl, title, channelKey, postContent) = await TryGetPostData(odinContext);
 
             if (!success)
             {
@@ -116,12 +148,16 @@ public class LinkPreviewService(
                 description = LinkPreviewDefaults.DefaultDescription;
             }
 
+            StringBuilder noScriptContentBuilder = new StringBuilder();
+
+            await ssrService.WritePostBodyContent(channelKey, postContent, noScriptContentBuilder, odinContext, context.RequestAborted);
+
             var content = await PrepareIndexHtml(indexFilePath, title, imageUrl,
                 description,
                 person,
                 siteType: "website",
                 robotsTag: "index, follow",
-                noScriptContent: "TODO",
+                noScriptContent: noScriptContentBuilder.ToString(),
                 odinContext);
 
             await WriteAsync(content);
@@ -134,8 +170,31 @@ public class LinkPreviewService(
         }
     }
 
-    private async Task<(bool success, string description, string imageUrl, string title, PostContent content)> TryGetPostData(
-        IOdinContext odinContext)
+    private async Task<(bool, string channelKey, ChannelDefinition thisChannel, List<ChannelPost> posts)>
+        TryGetChannelData(IOdinContext odinContext)
+    {
+        if (!IsPostPath())
+        {
+            return (false, null, null, null);
+        }
+
+        var context = httpContextAccessor.HttpContext;
+        string path = context.Request.Path.Value;
+        var segments = path?.TrimEnd('/').Split('/');
+        if (segments is { Length: 3 }) // we have the channel key
+        {
+            string channelKey = segments[2];
+            var (posts, _) = await channelContentService.GetChannelPosts(channelKey, odinContext);
+            var thisChannel = (await channelContentService.GetChannels(odinContext)).FirstOrDefault(c => c.Slug == channelKey);
+
+            return (true, channelKey, thisChannel, posts);
+        }
+
+        return (false, null, null, null);
+    }
+
+    private async Task<(bool success, string description, string imageUrl, string title, string channelKey, ChannelPost content)>
+        TryGetPostData(IOdinContext odinContext)
     {
         var context = httpContextAccessor.HttpContext;
 
@@ -145,11 +204,10 @@ public class LinkPreviewService(
         if (!IsPostPath())
         {
             // logger.LogDebug("Path is not a posts path; falling back");
-            return (false, null, null, null, null);
+            return (false, null, null, null, null, null);
         }
 
         string path = context.Request.Path.Value;
-
         var segments = path?.TrimEnd('/').Split('/');
         if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
         {
@@ -160,226 +218,27 @@ public class LinkPreviewService(
 
             var (success, title, imageUrl, description, content) = await TryParsePostFile(channelKey, postKey, odinContext,
                 context.RequestAborted);
-            return (success, description, imageUrl, title, content);
+            return (success, description, imageUrl, title, channelKey, content);
         }
 
-        return (false, null, null, null, null);
+        return (false, null, null, null, null, null);
     }
 
-    private async Task<(bool success, string title, string imageUrl, string description, PostContent content)> TryParsePostFile(
+    private async Task<(bool success, string title, string imageUrl, string description, ChannelPost channelPost)> TryParsePostFile(
         string channelKey,
         string postKey,
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
-        // logger.LogDebug("Try parse post file with channel key: [{ck}] postKey: [{pk}]", channelKey, postKey);
-
-        var (success, targetDrive) = await TryGetChannelDrive(channelKey, odinContext);
-        if (!success)
+        var post = await channelContentService.GetPost(channelKey, postKey, odinContext, cancellationToken);
+        if (null == post)
         {
             return (false, null, null, null, null);
         }
 
-        var postFile = await FindPost(postKey, odinContext, targetDrive);
-
-        if (null == postFile)
-        {
-            // logger.LogDebug("File for channelKey:[{ck}] and with postKey {pk} not found", channelKey, postKey);
-            return (false, null, null, null, null);
-        }
-
-        var fileId = new InternalDriveFileId()
-        {
-            DriveId = targetDrive.Alias,
-            FileId = postFile.FileId
-        };
-
-        PostContent content = null;
-        var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
-        var json = "";
-        try
-        {
-            if (payloadHeader == null)
-            {
-                // logger.LogDebug("Using content used from AppData.Content");
-                json = postFile.FileMetadata.AppData.Content;
-            }
-            else
-            {
-                // if there is a default payload, then all content is there;
-                // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
-                using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-                using var reader = new StreamReader(payloadStream.Stream);
-                json = await reader.ReadToEndAsync(cancellationToken);
-            }
-
-            content = OdinSystemSerializer.Deserialize<PostContent>(json);
-            content.UserDate = postFile.FileMetadata.AppData.UserDate;
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed deserializing post content. json: [{json}]", json);
-            throw;
-        }
-
-        var context = httpContextAccessor.HttpContext;
-
-        const int idealWidth = 1200;
-        const int idealHeight = 650;
-
-        const int minThumbWidth = 200;
-        const int minThumbHeight = 200;
-
-        string imageUrl = null;
-
-        if (content.PrimaryMediaFile?.FileKey != null)
-        {
-            var mediaPayload = postFile.FileMetadata.Payloads
-                .SingleOrDefault(p => p.Key == content.PrimaryMediaFile.FileKey);
-
-            var theThumbnail = mediaPayload?.Thumbnails.OrderBy(t => t.PixelWidth)
-                .LastOrDefault(t => t.PixelHeight > minThumbHeight
-                                    && t.PixelWidth > minThumbWidth);
-
-            if (theThumbnail != null)
-            {
-                // logger.LogDebug("Post has usable thumbnail");
-
-                StringBuilder b = new StringBuilder(100);
-                b.Append($"&alias={targetDrive.Alias}");
-                b.Append($"&type={targetDrive.Type}");
-                b.Append($"&fileId={postFile.FileId}");
-                b.Append($"&payloadKey={content.PrimaryMediaFile.FileKey}");
-                b.Append($"&width={idealWidth}&height={idealHeight}");
-                b.Append($"&lastModified={mediaPayload?.LastModified.milliseconds}");
-                b.Append($"&xfst=Standard"); // note: No comment support
-                b.Append($"&iac=true");
-
-                var extension = MimeTypeHelper.GetFileExtensionFromMimeType(theThumbnail.ContentType) ?? ".jpg";
-
-                var builder = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
-                {
-                    Path = $"api/guest/v1/drive/files/thumb{extension}",
-                    Query = b.ToString()
-                };
-
-                imageUrl = builder.ToString();
-            }
-        }
-
-        // logger.LogDebug("Returning post content.  " +
-        //                 "title:[{title}], description: {desc} imageUrl:{img}",
-        //     content.Caption,
-        //     imageUrl,
-        //     content.Abstract);
-
-        return (true, content.Caption, imageUrl, content.Abstract, content);
-    }
-
-    private async Task<SharedSecretEncryptedFileHeader> FindPost(string postKey, IOdinContext odinContext, TargetDrive targetDrive)
-    {
-        SharedSecretEncryptedFileHeader postFile;
-        // if post is a guid, it is the Tag on a file
-        if (Guid.TryParse(postKey, out var postIdAsTag))
-        {
-            postFile = await QueryBatchFirstFile(targetDrive, odinContext, postIdAsTag);
-            // logger.LogDebug("Searching for post with key [{pk}] using postIdAsTag: [{tag}] result:  {result}",
-            //     postKey,
-            //     postIdAsTag,
-            //     postFile == null ? "not found" : "found");
-        }
-        else
-        {
-            // postKey is a slug so we need to md5
-            var uid = ToGuidId(postKey);
-            var options = new ResultOptions
-            {
-                MaxRecords = 1,
-                IncludeHeaderContent = true,
-                ExcludePreviewThumbnail = true,
-                ExcludeServerMetaData = true,
-                IncludeTransferHistory = false
-            };
-
-            postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId: targetDrive.Alias, uid, options, odinContext);
-            // logger.LogDebug("Searching for post with key [{pk}] using post as Slug: {uid}] result: {result}",
-            //     postKey,
-            //     uid,
-            //     postFile == null ? "not found" : "found");
-        }
-
-        return postFile;
-    }
-
-    private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
-        Guid? postIdAsTag = null, int? fileType = null)
-    {
-        var qp = new FileQueryParams
-        {
-            TargetDrive = targetDrive,
-            TagsMatchAtLeastOne = postIdAsTag == null ? default : [postIdAsTag.GetValueOrDefault()],
-            FileType = fileType == null ? default : [fileType.GetValueOrDefault()]
-        };
-
-        var options = new QueryBatchResultOptions
-        {
-            MaxRecords = 1,
-            IncludeHeaderContent = true,
-            ExcludePreviewThumbnail = true,
-            ExcludeServerMetaData = true,
-            IncludeTransferHistory = false,
-        };
-
-        var result = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
-        return result.SearchResults.FirstOrDefault();
-    }
-
-    private async Task<(bool success, TargetDrive targetDrive)> TryGetChannelDrive(string channelKey, IOdinContext odinContext)
-    {
-        TargetDrive targetDrive = null;
-        if (Guid.TryParse(channelKey, out var channelId))
-        {
-            // fetch by id; use the channelId directly as drive alias
-            targetDrive = new TargetDrive()
-            {
-                Alias = channelId,
-                Type = SystemDriveConstants.ChannelDriveType
-            };
-
-            return (true, targetDrive);
-        }
-
-        //look up slug
-        // get the channel drive on all drives of type SystemDriveConstants.ChannelDriveType
-        //chnl.fileMetadata.appData.content.slug === channelKey
-
-        var channelDrivesPage = await driveManager.GetDrivesAsync(
-            SystemDriveConstants.ChannelDriveType, PageOptions.All, odinContext);
-
-        foreach (var drive in channelDrivesPage.Results)
-        {
-            var file = await QueryBatchFirstFile(drive.TargetDriveInfo, odinContext, fileType: ChannelDefinitionFileType);
-            if (null != file)
-            {
-                var postContent = OdinSystemSerializer.Deserialize<PostContent>(file.FileMetadata.AppData.Content);
-                if (channelKey!.Equals(postContent.Slug, StringComparison.InvariantCultureIgnoreCase))
-                {
-                    targetDrive = file.TargetDrive;
-                    break;
-                }
-            }
-        }
-
-        // slug was not found
-        if (targetDrive == null)
-        {
-            // logger.LogDebug("Channel key {ck} was not found on any channel drives", channelKey);
-            return (false, null);
-        }
-
-
-        // logger.LogDebug("TargetDrive {td} found by channelKey: {ck}", targetDrive.ToString(), channelKey);
-        return (true, targetDrive);
+        PostContent content = post.Content;
+        string imageUrl = post.ImageUrl;
+        return (true, content.Caption, imageUrl, content.Abstract, post);
     }
 
     private async Task WriteGenericPreview(string indexFilePath, IOdinContext odinContext)
@@ -556,16 +415,6 @@ public class LinkPreviewService(
         return b.ToString();
     }
 
-    private string GetDisplayUrl()
-    {
-        var request = httpContextAccessor.HttpContext.Request;
-        return new UriBuilder(request.Scheme, request.Host.Host)
-        {
-            Path = request.Path,
-            Query = request.QueryString.Value
-        }.ToString();
-    }
-
     private static string GetHumanReadableVersion(HttpContext httpContext)
     {
         var request = httpContext.Request;
@@ -622,40 +471,6 @@ public class LinkPreviewService(
         {
             // ignore - cancelled
         }
-    }
-
-    private static Guid ToGuidId(string input)
-    {
-        using MD5 md5 = MD5.Create();
-        byte[] hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
-
-        var b = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
-        return new Guid(b);
-    }
-
-    //via gpt 
-    private static string AppendJpgIfNoExtension(string url)
-    {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri))
-        {
-            return url;
-        }
-
-        string path = uri.AbsolutePath;
-
-        if (string.IsNullOrEmpty(Path.GetExtension(path)))
-        {
-            string newPath = path + ".jpg";
-
-            UriBuilder builder = new UriBuilder(uri)
-            {
-                Path = newPath
-            };
-
-            return builder.Uri.ToString();
-        }
-
-        return url;
     }
 
     public static string Truncate(string input, int maxLength)

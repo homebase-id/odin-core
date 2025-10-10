@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
+using System.Web;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
@@ -125,6 +126,7 @@ public class HomebaseSsrService(
         }
 
         contentBuilder.AppendLine("</ul>");
+        CreateMenu(contentBuilder);
     }
 
     public async Task<bool> WriteAboutBodyContent(StringBuilder contentBuilder, PersonSchema person, IOdinContext odinContext)
@@ -212,6 +214,8 @@ public class HomebaseSsrService(
             contentBuilder.AppendLine("<br/><hr/><br/>");
         }
 
+        CreateMenu(contentBuilder);
+
         return true;
     }
 
@@ -279,36 +283,113 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine("</urlset>");
     }
 
+    public void WriteChannelPostListBody(string channelKey, ChannelDefinition thisChannel, StringBuilder contentBuilder, List<ChannelPost> posts)
+    {
+        if (thisChannel != null)
+        {
+            contentBuilder.AppendLine($"<h1>{HttpUtility.HtmlEncode(thisChannel.Name ?? "")}</h1>");
+        }
+
+        foreach (var post in posts)
+        {
+            var content = post.Content;
+            if (content == null)
+            {
+                continue;
+            }
+
+            var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
+
+            contentBuilder.AppendLine("<div>");
+
+            // Title with link
+            if (!string.IsNullOrWhiteSpace(content.Caption))
+            {
+                contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
+            }
+
+            // Abstract
+            if (!string.IsNullOrWhiteSpace(content.Abstract))
+            {
+                contentBuilder.AppendLine($"  <p>{HttpUtility.HtmlEncode(content.Abstract)}</p>");
+            }
+
+            // Image
+            if (!string.IsNullOrWhiteSpace(post.ImageUrl))
+            {
+                contentBuilder.AppendLine($"<a href=\"{link}\">");
+                contentBuilder.AppendLine(
+                    $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(content.Caption)}\" />");
+                contentBuilder.AppendLine("</a>");
+            }
+
+            contentBuilder.AppendLine("</div>");
+            contentBuilder.AppendLine("<hr/>"); // spacing between posts
+        }
+
+        CreateMenu(contentBuilder);
+    }
+    
+    public async Task WritePostBodyContent(string channelKey, ChannelPost post,
+        StringBuilder contentBuilder,
+        IOdinContext odinContext,
+        CancellationToken cancellationToken)
+    {
+        contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
+        contentBuilder.AppendLine($"<img src='{post.ImageUrl}' width='600'/>");
+        contentBuilder.AppendLine($"<p>{post.Content.UserDate.GetValueOrDefault().ToDateTime()}</p>");
+        contentBuilder.AppendLine($"<hr/>");
+        try
+        {
+            var bodyJson = Convert.ToString(post.Content.Body) ?? string.Empty;
+            if (!string.IsNullOrEmpty(bodyJson))
+            {
+                var bodyHtml = PlateRichTextParser.Parse(bodyJson);
+                contentBuilder.AppendLine($"<div>");
+                contentBuilder.Append(bodyHtml);
+                contentBuilder.AppendLine($"</div>");
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogDebug(e, "Failed to Post article body");
+        }
+
+        var (otherPosts, _) = await channelContentService.GetChannelPosts(
+            channelKey,
+            odinContext,
+            post.Content.UserDate,
+            maxPosts: 10,
+            cancellationToken);
+
+        contentBuilder.AppendLine($"<hr/>");
+        contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h3>");
+
+        contentBuilder.AppendLine($"<ul>");
+        foreach (var anovahPost in otherPosts)
+        {
+            if (anovahPost?.Content != null &&
+                !string.IsNullOrWhiteSpace(anovahPost.Content.Slug) &&
+                !string.IsNullOrWhiteSpace(anovahPost.Content.Caption))
+            {
+                var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
+                contentBuilder.AppendLine(
+                    $"<li><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
+            }
+        }
+
+        contentBuilder.AppendLine($"</ul>");
+
+        CreateMenu(contentBuilder);
+    }
+
     private static void CreateMenu(StringBuilder contentBuilder)
     {
         contentBuilder.AppendLine($"<ul>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("posts")}'>See my Posts</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("connections")}'>See my connections</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("about")}'>About me</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("links")}'>See my links</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
         contentBuilder.AppendLine($"</ul>");
-    }
-}
-
-public static class SsrUrlHelper2
-{
-    public static string ToSsrUrl(string relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return "/" + LinkPreviewDefaults.SsrPath;
-
-        var trimmed = relativePath.Trim();
-
-        // Ensure it starts with a slash
-        if (!trimmed.StartsWith("/"))
-            trimmed = "/" + trimmed;
-
-        var prefix = "/" + LinkPreviewDefaults.SsrPath;
-
-        // Already under /ssr
-        if (trimmed.StartsWith(prefix + "/") || trimmed.Equals(prefix, StringComparison.OrdinalIgnoreCase))
-            return trimmed;
-
-        return prefix + trimmed;
     }
 }
