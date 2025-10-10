@@ -63,7 +63,6 @@ public class HomebaseSsrController(
         var contentBuilder = new StringBuilder();
         await ssrService.WriteAboutBodyContent(contentBuilder, person, WebOdinContext);
 
-        CreateMenu(contentBuilder);
         await WriteContent(head, contentBuilder.ToString());
     }
 
