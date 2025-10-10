@@ -11,22 +11,21 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.LinkPreview;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
-using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 
 [Route(LinkPreviewDefaults.SsrPath)]
 [ApiController]
 public class HomebaseSsrController(
+    HomebaseSsrService ssrService,
     HomebaseProfileContentService profileContentService,
     HomebaseChannelContentService channelContentService,
-    CircleNetworkService cn,
-    FollowerService followerService,
     ILogger<HomebaseSsrController> logger) : OdinControllerBase
 {
     [HttpGet("")]
@@ -38,23 +37,7 @@ public class HomebaseSsrController(
         var contentBuilder = new StringBuilder();
         if (person != null)
         {
-            var imageUrl = profileContentService.GetPublicImageUrl(WebOdinContext);
-            contentBuilder.AppendLine($"<img src='{imageUrl}' width='600'/>");
-            contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-            contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
-
-            if (person.BioSummary != null)
-            {
-                contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
-            }
-
-            if (person.Bio != null)
-            {
-                contentBuilder.AppendLine($"<hr/>");
-                contentBuilder.AppendLine($"<p>Bio: {person.Bio}</p>");
-            }
-
-            CreateMenu(contentBuilder);
+            ssrService.WriteHomeBodyContent(contentBuilder, person, WebOdinContext);
         }
 
         await WriteContent(head, contentBuilder.ToString());
@@ -64,63 +47,8 @@ public class HomebaseSsrController(
     public async Task RenderConnections()
     {
         var (head, person) = await BuildHeadSection(suffix: "Connections");
-
         var contentBuilder = new StringBuilder();
-        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
-
-        if (person.BioSummary != null)
-        {
-            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
-        }
-
-        var count = Int32.MaxValue;
-        if (WebOdinContext.PermissionsContext?.HasPermission(PermissionKeys.ReadConnections) ?? false)
-        {
-            var result = await cn.GetConnectedIdentitiesAsync(count, null, WebOdinContext);
-            var connections = result.Results.Select(p => p.Redacted()).ToList();
-
-            contentBuilder.AppendLine("<h3>My Connections</h3>");
-            contentBuilder.AppendLine("<ul>");
-
-            foreach (var identity in connections)
-            {
-                var odinId = identity.OdinId;
-                var imageUrl = $"https://{odinId}/pub/image";
-                contentBuilder.AppendLine("<li>");
-                contentBuilder.AppendLine($"<img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" height=\"24\"" +
-                                          $" style=\"vertical-align: middle; margin-right: 8px;\"/>");
-                contentBuilder.AppendLine($"<a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a>");
-
-                contentBuilder.AppendLine("  </li>");
-            }
-
-            contentBuilder.AppendLine("</ul>");
-        }
-
-        if (WebOdinContext.PermissionsContext?.HasPermission(PermissionKeys.ReadWhoIFollow) ?? false)
-        {
-            var peopleIFollow = await followerService.GetIdentitiesIFollowAsync(count, null, WebOdinContext);
-            contentBuilder.AppendLine("<h3>Who I follow</h3>");
-            contentBuilder.AppendLine("<ul>");
-
-            foreach (var identity in peopleIFollow.Results)
-            {
-                var odinId = identity;
-                var imageUrl = $"https://{odinId}/pub/image";
-                contentBuilder.AppendLine("  <li>");
-
-                contentBuilder.AppendLine($"<img src=\"{imageUrl}\" alt=\"Status\" width=\"24\" " +
-                                          $"height=\"24\" style=\"vertical-align: middle; margin-right: 8px;\"/>");
-                contentBuilder.AppendLine($"<a href='https://{odinId}/ssr'>{WebUtility.HtmlEncode(odinId)}</a>");
-                contentBuilder.AppendLine("  </li>");
-            }
-
-            contentBuilder.AppendLine("</ul>");
-        }
-
-        CreateMenu(contentBuilder);
-
+        await ssrService.WriteConnectionsBodyContent(contentBuilder, person, WebOdinContext);
         await WriteContent(head, contentBuilder.ToString());
     }
 
@@ -128,28 +56,8 @@ public class HomebaseSsrController(
     public async Task RenderLinks()
     {
         var (head, person) = await BuildHeadSection(suffix: "Links");
-        var links = await profileContentService.LoadLinks();
         var contentBuilder = new StringBuilder();
-
-        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
-
-        if (person.BioSummary != null)
-        {
-            contentBuilder.AppendLine($"<h3>Summary: {person.BioSummary}</h3>");
-        }
-
-        contentBuilder.AppendLine("<h3>My Links</h3>");
-        contentBuilder.AppendLine("<ul>");
-        foreach (var link in links)
-        {
-            contentBuilder.AppendLine("  <li>");
-            contentBuilder.AppendLine($"    <a href='{link.Url}'>{WebUtility.HtmlEncode(link.Type)}</span>");
-            contentBuilder.AppendLine("  </li>");
-        }
-
-        contentBuilder.AppendLine("</ul>");
-
+        await ssrService.WriteLinksBodyContent(contentBuilder, person);
         CreateMenu(contentBuilder);
 
         await WriteContent(head, contentBuilder.ToString());
@@ -161,91 +69,8 @@ public class HomebaseSsrController(
         var (head, person) = await BuildHeadSection(suffix: "About");
 
         var contentBuilder = new StringBuilder();
-        contentBuilder.AppendLine($"<h1>{person.Name}</h1>");
-        contentBuilder.AppendLine($"<h2>{person.Status}</h2>");
+        await ssrService.WriteAboutBodyContent(contentBuilder, person, WebOdinContext);
 
-        var aboutSection = await profileContentService.LoadAboutSection(WebOdinContext);
-        if (null == aboutSection)
-        {
-            CreateMenu(contentBuilder);
-            await WriteContent(head, contentBuilder.ToString());
-            return;
-        }
-
-        contentBuilder.AppendLine("<br/><hr/><br/>");
-
-        contentBuilder.AppendLine("<h2>Status</h2>");
-        foreach (var status in aboutSection.Status)
-        {
-            contentBuilder.AppendLine($"<p>{status}</p>");
-        }
-
-        contentBuilder.AppendLine("<br/><hr/><br/>");
-
-        contentBuilder.AppendLine("<h2>Bio</h2>");
-        foreach (var bio in aboutSection.Bio)
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(bio))
-                {
-                    var bodyHtml = PlateRichTextParser.Parse(bio);
-                    contentBuilder.AppendLine($"<div>");
-                    contentBuilder.Append(bodyHtml);
-                    contentBuilder.AppendLine($"</div>");
-                }
-            }
-            catch (JsonException) // this fallback is for older bios that have not been changed to json format.
-            {
-                contentBuilder.AppendLine($"<div>");
-                contentBuilder.Append(bio);
-                contentBuilder.AppendLine($"</div>");
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Could not parse bio in about section");
-            }
-        }
-
-        contentBuilder.AppendLine("<br/><hr/><br/>");
-
-        contentBuilder.AppendLine("<h2>ShortBio</h2>");
-        foreach (var shortBio in aboutSection.ShortBio)
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(shortBio))
-                {
-                    contentBuilder.AppendLine($"<p>");
-                    contentBuilder.Append(shortBio);
-                    contentBuilder.AppendLine($"</p>");
-                }
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Could not parse shortBio in about section");
-            }
-        }
-
-        contentBuilder.AppendLine("<br/><hr/><br/>");
-
-        contentBuilder.AppendLine("<h2>Experience</h2>");
-        foreach (var exp in aboutSection.Experience)
-        {
-            contentBuilder.AppendLine($"<img src='{exp.ImageUrl}'/>");
-            contentBuilder.AppendLine($"<h3>{exp.Title}</h3>");
-            if (!string.IsNullOrEmpty(exp.Description))
-            {
-                var bodyHtml = PlateRichTextParser.Parse(exp.Description);
-                contentBuilder.AppendLine($"<div>");
-                contentBuilder.Append(bodyHtml);
-                contentBuilder.AppendLine($"</div>");
-            }
-
-            contentBuilder.AppendLine($"<a href='{exp.Link}'>{exp.Link}</a>");
-            contentBuilder.AppendLine("<br/><hr/><br/>");
-        }
-        
         CreateMenu(contentBuilder);
         await WriteContent(head, contentBuilder.ToString());
     }
@@ -362,7 +187,7 @@ public class HomebaseSsrController(
 
         // We need the post title in the tab title xxx
         string suffix = string.IsNullOrEmpty(post.Content.Caption) ? "Posts" : post.Content.Caption;
-        var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website"); 
+        var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website");
 
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");

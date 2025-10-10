@@ -235,7 +235,7 @@ namespace Odin.Hosting.Middleware
         {
             var linkPreviewService = httpContext.RequestServices.GetRequiredService<LinkPreviewService>();
             
-            if (!linkPreviewService.IsPostPath() && !httpContext.Request.Path.StartsWithSegments($"/{LinkPreviewDefaults.SsrPath}"))
+            if(!linkPreviewService.IsAllowedPath())
             {
                 return;
             }
