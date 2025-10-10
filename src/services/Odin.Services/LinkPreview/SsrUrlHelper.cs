@@ -1,7 +1,7 @@
-using System;
-using Odin.Services.LinkPreview;
 
-namespace Odin.Hosting.Controllers.Anonymous.SEO;
+using System;
+
+namespace Odin.Services.LinkPreview;
 
 public static class SsrUrlHelper
 {
