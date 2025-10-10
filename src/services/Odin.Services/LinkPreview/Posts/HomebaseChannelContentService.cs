@@ -318,7 +318,8 @@ public class HomebaseChannelContentService(
         var post = new ChannelPost()
         {
             Content = content,
-            ImageUrl = imageUrl
+            ImageUrl = imageUrl,
+            Modified = postFile.FileMetadata.Updated
         };
 
         return post;
