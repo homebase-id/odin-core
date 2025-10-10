@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Base;
 using Odin.Services.LinkPreview;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.LinkPreview.Posts;
@@ -21,8 +22,7 @@ namespace Odin.Hosting.Controllers.Anonymous.SEO;
 public class HomebaseSsrController(
     HomebaseSsrService ssrService,
     HomebaseProfileContentService profileContentService,
-    HomebaseChannelContentService channelContentService,
-    ILogger<HomebaseSsrController> logger) : OdinControllerBase
+    HomebaseChannelContentService channelContentService) : OdinControllerBase
 {
     [HttpGet("")]
     [HttpGet("home")]
@@ -186,53 +186,7 @@ public class HomebaseSsrController(
         var (head, _) = await BuildHeadSection(suffix: suffix, siteType: "website");
 
         var contentBuilder = new StringBuilder();
-        contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
-        contentBuilder.AppendLine($"<img src='{post.ImageUrl}' width='600'/>");
-        contentBuilder.AppendLine($"<p>{post.Content.UserDate.GetValueOrDefault().ToDateTime()}</p>");
-        contentBuilder.AppendLine($"<hr/>");
-        try
-        {
-            var bodyJson = Convert.ToString(post.Content.Body) ?? string.Empty;
-            if (!string.IsNullOrEmpty(bodyJson))
-            {
-                var bodyHtml = PlateRichTextParser.Parse(bodyJson);
-                contentBuilder.AppendLine($"<div>");
-                contentBuilder.Append(bodyHtml);
-                contentBuilder.AppendLine($"</div>");
-            }
-        }
-        catch (Exception e)
-        {
-            logger.LogDebug(e, "Failed to Post article body");
-        }
-
-        var (otherPosts, _) = await channelContentService.GetChannelPosts(
-            channelKey,
-            WebOdinContext,
-            post.Content.UserDate,
-            maxPosts: 10,
-            HttpContext.RequestAborted);
-
-        contentBuilder.AppendLine($"<hr/>");
-        contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h1>");
-
-        contentBuilder.AppendLine($"<ul>");
-        foreach (var anovahPost in otherPosts)
-        {
-            if (anovahPost?.Content != null &&
-                !string.IsNullOrWhiteSpace(anovahPost.Content.Slug) &&
-                !string.IsNullOrWhiteSpace(anovahPost.Content.Caption))
-            {
-                var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
-                contentBuilder.AppendLine(
-                    $"<li><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
-            }
-        }
-
-        contentBuilder.AppendLine($"</ul>");
-
-        CreateMenu(contentBuilder);
-
+        await ssrService.WritePostBodyContent(channelKey, post, contentBuilder, WebOdinContext, HttpContext.RequestAborted);
         await WriteContent(head, contentBuilder.ToString());
     }
 

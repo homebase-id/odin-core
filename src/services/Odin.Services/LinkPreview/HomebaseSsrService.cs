@@ -2,7 +2,9 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
@@ -123,7 +125,7 @@ public class HomebaseSsrService(
         }
 
         contentBuilder.AppendLine("</ul>");
-        
+
         CreateMenu(contentBuilder);
     }
 
@@ -279,6 +281,59 @@ public class HomebaseSsrService(
         }
 
         contentBuilder.AppendLine("</urlset>");
+    }
+
+    public async Task WritePostBodyContent(string channelKey, ChannelPost post,
+        StringBuilder contentBuilder,
+        IOdinContext odinContext,
+        CancellationToken cancellationToken)
+    {
+        contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
+        contentBuilder.AppendLine($"<img src='{post.ImageUrl}' width='600'/>");
+        contentBuilder.AppendLine($"<p>{post.Content.UserDate.GetValueOrDefault().ToDateTime()}</p>");
+        contentBuilder.AppendLine($"<hr/>");
+        try
+        {
+            var bodyJson = Convert.ToString(post.Content.Body) ?? string.Empty;
+            if (!string.IsNullOrEmpty(bodyJson))
+            {
+                var bodyHtml = PlateRichTextParser.Parse(bodyJson);
+                contentBuilder.AppendLine($"<div>");
+                contentBuilder.Append(bodyHtml);
+                contentBuilder.AppendLine($"</div>");
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogDebug(e, "Failed to Post article body");
+        }
+
+        var (otherPosts, _) = await channelContentService.GetChannelPosts(
+            channelKey,
+            odinContext,
+            post.Content.UserDate,
+            maxPosts: 10,
+            cancellationToken);
+
+        contentBuilder.AppendLine($"<hr/>");
+        contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h1>");
+
+        contentBuilder.AppendLine($"<ul>");
+        foreach (var anovahPost in otherPosts)
+        {
+            if (anovahPost?.Content != null &&
+                !string.IsNullOrWhiteSpace(anovahPost.Content.Slug) &&
+                !string.IsNullOrWhiteSpace(anovahPost.Content.Caption))
+            {
+                var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{anovahPost.Content.Slug}");
+                contentBuilder.AppendLine(
+                    $"<li><a href=\"{link}\">{HttpUtility.HtmlEncode(anovahPost.Content.Caption)}</a> ({anovahPost.Content.UserDate.GetValueOrDefault().ToDateTime()})</li>");
+            }
+        }
+
+        contentBuilder.AppendLine($"</ul>");
+
+        CreateMenu(contentBuilder);
     }
 
     private static void CreateMenu(StringBuilder contentBuilder)
