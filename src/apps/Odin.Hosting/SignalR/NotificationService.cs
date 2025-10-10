@@ -1,4 +1,4 @@
-namespace Odin.Services.AppNotifications.WebSocket.SignalR;
+namespace Odin.Hosting.SignalR;
 
 /// <summary>
 /// Service for SERVER → CLIENT communication via IHubContext

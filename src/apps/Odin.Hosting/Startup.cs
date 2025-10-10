@@ -29,7 +29,10 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
 using Odin.Core.Storage.Database.System;
-using Odin.Services.AppNotifications.WebSocket.SignalR;
+using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Hosting.SignalR;
+using Odin.Services.Authentication.Owner;
 
 namespace Odin.Hosting;
 
@@ -69,7 +72,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         });
 
         app.UseLoggingMiddleware();
-        app.UseMiddleware<OdinVersionNumberMiddleware>();
+        // app.UseMiddleware<OdinVersionNumberMiddleware>();
 
         if (env.IsProduction())
         {
@@ -112,8 +115,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseAuthorization();
 #pragma warning restore ASP0001
 
-        app.UseIdentityReadyState();
-        app.UseVersionUpgrade();
+        // app.UseIdentityReadyState();
+        // app.UseVersionUpgrade();
 
         app.UseMiddleware<OdinContextMiddleware>();
         app.UseMiddleware<LastSeenMiddleware>();
@@ -140,8 +143,33 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 });
             }
 
+            //
+            // WebSocket / SignalR endpoints
+            //
+            endpoints.MapHub<GuestNotificationHub>(GuestApiPathConstants.BasePathV1 + "/hub");
+            endpoints.MapHub<OwnerNotificationHub>(OwnerApiPathConstants.BasePathV1 + "/hub");
+            endpoints.MapHub<AppNotificationHub>(AppApiPathConstants.BasePathV1 + "/hub");
+
+            // endpoints.MapHub<NotificationHub>(GuestApiPathConstants.PeerNotificationsV1 + "/hub")
+            //     .AllowAnonymous();
+
+            // endpoints
+            //     .MapHub<NotificationHub>(OwnerApiPathConstants.NotificationsV1 + "/hub")
+            //     .RequireAuthorization(new AuthorizeAttribute
+            //     {
+            //         AuthenticationSchemes = OwnerAuthConstants.SchemeName,
+            //         Policy = OwnerPolicies.IsDigitalIdentityOwner
+            //     });
+
+            // endpoints
+            //     .MapHub<NotificationHub>(AppApiPathConstants.NotificationsV1 + "/hub")
+            //     .RequireAuthorization(new AuthorizeAttribute
+            //     {
+            //         AuthenticationSchemes = YouAuthConstants.YouAuthScheme,
+            //         Policy = YouAuthPolicies.IsAuthorizedApp
+            //     });
+
             endpoints.MapControllers();
-            endpoints.MapHub<NotificationHub>("/hubs/notifications");
         });
 
         // Intentionally for dev and production since we don't need to proxy anything

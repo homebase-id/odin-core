@@ -83,7 +83,11 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstants.AuthV1}/logout",
                 $"{AppApiPathConstants.NotificationsV1}/preauth",
                 $"{AppApiPathConstants.PeerNotificationsV1}/preauth",
-                $"{GuestApiPathConstants.PeerNotificationsV1}/preauth"
+                $"{GuestApiPathConstants.PeerNotificationsV1}/preauth",
+
+                GuestApiPathConstants.BasePathV1 + "/hub",
+                OwnerApiPathConstants.BasePathV1 + "/hub",
+                AppApiPathConstants.BasePathV1 + "/hub",
             ];
 
 
@@ -120,6 +124,10 @@ namespace Odin.Hosting.Middleware
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",
                 "/cdn",
+
+                GuestApiPathConstants.BasePathV1 + "/hub",
+                OwnerApiPathConstants.BasePathV1 + "/hub",
+                AppApiPathConstants.BasePathV1 + "/hub",
             };
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
