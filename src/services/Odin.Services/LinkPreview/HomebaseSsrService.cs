@@ -126,7 +126,6 @@ public class HomebaseSsrService(
         }
 
         contentBuilder.AppendLine("</ul>");
-
         CreateMenu(contentBuilder);
     }
 
@@ -393,5 +392,4 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
         contentBuilder.AppendLine($"</ul>");
     }
-    
 }
