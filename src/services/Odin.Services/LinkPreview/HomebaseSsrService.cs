@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
@@ -125,6 +123,8 @@ public class HomebaseSsrService(
         }
 
         contentBuilder.AppendLine("</ul>");
+        
+        CreateMenu(contentBuilder);
     }
 
     public async Task<bool> WriteAboutBodyContent(StringBuilder contentBuilder, PersonSchema person, IOdinContext odinContext)
@@ -212,6 +212,8 @@ public class HomebaseSsrService(
             contentBuilder.AppendLine("<br/><hr/><br/>");
         }
 
+        CreateMenu(contentBuilder);
+
         return true;
     }
 
@@ -282,33 +284,10 @@ public class HomebaseSsrService(
     private static void CreateMenu(StringBuilder contentBuilder)
     {
         contentBuilder.AppendLine($"<ul>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("posts")}'>See my Posts</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("connections")}'>See my connections</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("about")}'>About me</a></li>");
-        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper2.ToSsrUrl("links")}'>See my links</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("posts")}'>See my Posts</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("connections")}'>See my connections</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("about")}'>About me</a></li>");
+        contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
         contentBuilder.AppendLine($"</ul>");
-    }
-}
-
-public static class SsrUrlHelper2
-{
-    public static string ToSsrUrl(string relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return "/" + LinkPreviewDefaults.SsrPath;
-
-        var trimmed = relativePath.Trim();
-
-        // Ensure it starts with a slash
-        if (!trimmed.StartsWith("/"))
-            trimmed = "/" + trimmed;
-
-        var prefix = "/" + LinkPreviewDefaults.SsrPath;
-
-        // Already under /ssr
-        if (trimmed.StartsWith(prefix + "/") || trimmed.Equals(prefix, StringComparison.OrdinalIgnoreCase))
-            return trimmed;
-
-        return prefix + trimmed;
     }
 }
