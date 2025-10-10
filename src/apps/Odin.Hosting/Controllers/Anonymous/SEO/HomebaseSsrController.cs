@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -116,54 +117,11 @@ public class HomebaseSsrController(
         var thisChannel = (await channelContentService.GetChannels(WebOdinContext)).FirstOrDefault(c => c.Slug == channelKey);
 
         var contentBuilder = new StringBuilder();
-
-        if (thisChannel != null)
-        {
-            contentBuilder.AppendLine($"<h1>{HttpUtility.HtmlEncode(thisChannel.Name ?? "")}</h1>");
-        }
-
-        foreach (var post in posts)
-        {
-            var content = post.Content;
-            if (content == null)
-            {
-                continue;
-            }
-
-            var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
-
-            contentBuilder.AppendLine("<div>");
-
-            // Title with link
-            if (!string.IsNullOrWhiteSpace(content.Caption))
-            {
-                contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
-            }
-
-            // Abstract
-            if (!string.IsNullOrWhiteSpace(content.Abstract))
-            {
-                contentBuilder.AppendLine($"  <p>{HttpUtility.HtmlEncode(content.Abstract)}</p>");
-            }
-
-            // Image
-            if (!string.IsNullOrWhiteSpace(post.ImageUrl))
-            {
-                contentBuilder.AppendLine($"<a href=\"{link}\">");
-                contentBuilder.AppendLine(
-                    $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(content.Caption)}\" />");
-                contentBuilder.AppendLine("</a>");
-            }
-
-            contentBuilder.AppendLine("</div>");
-            contentBuilder.AppendLine("<hr/>"); // spacing between posts
-        }
-
-        CreateMenu(contentBuilder);
+        ssrService.WriteChannelPostListBody(channelKey, thisChannel, contentBuilder, posts);
 
         await WriteContent(head, contentBuilder.ToString());
     }
-
+    
     [HttpGet("posts/{channelKey}/{postKey}")]
     public async Task RenderPostDetail(string channelKey, string postKey)
     {
@@ -233,7 +191,6 @@ public class HomebaseSsrController(
 
         return input.Substring(0, maxLength);
     }
-
 
     private async Task WriteContent(string head, string body)
     {

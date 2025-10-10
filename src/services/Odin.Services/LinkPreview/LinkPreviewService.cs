@@ -57,10 +57,15 @@ public class LinkPreviewService(
             return;
         }
 
+        if (await TryWriteChannelPreview(indexFilePath, odinContext))
+        {
+            return;
+        }
+
         await WriteGenericPreview(indexFilePath, odinContext);
     }
 
-    public bool IsPostPath()
+    private bool IsPostPath()
     {
         return IsPath("/posts");
     }
@@ -69,6 +74,48 @@ public class LinkPreviewService(
     {
         var context = httpContextAccessor.HttpContext;
         return context.Request.Path.StartsWithSegments(path);
+    }
+
+    private async Task<bool> TryWriteChannelPreview(string indexFilePath, IOdinContext odinContext)
+    {
+        try
+        {
+            var (success, channelKey, thisChannel, posts) = await TryGetChannelData(odinContext);
+
+            if (!success)
+            {
+                return false;
+            }
+
+            var context = httpContextAccessor.HttpContext;
+            string odinId = context.Request.Host.Host;
+            var person = await GeneratePersonSchema();
+
+            var title = thisChannel.Name;
+            var imageUrl = $"{context.Request.Scheme}://{odinId}/{LinkPreviewDefaults.PublicImagePath}";
+            var description = thisChannel.Description ?? LinkPreviewDefaults.DefaultDescription;
+
+            StringBuilder noScriptContentBuilder = new StringBuilder();
+            ssrService.WriteChannelPostListBody(channelKey, thisChannel, noScriptContentBuilder, posts);
+
+            var content = await PrepareIndexHtml(indexFilePath,
+                title,
+                imageUrl,
+                description,
+                person,
+                siteType: "website",
+                robotsTag: "index, follow",
+                noScriptContent: noScriptContentBuilder.ToString(),
+                odinContext);
+
+            await WriteAsync(content);
+            return true;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to parse channel definition");
+            return false;
+        }
     }
 
     private async Task<bool> TryWritePostPreview(string indexFilePath, IOdinContext odinContext)
@@ -123,9 +170,31 @@ public class LinkPreviewService(
         }
     }
 
+    private async Task<(bool, string channelKey, ChannelDefinition thisChannel, List<ChannelPost> posts)>
+        TryGetChannelData(IOdinContext odinContext)
+    {
+        if (!IsPostPath())
+        {
+            return (false, null, null, null);
+        }
+
+        var context = httpContextAccessor.HttpContext;
+        string path = context.Request.Path.Value;
+        var segments = path?.TrimEnd('/').Split('/');
+        if (segments is { Length: 3 }) // we have the channel key
+        {
+            string channelKey = segments[2];
+            var (posts, _) = await channelContentService.GetChannelPosts(channelKey, odinContext);
+            var thisChannel = (await channelContentService.GetChannels(odinContext)).FirstOrDefault(c => c.Slug == channelKey);
+
+            return (true, channelKey, thisChannel, posts);
+        }
+
+        return (false, null, null, null);
+    }
+
     private async Task<(bool success, string description, string imageUrl, string title, string channelKey, ChannelPost content)>
-        TryGetPostData(
-            IOdinContext odinContext)
+        TryGetPostData(IOdinContext odinContext)
     {
         var context = httpContextAccessor.HttpContext;
 
@@ -139,7 +208,6 @@ public class LinkPreviewService(
         }
 
         string path = context.Request.Path.Value;
-
         var segments = path?.TrimEnd('/').Split('/');
         if (segments is { Length: >= 4 }) // we have channel key and post key; get the post info
         {

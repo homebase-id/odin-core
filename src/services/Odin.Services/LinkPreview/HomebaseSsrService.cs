@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -283,6 +284,53 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine("</urlset>");
     }
 
+    public void WriteChannelPostListBody(string channelKey, ChannelDefinition thisChannel, StringBuilder contentBuilder, List<ChannelPost> posts)
+    {
+        if (thisChannel != null)
+        {
+            contentBuilder.AppendLine($"<h1>{HttpUtility.HtmlEncode(thisChannel.Name ?? "")}</h1>");
+        }
+
+        foreach (var post in posts)
+        {
+            var content = post.Content;
+            if (content == null)
+            {
+                continue;
+            }
+
+            var link = SsrUrlHelper.ToSsrUrl($"/posts/{channelKey}/{content.Slug}");
+
+            contentBuilder.AppendLine("<div>");
+
+            // Title with link
+            if (!string.IsNullOrWhiteSpace(content.Caption))
+            {
+                contentBuilder.AppendLine($"  <h3><a href=\"{link}\">{HttpUtility.HtmlEncode(content.Caption)}</a></h3>");
+            }
+
+            // Abstract
+            if (!string.IsNullOrWhiteSpace(content.Abstract))
+            {
+                contentBuilder.AppendLine($"  <p>{HttpUtility.HtmlEncode(content.Abstract)}</p>");
+            }
+
+            // Image
+            if (!string.IsNullOrWhiteSpace(post.ImageUrl))
+            {
+                contentBuilder.AppendLine($"<a href=\"{link}\">");
+                contentBuilder.AppendLine(
+                    $"  <img src=\"{HttpUtility.HtmlEncode(post.ImageUrl)}\" alt=\"{HttpUtility.HtmlEncode(content.Caption)}\" />");
+                contentBuilder.AppendLine("</a>");
+            }
+
+            contentBuilder.AppendLine("</div>");
+            contentBuilder.AppendLine("<hr/>"); // spacing between posts
+        }
+
+        CreateMenu(contentBuilder);
+    }
+    
     public async Task WritePostBodyContent(string channelKey, ChannelPost post,
         StringBuilder contentBuilder,
         IOdinContext odinContext,
@@ -316,7 +364,7 @@ public class HomebaseSsrService(
             cancellationToken);
 
         contentBuilder.AppendLine($"<hr/>");
-        contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h1>");
+        contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h3>");
 
         contentBuilder.AppendLine($"<ul>");
         foreach (var anovahPost in otherPosts)
@@ -345,4 +393,5 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine($"<li><a href='{SsrUrlHelper.ToSsrUrl("links")}'>See my links</a></li>");
         contentBuilder.AppendLine($"</ul>");
     }
+    
 }
