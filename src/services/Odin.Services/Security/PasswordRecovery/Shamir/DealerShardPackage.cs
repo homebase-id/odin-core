@@ -21,6 +21,8 @@ public class DealerShardPackage
     public List<DealerShardEnvelope> Envelopes { get; init; }
     
     public UnixTimeUtc Updated { get; set; }
+    
+    public bool UsesAutomatedRecovery { get; set; }
 
     public static string Serialize(DealerShardPackage package)
     {

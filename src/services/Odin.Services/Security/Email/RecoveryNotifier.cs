@@ -16,9 +16,9 @@ using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Services.Security.Email;
 
-public class RecoveryEmailer(
+public class RecoveryNotifier(
     OdinConfiguration configuration,
-    ILogger<RecoveryEmailer> logger,
+    ILogger<RecoveryNotifier> logger,
     TenantContext tenantContext,
     TableNonce nonceTable,
     IJobManager jobManager)
@@ -29,6 +29,9 @@ public class RecoveryEmailer(
     public const string EnterNoncePropertyName = "enterNonceId";
 
     public const string ExitNoncePropertyName = "exitNonceId";
+
+    public const string FinalRecoveryNonceIdPropertyName = "finalRecoveryEmailNonceId";
+    public const string FinalRecoveryKeyPropertyName = "finalRecoveryKey";
 
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
@@ -130,7 +133,7 @@ public class RecoveryEmailer(
             finalRecoveryKey.ToString());
 
 #if DEBUG
-        logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
+        logger.LogInformation("\n\n\n{link}\n\n\n{finalRecoveryEmailNonceId} with token {finalRecoveryKey}", link, nonceId, finalRecoveryKey);
 #endif
 
         AssertEmailEnabled();

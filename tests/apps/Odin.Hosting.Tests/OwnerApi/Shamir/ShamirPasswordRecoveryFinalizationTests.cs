@@ -7,8 +7,11 @@ using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
+using Odin.Core.Storage;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Services.Drives;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -17,7 +20,7 @@ using Serilog.Events;
 
 namespace Odin.Hosting.Tests.OwnerApi.Shamir
 {
-    public class ShamirPasswordRecoveryTestForDelegates
+    public class ShamirPasswordRecoveryFinalizationTests
     {
         private WebScaffold _scaffold;
 
@@ -60,74 +63,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
 
         [Test]
-        [Description("When I configure shards with players that require approval before releasing a shard, " +
-                     "that player can see a request from the dealer in a list")]
 #if !DEBUG
         [Ignore("Ignored for release tests due to how we test recovery mode")]
 #endif
-        public async Task DelegatePlayersCanSeeShardReleaseRequests()
-        {
-            List<OdinId> peerIdentities =
-            [
-                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId, TestIdentities.TomBombadil.OdinId
-            ];
-
-            var frodoClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-
-
-            //
-            // Setup - distribute delegate shards
-            //
-            await PrepareConnections(peerIdentities);
-
-            await DistributeAndVerifyDelegateShards(peerIdentities);
-
-            var getConfigResponse = await frodoClient.Security.GetDealerShardConfig();
-            Assert.That(getConfigResponse.IsSuccessful, Is.True);
-            Assert.That(getConfigResponse.Content, Is.Not.Null);
-
-            var config = getConfigResponse.Content;
-
-
-            //
-            // Act - enter recovery mode
-            //
-            await EnterRecoveryMode();
-
-            //
-            // Assert - all player delegates have a request in their list
-            //
-            foreach (var peer in peerIdentities)
-            {
-                var shardId = config.Envelopes.Single(e => e.Player.OdinId == peer).ShardId;
-
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
-                var getListOfShardRequestsResponse = await peerOwnerClient.Security.GetShardRequestList();
-
-                Assert.That(getListOfShardRequestsResponse.IsSuccessful, Is.True);
-                Assert.That(getListOfShardRequestsResponse.Content, Is.Not.Null);
-
-                var list = getListOfShardRequestsResponse.Content;
-
-                var item = list.SingleOrDefault(item => item.ShardId == shardId);
-                Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-            }
-
-            await ExitRecoveryMode();
-
-            //
-            // Cleanup
-            //
-            await CleanupConnections(peerIdentities);
-        }
-
-        [Test]
-        [Description("When I configure shards with players that require approval before releasing a shard, " +
-                     "that player can see a request from the dealer in a list")]
-#if !DEBUG
-        [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
-        public async Task DelegatePlayersCanApproveShardRequests()
+        public async Task DelegatePlayersCanApproveShardRequestsAndPasswordCanBeReset()
         {
             var dealer = TestIdentities.Frodo;
             List<OdinId> peerIdentities =
@@ -181,19 +120,56 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
             Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingOwnerFinalization);
 
-            await ExitRecoveryMode();
+            // scan for the nonceId
+
+            var finalizeNonceId = await _scaffold.WaitForLogPropertyValue(
+                RecoveryNotifier.FinalRecoveryNonceIdPropertyName,
+                LogEventLevel.Information);
+
+            var finalRecoveryKey = await _scaffold.WaitForLogPropertyValue(
+                RecoveryNotifier.FinalRecoveryKeyPropertyName,
+                LogEventLevel.Information);
+
+            Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
+            Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
+            
+            const string newPassword = "bipbopboop";
+
+            using var authClient = _scaffold.OldOwnerApi.CreateAnonymousClient(frodoClient.OdinId);
+            var passwordEccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+            var saltyReply = await _scaffold.OldOwnerApi.CalculatePasswordReply(authClient, newPassword, passwordEccKey);
+
+            // here we will call finalize to get the recovery key
+            var finalizeRecoveryResponse = await frodoClient.Security.FinalizeRecovery(new FinalRecoveryRequest
+            {
+                Id = finalizeNonceId,
+                FinalKey = finalRecoveryKey,
+                PasswordReply = saltyReply
+            });
+
+            Assert.That(finalizeRecoveryResponse.IsSuccessful, Is.True);
+
+            //login with the new password
+            var loginEccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+            var secondLogin = await _scaffold.OldOwnerApi.LoginToOwnerConsole(frodoClient.OdinId, newPassword, loginEccKey);
+            Assert.That(secondLogin.cat.Id, Is.Not.EqualTo(Guid.Empty));
+            Assert.That(secondLogin.cat.AccessTokenHalfKey.IsSet(), Is.True);
+            Assert.That(secondLogin.sharedSecret.IsSet, Is.True);
+            
+            _scaffold.OldOwnerApi.UpdateOwnerAuthContext(frodoClient.OdinId, secondLogin.cat, secondLogin.sharedSecret);
 
             //
-            // Cleanup
+            // Cleanup connections before resetting the password so we can still use the old context
             //
             await CleanupConnections(peerIdentities);
+
         }
 
         [Test]
 #if !DEBUG
         [Ignore("Ignored for release tests due to how we test recovery mode")]
 #endif
-        public async Task DelegatePlayersCanRejectRequestsAndRecoveryFails()
+        public async Task ShardingIsResetAfterPasswordIsRecovered()
         {
             var dealer = TestIdentities.Frodo;
             List<OdinId> peerIdentities =
@@ -214,7 +190,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(getConfigResponse.IsSuccessful, Is.True);
             Assert.That(getConfigResponse.Content, Is.Not.Null);
 
-            var config = getConfigResponse.Content;
+            var firstShardConfig = getConfigResponse.Content;
 
             //
             // Act - enter recovery mode
@@ -227,111 +203,102 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             foreach (var peer in peerIdentities)
             {
                 var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
-                var item = await GetPlayerShardRequest(config, peerOwnerClient);
+                var item = await GetPlayerShardRequest(firstShardConfig, peerOwnerClient);
                 Assert.That(item, Is.Not.Null, "Release request for shard was not found");
                 var shardId = item.ShardId;
 
                 // now release the shard
-
-                var rejectResponse = await peerOwnerClient.Security.RejectShardRequest(new RejectShardRequest()
+                var approveResponse = await peerOwnerClient.Security.ApproveShardRequest(new ApproveShardRequest
                 {
                     OdinId = dealer.OdinId,
                     ShardId = shardId
                 });
 
-                Assert.That(rejectResponse.IsSuccessStatusCode, Is.True, $"Code was {rejectResponse.StatusCode}");
+                Assert.That(approveResponse.IsSuccessStatusCode, Is.True, $"Code was {approveResponse.StatusCode}");
             }
 
             // Wait for status
-            var getRecoveryStatusResponse = await frodoClient.Security.GetShamirRecoveryStatus();
-            Assert.That(getRecoveryStatusResponse.IsSuccessStatusCode, Is.True);
-            var recoverStatus = getRecoveryStatusResponse.Content;
-            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
+            var recoverStatus = await frodoClient.Security.WaitForShamirStatus(ShamirRecoveryState.AwaitingOwnerFinalization);
 
-            await ExitRecoveryMode();
+            // this is a dumb test but I just wanted to be clear about success criterion (i.e. an explicit assert)
+            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingOwnerFinalization);
 
-            //
-            // Cleanup
-            //
-            await CleanupConnections(peerIdentities);
-        }
+            // scan for the nonceId
 
-        [Test]
-#if !DEBUG
-        [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
-        public async Task DelegatePlayersCanRejectRequestsAndRecoveryFailsThenResubmitRecoveryModeASecondTime()
-        {
-            var dealer = TestIdentities.Frodo;
-            List<OdinId> peerIdentities =
-            [
-                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId, TestIdentities.TomBombadil.OdinId
-            ];
+            var finalizeNonceId = await _scaffold.WaitForLogPropertyValue(
+                RecoveryNotifier.FinalRecoveryNonceIdPropertyName,
+                LogEventLevel.Information);
 
-            var frodoClient = _scaffold.CreateOwnerApiClientRedux(dealer);
+            var finalRecoveryKey = await _scaffold.WaitForLogPropertyValue(
+                RecoveryNotifier.FinalRecoveryKeyPropertyName,
+                LogEventLevel.Information);
 
-            //
-            // Setup - distribute delegate shards
-            //
-            await PrepareConnections(peerIdentities);
+            Assert.That(finalizeNonceId, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
+            Assert.That(finalRecoveryKey, Is.Not.Null.Or.Empty, "Could not find final recovery email link");
 
-            await DistributeAndVerifyDelegateShards(peerIdentities);
+            const string newPassword = "bipbopboop";
 
-            var getConfigResponse = await frodoClient.Security.GetDealerShardConfig();
-            Assert.That(getConfigResponse.IsSuccessful, Is.True);
-            Assert.That(getConfigResponse.Content, Is.Not.Null);
+            using var authClient = _scaffold.OldOwnerApi.CreateAnonymousClient(frodoClient.OdinId);
+            var passwordEccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+            var saltyReply = await _scaffold.OldOwnerApi.CalculatePasswordReply(authClient, newPassword, passwordEccKey);
 
-            var config = getConfigResponse.Content;
-
-            //
-            // Act - enter recovery mode
-            //
-            await EnterRecoveryMode();
-
-            //
-            // Assert - all player delegates have a request in their list
-            //
-            foreach (var peer in peerIdentities)
+            // here we will call finalize to get the recovery key
+            var finalizeRecoveryResponse = await frodoClient.Security.FinalizeRecovery(new FinalRecoveryRequest
             {
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
-                var item = await GetPlayerShardRequest(config, peerOwnerClient);
-                Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-                var shardId = item.ShardId;
+                Id = finalizeNonceId,
+                FinalKey = finalRecoveryKey,
+                PasswordReply = saltyReply
+            });
 
-                // now release the shard
-                var rejectResponse = await peerOwnerClient.Security.RejectShardRequest(new RejectShardRequest()
-                {
-                    OdinId = dealer.OdinId,
-                    ShardId = shardId
-                });
+            Assert.That(finalizeRecoveryResponse.IsSuccessful, Is.True);
 
-                Assert.That(rejectResponse.IsSuccessStatusCode, Is.True, $"Code was {rejectResponse.StatusCode}");
+            //login with the new password
+            var loginEccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
+            var secondLogin = await _scaffold.OldOwnerApi.LoginToOwnerConsole(frodoClient.OdinId, newPassword, loginEccKey);
+            Assert.That(secondLogin.cat.Id, Is.Not.EqualTo(Guid.Empty));
+            Assert.That(secondLogin.cat.AccessTokenHalfKey.IsSet(), Is.True);
+            Assert.That(secondLogin.sharedSecret.IsSet, Is.True);
+
+            // the system should configure shards again
+            // so lets call something on the owner console to stoke the auth handler
+            var newClient = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodoClient.OdinId,
+                secondLogin.cat,
+                secondLogin.sharedSecret,
+                FileSystemType.Standard);
+
+            // just a random call
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(newClient, secondLogin.sharedSecret);
+            var settingsResponse = await svc.GetTenantSettings();
+            Assert.That(settingsResponse.IsSuccessful, Is.True);
+            // var settings = settingsResponse.Content;
+
+            // now just see if the log is updated with an entry that we rotated shards
+
+            _scaffold.AssertHasDebugLogEvent(message: ShamirConfigurationService.RotateShardsHasStarted, count: 1);
+
+            // test that the shards were rotated
+            var shardClient = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(newClient, secondLogin.sharedSecret);
+            var getConfigResponse2 = await shardClient.GetShardConfig();
+            Assert.That(getConfigResponse2.IsSuccessful, Is.True);
+            var secondShardingConfig = getConfigResponse2.Content;
+            Assert.That(secondShardingConfig, Is.Not.Null);
+            Assert.That(secondShardingConfig.Updated > firstShardConfig.Updated, Is.True);
+
+            Assert.That(firstShardConfig.Envelopes.Count, Is.EqualTo(secondShardingConfig.Envelopes.Count));
+            Assert.That(firstShardConfig.MinMatchingShards, Is.EqualTo(secondShardingConfig.MinMatchingShards));
+
+            foreach (var firstEnvelope in firstShardConfig.Envelopes)
+            {
+                var secondEnvelope = secondShardingConfig.Envelopes.SingleOrDefault(e => e.Player.OdinId == firstEnvelope.Player.OdinId);
+                Assert.That(secondEnvelope, Is.Not.Null);
+                Assert.That(secondEnvelope.ShardId, Is.Not.EqualTo(firstEnvelope.ShardId));
+                Assert.That(secondEnvelope.Player.Type, Is.EqualTo(firstEnvelope.Player.Type));
             }
 
-            // Wait for status
-            var getRecoveryStatusResponse = await frodoClient.Security.GetShamirRecoveryStatus();
-            Assert.That(getRecoveryStatusResponse.IsSuccessStatusCode, Is.True);
-            var recoverStatus = getRecoveryStatusResponse.Content;
-            Assert.That(recoverStatus.State == ShamirRecoveryState.AwaitingSufficientDelegateConfirmation);
+            _scaffold.OldOwnerApi.UpdateOwnerAuthContext(frodoClient.OdinId, secondLogin.cat, secondLogin.sharedSecret);
 
             //
-            // If I don't get sufficient responses, i need to restart.
-            // this should clear my responses
-            await ExitRecoveryMode();
-
-
-            // re-enter recovery mode and validate delegates got a new request
-            await EnterRecoveryMode();
-
-            foreach (var peer in peerIdentities)
-            {
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
-                var item = await GetPlayerShardRequest(config, peerOwnerClient);
-                Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-            }
-
-            //
-            // Cleanup
+            // cleanup connections
             //
             await CleanupConnections(peerIdentities);
         }
@@ -439,8 +406,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(exitEnterResponse.IsSuccessful, Is.True, $"Response was {exitEnterResponse.StatusCode}");
 
             // Assert
-            var exitRecoveryNonceId =
-                await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName, LogEventLevel.Information);
+            var exitRecoveryNonceId = await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName,
+                LogEventLevel.Information);
 
             var verifyExitRecoveryModeResponse = await frodo.Security.VerifyExitRecoveryMode(exitRecoveryNonceId);
             Assert.That(verifyExitRecoveryModeResponse.StatusCode == HttpStatusCode.Redirect, Is.True,

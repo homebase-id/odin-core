@@ -185,8 +185,9 @@ public static class TenantServices
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
 
-        cb.RegisterType<RecoveryEmailer>().InstancePerLifetimeScope();
+        cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
+        
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();

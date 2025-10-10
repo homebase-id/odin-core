@@ -79,6 +79,8 @@ namespace Odin.Services.Registry
         Task<IdentityRegistration> GetAsync(string domain);
 
         Task MarkRegistrationComplete(Guid firstRunToken);
+        
+        Task AssetValidFirstRunToken(Guid firstRunToken, IOdinContext odinContext);
 
         /// <summary>
         /// Returns the registration status for the identity

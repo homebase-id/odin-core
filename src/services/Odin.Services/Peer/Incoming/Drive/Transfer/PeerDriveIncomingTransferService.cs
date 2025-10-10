@@ -144,8 +144,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         if (notificationOptions.Recipients?.Any() ?? false)
                         {
                             var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive.Alias);
-                            if (!drive.AllowSubscriptions)
+
+                            // allow the shard recovery drive to use subscriptions
+                            if (drive.Id != SystemDriveConstants.ShardRecoveryDrive.Alias && !drive.AllowSubscriptions)
                             {
+                                logger.LogDebug("Drive ({drive}) does not allow subscriptions", drive.Id);
                                 throw new OdinSecurityException(
                                     "Attempt to distribute app notifications to drive which does not allow subscriptions");
                             }
@@ -303,9 +306,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 return PeerResponseCode.AcceptedDirectWrite;
             }
 
-            logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox", stateItem.TempFile);
-            
-            var tempFile = _transferState.TempFile with {StorageType = TempStorageType.Inbox};
+            logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
+                stateItem.TempFile);
+
+            var tempFile = _transferState.TempFile with { StorageType = TempStorageType.Inbox };
             var instructionSet = _transferState.TransferInstructionSet;
 
             try
@@ -322,7 +326,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return await RouteToInboxAsync(stateItem, odinContext);
         }
 
-        private async Task WriteInstructionsAndMetadataToInbox(TempFile tempFile, FileMetadata fileMetadata, EncryptedRecipientTransferInstructionSet instructionSet,
+        private async Task WriteInstructionsAndMetadataToInbox(TempFile tempFile, FileMetadata fileMetadata,
+            EncryptedRecipientTransferInstructionSet instructionSet,
             IOdinContext odinContext)
         {
             logger.LogDebug("Writing metadata as {tempFile}", tempFile);
@@ -477,7 +482,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             await Task.CompletedTask;
 
             //HACK: if it's not a connected token
-            if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
+            if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower() &&
+                odinContext.AuthContext.ToLower() != "AutomatedIdentityAuthScheme".ToLower())
             {
                 return false;
             }

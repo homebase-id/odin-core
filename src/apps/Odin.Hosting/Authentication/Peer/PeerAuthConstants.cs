@@ -22,5 +22,8 @@
         /// Scheme for allowing my followers to send reactions to my content
         /// </summary>
         public const string FollowerCertificateAuthScheme = "FollowerCertificateAuthScheme";
+        
+        public const string AutomatedIdentityAuthScheme = "AutomatedIdentityAuthScheme";
+
     }
 }

@@ -20,6 +20,15 @@ public class OwnerConfigurationApiClient(OwnerApiTestUtils ownerApi, TestIdentit
         }
     }
     
+    public async Task<ApiResponse<HttpContent>> EnableAutoPasswordRecovery()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ownerSharedSecret);
+            return await svc.EnableAutoPasswordRecovery();
+        }
+    }
+    
     public async Task<ApiResponse<bool>> IsIdentityConfigured()
     {
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);

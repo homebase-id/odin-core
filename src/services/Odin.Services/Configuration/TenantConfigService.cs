@@ -8,7 +8,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Time;
 using Odin.Services.Apps;
-using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -22,6 +21,7 @@ using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Util;
 
 namespace Odin.Services.Configuration;
@@ -29,53 +29,29 @@ namespace Odin.Services.Configuration;
 /// <summary>
 /// Manages initial setup and system configuration for the identity and owner-app
 /// </summary>
-public class TenantConfigService
+public class TenantConfigService(
+    CircleNetworkService dbs,
+    TenantContext tenantContext,
+    IIdentityRegistry registry,
+    IDriveManager driveManager,
+    PublicPrivateKeyService publicPrivateKeyService,
+    IcrKeyService icrKeyService,
+    PasswordKeyRecoveryService recoverService,
+    CircleMembershipService circleMembershipService,
+    IAppRegistrationService appRegistrationService,
+    ICorrelationContext correlationContext,
+    IdentityDatabase identityDatabase,
+    ShamirConfigurationService shamirConfigurationService)
 {
     private const string ConfigContextKey = "b9e1c2a3-e0e0-480e-a696-ce602b052d07";
-    private static readonly SingleKeyValueStorage ConfigStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ConfigContextKey));
 
-    private readonly CircleNetworkService _dbs;
-    private readonly TenantContext _tenantContext;
-    private readonly IIdentityRegistry _registry;
-    private readonly IDriveManager _driveManager;
-    private readonly PublicPrivateKeyService _publicPrivateKeyService;
-    private readonly PasswordKeyRecoveryService _recoverService;
-    private readonly IcrKeyService _icrKeyService;
-    private readonly CircleMembershipService _circleMembershipService;
-    private readonly IAppRegistrationService _appRegistrationService;
-    private readonly ICorrelationContext _correlationContext;
-    private readonly IdentityDatabase _identityDatabase;
-
-    public TenantConfigService(
-        CircleNetworkService dbs,
-        TenantContext tenantContext,
-        IIdentityRegistry registry,
-        IDriveManager driveManager,
-        PublicPrivateKeyService publicPrivateKeyService,
-        IcrKeyService icrKeyService,
-        PasswordKeyRecoveryService recoverService,
-        CircleMembershipService circleMembershipService,
-        IAppRegistrationService appRegistrationService,
-        ICorrelationContext correlationContext,
-        IdentityDatabase identityDatabase)
-    {
-        _dbs = dbs;
-        _tenantContext = tenantContext;
-        _registry = registry;
-        _driveManager = driveManager;
-        _publicPrivateKeyService = publicPrivateKeyService;
-        _icrKeyService = icrKeyService;
-        _recoverService = recoverService;
-        _circleMembershipService = circleMembershipService;
-        _appRegistrationService = appRegistrationService;
-        _correlationContext = correlationContext;
-        _identityDatabase = identityDatabase;
-    }
+    private static readonly SingleKeyValueStorage ConfigStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ConfigContextKey));
 
     public async Task InitializeAsync()
     {
         var tenantSettings = await GetTenantSettingsAsync();
-        _tenantContext.UpdateSystemConfig(tenantSettings);
+        tenantContext.UpdateSystemConfig(tenantSettings);
     }
 
     public async Task<TenantVersionInfo> ForceVersionNumberAsync(int version)
@@ -86,8 +62,8 @@ public class TenantConfigService
             LastUpgraded = UnixTimeUtc.Now().milliseconds
         };
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
-        await ConfigStorage.DeleteAsync(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
+        await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
+        await ConfigStorage.DeleteAsync(identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
 
         return newVersion;
     }
@@ -97,11 +73,12 @@ public class TenantConfigService
     /// </summary>
     public async Task<TenantVersionInfo> IncrementVersionAsync()
     {
-        var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValueCached, TenantVersionInfo.Key) ?? new TenantVersionInfo()
-        {
-            DataVersionNumber = 0,
-            LastUpgraded = 0
-        };
+        var currentVersion = await ConfigStorage.GetAsync<TenantVersionInfo>(identityDatabase.KeyValueCached, TenantVersionInfo.Key) ??
+                             new TenantVersionInfo()
+                             {
+                                 DataVersionNumber = 0,
+                                 LastUpgraded = 0
+                             };
 
         var newVersion = new TenantVersionInfo()
         {
@@ -109,7 +86,7 @@ public class TenantConfigService
             LastUpgraded = UnixTimeUtc.Now().milliseconds
         };
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
+        await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantVersionInfo.Key, newVersion);
 
         return newVersion;
     }
@@ -124,21 +101,20 @@ public class TenantConfigService
             FailedDataVersionNumber = dataVersionNumber,
             BuildVersion = Version.VersionText,
             LastAttempted = UnixTimeUtc.Now().milliseconds,
-            CorrelationId = _correlationContext?.Id
+            CorrelationId = correlationContext?.Id
         };
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key, info);
+        await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key, info);
     }
 
     public async Task<FailedUpgradeVersionInfo> GetVersionFailureInfoAsync()
     {
-        return await ConfigStorage.GetAsync<FailedUpgradeVersionInfo>(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
+        return await ConfigStorage.GetAsync<FailedUpgradeVersionInfo>(identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
     }
 
     public async Task<TenantVersionInfo> GetVersionInfoAsync()
     {
-
-        var info = await ConfigStorage.GetAsync<TenantVersionInfo>(_identityDatabase.KeyValueCached, TenantVersionInfo.Key);
+        var info = await ConfigStorage.GetAsync<TenantVersionInfo>(identityDatabase.KeyValueCached, TenantVersionInfo.Key);
         return info ?? new TenantVersionInfo
         {
             DataVersionNumber = 0,
@@ -149,17 +125,22 @@ public class TenantConfigService
     public async Task<bool> IsIdentityServerConfiguredAsync()
     {
         //ok for anonymous to query this as long as we're only returning a bool
-        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(_identityDatabase.KeyValueCached, FirstRunInfo.Key);
+        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(identityDatabase.KeyValueCached, FirstRunInfo.Key);
         return firstRunInfo != null;
+    }
+
+    public async Task<UnixTimeUtc?> GetFirstRunDateAsync()
+    {
+        //ok for anonymous to query this as long as we're only returning a bool
+        var firstRunInfo = await ConfigStorage.GetAsync<FirstRunInfo>(identityDatabase.KeyValueCached, FirstRunInfo.Key);
+        return firstRunInfo?.FirstRunDate;
     }
 
     public async Task<bool> IsEulaSignatureRequiredAsync(IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
-        var info = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey);
+        var info = await ConfigStorage.GetAsync<List<EulaSignature>>(identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey);
         if (info == null || !info.Any())
         {
             return true;
@@ -180,19 +161,16 @@ public class TenantConfigService
 
     public async Task<List<EulaSignature>> GetEulaSignatureHistoryAsync(IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
-        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey) ??
+                         new List<EulaSignature>();
 
         return signatures;
     }
 
     public async Task MarkEulaSignedAsync(MarkEulaSignedRequest request, IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
         OdinValidationUtils.AssertNotNull(request, nameof(request));
@@ -203,7 +181,8 @@ public class TenantConfigService
             throw new OdinClientException("Invalid Eula version");
         }
 
-        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(_identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey) ?? new List<EulaSignature>();
+        var signatures = await ConfigStorage.GetAsync<List<EulaSignature>>(identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey) ??
+                         new List<EulaSignature>();
 
         signatures.Add(new EulaSignature()
         {
@@ -212,15 +191,15 @@ public class TenantConfigService
             SignatureBytes = request.SignatureBytes
         });
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, Eula.EulaSystemInfo.StorageKey, signatures);
+        await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, EulaSystemInfo.StorageKey, signatures);
     }
 
     public async Task CreateInitialKeysAsync(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-        await _recoverService.CreateInitialKeyAsync(odinContext);
-        await _icrKeyService.CreateInitialKeysAsync(odinContext);
-        await _publicPrivateKeyService.CreateInitialKeysAsync(odinContext);
+        await recoverService.CreateInitialKeyAsync(odinContext);
+        await icrKeyService.CreateInitialKeysAsync(odinContext);
+        await publicPrivateKeyService.CreateInitialKeysAsync(odinContext);
     }
 
     /// <summary>
@@ -232,12 +211,12 @@ public class TenantConfigService
 
         if (request.FirstRunToken.HasValue)
         {
-            await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
+            await registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-        await _circleMembershipService.CreateSystemCirclesAsync(odinContext);
+        await circleMembershipService.CreateSystemCirclesAsync(odinContext);
 
         await EnsureSystemDrivesExist(odinContext);
 
@@ -254,7 +233,7 @@ public class TenantConfigService
 
         await this.EnsureBuiltInApps(odinContext);
 
-        await using var tx = await _identityDatabase.BeginStackedTransactionAsync();
+        await using var tx = await identityDatabase.BeginStackedTransactionAsync();
 
         var keyValuePairs = new List<(Guid key, object value)>
         {
@@ -262,7 +241,7 @@ public class TenantConfigService
             (FirstRunInfo.Key, new FirstRunInfo() { FirstRunDate = UnixTimeUtc.Now().milliseconds })
         };
 
-        await ConfigStorage.UpsertManyAsync(_identityDatabase.KeyValueCached, keyValuePairs);
+        await ConfigStorage.UpsertManyAsync(identityDatabase.KeyValueCached, keyValuePairs);
 
         tx.Commit();
     }
@@ -285,8 +264,6 @@ public class TenantConfigService
 
     public async Task UpdateSystemFlagAsync(UpdateFlagRequest request, IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
@@ -294,7 +271,8 @@ public class TenantConfigService
             throw new OdinClientException("Invalid flag name", OdinClientErrorCode.InvalidFlagName);
         }
 
-        var cfg = await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ?? new TenantSettings();
+        var cfg = await ConfigStorage.GetAsync<TenantSettings>(identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ??
+                  new TenantSettings();
 
         switch (flag)
         {
@@ -351,37 +329,50 @@ public class TenantConfigService
                     OdinClientErrorCode.UnknownFlagName);
         }
 
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, TenantSettings.ConfigKey, cfg);
+        await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantSettings.ConfigKey, cfg);
 
         //TODO: eww, use mediator instead
-        _tenantContext.UpdateSystemConfig(cfg);
+        tenantContext.UpdateSystemConfig(cfg);
     }
 
+    public async Task EnableAutoPasswordRecovery(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+        if (!await IsIdentityServerConfiguredAsync())
+        {
+            throw new OdinClientException("Identity must first be configured");
+        }
+
+        await shamirConfigurationService.ConfigureAutomatedRecovery(odinContext);
+    }
+
+    public void AssertCanUseAutoPasswordRecovery(IOdinContext odinContext)
+    {
+        shamirConfigurationService.AssertCanUseAutomatedRecovery();
+    }
 
     public async Task<TenantSettings> GetTenantSettingsAsync()
     {
-
-        return await ConfigStorage.GetAsync<TenantSettings>(_identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ?? TenantSettings.Default;
+        return await ConfigStorage.GetAsync<TenantSettings>(identityDatabase.KeyValueCached, TenantSettings.ConfigKey) ??
+               TenantSettings.Default;
     }
 
     public async Task<OwnerAppSettings> GetOwnerAppSettingsAsync(IOdinContext odinContext)
     {
-
-
         odinContext.Caller.AssertHasMasterKey();
-        return await ConfigStorage.GetAsync<OwnerAppSettings>(_identityDatabase.KeyValueCached, OwnerAppSettings.ConfigKey) ?? OwnerAppSettings.Default;
+        return await ConfigStorage.GetAsync<OwnerAppSettings>(identityDatabase.KeyValueCached, OwnerAppSettings.ConfigKey) ??
+               OwnerAppSettings.Default;
     }
 
     public async Task UpdateOwnerAppSettingsAsync(OwnerAppSettings newSettings, IOdinContext odinContext)
     {
-
         odinContext.Caller.AssertHasMasterKey();
-        await ConfigStorage.UpsertAsync(_identityDatabase.KeyValueCached, OwnerAppSettings.ConfigKey, newSettings);
+        await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, OwnerAppSettings.ConfigKey, newSettings);
     }
 
     public async Task DeleteFailureInfo()
     {
-        await ConfigStorage.DeleteAsync(_identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
+        await ConfigStorage.DeleteAsync(identityDatabase.KeyValueCached, FailedUpgradeVersionInfo.Key);
     }
     //
 
@@ -457,39 +448,37 @@ public class TenantConfigService
                 PermissionKeys.UseTransitWrite)
         };
 
-        var existingApp = await _appRegistrationService.GetAppRegistration(request.AppId, odinContext);
+        var existingApp = await appRegistrationService.GetAppRegistration(request.AppId, odinContext);
         if (existingApp == null)
         {
-            await _appRegistrationService.RegisterAppAsync(request, odinContext);
+            await appRegistrationService.RegisterAppAsync(request, odinContext);
         }
     }
 
     private async Task RegisterChatAppAsync(IOdinContext odinContext)
     {
-        var existingApp =
-            await _appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
+        var existingApp = await appRegistrationService.GetAppRegistration(SystemAppConstants.ChatAppRegistrationRequest.AppId, odinContext);
         if (null == existingApp)
         {
-            await _appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
+            await appRegistrationService.RegisterAppAsync(SystemAppConstants.ChatAppRegistrationRequest, odinContext);
         }
     }
 
     private async Task RegisterMailAppAsync(IOdinContext odinContext)
     {
-        var existingApp =
-            await _appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
+        var existingApp = await appRegistrationService.GetAppRegistration(SystemAppConstants.MailAppRegistrationRequest.AppId, odinContext);
         if (null == existingApp)
         {
-            await _appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
+            await appRegistrationService.RegisterAppAsync(SystemAppConstants.MailAppRegistrationRequest, odinContext);
         }
     }
 
     private async Task<bool> CreateCircleIfNotExistsAsync(CreateCircleRequest request, IOdinContext odinContext)
     {
-        var existingCircleDef = await _circleMembershipService.GetCircleAsync(request.Id, odinContext);
+        var existingCircleDef = await circleMembershipService.GetCircleAsync(request.Id, odinContext);
         if (null == existingCircleDef)
         {
-            await _circleMembershipService.CreateCircleDefinitionAsync(request, odinContext);
+            await circleMembershipService.CreateCircleDefinitionAsync(request, odinContext);
             return true;
         }
 
@@ -498,11 +487,11 @@ public class TenantConfigService
 
     private async Task<bool> CreateDriveIfNotExistsAsync(CreateDriveRequest request, IOdinContext odinContext)
     {
-        var drive = await _driveManager.GetDriveAsync(request.TargetDrive.Alias);
+        var drive = await driveManager.GetDriveAsync(request.TargetDrive.Alias);
 
         if (null == drive)
         {
-            await _driveManager.CreateDriveAsync(request, odinContext);
+            await driveManager.CreateDriveAsync(request, odinContext);
             return true;
         }
 
@@ -511,7 +500,7 @@ public class TenantConfigService
 
     private async Task UpdateSystemCirclePermissionAsync(int key, bool shouldGrantKey, IOdinContext odinContext)
     {
-        var systemCircle = await _circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+        var systemCircle = await circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
 
         if (shouldGrantKey)
         {
@@ -528,6 +517,6 @@ public class TenantConfigService
             }
         }
 
-        await _dbs.UpdateCircleDefinitionAsync(systemCircle, odinContext);
+        await dbs.UpdateCircleDefinitionAsync(systemCircle, odinContext);
     }
 }
