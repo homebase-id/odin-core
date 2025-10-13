@@ -50,7 +50,7 @@ public class HomebaseChannelContentService(
             return null;
         }
 
-        return await ParsePostFile(postFile, targetDrive, useContentFallback: true, odinContext, cancellationToken);
+        return await ParsePostFile(postFile, targetDrive, usePayloadForContentFallback: true, odinContext, cancellationToken);
     }
 
     /// <summary>
@@ -109,7 +109,7 @@ public class HomebaseChannelContentService(
         var channelPosts = new List<ChannelPost>();
         foreach (var sr in batch.SearchResults)
         {
-            logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
+            // logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
             var post = await ParsePostFile(sr, targetDrive, useContentFallback, odinContext, cancellationToken);
             channelPosts.Add(post);
         }
@@ -234,7 +234,7 @@ public class HomebaseChannelContentService(
     private async Task<ChannelPost> ParsePostFile(
         SharedSecretEncryptedFileHeader postFile,
         TargetDrive channelDrive,
-        bool useContentFallback,
+        bool usePayloadForContentFallback,
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
@@ -259,7 +259,7 @@ public class HomebaseChannelContentService(
         {
             content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(postFile.FileMetadata.AppData.Content);
 
-            if (string.IsNullOrEmpty(content.Id) && useContentFallback)
+            if (string.IsNullOrEmpty(content.Id) && usePayloadForContentFallback)
             {
                 logger.LogDebug("empty content id: {content}", postFile.FileMetadata.AppData.Content);
                 content = await LoadContentFromPayload(fileId);
@@ -270,7 +270,7 @@ public class HomebaseChannelContentService(
             // if incomplete and there is a payload try parsing that
             logger.LogError(e, "Failed deserializing post content from header. json: [{json}]", postFile.FileMetadata.AppData.Content);
 
-            if (payloadHeader != null && useContentFallback)
+            if (payloadHeader != null && usePayloadForContentFallback)
             {
                 // if there is a default payload, then all content is there;
                 // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
