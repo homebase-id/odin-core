@@ -263,15 +263,14 @@ public class HomebaseSsrService(
                 foreach (var post in posts)
                 {
                     var content = post.Content;
-                    if (content == null)
+                    if (content != null)
                     {
-                        continue;
+                        logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
+                        contentBuilder.AppendLine(Template(
+                            path: $"/posts/{channelKey}/{content.Id}",
+                            lastModified: post.Modified.ToDateTime(),
+                            freq: "monthly"));
                     }
-
-                    contentBuilder.AppendLine(Template(
-                        path: $"/posts/{channelKey}/{content.Id}",
-                        lastModified: post.Modified.ToDateTime(),
-                        freq: "monthly"));
                 }
             }
         }
