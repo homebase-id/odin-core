@@ -258,11 +258,17 @@ public class HomebaseChannelContentService(
         try
         {
             content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(postFile.FileMetadata.AppData.Content);
-
-            if (string.IsNullOrEmpty(content.Id) && usePayloadForContentFallback)
+            if (string.IsNullOrEmpty(content.Id))
             {
-                logger.LogDebug("empty content id: {content}", postFile.FileMetadata.AppData.Content);
-                content = await LoadContentFromPayload(fileId);
+                if (usePayloadForContentFallback)
+                {
+                    logger.LogDebug("empty content id: {content}", postFile.FileMetadata.AppData.Content);
+                    content = await LoadContentFromPayload(fileId);
+                }
+                else
+                {
+                    content.Id = postFile.FileMetadata.AppData.UniqueId.GetValueOrDefault(postFile.FileId).ToString("N");
+                }
             }
         }
         catch (Exception e)
