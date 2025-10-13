@@ -243,31 +243,32 @@ public class HomebaseChannelContentService(
 
         PostContent content = null;
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
-        var json = "";
-
-        if (payloadHeader == null)
-        {
-            // logger.LogDebug("Using content used from AppData.Content");
-            json = postFile.FileMetadata.AppData.Content;
-        }
-        else
-        {
-            // if there is a default payload, then all content is there;
-            // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
-            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-            using var reader = new StreamReader(payloadStream.Stream);
-            json = await reader.ReadToEndAsync(cancellationToken);
-        }
-
+        
         try
         {
-            content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+            content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(postFile.FileMetadata.AppData.Content);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Failed deserializing post content. json: [{json}]", json);
-            throw;
+            // if incomplete and there is a payload try parsing that
+            logger.LogError(e, "Failed deserializing post content from header. json: [{json}]", postFile.FileMetadata.AppData.Content);
+
+            if (payloadHeader != null)
+            {
+                // if there is a default payload, then all content is there;
+                // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
+                using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
+                using var reader = new StreamReader(payloadStream.Stream);
+                var json = await reader.ReadToEndAsync(cancellationToken);
+                content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+            }
         }
+
+        if (null == content)
+        {
+            throw new OdinSystemException("Could not parse post content");
+        }
+
         content.UserDate = postFile.FileMetadata.AppData.UserDate;
 
         var context = httpContextAccessor.HttpContext;

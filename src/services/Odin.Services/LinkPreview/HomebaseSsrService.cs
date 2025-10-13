@@ -257,22 +257,22 @@ public class HomebaseSsrService(
             foreach (var channel in channels)
             {
                 var channelKey = channel.Slug;
-                contentBuilder.AppendLine(Template($"/posts/{channel.Slug}", lastModified));
+                contentBuilder.AppendLine(Template($"/posts/{channelKey}", lastModified));
                 var (posts, _) = await channelContentService.GetChannelPosts(channelKey, odinContext, maxPosts: 1000);
 
-                foreach (var post in posts)
-                {
-                    var content = post.Content;
-                    if (content == null)
-                    {
-                        continue;
-                    }
-
-                    contentBuilder.AppendLine(Template(
-                        path: $"/posts/{channelKey}/{content.Slug}",
-                        lastModified: post.Modified.ToDateTime(),
-                        freq: "monthly"));
-                }
+                // foreach (var post in posts)
+                // {
+                //     var content = post.Content;
+                //     if (content == null)
+                //     {
+                //         continue;
+                //     }
+                //
+                //     contentBuilder.AppendLine(Template(
+                //         path: $"/posts/{channelKey}/{content.Slug}",
+                //         lastModified: post.Modified.ToDateTime(),
+                //         freq: "monthly"));
+                // }
             }
         }
         catch (Exception e)
