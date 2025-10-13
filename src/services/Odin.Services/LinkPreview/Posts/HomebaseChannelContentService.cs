@@ -50,7 +50,7 @@ public class HomebaseChannelContentService(
             return null;
         }
 
-        return await ParsePostFile(postFile, targetDrive, odinContext, cancellationToken);
+        return await ParsePostFile(postFile, targetDrive, useContentFallback: true, odinContext, cancellationToken);
     }
 
     /// <summary>
@@ -81,6 +81,7 @@ public class HomebaseChannelContentService(
         IOdinContext odinContext,
         UnixTimeUtc? fromTimestamp = null,
         int maxPosts = 10,
+        bool useContentFallback = true,
         CancellationToken cancellationToken = default)
     {
         var targetDrive = await GetChannelDrive(channelKey, odinContext);
@@ -108,7 +109,7 @@ public class HomebaseChannelContentService(
         var channelPosts = new List<ChannelPost>();
         foreach (var sr in batch.SearchResults)
         {
-            var post = await ParsePostFile(sr, targetDrive, odinContext, cancellationToken);
+            var post = await ParsePostFile(sr, targetDrive, useContentFallback, odinContext, cancellationToken);
             channelPosts.Add(post);
         }
 
@@ -232,9 +233,18 @@ public class HomebaseChannelContentService(
     private async Task<ChannelPost> ParsePostFile(
         SharedSecretEncryptedFileHeader postFile,
         TargetDrive channelDrive,
+        bool useContentFallback,
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
+        async Task<PostContent> LoadContentFromPayload(InternalDriveFileId fileId)
+        {
+            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
+            using var reader = new StreamReader(payloadStream.Stream);
+            var json = await reader.ReadToEndAsync(cancellationToken);
+            return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+        }
+        
         var fileId = new InternalDriveFileId()
         {
             DriveId = channelDrive.Alias,
@@ -243,14 +253,15 @@ public class HomebaseChannelContentService(
 
         PostContent content = null;
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
-        
+
         try
         {
             content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(postFile.FileMetadata.AppData.Content);
 
-            if (string.IsNullOrEmpty(content.Id))
+            if (string.IsNullOrEmpty(content.Id) && useContentFallback)
             {
                 logger.LogDebug("empty content id: {content}", postFile.FileMetadata.AppData.Content);
+                content = await LoadContentFromPayload(fileId);
             }
         }
         catch (Exception e)
@@ -258,14 +269,11 @@ public class HomebaseChannelContentService(
             // if incomplete and there is a payload try parsing that
             logger.LogError(e, "Failed deserializing post content from header. json: [{json}]", postFile.FileMetadata.AppData.Content);
 
-            if (payloadHeader != null)
+            if (payloadHeader != null && useContentFallback)
             {
                 // if there is a default payload, then all content is there;
                 // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
-                using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-                using var reader = new StreamReader(payloadStream.Stream);
-                var json = await reader.ReadToEndAsync(cancellationToken);
-                content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+                content = await LoadContentFromPayload(fileId);
             }
         }
 

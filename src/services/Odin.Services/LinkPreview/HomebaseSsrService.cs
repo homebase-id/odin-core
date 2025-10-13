@@ -258,7 +258,8 @@ public class HomebaseSsrService(
             {
                 var channelKey = channel.Slug;
                 contentBuilder.AppendLine(Template($"/posts/{channelKey}", lastModified));
-                var (posts, _) = await channelContentService.GetChannelPosts(channelKey, odinContext, maxPosts: 1000);
+                var (posts, _) = await channelContentService.GetChannelPosts(
+                    channelKey, odinContext, maxPosts: 1000, useContentFallback: false);
 
                 foreach (var post in posts)
                 {
@@ -360,6 +361,7 @@ public class HomebaseSsrService(
             odinContext,
             post.Content.UserDate,
             maxPosts: 10,
+            useContentFallback: true,
             cancellationToken);
 
         contentBuilder.AppendLine($"<hr/>");
