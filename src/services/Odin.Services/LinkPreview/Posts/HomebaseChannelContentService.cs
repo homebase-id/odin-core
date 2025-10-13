@@ -109,6 +109,7 @@ public class HomebaseChannelContentService(
         var channelPosts = new List<ChannelPost>();
         foreach (var sr in batch.SearchResults)
         {
+            logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
             var post = await ParsePostFile(sr, targetDrive, useContentFallback, odinContext, cancellationToken);
             channelPosts.Add(post);
         }
@@ -244,7 +245,11 @@ public class HomebaseChannelContentService(
             var json = await reader.ReadToEndAsync(cancellationToken);
             return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
         }
+<<<<<<< HEAD
+
+=======
         
+>>>>>>> main
         var fileId = new InternalDriveFileId()
         {
             DriveId = channelDrive.Alias,
