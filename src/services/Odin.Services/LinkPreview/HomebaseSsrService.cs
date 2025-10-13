@@ -267,9 +267,9 @@ public class HomebaseSsrService(
                     {
                         continue;
                     }
-                
+
                     contentBuilder.AppendLine(Template(
-                        path: $"/posts/{channelKey}/{content.Slug}",
+                        path: $"/posts/{channelKey}/{content.Id}",
                         lastModified: post.Modified.ToDateTime(),
                         freq: "monthly"));
                 }
@@ -283,7 +283,8 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine("</urlset>");
     }
 
-    public void WriteChannelPostListBody(string channelKey, ChannelDefinition thisChannel, StringBuilder contentBuilder, List<ChannelPost> posts)
+    public void WriteChannelPostListBody(string channelKey, ChannelDefinition thisChannel, StringBuilder contentBuilder,
+        List<ChannelPost> posts)
     {
         if (thisChannel != null)
         {
@@ -329,7 +330,7 @@ public class HomebaseSsrService(
 
         CreateMenu(contentBuilder);
     }
-    
+
     public async Task WritePostBodyContent(string channelKey, ChannelPost post,
         StringBuilder contentBuilder,
         IOdinContext odinContext,
