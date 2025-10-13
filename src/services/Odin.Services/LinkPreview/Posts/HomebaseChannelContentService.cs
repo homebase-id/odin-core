@@ -247,6 +247,11 @@ public class HomebaseChannelContentService(
         try
         {
             content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(postFile.FileMetadata.AppData.Content);
+
+            if (string.IsNullOrEmpty(content.Id))
+            {
+                logger.LogDebug("empty content id: {content}", postFile.FileMetadata.AppData.Content);
+            }
         }
         catch (Exception e)
         {
