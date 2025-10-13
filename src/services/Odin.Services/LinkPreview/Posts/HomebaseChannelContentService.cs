@@ -245,11 +245,7 @@ public class HomebaseChannelContentService(
             var json = await reader.ReadToEndAsync(cancellationToken);
             return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
         }
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> main
         var fileId = new InternalDriveFileId()
         {
             DriveId = channelDrive.Alias,
