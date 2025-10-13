@@ -19,6 +19,25 @@ namespace Odin.Hosting.SignalR;
 #nullable enable
 
 //
+// AppNotificationHandler (common for owner and app):
+//
+// server → client:
+//
+//
+// client → server:
+//
+
+//
+// PeerAppNotificationHandler (for guest / anonymous):
+// - note usage of odd SocketAuthenticationPackage
+//
+//
+
+
+
+
+
+//
 // Abstract
 //
 
@@ -48,12 +67,16 @@ public abstract class AbstractNotificationHub(ILogger logger) : Hub<INotificatio
     public override async Task OnConnectedAsync()
     {
         await base.OnConnectedAsync();
-        logger.LogDebug("Signalr client connected: {ConnectionId}", Context.ConnectionId);
 
         var httpContext = Context.GetHttpContext();
-
         if (httpContext != null)
         {
+            logger.LogDebug("OnConnectedAsync:{ConnectionId} {method} {schema} {path}",
+                Context.ConnectionId,
+                httpContext.Request.Method,
+                httpContext.Request.Scheme,
+                httpContext.Request.Path);
+
             var odinContext = httpContext.RequestServices.GetRequiredService<IOdinContext>();
             OdinContext = odinContext.Clone();
         }
