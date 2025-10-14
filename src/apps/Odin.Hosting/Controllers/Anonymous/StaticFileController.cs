@@ -64,6 +64,11 @@ namespace Odin.Hosting.Controllers.Anonymous
             OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
             var (config, fileExists, bytes) = await staticFileContentService.GetStaticFileStreamAsync(filename, GetIfModifiedSince());
 
+            if (config == null)
+            {
+                return NotFound();
+            }
+
             if (fileExists && bytes == null)
             {
                 return StatusCode((int)HttpStatusCode.NotModified);

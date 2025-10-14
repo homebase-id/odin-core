@@ -257,21 +257,21 @@ public class HomebaseSsrService(
             foreach (var channel in channels)
             {
                 var channelKey = channel.Slug;
-                contentBuilder.AppendLine(Template($"/posts/{channel.Slug}", lastModified));
-                var (posts, _) = await channelContentService.GetChannelPosts(channelKey, odinContext, maxPosts: 1000);
+                contentBuilder.AppendLine(Template($"/posts/{channelKey}", lastModified));
+                var (posts, _) = await channelContentService.GetChannelPosts(
+                    channelKey, odinContext, maxPosts: 1000, useContentFallback: false);
 
                 foreach (var post in posts)
                 {
                     var content = post.Content;
-                    if (content == null)
+                    if (content != null && !string.IsNullOrEmpty(content.Id)) // the id will be null when the payload holds the content
                     {
-                        continue;
+                        // logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
+                        contentBuilder.AppendLine(Template(
+                            path: $"/posts/{channelKey}/{content.Id}",
+                            lastModified: post.Modified.ToDateTime(),
+                            freq: "monthly"));
                     }
-
-                    contentBuilder.AppendLine(Template(
-                        path: $"/posts/{channelKey}/{content.Slug}",
-                        lastModified: post.Modified.ToDateTime(),
-                        freq: "monthly"));
                 }
             }
         }
@@ -283,7 +283,8 @@ public class HomebaseSsrService(
         contentBuilder.AppendLine("</urlset>");
     }
 
-    public void WriteChannelPostListBody(string channelKey, ChannelDefinition thisChannel, StringBuilder contentBuilder, List<ChannelPost> posts)
+    public void WriteChannelPostListBody(string channelKey, ChannelDefinition thisChannel, StringBuilder contentBuilder,
+        List<ChannelPost> posts)
     {
         if (thisChannel != null)
         {
@@ -329,7 +330,7 @@ public class HomebaseSsrService(
 
         CreateMenu(contentBuilder);
     }
-    
+
     public async Task WritePostBodyContent(string channelKey, ChannelPost post,
         StringBuilder contentBuilder,
         IOdinContext odinContext,
@@ -360,6 +361,7 @@ public class HomebaseSsrService(
             odinContext,
             post.Content.UserDate,
             maxPosts: 10,
+            useContentFallback: true,
             cancellationToken);
 
         contentBuilder.AppendLine($"<hr/>");
