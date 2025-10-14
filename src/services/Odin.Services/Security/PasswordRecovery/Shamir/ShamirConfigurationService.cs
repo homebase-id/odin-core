@@ -72,7 +72,7 @@ public class ShamirConfigurationService(
     public async Task ConfigureAutomatedRecovery(IOdinContext odinContext)
     {
         AssertCanUseAutomatedRecovery();
-        var autoPlayers = configuration.Registry.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
+        var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
 
         logger.LogDebug("Configuring automated recovery for auto-players: {players}", string.Join(",", autoPlayers));
 
@@ -115,9 +115,15 @@ public class ShamirConfigurationService(
 
     public void AssertCanUseAutomatedRecovery()
     {
-        var autoPlayers = configuration.Registry.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
 
-        if (autoPlayers.Count() < MinimumPlayerCount || configuration.Registry.AutomatedIdentityKey == Guid.Empty)
+        if (!configuration.AccountRecovery.Enabled)
+        {
+            throw new OdinClientException("Auto-recovery not enabled in cofiguration");
+        }
+        
+        var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
+
+        if (autoPlayers.Count() < MinimumPlayerCount || configuration.AccountRecovery.AutomatedIdentityKey == Guid.Empty)
         {
             logger.LogWarning("Tried to auto-configure password recovery but too few auto-players are configured.  See configuration " +
                               "Registry::AutomatedPasswordRecoveryIdentities. Minimum is {min}", MinimumPlayerCount);
@@ -510,17 +516,17 @@ public class ShamirConfigurationService(
     /// </summary>
     public Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token)
     {
-        if (!configuration.Registry.AutomatedPasswordRecoveryIdentities.Any())
+        if (!configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities.Any())
         {
             throw new OdinSystemException("No Automated identities are configured");
         }
 
-        if (configuration.Registry.AutomatedPasswordRecoveryIdentities.All(ident => ident != tenantContext.HostOdinId))
+        if (configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities.All(ident => ident != tenantContext.HostOdinId))
         {
             throw new OdinSecurityException("Not an automated identity");
         }
 
-        var key = configuration.Registry.AutomatedIdentityKey;
+        var key = configuration.AccountRecovery.AutomatedIdentityKey;
         if (!ByteArrayUtil.EquiByteArrayCompare(token.AccessTokenHalfKey.GetKey(), key.ToByteArray()))
         {
             throw new OdinSecurityException("Invalid token");
@@ -665,8 +671,8 @@ public class ShamirConfigurationService(
             {
                 var clientAuthToken = new ClientAccessToken()
                 {
-                    Id = configuration.Registry.AutomatedIdentityKey,
-                    AccessTokenHalfKey = configuration.Registry.AutomatedIdentityKey.ToByteArray().ToSensitiveByteArray(),
+                    Id = configuration.AccountRecovery.AutomatedIdentityKey,
+                    AccessTokenHalfKey = configuration.AccountRecovery.AutomatedIdentityKey.ToByteArray().ToSensitiveByteArray(),
                     ClientTokenType = ClientTokenType.AutomatedPasswordRecovery,
                     SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
                 };

@@ -26,7 +26,6 @@ public static class DealerShardAnalyzer
 
         var allResults = new List<PlayerShardHealthResult>();
 
-        // Drive this by the dealer package because it is the source of truth
         foreach (var envelope in dealerPackage.Envelopes)
         {
             var playerResult = healthStatus.Players.FirstOrDefault(p => p.Player.OdinId == envelope.Player.OdinId);
@@ -49,8 +48,6 @@ public static class DealerShardAnalyzer
             }
         }
 
-        // Apply the "valid shard" definition:
-        // Verified AND ((delegate + reachable identity) OR automatic)
         int validCount = allResults.Count(p =>
             !p.IsMissing &&
             p.IsValid &&
@@ -59,8 +56,13 @@ public static class DealerShardAnalyzer
                 p.Player.Type == PlayerType.Automatic
             ));
 
+        bool allAutomatic = allResults.All(p => p.Player.Type == PlayerType.Automatic);
+
+        // Apply risk offset if all players are automatic
+        int riskAdjustedValidCount = allAutomatic ? validCount + 1 : validCount;
+
         bool isRecoverable = validCount >= dealerPackage.MinMatchingShards;
-        var risk = EvaluateRisk(validCount, dealerPackage.MinMatchingShards);
+        var risk = EvaluateRisk(riskAdjustedValidCount, dealerPackage.MinMatchingShards);
 
         return new DealerRecoveryRiskReport
         {
@@ -76,13 +78,13 @@ public static class DealerShardAnalyzer
     private static RecoveryRiskLevel EvaluateRisk(int validCount, int minRequired)
     {
         if (validCount < minRequired)
-            return RecoveryRiskLevel.Critical; // Not possible
+            return RecoveryRiskLevel.Critical;
 
         if (validCount == minRequired)
             return RecoveryRiskLevel.High;
 
         if (validCount == minRequired + 1)
-            return RecoveryRiskLevel.Moderate; // Medium
+            return RecoveryRiskLevel.Moderate;
 
         return RecoveryRiskLevel.Low;
     }

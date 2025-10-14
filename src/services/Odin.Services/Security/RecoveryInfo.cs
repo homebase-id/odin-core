@@ -21,5 +21,6 @@ public class RecoveryInfo
     public bool UsesAutomaticRecovery { get; set; }
 
     public VerificationStatus Status { get; init; }
+    
     public DealerRecoveryRiskReport RecoveryRisk { get; set; }
 }

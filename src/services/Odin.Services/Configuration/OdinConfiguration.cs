@@ -20,6 +20,8 @@ namespace Odin.Services.Configuration
 
         public RegistrySection Registry { get; init; }
 
+        public AccountRecoverySection AccountRecovery { get; init; }
+
         public DevelopmentSection Development { get; init; }
 
         public LoggingSection Logging { get; init; }
@@ -53,6 +55,7 @@ namespace Odin.Services.Configuration
             Registry = new RegistrySection(config);
             Mailgun = new MailgunSection(config);
             Admin = new AdminSection(config);
+            AccountRecovery = new AccountRecoverySection(config);
 
             Feed = new FeedSection(config);
             Transit = new TransitSection(config);
@@ -99,6 +102,33 @@ namespace Odin.Services.Configuration
             public int MaxCommentsInPreview { get; init; }
         }
 
+        public class AccountRecoverySection
+        {
+            public bool Enabled { get; init; }
+            public Guid AutomatedIdentityKey { get; init; }
+
+            /// <summary>
+            /// The identities to use when users enable automated password recovery
+            /// </summary>
+            public List<string> AutomatedPasswordRecoveryIdentities { get; init; } = new();
+
+            public AccountRecoverySection()
+            {
+                // Mockable support
+            }
+
+            public AccountRecoverySection(IConfiguration config)
+            {
+                Enabled = config.GetOrDefault("AccountRecovery:Enabled", false);
+
+                if (Enabled)
+                {
+                    AutomatedIdentityKey = config.Required<Guid>("AccountRecovery:AutomatedIdentityKey");
+                    AutomatedPasswordRecoveryIdentities = config.Required<List<string>>("AccountRecovery:AutomatedPasswordRecoveryIdentities");    
+                }
+            }
+        }
+
         /// <summary>
         /// Settings specific to the development/demo process
         /// </summary>
@@ -121,12 +151,6 @@ namespace Odin.Services.Configuration
 
         public class RegistrySection
         {
-            /// <summary>
-            /// The identities to use when users enable automated password recovery
-            /// </summary>
-            public List<string> AutomatedPasswordRecoveryIdentities { get; init; } = new();
-
-            public Guid AutomatedIdentityKey { get; init; }
             public List<string> InvitationCodes { get; init; }
 
             public string PowerDnsHostAddress { get; init; }
@@ -163,8 +187,6 @@ namespace Odin.Services.Configuration
 
                 InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", new List<string>());
 
-                AutomatedIdentityKey = config.GetOrDefault<Guid>("Registry:AutomatedIdentityKey");
-                AutomatedPasswordRecoveryIdentities = config.GetOrDefault<List<string>>("Registry:AutomatedPasswordRecoveryIdentities");
                 DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
             }
 

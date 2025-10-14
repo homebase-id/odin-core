@@ -13,7 +13,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Authentication
 {
-    public class AccountRecoveryTests
+    public class AccountRecoverySectionTests
     {
         private WebScaffold _scaffold;
 

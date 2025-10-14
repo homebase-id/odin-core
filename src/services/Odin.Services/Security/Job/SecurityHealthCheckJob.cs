@@ -41,9 +41,7 @@ public class SecurityHealthCheckJobData
 public class SecurityHealthCheckJob(
     IMultiTenantContainer tenantContainer,
     ICertificateStore certificateStore,
-    OdinConfiguration configuration,
-    IJobManager jobManager,
-    PushNotificationService pushNotificationService,
+    RecoveryNotifier recoveryNotifier,
     ILogger<SecurityHealthCheckJob> logger) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("5a42cc65-d2ca-4d41-b741-b4168cab7211");
@@ -88,7 +86,7 @@ public class SecurityHealthCheckJob(
             if (null != recoveryInfo)
             {
                 // notify the user of health check
-                await NotifyUser(recoveryInfo, odinContext);
+                await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext);
             }
         }
         catch (Exception e)
@@ -186,48 +184,5 @@ public class SecurityHealthCheckJob(
         return odinContext;
     }
     
-    private async Task NotifyUser(RecoveryInfo recoveryInfo, IOdinContext odinContext)
-    {
-        if (configuration.Mailgun.Enabled) //for #debug state
-        {
-            var email = recoveryInfo.Email;
-            var job = jobManager.NewJob<SendEmailJob>();
-            job.Data = new SendEmailJobData()
-            {
-                Envelope = new Envelope
-                {
-                    To = [new NameAndEmailAddress { Email = email }],
-                    Subject = "Your Homebase Account Recovery Risk Report",
-                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(recoveryInfo),
-                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(recoveryInfo)
-                },
-            };
-
-            await jobManager.ScheduleJobAsync(job, new JobSchedule
-            {
-                RunAt = DateTimeOffset.Now.AddSeconds(1),
-                MaxAttempts = 20,
-                RetryDelay = TimeSpan.FromMinutes(1),
-                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
-                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
-            });
-        }
-        
-        await pushNotificationService.EnqueueNotification(Data.Tenant, new AppNotificationOptions()
-            {
-                AppId = SystemAppConstants.OwnerAppId,
-                TypeId = ShamirConfigurationService.SecurityRiskReportNotificationTypeId,
-                TagId = Data.Tenant,
-                Silent = false,
-                PeerSubscriptionId = default,
-                Recipients = [Data.Tenant],
-                UnEncryptedMessage = "Your security risk report has been generated.  Tap to review..."
-                // UnEncryptedJson = OdinSystemSerializer.Serialize(new
-                // {
-                //     IntroducerOdinId = introducer,
-                //     Introduction = introduction,
-                // })
-            },
-            OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.SendPushNotifications));
-    }
+    
 }
