@@ -91,7 +91,7 @@ public class SecurityHealthCheckJob(
         }
         catch (Exception e)
         {
-            logger.LogError(e, $"{nameof(SecurityHealthCheckJob)} Job railed to run");
+            logger.LogError(e, $"{nameof(SecurityHealthCheckJob)} Job failed to run");
             return JobExecutionResult.Fail();
         }
 

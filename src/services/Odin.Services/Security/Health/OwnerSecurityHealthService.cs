@@ -67,7 +67,7 @@ public class OwnerSecurityHealthService(
 
     public async Task<RecoveryInfo> GetRecoveryInfo(bool live, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertCallerIsOwner();
 
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
         var recoveryInfo = await recoveryService.GetRecoveryEmail();

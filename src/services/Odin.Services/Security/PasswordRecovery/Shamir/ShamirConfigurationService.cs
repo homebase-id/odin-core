@@ -102,6 +102,10 @@ public class ShamirConfigurationService(
             tx.Commit();
             logger.LogDebug("Commited shard distribution data");
         }
+        catch (OdinClientException)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to enqueue shards");
@@ -152,6 +156,10 @@ public class ShamirConfigurationService(
 
             tx.Commit();
             logger.LogDebug("Commited shard distribution data");
+        }
+        catch (OdinClientException)
+        {
+            throw;
         }
         catch (Exception e)
         {
