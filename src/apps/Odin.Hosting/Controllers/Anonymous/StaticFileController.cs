@@ -8,6 +8,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Optimization.Cdn;
@@ -45,7 +46,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         [HttpGet(LinkPreviewDefaults.PublicImagePath)]
         public async Task<IActionResult> GetPublicImage()
         {
-            return await this.SendStream(StaticFileConstants.ProfileImageFileName);
+            return await this.SendStream(StaticFileConstants.ProfileImageFileName, StaticFileConstants.FallBackProfileImage, "image/jpeg");
         }
 
         /// <summary>
@@ -58,20 +59,34 @@ namespace Odin.Hosting.Controllers.Anonymous
         }
 
 
-        private async Task<IActionResult> SendStream(string filename)
+        private async Task<IActionResult> SendStream(string filename, string? fallbackContent64 = null, string? fallbackContentType = null)
         {
             OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
             var (config, fileExists, bytes) = await staticFileContentService.GetStaticFileStreamAsync(filename, GetIfModifiedSince());
+
+            if (config == null)
+            {
+                return NotFound();
+            }
 
             if (fileExists && bytes == null)
             {
                 return StatusCode((int)HttpStatusCode.NotModified);
             }
 
+            string contentType = config.ContentType;
             //sanity
             if (!fileExists || bytes == null || bytes.Length == 0)
             {
-                return NotFound();
+                if (!string.IsNullOrEmpty(fallbackContent64) && !string.IsNullOrEmpty(fallbackContentType))
+                {
+                    contentType = fallbackContentType;
+                    bytes =  fallbackContent64.FromBase64();
+                }
+                else
+                {
+                    return NotFound();
+                }
             }
 
             if (config.CrossOriginBehavior == CrossOriginBehavior.AllowAllOrigins)
@@ -87,7 +102,7 @@ namespace Odin.Hosting.Controllers.Anonymous
             HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(config.LastModified);
             this.Response.Headers.TryAdd("Cache-Control", "max-age=3600, stale-while-revalidate=31536000");
 
-            return new FileContentResult(bytes, config.ContentType);
+            return new FileContentResult(bytes, contentType);
         }
 
         //

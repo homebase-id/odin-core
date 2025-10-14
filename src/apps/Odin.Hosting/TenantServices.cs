@@ -329,6 +329,7 @@ public static class TenantServices
 
         cb.RegisterType<HomebaseProfileContentService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<HomebaseChannelContentService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<HomebaseSsrService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
 

@@ -1212,7 +1212,8 @@ namespace Odin.Services.Membership.Connections
 
         private async Task SaveIcrAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
-            await using (await nodeLock.LockAsync(NodeLockKey.Create(nameof(CircleNetworkService), odinContext.Tenant)))
+            var lockKey = NodeLockKey.Create(nameof(CircleNetworkService) + ":" + odinContext?.Tenant);
+            await using (await nodeLock.LockAsync(lockKey))
             {
                 //TODO: this is a critical change; need to audit this
                 if (icr.Status == ConnectionStatus.None)
