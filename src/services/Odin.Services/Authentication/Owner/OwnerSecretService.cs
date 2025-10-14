@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using MediatR;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -11,6 +12,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Mediator;
 using Odin.Services.Security;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Util;
@@ -26,7 +28,6 @@ namespace Odin.Services.Authentication.Owner
     {
         private static readonly Guid PasswordKeyStorageId = Guid.Parse("e0b5bb7d-f3a5-4388-b609-81fbf4b3b2f7");
 
-        // private static readonly Guid RsaKeyStorageId = Guid.Parse("b5e1e0d0-2f27-429a-9c44-34cbcc71745e");
         private readonly Guid _eccKeyStorageId = Guid.Parse("a54ee0f0-e861-45c4-90df-9402a383aac1");
 
         private const string NonceDataContextKey = "c45430e7-9c05-49fa-bc8b-d8c1f261f57e";
@@ -80,6 +81,12 @@ namespace Odin.Services.Authentication.Owner
         {
             var existingPwd = await PasswordDataStorage.GetAsync<PasswordData>(tblKeyValue, PasswordKeyStorageId);
             return existingPwd != null;
+        }
+        
+        public async Task<UnixTimeUtc?> GetPasswordLastUpdated()
+        {
+            var existingPwd = await PasswordDataStorage.GetAsync<PasswordData>(tblKeyValue, PasswordKeyStorageId);
+            return existingPwd?.Updated;
         }
 
         /// <summary>
@@ -154,7 +161,7 @@ namespace Odin.Services.Authentication.Owner
 
             return result;
         }
-        
+
         /// <summary>
         /// Generates a one time value to used when authenticating a user
         /// </summary>
@@ -176,7 +183,7 @@ namespace Odin.Services.Authentication.Owner
 
             return nonce;
         }
-        
+
         // Given the client's nonce and nonceHash, load the identities passwordKey info
         // and with that info we can validate if the client calculated the right hash.
         /// <summary>
@@ -198,12 +205,16 @@ namespace Odin.Services.Authentication.Owner
         public async Task ResetPasswordUsingRecoveryKeyAsync(ResetPasswordUsingRecoveryKeyRequest request, IOdinContext odinContext)
         {
             var decryptedBytes = await publicPrivateKeyService.EccDecryptPayload(request.EncryptedRecoveryKey, odinContext);
-
             var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
-            var masterKey = await recoveryService.AssertValidKeyAsync(recoveryKey);
-            await SavePasswordAsync(request.PasswordReply, masterKey);
+            await ResetPasswordUsingRecoveryKeyAsync(recoveryKey, request.PasswordReply, odinContext);
         }
-        
+
+        public async Task ResetPasswordUsingRecoveryKeyAsync(string recoveryKey, PasswordReply reply, IOdinContext odinContext)
+        {
+            var masterKey = await recoveryService.AssertValidKeyAsync(recoveryKey);
+            await SavePasswordAsync(reply, masterKey);
+        }
+
         public async Task ResetPasswordAsync(ResetPasswordRequest request, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
@@ -222,13 +233,13 @@ namespace Odin.Services.Authentication.Owner
             var record = await nonceTable.PopAsync(new Guid(key));
             OdinValidationUtils.AssertNotNull(record, nameof(record));
             var noncePackage = OdinSystemSerializer.Deserialize<NonceData>(record.data);
-            
+
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
             await AssertPasswordKeyMatchAsync(reply.NonceHashedPassword64, reply.Nonce64);
             return noncePackage;
         }
-        
+
         private async Task SavePasswordAsync(PasswordReply reply, SensitiveByteArray masterKey = null)
         {
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
@@ -237,6 +248,7 @@ namespace Odin.Services.Authentication.Owner
             var keys = await this.GetOfflineEccKeyListAsync();
 
             PasswordData pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys, masterKey);
+            pk.Updated = UnixTimeUtc.Now();
             await PasswordDataStorage.UpsertAsync(tblKeyValue, PasswordKeyStorageId, pk);
 
             //delete the temporary salts

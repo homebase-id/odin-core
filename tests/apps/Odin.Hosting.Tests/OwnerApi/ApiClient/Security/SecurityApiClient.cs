@@ -31,7 +31,7 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         }
     }
 
-    public async Task<ApiResponse<DecryptedRecoveryKey>> GetAccountRecoveryKey()
+    public async Task<ApiResponse<RecoveryKeyResult>> GetAccountRecoveryKey()
     {
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
@@ -41,6 +41,16 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         }
     }
 
+    public async Task<ApiResponse<RequestRecoveryKeyResult>> RequestRecoveryKey()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.RequestRecoveryKey();
+            return apiResponse;
+        }
+    }
+    
     public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword)
     {
         using var authClient = ownerApi.CreateAnonymousClient(identity.OdinId);

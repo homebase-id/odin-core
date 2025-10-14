@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Logging.Caller;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -18,6 +19,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Tenant;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Services.LinkPreview;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Middleware
 {
@@ -37,7 +39,7 @@ namespace Odin.Hosting.Middleware
         }
 
         /// <summary/>
-        public async Task Invoke(HttpContext httpContext, IOdinContext odinContext)
+        public async Task Invoke(HttpContext httpContext, IOdinContext odinContext, ICallerLogContext callerLogContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -50,6 +52,7 @@ namespace Odin.Hosting.Middleware
                 {
                     odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                     await LoadLinkPreviewContextAsync(httpContext, odinContext);
+                    callerLogContext.Caller = odinContext?.Caller?.OdinId ?? "anonymous";
                 }
                 catch (Exception e)
                 {
@@ -68,6 +71,8 @@ namespace Odin.Hosting.Middleware
             if (authType == PeerAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContextAsync(httpContext, odinContext);
+                callerLogContext.Caller = odinContext?.Caller?.OdinId;
+
                 await _next(httpContext);
                 return;
             }
@@ -75,6 +80,8 @@ namespace Odin.Hosting.Middleware
             if (authType == PeerAuthConstants.FeedAuthScheme)
             {
                 await LoadIdentitiesIFollowContextAsync(httpContext, odinContext);
+                callerLogContext.Caller = odinContext?.Caller?.OdinId;
+
                 await _next(httpContext);
                 return;
             }
@@ -90,10 +97,13 @@ namespace Odin.Hosting.Middleware
             if (authType == PeerAuthConstants.PublicTransitAuthScheme)
             {
                 await LoadPublicTransitContextAsync(httpContext, odinContext);
+                callerLogContext.Caller = odinContext?.Caller?.OdinId;
+
                 await _next(httpContext);
                 return;
             }
 
+            callerLogContext.Caller = odinContext?.Caller?.OdinId;
             await _next(httpContext);
         }
 
@@ -101,6 +111,12 @@ namespace Odin.Hosting.Middleware
         {
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
+                if (clientAuthToken.ClientTokenType == ClientTokenType.AutomatedPasswordRecovery)
+                {
+                    await LoadAutomatedIdentityContext(httpContext, clientAuthToken, odinContext);
+                    return;
+                }
+
                 //TODO: this appears to be a dead code path
                 if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
                 {
@@ -153,6 +169,26 @@ namespace Odin.Hosting.Middleware
                 odinContext.SetPermissionContext(ctx.PermissionsContext);
                 odinContext.SetAuthContext(PeerAuthConstants.FeedAuthScheme);
 
+                return;
+            }
+
+            throw new OdinSecurityException("Cannot load context");
+        }
+
+
+        private async Task LoadAutomatedIdentityContext(HttpContext httpContext, ClientAuthenticationToken clientAuthToken,
+            IOdinContext odinContext)
+        {
+            var user = httpContext.User;
+            var odinId = (OdinId)user.Identity!.Name;
+            var authService = httpContext.RequestServices.GetRequiredService<ShamirConfigurationService>();
+            var ctx = await authService.GetDotYouContextAsync(odinId, clientAuthToken);
+
+            if (ctx != null)
+            {
+                odinContext.Caller = ctx.Caller;
+                odinContext.SetPermissionContext(ctx.PermissionsContext);
+                odinContext.SetAuthContext(PeerAuthConstants.AutomatedIdentityAuthScheme);
                 return;
             }
 
@@ -234,7 +270,6 @@ namespace Odin.Hosting.Middleware
         private async Task LoadLinkPreviewContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
             var linkPreviewService = httpContext.RequestServices.GetRequiredService<LinkPreviewService>();
-            
             if(!linkPreviewService.IsAllowedPath())
             {
                 return;

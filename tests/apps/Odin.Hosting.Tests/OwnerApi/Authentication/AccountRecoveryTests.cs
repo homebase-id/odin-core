@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
@@ -14,7 +14,7 @@ using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Authentication
 {
-    public class AccountRecoveryTests
+    public class AccountRecoverySectionTests
     {
         private WebScaffold _scaffold;
 
@@ -51,20 +51,117 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             var identity = TestIdentities.Frodo;
             await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+
+            // since we just set up the account - first request the recovery key
+            var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
+            Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
+            Assert.That(requestRecoveryKeyResponse.Content, Is.Not.Null);
+            var nextDate = requestRecoveryKeyResponse.Content.NextViewableDate;
+            //
+            // Thread.Sleep(11*1000); // sleep for 10 seconds to ensure the next viewable date is different;
+
+            // time keeps ticking
+            var nextViewableUtc = DateTimeOffset.FromUnixTimeMilliseconds(nextDate.milliseconds + 100);
+            var now = DateTimeOffset.UtcNow;
+            if (nextViewableUtc > now)
+            {
+                var delay = nextViewableUtc - now;
+                await Task.Delay(delay);
+            }
+
+            var response = await ownerClient.Security.GetAccountRecoveryKey();
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"status code was {response.StatusCode} but should have been OK");
+
+            var decryptedRecoveryKey = response.Content;
+            ClassicAssert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
+            ClassicAssert.IsNotEmpty(decryptedRecoveryKey.Key);
+            ClassicAssert.IsNotNull(decryptedRecoveryKey.Key);
+            ClassicAssert.IsTrue(decryptedRecoveryKey.Key.Split(" ").Length == 12, "there should be 12 words");
+
+            //TODO: additional checks on the key
+            // RecoveryKeyGenerator.Characters
+        }
+
+        [Test]
+        public async Task CanToGetAccountRecoveryKeyWhenViewedAfterTimeWindow()
+        {
+            var identity = TestIdentities.Samwise;
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
-            var response = await ownerClient.Security.GetAccountRecoveryKey();
+            var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
+            Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
+            var result = requestRecoveryKeyResponse.Content;
+            Assert.That(result, Is.Not.Null);
 
+            // time keeps ticking
+            var nextViewableUtc = DateTimeOffset.FromUnixTimeMilliseconds(result.NextViewableDate.milliseconds + 100);
+            var now = DateTimeOffset.UtcNow;
+            if (nextViewableUtc > now)
+            {
+                var delay = nextViewableUtc - now;
+                await Task.Delay(delay);
+            }
+
+            var response = await ownerClient.Security.GetAccountRecoveryKey();
             ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
             var decryptedRecoveryKey = response.Content;
             ClassicAssert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
             ClassicAssert.IsNotEmpty(decryptedRecoveryKey.Key);
             ClassicAssert.IsNotNull(decryptedRecoveryKey.Key);
-            ClassicAssert.IsTrue(decryptedRecoveryKey.Key.Split(" ").Length == 12,"there should be 12 words");
+            ClassicAssert.IsTrue(decryptedRecoveryKey.Key.Split(" ").Length == 12, "there should be 12 words");
 
-            //TODO: additional checks on the key
-            // RecoveryKeyGenerator.Characters
+            // this should fail because we've cleared
+            var response2 = await ownerClient.Security.GetAccountRecoveryKey();
+            Assert.That(string.IsNullOrEmpty(response2.Content.Key), Is.True);
+        }
+
+        [Test]
+        public async Task FailToGetAccountRecoveryKeyWhenViewedBeforeTimeWindow()
+        {
+            var identity = TestIdentities.Pippin;
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
+
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+
+            // make the first request since we just setup the account
+            var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
+            Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
+            var result = requestRecoveryKeyResponse.Content;
+            Assert.That(result, Is.Not.Null);
+
+            // time keeps ticking; wait 1 second less than is required
+            var nextViewableUtc = DateTimeOffset.FromUnixTimeMilliseconds(result.NextViewableDate.milliseconds - 1000);
+            var now = DateTimeOffset.UtcNow;
+            if (nextViewableUtc > now)
+            {
+                var delay = nextViewableUtc - now;
+                await Task.Delay(delay);
+            }
+
+            var response = await ownerClient.Security.GetAccountRecoveryKey();
+            ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.OK);
+            ClassicAssert.IsTrue(!string.IsNullOrEmpty(response.Content.Key));
+
+            // now make a second request
+            var requestRecoveryKeyResponse2 = await ownerClient.Security.RequestRecoveryKey();
+            Assert.That(requestRecoveryKeyResponse2.IsSuccessful, Is.True);
+            var result2 = requestRecoveryKeyResponse2.Content;
+            Assert.That(result2, Is.Not.Null);
+
+            // time keeps ticking
+            // var nextViewableUtc2 = DateTimeOffset.FromUnixTimeMilliseconds(result2.NextViewableDate.milliseconds + 100);
+            // var now2 = DateTimeOffset.UtcNow;
+            // if (nextViewableUtc2 > now2)
+            // {
+            //     var delay = nextViewableUtc2 - now2;
+            //     await Task.Delay(delay);
+            // }
+            //
+            var response2 = await ownerClient.Security.GetAccountRecoveryKey();
+            ClassicAssert.IsTrue(response2.Content.Key == null);
         }
 
         [Test]
@@ -83,6 +180,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             ClassicAssert.IsTrue(firstLoginResponse.IsSuccessStatusCode);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+            var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
+            Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
+            var result = requestRecoveryKeyResponse.Content;
+            Assert.That(result, Is.Not.Null);
+
+            // time keeps ticking
+            var nextViewableUtc = DateTimeOffset.FromUnixTimeMilliseconds(result.NextViewableDate.milliseconds + 100);
+            var now = DateTimeOffset.UtcNow;
+            if (nextViewableUtc > now)
+            {
+                var delay = nextViewableUtc - now;
+                await Task.Delay(delay);
+            }
+
             var response = await ownerClient.Security.GetAccountRecoveryKey();
             ClassicAssert.IsTrue(response.IsSuccessStatusCode);
 
@@ -90,10 +201,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             ClassicAssert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
 
             var key = decryptedRecoveryKey.Key;
-            
-            //encrypt using RSA
-            // _publicPrivateKeyService.EncryptPayload(RsaKeyType.OfflineKey, payload)
-            
+
             var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(key, newPassword);
             ClassicAssert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key [{key}]");
 
@@ -109,7 +217,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         [Test]
         public async Task FailToResetPasswordUsingInvalidAccountRecoveryKey()
         {
-            var identity = TestIdentities.Pippin;
+            var identity = TestIdentities.Merry;
             const string password = "8833CC039d!!~!";
             const string newPassword = "672c~!!9402044";
 

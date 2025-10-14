@@ -9,6 +9,8 @@ using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Logging.Hostname;
 using Odin.Core.Serialization;
+using Odin.Services.AppNotifications.Push;
+using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -17,9 +19,13 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
+using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
+using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Services.Security.Job;
@@ -37,7 +43,7 @@ public class SecurityHealthCheckJob(
     ICertificateStore certificateStore,
     ILogger<SecurityHealthCheckJob> logger) : AbstractJob
 {
-    public static readonly Guid JobTypeId = Guid.Parse("5a42cc65-d2ca-4d41-b741-b4168cab7211\n");
+    public static readonly Guid JobTypeId = Guid.Parse("5a42cc65-d2ca-4d41-b741-b4168cab7211");
     public override string JobType => JobTypeId.ToString();
 
     public SecurityHealthCheckJobData Data { get; set; } = new();
@@ -68,17 +74,24 @@ public class SecurityHealthCheckJob(
             }
 
             // Create a new lifetime scope for the tenant so db connections are isolated
-            await using var scope =
-                tenantScope.BeginLifetimeScope($"{nameof(SecurityHealthCheckJob)}:Run:{Data.Tenant}:{Guid.NewGuid()}");
+            await using var scope = tenantScope.BeginLifetimeScope($"{nameof(SecurityHealthCheckJob)}:Run:{Data.Tenant}:{Guid.NewGuid()}");
 
             var stickyHostnameContext = scope.Resolve<IStickyHostname>();
             stickyHostnameContext.Hostname = $"{Data.Tenant}&";
 
-            await RunHealthCheck(scope);
+            var odinContext = BuildOdinContext(Data.Tenant);
+
+            var recoveryInfo = await RunHealthCheck(scope, odinContext);
+            if (null != recoveryInfo)
+            {
+                // notify the user of health check
+                var recoveryNotifier = scope.Resolve<RecoveryNotifier>();
+                await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext);
+            }
         }
         catch (Exception e)
         {
-            logger.LogError(e, $"{nameof(SecurityHealthCheckJob)} Job railed to run");
+            logger.LogError(e, $"{nameof(SecurityHealthCheckJob)} Job failed to run");
             return JobExecutionResult.Fail();
         }
 
@@ -107,29 +120,28 @@ public class SecurityHealthCheckJob(
 
     //
 
-    private async Task RunHealthCheck(ILifetimeScope lifetimeScope)
+    private async Task<RecoveryInfo?> RunHealthCheck(ILifetimeScope lifetimeScope, IOdinContext odinContext)
     {
-        var odinContext = BuildOdinContext(Data.Tenant);
         var configService = lifetimeScope.Resolve<TenantConfigService>();
         var isConfigured = await configService.IsIdentityServerConfiguredAsync();
         if (!isConfigured)
         {
-            return;
+            logger.LogDebug("Running security health check for {tenant} but IdentityServer is not configured yet.", Data.Tenant);
+            return null;
         }
 
         var driveManager = lifetimeScope.Resolve<IDriveManager>();
         var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
         if (null == shardDrive)
         {
-            logger.LogWarning("{job} -> Sharding drive not yet configured (Tenant probably needs to upgrade)",
+            logger.LogDebug("{job} -> Sharding drive not yet configured (Tenant probably needs to upgrade)",
                 nameof(SecurityHealthCheckJob));
-            return;
+            return null;
         }
 
         var service = lifetimeScope.Resolve<OwnerSecurityHealthService>();
-        await service.UpdateHealthCheck(odinContext);
-
-        //todo: based on how long we've last updated this, we can send a push notification
+        var result = await service.GetRecoveryInfo(live: true, odinContext);
+        return result;
     }
 
     private IOdinContext BuildOdinContext(OdinId tenant)

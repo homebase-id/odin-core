@@ -96,7 +96,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             List<PayloadDescriptor> uploadedPayloads = new();
             try
             {
-                WebOdinContext.Caller.AssertCallerIsConnected();
+                if (WebOdinContext.AuthContext != "AutomatedIdentityAuthScheme")
+                {
+                    WebOdinContext.Caller.AssertCallerIsConnected();
+                }
 
                 if (!IsMultipartContentType(HttpContext.Request.ContentType))
                 {

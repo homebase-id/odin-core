@@ -26,6 +26,10 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration
 
         [Post(RootEndpoint + "/system/initialize")]
         Task<ApiResponse<bool>> InitializeIdentity([Body] InitialSetupRequest request);
+        
+        [Post(RootEndpoint + "/system/enable-auto-password-recovery")]
+        Task<ApiResponse<HttpContent>> EnableAutoPasswordRecovery();
+        
 
         [Post(RootEndpoint + "/system/updateflag")]
         Task<ApiResponse<bool>> UpdateSystemConfigFlag([Body] UpdateFlagRequest request);

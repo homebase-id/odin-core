@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net.Mail;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
@@ -13,6 +14,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Security.Email;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -28,6 +30,8 @@ public class OwnerSecurityHealthService(
     ShamirConfigurationService shamirConfigurationService,
     PublicPrivateKeyService publicPrivateKeyService,
     IDriveManager driveManager,
+    ILogger<OwnerSecurityHealthService> logger,
+    RecoveryNotifier recoveryNotifier,
     TableKeyValueCached keyValueTable)
 {
     private static readonly Guid VerificationStorageId = Guid.Parse("475c72c0-bb9c-4dc9-a565-7e72319ff2b8");
@@ -63,11 +67,10 @@ public class OwnerSecurityHealthService(
 
     public async Task<RecoveryInfo> GetRecoveryInfo(bool live, IOdinContext odinContext)
     {
-        odinContext.Caller.AssertHasMasterKey();
+        odinContext.Caller.AssertCallerIsOwner();
 
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
         var recoveryInfo = await recoveryService.GetRecoveryEmail();
-
 
         if (package == null)
         {
@@ -75,6 +78,7 @@ public class OwnerSecurityHealthService(
             {
                 IsConfigured = false,
                 ConfigurationUpdated = null,
+                UsesAutomaticRecovery = false,
                 Email = recoveryInfo?.Email,
                 EmailLastVerified = recoveryInfo?.EmailLastVerified,
                 Status = await GetVerificationStatusInternalAsync(),
@@ -99,6 +103,7 @@ public class OwnerSecurityHealthService(
             IsConfigured = true,
             ConfigurationUpdated = package.Updated,
             Email = recoveryInfo?.Email,
+            UsesAutomaticRecovery = package.UsesAutomatedRecovery,
             EmailLastVerified = recoveryInfo?.EmailLastVerified,
             Status = await GetVerificationStatusInternalAsync(),
             RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)
@@ -125,33 +130,28 @@ public class OwnerSecurityHealthService(
         odinContext.Caller.AssertHasMasterKey();
         await recoveryService.UpdateAccountRecoveryEmail(nonceId);
     }
-
-    public async Task<PeriodicSecurityHealthCheckStatus> UpdateHealthCheck(IOdinContext odinContext)
-    {
-        var healthResult = await RunHeathCheck(odinContext);
-        await PeriodicSecurityHealthCheckStatusStorage.UpsertAsync(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId, healthResult);
-        return healthResult;
-    }
-
+    
     /// <summary>
     /// Checks the health of distributed shards; writes results to storage
     /// </summary>
-    public async Task<PeriodicSecurityHealthCheckStatus> RunHeathCheck(IOdinContext odinContext)
+    public async Task<PeriodicSecurityHealthCheckStatus> RunHealthCheck(IOdinContext odinContext)
     {
         var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
         if (null == shardDrive)
         {
+            logger.LogDebug("Shard recovery drive is not configured, skipping health check");
             return new PeriodicSecurityHealthCheckStatus()
             {
                 LastUpdated = UnixTimeUtc.Now(),
                 IsConfigured = false
             };
         }
-        
+
         var dealerShardPackage = await shamirConfigurationService.GetDealerShardPackage(odinContext);
 
         if (null == dealerShardPackage)
         {
+            logger.LogDebug("Dealer shard package is not configured, skipping health check");
             return new PeriodicSecurityHealthCheckStatus()
             {
                 LastUpdated = UnixTimeUtc.Now(),
@@ -165,35 +165,38 @@ public class OwnerSecurityHealthService(
             IsConfigured = true
         };
 
-        if (healthResult.IsConfigured)
+        var verificationResult = await shamirConfigurationService.VerifyRemotePlayerShards(odinContext);
+
+        foreach (var (odinId, result) in verificationResult.Players)
         {
-            var verificationResult = await shamirConfigurationService.VerifyRemotePlayerShards(odinContext);
-
-            foreach (var (odinId, result) in verificationResult.Players)
+            var envelope = dealerShardPackage.Envelopes.FirstOrDefault(e => e.Player.OdinId == odinId);
+            if (null == envelope)
             {
-                var envelope = dealerShardPackage.Envelopes.FirstOrDefault(e => e.Player.OdinId == odinId);
-                if (null == envelope)
-                {
-                    // verification issue occured; this should not occur
-                    throw new OdinSystemException($"Missing a PlayerEnvelop for {odinId}.  Could not find it in the verification results");
-                }
-
-                var playerResult = new PlayerShardHealthResult
-                {
-                    Player = envelope.Player,
-                    IsValid = result.IsValid,
-                    TrustLevel = result.TrustLevel,
-                    IsMissing = false,
-                    ShardId = envelope.ShardId
-                };
-
-                healthResult.Players.Add(playerResult);
+                // verification issue occured; this should not occur
+                throw new OdinSystemException($"Missing a PlayerEnvelop for {odinId}.  Could not find it in the verification results");
             }
+
+            var playerResult = new PlayerShardHealthResult
+            {
+                Player = envelope.Player,
+                IsValid = result.IsValid,
+                TrustLevel = result.TrustLevel,
+                IsMissing = false,
+                ShardId = envelope.ShardId
+            };
+
+            healthResult.Players.Add(playerResult);
         }
 
         return healthResult;
     }
 
+    public async Task NotifyUser(IOdinContext odinContext)
+    {
+        var recoveryInfo = await GetRecoveryInfo(live:true, odinContext);
+        await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
+    }
+    
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()
     {
         var status = await VerificationStatusStorage.GetAsync<VerificationStatus>(keyValueTable, VerificationStorageId);
@@ -222,4 +225,13 @@ public class OwnerSecurityHealthService(
 
         await VerificationStatusStorage.UpsertAsync(keyValueTable, VerificationStorageId, status);
     }
+    
+    private async Task<PeriodicSecurityHealthCheckStatus> UpdateHealthCheck(IOdinContext odinContext)
+    {
+        var healthResult = await RunHealthCheck(odinContext);
+        await PeriodicSecurityHealthCheckStatusStorage.UpsertAsync(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId, healthResult);
+        return healthResult;
+    }
+
+   
 }

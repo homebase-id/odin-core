@@ -7,6 +7,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Services.Security.Email;
@@ -46,6 +47,7 @@ public static class RecoveryEmails
             builder.Append($"{player.OdinId} ({player.Type})");
             builder.Append("</li>");
         }
+
         builder.AppendLine("</ul>");
         var playersList = builder.ToString();
 
@@ -395,7 +397,106 @@ public static class RecoveryEmails
         return Template(sb.ToString());
     }
 
-    
+    public static string FormatRecoveryRiskStatusText(RecoveryInfo info)
+    {
+        var risk = info.RecoveryRisk;
+
+        var domain = info.Email ?? "(unknown)";
+        var validCount = risk.ValidShardCount;
+        var minRequired = risk.MinRequired;
+        var recoverableText = risk.IsRecoverable
+            ? "✅ You currently have enough shards to recover your account."
+            : "❌ You do not currently have enough shards to recover your account.";
+
+        var headline = risk.RiskLevel switch
+        {
+            RecoveryRiskLevel.Low => "✅ Your recovery key is safe",
+            RecoveryRiskLevel.Moderate => "⚠️ Recovery is fragile — add at least one more trusted connection",
+            RecoveryRiskLevel.High => "🚨 Recovery at risk — add at least two more trusted connections",
+            RecoveryRiskLevel.Critical => "💀 Recovery not possible — immediate action required",
+            _ => "ℹ️ Recovery status unknown"
+        };
+
+        return @$"
+Hi {domain},
+
+{headline}
+
+Recovery details:
+- Usable shards: {validCount}
+- Minimum required: {minRequired}
+- Recoverable: {(risk.IsRecoverable ? "Yes" : "No")}
+- Risk level: {risk.RiskLevel}
+
+{recoverableText}
+
+We recommend checking your recovery contacts and ensuring that all listed players are trusted and available.
+
+--
+Team Homebase
+".Trim();
+    }
+
+    public static string FormatRecoveryRiskStatusHtml(RecoveryInfo info)
+    {
+        var risk = info.RecoveryRisk;
+
+        var domain = info.Email ?? "(unknown)";
+        var validCount = risk.ValidShardCount;
+        var minRequired = risk.MinRequired;
+        var recoverableText = risk.IsRecoverable
+            ? "✅ You currently have enough shards to recover your account."
+            : "❌ You do not currently have enough shards to recover your account.";
+
+        var headline = risk.RiskLevel switch
+        {
+            RecoveryRiskLevel.Low => "✅ Your recovery key is safe",
+            RecoveryRiskLevel.Moderate => "⚠️ Recovery is fragile — add at least one more trusted connection",
+            RecoveryRiskLevel.High => "🚨 Recovery at risk — add at least two more trusted connections",
+            RecoveryRiskLevel.Critical => "💀 Recovery not possible — immediate action required",
+            _ => "ℹ️ Recovery status unknown"
+        };
+
+        return Template($@"
+    <h2 style='margin-bottom: 15px;'>{headline}</h2>
+
+    <p style='margin-bottom: 15px;'>
+        Recovery status for your account <strong>{domain}</strong>:
+    </p>
+
+    <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>
+        <tr>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>Usable shards</td>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{validCount}</td>
+        </tr>
+        <tr>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>Minimum required</td>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{minRequired}</td>
+        </tr>
+        <tr>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>Recoverable</td>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{(risk.IsRecoverable ? "Yes ✅" : "No ❌")}</td>
+        </tr>
+        <tr>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>Risk level</td>
+            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>{risk.RiskLevel}</td>
+        </tr>
+    </table>
+
+    <p style='margin-bottom: 15px;'>
+        {recoverableText}
+    </p>
+
+    <p style='margin-top: 25px;'>
+        We recommend reviewing your recovery configuration and ensuring that all your trusted connections are active and secure.
+    </p>
+
+    <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>
+        Kind regards,<br />Team Homebase
+    </p>
+");
+    }
+
     public static string VerifyNewRecoveryEmailText(string domain, string link)
     {
         return @$"
@@ -446,7 +547,7 @@ public static class RecoveryEmails
 
         return Template(sb.ToString());
     }
-    
+
     private static string Template(string contents)
     {
         return @$"

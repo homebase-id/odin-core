@@ -32,7 +32,7 @@ public class OwnerAccountManagementApiClient
         }
     }
 
-    public async Task<ApiResponse<DecryptedRecoveryKey>> GetAccountRecoveryKey()
+    public async Task<ApiResponse<RecoveryKeyResult>> GetAccountRecoveryKey()
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {

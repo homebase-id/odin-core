@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -14,6 +15,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Standard;
@@ -37,9 +39,11 @@ public class ShamirRecoveryService
     private readonly TableKeyValueCached _keyValueTable;
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly CircleNetworkService _circleNetworkService;
-    private readonly RecoveryEmailer _recoveryEmailer;
+    private readonly RecoveryNotifier _recoveryNotifier;
     private readonly PasswordKeyRecoveryService _passwordKeyRecoveryService;
     private readonly IDriveManager _driveManager;
+    private readonly TableNonce _nonceTable;
+    private readonly OwnerSecretService _secretService;
     private readonly IdentityDatabase _db;
     private readonly IMediator _mediator;
     private readonly ILogger<ShamirRecoveryService> _logger;
@@ -57,9 +61,11 @@ public class ShamirRecoveryService
         IdentityDatabase db,
         IMediator mediator,
         CircleNetworkService circleNetworkService,
-        RecoveryEmailer recoveryEmailer,
+        RecoveryNotifier recoveryNotifier,
         PasswordKeyRecoveryService passwordKeyRecoveryService,
         IDriveManager driveManager,
+        TableNonce nonceTable,
+        OwnerSecretService secretService,
         ILogger<ShamirRecoveryService> logger)
     {
         _configurationService = configurationService;
@@ -70,9 +76,11 @@ public class ShamirRecoveryService
         _mediator = mediator;
         _logger = logger;
         _circleNetworkService = circleNetworkService;
-        _recoveryEmailer = recoveryEmailer;
+        _recoveryNotifier = recoveryNotifier;
         _passwordKeyRecoveryService = passwordKeyRecoveryService;
         _driveManager = driveManager;
+        _nonceTable = nonceTable;
+        _secretService = secretService;
 
         _playerShardCollector = new PlayerShardCollector(fileSystem);
         _approvalCollector = new ShardRequestApprovalCollector(fileSystem, mediator);
@@ -106,7 +114,7 @@ public class ShamirRecoveryService
         {
             throw new OdinClientException("Password recovery not configured", OdinClientErrorCode.PasswordRecoveryNotConfigured);
         }
-        
+
         var players = pkg.Envelopes.Select(p => p.Player).ToList();
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
@@ -115,12 +123,12 @@ public class ShamirRecoveryService
             State = ShamirRecoveryState.AwaitingOwnerEmailVerificationToEnterRecoveryMode
         });
 
-        await _recoveryEmailer.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode);
+        await _recoveryNotifier.EnqueueVerificationEmail(players, RecoveryEmailType.EnterRecoveryMode);
     }
 
     public async Task InitiateRecoveryModeExit(IOdinContext odinContext)
     {
-        await _recoveryEmailer.EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
+        await _recoveryNotifier.EnqueueVerificationEmail([], RecoveryEmailType.ExitRecoveryMode);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord
         {
@@ -155,7 +163,7 @@ public class ShamirRecoveryService
     /// </summary>
     public async Task EnterRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
     {
-        await _recoveryEmailer.GetNonceDataOrFail(nonceId);
+        await _recoveryNotifier.GetNonceDataOrFail(nonceId);
 
         await UpdateStatus(new ShamirRecoveryStatusRecord()
         {
@@ -196,7 +204,7 @@ public class ShamirRecoveryService
 
     public async Task ExitRecoveryMode(Guid nonceId, string token, IOdinContext odinContext)
     {
-        await _recoveryEmailer.GetNonceDataOrFail(nonceId);
+        await _recoveryNotifier.GetNonceDataOrFail(nonceId);
         await ExitRecoveryModeInternal(odinContext);
     }
 
@@ -205,15 +213,14 @@ public class ShamirRecoveryService
         odinContext.Caller.AssertHasMasterKey();
         await ExitRecoveryModeInternal(odinContext);
     }
-
-
+    
     public async Task<RetrieveShardResult> HandleReleaseShardRequest(RetrieveShardRequest request, IOdinContext odinContext)
     {
         var requester = odinContext.Caller.OdinId.GetValueOrDefault();
 
         // look up the shard info
         var (shard, sender) = await _configurationService.GetShardStoredForDealer(request.ShardId, odinContext);
-        
+
         if (sender != requester)
         {
             throw new OdinSecurityException("invalid requester");
@@ -292,7 +299,7 @@ public class ShamirRecoveryService
         if (collectedShards.Count >= package.MinMatchingShards)
         {
             var (finalRecoveryKey, finalInfo) = await PrepareFinalKeys(collectedShards, package, odinContext);
-            await _recoveryEmailer.EnqueueFinalizeRecoveryEmail(finalInfo, finalRecoveryKey);
+            await _recoveryNotifier.EnqueueFinalizeRecoveryEmail(finalInfo, finalRecoveryKey);
 
             await UpdateStatus(new ShamirRecoveryStatusRecord
             {
@@ -320,10 +327,11 @@ public class ShamirRecoveryService
         tx.Commit();
     }
 
-    public async Task<FinalRecoveryResult> FinalizeRecovery(Guid nonceId, Guid finalKey, IOdinContext odinContext)
+    public async Task FinalizeRecovery(Guid nonceId, Guid finalKey, PasswordReply passwordReply,
+        IOdinContext odinContext)
     {
         // get nonce
-        var data = await _recoveryEmailer.GetNonceDataOrFail(nonceId);
+        var data = await _recoveryNotifier.GetNonceDataOrFail(nonceId);
 
         // decrypt the nonce
         var recoveryInfo = OdinSystemSerializer.DeserializeOrThrow<FinalRecoveryInfo>(data);
@@ -333,11 +341,9 @@ public class ShamirRecoveryService
 
         // now that we have the recovery key, clean up all shards and reset status
         await ExitRecoveryModeInternal(odinContext);
-
-        return new FinalRecoveryResult()
-        {
-            RecoveryText = recoveryText
-        };
+        
+        // look up the key from the table
+        await _secretService.ResetPasswordUsingRecoveryKeyAsync(recoveryText, passwordReply, odinContext);
     }
 
     public async Task<List<ShardApprovalRequest>> GetShardRequestList(IOdinContext odinContext)
@@ -368,7 +374,7 @@ public class ShamirRecoveryService
         {
             throw new OdinClientException("Invalid dealer on shard id");
         }
-        
+
         if (null == shard)
         {
             throw new OdinClientException("Invalid shard id");
@@ -388,7 +394,7 @@ public class ShamirRecoveryService
     public async Task RejectShardRequest(Guid shardId, OdinId odinId, IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsOwner();
-        
+
         var request = await _approvalCollector.GetRequest(shardId, odinContext);
         if (null == request)
         {
@@ -399,7 +405,7 @@ public class ShamirRecoveryService
         {
             throw new OdinClientException("Invalid dealer on shard id");
         }
-        
+
         await _approvalCollector.DeleteRequest(shardId, odinContext);
     }
 
@@ -467,7 +473,7 @@ public class ShamirRecoveryService
     {
         await Storage.UpsertAsync(_keyValueTable, ShamirStatusStorageId, statusRecord);
     }
-    
+
     private Task<IPeerPasswordRecoveryHttpClient> CreateClientAsync(OdinId odinId)
     {
         var httpClient = _odinHttpClientFactory.CreateClient<IPeerPasswordRecoveryHttpClient>(odinId);
@@ -491,9 +497,10 @@ public class ShamirRecoveryService
         await Storage.DeleteAsync(_keyValueTable, ShamirStatusStorageId);
 
         var drive = await _driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias, false);
-        if(null != drive)
+        if (null != drive)
         {
             await _playerShardCollector.DeleteCollectedShards(odinContext);
         }
     }
+
 }

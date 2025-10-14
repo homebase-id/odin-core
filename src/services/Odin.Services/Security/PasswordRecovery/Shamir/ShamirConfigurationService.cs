@@ -14,8 +14,12 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -26,6 +30,7 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Util;
 
@@ -33,6 +38,7 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir;
 
 public class ShamirConfigurationService(
     ILogger<ShamirConfigurationService> logger,
+    TenantContext tenantContext,
     PasswordKeyRecoveryService passwordKeyRecoveryService,
     PeerOutgoingTransferService transferService,
     IOdinHttpClientFactory odinHttpClientFactory,
@@ -40,6 +46,9 @@ public class ShamirConfigurationService(
     IdentityDatabase db,
     StandardFileSystem fileSystem,
     IDriveManager driveManager,
+    OwnerSecretService secretService,
+    OdinConfiguration configuration,
+    PeerOutbox peerOutbox,
     ILastSeenService lastSeenService)
 {
     private const int DealerShardConfigFiletype = 44532;
@@ -52,13 +61,119 @@ public class ShamirConfigurationService(
 
     public const int MinimumPlayerCount = 3;
     public const int MinimumMatchingShardsOffset = 1;
+    public const string RotateShardsHasStarted = "Rotate shards has started";
+    public static Guid SecurityRiskReportNotificationTypeId { get; } = Guid.Parse("959f197f-4f97-4ff1-b36e-eb237b79eda1");
 
     public static int CalculateMinAllowedShardCount(int playerCount)
     {
         return playerCount - MinimumMatchingShardsOffset;
     }
 
+    public async Task ConfigureAutomatedRecovery(IOdinContext odinContext)
+    {
+        AssertCanUseAutomatedRecovery();
+        var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
+
+        logger.LogDebug("Configuring automated recovery for auto-players: {players}", string.Join(",", autoPlayers));
+
+        SensitiveByteArray distributionKey = null;
+        await using var tx = await db.BeginStackedTransactionAsync();
+        tx.AddPostCommitAction(transferService.ProcessOutboxNow);
+        try
+        {
+            var players = autoPlayers.Select(p => new ShamiraPlayer()
+            {
+                OdinId = p,
+                Type = PlayerType.Automatic
+            }).ToList();
+
+            (distributionKey, var playerShards) = await ConfigureShardsInternal(players, 3, usesAutomatic: true, odinContext);
+
+            logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
+            var enqueueResults = await this.EnqueueShardsForDistributionForAutomaticIdentities(playerShards, odinContext);
+            var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
+            if (failures.Any())
+            {
+                throw new OdinSystemException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
+            }
+
+            await SaveDistributableKey(distributionKey, odinContext);
+
+            tx.Commit();
+            logger.LogDebug("Commited shard distribution data");
+        }
+        catch (OdinClientException)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to enqueue shards");
+            throw;
+        }
+        finally
+        {
+            distributionKey?.Wipe();
+        }
+    }
+
+    public void AssertCanUseAutomatedRecovery()
+    {
+        if (!configuration.AccountRecovery.Enabled)
+        {
+            throw new OdinClientException("Auto-recovery not enabled in cofiguration");
+        }
+        
+        var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
+
+        if (autoPlayers.Count() < MinimumPlayerCount || configuration.AccountRecovery.AutomatedIdentityKey == Guid.Empty)
+        {
+            logger.LogWarning("Tried to auto-configure password recovery but too few auto-players are configured.  See configuration " +
+                              "Registry::AutomatedPasswordRecoveryIdentities. Minimum is {min}", MinimumPlayerCount);
+            // throw new OdinSystemException("Tried to auto-configure password recovery but too few auto-players are configured");
+            throw new OdinClientException("Tried to auto-configure password recovery but too few auto-players are configured");
+        }
+    }
+
     public async Task ConfigureShards(List<ShamiraPlayer> players, int minShards, IOdinContext odinContext)
+    {
+        SensitiveByteArray distributionKey = null;
+        await using var tx = await db.BeginStackedTransactionAsync();
+        tx.AddPostCommitAction(transferService.ProcessOutboxNow);
+        try
+        {
+            (distributionKey, var playerShards) = await ConfigureShardsInternal(players, minShards, usesAutomatic: false, odinContext);
+
+            logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
+            var enqueueResults = await EnqueueShardsForDistribution(playerShards, odinContext);
+            var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
+            if (failures.Any())
+            {
+                throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
+            }
+
+            await SaveDistributableKey(distributionKey, odinContext);
+
+            tx.Commit();
+            logger.LogDebug("Commited shard distribution data");
+        }
+        catch (OdinClientException)
+        {
+            throw;
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to enqueue shards");
+            throw;
+        }
+        finally
+        {
+            distributionKey?.Wipe();
+        }
+    }
+
+    private async Task<(SensitiveByteArray distributionKey, List<PlayerEncryptedShard> PlayerShards)> ConfigureShardsInternal(
+        List<ShamiraPlayer> players, int minShards, bool usesAutomatic, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(players, nameof(players));
         OdinValidationUtils.AssertIsTrue(players.Count >= MinimumPlayerCount,
@@ -79,27 +194,12 @@ public class ShamirConfigurationService(
         var package = new DealerShardPackage
         {
             MinMatchingShards = minShards,
-            Envelopes = shards.DealerEnvelops
+            Envelopes = shards.DealerEnvelops,
+            UsesAutomatedRecovery = usesAutomatic
         };
 
-        await using var tx = await db.BeginStackedTransactionAsync();
-        tx.AddPostCommitAction(transferService.ProcessOutboxNow);
         await SaveDealerPackage(package, odinContext);
-
-        logger.LogDebug("Enqueuing shards for distribution to players.  count: {players}", players.Count);
-        var enqueueResults = await EnqueueShardsForDistribution(shards.PlayerShards, odinContext);
-        var failures = enqueueResults.Where(kvp => kvp.Value != TransferStatus.Enqueued).ToList();
-        if (failures.Any())
-        {
-            throw new OdinClientException($"Failed to enqueue shards for identities [{string.Join(",", failures.Select(f => f.Key))}]");
-        }
-
-        await SaveDistributableKey(distributionKey, odinContext);
-
-        tx.Commit();
-        logger.LogDebug("Commited shard distribution data");
-
-        distributionKey.Wipe();
+        return (distributionKey, shards.PlayerShards);
     }
 
     /// <summary>
@@ -142,8 +242,17 @@ public class ShamirConfigurationService(
 
             if (response.IsSuccessStatusCode)
             {
-                return response.Content;
+                var result = response.Content;
+                logger.LogDebug("Shard verification call succeed for identity: {identity}.  Result " +
+                                "was: IsValid:{isValid}.  remoteServerError: {remoteError}", player,
+                    result.IsValid,
+                    result.RemoteServerError);
+
+                return result;
             }
+
+            logger.LogDebug("Shard verification call failed for identity: {identity}.  Http Status code: {code}", player,
+                response.StatusCode);
         }
         catch (Exception e)
         {
@@ -167,13 +276,16 @@ public class ShamirConfigurationService(
         IOdinContext odinContext)
     {
         odinContext.Caller.AssertCallerIsAuthenticated();
+        logger.LogDebug("Verifying dealer shard {shardId}", shardId);
         try
         {
             var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
-            
+
             if (null == shardDrive)
             {
-                logger.LogDebug("Could not perform shard verification; Sharding drive not yet configured (Tenant probably needs to upgrade)");
+                logger.LogDebug("Could not perform shard verification; Sharding drive not " +
+                                "yet configured (Tenant probably needs to upgrade)");
+
                 return new ShardVerificationResult
                 {
                     RemoteServerError = true,
@@ -186,34 +298,62 @@ public class ShamirConfigurationService(
             var (shard, sender) = await GetShardStoredForDealer(shardId, odinContext);
             var isValid = shard != null && sender == odinContext.Caller.OdinId.GetValueOrDefault();
 
-            var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
-            var trustLevel = ShardTrustLevel.Critical; // default = worst case
-
-            if (lastSeen.HasValue)
+            if (isValid)
             {
-                var now = DateTime.UtcNow;
-                var elapsed = now - lastSeen.Value.ToDateTime();
+                var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
+                var trustLevel = ShardTrustLevel.Critical; // default = worst case
 
-                if (elapsed < TimeSpan.FromDays(14))
+                if (shard.Player.Type == PlayerType.Automatic)
                 {
                     trustLevel = ShardTrustLevel.High;
                 }
-                else if (elapsed < TimeSpan.FromDays(30))
+                else
                 {
-                    trustLevel = ShardTrustLevel.Low;
+                    if (lastSeen.HasValue)
+                    {
+                        var now = DateTime.UtcNow;
+                        var elapsed = now - lastSeen.Value.ToDateTime();
+
+                        if (elapsed < TimeSpan.FromDays(14))
+                        {
+                            trustLevel = ShardTrustLevel.High;
+                        }
+                        else if (elapsed < TimeSpan.FromDays(30))
+                        {
+                            trustLevel = ShardTrustLevel.Low;
+                        }
+                        else if (elapsed < TimeSpan.FromDays(90))
+                        {
+                            trustLevel = ShardTrustLevel.Medium;
+                        }
+                    }
                 }
-                else if (elapsed < TimeSpan.FromDays(90))
+
+                return new ShardVerificationResult
                 {
-                    trustLevel = ShardTrustLevel.Medium;
-                }
-                // otherwise remains Critical
+                    RemoteServerError = false,
+                    IsValid = true,
+                    TrustLevel = trustLevel,
+                    Created = shard?.Created ?? 0
+                };
+            }
+
+            // not valid - add some logging to see what's up
+            if (shard == null)
+            {
+                logger.LogDebug("Dealer shard with id: {shardId} is null", shardId);
+            }
+
+            if (sender != odinContext.Caller.OdinId.GetValueOrDefault())
+            {
+                logger.LogDebug("Dealer shard with id: {shardId} has mismatching caller and sender", shardId);
             }
 
             return new ShardVerificationResult
             {
                 RemoteServerError = false,
-                IsValid = isValid,
-                TrustLevel = trustLevel,
+                IsValid = false,
+                TrustLevel = ShardTrustLevel.Critical,
                 Created = shard?.Created ?? 0
             };
         }
@@ -234,6 +374,8 @@ public class ShamirConfigurationService(
 
     public async Task<DealerShardConfig> GetRedactedConfig(IOdinContext odinContext)
     {
+        odinContext.Caller.AssertHasMasterKey();
+
         var package = await this.GetDealerShardPackage(odinContext);
 
         if (package == null)
@@ -249,7 +391,8 @@ public class ShamirConfigurationService(
                 ShardId = e.ShardId,
                 Player = e.Player
             }).ToList(),
-            Updated = package.Updated
+            Updated = package.Updated,
+            UsesAutomaticRecovery = package.UsesAutomatedRecovery
         };
     }
 
@@ -293,13 +436,14 @@ public class ShamirConfigurationService(
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var shardDrive = await driveManager.GetDriveAsync(driveId);
-            
+
         if (null == shardDrive)
         {
-            logger.LogDebug("Shard drive not yet configured (Tenant probably needs to upgrade).  So GetDealerShardPackage will return null.");
+            logger.LogDebug(
+                "Shard drive not yet configured (Tenant probably needs to upgrade).  So GetDealerShardPackage will return null.");
             return null;
         }
-        
+
         var uid = Guid.Parse(DealerShardConfigUid);
         var options = new ResultOptions
         {
@@ -338,6 +482,100 @@ public class ShamirConfigurationService(
         recoveryKey.Wipe();
 
         return text;
+    }
+
+    /// <summary>
+    /// Rotates keys in the shares using all existing players
+    /// </summary>
+    public async Task RotateShardKeysIfNeeded(IOdinContext odinContext)
+    {
+        try
+        {
+            var package = await this.GetDealerShardPackage(odinContext);
+            if (null == package)
+            {
+                return;
+            }
+
+            var passwordLastUpdated = await secretService.GetPasswordLastUpdated();
+            if (passwordLastUpdated == null)
+            {
+                // password never changed
+                return;
+            }
+
+            // if the package was updated before the password was changed, we need to rotate it
+            if (package.Updated < passwordLastUpdated.Value)
+            {
+                logger.LogDebug(RotateShardsHasStarted);
+                var players = package.Envelopes.Select(e => e.Player).ToList();
+                await this.ConfigureShards(players, package.MinMatchingShards, odinContext);
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to start shard rotation shards");
+        }
+    }
+
+    /// <summary>
+    /// Creates a context for writing shards to the automated identity
+    /// </summary>
+    public Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token)
+    {
+        if (!configuration.AccountRecovery.Enabled)
+        {
+            throw new OdinSystemException("Automated recovery is disabled in config");
+        }
+        
+        if (!configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities.Any())
+        {
+            throw new OdinSystemException("No Automated identities are configured");
+        }
+
+        if (configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities.All(ident => ident != tenantContext.HostOdinId))
+        {
+            throw new OdinSecurityException("Not an automated identity");
+        }
+
+        var key = configuration.AccountRecovery.AutomatedIdentityKey;
+        if (!ByteArrayUtil.EquiByteArrayCompare(token.AccessTokenHalfKey.GetKey(), key.ToByteArray()))
+        {
+            throw new OdinSecurityException("Invalid token");
+        }
+
+        var dotYouContext = new OdinContext();
+        var drive = SystemDriveConstants.ShardRecoveryDrive;
+        var driveGrants = new List<DriveGrant>()
+        {
+            new DriveGrant
+            {
+                DriveId = drive.Alias,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = drive,
+                    Permission = DrivePermission.Write
+                },
+            }
+        };
+
+        var permissionGroups = new Dictionary<string, PermissionGroup>()
+        {
+            { "automated-shard-permissions", new PermissionGroup(new PermissionSet(), driveGrants, null, null) }
+        };
+
+        var permissionContext = new PermissionContext(permissionGroups, sharedSecretKey: Guid.Empty.ToByteArray().ToSensitiveByteArray());
+        var callerContext = new CallerContext(
+            odinId: callerOdinId,
+            masterKey: null,
+            securityLevel: SecurityGroupType.Authenticated,
+            circleIds: null,
+            tokenType: token.ClientTokenType);
+
+        dotYouContext.Caller = callerContext;
+        dotYouContext.SetPermissionContext(permissionContext);
+
+        return Task.FromResult<IOdinContext>(dotYouContext);
     }
 
     private IPeerPasswordRecoveryHttpClient CreateClientAsync(OdinId odinId, IOdinContext odinContext)
@@ -419,6 +657,73 @@ public class ShamirConfigurationService(
         {
             await OverwriteDealerEnvelopeFile(envelope, existingFile.FileId, odinContext);
         }
+    }
+
+
+    private async Task<Dictionary<OdinId, TransferStatus>> EnqueueShardsForDistributionForAutomaticIdentities(
+        List<PlayerEncryptedShard> shards, IOdinContext odinContext)
+    {
+        var status = new Dictionary<OdinId, TransferStatus>();
+        foreach (PlayerEncryptedShard shard in shards)
+        {
+            var recipient = shard.Player.OdinId;
+
+            var header = await WritePlayerEncryptedShardToTempDrive(shard, odinContext);
+            var options = new TransitOptions
+            {
+                IsTransient = true,
+                Recipients = [recipient],
+                DisableTransferHistory = true,
+                UseAppNotification = false,
+                RemoteTargetDrive = SystemDriveConstants.ShardRecoveryDrive,
+                Priority = OutboxPriority.High
+            };
+
+            try
+            {
+                var clientAuthToken = new ClientAccessToken()
+                {
+                    Id = configuration.AccountRecovery.AutomatedIdentityKey,
+                    AccessTokenHalfKey = configuration.AccountRecovery.AutomatedIdentityKey.ToByteArray().ToSensitiveByteArray(),
+                    ClientTokenType = ClientTokenType.AutomatedPasswordRecovery,
+                    SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
+                };
+
+                var item = new OutboxFileItem()
+                {
+                    Priority = 100,
+                    Type = OutboxItemType.File,
+                    File = header.FileMetadata.File,
+                    Recipient = recipient,
+                    DependencyFileId = options.OutboxDependencyFileId,
+                    State = new OutboxItemState()
+                    {
+                        IsTransientFile = true,
+                        Attempts = { },
+                        OriginalTransitOptions = options,
+                        EncryptedClientAuthToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes(),
+                        TransferInstructionSet = CreateTransferInstructionSet(
+                            KeyHeader.Empty(),
+                            clientAuthToken,
+                            SystemDriveConstants.ShardRecoveryDrive,
+                            TransferFileType.Normal,
+                            FileSystemType.Standard,
+                            options),
+                        Data = [],
+                        DataSourceOverride = default
+                    }
+                };
+                await peerOutbox.AddItemAsync(item);
+                status.Add(recipient, TransferStatus.Enqueued);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError("Failed while creating outbox item {msg}", ex.Message);
+                status.Add(recipient, TransferStatus.EnqueuedFailed);
+            }
+        }
+
+        return status;
     }
 
     /// <summary>
@@ -558,7 +863,7 @@ public class ShamirConfigurationService(
         odinContext.Caller.AssertHasMasterKey();
 
         // encrypt the recover key w/ distribution key
-        var k = await passwordKeyRecoveryService.GetKeyAsync(byPassWaitingPeriod: true, odinContext);
+        var k = await passwordKeyRecoveryService.GetRecoveryKeyAsync(byPassWaitingPeriod: true, odinContext);
         var recoveryKey = BIP39Util.DecodeBIP39(k.Key);
 
         var masterKey = odinContext.Caller.GetMasterKey();
@@ -582,5 +887,24 @@ public class ShamirConfigurationService(
     {
         var existingKey = await Storage.GetAsync<ShamirKeyRecord>(tblKeyValue, ShamirRecordStorageId);
         return existingKey;
+    }
+
+    private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(KeyHeader keyHeaderToBeEncrypted,
+        ClientAccessToken clientAccessToken,
+        TargetDrive targetDrive,
+        TransferFileType transferFileType,
+        FileSystemType fileSystemType, TransitOptions transitOptions)
+    {
+        var sharedSecret = clientAccessToken.SharedSecret;
+        var iv = ByteArrayUtil.GetRndByteArray(16);
+        var sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeaderToBeEncrypted, iv, ref sharedSecret);
+
+        return new EncryptedRecipientTransferInstructionSet()
+        {
+            TargetDrive = targetDrive,
+            TransferFileType = transferFileType,
+            FileSystemType = fileSystemType,
+            SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
+        };
     }
 }

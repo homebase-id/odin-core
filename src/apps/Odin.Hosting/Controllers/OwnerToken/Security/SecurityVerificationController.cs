@@ -66,7 +66,7 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
     [HttpGet("recovery-risk-report")]
     public async Task<IActionResult> GetHealthCheck()
     {
-        var check = await securityHealthService.RunHeathCheck(WebOdinContext);
+        var check = await securityHealthService.RunHealthCheck(WebOdinContext);
         return Ok(check);
     }
 }
