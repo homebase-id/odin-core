@@ -41,7 +41,6 @@ public class SecurityHealthCheckJobData
 public class SecurityHealthCheckJob(
     IMultiTenantContainer tenantContainer,
     ICertificateStore certificateStore,
-    RecoveryNotifier recoveryNotifier,
     ILogger<SecurityHealthCheckJob> logger) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("5a42cc65-d2ca-4d41-b741-b4168cab7211");
@@ -86,6 +85,7 @@ public class SecurityHealthCheckJob(
             if (null != recoveryInfo)
             {
                 // notify the user of health check
+                var recoveryNotifier = scope.Resolve<RecoveryNotifier>();
                 await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext);
             }
         }
@@ -183,6 +183,4 @@ public class SecurityHealthCheckJob(
         odinContext.SetPermissionContext(new PermissionContext(permissionGroups, null, true));
         return odinContext;
     }
-    
-    
 }
