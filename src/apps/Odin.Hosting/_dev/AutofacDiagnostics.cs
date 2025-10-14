@@ -9,7 +9,6 @@ using Autofac.Core;
 using Autofac.Core.Activators.Reflection;
 using Autofac.Core.Lifetime;
 using Microsoft.Extensions.Logging;
-using Odin.Services.LastSeen;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting._dev;
@@ -38,7 +37,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Logging.CorrelationId.CorrelationContext), "5a40f4fa"},
         {typeof(Odin.Services.Background.BackgroundServiceManager), "0e9af6f6"},
         {typeof(Odin.Services.Background.BackgroundServiceTrigger<Odin.Services.JobManagement.JobRunnerBackgroundService>), "8f14696f"},
-        {typeof(Odin.Services.Drives.DriveCore.Storage.FileReaderWriter), "d78f7501"},
+        {typeof(Odin.Services.Drives.DriveCore.Storage.FileReaderWriter), "3af801d3"},
         {typeof(Odin.Services.Registry.IIdentityRegistry), "0e9b3bc1"},
         {typeof(Odin.Services.JobManagement.JobTypeRegistry), "e6f1c919"},
         {typeof(Odin.Core.Storage.Cache.CacheConfiguration), "e6f1c919"},
@@ -53,6 +52,7 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Concurrency.NodeLock), "e6f1c919"},
         {typeof(Odin.Services.LastSeen.LastSeenService), "ef375af0"},
         {typeof(Odin.Core.Storage.Database.TransactionalCacheStats), "e6f1c919"},
+        {typeof(Odin.Core.Tasks.ForgottenTasks), "e6f1c919"},
     };
 
     //
