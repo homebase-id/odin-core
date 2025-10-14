@@ -57,7 +57,7 @@ public class RecoveryNotifier(
         var tenant = tenantContext.HostOdinId;
         var nonceId = await MakeNonce(email.Address);
 
-        var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email", nonceId, "");
+        var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email-fwd", nonceId, "");
 
 #if DEBUG
         logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);

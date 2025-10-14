@@ -77,4 +77,11 @@ public class OwnerShamirRecoveryController : OdinControllerBase
             WebOdinContext);
         return Ok();
     }
+    
+    [HttpGet("verify-email-fwd")]
+    public IActionResult VerifyRecoveryEmailRedirector([FromQuery] string id)
+    {
+        var link = $"{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email?id={id}";
+        return Redirect(link);
+    }
 }
