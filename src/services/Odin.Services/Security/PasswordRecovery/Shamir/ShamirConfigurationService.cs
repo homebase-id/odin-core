@@ -115,7 +115,6 @@ public class ShamirConfigurationService(
 
     public void AssertCanUseAutomatedRecovery()
     {
-
         if (!configuration.AccountRecovery.Enabled)
         {
             throw new OdinClientException("Auto-recovery not enabled in cofiguration");
@@ -516,6 +515,11 @@ public class ShamirConfigurationService(
     /// </summary>
     public Task<IOdinContext> GetDotYouContextAsync(OdinId callerOdinId, ClientAuthenticationToken token)
     {
+        if (!configuration.AccountRecovery.Enabled)
+        {
+            throw new OdinSystemException("Automated recovery is disabled in config");
+        }
+        
         if (!configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities.Any())
         {
             throw new OdinSystemException("No Automated identities are configured");

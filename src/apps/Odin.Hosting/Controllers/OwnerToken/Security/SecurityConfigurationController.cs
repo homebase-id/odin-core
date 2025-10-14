@@ -1,10 +1,10 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
-using Odin.Services.Security.Email;
+using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 
@@ -16,7 +16,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 public class SecurityConfigurationController(
     ShamirConfigurationService shamirConfigurationService,
     ShamirRecoveryService recoveryService,
-    RecoveryNotifier recoveryNotifier)
+    OwnerSecurityHealthService securityHealthService
+)
     : OdinControllerBase
 {
     [HttpGet("config")]
@@ -67,11 +68,10 @@ public class SecurityConfigurationController(
         return Ok();
     }
 
-    [HttpPost("notify")]
+    [HttpPost("notify-user")]
     public async Task<IActionResult> NotifyUser()
     {
-        throw new NotImplementedException("");
-        // recoveryService.
-        // await recoveryNotifier.NotifyUser(WebOdinContext.Tenant, recoveryInfo, WebOdinContext);
+        await securityHealthService.NotifyUser(WebOdinContext);
+        return Ok();
     }
 }

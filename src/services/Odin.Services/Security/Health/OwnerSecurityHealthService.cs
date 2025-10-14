@@ -14,6 +14,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Security.Email;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
@@ -30,6 +31,7 @@ public class OwnerSecurityHealthService(
     PublicPrivateKeyService publicPrivateKeyService,
     IDriveManager driveManager,
     ILogger<OwnerSecurityHealthService> logger,
+    RecoveryNotifier recoveryNotifier,
     TableKeyValueCached keyValueTable)
 {
     private static readonly Guid VerificationStorageId = Guid.Parse("475c72c0-bb9c-4dc9-a565-7e72319ff2b8");
@@ -132,7 +134,7 @@ public class OwnerSecurityHealthService(
     /// <summary>
     /// Checks the health of distributed shards; writes results to storage
     /// </summary>
-    public async Task<PeriodicSecurityHealthCheckStatus> RunHeathCheck(IOdinContext odinContext)
+    public async Task<PeriodicSecurityHealthCheckStatus> RunHealthCheck(IOdinContext odinContext)
     {
         var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
         if (null == shardDrive)
@@ -189,6 +191,12 @@ public class OwnerSecurityHealthService(
         return healthResult;
     }
 
+    public async Task NotifyUser(IOdinContext odinContext)
+    {
+        var recoveryInfo = await GetRecoveryInfo(live:true, odinContext);
+        await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
+    }
+    
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()
     {
         var status = await VerificationStatusStorage.GetAsync<VerificationStatus>(keyValueTable, VerificationStorageId);
@@ -220,9 +228,10 @@ public class OwnerSecurityHealthService(
     
     private async Task<PeriodicSecurityHealthCheckStatus> UpdateHealthCheck(IOdinContext odinContext)
     {
-        var healthResult = await RunHeathCheck(odinContext);
+        var healthResult = await RunHealthCheck(odinContext);
         await PeriodicSecurityHealthCheckStatusStorage.UpsertAsync(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId, healthResult);
         return healthResult;
     }
 
+   
 }
