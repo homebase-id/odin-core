@@ -130,7 +130,7 @@ public class OwnerSecurityHealthService(
         odinContext.Caller.AssertHasMasterKey();
         await recoveryService.UpdateAccountRecoveryEmail(nonceId);
     }
-    
+
     /// <summary>
     /// Checks the health of distributed shards; writes results to storage
     /// </summary>
@@ -191,18 +191,12 @@ public class OwnerSecurityHealthService(
         return healthResult;
     }
 
-    public async Task<bool> NotifyUser(IOdinContext odinContext)
+    public async Task NotifyUser(IOdinContext odinContext)
     {
-        var recoveryInfo = await GetRecoveryInfo(live:true, odinContext);
-        if (recoveryInfo.IsConfigured)
-        {
-            await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
-            return true;
-        }
-
-        return false;
+        var recoveryInfo = await GetRecoveryInfo(live: true, odinContext);
+        await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
     }
-    
+
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()
     {
         var status = await VerificationStatusStorage.GetAsync<VerificationStatus>(keyValueTable, VerificationStorageId);
@@ -231,13 +225,11 @@ public class OwnerSecurityHealthService(
 
         await VerificationStatusStorage.UpsertAsync(keyValueTable, VerificationStorageId, status);
     }
-    
+
     private async Task<PeriodicSecurityHealthCheckStatus> UpdateHealthCheck(IOdinContext odinContext)
     {
         var healthResult = await RunHealthCheck(odinContext);
         await PeriodicSecurityHealthCheckStatusStorage.UpsertAsync(keyValueTable, PeriodicSecurityHealthCheckStatusStorageId, healthResult);
         return healthResult;
     }
-
-   
 }

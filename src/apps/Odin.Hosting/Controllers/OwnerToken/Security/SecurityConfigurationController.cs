@@ -72,12 +72,7 @@ public class SecurityConfigurationController(
     [HttpPost("notify-user")]
     public async Task<IActionResult> NotifyUser()
     {
-        var didRun = await securityHealthService.NotifyUser(WebOdinContext);
-        if (didRun)
-        {
-            return Ok();
-        }
-
-        return BadRequest();
+        await securityHealthService.NotifyUser(WebOdinContext);
+        return Ok();
     }
 }
