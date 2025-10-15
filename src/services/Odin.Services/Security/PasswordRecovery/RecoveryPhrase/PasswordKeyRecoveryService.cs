@@ -157,7 +157,7 @@ public class PasswordKeyRecoveryService(
     /// <summary>
     /// Gets the official recovery email used for resetting passwords or account recovery
     /// </summary>
-    public async Task<AccountRecoveryInfo> GetRecoveryEmail()
+    public async Task<AccountRecoveryInfo> GetRecoveryInfo()
     {
         var recovery = await AccountRecoveryInfoStorage.GetAsync<AccountRecoveryInfo>(tblKeyValue, _accountRecoveryInfoStorageId);
         if (recovery != null)
@@ -175,7 +175,7 @@ public class PasswordKeyRecoveryService(
 
     public async Task<Guid> GetHashedRecoveryEmail()
     {
-        var recoveryInfo = await GetRecoveryEmail();
+        var recoveryInfo = await GetRecoveryInfo();
         OdinValidationUtils.AssertValidEmail(recoveryInfo?.Email, "Recovery email must be set to configure sharding");
         var hash = ByteArrayUtil.ReduceSHA256Hash(recoveryInfo?.Email);
         return hash;
