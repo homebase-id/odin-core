@@ -7,6 +7,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Odin.Core.Identity;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -397,11 +398,30 @@ public static class RecoveryEmails
         return Template(sb.ToString());
     }
 
-    public static string FormatRecoveryRiskStatusText(RecoveryInfo info)
+    public static string FormatRecoveryRiskStatusText(OdinId odinId, RecoveryInfo info)
     {
         var risk = info.RecoveryRisk;
-
         var domain = info.Email ?? "(unknown)";
+        var tenant = odinId;
+
+        if (!info.IsConfigured)
+        {
+            return @$"
+Hi {domain},
+
+⚠️ Account Recovery is not yet configured.
+
+Your account currently has no recovery setup. This means if you lose access, you will not be able to recover your account.
+
+Please set up Account Recovery by adding trusted connections as soon as possible:
+
+👉 https://{tenant}/owner/security/password-recovery
+
+--
+Team Homebase
+".Trim();
+        }
+
         var validCount = risk.ValidShardCount;
         var minRequired = risk.MinRequired;
         var recoverableText = risk.IsRecoverable
@@ -410,11 +430,11 @@ public static class RecoveryEmails
 
         var headline = risk.RiskLevel switch
         {
-            RecoveryRiskLevel.Low => "✅ Your recovery key is safe",
-            RecoveryRiskLevel.Moderate => "⚠️ Recovery is fragile — add at least one more trusted connection",
-            RecoveryRiskLevel.High => "🚨 Recovery at risk — add at least two more trusted connections",
-            RecoveryRiskLevel.Critical => "💀 Recovery not possible — immediate action required",
-            _ => "ℹ️ Recovery status unknown"
+            RecoveryRiskLevel.Low => "✅ Your Account Recovery is safe",
+            RecoveryRiskLevel.Moderate => "⚠️ Account Recovery is fragile — add at least one more trusted connection",
+            RecoveryRiskLevel.High => "🚨 Account Recovery at risk — add at least two more trusted connections",
+            RecoveryRiskLevel.Critical => "💀 Account Recovery not possible — immediate action required",
+            _ => "ℹ️ Account Recovery status unknown"
         };
 
         return @$"
@@ -432,16 +452,47 @@ Recovery details:
 
 We recommend checking your recovery contacts and ensuring that all listed players are trusted and available.
 
+You can manage your Account Recovery here:
+👉 https://{tenant}/owner/security/password-recovery
+
 --
 Team Homebase
 ".Trim();
     }
 
-    public static string FormatRecoveryRiskStatusHtml(RecoveryInfo info)
+    public static string FormatRecoveryRiskStatusHtml(OdinId odinId, RecoveryInfo info)
     {
         var risk = info.RecoveryRisk;
-
         var domain = info.Email ?? "(unknown)";
+        var tenant = odinId;
+
+        if (!info.IsConfigured)
+        {
+            return Template($@"
+    <h2 style='margin-bottom: 15px;'>⚠️ Account Recovery not configured</h2>
+
+    <p style='margin-bottom: 15px;'>
+        Your account <strong>{domain}</strong> does not currently have Account Recovery configured.
+    </p>
+
+    <p style='margin-bottom: 15px;'>
+        <strong>Warning:</strong> If you lose access, you will not be able to recover your account.
+    </p>
+
+    <p style='margin-bottom: 20px;'>
+        Please set up Account Recovery by adding trusted connections as soon as possible.
+    </p>
+
+    <p style='margin-bottom: 30px;'>
+        <a href='https://{tenant}/owner/security/password-recovery' style='color: #0052cc; text-decoration: none; font-weight: 600;'>Open Account Recovery Settings →</a>
+    </p>
+
+    <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>
+        Kind regards,<br />Team Homebase
+    </p>
+");
+        }
+
         var validCount = risk.ValidShardCount;
         var minRequired = risk.MinRequired;
         var recoverableText = risk.IsRecoverable
@@ -450,18 +501,18 @@ Team Homebase
 
         var headline = risk.RiskLevel switch
         {
-            RecoveryRiskLevel.Low => "✅ Your recovery key is safe",
-            RecoveryRiskLevel.Moderate => "⚠️ Recovery is fragile — add at least one more trusted connection",
-            RecoveryRiskLevel.High => "🚨 Recovery at risk — add at least two more trusted connections",
-            RecoveryRiskLevel.Critical => "💀 Recovery not possible — immediate action required",
-            _ => "ℹ️ Recovery status unknown"
+            RecoveryRiskLevel.Low => "✅ Your Account Recovery is safe",
+            RecoveryRiskLevel.Moderate => "⚠️ Account Recovery is fragile — add at least one more trusted connection",
+            RecoveryRiskLevel.High => "🚨 Account Recovery at risk — add at least two more trusted connections",
+            RecoveryRiskLevel.Critical => "💀 Account Recovery not possible — immediate action required",
+            _ => "ℹ️ Account Recovery status unknown"
         };
 
         return Template($@"
     <h2 style='margin-bottom: 15px;'>{headline}</h2>
 
     <p style='margin-bottom: 15px;'>
-        Recovery status for your account <strong>{domain}</strong>:
+        Account Recovery status for your account <strong>{domain}</strong>:
     </p>
 
     <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>
@@ -488,7 +539,11 @@ Team Homebase
     </p>
 
     <p style='margin-top: 25px;'>
-        We recommend reviewing your recovery configuration and ensuring that all your trusted connections are active and secure.
+        We recommend reviewing your Account Recovery configuration and ensuring that all your trusted connections are active and secure.
+    </p>
+
+    <p style='margin-top: 25px;'>
+        <a href='https://{tenant}/owner/security/password-recovery' style='color: #0052cc; text-decoration: none; font-weight: 600;'>Manage Account Recovery →</a>
     </p>
 
     <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>

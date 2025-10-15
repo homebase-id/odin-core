@@ -182,8 +182,8 @@ public class RecoveryNotifier(
                 {
                     To = [new NameAndEmailAddress { Email = email }],
                     Subject = "Your Homebase Account Recovery Risk Report",
-                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(recoveryInfo),
-                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(recoveryInfo)
+                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo),
+                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo)
                 },
             };
 

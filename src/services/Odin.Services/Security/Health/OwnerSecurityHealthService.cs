@@ -70,7 +70,7 @@ public class OwnerSecurityHealthService(
         odinContext.Caller.AssertCallerIsOwner();
 
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
-        var recoveryInfo = await recoveryService.GetRecoveryEmail();
+        var recoveryInfo = await recoveryService.GetRecoveryInfo();
 
         if (package == null)
         {
@@ -191,10 +191,16 @@ public class OwnerSecurityHealthService(
         return healthResult;
     }
 
-    public async Task NotifyUser(IOdinContext odinContext)
+    public async Task<bool> NotifyUser(IOdinContext odinContext)
     {
         var recoveryInfo = await GetRecoveryInfo(live:true, odinContext);
-        await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
+        if (recoveryInfo.IsConfigured)
+        {
+            await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
+            return true;
+        }
+
+        return false;
     }
     
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()

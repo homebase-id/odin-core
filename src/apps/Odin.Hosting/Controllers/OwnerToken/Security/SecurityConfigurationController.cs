@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -71,7 +72,12 @@ public class SecurityConfigurationController(
     [HttpPost("notify-user")]
     public async Task<IActionResult> NotifyUser()
     {
-        await securityHealthService.NotifyUser(WebOdinContext);
-        return Ok();
+        var didRun = await securityHealthService.NotifyUser(WebOdinContext);
+        if (didRun)
+        {
+            return Ok();
+        }
+
+        return BadRequest();
     }
 }
