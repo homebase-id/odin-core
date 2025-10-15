@@ -187,5 +187,15 @@ namespace Odin.Core.Tests
             ClassicAssert.AreEqual(TimeSpan.FromMilliseconds(250), result);
         }
 
+        [Test]
+        public void BetweenIsBetween()
+        {
+            var start = UnixTimeUtc.Now().AddSeconds(-100);
+            var end = UnixTimeUtc.Now().AddDays(20);
+            var now = UnixTimeUtc.Now();
+            Assert.That(now.IsBetween(start, end), Is.True);
+        }
+
+
     }
 }
