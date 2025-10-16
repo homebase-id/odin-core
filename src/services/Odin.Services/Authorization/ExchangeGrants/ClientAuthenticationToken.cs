@@ -8,11 +8,6 @@ namespace Odin.Services.Authorization.ExchangeGrants
     /// </summary>
     public class ClientAuthenticationToken
     {
-        public ClientAuthenticationToken()
-        {
-            ClientTokenType = ClientTokenType.Other;
-        }
-
         /// <summary>
         /// The login session's Id
         /// </summary>
@@ -23,7 +18,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// </summary>
         public SensitiveByteArray AccessTokenHalfKey { get; set; }
 
-        public ClientTokenType ClientTokenType { get; set; }
+        public ClientTokenType ClientTokenType { get; set; } = ClientTokenType.Other;
 
         public override string ToString()
         {

@@ -67,6 +67,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Services.Authorization;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Security;
 using Odin.Services.Security.Email;
@@ -100,6 +101,8 @@ public static class TenantServices
         cb.RegisterInstance(new OdinIdentity(registration.Id, registration.PrimaryDomainName)).SingleInstance();
 
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
+
+        cb.RegisterType<ClientRegistrationStorage>().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
@@ -178,9 +181,7 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
             .As<INotificationHandler<ConnectionDeletedNotification>>()
             .InstancePerLifetimeScope();
-
-        cb.RegisterType<HomeRegistrationStorage>().InstancePerLifetimeScope();
-
+        
         cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().InstancePerLifetimeScope();
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();

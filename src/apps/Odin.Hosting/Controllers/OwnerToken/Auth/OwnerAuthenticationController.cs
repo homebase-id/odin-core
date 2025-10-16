@@ -68,13 +68,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             return new JsonResult(true);
         }
 
-        [HttpPost("extend")]
-        public async Task<NoResultResponse> Extend(Guid token)
-        {
-            await authService.ExtendTokenLifeAsync(token, 100);
-            return new NoResultResponse(true);
-        }
-
         [HttpPost("expire")]
         public async Task<NoResultResponse> Expire(Guid token)
         {

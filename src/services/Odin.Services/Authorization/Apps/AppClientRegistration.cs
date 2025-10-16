@@ -4,9 +4,9 @@ using Odin.Services.Authorization.ExchangeGrants;
 namespace Odin.Services.Authorization.Apps;
 
 
-public sealed class AppCredential
+public sealed class AppClientRegistration
 {
-    public AppCredential(GuidId appId, string friendlyName, AccessRegistration accessRegistration)
+    public AppClientRegistration(GuidId appId, string friendlyName, AccessRegistration accessRegistration)
     {
         GuidId.AssertIsValid(appId);
 
