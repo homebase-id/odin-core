@@ -253,7 +253,7 @@ namespace Odin.Services.Authorization.Apps
             var (accessRegistration, cat) =
                 await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
-            var appClient = new AppClient(appId, friendlyName, accessRegistration);
+            var appClient = new AppCredential(appId, friendlyName, accessRegistration);
             await SaveClientAsync(appClient);
             return (cat, appReg.CorsHostName);
         }
@@ -322,7 +322,7 @@ namespace Odin.Services.Authorization.Apps
         public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
             ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
-            var appClient = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, authToken.Id);
+            var appClient = await AppClientValueStorage.GetAsync<AppCredential>(_tblKeyThreeValue, authToken.Id);
             if (null == appClient)
             {
                 _logger.LogDebug("null app client");
@@ -384,7 +384,7 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext)
         {
-            var list = await AppClientValueStorage.GetByCategoryAsync<AppClient>(_tblKeyThreeValue, AppClientDataType);
+            var list = await AppClientValueStorage.GetByCategoryAsync<AppCredential>(_tblKeyThreeValue, AppClientDataType);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
@@ -401,7 +401,7 @@ namespace Odin.Services.Authorization.Apps
         public async Task RevokeClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await AppClientValueStorage.GetAsync<AppCredential>(_tblKeyThreeValue, accessRegistrationId);
 
             if (null == client)
             {
@@ -428,7 +428,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinSecurityException("Invalid call to Delete app client");
             }
 
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await AppClientValueStorage.GetAsync<AppCredential>(_tblKeyThreeValue, accessRegistrationId);
 
             if (null == client)
             {
@@ -442,7 +442,7 @@ namespace Odin.Services.Authorization.Apps
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await AppClientValueStorage.GetAsync<AppCredential>(_tblKeyThreeValue, accessRegistrationId);
 
             if (null == client)
             {
@@ -456,7 +456,7 @@ namespace Odin.Services.Authorization.Apps
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await AppClientValueStorage.GetAsync<AppCredential>(_tblKeyThreeValue, accessRegistrationId);
 
             if (null == client)
             {
@@ -524,10 +524,10 @@ namespace Odin.Services.Authorization.Apps
             return redactedList;
         }
 
-        private async Task SaveClientAsync(AppClient appClient)
+        private async Task SaveClientAsync(AppCredential appCredential)
         {
-            await AppClientValueStorage.UpsertAsync(_tblKeyThreeValue, appClient.AccessRegistration.Id, appClient.AppId, AppClientDataType,
-                appClient);
+            await AppClientValueStorage.UpsertAsync(_tblKeyThreeValue, appCredential.AccessRegistration.Id, appCredential.AppId, AppClientDataType,
+                appCredential);
         }
 
         private async Task<AppRegistration?> GetAppRegistrationInternalAsync(GuidId appId)

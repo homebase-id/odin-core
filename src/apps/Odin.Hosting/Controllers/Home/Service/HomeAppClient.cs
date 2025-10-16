@@ -1,5 +1,4 @@
 #nullable enable
-using System;
 using Odin.Core.Identity;
 using Odin.Services.Authorization.ExchangeGrants;
 
@@ -25,10 +24,4 @@ public sealed class HomeAppClient
     
     public HomeAppClientType ClientType { get; init; }
 
-}
-
-public enum HomeAppClientType
-{
-    ConnectedIdentity = 1,
-    UnconnectedIdentity = 5
 }

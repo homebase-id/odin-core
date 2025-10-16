@@ -8,7 +8,6 @@ namespace Odin.Services.Membership.Connections;
 /// </summary>
 public sealed class PeerIcrClient
 {
-    public PeerIcrClient() { }
     public OdinId Identity { get; init; }
 
     public AccessRegistration AccessRegistration { get; init; }
