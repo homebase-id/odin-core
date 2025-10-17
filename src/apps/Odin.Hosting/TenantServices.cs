@@ -67,6 +67,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.PubSub;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Security;
 using Odin.Services.Security.Email;
@@ -342,6 +343,9 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
+
+        // Tenant PubSub services
+        cb.AddTenantPubSub(odinConfig.Redis.Enabled, registration.Id.ToString());
 
         // Payload storage
         if (odinConfig.S3PayloadStorage.Enabled)
