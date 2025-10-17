@@ -21,6 +21,7 @@ using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Core.Storage.PubSub;
 using Odin.Core.Tasks;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Authentication.Peer;
@@ -267,6 +268,9 @@ public static class SystemServices
 
         // Global cache services
         builder.AddSystemCaches();
+
+        // Global PubSub services
+        builder.AddSystemPubSub(config.Redis.Enabled);
 
         return builder;
     }
