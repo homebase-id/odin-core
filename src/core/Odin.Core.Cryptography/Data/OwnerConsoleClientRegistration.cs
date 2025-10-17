@@ -18,6 +18,8 @@ namespace Odin.Core.Cryptography.Data
         public int Type { get; set; }
 
         public long TimeToLiveSeconds { get; set; }
+        
+        public Guid CategoryId { get; set; }
 
         public string GetValue()
         {

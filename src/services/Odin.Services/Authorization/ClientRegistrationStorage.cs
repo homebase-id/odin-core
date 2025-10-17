@@ -1,5 +1,7 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Serialization;
@@ -13,12 +15,12 @@ namespace Odin.Services.Authorization;
 /// <summary>
 /// Stores the server-side aspect of a <see cref="ClientAccessToken"/>
 /// </summary>
-public class ClientRegistrationStorage(TableClientRegistrationsCached clientRegistrationsTable)
+public class ClientRegistrationStorage(TableClientRegistrations clientRegistrationsTable)
 {
     public async Task SaveAsync(IClientRegistration clientRegistration)
     {
         OdinValidationUtils.AssertNotEmptyGuid(clientRegistration.Id, "Client registration must have an id");
-        
+
         var record = new ClientRegistrationsRecord
         {
             catId = clientRegistration.Id,
@@ -42,6 +44,14 @@ public class ClientRegistrationStorage(TableClientRegistrationsCached clientRegi
 
         return OdinSystemSerializer.Deserialize<T>(record.value);
     }
+
+    public async Task<List<T>> GetByTypeAndCategoryIdAsync<T>(int typeId, Guid categoryId) where T : class
+    {
+        var records = await clientRegistrationsTable.GetByTypeAndCategoryIdAsync(typeId, categoryId);
+        
+        return records.Select(record => OdinSystemSerializer.Deserialize<T>(record.value)).ToList();
+    }
+
 
     public async Task DeleteAsync(Guid tokenId)
     {

@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using System.Net;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;

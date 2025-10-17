@@ -1,7 +1,5 @@
 #nullable enable
 using System;
-using System.Runtime.CompilerServices;
-using Amazon.S3.Model.Internal.MarshallTransformations;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -39,6 +37,12 @@ public sealed class HomeAppClientRegistration(OdinId odinId, AccessRegistration 
     public long TimeToLiveSeconds
     {
         get => 60 * 60 * 3; // 3 hours
+        set { }
+    }
+
+    public Guid CategoryId
+    {
+        get => Guid.Empty;
         set { }
     }
 

@@ -11,7 +11,7 @@ public class TableClientRegistrations(
     OdinIdentity odinIdentity)
     : TableClientRegistrationsCRUD(scopedConnectionFactory)
 {
-    internal async Task<ClientRegistrationsRecord> GetAsync(Guid catId)
+    public async Task<ClientRegistrationsRecord> GetAsync(Guid catId)
     {
         return await base.GetAsync(odinIdentity, catId);
     }
@@ -22,20 +22,24 @@ public class TableClientRegistrations(
         return await base.InsertAsync(item);
     }
 
-    internal new async Task<int> UpsertAsync(ClientRegistrationsRecord item)
+    public new async Task<int> UpsertAsync(ClientRegistrationsRecord item)
     {
         item.identityId = odinIdentity;
         return await base.UpsertAsync(item);
     }
     
-    internal async Task<int> DeleteAsync(Guid catId)
+    public async Task<int> DeleteAsync(Guid catId)
     {
         return await base.DeleteAsync(odinIdentity, catId);
     }
 
-    internal async Task<List<ClientRegistrationsRecord>> GetCatsByTypeAsync(int catType)
+    public async Task<List<ClientRegistrationsRecord>> GetCatsByTypeAsync(int catType)
     {
-        return await base.GetCatsByTypeAsync(odinIdentity, catType);
+        return await base.GetByTypeAsync(odinIdentity, catType);
     }
-    
+    public async Task<List<ClientRegistrationsRecord>> GetByTypeAndCategoryIdAsync(int catType, Guid categoryId)
+    {
+        return await base.GetByTypeAndCategoryIdAsync(odinIdentity, catType, categoryId);
+    }
+
 }

@@ -27,7 +27,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Guid identityId { get; set; }
         public Guid catId { get; set; }
         public OdinId issuedToId { get; set; }
+        public UnixTimeUtc ttl { get; set; }
         public UnixTimeUtc expiresAt { get; set; }
+        public Guid categoryId { get; set; }
         public Int32 catType { get; set; }
         public string value { get; set; }
         public UnixTimeUtc created { get; set; }
@@ -36,6 +38,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             catId.AssertGuidNotEmpty("Guid parameter catId cannot be set to Empty GUID.");
+            categoryId.AssertGuidNotEmpty("Guid parameter categoryId cannot be set to Empty GUID.");
             if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
             if (value?.Length > 131070) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 131070)");
         }
@@ -73,7 +76,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"identityId BYTEA NOT NULL, "
                    +"catId BYTEA NOT NULL UNIQUE, "
                    +"issuedToId TEXT NOT NULL, "
+                   +"ttl BIGINT NOT NULL, "
                    +"expiresAt BIGINT NOT NULL, "
+                   +"categoryId BYTEA NOT NULL UNIQUE, "
                    +"catType BIGINT NOT NULL, "
                    +"value TEXT , "
                    +"created BIGINT NOT NULL, "
@@ -91,13 +96,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO ClientRegistrations (identityId,catId,issuedToId,expiresAt,catType,value,created,modified) " +
-                                           $"VALUES (@identityId,@catId,@issuedToId,@expiresAt,@catType,@value,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO ClientRegistrations (identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified) " +
+                                           $"VALUES (@identityId,@catId,@issuedToId,@ttl,@expiresAt,@categoryId,@catType,@value,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@catId", DbType.Binary, item.catId);
                 insertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                insertCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 insertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
+                insertCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
                 insertCommand.AddParameter("@catType", DbType.Int32, item.catType);
                 insertCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -121,14 +128,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO ClientRegistrations (identityId,catId,issuedToId,expiresAt,catType,value,created,modified) " +
-                                            $"VALUES (@identityId,@catId,@issuedToId,@expiresAt,@catType,@value,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO ClientRegistrations (identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified) " +
+                                            $"VALUES (@identityId,@catId,@issuedToId,@ttl,@expiresAt,@categoryId,@catType,@value,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@catId", DbType.Binary, item.catId);
                 insertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                insertCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 insertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
+                insertCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
                 insertCommand.AddParameter("@catType", DbType.Int32, item.catType);
                 insertCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -152,15 +161,17 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO ClientRegistrations (identityId,catId,issuedToId,expiresAt,catType,value,created,modified) " +
-                                            $"VALUES (@identityId,@catId,@issuedToId,@expiresAt,@catType,@value,{sqlNowStr},{sqlNowStr})"+
+                upsertCommand.CommandText = "INSERT INTO ClientRegistrations (identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified) " +
+                                            $"VALUES (@identityId,@catId,@issuedToId,@ttl,@expiresAt,@categoryId,@catType,@value,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,catId) DO UPDATE "+
-                                            $"SET issuedToId = @issuedToId,expiresAt = @expiresAt,catType = @catType,value = @value,modified = {upsertCommand.SqlMax()}(ClientRegistrations.modified+1,{sqlNowStr}) "+
+                                            $"SET issuedToId = @issuedToId,ttl = @ttl,expiresAt = @expiresAt,categoryId = @categoryId,catType = @catType,value = @value,modified = {upsertCommand.SqlMax()}(ClientRegistrations.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@catId", DbType.Binary, item.catId);
                 upsertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                upsertCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 upsertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
+                upsertCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
                 upsertCommand.AddParameter("@catType", DbType.Int32, item.catType);
                 upsertCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -185,13 +196,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE ClientRegistrations " +
-                                            $"SET issuedToId = @issuedToId,expiresAt = @expiresAt,catType = @catType,value = @value,modified = {updateCommand.SqlMax()}(ClientRegistrations.modified+1,{sqlNowStr}) "+
+                                            $"SET issuedToId = @issuedToId,ttl = @ttl,expiresAt = @expiresAt,categoryId = @categoryId,catType = @catType,value = @value,modified = {updateCommand.SqlMax()}(ClientRegistrations.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND catId = @catId) "+
                                             "RETURNING created,modified,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 updateCommand.AddParameter("@catId", DbType.Binary, item.catId);
                 updateCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                updateCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 updateCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
+                updateCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
                 updateCommand.AddParameter("@catType", DbType.Int32, item.catType);
                 updateCommand.AddParameter("@value", DbType.String, item.value);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
@@ -230,7 +243,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("identityId");
             sl.Add("catId");
             sl.Add("issuedToId");
+            sl.Add("ttl");
             sl.Add("expiresAt");
+            sl.Add("categoryId");
             sl.Add("catType");
             sl.Add("value");
             sl.Add("created");
@@ -238,7 +253,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return sl;
         }
 
-        // SELECT rowId,identityId,catId,issuedToId,expiresAt,catType,value,created,modified
+        // SELECT rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified
         protected ClientRegistrationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ClientRegistrationsRecord>();
@@ -251,11 +266,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.catId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
             item.issuedToId = (rdr[3] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[3]);
-            item.expiresAt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
-            item.catType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
-            item.value = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
-            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.ttl = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.expiresAt = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
+            item.categoryId = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[6]);
+            item.catType = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[7];
+            item.value = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
+            item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
+            item.modified = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
             return item;
        }
 
@@ -281,7 +298,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 deleteCommand.CommandText = "DELETE FROM ClientRegistrations " +
                                              "WHERE identityId = @identityId AND catId = @catId " + 
-                                             "RETURNING rowId,issuedToId,expiresAt,catType,value,created,modified";
+                                             "RETURNING rowId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified";
 
                 deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 deleteCommand.AddParameter("@catId", DbType.Binary, catId);
@@ -311,11 +328,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.catId = catId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.issuedToId = (rdr[1] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
-            item.expiresAt = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
-            item.catType = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[3];
-            item.value = (rdr[4] == DBNull.Value) ? null : (string)rdr[4];
-            item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.ttl = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
+            item.expiresAt = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.categoryId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
+            item.catType = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
+            item.value = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -324,7 +343,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,issuedToId,expiresAt,catType,value,created,modified FROM ClientRegistrations " +
+                get0Command.CommandText = "SELECT rowId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified FROM ClientRegistrations " +
                                              "WHERE identityId = @identityId AND catId = @catId LIMIT 1 "+
                                              ";";
 
@@ -356,11 +375,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.catId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.issuedToId = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
-            item.expiresAt = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.catType = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[4];
-            item.value = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
-            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
-            item.modified = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.ttl = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.expiresAt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.categoryId = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[5]);
+            item.catType = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[6];
+            item.value = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             return item;
        }
 
@@ -369,7 +390,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,catId,issuedToId,expiresAt,catType,value,created,modified FROM ClientRegistrations " +
+                get1Command.CommandText = "SELECT rowId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified FROM ClientRegistrations " +
                                              "WHERE identityId = @identityId "+
                                              ";";
 
@@ -407,19 +428,21 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.catId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.issuedToId = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
-            item.expiresAt = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
-            item.value = (rdr[4] == DBNull.Value) ? null : (string)rdr[4];
-            item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.ttl = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.expiresAt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.categoryId = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[5]);
+            item.value = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
+            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
-        protected virtual async Task<List<ClientRegistrationsRecord>> GetCatsByTypeAsync(Guid identityId,Int32 catType)
+        protected virtual async Task<List<ClientRegistrationsRecord>> GetByTypeAsync(Guid identityId,Int32 catType)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT rowId,catId,issuedToId,expiresAt,value,created,modified FROM ClientRegistrations " +
+                get2Command.CommandText = "SELECT rowId,catId,issuedToId,ttl,expiresAt,categoryId,value,created,modified FROM ClientRegistrations " +
                                              "WHERE identityId = @identityId AND catType = @catType "+
                                              ";";
 
@@ -445,6 +468,60 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
+        protected ClientRegistrationsRecord ReadRecordFromReader3(DbDataReader rdr,Guid identityId,Int32 catType,Guid categoryId)
+        {
+            var result = new List<ClientRegistrationsRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new ClientRegistrationsRecord();
+            item.identityId = identityId;
+            item.catType = catType;
+            item.categoryId = categoryId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.catId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.issuedToId = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.ttl = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.expiresAt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
+            item.value = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            return item;
+       }
+
+        protected virtual async Task<List<ClientRegistrationsRecord>> GetByTypeAndCategoryIdAsync(Guid identityId,Int32 catType,Guid categoryId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get3Command = cn.CreateCommand();
+            {
+                get3Command.CommandText = "SELECT rowId,catId,issuedToId,ttl,expiresAt,value,created,modified FROM ClientRegistrations " +
+                                             "WHERE identityId = @identityId AND catType = @catType AND categoryId = @categoryId "+
+                                             ";";
+
+                get3Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get3Command.AddParameter("@catType", DbType.Int32, catType);
+                get3Command.AddParameter("@categoryId", DbType.Binary, categoryId);
+                {
+                    using (var rdr = await get3Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<ClientRegistrationsRecord>();
+                        }
+                        var result = new List<ClientRegistrationsRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader3(rdr,identityId,catType,categoryId));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
         protected virtual async Task<(List<ClientRegistrationsRecord>, Guid? nextCursor)> PagingByIdentityIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
@@ -457,7 +534,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging1Command = cn.CreateCommand();
             {
-                getPaging1Command.CommandText = "SELECT rowId,identityId,catId,issuedToId,expiresAt,catType,value,created,modified FROM ClientRegistrations " +
+                getPaging1Command.CommandText = "SELECT rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified FROM ClientRegistrations " +
                                             "WHERE (identityId = @identityId) AND identityId > @identityId  ORDER BY identityId ASC  LIMIT @count;";
 
                 getPaging1Command.AddParameter("@identityId", DbType.Binary, inCursor?.ToByteArray());
@@ -501,7 +578,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,catId,issuedToId,expiresAt,catType,value,created,modified FROM ClientRegistrations " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified FROM ClientRegistrations " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);

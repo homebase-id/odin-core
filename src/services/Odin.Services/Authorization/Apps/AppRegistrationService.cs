@@ -45,6 +45,7 @@ namespace Odin.Services.Authorization.Apps
         private readonly IcrKeyService _icrKeyService;
         private readonly ILogger<AppRegistrationService> _logger;
         private readonly TableKeyThreeValueCached _tblKeyThreeValue;
+        private readonly ClientRegistrationStorage _clientRegistrationStorage;
 
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
@@ -59,6 +60,7 @@ namespace Odin.Services.Authorization.Apps
             IcrKeyService icrKeyService,
             ILogger<AppRegistrationService> logger,
             TableKeyThreeValueCached tblKeyThreeValue,
+            ClientRegistrationStorage clientRegistrationStorage,
             OdinContextCache cache)
         {
             _exchangeGrantService = exchangeGrantService;
@@ -67,6 +69,7 @@ namespace Odin.Services.Authorization.Apps
             _icrKeyService = icrKeyService;
             _logger = logger;
             _tblKeyThreeValue = tblKeyThreeValue;
+            _clientRegistrationStorage = clientRegistrationStorage;
             _cache = cache;
         }
 
@@ -384,7 +387,9 @@ namespace Odin.Services.Authorization.Apps
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext)
         {
-            var list = await AppClientValueStorage.GetByCategoryAsync<AppClientRegistration>(_tblKeyThreeValue, AppClientDataType);
+            // var list = await AppClientValueStorage.GetByCategoryAsync<AppClientRegistration>(_tblKeyThreeValue, AppClientDataType);
+            var list = await _clientRegistrationStorage.GetByTypeAndCategoryIdAsync<AppClientRegistration>(AppClientRegistration.CatType, 
+                appId);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
@@ -526,7 +531,8 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task SaveClientAsync(AppClientRegistration appClientRegistration)
         {
-            await AppClientValueStorage.UpsertAsync(_tblKeyThreeValue, appClientRegistration.AccessRegistration.Id, appClientRegistration.AppId, AppClientDataType,
+            await AppClientValueStorage.UpsertAsync(_tblKeyThreeValue, appClientRegistration.AccessRegistration.Id,
+                appClientRegistration.AppId, AppClientDataType,
                 appClientRegistration);
         }
 
