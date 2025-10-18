@@ -21,6 +21,7 @@ public partial class IdentityMigrator
                 new TableDriveLocalTagIndexMigrationList(),
                 new TableDriveReactionsMigrationList(),
                 new TableAppNotificationsMigrationList(),
+                new TableClientRegistrationsMigrationList(),
                 new TableCircleMigrationList(),
                 new TableCircleMemberMigrationList(),
                 new TableConnectionsMigrationList(),

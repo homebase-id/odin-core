@@ -20,9 +20,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         [Post(RootPath)]
         Task<ApiResponse<OwnerAuthenticationResult>> Authenticate([Body] PasswordReply package);
 
-        [Post(RootPath + "/extend")]
-        Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);
-
         [Post(RootPath + "/expire")]
         Task<ApiResponse<NoResultResponse>> Expire(Guid token);
 

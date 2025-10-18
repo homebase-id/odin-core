@@ -18,6 +18,7 @@ public partial class IdentityDatabase
             typeof(TableDriveLocalTagIndex),
             typeof(TableDriveReactions),
             typeof(TableAppNotifications),
+            typeof(TableClientRegistrations),
             typeof(TableCircle),
             typeof(TableCircleMember),
             typeof(TableConnections),
@@ -56,6 +57,9 @@ public partial class IdentityDatabase
 
     private Lazy<TableAppNotifications> _appNotifications;
     public TableAppNotifications AppNotifications => LazyResolve(ref _appNotifications);
+
+    private Lazy<TableClientRegistrations> _clientRegistrations;
+    public TableClientRegistrations ClientRegistrations => LazyResolve(ref _clientRegistrations);
 
     private Lazy<TableCircle> _circle;
     public TableCircle Circle => LazyResolve(ref _circle);

@@ -1,15 +1,35 @@
 ﻿using System;
+using Odin.Core.Serialization;
 
 namespace Odin.Core.Cryptography.Data
 {
-    public class OwnerConsoleToken : IDisposable
+    public class OwnerConsoleClientRegistration : IClientRegistration, IDisposable
     {
-        ~OwnerConsoleToken()
+        private Guid _id;
+
+        ~OwnerConsoleClientRegistration()
         {
             this.Dispose();
         }
 
-        public Guid Id { get; set; }
+        public Guid Id
+        {
+            get => _id;
+            set => _id = value;
+        }
+
+        public string IssuedTo { get; set; }
+
+        public int Type { get; set; }
+
+        public long TimeToLiveSeconds { get; set; }
+        
+        public Guid CategoryId { get; set; }
+
+        public string GetValue()
+        {
+            return OdinSystemSerializer.Serialize(this);
+        }
 
         /// <summary>
         /// Point in time the token expires
