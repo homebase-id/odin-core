@@ -4,7 +4,6 @@ using MediatR;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
@@ -68,11 +67,10 @@ using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization;
+using Odin.Core.Storage.PubSub;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
-using Odin.Services.Security;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
-using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -343,6 +341,9 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
+
+        // Tenant PubSub services
+        cb.AddTenantPubSub(odinConfig.Redis.Enabled, registration.Id.ToString());
 
         // Payload storage
         if (odinConfig.S3PayloadStorage.Enabled)
