@@ -12,6 +12,7 @@ namespace Odin.Services.Authorization.Apps;
 public sealed class AppClientRegistration : IClientRegistration
 {
     public const int CatType = 200;
+
     public AppClientRegistration(GuidId appId, string friendlyName, AccessRegistration accessRegistration)
     {
         GuidId.AssertIsValid(appId);
@@ -25,31 +26,15 @@ public sealed class AppClientRegistration : IClientRegistration
     public AccessRegistration AccessRegistration { get; init; }
     public string FriendlyName { get; init; }
 
-    public Guid Id
-    {
-        get => this.AccessRegistration.Id;
-        set { }
-    }
+    public Guid Id => this.AccessRegistration.Id;
 
-    public OdinId IssuedTo { get; set; }
-    
-    public int Type
-    {
-        get => CatType;
-        set { }
-    }
+    public string IssuedTo { get; set; }
 
-    public long TimeToLiveSeconds
-    {
-        get => 60 * 60 * 3; // 3 hours
-        set { }
-    }
-    
-    public Guid CategoryId
-    {
-        get => this.AppId;
-        set { }
-    }
+    public int Type => CatType;
+
+    public long TimeToLiveSeconds => (long)TimeSpan.FromDays(365).TotalSeconds; // 3 hours
+
+    public Guid CategoryId => this.AppId;
 
     public string GetValue()
     {

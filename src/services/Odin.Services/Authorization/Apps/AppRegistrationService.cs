@@ -35,9 +35,8 @@ namespace Odin.Services.Authorization.Apps
         private static readonly ThreeKeyValueStorage AppRegistrationValueStorage =
             TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(AppRegContextKey));
 
-        private static readonly Guid AppClientDataTypeId = Guid.Parse("54e60e2f-4687-449c-83ad-6ae6ff4ba1cf");
-        private static readonly byte[] AppClientDataType = AppClientDataTypeId.ToByteArray();
-
+        // private static readonly Guid AppClientDataTypeId = Guid.Parse("54e60e2f-4687-449c-83ad-6ae6ff4ba1cf");
+        // private static readonly byte[] AppClientDataType = AppClientDataTypeId.ToByteArray();
         // private static readonly ThreeKeyValueStorage AppClientValueStorage =
         // TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(AppClientContextKey));
 

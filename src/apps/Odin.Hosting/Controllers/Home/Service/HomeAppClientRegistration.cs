@@ -16,35 +16,11 @@ public sealed class HomeAppClientRegistration(OdinId odinId, AccessRegistration 
 
     public HomeAppClientType ClientType { get; init; } = clientType;
 
-    public Guid Id
-    {
-        get => AccessRegistration!.Id;
-        set { }
-    }
-
-    public OdinId IssuedTo
-    {
-        get => this.OdinId;
-        set { }
-    }
-
-    public int Type
-    {
-        get => 200;
-        set { }
-    }
-
-    public long TimeToLiveSeconds
-    {
-        get => 60 * 60 * 3; // 3 hours
-        set { }
-    }
-
-    public Guid CategoryId
-    {
-        get => Guid.Empty;
-        set { }
-    }
+    public Guid Id => AccessRegistration!.Id;
+    public string IssuedTo => this.OdinId;
+    public int Type => 200;
+    public long TimeToLiveSeconds => 60 * 60 * 3; // 3 hours
+    public Guid CategoryId => Guid.Empty;
 
     public string GetValue()
     {

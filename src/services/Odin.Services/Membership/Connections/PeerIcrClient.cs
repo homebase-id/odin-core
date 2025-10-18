@@ -15,29 +15,15 @@ public sealed class PeerIcrClient : IClientRegistration
 
     public AccessRegistration AccessRegistration { get; init; }
 
-    public Guid Id
-    {
-        get => AccessRegistration!.Id;
-        set { }
-    }
+    public Guid Id => AccessRegistration!.Id;
 
-    public OdinId IssuedTo
-    {
-        get => this.Identity;
-        set { }
-    }
+    public string IssuedTo => this.Identity;
 
-    public int Type
-    {
-        get => 300;
-        set { }
-    }
+    public int Type => 300;
 
-    public long TimeToLiveSeconds
-    {
-        get => 60 * 60 * 3; // 3 hours
-        set { }
-    }
+    public long TimeToLiveSeconds => (long)TimeSpan.FromDays(365).TotalSeconds;
+
+    public Guid CategoryId { get; set; }
 
     public string GetValue()
     {

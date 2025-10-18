@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Migrations;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -27,6 +28,7 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
             issuedToId = clientRegistration.IssuedTo,
             expiresAt = UnixTimeUtc.Now().AddSeconds(clientRegistration.TimeToLiveSeconds),
             catType = clientRegistration.Type,
+            categoryId = clientRegistration.CategoryId,
             value = clientRegistration.GetValue()
         };
 
@@ -48,8 +50,7 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
     public async Task<List<T>> GetByTypeAndCategoryIdAsync<T>(int typeId, Guid categoryId) where T : class
     {
         var records = await clientRegistrationsTable.GetByTypeAndCategoryIdAsync(typeId, categoryId);
-        
-        return records.Select(record => OdinSystemSerializer.Deserialize<T>(record.value)).ToList();
+        return records.Select(record => OdinSystemSerializer.DeserializeOrThrow<T>(record.value)).ToList();
     }
 
 

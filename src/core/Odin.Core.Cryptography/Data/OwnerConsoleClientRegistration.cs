@@ -1,19 +1,24 @@
 ﻿using System;
-using Odin.Core.Identity;
 using Odin.Core.Serialization;
 
 namespace Odin.Core.Cryptography.Data
 {
     public class OwnerConsoleClientRegistration : IClientRegistration, IDisposable
     {
+        private Guid _id;
+
         ~OwnerConsoleClientRegistration()
         {
             this.Dispose();
         }
 
-        public Guid Id { get; set; }
+        public Guid Id
+        {
+            get => _id;
+            set => _id = value;
+        }
 
-        public OdinId IssuedTo { get; set; }
+        public string IssuedTo { get; set; }
 
         public int Type { get; set; }
 

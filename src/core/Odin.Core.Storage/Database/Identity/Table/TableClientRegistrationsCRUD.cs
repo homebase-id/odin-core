@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Int64 rowId { get; set; }
         public Guid identityId { get; set; }
         public Guid catId { get; set; }
-        public OdinId issuedToId { get; set; }
+        public string issuedToId { get; set; }
         public UnixTimeUtc ttl { get; set; }
         public UnixTimeUtc expiresAt { get; set; }
         public Guid categoryId { get; set; }
@@ -38,6 +38,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             catId.AssertGuidNotEmpty("Guid parameter catId cannot be set to Empty GUID.");
+            if (issuedToId == null) throw new OdinDatabaseValidationException("Cannot be null issuedToId");
+            if (issuedToId?.Length < 0) throw new OdinDatabaseValidationException($"Too short issuedToId, was {issuedToId.Length} (min 0)");
+            if (issuedToId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long issuedToId, was {issuedToId.Length} (max 65535)");
             categoryId.AssertGuidNotEmpty("Guid parameter categoryId cannot be set to Empty GUID.");
             if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
             if (value?.Length > 131070) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 131070)");
@@ -101,7 +104,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@catId", DbType.Binary, item.catId);
-                insertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                insertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId);
                 insertCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 insertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
                 insertCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
@@ -134,7 +137,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@catId", DbType.Binary, item.catId);
-                insertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                insertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId);
                 insertCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 insertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
                 insertCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
@@ -168,7 +171,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "RETURNING created,modified,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@catId", DbType.Binary, item.catId);
-                upsertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                upsertCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId);
                 upsertCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 upsertCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
                 upsertCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
@@ -201,7 +204,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                                             "RETURNING created,modified,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 updateCommand.AddParameter("@catId", DbType.Binary, item.catId);
-                updateCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId.DomainName);
+                updateCommand.AddParameter("@issuedToId", DbType.String, item.issuedToId);
                 updateCommand.AddParameter("@ttl", DbType.Int64, item.ttl.milliseconds);
                 updateCommand.AddParameter("@expiresAt", DbType.Int64, item.expiresAt.milliseconds);
                 updateCommand.AddParameter("@categoryId", DbType.Binary, item.categoryId);
@@ -265,7 +268,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.identityId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
             item.catId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[2]);
-            item.issuedToId = (rdr[3] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[3]);
+            item.issuedToId = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[3];
             item.ttl = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.expiresAt = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
             item.categoryId = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[6]);
@@ -327,7 +330,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.catId = catId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
-            item.issuedToId = (rdr[1] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
+            item.issuedToId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[1];
             item.ttl = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             item.expiresAt = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.categoryId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
@@ -374,7 +377,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.identityId = identityId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.catId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.issuedToId = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.issuedToId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.ttl = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.expiresAt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.categoryId = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[5]);
@@ -427,7 +430,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.catType = catType;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.catId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.issuedToId = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.issuedToId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.ttl = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.expiresAt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.categoryId = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[5]);
@@ -481,7 +484,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.categoryId = categoryId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.catId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
-            item.issuedToId = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
+            item.issuedToId = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[2];
             item.ttl = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
             item.expiresAt = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             item.value = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
