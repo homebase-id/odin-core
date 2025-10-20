@@ -38,23 +38,26 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
-    public async Task SubscribeAsync<T>(string channel, Func<T, Task> handler)
+    public async Task SubscribeAsync<T>(string channel, MessageFromSelf messageFromSelf, Func<T, Task> handler)
     {
         await _subscriber.SubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), (ch, message) =>
         {
             var json = message.ToString();
-            if (!string.IsNullOrEmpty(json))
+            if (string.IsNullOrEmpty(json))
             {
-                var envelope = OdinSystemSerializer.DeserializeOrThrow<Envelope<T>>(json);
-
-                if (envelope.SenderId == _senderId)
-                {
-                    return; // Ignore own messages
-                }
-
-                // Fire-and-forget
-                _ = SafeInvokeAsync(handler, envelope.Payload, channel);
+                return;
             }
+
+            var envelope = OdinSystemSerializer.DeserializeOrThrow<Envelope<T>>(json);
+
+            if (envelope.SenderId == _senderId && messageFromSelf == MessageFromSelf.Ignore)
+            {
+                // Ignore own messages
+                return;
+            }
+
+            // Fire-and-forget
+            _ = SafeInvokeAsync(handler, envelope.Payload, channel);
         });
     }
 
