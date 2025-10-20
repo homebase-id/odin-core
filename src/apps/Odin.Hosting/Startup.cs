@@ -29,6 +29,7 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
 using Odin.Core.Storage.Database.System;
+using StackExchange.Redis;
 
 namespace Odin.Hosting;
 
@@ -368,6 +369,16 @@ public static class HostExtensions
         {
             var root = services.GetRequiredService<IMultiTenantContainer>();
             new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
+        }
+
+        // Ensure Redis is reachable
+        logger.LogInformation("Redis enabled: {enabled}", config.Redis.Enabled);
+        if (config.Redis.Enabled)
+        {
+            var multiplexer = services.GetRequiredService<IConnectionMultiplexer>();
+            var subscriber = multiplexer.GetSubscriber();
+            var responseTime = subscriber.PingAsync().Result;
+            logger.LogInformation("Redis is up, ping: {ms}ms", responseTime.TotalMilliseconds);
         }
 
         // Sanity ping cache
