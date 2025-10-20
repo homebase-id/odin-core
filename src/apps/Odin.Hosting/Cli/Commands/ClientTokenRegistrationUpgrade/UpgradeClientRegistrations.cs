@@ -1,18 +1,15 @@
 using System;
 using System.Threading.Tasks;
 using Autofac;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
 using Odin.Services.Authorization;
-using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
 
-namespace Odin.Hosting.Cli.Commands.KittyUpgrade;
+namespace Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
 
 public static class UpgradeClientRegistrations
 {

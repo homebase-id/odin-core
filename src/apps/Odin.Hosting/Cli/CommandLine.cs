@@ -11,7 +11,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Hosting.Cli.Commands;
-using Odin.Hosting.Cli.Commands.KittyUpgrade;
+using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
