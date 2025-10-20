@@ -201,7 +201,7 @@ namespace Odin.Services.Authorization.Apps
             var (accessRegistration, cat) =
                 await exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
-            var appClient = new AppClientRegistration(appId, friendlyName, accessRegistration);
+            var appClient = new AppClientRegistration(odinContext.Tenant, appId, friendlyName, accessRegistration);
             await SaveClientAsync(appClient);
             return (cat, appReg.CorsHostName);
         }

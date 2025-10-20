@@ -81,7 +81,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"issuedToId TEXT NOT NULL, "
                    +"ttl BIGINT NOT NULL, "
                    +"expiresAt BIGINT NOT NULL, "
-                   +"categoryId BYTEA NOT NULL UNIQUE, "
+                   +"categoryId BYTEA NOT NULL, "
                    +"catType BIGINT NOT NULL, "
                    +"value TEXT , "
                    +"created BIGINT NOT NULL, "

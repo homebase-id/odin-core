@@ -95,11 +95,6 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                 {
                     await CreateTableWithCommentAsync(cn);
                     await CheckSqlTableVersion(cn, "ClientRegistrationsMigrationsV202510201056", MigrationVersion);
-                    if (await CopyDataAsync(cn) < 0)
-                        throw new MigrationException("Unable to copy the data");
-                    if (await VerifyRowCount(cn, "ClientRegistrations", "ClientRegistrationsMigrationsV202510201056") == false)
-                        throw new MigrationException("Mismatching row counts");
-                    await SqlHelper.RenameAsync(cn, "ClientRegistrations", $"ClientRegistrationsMigrationsV{PreviousVersion}");
                     await SqlHelper.RenameAsync(cn, "ClientRegistrationsMigrationsV202510201056", "ClientRegistrations");
                     await CheckSqlTableVersion(cn, "ClientRegistrations", MigrationVersion);
                     trn.Commit();

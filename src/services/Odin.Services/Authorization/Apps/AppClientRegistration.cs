@@ -13,13 +13,14 @@ public sealed class AppClientRegistration : IClientRegistration
 {
     public const int CatType = 200;
 
-    public AppClientRegistration(GuidId appId, string friendlyName, AccessRegistration accessRegistration)
+    public AppClientRegistration(OdinId ownerOdinId, GuidId appId, string friendlyName, AccessRegistration accessRegistration)
     {
         GuidId.AssertIsValid(appId);
 
         AppId = appId;
         FriendlyName = friendlyName;
         AccessRegistration = accessRegistration;
+        IssuedTo = ownerOdinId;
     }
 
     public GuidId AppId { get; init; }

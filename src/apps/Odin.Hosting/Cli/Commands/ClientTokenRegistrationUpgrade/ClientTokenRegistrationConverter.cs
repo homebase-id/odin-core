@@ -34,10 +34,10 @@ namespace Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade
             var oldClients = await AppClientValueStorage.GetByCategoryAsync<AppClient>(tblKeyThreeValue, AppClientDataType);
             foreach (var oldClient in oldClients)
             {
-                var newAppClient = new AppClientRegistration(oldClient.AppId, oldClient.FriendlyName, oldClient.AccessRegistration);
+                var newAppClient = new AppClientRegistration(odinId, oldClient.AppId, oldClient.FriendlyName, oldClient.AccessRegistration);
 
                 logger.LogDebug(
-                    "Creating new app client registration: [{identity}] for appId:{app} friendlyName:{name} accessRegId:{access}",
+                    "Creating new app client registration: [{identity}] for appId:'{app}' friendlyName:'{name}' accessRegId:'{access}'",
                     odinId,
                     newAppClient.AppId,
                     newAppClient.FriendlyName,
@@ -54,23 +54,25 @@ namespace Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade
             var allRecords = await tblKeyValue.GetAll();
             foreach (var record in allRecords)
             {
-                var oldOwnerConsoleToken = OdinSystemSerializer.Deserialize<OwnerConsoleToken>(record.data.ToStringFromUtf8Bytes());
-
-                if (oldOwnerConsoleToken != null)
+                var json = record.data.ToStringFromUtf8Bytes();
+                if (!json.Contains("tokenEncryptedKek"))
                 {
-                    logger.LogDebug("Creating new owner console token: [{identity}] for owner:{owner}", odinId, oldOwnerConsoleToken.Id);
-
-                    var newServerToken = new OwnerConsoleClientRegistration
-                    {
-                        Id = oldOwnerConsoleToken.Id,
-                        SharedSecret = oldOwnerConsoleToken.SharedSecret,
-                        ExpiryUnixTime = oldOwnerConsoleToken.ExpiryUnixTime,
-                        TokenEncryptedKek = oldOwnerConsoleToken.TokenEncryptedKek,
-                        IssuedTo = odinId,
-                    };
-
-                    await clientRegistrationStorage.SaveAsync(newServerToken);
+                    continue;
                 }
+
+                var oldOwnerConsoleToken = OdinSystemSerializer.DeserializeOrThrow<OwnerConsoleToken>(json);
+                logger.LogDebug("Creating new owner console token: [{identity}] for owner:{owner}", odinId, oldOwnerConsoleToken.Id);
+                
+                var newServerToken = new OwnerConsoleClientRegistration
+                {
+                    Id = oldOwnerConsoleToken.Id,
+                    SharedSecret = oldOwnerConsoleToken.SharedSecret,
+                    ExpiryUnixTime = oldOwnerConsoleToken.ExpiryUnixTime,
+                    TokenEncryptedKek = oldOwnerConsoleToken.TokenEncryptedKek,
+                    IssuedTo = odinId,
+                };
+                
+                await clientRegistrationStorage.SaveAsync(newServerToken);
             }
         }
     }
