@@ -22,25 +22,51 @@ namespace Odin.Hosting.SignalR;
 // AppNotificationHandler (common for owner and app):
 //
 // server → client:
-//
+//  Through MediatR notifications:
+//   - IClientNotification
+//   - IDriveNotification
+//   - InboxItemReceivedNotification
 //
 // client → server:
+//  Through websocket recv loop:
+//    - SocketCommandType.EstablishConnectionRequest:
+//      - does something with list of drives sent from client
+//      - sends back EstablishConnectionResponse
 //
-
+//    - SocketCommandType.ProcessTransitInstructions:
+//      - makes backend call ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext)
+//
+//    - SocketCommandType.ProcessInbox
+//      - makes backend call ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext)
+//
+//    - SocketCommandType.Ping
+//      - sends back Pong (keep alive?)
+//
+//
 //
 // PeerAppNotificationHandler (for guest / anonymous):
-// - note usage of odd SocketAuthenticationPackage
+//
+// - NOTE usage of odd SocketAuthenticationPackage
+//
+// server → client:
+//  Through MediatR notifications:
+//   - IClientNotification
+//   - IDriveNotification notification
+//
+// client → server:
+//  Through websocket recv loop:
+//    - SocketCommandType.EstablishConnectionRequest:
+//      - does something with list of drives sent from client
+//      - sends back EstablishConnectionResponse
+//
+//    - SocketCommandType.Ping
+//      - sends back Pong (keep alive?)
 //
 //
-
-
-
-
 
 //
 // Abstract
 //
-
 
 /// <summary>
 /// Strongly-typed SignalR hub for CLIENT → SERVER communication
