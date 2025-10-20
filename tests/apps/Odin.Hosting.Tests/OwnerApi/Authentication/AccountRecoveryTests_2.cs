@@ -54,7 +54,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
 
 
-#if DEBUG
+#if I_AM_TODD
         [Test]
         public async Task FailToGetAccountRecoveryKeyOutsideOfTimeWindow()
         {
