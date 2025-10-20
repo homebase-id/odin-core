@@ -74,10 +74,11 @@ public class RedisPubSubTests
         const string testChannel = "test-channel";
 
         var logger = new Mock<ILogger<RedisPubSub>>().Object;
-        var redis = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+        var redis1 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+        var redis2 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
 
-        var pubSub1 = new RedisPubSub(logger, redis, channelPrefix);
-        var pubSub2 = new RedisPubSub(logger, redis, channelPrefix);
+        var pubSub1 = new RedisPubSub(logger, redis1, channelPrefix);
+        var pubSub2 = new RedisPubSub(logger, redis2, channelPrefix);
 
         var pubSub1MessageReceived = "";
         var pubSub2MessageReceived = "";
@@ -113,10 +114,11 @@ public class RedisPubSubTests
         const string testChannel = "test-channel";
 
         var logger = new Mock<ILogger<RedisPubSub>>().Object;
-        var redis = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+        var redis1 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+        var redis2 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
 
-        var pubSub1 = new RedisPubSub(logger, redis, channelPrefix);
-        var pubSub2 = new RedisPubSub(logger, redis, channelPrefix);
+        var pubSub1 = new RedisPubSub(logger, redis1, channelPrefix);
+        var pubSub2 = new RedisPubSub(logger, redis2, channelPrefix);
 
         var pubSub1MessageReceived = "";
         var pubSub2MessageReceived = "";
@@ -142,6 +144,63 @@ public class RedisPubSubTests
         Assert.That(pubSub1MessageReceived, Is.EqualTo(""));
         Assert.That(pubSub2MessageReceived, Is.EqualTo("Hello"));
     }
+
+    //
+
+    [Test]
+    public async Task ItShouldUnsubscribe()
+    {
+        const string channelPrefix = "my-prefix";
+        const string testChannel = "test-channel";
+
+        var logger = new Mock<ILogger<RedisPubSub>>().Object;
+        var redis1 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+        var redis2 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+
+        var pubSub1 = new RedisPubSub(logger, redis1, channelPrefix);
+        var pubSub2 = new RedisPubSub(logger, redis2, channelPrefix);
+
+        var pubSub1MessageReceived = "";
+        var pubSub2MessageReceived = "";
+
+        await pubSub1.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        {
+            pubSub1MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await pubSub2.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        {
+            pubSub2MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await Task.Delay(500); // Give some time for subscriptions to be set up
+
+        await pubSub1.PublishAsync(testChannel, "Hello");
+
+        await Task.Delay(500); // Give some time for messages to be processed
+
+        Assert.That(pubSub1MessageReceived, Is.EqualTo("Hello"));
+        Assert.That(pubSub2MessageReceived, Is.EqualTo("Hello"));
+
+        pubSub1MessageReceived = "";
+        pubSub2MessageReceived = "";
+
+        await pubSub2.UnsubscribeAsync(testChannel);
+
+        await Task.Delay(500); // Give some time for subscriptions to be set up
+
+        await pubSub1.PublishAsync(testChannel, "Hello again");
+
+        await Task.Delay(500); // Give some time for messages to be processed
+
+        Assert.That(pubSub1MessageReceived, Is.EqualTo("Hello again"));
+        Assert.That(pubSub2MessageReceived, Is.EqualTo(""));
+
+        ;
+    }
+
 
     //
 
