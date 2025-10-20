@@ -205,7 +205,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
                         }
                     });
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException e) when (e.CancellationToken == _stoppingCts.Token)
             {
                 // ignore
             }
