@@ -178,8 +178,10 @@ namespace Odin.Services.AppNotifications.WebSocket
             var sockets = deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {
-                await SendMessageAsync(deviceSocket, json, cancellationToken, shouldEncrypt);
+                await Task.CompletedTask;
+                // await SendMessageAsync(deviceSocket, json, cancellationToken, shouldEncrypt);
             }
+
         }
 
         //
@@ -213,7 +215,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                         Data = OdinSystemSerializer.Serialize(o)
                     });
 
-                    await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true, groupId: notification.File.FileId);
+                    await Task.CompletedTask;
+                    // await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true, groupId: notification.File.FileId);
                 }
             }
         }
@@ -230,7 +233,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                     notification.FileSystemType
                 }));
 
-            await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
+            await Task.CompletedTask;
+            //await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
         }
 
         //
