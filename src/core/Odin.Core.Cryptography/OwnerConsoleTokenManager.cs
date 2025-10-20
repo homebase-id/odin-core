@@ -56,9 +56,6 @@ namespace Odin.Core.Cryptography
                 Id = SequentialGuid.CreateGuid(),
                 SharedSecret = Convert.FromBase64String(sharedsecret64),
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds,
-
-                TimeToLiveSeconds = ttlSeconds,
-                Type = 100,
                 IssuedTo = issuedTo
             };
 

@@ -68,6 +68,8 @@ using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization;
 using Odin.Core.Storage.PubSub;
+using Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade;
+using Odin.Hosting.Cli.Commands.KittyUpgrade;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
@@ -314,7 +316,8 @@ public static class TenantServices
         cb.RegisterType<V3ToV4VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V4ToV5VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V5ToV6VersionMigrationService>().InstancePerLifetimeScope();
-
+        cb.RegisterType<ClientTokenRegistrationConverter>().InstancePerLifetimeScope();
+        
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 

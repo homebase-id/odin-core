@@ -18,13 +18,13 @@ namespace Odin.Core.Cryptography.Data
             set => _id = value;
         }
 
-        public string IssuedTo { get; set; }
+        public string IssuedTo { get; init; }
 
-        public int Type { get; set; }
+        public int Type => 100;
 
-        public long TimeToLiveSeconds { get; set; }
-        
-        public Guid CategoryId { get; set; }
+        public long TimeToLiveSeconds => (long)TimeSpan.FromDays(180).TotalSeconds;
+
+        public Guid CategoryId => Guid.Parse("cc0b390d-ac32-450f-bbaa-0108debde248");
 
         public string GetValue()
         {
@@ -39,7 +39,6 @@ namespace Odin.Core.Cryptography.Data
         /// <summary>
         /// The Server's 1/2 of the KeK
         /// </summary>
-        // public byte[] HalfKey { get; set; }
         public SymmetricKeyEncryptedXor TokenEncryptedKek { get; set; }
 
         /// <summary>

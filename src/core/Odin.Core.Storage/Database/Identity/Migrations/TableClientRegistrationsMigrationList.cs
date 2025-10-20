@@ -9,6 +9,7 @@ public class TableClientRegistrationsMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableClientRegistrationsMigrationV0(-1),
+            new TableClientRegistrationsMigrationV202510201056(0),
             // AUTO-INSERT-MARKER
         };
     }

@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Tasks;
 using Odin.Hosting.Cli.Commands;
+using Odin.Hosting.Cli.Commands.KittyUpgrade;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
@@ -310,8 +311,19 @@ public class CommandLine
             LogTenantVersions.ExecuteAsync(_serviceProvider).BlockingWait();
             return (true, 0);
         }
-
-
+        
+        //
+        // Command line: Upgrades server side aspects of CAT registration
+        //
+        // examples:
+        //   dotnet run -- kitty-upgrades
+        //
+        if (args.Length > 0 && args[0] == "kitty-upgrades")
+        {
+            UpgradeClientRegistrations.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+        
         return (false, 0);
     }
 }
