@@ -12,7 +12,7 @@ public class NopPubSub : ISystemPubSub, ITenantPubSub
 
     //
 
-    public Task SubscribeAsync<T>(string channel, Func<T, Task> handler)
+    public Task SubscribeAsync<T>(string channel, MessageFromSelf messageFromSelf, Func<T, Task> handler)
     {
         return Task.CompletedTask;
     }
