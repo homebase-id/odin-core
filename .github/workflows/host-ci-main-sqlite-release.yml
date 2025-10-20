@@ -22,7 +22,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4.0.0
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: "9.0.x"
 
       - name: Restore dependencies
         run: dotnet restore ./odin-core.sln
@@ -34,10 +34,10 @@ jobs:
             echo "❌ Vulnerable packages detected! Failing the build."
             exit 1
           fi
-      
+
       - name: Build
         # below: %3B is ASCII for semicolon
-        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="CI_GITHUB%3BCI_LINUX%3BRUN_REDIS_TESTS%3BRUN_S3_TESTS" ./odin-core.sln
+        run: dotnet build --no-restore --configuration Release --warnaserror --property:DefineConstants="RELEASE%3BTRACE%3BCI_GITHUB%3BCI_LINUX%3BRUN_REDIS_TESTS%3BRUN_S3_TESTS" ./odin-core.sln
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal ./odin-core.sln
