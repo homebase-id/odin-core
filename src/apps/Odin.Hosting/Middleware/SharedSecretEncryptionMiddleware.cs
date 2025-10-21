@@ -67,6 +67,7 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.SecurityRecoveryV1}/update-recovery-email",
                 $"{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email",
                 $"{OwnerApiPathConstants.SecurityRecoveryV1}/recovery-info", // <wtf!?
+                $"{OwnerApiPathConstants.SecurityRecoveryV1}/needs-attention", // <wtf^2!?
                 
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",

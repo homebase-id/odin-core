@@ -53,21 +53,23 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         await securityHealthService.StartUpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
         return Ok();
     }
-    
+
     [HttpGet("needs-attention")]
-    public async Task<bool> RecoveryNeedsAttention()
+    public async Task<ActionResult<NeedsAttentionResponse>> RecoveryNeedsAttention()
     {
         var recoveryInfo = await securityHealthService.GetRecoveryInfo(live: false, WebOdinContext);
 
         if (recoveryInfo is null)
-            return true;
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
 
         if (!recoveryInfo.IsConfigured ||
             string.IsNullOrEmpty(recoveryInfo.Email) ||
             !recoveryInfo.EmailLastVerified.HasValue ||
             !recoveryInfo.RecoveryRisk.IsRecoverable)
-            return true;
-
+        {
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
+        }
+        
         var maxWait = TimeSpan.FromDays(30 * 6);
         var now = DateTime.UtcNow;
 
@@ -76,17 +78,18 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         if (IsStale(recoveryInfo.EmailLastVerified.Value.ToDateTime()) ||
             IsStale(recoveryInfo.Status.RecoveryKeyLastVerified.ToDateTime()) ||
             IsStale(recoveryInfo.Status.PasswordLastVerified.ToDateTime()))
-            return true;
-
-        return false;
+        {
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
+        }
+        
+        return Ok(new NeedsAttentionResponse() { NeedsAttention = false });
     }
-
 
     [HttpGet("verify-email")]
     public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string id)
     {
         await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(id), WebOdinContext);
-        
+
         const string redirect = "/owner/security/overview?fv=1";
         return Redirect(redirect);
     }
@@ -97,4 +100,9 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         var check = await securityHealthService.RunHealthCheck(WebOdinContext);
         return Ok(check);
     }
+}
+
+public class NeedsAttentionResponse
+{
+    public bool NeedsAttention { get; set; }
 }
