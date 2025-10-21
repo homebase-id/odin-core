@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "commandLineArgs": "kitty-upgrades"
+      "commandLineArgs": ""
     }
   }
 }

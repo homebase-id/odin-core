@@ -6,12 +6,23 @@ using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Services.Membership.YouAuth;
 
-public sealed class YouAuthDomainClient(AsciiDomainName domain, string friendlyName, AccessRegistration accessRegistration)
-    : IClientRegistration
+public sealed class YouAuthDomainClient : IClientRegistration
 {
-    public AsciiDomainName Domain { get; init; } = domain;
-    public AccessRegistration AccessRegistration { get; init; } = accessRegistration;
-    public string FriendlyName { get; init; } = friendlyName;
+    public YouAuthDomainClient()
+    {
+        // for json
+    }
+
+    public YouAuthDomainClient(AsciiDomainName domain, string friendlyName, AccessRegistration accessRegistration)
+    {
+        Domain = domain;
+        AccessRegistration = accessRegistration;
+        FriendlyName = friendlyName;
+    }
+
+    public AsciiDomainName Domain { get; init; }
+    public AccessRegistration AccessRegistration { get; init; }
+    public string FriendlyName { get; init; }
 
     public Guid Id => this.AccessRegistration.Id;
 

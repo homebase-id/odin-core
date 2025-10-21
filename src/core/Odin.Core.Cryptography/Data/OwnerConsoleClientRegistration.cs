@@ -5,6 +5,10 @@ namespace Odin.Core.Cryptography.Data
 {
     public class OwnerConsoleClientRegistration : IClientRegistration, IDisposable
     {
+        public OwnerConsoleClientRegistration()
+        {
+            // for json
+        }
         private Guid _id;
 
         ~OwnerConsoleClientRegistration()

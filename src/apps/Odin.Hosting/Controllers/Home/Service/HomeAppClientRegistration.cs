@@ -7,14 +7,25 @@ using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Hosting.Controllers.Home.Service;
 
-public sealed class HomeAppClientRegistration(OdinId odinId, AccessRegistration accessReg, HomeAppClientType clientType)
-    : IClientRegistration
+public sealed class HomeAppClientRegistration : IClientRegistration
 {
-    public OdinId OdinId { get; init; } = odinId;
+    public HomeAppClientRegistration()
+    {
+        //for json
+    }
 
-    public AccessRegistration? AccessRegistration { get; init; } = accessReg;
+    public HomeAppClientRegistration(OdinId odinId, AccessRegistration accessReg, HomeAppClientType clientType)
+    {
+        OdinId = odinId;
+        AccessRegistration = accessReg;
+        ClientType = clientType;
+    }
 
-    public HomeAppClientType ClientType { get; init; } = clientType;
+    public OdinId OdinId { get; init; }
+
+    public AccessRegistration? AccessRegistration { get; init; }
+
+    public HomeAppClientType ClientType { get; init; }
 
     public Guid Id => AccessRegistration!.Id;
     public string IssuedTo => this.OdinId;

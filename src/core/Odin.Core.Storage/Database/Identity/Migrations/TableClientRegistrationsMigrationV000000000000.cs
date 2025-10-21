@@ -44,6 +44,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"issuedToId TEXT NOT NULL, "
                    +"ttl BIGINT NOT NULL, "
                    +"expiresAt BIGINT NOT NULL, "
+                   +"categoryId BYTEA NOT NULL, "
                    +"catType BIGINT NOT NULL, "
                    +"value TEXT , "
                    +"created BIGINT NOT NULL, "
@@ -63,6 +64,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             sl.Add("issuedToId");
             sl.Add("ttl");
             sl.Add("expiresAt");
+            sl.Add("categoryId");
             sl.Add("catType");
             sl.Add("value");
             sl.Add("created");
@@ -76,8 +78,8 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await CheckSqlTableVersion(cn, "ClientRegistrations", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO ClientRegistrationsMigrationsV0 (rowId,identityId,catId,issuedToId,ttl,expiresAt,catType,value,created,modified) " +
-               $"SELECT rowId,identityId,catId,issuedToId,ttl,expiresAt,catType,value,created,modified "+
+                copyCommand.CommandText = "INSERT INTO ClientRegistrationsMigrationsV0 (rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified) " +
+               $"SELECT rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified "+
                $"FROM ClientRegistrations;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
