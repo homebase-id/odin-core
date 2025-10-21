@@ -24,8 +24,6 @@ public static class UpgradeClientRegistrations
         {
             var odinId = (OdinId)tenant.PrimaryDomainName;
             var scope = tenantContainer.GetTenantScope(odinId);
-            // var tenantConfig = scope.Resolve<TenantConfigService>();
-            // var versionInfo = await tenantConfig.GetVersionInfoAsync();
 
             var kittyConverter = new ClientTokenRegistrationConverter(
                 scope.Resolve<ILogger<ClientTokenRegistrationConverter>>(),
