@@ -63,6 +63,13 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
+    public async Task UnsubscribeAsync(string channel)
+    {
+        await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel));
+    }
+
+    //
+
     private async Task SafeInvokeAsync<T>(Func<T, Task> handler, T instance, string channel)
     {
         try

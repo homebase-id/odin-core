@@ -15,6 +15,7 @@ public interface IPubSub
 {
     Task PublishAsync<T>(string channel, T message);
     Task SubscribeAsync<T>(string channel, MessageFromSelf messageFromSelf, Func<T, Task> handler);
+    Task UnsubscribeAsync(string channel);
 }
 public interface ISystemPubSub : IPubSub;
 public interface ITenantPubSub : IPubSub;

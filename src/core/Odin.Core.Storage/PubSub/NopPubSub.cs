@@ -16,4 +16,11 @@ public class NopPubSub : ISystemPubSub, ITenantPubSub
     {
         return Task.CompletedTask;
     }
+
+    //
+
+    public Task UnsubscribeAsync(string channel)
+    {
+        return Task.CompletedTask;
+    }
 }
