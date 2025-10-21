@@ -53,6 +53,34 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         await securityHealthService.StartUpdateRecoveryEmail(request.Email, request.PasswordReply, WebOdinContext);
         return Ok();
     }
+    
+    [HttpGet("needs-attention")]
+    public async Task<bool> RecoveryNeedsAttention()
+    {
+        var recoveryInfo = await securityHealthService.GetRecoveryInfo(live: false, WebOdinContext);
+
+        if (recoveryInfo is null)
+            return true;
+
+        if (!recoveryInfo.IsConfigured ||
+            string.IsNullOrEmpty(recoveryInfo.Email) ||
+            !recoveryInfo.EmailLastVerified.HasValue ||
+            !recoveryInfo.RecoveryRisk.IsRecoverable)
+            return true;
+
+        var maxWait = TimeSpan.FromDays(30 * 6);
+        var now = DateTime.UtcNow;
+
+        bool IsStale(DateTime dt) => now - dt.ToUniversalTime() > maxWait;
+
+        if (IsStale(recoveryInfo.EmailLastVerified.Value.ToDateTime()) ||
+            IsStale(recoveryInfo.Status.RecoveryKeyLastVerified.ToDateTime()) ||
+            IsStale(recoveryInfo.Status.PasswordLastVerified.ToDateTime()))
+            return true;
+
+        return false;
+    }
+
 
     [HttpGet("verify-email")]
     public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string id)
