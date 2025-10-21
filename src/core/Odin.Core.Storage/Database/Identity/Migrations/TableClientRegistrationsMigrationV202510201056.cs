@@ -75,22 +75,12 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "ClientRegistrationsMigrationsV202510201056", MigrationVersion);
-            await CheckSqlTableVersion(cn, "ClientRegistrations", PreviousVersion);
-            await using var copyCommand = cn.CreateCommand();
-            {
-                copyCommand.CommandText =
-                    "INSERT INTO ClientRegistrationsMigrationsV202510201056 (rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified) " +
-                    $"SELECT rowId,identityId,catId,issuedToId,ttl,expiresAt,categoryId,catType,value,created,modified " +
-                    $"FROM ClientRegistrations;";
-                return await copyCommand.ExecuteNonQueryAsync();
-            }
+            throw new NotImplementedException();
         }
 
         // Will upgrade from the previous version to version 202510201056
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "ClientRegistrations", PreviousVersion);
             await using var trn = await cn.BeginStackedTransactionAsync();
             await CreateTableWithCommentAsync(cn);
             await SqlHelper.RenameAsync(cn, "ClientRegistrationsMigrationsV202510201056", "ClientRegistrations");

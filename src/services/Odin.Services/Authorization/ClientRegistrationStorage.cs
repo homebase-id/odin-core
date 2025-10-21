@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Database.Identity.Migrations;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -27,6 +26,7 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
             catId = clientRegistration.Id,
             issuedToId = clientRegistration.IssuedTo,
             expiresAt = UnixTimeUtc.Now().AddSeconds(clientRegistration.TimeToLiveSeconds),
+            ttl = clientRegistration.TimeToLiveSeconds,
             catType = clientRegistration.Type,
             categoryId = clientRegistration.CategoryId,
             value = clientRegistration.GetValue()
@@ -41,6 +41,12 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
 
         if (record == null)
         {
+            return null;
+        }
+        
+        if (record.expiresAt < UnixTimeUtc.Now())
+        {
+            await DeleteAsync(id);
             return null;
         }
 

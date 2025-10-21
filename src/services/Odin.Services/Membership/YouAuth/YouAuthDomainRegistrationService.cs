@@ -113,7 +113,7 @@ namespace Odin.Services.Membership.YouAuth
             var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var (accessRegistration, cat) = await exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.YouAuth);
 
-            var expiresAt = request?.ConsentRequirements?.Expiration.milliseconds ?? UnixTimeUtc.Now().AddDays(365);
+            var expiresAt = request?.ConsentRequirements?.Expiration.milliseconds ?? UnixTimeUtc.Now().AddDays(60);
             var youAuthDomainClient = new YouAuthDomainClient(domain, friendlyName, accessRegistration)
             {
                 TimeToLiveSeconds = Math.Max(0, (long)(expiresAt - UnixTimeUtc.Now()).TotalSeconds)
