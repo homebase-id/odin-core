@@ -8,6 +8,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// </summary>
     public abstract class DriveQueryControllerBase : OdinControllerBase
     {
+        protected async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request)
+        {
+            var driveId = request.QueryParams.TargetDrive.Alias;
+            var batch = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetModified(driveId, request.QueryParams, request.ResultOptions, WebOdinContext);
+            return batch;
+        }
+        
         protected async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
             var driveId = request.QueryParams.TargetDrive.Alias;

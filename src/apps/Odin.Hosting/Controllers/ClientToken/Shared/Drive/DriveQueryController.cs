@@ -15,6 +15,34 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [AuthorizeValidGuestOrAppToken]
     public class DriveQueryController : DriveQueryControllerBase
     {
+        /// <summary>
+        /// Returns modified files (their last modified property must be set).
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("modified")]
+        public new async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
+        {
+            
+            return await base.QueryModified(request);
+        }
+
+        /// <summary>
+        /// Returns modified files (their last modified property must be set).
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpGet("modified")]
+        public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
+        {
+            var queryModifiedRequest = request.ToQueryModifiedRequest();
+            
+            return await base.QueryModified(queryModifiedRequest);
+        }
+
+        
         [SwaggerOperation(Tags = [ControllerConstants.ClientTokenDrive])]
         [HttpPost("batch")]
         public new async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
