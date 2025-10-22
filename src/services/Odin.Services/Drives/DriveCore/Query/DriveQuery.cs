@@ -68,7 +68,7 @@ public class DriveQuery(
     }
 
 
-    public async Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetBatchCoreAsync(
+    public async Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetSmartBatchCoreAsync(
         StorageDrive drive,
         IOdinContext odinContext,
         FileSystemType fileSystemType,
@@ -81,35 +81,73 @@ public class DriveQuery(
 
         //if (options.Ordering == QueryBatchSortOrder.Default)
         //{
-            (var results, var moreRows, cursor) = await metaIndex.QueryBatchSmartCursorAsync(
-                drive.Id,
-                noOfItems: options.MaxRecords,
-                cursor,
-                sortOrder: options.Ordering,
-                sortField: options.Sorting,
-                fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
-                fileSystemType: (Int32)fileSystemType,
-                requiredSecurityGroup: securityRange,
-                globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
-                filetypesAnyOf: qp.FileType?.ToList(),
-                datatypesAnyOf: qp.DataType?.ToList(),
-                senderidAnyOf: qp.Sender?.ToList(),
-                groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
-                userdateSpan: qp.UserDate,
-                aclAnyOf: aclList?.ToList(),
-                uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
-                tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
-                tagsAllOf: qp.TagsMatchAll?.ToList(),
-                archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
-                localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
-                localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
+        (var results, var moreRows, cursor) = await metaIndex.QueryBatchSmartCursorAsync(
+            drive.Id,
+            noOfItems: options.MaxRecords,
+            cursor,
+            sortOrder: options.Ordering,
+            sortField: options.Sorting,
+            fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
+            fileSystemType: (Int32)fileSystemType,
+            requiredSecurityGroup: securityRange,
+            globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
+            filetypesAnyOf: qp.FileType?.ToList(),
+            datatypesAnyOf: qp.DataType?.ToList(),
+            senderidAnyOf: qp.Sender?.ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
+            userdateSpan: qp.UserDate,
+            aclAnyOf: aclList?.ToList(),
+            uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAllOf: qp.TagsMatchAll?.ToList(),
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
+            localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
+            localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
 
-            return (cursor, results, moreRows);
+        return (cursor, results, moreRows);
         //}
 
         //// if the caller was explicit in how they want results...
         //return await GetBatchExplicitOrderingAsync(drive, odinContext, fileSystemType, qp, options);
     }
+
+    public async Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetBatchCoreAsync(
+        StorageDrive drive,
+        IOdinContext odinContext,
+        FileSystemType fileSystemType,
+        FileQueryParams qp,
+        QueryBatchResultOptions options)
+    {
+        var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
+        var aclList = GetAcl(odinContext);
+        var cursor = options.Cursor;
+
+        (var results, var moreRows, cursor) = await metaIndex.QueryBatchAsync(
+            drive.Id,
+            noOfItems: options.MaxRecords,
+            cursor,
+            sortOrder: options.Ordering,
+            sortField: options.Sorting,
+            fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
+            fileSystemType: (Int32)fileSystemType,
+            requiredSecurityGroup: securityRange,
+            globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
+            filetypesAnyOf: qp.FileType?.ToList(),
+            datatypesAnyOf: qp.DataType?.ToList(),
+            senderidAnyOf: qp.Sender?.ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
+            userdateSpan: qp.UserDate,
+            aclAnyOf: aclList?.ToList(),
+            uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAllOf: qp.TagsMatchAll?.ToList(),
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
+            localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
+            localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
+
+        return (cursor, results, moreRows);
+    }
+
 
     private List<Guid> GetAcl(IOdinContext odinContext)
     {
@@ -161,7 +199,7 @@ public class DriveQuery(
         // Plus the average size of reaction summary, transfer history and localAppData
         // Note that when we do a toDriveMainIndexRecord() those three fields aren't copied
         // So to make it easy, I've just added an average and ignore changes to those fields for now.
-        int size = 4096; 
+        int size = 4096;
 
         size += r.senderId != null ? r.senderId.Length + 20 : 0;
         size += r.hdrEncryptedKeyHeader != null ? 72 : 0;
@@ -192,8 +230,7 @@ public class DriveQuery(
 
         var acl = new List<Guid>();
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
-        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
-            ((OdinId)odinId).ToHashId()
+        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId => ((OdinId)odinId).ToHashId()
         );
         acl.AddRange(ids.ToList());
 
@@ -321,7 +358,8 @@ public class DriveQuery(
             throw new OdinSystemException("HardDeleteFileHeaderAsync() unable to delete header");
     }
 
-    public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction, WriteSecondDatabaseRowBase markComplete)
+    public async Task AddReactionAsync(StorageDrive drive, OdinId odinId, Guid fileId, string reaction,
+        WriteSecondDatabaseRowBase markComplete)
     {
         bool inserted = false;
 
@@ -400,11 +438,10 @@ public class DriveQuery(
 
     public async Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(StorageDrive drive, int maxCount, int cursor, Guid fileId)
     {
-        var (items, nextCursor) =
-            await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id, postIdFilter: fileId);
+        var (items, nextCursor) = await tblDriveReactions.PagingByRowidAsync(maxCount, inCursor: cursor, driveId: drive.Id,
+            postIdFilter: fileId);
 
-        var results = items.Select(item =>
-            new Reaction()
+        var results = items.Select(item => new Reaction()
             {
                 FileId = new InternalDriveFileId()
                 {
