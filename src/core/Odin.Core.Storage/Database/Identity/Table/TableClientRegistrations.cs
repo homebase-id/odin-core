@@ -42,4 +42,9 @@ public class TableClientRegistrations(
         return await base.GetByTypeAndCategoryIdAsync(odinIdentity, catType, categoryId);
     }
 
+    public async Task<List<ClientRegistrationsRecord>> GetByTypeAndIssuedToAsync(int catType, string issuedTo)
+    {
+        return await base.GetByTypeAndIssuedToAsync(odinIdentity, catType, issuedTo);
+    }
+    
 }

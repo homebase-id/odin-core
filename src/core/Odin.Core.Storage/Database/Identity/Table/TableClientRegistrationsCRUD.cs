@@ -525,6 +525,66 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
+        protected ClientRegistrationsRecord ReadRecordFromReader4(DbDataReader rdr,Guid identityId,Int32 catType,string issuedToId)
+        {
+            if (issuedToId == null) throw new OdinDatabaseValidationException("Cannot be null issuedToId");
+            if (issuedToId?.Length < 0) throw new OdinDatabaseValidationException($"Too short issuedToId, was {issuedToId.Length} (min 0)");
+            if (issuedToId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long issuedToId, was {issuedToId.Length} (max 65535)");
+            var result = new List<ClientRegistrationsRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new ClientRegistrationsRecord();
+            item.identityId = identityId;
+            item.catType = catType;
+            item.issuedToId = issuedToId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.catId = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[1]);
+            item.ttl = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
+            item.expiresAt = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[3]);
+            item.categoryId = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new Guid((byte[])rdr[4]);
+            item.value = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            return item;
+       }
+
+        protected virtual async Task<List<ClientRegistrationsRecord>> GetByTypeAndIssuedToAsync(Guid identityId,Int32 catType,string issuedToId)
+        {
+            if (issuedToId == null) throw new OdinDatabaseValidationException("Cannot be null issuedToId");
+            if (issuedToId?.Length < 0) throw new OdinDatabaseValidationException($"Too short issuedToId, was {issuedToId.Length} (min 0)");
+            if (issuedToId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long issuedToId, was {issuedToId.Length} (max 65535)");
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get4Command = cn.CreateCommand();
+            {
+                get4Command.CommandText = "SELECT rowId,catId,ttl,expiresAt,categoryId,value,created,modified FROM ClientRegistrations " +
+                                             "WHERE identityId = @identityId AND catType = @catType AND issuedToId = @issuedToId "+
+                                             ";";
+
+                get4Command.AddParameter("@identityId", DbType.Binary, identityId);
+                get4Command.AddParameter("@catType", DbType.Int32, catType);
+                get4Command.AddParameter("@issuedToId", DbType.String, issuedToId);
+                {
+                    using (var rdr = await get4Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<ClientRegistrationsRecord>();
+                        }
+                        var result = new List<ClientRegistrationsRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader4(rdr,identityId,catType,issuedToId));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
         protected virtual async Task<(List<ClientRegistrationsRecord>, Guid? nextCursor)> PagingByIdentityIdAsync(int count, Guid identityId, Guid? inCursor)
         {
             if (count < 1)
