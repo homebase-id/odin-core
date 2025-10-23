@@ -65,18 +65,17 @@ public class PasswordKeyRecoveryService(
     public async Task<RequestRecoveryKeyResult> RequestRecoveryKey(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-
         var recoveryKey = await GetKeyInternalAsync();
 
         // if they have never viewed the recovery key, allow us to see the key now
         if (recoveryKey?.InitialRecoveryKeyViewingDate == null)
         {
-            // mark they viewed it initially and let them view it now
             await ConfirmInitialRecoveryKeyStorage(odinContext);
-            var tenSecondsAgo = UnixTimeUtc.Now().AddSeconds(-10);
+            var leKeyNow = await GetRecoveryKeyAsync(true, odinContext);
             return new RequestRecoveryKeyResult()
             {
-                NextViewableDate = await MarkNextViewableDate(tenSecondsAgo)
+                Key = leKeyNow.Key,
+                NextViewableDate = UnixTimeUtc.ZeroTime
             };
         }
 
