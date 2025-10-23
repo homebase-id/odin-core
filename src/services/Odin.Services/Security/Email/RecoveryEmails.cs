@@ -401,13 +401,12 @@ public static class RecoveryEmails
     public static string FormatRecoveryRiskStatusText(OdinId odinId, RecoveryInfo info)
     {
         var risk = info.RecoveryRisk;
-        var domain = info.Email ?? "(unknown)";
         var tenant = odinId;
 
         if (!info.IsConfigured)
         {
             return @$"
-Hi {domain},
+Hi {tenant},
 
 ⚠️ Account Recovery is not yet configured.
 
@@ -438,7 +437,7 @@ Team Homebase
         };
 
         return @$"
-Hi {domain},
+Hi {tenant},
 
 {headline}
 
@@ -463,7 +462,6 @@ Team Homebase
     public static string FormatRecoveryRiskStatusHtml(OdinId odinId, RecoveryInfo info)
     {
         var risk = info.RecoveryRisk;
-        var domain = info.Email ?? "(unknown)";
         var tenant = odinId;
 
         if (!info.IsConfigured)
@@ -472,7 +470,7 @@ Team Homebase
     <h2 style='margin-bottom: 15px;'>⚠️ Account Recovery not configured</h2>
 
     <p style='margin-bottom: 15px;'>
-        Your account <strong>{domain}</strong> does not currently have Account Recovery configured.
+        Your account <strong>{tenant}</strong> does not currently have Account Recovery configured.
     </p>
 
     <p style='margin-bottom: 15px;'>
@@ -512,7 +510,7 @@ Team Homebase
     <h2 style='margin-bottom: 15px;'>{headline}</h2>
 
     <p style='margin-bottom: 15px;'>
-        Account Recovery status for your account <strong>{domain}</strong>:
+        Account Recovery status for your account <strong>{tenant}</strong>:
     </p>
 
     <table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>
