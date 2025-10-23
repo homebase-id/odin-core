@@ -58,11 +58,6 @@ namespace Odin.Services.Authentication.Owner
         ClientRegistrationStorage clientRegistrationStorage)
         : INotificationHandler<DriveDefinitionAddedNotification>
     {
-        private const string ServerTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
-
-        private static readonly SingleKeyValueStorage xServerTokenStorage =
-            TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ServerTokenContextKey));
-
         private const string FirstRunContextKey = "c05d8c71-e75f-4998-ad74-7e94d8752b56";
 
         private static readonly SingleKeyValueStorage FirstRunInfoStorage =
@@ -86,7 +81,6 @@ namespace Odin.Services.Authentication.Owner
             var issuedTo = (OdinId)tenantProvider.GetCurrentTenant()?.Name;
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(issuedTo, noncePackage, reply, keys);
             await clientRegistrationStorage.SaveAsync(serverToken);
-            // await ServerTokenStorage.UpsertAsync(tblKeyValue, serverToken.Id, serverToken);
 
             // TODO: audit login some where, or in helper class below
 
@@ -223,7 +217,7 @@ namespace Odin.Services.Authentication.Owner
         /// <param name="tokenId"></param>
         public async Task ExpireTokenAsync(Guid tokenId)
         {
-           await  clientRegistrationStorage.DeleteAsync(tokenId);
+            await clientRegistrationStorage.DeleteAsync(tokenId);
         }
 
         private async Task<OwnerConsoleClientRegistration> GetValidatedEntryAsync(Guid tokenId)
@@ -353,6 +347,11 @@ namespace Odin.Services.Authentication.Owner
                     : null,
                 PlanId = idReg.PlanId,
             };
+        }
+
+        public async Task ExtendTokenLife(Guid id)
+        {
+            await clientRegistrationStorage.ExtendLife(id);
         }
     }
 }

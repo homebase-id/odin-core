@@ -38,7 +38,7 @@ public sealed class AppClientRegistration : IClientRegistration
 
     public int Type => CatType;
 
-    public long TimeToLiveSeconds => (long)TimeSpan.FromDays(365).TotalSeconds; // 3 hours
+    public int TimeToLiveSeconds => (int)TimeSpan.FromDays(365).TotalSeconds; // 3 hours
 
     public Guid CategoryId => this.AppId;
 

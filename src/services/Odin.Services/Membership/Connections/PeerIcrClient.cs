@@ -26,7 +26,7 @@ public sealed class PeerIcrClient : IClientRegistration
 
     public int Type => 300;
 
-    public long TimeToLiveSeconds => (long)TimeSpan.FromDays(365 * 20).TotalSeconds;
+    public int TimeToLiveSeconds => (int)TimeSpan.FromDays(365 * 20).TotalSeconds;
 
     public Guid CategoryId => Guid.Parse("87ae004a-27db-42e8-850e-35effd8cca1d");
 

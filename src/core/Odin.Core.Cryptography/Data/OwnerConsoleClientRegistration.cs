@@ -9,6 +9,7 @@ namespace Odin.Core.Cryptography.Data
         {
             // for json
         }
+
         private Guid _id;
 
         ~OwnerConsoleClientRegistration()
@@ -26,7 +27,7 @@ namespace Odin.Core.Cryptography.Data
 
         public int Type => 100;
 
-        public long TimeToLiveSeconds => (long)TimeSpan.FromDays(180).TotalSeconds;
+        public int TimeToLiveSeconds => (Int32)TimeSpan.FromDays(180).TotalSeconds;
 
         public Guid CategoryId => Guid.Parse("cc0b390d-ac32-450f-bbaa-0108debde248");
 
@@ -52,6 +53,11 @@ namespace Odin.Core.Cryptography.Data
 
         public NonceTable NonceKeeper { get; set; }
 
+        public void ExtendTokenLife()
+        {
+            this.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + (long)TimeSpan.FromDays(30 * 6).TotalSeconds;
+        }
+        
         public void Dispose()
         {
             // TODO: How to delete ServerHalfOwnerConsoleKey ?

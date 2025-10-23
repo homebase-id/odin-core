@@ -116,7 +116,7 @@ namespace Odin.Services.Membership.YouAuth
             var expiresAt = request?.ConsentRequirements?.Expiration.milliseconds ?? UnixTimeUtc.Now().AddDays(60);
             var youAuthDomainClient = new YouAuthDomainClient(domain, friendlyName, accessRegistration)
             {
-                TimeToLiveSeconds = Math.Max(0, (long)(expiresAt - UnixTimeUtc.Now()).TotalSeconds)
+                TimeToLiveSeconds = Math.Max(0, (int)(expiresAt - UnixTimeUtc.Now()).TotalSeconds)
             };
             await SaveClientAsync(youAuthDomainClient);
             return (cat, reg.CorsHostName);

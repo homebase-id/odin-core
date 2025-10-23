@@ -34,6 +34,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
                 var isValid = await authService.IsValidTokenAsync(result.Id);
                 if (isValid)
                 {
+                    await authService.ExtendTokenLife(result.Id);
                     await AddUpgradeRequiredHeaderAsync();
                 }
 

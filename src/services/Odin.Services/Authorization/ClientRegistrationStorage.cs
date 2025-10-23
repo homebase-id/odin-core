@@ -35,6 +35,17 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
         await clientRegistrationsTable.UpsertAsync(record);
     }
 
+    public async Task ExtendLife(Guid id)
+    {
+        var record = await clientRegistrationsTable.GetAsync(id);
+        if (null != record)
+        {
+            record.expiresAt = UnixTimeUtc.Now().AddSeconds(record.ttl);
+        }
+
+        await clientRegistrationsTable.UpsertAsync(record);
+    }
+    
     public async Task<T?> GetAsync<T>(Guid id) where T : class
     {
         var record = await clientRegistrationsTable.GetAsync(id);
@@ -58,8 +69,7 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
         var records = await clientRegistrationsTable.GetByTypeAndCategoryIdAsync(typeId, categoryId);
         return records.Select(record => OdinSystemSerializer.DeserializeOrThrow<T>(record.value)).ToList();
     }
-
-
+    
     public async Task DeleteAsync(Guid tokenId)
     {
         await clientRegistrationsTable.DeleteAsync(tokenId);

@@ -48,16 +48,15 @@ namespace Odin.Core.Cryptography
             EccFullKeyListData listEcc)
         {
             var (hpwd64, kek64, sharedsecret64) = PasswordDataManager.ParsePasswordEccReply(reply, listEcc);
-
-            const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.
-
+            
             var serverToken = new OwnerConsoleClientRegistration
             {
                 Id = SequentialGuid.CreateGuid(),
                 SharedSecret = Convert.FromBase64String(sharedsecret64),
-                ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds,
                 IssuedTo = issuedTo
             };
+            
+            serverToken.ExtendTokenLife();
 
             var kek = new SensitiveByteArray(Convert.FromBase64String(kek64)); // TODO: using
             serverToken.TokenEncryptedKek = new SymmetricKeyEncryptedXor(kek, out var clientToken);
