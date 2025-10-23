@@ -106,9 +106,9 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
-    public Task ShutdownAsync()
+    public async Task UnsubscribeAllAsync()
     {
-        return Task.CompletedTask;
+        await _subscriber.UnsubscribeAllAsync();
     }
 
     //

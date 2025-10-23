@@ -40,8 +40,7 @@ public interface IPubSub
     /// <returns></returns>
     Task UnsubscribeAsync(string channel, object unsubscribeToken);
 
-    // SEB:TODO
-    Task ShutdownAsync();
+    Task UnsubscribeAllAsync();
 }
 
 public interface ISystemPubSub : IPubSub;

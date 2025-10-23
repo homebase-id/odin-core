@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -41,15 +42,7 @@ public class InProcPubSub(ILogger<InProcPubSub> logger, string channelPrefix) : 
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
 
         var channelName = channelPrefix + ':' + channel;
-        var namedChannel = NamedChannels.GetOrAdd(channelName, _ =>
-        {
-            var nc = new NamedChannel(logger, channelName);
-            Task.Run(async () =>
-            {
-                await nc.ProcessMessagesAsync(_cts.Token);
-            });
-            return nc;
-        });
+        var namedChannel = NamedChannels.GetOrAdd(channelName, _ => new NamedChannel(logger, channelName));
 
         namedChannel.AddHandler(_senderId, messageFromSelf, handler);
 
@@ -74,9 +67,12 @@ public class InProcPubSub(ILogger<InProcPubSub> logger, string channelPrefix) : 
 
     //
 
-    public Task ShutdownAsync()
+    public Task UnsubscribeAllAsync()
     {
-        // SEB:TODO
+        foreach (var namedChannel in NamedChannels.Values)
+        {
+            namedChannel.RemoveAllHandlers(_senderId);
+        }
         return Task.CompletedTask;
     }
 
@@ -100,16 +96,25 @@ public class InProcPubSub(ILogger<InProcPubSub> logger, string channelPrefix) : 
 
     private class NamedChannel(ILogger logger, string channelName)
     {
-        private readonly Channel<object> _channel = Channel.CreateUnbounded<object>();
-        private readonly ConcurrentDictionary<object, HandlerRegistration> _handlers = new();
+        private readonly Channel<object> _channel = Channel.CreateBounded<object>(new BoundedChannelOptions(100000)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest
+        });
+
+        private readonly Lock _mutex = new();
+        private readonly Dictionary<object, HandlerRegistration> _handlers = new();
+        private CancellationTokenSource? _cts;
 
         //
 
         public void Publish<T>(string senderId, T message)
         {
-            if (_handlers.IsEmpty)
+            lock (_mutex)
             {
-                return;
+                if (_handlers.Count == 0)
+                {
+                    return;
+                }
             }
 
             var envelope = new Envelope<T>
@@ -125,53 +130,101 @@ public class InProcPubSub(ILogger<InProcPubSub> logger, string channelPrefix) : 
 
         public void AddHandler<T>(string senderId, MessageFromSelf messageFromSelf, Func<T, Task> handler)
         {
-            _handlers.GetOrAdd(handler, _ => new HandlerRegistration
+            lock (_mutex)
             {
-                SenderId = senderId,
-                MessageFromSelf = messageFromSelf,
-                Handler = async envelope =>
+                if (_handlers.ContainsKey(handler))
                 {
-                    if (envelope is Envelope<T> typed && typed.Payload != null)
+                    return;
+                }
+
+                _handlers[handler] = new HandlerRegistration
+                {
+                    SenderId = senderId,
+                    MessageFromSelf = messageFromSelf,
+                    Handler = async envelope =>
                     {
-                        if (typed.SenderId != senderId || messageFromSelf == MessageFromSelf.Process)
+                        if (envelope is Envelope<T> typed && typed.Payload != null)
                         {
-                            try
+                            if (typed.SenderId != senderId || messageFromSelf == MessageFromSelf.Process)
                             {
-                                await handler(typed.Payload);
-                            }
-                            catch (Exception e)
-                            {
-                                logger.LogError(e, "Handler failed");
+                                try
+                                {
+                                    await handler(typed.Payload);
+                                }
+                                catch (Exception e)
+                                {
+                                    logger.LogError(e, "Handler failed");
+                                }
                             }
                         }
                     }
+                };
+
+                if (_handlers.Count == 1)
+                {
+                    _cts = new CancellationTokenSource();
+                    _ = StartProcessingMessages();
                 }
-            });
+            }
         }
 
         //
 
         public void RemoveHandler(object handler)
         {
-            _handlers.TryRemove(handler, out _);
+            lock (_mutex)
+            {
+                if (_handlers.Remove(handler) && _handlers.Count == 0)
+                {
+                    _cts?.Cancel();
+                    _cts?.Dispose();
+                    _cts = null;
+                }
+            }
         }
 
         //
 
-        public async Task ProcessMessagesAsync(CancellationToken cancellationToken)
+        public void RemoveAllHandlers(string senderId)
         {
+            lock (_mutex)
+            {
+                var keysToRemove = _handlers.Where(x => x.Value.SenderId == senderId).Select(kvp => kvp.Key).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    _handlers.Remove(key);
+                }
+                if (_handlers.Count == 0)
+                {
+                    _cts?.Cancel();
+                    _cts?.Dispose();
+                    _cts = null;
+                }
+            }
+        }
+
+        //
+
+        private async Task StartProcessingMessages()
+        {
+            var cancellationToken = _cts?.Token ?? throw new InvalidOperationException("Token not set");
+
             logger.LogDebug("Started processing messages for channel {ChannelName}", channelName);
-            var tasks = new List<Task>();
             try
             {
                 await foreach (var message in _channel.Reader.ReadAllAsync(cancellationToken))
                 {
-                    foreach (var registration in _handlers.Values)
+                    List<HandlerRegistration> handlerRegistrations;
+                    lock (_mutex)
                     {
-                        tasks.Add(registration.Handler(message));
+                        handlerRegistrations = new List<HandlerRegistration>(_handlers.Values);
                     }
-                    await Task.WhenAll(tasks);
-                    tasks.Clear();
+
+                    foreach (var handlerRegistration in handlerRegistrations)
+                    {
+                        // Fire-and-forget
+                        _ = handlerRegistration.Handler(message);
+                    }
                 }
             }
             catch (OperationCanceledException e) when (e.CancellationToken == cancellationToken)
