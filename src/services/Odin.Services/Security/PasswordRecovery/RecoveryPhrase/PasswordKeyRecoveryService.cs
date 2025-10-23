@@ -95,6 +95,12 @@ public class PasswordKeyRecoveryService(
         await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, recoveryKey);
     }
 
+    public async Task<bool> HasRecoveryKeyBeenViewed()
+    {
+        var keyRecord = await GetKeyInternalAsync();
+        return keyRecord?.InitialRecoveryKeyViewingDate != null;
+    }
+    
     public async Task<RecoveryKeyResult> GetRecoveryKeyAsync(bool byPassWaitingPeriod, IOdinContext odinContext)
     {
         var ctx = odinContext;
