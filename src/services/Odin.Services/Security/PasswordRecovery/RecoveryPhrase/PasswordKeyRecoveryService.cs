@@ -116,7 +116,8 @@ public class PasswordKeyRecoveryService(
             {
                 Key = readableText,
                 Created = recoveryKeyRecord.Created,
-                NextViewableDate = null // doesnt matter
+                NextViewableDate = null, // doesnt matter
+                HasInitiallyReviewedKey  = recoveryKeyRecord.InitialRecoveryKeyViewingDate != null
             };
 
             await ClearNextViewableDate();
@@ -136,7 +137,8 @@ public class PasswordKeyRecoveryService(
             {
                 Key = null,
                 Created = default,
-                NextViewableDate = null
+                NextViewableDate = null,
+                HasInitiallyReviewedKey  = keyRecord.InitialRecoveryKeyViewingDate != null
             };
         }
 
@@ -146,7 +148,8 @@ public class PasswordKeyRecoveryService(
             {
                 Key = null,
                 Created = default,
-                NextViewableDate = keyRecord.NextViewableDate
+                NextViewableDate = keyRecord.NextViewableDate,
+                HasInitiallyReviewedKey  = keyRecord.InitialRecoveryKeyViewingDate != null
             };
         }
 
