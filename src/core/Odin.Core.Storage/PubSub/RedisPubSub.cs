@@ -6,7 +6,7 @@ using StackExchange.Redis;
 
 namespace Odin.Core.Storage.PubSub;
 
-//
+#nullable enable
 
 public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultiplexer, string channelPrefix)
     : IPubSub, IDisposable
@@ -27,6 +27,8 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     public async Task PublishAsync<T>(string channel, T message)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
+
         var envelope = new Envelope<T>
         {
             SenderId = _senderId,
@@ -38,9 +40,12 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
-    public async Task SubscribeAsync<T>(string channel, MessageFromSelf messageFromSelf, Func<T, Task> handler)
+    public async Task<object> SubscribeAsync<T>(string channel, MessageFromSelf messageFromSelf, Func<T, Task> handler)
     {
-        await _subscriber.SubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), (ch, message) =>
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
+        ArgumentNullException.ThrowIfNull(handler, nameof(handler));
+
+        Action<RedisChannel, RedisValue> action = (ch, message) =>
         {
             var json = message.ToString();
             if (string.IsNullOrEmpty(json))
@@ -50,6 +55,11 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
             var envelope = OdinSystemSerializer.DeserializeOrThrow<Envelope<T>>(json);
 
+            if (envelope.Payload == null)
+            {
+                return;
+            }
+
             if (envelope.SenderId == _senderId && messageFromSelf == MessageFromSelf.Ignore)
             {
                 // Ignore own messages
@@ -58,14 +68,11 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
             // Fire-and-forget
             _ = SafeInvokeAsync(handler, envelope.Payload, channel);
-        });
-    }
+        };
 
-    //
+        await _subscriber.SubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), action);
 
-    public async Task UnsubscribeAsync(string channel)
-    {
-        await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel));
+        return action;
     }
 
     //
@@ -84,25 +91,47 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
+    // Note: unsubscribeToken must be the same instance as returned by SubscribeAsync
+    public async Task UnsubscribeAsync(string channel, object unsubscribeToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
+
+        if (unsubscribeToken is not Action<RedisChannel, RedisValue> action)
+        {
+            throw new ArgumentException("Handler is of incorrect type", nameof(unsubscribeToken));
+        }
+
+        await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), action);
+    }
+
+    //
+
+    public Task ShutdownAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+    //
+
     private class Envelope<T>
     {
-        public string SenderId { get; set; }
-        public T Payload { get; set; }
+        public string SenderId { get; set; } = "";
+        public T? Payload { get; set; }
     }
 
 }
 
 //
 
-public class SystemPubSub(
-    ILogger<SystemPubSub> logger,
+public class SystemRedisPubSub(
+    ILogger<SystemRedisPubSub> logger,
     IConnectionMultiplexer connectionMultiplexer)
     : RedisPubSub(logger, connectionMultiplexer, "system"), ISystemPubSub;
 
 //
 
-public class TenantPubSub(
-    ILogger<SystemPubSub> logger,
+public class TenantRedisPubSub(
+    ILogger<TenantRedisPubSub> logger,
     IConnectionMultiplexer connectionMultiplexer,
     ChannelPrefix channelPrefix)
     : RedisPubSub(logger, connectionMultiplexer, channelPrefix), ITenantPubSub;
