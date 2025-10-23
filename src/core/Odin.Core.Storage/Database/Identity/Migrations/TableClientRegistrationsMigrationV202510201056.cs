@@ -38,20 +38,21 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                 rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
 
             var wori = "";
-            string createSql = "CREATE TABLE IF NOT EXISTS ClientRegistrationsMigrationsV202510201056( -- { \"Version\": 202510201056 }\n"
-                               + rowid
-                               + "identityId BYTEA NOT NULL, "
-                               + "catId BYTEA NOT NULL UNIQUE, "
-                               + "issuedToId TEXT NOT NULL, "
-                               + "ttl BIGINT NOT NULL, "
-                               + "expiresAt BIGINT NOT NULL, "
-                               + "categoryId BYTEA NOT NULL, "
-                               + "catType BIGINT NOT NULL, "
-                               + "value TEXT , "
-                               + "created BIGINT NOT NULL, "
-                               + "modified BIGINT NOT NULL "
-                               + ", UNIQUE(identityId,catId)"
-                               + $"){wori};"
+            string createSql =
+                    "CREATE TABLE IF NOT EXISTS ClientRegistrationsMigrationsV202510201056( -- { \"Version\": 202510201056 }\n"
+                    + rowid
+                    + "identityId BYTEA NOT NULL, "
+                    + "catId BYTEA NOT NULL UNIQUE, "
+                    + "issuedToId TEXT NOT NULL, "
+                    + "ttl BIGINT NOT NULL, "
+                    + "expiresAt BIGINT NOT NULL, "
+                    + "categoryId BYTEA NOT NULL, "
+                    + "catType BIGINT NOT NULL, "
+                    + "value TEXT , "
+                    + "created BIGINT NOT NULL, "
+                    + "modified BIGINT NOT NULL "
+                    + ", UNIQUE(identityId,catId)"
+                    + $"){wori};"
                 ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "ClientRegistrationsMigrationsV202510201056", createSql, commentSql);
         }
@@ -73,7 +74,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             return sl;
         }
 
-        public Task<int> CopyDataAsync(IConnectionWrapper cn)
+        public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
             throw new NotImplementedException();
         }
@@ -89,7 +90,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "ClientRegistrations", PreviousVersion);
+            await CheckSqlTableVersion(cn, "ClientRegistrations", MigrationVersion);
             await SqlHelper.DeleteTableAsync(cn, "ClientRegistrations");
         }
     }
