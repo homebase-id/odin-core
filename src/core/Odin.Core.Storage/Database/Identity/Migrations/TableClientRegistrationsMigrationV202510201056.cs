@@ -74,7 +74,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             return sl;
         }
 
-        public async Task<int> CopyDataAsync(IConnectionWrapper cn)
+        public Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
             throw new NotImplementedException();
         }
