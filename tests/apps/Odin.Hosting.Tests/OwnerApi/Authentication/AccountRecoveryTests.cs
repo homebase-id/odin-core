@@ -53,8 +53,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
+            // let us say the user already has their key from before
+            await ownerClient.Security.ConfirmStoredRecoveryKey();
+
             // since we just set up the account - first request the recovery key
             var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
+            
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             Assert.That(requestRecoveryKeyResponse.Content, Is.Not.Null);
             var nextDate = requestRecoveryKeyResponse.Content.NextViewableDate;
@@ -90,6 +94,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+
+            // let us say the user already has their key from before
+            await ownerClient.Security.ConfirmStoredRecoveryKey();
+            
             var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             var result = requestRecoveryKeyResponse.Content;
@@ -126,7 +134,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
-            // make the first request since we just setup the account
+            // let us say the user already has their key from before
+            await ownerClient.Security.ConfirmStoredRecoveryKey();
+
+            // make the first request since we just set up the account
             var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             var result = requestRecoveryKeyResponse.Content;
@@ -180,6 +191,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             ClassicAssert.IsTrue(firstLoginResponse.IsSuccessStatusCode);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+
+            // let us say the user already has their key from before
+            await ownerClient.Security.ConfirmStoredRecoveryKey();
+            
             var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             var result = requestRecoveryKeyResponse.Content;
