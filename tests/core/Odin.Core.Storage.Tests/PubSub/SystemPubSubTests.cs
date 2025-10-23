@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Odin.Core.Storage.PubSub;
+using Odin.Core.Tasks;
 using StackExchange.Redis;
 using Testcontainers.Redis;
 
@@ -21,7 +22,9 @@ public class SystemPubSubTests
         Redis
     }
 
+#if RUN_REDIS_TESTS
     private RedisContainer? _redisContainer;
+#endif
 
     [SetUp]
     public void Setup()
@@ -30,20 +33,20 @@ public class SystemPubSubTests
         _redisContainer = new RedisBuilder()
             .WithImage("redis:latest")
             .Build();
-        _redisContainer!.StartAsync().Wait();
+        _redisContainer!.StartAsync().BlockingWait();
 #endif
     }
 
     //
 
     [TearDown]
-    public async Task TearDown()
+    public void TearDown()
     {
 #if RUN_REDIS_TESTS
         if (_redisContainer != null)
         {
-            await _redisContainer.StopAsync();
-            await _redisContainer.DisposeAsync();
+            _redisContainer.StopAsync().BlockingWait();
+            _redisContainer.DisposeAsync().AsTask().BlockingWait();
             _redisContainer = null;
         }
 #endif
@@ -62,11 +65,13 @@ public class SystemPubSubTests
             logging.SetMinimumLevel(LogLevel.Debug);
         });
 
+#if RUN_REDIS_TESTS
         if (redis)
         {
             var redisConfig = _redisContainer?.GetConnectionString() ?? throw new InvalidOperationException();
             services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfig));
         }
+#endif
 
         var builder = new ContainerBuilder();
         builder.Populate(services);
