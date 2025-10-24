@@ -10,10 +10,12 @@ using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Logging.Caller;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
+using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -25,6 +27,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Registry;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Tenant;
 
 // Goals here are that:
 //   * the password never leaves the clients.
@@ -50,14 +53,11 @@ namespace Odin.Services.Authentication.Owner
         TableKeyValueCached tblKeyValue,
         ShamirRecoveryService shamirRecoveryService,
         OdinContextCache cache,
-        ICallerLogContext callerLogContext)
+        ICallerLogContext callerLogContext,
+        ITenantProvider tenantProvider,
+        ClientRegistrationStorage clientRegistrationStorage)
         : INotificationHandler<DriveDefinitionAddedNotification>
     {
-        private const string ServerTokenContextKey = "72a58c43-4058-4773-8dd5-542992b8ef67";
-
-        private static readonly SingleKeyValueStorage ServerTokenStorage =
-            TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(ServerTokenContextKey));
-
         private const string FirstRunContextKey = "c05d8c71-e75f-4998-ad74-7e94d8752b56";
 
         private static readonly SingleKeyValueStorage FirstRunInfoStorage =
@@ -77,9 +77,10 @@ namespace Odin.Services.Authentication.Owner
 
             //now that the password key matches, we set return the client auth token
             var keys = await secretService.GetOfflineEccKeyListAsync();
-            var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
-            await ServerTokenStorage.UpsertAsync(tblKeyValue, serverToken.Id, serverToken);
+            var issuedTo = (OdinId)tenantProvider.GetCurrentTenant()?.Name;
+            var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(issuedTo, noncePackage, reply, keys);
+            await clientRegistrationStorage.SaveAsync(serverToken);
 
             // TODO: audit login some where, or in helper class below
 
@@ -116,7 +117,7 @@ namespace Odin.Services.Authentication.Owner
         public async Task<bool> IsValidTokenAsync(Guid sessionTokenId)
         {
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
-            var entry = await ServerTokenStorage.GetAsync<OwnerConsoleToken>(tblKeyValue, sessionTokenId);
+            var entry = await clientRegistrationStorage.GetAsync<OwnerConsoleClientRegistration>(sessionTokenId);
             return IsAuthTokenEntryValid(entry);
         }
 
@@ -126,7 +127,7 @@ namespace Odin.Services.Authentication.Owner
         public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKeyAsync(Guid sessionTokenId, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
-            var loginToken = await ServerTokenStorage.GetAsync<OwnerConsoleToken>(tblKeyValue, sessionTokenId);
+            var loginToken = await clientRegistrationStorage.GetAsync<OwnerConsoleClientRegistration>(sessionTokenId);
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
@@ -136,7 +137,7 @@ namespace Odin.Services.Authentication.Owner
             var mk = await secretService.GetMasterKeyAsync(loginToken, clientSecret);
 
             //HACK: need to clone this here because the owner console token is getting wipe by the owner console token finalizer
-            var len = loginToken.SharedSecret.Length;
+            var len = loginToken!.SharedSecret.Length;
             var clone = new byte[len];
             Buffer.BlockCopy(loginToken.SharedSecret, 0, clone, 0, len);
 
@@ -210,37 +211,23 @@ namespace Odin.Services.Authentication.Owner
         }
 
         /// <summary>
-        /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.
-        /// </summary>
-        /// <param name="tokenId"></param>
-        /// <param name="ttlSeconds"></param>
-        public async Task ExtendTokenLifeAsync(Guid tokenId, int ttlSeconds)
-        {
-            var entry = await GetValidatedEntryAsync(tokenId);
-
-            entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
-
-            await ServerTokenStorage.UpsertAsync(tblKeyValue, entry.Id, entry);
-        }
-
-        /// <summary>
         /// Expires the <paramref name="tokenId"/> thus making it invalid.  This can be used when a user
         /// clicks logout.  Invalid or expired tokens are ignored.
         /// </summary>
         /// <param name="tokenId"></param>
         public async Task ExpireTokenAsync(Guid tokenId)
         {
-            await ServerTokenStorage.DeleteAsync(tblKeyValue, tokenId);
+            await clientRegistrationStorage.DeleteAsync(tokenId);
         }
 
-        private async Task<OwnerConsoleToken> GetValidatedEntryAsync(Guid tokenId)
+        private async Task<OwnerConsoleClientRegistration> GetValidatedEntryAsync(Guid tokenId)
         {
-            var entry = await ServerTokenStorage.GetAsync<OwnerConsoleToken>(tblKeyValue, tokenId);
+            var entry = await clientRegistrationStorage.GetAsync<OwnerConsoleClientRegistration>(tokenId);
             AssertTokenIsValid(entry);
             return entry;
         }
 
-        private bool IsAuthTokenEntryValid(OwnerConsoleToken entry)
+        private bool IsAuthTokenEntryValid(OwnerConsoleClientRegistration entry)
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var valid = null != entry &&
@@ -250,7 +237,7 @@ namespace Odin.Services.Authentication.Owner
             return valid;
         }
 
-        private void AssertTokenIsValid(OwnerConsoleToken entry)
+        private void AssertTokenIsValid(OwnerConsoleClientRegistration entry)
         {
             if (IsAuthTokenEntryValid(entry) == false)
             {
@@ -360,6 +347,11 @@ namespace Odin.Services.Authentication.Owner
                     : null,
                 PlanId = idReg.PlanId,
             };
+        }
+
+        public async Task ExtendTokenLife(Guid id)
+        {
+            await clientRegistrationStorage.ExtendLife(id);
         }
     }
 }

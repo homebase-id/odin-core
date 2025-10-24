@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
+using Odin.Core.Identity;
 
 namespace Odin.Core.Cryptography.Tests
 {
@@ -13,7 +14,6 @@ namespace Odin.Core.Cryptography.Tests
         public void Setup()
         {
         }
-
 
 
         /// <summary>
@@ -33,7 +33,8 @@ namespace Odin.Core.Cryptography.Tests
             string password = "EnSøienØ";
 
             // The server always has a list of login Ecc keys (usually with 24 hours duration per key)
-            var listEcc = EccKeyListManagement.CreateEccKeyList(EccKeyListManagement.zeroSensitiveKey, 2, EccKeyListManagement.DefaultHoursOfflineKey);
+            var listEcc = EccKeyListManagement.CreateEccKeyList(EccKeyListManagement.zeroSensitiveKey, 2,
+                EccKeyListManagement.DefaultHoursOfflineKey);
 
             // The user now enters his / her password.
 
@@ -69,11 +70,13 @@ namespace Odin.Core.Cryptography.Tests
             // These two values were already pre-existing on the server. The HashedPassword was set when the
             // password was initially set. And the KeK was also calculated at that time.
             //
-            var HashedPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
-            var KeK = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var HashedPassword = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256,
+                CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+            var KeK = KeyDerivation.Pbkdf2(password, Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256,
+                CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
 
             // The server now parses the received reply and creates the tokens needed for the client/server.
-            var (halfCookie, loginToken) = OwnerConsoleTokenManager.CreateToken(nonce, rp, listEcc);
+            var (halfCookie, loginToken) = OwnerConsoleTokenManager.CreateToken((OdinId)"someone.com", nonce, rp, listEcc);
 
             var testKek = OwnerConsoleTokenManager.GetMasterKey(loginToken, halfCookie);
 
@@ -82,7 +85,7 @@ namespace Odin.Core.Cryptography.Tests
                 Assert.Fail();
                 return;
             }
- 
+
             Assert.Pass();
         }
 

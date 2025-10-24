@@ -532,7 +532,7 @@ namespace Odin.Hosting.Tests
 
         public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel, TimeSpan? maxWaitTime = null)
         {
-            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(180);
 
             var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
 

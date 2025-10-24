@@ -310,6 +310,55 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
+        protected KeyValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId)
+        {
+            var result = new List<KeyValueRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new KeyValueRecord();
+            item.identityId = identityId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.key = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key?.Length < 16)
+                throw new Exception("Too little data in key...");
+            item.data = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<List<KeyValueRecord>> GetAllByIdentityIdAsync(Guid identityId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT rowId,key,data FROM KeyValue " +
+                                             "WHERE identityId = @identityId "+
+                                             ";";
+
+                get1Command.AddParameter("@identityId", DbType.Binary, identityId);
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<KeyValueRecord>();
+                        }
+                        var result = new List<KeyValueRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr,identityId));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
+                    } // using
+                } //
+            } // using
+        }
+
         protected virtual async Task<(List<KeyValueRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
         {
             if (count < 1)

@@ -17,6 +17,11 @@ public class TableKeyValue(
         return await base.GetAsync(odinIdentity, key);
     }
 
+    public async Task<List<KeyValueRecord>> GetAll()
+    {
+        return await base.GetAllByIdentityIdAsync(odinIdentity);
+    }
+
     internal new async Task<int> InsertAsync(KeyValueRecord item)
     {
         item.identityId = odinIdentity;

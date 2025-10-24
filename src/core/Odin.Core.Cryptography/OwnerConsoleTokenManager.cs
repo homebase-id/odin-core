@@ -1,6 +1,7 @@
 ﻿using System;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
+using Odin.Core.Identity;
 
 //
 // After lots of thinking I strongly discourage expiring the login cookie(s).
@@ -36,23 +37,26 @@ namespace Odin.Core.Cryptography
         ///    The LoginTokenData object is to be stored on the server and retrievable 
         ///    via the index cookie as DB load key.
         /// </summary>
-        /// <param name="LoginKeK"></param>
-        /// <param name="sharedSecret"></param>
-        /// <returns></returns>
-        public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, PasswordReply reply,
+        /// <param name="issuedTo"></param>
+        /// <param name="nonce"></param>
+        /// <param name="reply"></param>
+        /// <param name="listEcc"></param>
+        public static (SensitiveByteArray clientToken, OwnerConsoleClientRegistration token) CreateToken(
+            OdinId issuedTo,
+            NonceData nonce, 
+            PasswordReply reply,
             EccFullKeyListData listEcc)
         {
             var (hpwd64, kek64, sharedsecret64) = PasswordDataManager.ParsePasswordEccReply(reply, listEcc);
-
-            const int ttlSeconds = 31 * 24 * 3600; // Tokens can be semi-permanent.
-
-            var serverToken = new OwnerConsoleToken
+            
+            var serverToken = new OwnerConsoleClientRegistration
             {
-                // Id = ByteArrayUtil.GetRandomCryptoGuid(),
                 Id = SequentialGuid.CreateGuid(),
                 SharedSecret = Convert.FromBase64String(sharedsecret64),
-                ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
+                IssuedTo = issuedTo
             };
+            
+            serverToken.ExtendTokenLife();
 
             var kek = new SensitiveByteArray(Convert.FromBase64String(kek64)); // TODO: using
             serverToken.TokenEncryptedKek = new SymmetricKeyEncryptedXor(kek, out var clientToken);
@@ -64,9 +68,9 @@ namespace Odin.Core.Cryptography
 
         // The client cookie2 application ½ KeK and server's ½ application Kek will join to form 
         // the application KeK that will unlock the DeK.
-        public static SensitiveByteArray GetMasterKey(OwnerConsoleToken loginToken, SensitiveByteArray halfCookie)
+        public static SensitiveByteArray GetMasterKey(OwnerConsoleClientRegistration loginClientRegistration, SensitiveByteArray halfCookie)
         {
-            return loginToken.TokenEncryptedKek.DecryptKeyClone(halfCookie);
+            return loginClientRegistration.TokenEncryptedKek.DecryptKeyClone(halfCookie);
         }
     }
 }

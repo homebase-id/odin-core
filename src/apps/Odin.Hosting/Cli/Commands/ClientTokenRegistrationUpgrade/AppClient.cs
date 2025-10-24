@@ -1,8 +1,5 @@
-
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
-
-namespace Odin.Services.Authorization.Apps;
 
 public sealed class AppClient
 {
@@ -18,6 +15,6 @@ public sealed class AppClient
     public GuidId AppId { get; init; }
 
     public AccessRegistration AccessRegistration { get; init; }
-    
+
     public string FriendlyName { get; init; }
 }

@@ -1,48 +1,38 @@
 using System;
 using Odin.Core;
-using Odin.Core.Time;
+using Odin.Core.Serialization;
 using Odin.Core.Util;
 using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Services.Membership.YouAuth;
 
-public class YouAuthDomainClientRegistrationResponse
+public sealed class YouAuthDomainClient : IClientRegistration
 {
-    public Guid AccessRegistrationId { get; set; }
-    /// <summary>
-    /// RSA encrypted response.  When encryption version == 1, the  first 16 bytes is token id, second 16 bytes is AccessTokenHalfKey, and last 16 bytes is SharedSecret
-    /// </summary>
-    public byte[] Data { get; set; }
-}
+    public YouAuthDomainClient()
+    {
+        // for json
+    }
 
-public sealed class YouAuthDomainClient
-{
     public YouAuthDomainClient(AsciiDomainName domain, string friendlyName, AccessRegistration accessRegistration)
     {
         Domain = domain;
-        FriendlyName = friendlyName;
         AccessRegistration = accessRegistration;
+        FriendlyName = friendlyName;
     }
 
     public AsciiDomainName Domain { get; init; }
-
     public AccessRegistration AccessRegistration { get; init; }
-
     public string FriendlyName { get; init; }
-    
-}
 
-public class RedactedYouAuthDomainClient
-{
-    public AsciiDomainName Domain { get; set; }
+    public Guid Id => this.AccessRegistration.Id;
 
-    public GuidId AccessRegistrationId { get; set; }
+    public string IssuedTo => this.Domain.DomainName;
+    public int Type => 408;
+    public int TimeToLiveSeconds { get; set; } 
+    public Guid CategoryId { get; } = Guid.Parse("83742ae7-e66d-45e6-82a6-6a003c960b39");
 
-    public string FriendlyName { get; set; }
-
-    public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
-
-    public UnixTimeUtc Created { get; set; }
-
-    public bool IsRevoked { get; set; }
+    public string GetValue()
+    {
+        return OdinSystemSerializer.Serialize(this);
+    }
 }

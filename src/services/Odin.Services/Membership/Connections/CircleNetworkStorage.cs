@@ -12,6 +12,7 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
+using Odin.Services.Authorization;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -26,21 +27,21 @@ public class CircleNetworkStorage
     private readonly Guid _icrKeyStorageId = Guid.Parse("42739542-22eb-49cb-b43a-110acf2b18a1");
     private readonly CircleMembershipService _circleMembershipService;
     private readonly IdentityDatabase _db;
+    private readonly ClientRegistrationStorage _clientRegistrationStorage;
 
     private readonly SingleKeyValueStorage _icrKeyStorage;
 
-    private readonly SingleKeyValueStorage _peerIcrClientStorage;
-
-    public CircleNetworkStorage(CircleMembershipService circleMembershipService, IdentityDatabase db)
+    public CircleNetworkStorage(CircleMembershipService circleMembershipService, IdentityDatabase db, ClientRegistrationStorage clientRegistrationStorage)
     {
         _circleMembershipService = circleMembershipService;
         _db = db;
+        _clientRegistrationStorage = clientRegistrationStorage;
 
         const string icrKeyStorageContextKey = "9035bdfa-e25d-4449-82a5-fd8132332dea";
         _icrKeyStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(icrKeyStorageContextKey));
 
-        const string peerIcrClientStorageContextKey = "0ee6aeff-2c21-412d-8050-1a47d025af46";
-        _peerIcrClientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(peerIcrClientStorageContextKey));
+        // const string peerIcrClientStorageContextKey = "0ee6aeff-2c21-412d-8050-1a47d025af46";
+        // _peerIcrClientStorage = TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse(peerIcrClientStorageContextKey));
     }
 
     public async Task<IdentityConnectionRegistration> GetAsync(OdinId odinId)
@@ -195,12 +196,12 @@ public class CircleNetworkStorage
 
     public async Task SavePeerIcrClientAsync(PeerIcrClient client)
     {
-        await _peerIcrClientStorage.UpsertAsync(_db.KeyValueCached, client.AccessRegistration.Id, client);
+        await _clientRegistrationStorage.SaveAsync(client);
     }
 
     public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
     {
-        return await _peerIcrClientStorage.GetAsync<PeerIcrClient>(_db.KeyValueCached, accessRegId);
+        return await _clientRegistrationStorage.GetAsync<PeerIcrClient>(accessRegId);
     }
     
     private async Task<IdentityConnectionRegistration> MapFromStorageAsync(ConnectionsRecord record)
