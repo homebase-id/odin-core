@@ -15,7 +15,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class SecurityVerificationController(OwnerSecurityHealthService securityHealthService) : OdinControllerBase
+public class SecurityVerificationController(
+    OwnerSecurityHealthService securityHealthService,
+    PasswordKeyRecoveryService passwordKeyRecoveryService) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
@@ -57,6 +59,11 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
     [HttpGet("needs-attention")]
     public async Task<ActionResult<NeedsAttentionResponse>> RecoveryNeedsAttention()
     {
+        if (!(await passwordKeyRecoveryService.HasRecoveryKeyBeenViewed()))
+        {
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
+        }
+
         var recoveryInfo = await securityHealthService.GetRecoveryInfo(live: false, WebOdinContext);
 
         if (recoveryInfo is null)
@@ -69,7 +76,7 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         {
             return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
         }
-        
+
         var maxWait = TimeSpan.FromDays(30 * 6);
         var now = DateTime.UtcNow;
 
@@ -81,7 +88,7 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         {
             return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
         }
-        
+
         return Ok(new NeedsAttentionResponse() { NeedsAttention = false });
     }
 
