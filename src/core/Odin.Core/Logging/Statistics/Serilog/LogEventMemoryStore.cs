@@ -60,4 +60,16 @@ public sealed class LogEventMemoryStore : ILogEventMemoryStore
             return _logEvents.ToDictionary(entry => entry.Key, entry => entry.Value.ToList());
         }
     }
+
+    //
+
+    public Dictionary<LogEventLevel, List<string>> GetLogMessages()
+    {
+        lock (_mutex)
+        {
+            return _logEvents.ToDictionary(entry => entry.Key, entry => entry.Value.Select(x => x.RenderMessage()).ToList());
+        }
+    }
+
+
 }
