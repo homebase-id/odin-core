@@ -19,7 +19,7 @@ public class PasswordKeyRecoveryService(
     TenantContext tenantContext,
     RecoveryNotifier recoveryNotifier)
 {
-    public const int RecoveryKeyWaitingPeriodSecondsForTesting = 100;
+    public const int RecoveryKeyWaitingPeriodSecondsForTesting = 5;
 
     private static readonly Guid RecordStorageId = Guid.Parse("7fd3665e-957f-4846-a437-61c3d76fc262");
     private const string ContextKey = "3780295a-5bc6-4e0f-8334-4b5c063099c4";

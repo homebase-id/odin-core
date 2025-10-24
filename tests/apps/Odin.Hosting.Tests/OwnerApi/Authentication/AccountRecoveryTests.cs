@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
@@ -10,6 +9,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
+using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Authentication
@@ -142,37 +142,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             var result = requestRecoveryKeyResponse.Content;
             Assert.That(result, Is.Not.Null);
-
-            // time keeps ticking; wait 1 second less than is required
-            var nextViewableUtc = DateTimeOffset.FromUnixTimeMilliseconds(result.NextViewableDate.milliseconds - 1000);
-            var now = DateTimeOffset.UtcNow;
-            if (nextViewableUtc > now)
-            {
-                var delay = nextViewableUtc - now;
-                await Task.Delay(delay);
-            }
+            
+            await Task.Delay(1000 * PasswordKeyRecoveryService.RecoveryKeyWaitingPeriodSecondsForTesting + 1);
 
             var response = await ownerClient.Security.GetAccountRecoveryKey();
             ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.OK);
-            ClassicAssert.IsTrue(!string.IsNullOrEmpty(response.Content.Key));
+            Assert.That(response.Content.Key, Is.Not.Null.Or.Empty, "should have the recovery key");
 
             // now make a second request
             var requestRecoveryKeyResponse2 = await ownerClient.Security.RequestRecoveryKey();
             Assert.That(requestRecoveryKeyResponse2.IsSuccessful, Is.True);
             var result2 = requestRecoveryKeyResponse2.Content;
             Assert.That(result2, Is.Not.Null);
-
-            // time keeps ticking
-            // var nextViewableUtc2 = DateTimeOffset.FromUnixTimeMilliseconds(result2.NextViewableDate.milliseconds + 100);
-            // var now2 = DateTimeOffset.UtcNow;
-            // if (nextViewableUtc2 > now2)
-            // {
-            //     var delay = nextViewableUtc2 - now2;
-            //     await Task.Delay(delay);
-            // }
-            //
+         
             var response2 = await ownerClient.Security.GetAccountRecoveryKey();
-            ClassicAssert.IsTrue(response2.Content.Key == null);
+            ClassicAssert.IsTrue(response2.Content.Key == null, "key should not yet be viewable");
         }
 
         [Test]
