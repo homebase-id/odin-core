@@ -47,6 +47,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
 
         [Test]
+#if !DEBUG
+        [Ignore("Ignored for release tests due to how we test recovery mode")]
+#endif
         public async Task CanGetAccountRecoveryKey()
         {
             var identity = TestIdentities.Frodo;
@@ -58,7 +61,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             // since we just set up the account - first request the recovery key
             var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
-            
+
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             Assert.That(requestRecoveryKeyResponse.Content, Is.Not.Null);
             var nextDate = requestRecoveryKeyResponse.Content.NextViewableDate;
@@ -88,6 +91,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         }
 
         [Test]
+#if !DEBUG
+        [Ignore("Ignored for release tests due to how we test recovery mode")]
+#endif
         public async Task CanToGetAccountRecoveryKeyWhenViewedAfterTimeWindow()
         {
             var identity = TestIdentities.Samwise;
@@ -97,7 +103,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             // let us say the user already has their key from before
             await ownerClient.Security.ConfirmStoredRecoveryKey();
-            
+
             var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             var result = requestRecoveryKeyResponse.Content;
@@ -127,6 +133,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         }
 
         [Test]
+#if !DEBUG
+        [Ignore("Ignored for release tests due to how we test recovery mode")]
+#endif
         public async Task FailToGetAccountRecoveryKeyWhenViewedBeforeTimeWindow()
         {
             var identity = TestIdentities.Pippin;
@@ -142,7 +151,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             var result = requestRecoveryKeyResponse.Content;
             Assert.That(result, Is.Not.Null);
-            
+
             await Task.Delay(1000 * PasswordKeyRecoveryService.RecoveryKeyWaitingPeriodSecondsForTesting + 1);
 
             var response = await ownerClient.Security.GetAccountRecoveryKey();
@@ -154,12 +163,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.That(requestRecoveryKeyResponse2.IsSuccessful, Is.True);
             var result2 = requestRecoveryKeyResponse2.Content;
             Assert.That(result2, Is.Not.Null);
-         
+
             var response2 = await ownerClient.Security.GetAccountRecoveryKey();
             ClassicAssert.IsTrue(response2.Content.Key == null, "key should not yet be viewable");
         }
 
         [Test]
+#if !DEBUG
+        [Ignore("Ignored for release tests due to how we test recovery mode")]
+#endif
         public async Task CanResetPasswordUsingAccountRecoveryKey()
         {
             var identity = TestIdentities.TomBombadil;
@@ -178,7 +190,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             // let us say the user already has their key from before
             await ownerClient.Security.ConfirmStoredRecoveryKey();
-            
+
             var requestRecoveryKeyResponse = await ownerClient.Security.RequestRecoveryKey();
             Assert.That(requestRecoveryKeyResponse.IsSuccessful, Is.True);
             var result = requestRecoveryKeyResponse.Content;
