@@ -15,6 +15,8 @@ public static class PubSubExtensions
         }
         else
         {
+            // The one and only InProcPubSubBroker for the entire system. Tenants do NOT have their own.
+            cb.RegisterType<InProcPubSubBroker>().SingleInstance();
             cb.RegisterType<SystemInProcPubSub>().As<ISystemPubSub>().SingleInstance();
         }
         return cb;

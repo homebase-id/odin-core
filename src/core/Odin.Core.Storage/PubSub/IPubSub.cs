@@ -5,12 +5,6 @@ namespace Odin.Core.Storage.PubSub;
 
 #nullable enable
 
-public enum MessageFromSelf
-{
-    Ignore,
-    Process
-}
-
 /// <summary>
 /// Fire-and-forget publish/subscribe with at-most-once delivery semantics.
 /// </summary>
@@ -21,16 +15,15 @@ public interface IPubSub
     /// </summary>
     /// <param name="channel">Name of channel to publish message to.</param>
     /// <param name="message">Message to publish.</param>
-    Task PublishAsync<T>(string channel, T message);
+    Task PublishAsync<T>(string channel, T? message);
 
     /// <summary>
     /// Subscribe to messages on named channel.
     /// </summary>
     /// <param name="channel">Name of channel to get message from.</param>
-    /// <param name="messageFromSelf">Ignore or process messages sent by self.</param>
-    /// <param name="handler">Handler being called with the message.</param>
+    /// <param name="handler">Handler being called with the message. Mismatching types are dropped.</param>
     /// <returns>UnsubscribeToken. Use this to unsubscribe to the named channel.</returns>
-    Task<object> SubscribeAsync<T>(string channel, MessageFromSelf messageFromSelf, Func<T, Task> handler);
+    Task<object> SubscribeAsync<T>(string channel, Func<T?, Task> handler);
 
     /// <summary>
     /// Unsubscribe from a named channel.
@@ -40,6 +33,10 @@ public interface IPubSub
     /// <returns></returns>
     Task UnsubscribeAsync(string channel, object unsubscribeToken);
 
+    /// <summary>
+    /// Unsubscribe all channels
+    /// </summary>
+    /// <returns></returns>
     Task UnsubscribeAllAsync();
 }
 

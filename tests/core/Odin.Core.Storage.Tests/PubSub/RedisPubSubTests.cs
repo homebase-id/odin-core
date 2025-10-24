@@ -56,13 +56,13 @@ public class RedisPubSubTests
         var pubSub1MessageReceived = "";
         var pubSub2MessageReceived = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        await pubSub1.SubscribeAsync<string>(testChannel, async message =>
         {
             pubSub1MessageReceived = message;
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        await pubSub2.SubscribeAsync<string>(testChannel, async message =>
         {
             pubSub2MessageReceived = message;
             await Task.CompletedTask;
@@ -99,25 +99,25 @@ public class RedisPubSubTests
         var pubSub1Channel2MessageReceived = "";
         var pubSub2Channel2MessageReceived = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel1, MessageFromSelf.Process, async message =>
+        await pubSub1.SubscribeAsync<string>(testChannel1, async message =>
         {
             pubSub1Channel1MessageReceived = message;
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel1, MessageFromSelf.Process, async message =>
+        await pubSub2.SubscribeAsync<string>(testChannel1, async message =>
         {
             pubSub2Channel1MessageReceived = message;
             await Task.CompletedTask;
         });
 
-        await pubSub1.SubscribeAsync<string>(testChannel2, MessageFromSelf.Process, async message =>
+        await pubSub1.SubscribeAsync<string>(testChannel2, async message =>
         {
             pubSub1Channel2MessageReceived = message;
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel2, MessageFromSelf.Process, async message =>
+        await pubSub2.SubscribeAsync<string>(testChannel2, async message =>
         {
             pubSub2Channel2MessageReceived = message;
             await Task.CompletedTask;
@@ -134,46 +134,6 @@ public class RedisPubSubTests
         Assert.That(pubSub2Channel1MessageReceived, Is.EqualTo("Hello"));
         Assert.That(pubSub1Channel2MessageReceived, Is.EqualTo("There"));
         Assert.That(pubSub2Channel2MessageReceived, Is.EqualTo("There"));
-    }
-
-    //
-
-    [Test]
-    public async Task SenderShouldNotReceiveItsOwnMessages()
-    {
-        const string channelPrefix = "my-prefix";
-        const string testChannel = "test-channel";
-
-        var logger = new Mock<ILogger<RedisPubSub>>().Object;
-        var redis1 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
-        var redis2 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
-
-        var pubSub1 = new RedisPubSub(logger, redis1, channelPrefix);
-        var pubSub2 = new RedisPubSub(logger, redis2, channelPrefix);
-
-        var pubSub1MessageReceived = "";
-        var pubSub2MessageReceived = "";
-
-        await pubSub1.SubscribeAsync<string>(testChannel, MessageFromSelf.Ignore, async message =>
-        {
-            pubSub1MessageReceived = message;
-            await Task.CompletedTask;
-        });
-
-        await pubSub2.SubscribeAsync<string>(testChannel, MessageFromSelf.Ignore, async message =>
-        {
-            pubSub2MessageReceived = message;
-            await Task.CompletedTask;
-        });
-
-        await Task.Delay(500); // Give some time for subscriptions to be set up
-
-        await pubSub1.PublishAsync(testChannel, "Hello");
-
-        await Task.Delay(500); // Give some time for messages to be processed
-
-        Assert.That(pubSub1MessageReceived, Is.EqualTo(""));
-        Assert.That(pubSub2MessageReceived, Is.EqualTo("Hello"));
     }
 
     //
@@ -196,25 +156,25 @@ public class RedisPubSubTests
         var pubSub2MessageReceived1 = "";
         var pubSub2MessageReceived2 = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        await pubSub1.SubscribeAsync<string>(testChannel, async message =>
         {
             pubSub1MessageReceived1 = message;
             await Task.CompletedTask;
         });
 
-        await pubSub1.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        await pubSub1.SubscribeAsync<string>(testChannel, async message =>
         {
             pubSub1MessageReceived2 = message;
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken1 = await pubSub2.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        var unsubscribeToken1 = await pubSub2.SubscribeAsync<string>(testChannel, async message =>
         {
             pubSub2MessageReceived1 = message;
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken2 = await pubSub2.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        var unsubscribeToken2 = await pubSub2.SubscribeAsync<string>(testChannel, async message =>
         {
             pubSub2MessageReceived2 = message;
             await Task.CompletedTask;
@@ -289,25 +249,25 @@ public class RedisPubSubTests
         var pubSub1Channel2MessageReceived = "";
         var pubSub2Channel2MessageReceived = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel1, MessageFromSelf.Process, async message =>
+        await pubSub1.SubscribeAsync<string>(testChannel1, async message =>
         {
             pubSub1Channel1MessageReceived = message;
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel1, MessageFromSelf.Process, async message =>
+        await pubSub2.SubscribeAsync<string>(testChannel1, async message =>
         {
             pubSub2Channel1MessageReceived = message;
             await Task.CompletedTask;
         });
 
-        await pubSub1.SubscribeAsync<string>(testChannel2, MessageFromSelf.Process, async message =>
+        await pubSub1.SubscribeAsync<string>(testChannel2, async message =>
         {
             pubSub1Channel2MessageReceived = message;
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel2, MessageFromSelf.Process, async message =>
+        await pubSub2.SubscribeAsync<string>(testChannel2, async message =>
         {
             pubSub2Channel2MessageReceived = message;
             await Task.CompletedTask;
@@ -363,6 +323,37 @@ public class RedisPubSubTests
         Assert.That(pubSub1Channel2MessageReceived, Is.EqualTo(""));
         Assert.That(pubSub2Channel2MessageReceived, Is.EqualTo(""));
     }
+
+    //
+
+    [Test]
+    public async Task ItShouldSendAndReceiveNullValues()
+    {
+        const string channelPrefix = "my-prefix";
+        const string testChannel = "test-channel";
+
+        var logger = new Mock<ILogger<RedisPubSub>>().Object;
+        var redis1 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+
+        var pubSub1 = new RedisPubSub(logger, redis1, channelPrefix);
+
+        var pubSub1MessageReceived = "";
+
+        await pubSub1.SubscribeAsync<string?>(testChannel, async message =>
+        {
+            pubSub1MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await Task.Delay(500); // Give some time for subscriptions to be set up
+
+        await pubSub1.PublishAsync<string?>(testChannel, null);
+
+        await Task.Delay(500); // Give some time for messages to be processed
+
+        Assert.That(pubSub1MessageReceived, Is.Null);
+    }
+
 
 
 }

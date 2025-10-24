@@ -11,7 +11,6 @@ namespace Odin.Core.Storage.PubSub;
 public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultiplexer, string channelPrefix)
     : IPubSub, IDisposable
 {
-    private readonly string _senderId = Guid.NewGuid().ToString();
     private readonly ISubscriber _publisher = connectionMultiplexer.GetSubscriber();
     private readonly ISubscriber _subscriber = connectionMultiplexer.GetSubscriber();
 
@@ -25,13 +24,12 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
-    public async Task PublishAsync<T>(string channel, T message)
+    public async Task PublishAsync<T>(string channel, T? message)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
 
         var envelope = new Envelope<T>
         {
-            SenderId = _senderId,
             Payload = message
         };
         var json = OdinSystemSerializer.Serialize(envelope);
@@ -40,7 +38,7 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
-    public async Task<object> SubscribeAsync<T>(string channel, MessageFromSelf messageFromSelf, Func<T, Task> handler)
+    public async Task<object> SubscribeAsync<T>(string channel, Func<T?, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
@@ -54,17 +52,6 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
             }
 
             var envelope = OdinSystemSerializer.DeserializeOrThrow<Envelope<T>>(json);
-
-            if (envelope.Payload == null)
-            {
-                return;
-            }
-
-            if (envelope.SenderId == _senderId && messageFromSelf == MessageFromSelf.Ignore)
-            {
-                // Ignore own messages
-                return;
-            }
 
             // Fire-and-forget
             _ = SafeInvokeAsync(handler, envelope.Payload, channel);
@@ -115,7 +102,6 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     private class Envelope<T>
     {
-        public string SenderId { get; set; } = "";
         public T? Payload { get; set; }
     }
 

@@ -22,9 +22,7 @@ public class SystemPubSubTests
         Redis
     }
 
-#if RUN_REDIS_TESTS
     private RedisContainer? _redisContainer;
-#endif
 
     [SetUp]
     public void Setup()
@@ -42,14 +40,12 @@ public class SystemPubSubTests
     [TearDown]
     public void TearDown()
     {
-#if RUN_REDIS_TESTS
         if (_redisContainer != null)
         {
             _redisContainer.StopAsync().BlockingWait();
             _redisContainer.DisposeAsync().AsTask().BlockingWait();
             _redisContainer = null;
         }
-#endif
     }
 
     //
@@ -65,13 +61,11 @@ public class SystemPubSubTests
             logging.SetMinimumLevel(LogLevel.Debug);
         });
 
-#if RUN_REDIS_TESTS
         if (redis)
         {
             var redisConfig = _redisContainer?.GetConnectionString() ?? throw new InvalidOperationException();
             services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfig));
         }
-#endif
 
         var builder = new ContainerBuilder();
         builder.Populate(services);
@@ -96,7 +90,7 @@ public class SystemPubSubTests
 
         var systemReceived = false;
 
-        await systemPubSub.SubscribeAsync<string>(testChannel, MessageFromSelf.Process, async message =>
+        await systemPubSub.SubscribeAsync<string>(testChannel, async message =>
         {
             systemReceived = true;
             await Task.CompletedTask;
@@ -112,41 +106,5 @@ public class SystemPubSubTests
 
         services.Dispose();
     }
-
-    //
-
-    [Test]
-    [TestCase(PubSubType.InProc)]
-#if RUN_REDIS_TESTS
-    [TestCase(PubSubType.Redis)]
-#endif
-    public async Task SystemDoesntReceiveMessagesFromSelf(PubSubType pubSubType)
-    {
-        const string testChannel = "test-channel";
-
-        var services = RegisterServicesAsync(pubSubType);
-
-        var systemPubSub = services.Resolve<ISystemPubSub>();
-
-        var systemReceived = false;
-
-        await systemPubSub.SubscribeAsync<string>(testChannel, MessageFromSelf.Ignore, async message =>
-        {
-            systemReceived = true;
-            await Task.CompletedTask;
-        });
-
-        await Task.Delay(500); // Give some time for subscriptions to be set up
-
-        await systemPubSub.PublishAsync(testChannel, "Hello from System!");
-
-        await Task.Delay(500); // Give some time for messages to be processed
-
-        Assert.That(systemReceived, Is.False);
-
-        services.Dispose();
-    }
-
-    //
 
 }
