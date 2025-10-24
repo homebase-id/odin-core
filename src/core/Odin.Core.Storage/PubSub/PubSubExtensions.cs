@@ -3,24 +3,28 @@ using Autofac;
 
 namespace Odin.Core.Storage.PubSub;
 
+#nullable enable
+
 public static class PubSubExtensions
 {
     public static ContainerBuilder AddSystemPubSub(this ContainerBuilder cb, bool redisEnabled)
     {
         if (redisEnabled)
         {
-            cb.RegisterType<SystemPubSub>().As<ISystemPubSub>().SingleInstance();
+            cb.RegisterType<SystemRedisPubSub>().As<ISystemPubSub>().SingleInstance();
         }
         else
         {
-            cb.RegisterType<NopPubSub>().As<ISystemPubSub>().SingleInstance();
+            // The one and only InProcPubSubBroker for the entire system. Tenants do NOT have their own.
+            cb.RegisterType<InProcPubSubBroker>().SingleInstance();
+            cb.RegisterType<SystemInProcPubSub>().As<ISystemPubSub>().SingleInstance();
         }
         return cb;
     }
 
     //
 
-    public static ContainerBuilder AddTenantPubSub(this ContainerBuilder cb, bool redisEnabled, string channelPrefix)
+    public static ContainerBuilder AddTenantPubSub(this ContainerBuilder cb, string channelPrefix, bool redisEnabled)
     {
         ArgumentException.ThrowIfNullOrEmpty(channelPrefix, nameof(channelPrefix));
 
@@ -28,11 +32,11 @@ public static class PubSubExtensions
 
         if (redisEnabled)
         {
-            cb.RegisterType<TenantPubSub>().As<ITenantPubSub>().SingleInstance();
+            cb.RegisterType<TenantRedisPubSub>().As<ITenantPubSub>().SingleInstance();
         }
         else
         {
-            cb.RegisterType<NopPubSub>().As<ITenantPubSub>().SingleInstance();
+            cb.RegisterType<TenantInProcPubSub>().As<ITenantPubSub>().SingleInstance();
         }
         return cb;
     }

@@ -345,7 +345,7 @@ public static class TenantServices
         cb.AddTenantCaches(registration.Id.ToString());
 
         // Tenant PubSub services
-        cb.AddTenantPubSub(odinConfig.Redis.Enabled, registration.Id.ToString());
+        cb.AddTenantPubSub(registration.Id.ToString(), odinConfig.Redis.Enabled);
 
         // Payload storage
         if (odinConfig.S3PayloadStorage.Enabled)
