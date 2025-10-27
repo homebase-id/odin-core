@@ -24,6 +24,13 @@ public class InProcPubSub(InProcPubSubBroker broker, string channelPrefix) : IPu
 
     //
 
+    public Task PublishStringAsync(string channel, string message)
+    {
+        return PublishAsync(channel, message);
+    }
+
+    //
+
     public Task<object> SubscribeAsync<T>(string channel, Func<T?, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
@@ -33,6 +40,13 @@ public class InProcPubSub(InProcPubSubBroker broker, string channelPrefix) : IPu
         var unsubscribeToken = broker.Subscribe(this, channelName, handler);
 
         return  Task.FromResult(unsubscribeToken);
+    }
+
+    //
+
+    public Task<object> SubscribeStringAsync(string channel, Func<string?, Task> handler)
+    {
+        return SubscribeAsync(channel, handler);
     }
 
     //
