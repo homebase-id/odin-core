@@ -43,7 +43,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (issuedToId?.Length > 65535) throw new OdinDatabaseValidationException($"Too long issuedToId, was {issuedToId.Length} (max 65535)");
             categoryId.AssertGuidNotEmpty("Guid parameter categoryId cannot be set to Empty GUID.");
             if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-            if (value?.Length > 131070) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 131070)");
+            if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
         }
     } // End of record ClientRegistrationsRecord
 
@@ -388,7 +388,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<List<ClientRegistrationsRecord>> GetAllCatsAsync(Guid identityId)
+        protected virtual async Task<List<ClientRegistrationsRecord>> GetAllAsync(Guid identityId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
