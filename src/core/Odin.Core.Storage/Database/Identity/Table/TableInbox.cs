@@ -144,8 +144,8 @@ public class TableInbox(
             throw new Exception("No results");
         }
 
-        var totalCount = (int)(Int64)rdr[0];
-        var poppedCount = (int)(Int64)rdr[1];
+        var totalCount = rdr[0] == DBNull.Value ? 0 : (int)(long)rdr[0];
+        var poppedCount = rdr[1] == DBNull.Value ? 0 : (int)(long)rdr[1];
 
         var utc = UnixTimeUtc.ZeroTime;
         if (rdr[2] != DBNull.Value)
@@ -204,8 +204,8 @@ public class TableInbox(
             throw new Exception("No results");
         }
 
-        var totalCount = (int)(Int64)rdr[0];
-        var poppedCount = (int)(Int64)rdr[1];
+        var totalCount = rdr[0] == DBNull.Value ? 0 : (int)(long)rdr[0];
+        var poppedCount = rdr[1] == DBNull.Value ? 0 : (int)(long)rdr[1];
 
         var utc = UnixTimeUtc.ZeroTime;
         if (rdr[2] != DBNull.Value)
