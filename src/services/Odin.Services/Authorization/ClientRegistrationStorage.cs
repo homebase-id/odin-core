@@ -36,20 +36,22 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
         if (previousRegistrations.Count > Threshold)
         {
             logger.LogError(
-                "Threshold of {threshold} has been broken. ({count}) client registrations created by " +
+                "Threshold of {threshold} has been broken. ({count}) client registrations of type [{type}] created by " +
                 "why does {issuedTo} have so many client registrations?  ",
                 Threshold,
-                recentCount,
+                clientRegistration.Type,
+                previousRegistrations.Count,
                 clientRegistration.IssuedTo);
         }
 
-        if (recentCount >= WindowThreshold)
+        if (recentCount > WindowThreshold)
         {
             logger.LogError(
-                "Threshold of {threshold} has been broken. ({count}) client registrations created by " +
+                "Threshold of {threshold} has been broken. ({count}) client registrations of type [{type}] created by " +
                 "IssuedTo={issuedTo} within {window}",
                 WindowThreshold,
                 recentCount,
+                clientRegistration.Type,
                 clientRegistration.IssuedTo,
                 FormatTimespan());
         }
