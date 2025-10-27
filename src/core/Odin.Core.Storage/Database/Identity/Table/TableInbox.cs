@@ -114,58 +114,53 @@ public class TableInbox(
     public async Task<(int, int, UnixTimeUtc)> PopStatusAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var tx = await cn.BeginStackedTransactionAsync(IsolationLevel.RepeatableRead);
         await using var cmd = cn.CreateCommand();
 
+        // GROK:NOTE
+        // Below sub-select needed for concurrency guarantee instead of using multiple SELECTs.
+        // Also more performant than individual selects.
         cmd.CommandText =
-            "SELECT count(*) FROM inbox WHERE identityId=@identityId;" +
-            "SELECT count(*) FROM inbox WHERE identityId=@identityId AND popstamp IS NOT NULL;" +
-            "SELECT popstamp FROM inbox WHERE identityId=@identityId AND popstamp IS NOT NULL ORDER BY popstamp DESC LIMIT 1;";
+            """
+            SELECT 
+               COUNT(*) AS total_count,
+               SUM(CASE WHEN popstamp IS NOT NULL THEN 1 ELSE 0 END) AS popped_count,
+               (SELECT popstamp 
+                FROM inbox 
+                WHERE identityId = @identityId AND popstamp IS NOT NULL 
+                ORDER BY popstamp ASC LIMIT 1) AS oldest_popstamp
+            FROM inbox 
+            WHERE identityId = @identityId;
+            """;
 
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
         param1.Value = odinIdentity.IdentityIdAsByteArray();
 
-        using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        if (!await rdr.ReadAsync())
         {
-            // Read the total count
-            if (await rdr.ReadAsync() == false)
-                throw new Exception("Not possible");
-            int totalCount = 0;
-            if (!(rdr[0] == DBNull.Value))
-                totalCount = (int)(Int64) rdr[0];
-
-            // Read the popped count
-            if (await rdr.NextResultAsync() == false)
-                throw new Exception("Not possible");
-            if (await rdr.ReadAsync() == false)
-                throw new Exception("Not possible");
-
-            int poppedCount = 0;
-            if (!(rdr[0] == DBNull.Value))
-                poppedCount = (int)(Int64) rdr[0];
-
-            if (await rdr.NextResultAsync() == false)
-                throw new Exception("Not possible");
-
-            var utc = UnixTimeUtc.ZeroTime;
-            if (await rdr.ReadAsync())
-            {
-                if (!(rdr[0] == DBNull.Value))
-                {
-                    var bytes = (byte[]) rdr[0];
-                    if (bytes.Length != 16)
-                        throw new Exception("Invalid stamp");
-
-                    var guid = new Guid(bytes);
-                    utc = SequentialGuid.ToUnixTimeUtc(guid);
-                }
-            }
-
-            return (totalCount, poppedCount, utc);
+            throw new Exception("No results");
         }
-    }
 
+        var totalCount = (int)(Int64)rdr[0];
+        var poppedCount = (int)(Int64)rdr[1];
+
+        var utc = UnixTimeUtc.ZeroTime;
+        if (rdr[2] != DBNull.Value)
+        {
+            var bytes = (byte[])rdr[2];
+            if (bytes.Length != 16)
+            {
+                throw new Exception("Invalid stamp");
+            }
+            var guid = new Guid(bytes);
+            utc = SequentialGuid.ToUnixTimeUtc(guid);
+        }
+
+        return (totalCount, poppedCount, utc);
+    }
 
     /// <summary>
     /// Status on the box
@@ -177,65 +172,55 @@ public class TableInbox(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
+        // GROK:NOTE
+        // Below sub-select needed for concurrency guarantee instead of using multiple SELECTs.
+        // Also more performant than individual selects.
         cmd.CommandText =
-            "SELECT count(*) FROM inbox WHERE identityId=@identityId AND boxId=@boxId;" +
-            "SELECT count(*) FROM inbox WHERE identityId=@identityId AND boxId=@boxId AND popstamp IS NOT NULL;" +
-            "SELECT popstamp FROM inbox WHERE identityId=@identityId AND boxId=@boxId ORDER BY popstamp DESC LIMIT 1;";
+            """
+            SELECT 
+               COUNT(*) AS total_count,
+               SUM(CASE WHEN popstamp IS NOT NULL THEN 1 ELSE 0 END) AS popped_count,
+               (SELECT popstamp 
+                FROM inbox 
+                WHERE identityId = @identityId AND boxId = @boxId AND popstamp IS NOT NULL 
+                ORDER BY popstamp ASC LIMIT 1) AS oldest_popstamp
+            FROM inbox 
+            WHERE identityId = @identityId AND boxId = @boxId;
+            """;
+
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
-
-        param1.ParameterName = "@boxId";
-        param2.ParameterName = "@identityId";
-
+        param1.ParameterName = "@identityId";
+        param1.Value = odinIdentity.IdentityIdAsByteArray();
+        param2.ParameterName = "@boxId";
+        param2.Value = boxId.ToByteArray();
         cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
 
-        param1.Value = boxId.ToByteArray();
-        param2.Value = odinIdentity.IdentityIdAsByteArray();
+        await using var rdr = await cmd.ExecuteReaderAsync();
 
-        using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
+        if (!await rdr.ReadAsync())
         {
-            // Read the total count
-            if (await rdr.ReadAsync() == false)
-                throw new Exception("Not possible");
-
-            int totalCount = 0;
-            if (!(rdr[0] == DBNull.Value))
-                totalCount = (int)(Int64) rdr[0];
-
-            // Read the popped count
-            if (await rdr.NextResultAsync() == false)
-                throw new Exception("Not possible");
-            if (await rdr.ReadAsync() == false)
-                throw new Exception("Not possible");
-
-            int poppedCount = 0;
-            if (!(rdr[0] == DBNull.Value))
-                poppedCount = (int)(Int64) rdr[0];
-
-            if (await rdr.NextResultAsync() == false)
-                throw new Exception("Not possible");
-
-            var utc = UnixTimeUtc.ZeroTime;
-
-            // Read the marker, if any
-            if (await rdr.ReadAsync())
-            {
-                if (!(rdr[0] == DBNull.Value))
-                {
-                    var bytes = (byte[]) rdr[0];
-                    if (bytes.Length != 16)
-                        throw new Exception("Invalid stamp");
-
-                    var guid = new Guid(bytes);
-                    utc = SequentialGuid.ToUnixTimeUtc(guid);
-                }
-            }
-            return (totalCount, poppedCount, utc);
+            throw new Exception("No results");
         }
+
+        var totalCount = (int)(Int64)rdr[0];
+        var poppedCount = (int)(Int64)rdr[1];
+
+        var utc = UnixTimeUtc.ZeroTime;
+        if (rdr[2] != DBNull.Value)
+        {
+            var bytes = (byte[])rdr[2];
+            if (bytes.Length != 16)
+            {
+                throw new Exception("Invalid stamp");
+            }
+            var guid = new Guid(bytes);
+            utc = SequentialGuid.ToUnixTimeUtc(guid);
+        }
+
+        return (totalCount, poppedCount, utc);
     }
-
-
 
     /// <summary>
     /// Cancels the pop of items with the 'popstamp' from a previous pop operation
