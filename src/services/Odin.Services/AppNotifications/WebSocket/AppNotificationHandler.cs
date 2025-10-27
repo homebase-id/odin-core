@@ -8,11 +8,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage.PubSub;
 using Odin.Services.AppNotifications.ClientNotifications;
-using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -24,10 +25,12 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 
 namespace Odin.Services.AppNotifications.WebSocket
 {
+
     public class AppNotificationHandler(
+        ILogger<AppNotificationHandler> logger,
         PeerInboxProcessor peerInboxProcessor,
         IDriveManager driveManager,
-        ILogger<AppNotificationHandler> logger,
+        ITenantPubSub pubSub,
         SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         :
             INotificationHandler<IClientNotification>,
@@ -37,10 +40,16 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
+        private readonly AsyncLock _pubSubLock = new();
+        private object? _pubSubSubscription;
+        private int _pubSubSubscriptionCount;
+
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken,
+        public async Task EstablishConnection(
+            System.Net.WebSockets.WebSocket webSocket,
+            CancellationToken cancellationToken,
             IOdinContext odinContext)
         {
             var webSocketKey = Guid.NewGuid();
@@ -52,6 +61,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                     Socket = webSocket,
                 };
                 deviceSocketCollection.AddSocket(deviceSocket);
+
+                // Subscribe to messages that is to be sent OUT on the websockets
+                // TODO: find a better name for this method...
+                await PubSubSubscribe(cancellationToken);
+
                 await AwaitCommands(deviceSocket, cancellationToken, odinContext);
             }
             catch (OperationCanceledException)
@@ -69,6 +83,8 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
             finally
             {
+                await PubSubUnsubscribe();
+
                 deviceSocketCollection.RemoveSocket(webSocketKey);
                 if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
                 {
@@ -88,7 +104,94 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext odinContext)
+        private async Task PubSubSubscribe(CancellationToken cancellationToken)
+        {
+            using (await _pubSubLock.LockAsync(cancellationToken))
+            {
+                if (++_pubSubSubscriptionCount > 1)
+                {
+                    // Already subscribed
+                    return;
+                }
+
+                _pubSubSubscription = await pubSub.SubscribeStringAsync(
+                    nameof(AppNotificationHandler),
+                    async message => await PubSubConsumeAppNotificationEnvelope(message, cancellationToken));
+            }
+        }
+
+        //
+
+        private async Task PubSubUnsubscribe()
+        {
+            using (await _pubSubLock.LockAsync())
+            {
+                if (_pubSubSubscriptionCount < 1)
+                {
+                    return;
+                }
+
+                _pubSubSubscriptionCount--;
+                if (_pubSubSubscriptionCount > 0)
+                {
+                    return;
+                }
+
+                try
+                {
+                    if (_pubSubSubscription != null)
+                    {
+                        await pubSub.UnsubscribeAsync(nameof(AppNotificationHandler), _pubSubSubscription);
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError("Unsubscribe failed: {error}", e.Message);
+                }
+                finally
+                {
+                    _pubSubSubscription = null;
+                    _pubSubSubscriptionCount = 0;
+                }
+            }
+        }
+
+        //
+
+        private async Task PubSubPublishAppNotificationEnvelope(AppNotificationEnvelope envelope)
+        {
+            await pubSub.PublishStringAsync(nameof(AppNotificationHandler), OdinSystemSerializer.Serialize(envelope));
+        }
+
+        //
+
+        private async Task PubSubConsumeAppNotificationEnvelope(string? message, CancellationToken cancellationToken)
+        {
+            if (message == null)
+            {
+                return;
+            }
+
+            var envelope = OdinSystemSerializer.Deserialize<AppNotificationEnvelope>(message);
+            if (envelope != null)
+            {
+                foreach (var socket in deviceSocketCollection.GetAll().Values)
+                {
+                    await SendMessageAsync(
+                        socket,
+                        envelope.Message,
+                        cancellationToken,
+                        envelope.ShouldEncrypt);
+                }
+            }
+        }
+
+        //
+
+        private async Task AwaitCommands(
+            DeviceSocket deviceSocket,
+            CancellationToken cancellationToken,
+            IOdinContext odinContext)
         {
             var webSocket = deviceSocket.Socket;
             while (!cancellationToken.IsCancellationRequested && webSocket?.State == WebSocketState.Open)
@@ -175,19 +278,25 @@ namespace Odin.Services.AppNotifications.WebSocket
                 Data = notification.GetClientData()
             });
 
-            var sockets = deviceSocketCollection.GetAll().Values;
-            foreach (var deviceSocket in sockets)
+            var envelope = new AppNotificationEnvelope
             {
-                await Task.CompletedTask;
-                // await SendMessageAsync(deviceSocket, json, cancellationToken, shouldEncrypt);
-            }
+                ShouldEncrypt = shouldEncrypt,
+                Message = json
+            };
 
+            await PubSubPublishAppNotificationEnvelope(envelope);
         }
 
         //
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
+            // PUBLISH:
+            // notification.File.DriveId
+            // notification.ServerFileHeader
+            // deletedNotification.PreviousServerFileHeader
+
+
             var sockets = deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
 
@@ -209,14 +318,16 @@ namespace Odin.Services.AppNotifications.WebSocket
                             : null
                     };
 
+
+
+
                     var json = OdinSystemSerializer.Serialize(new
                     {
                         notification.NotificationType,
                         Data = OdinSystemSerializer.Serialize(o)
                     });
 
-                    await Task.CompletedTask;
-                    // await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true, groupId: notification.File.FileId);
+                    await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true);
                 }
             }
         }
@@ -225,7 +336,9 @@ namespace Odin.Services.AppNotifications.WebSocket
         public async Task Handle(InboxItemReceivedNotification notification, CancellationToken cancellationToken)
         {
             var notificationDriveId = notification.TargetDrive.Alias;
-            var translated = new TranslatedClientNotification(notification.NotificationType,
+
+            var translated = new TranslatedClientNotification(
+                notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
                 {
                     TargetDrive = notification.TargetDrive,
@@ -233,8 +346,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     notification.FileSystemType
                 }));
 
-            await Task.CompletedTask;
-            //await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
+            await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, cancellationToken, false);
         }
 
         //
@@ -250,6 +362,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                 notification.NotificationType,
                 Data = notification.GetClientData()
             });
+
+            // SEB:NOTE we can't port to the PubSubConsumeAppNotificationEnvelope since the below code
+            // only writes to certain combinations of socket/drive
 
             var sockets = deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
@@ -277,8 +392,11 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken,
-            bool encrypt = true, Guid? groupId = null)
+        private async Task SendMessageAsync(
+            DeviceSocket deviceSocket,
+            string message,
+            CancellationToken cancellationToken,
+            bool encrypt = true)
         {
             var socket = deviceSocket.Socket;
 
@@ -405,5 +523,11 @@ namespace Odin.Services.AppNotifications.WebSocket
         }
 
         //
+    }
+
+    internal class AppNotificationEnvelope
+    {
+        public bool ShouldEncrypt { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 }

@@ -37,7 +37,9 @@ namespace Odin.Services.AppNotifications.WebSocket
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken,
+        public async Task EstablishConnection(
+            System.Net.WebSockets.WebSocket webSocket,
+            CancellationToken cancellationToken,
             IOdinContext odinContext)
         {
             var webSocketKey = Guid.NewGuid();
@@ -222,7 +224,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         Data = OdinSystemSerializer.Serialize(o)
                     });
 
-                    await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true, groupId: notification.File.FileId);
+                    await SendMessageAsync(deviceSocket, json, cancellationToken, encrypt: true);
                 }
             }
         }
@@ -242,7 +244,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         //
 
         private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken,
-            bool encrypt = true, Guid? groupId = null)
+            bool encrypt = true)
         {
             var socket = deviceSocket.Socket;
 
