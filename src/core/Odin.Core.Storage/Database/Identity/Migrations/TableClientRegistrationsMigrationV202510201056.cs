@@ -13,17 +13,11 @@ using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.SQLite;
 
-// THIS FILE WAS INITIALLY AUTO GENERATED
-
 namespace Odin.Core.Storage.Database.Identity.Migrations
 {
-    public class TableClientRegistrationsMigrationV202510201056 : MigrationBase
+    public class TableClientRegistrationsMigrationV202510201056(Int64 previousVersion) : MigrationBase(previousVersion)
     {
         public override Int64 MigrationVersion => 202510201056;
-
-        public TableClientRegistrationsMigrationV202510201056(Int64 previousVersion) : base(previousVersion)
-        {
-        }
 
         public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
         {
@@ -31,29 +25,28 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-                commentSql = "COMMENT ON TABLE ClientRegistrationsMigrationsV202510201056 IS '{ \"Version\": 202510201056 }';";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE ClientRegistrationsMigrationsV202510201056 IS '{ \"Version\": 202510201056 }';";
             }
             else
-                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                    "CREATE TABLE IF NOT EXISTS ClientRegistrationsMigrationsV202510201056( -- { \"Version\": 202510201056 }\n"
-                    + rowid
-                    + "identityId BYTEA NOT NULL, "
-                    + "catId BYTEA NOT NULL UNIQUE, "
-                    + "issuedToId TEXT NOT NULL, "
-                    + "ttl BIGINT NOT NULL, "
-                    + "expiresAt BIGINT NOT NULL, "
-                    + "categoryId BYTEA NOT NULL, "
-                    + "catType BIGINT NOT NULL, "
-                    + "value TEXT , "
-                    + "created BIGINT NOT NULL, "
-                    + "modified BIGINT NOT NULL "
-                    + ", UNIQUE(identityId,catId)"
-                    + $"){wori};"
-                ;
+                "CREATE TABLE IF NOT EXISTS ClientRegistrationsMigrationsV202510201056( -- { \"Version\": 202510201056 }\n"
+                   +rowid
+                   +"identityId BYTEA NOT NULL, "
+                   +"catId BYTEA NOT NULL UNIQUE, "
+                   +"issuedToId TEXT NOT NULL, "
+                   +"ttl BIGINT NOT NULL, "
+                   +"expiresAt BIGINT NOT NULL, "
+                   +"categoryId BYTEA NOT NULL, "
+                   +"catType BIGINT NOT NULL, "
+                   +"value TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
+                   +", UNIQUE(identityId,catId)"
+                   +$"){wori};"
+                   ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "ClientRegistrationsMigrationsV202510201056", createSql, commentSql);
         }
 
