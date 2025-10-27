@@ -199,6 +199,9 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
             Environment.SetEnvironmentVariable("Host__IpRateLimitRequestsPerSecond", int.MaxValue.ToString());
 
+            Environment.SetEnvironmentVariable("Host__ClientRegistrationThreshold", int.MaxValue.ToString());
+            Environment.SetEnvironmentVariable("Host__ClientRegistrationWindowThreshold", int.MaxValue.ToString());
+            
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
 

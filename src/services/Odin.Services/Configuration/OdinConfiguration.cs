@@ -204,6 +204,9 @@ namespace Odin.Services.Configuration
             public string DataProtectionKeyPath { get; init; }
             public bool Http1Only { get; init; }
 
+            public int ClientRegistrationThreshold { get; init; }
+            public int ClientRegistrationWindowThreshold { get; init; }
+            
             /// <summary>
             /// List of IPv4 or IPv6 IP address on which to listen 
             /// </summary>
@@ -260,6 +263,9 @@ namespace Odin.Services.Configuration
 
                 // SEB:TODO figure out what the rate limit should default to. FE requests an insane amount of files in development mode.
                 IpRateLimitRequestsPerSecond = config.GetOrDefault("Host:IpRateLimitRequestsPerSecond", 1000);
+
+                ClientRegistrationThreshold = config.GetOrDefault("Host:ClientRegistrationThreshold", 10);
+                ClientRegistrationWindowThreshold = config.GetOrDefault("Host:ClientRegistrationWindowThreshold", 3);
             }
 
             public string ReportContentUrl { get; set; }

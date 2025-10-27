@@ -9,6 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Configuration;
 using Odin.Services.Util;
 
 namespace Odin.Services.Authorization;
@@ -16,40 +17,42 @@ namespace Odin.Services.Authorization;
 /// <summary>
 /// Stores the server-side aspect of a <see cref="ClientAccessToken"/>
 /// </summary>
-public class ClientRegistrationStorage(TableClientRegistrations clientRegistrationsTable, ILogger<ClientRegistrationStorage> logger)
+public class ClientRegistrationStorage(TableClientRegistrations clientRegistrationsTable, ILogger<ClientRegistrationStorage> logger, OdinConfiguration configuration)
 {
-    private const int Threshold = 10;
-    private const int WindowThreshold = 3;
+    
     private static readonly TimeSpan Window = TimeSpan.FromDays(1);
 
     public async Task SaveAsync(IClientRegistration clientRegistration)
     {
         OdinValidationUtils.AssertNotEmptyGuid(clientRegistration.Id, "Client registration must have an id");
 
+        var threshold = configuration.Host.ClientRegistrationThreshold;
+        var windowThreshold = configuration.Host.ClientRegistrationWindowThreshold;
+        
         var now = DateTime.UtcNow;
         var previousRegistrations = await clientRegistrationsTable.GetByTypeAndIssuedToAsync(
             clientRegistration.Type, clientRegistration.IssuedTo);
         var byCategory = previousRegistrations.Where(r => r.categoryId == clientRegistration.CategoryId);
         var recentCount = byCategory.Count(r => (now - r.created.ToDateTime()) <= Window);
 
-        if (previousRegistrations.Count > Threshold)
+        if (previousRegistrations.Count > threshold)
         {
             logger.LogError(
                 "Threshold of {threshold} has been broken. ({count}) client registrations of " +
                 "type [{type}] and category [{category}] created by {issuedTo}",
-                Threshold,
+                threshold,
+                previousRegistrations.Count,
                 clientRegistration.Type,
                 clientRegistration.CategoryId,
-                previousRegistrations.Count,
                 clientRegistration.IssuedTo);
         }
 
-        if (recentCount > WindowThreshold)
+        if (recentCount > windowThreshold)
         {
             logger.LogError(
                 "Threshold of {threshold} has been broken. ({count}) client registrations of " +
                 "type [{type}] and category [{category}] created by {issuedTo} within {window}",
-                WindowThreshold,
+                windowThreshold,
                 recentCount,
                 clientRegistration.Type,
                 clientRegistration.CategoryId,
@@ -70,7 +73,6 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
 
         await clientRegistrationsTable.UpsertAsync(record);
     }
-
 
     public async Task ExtendLife(Guid id)
     {
