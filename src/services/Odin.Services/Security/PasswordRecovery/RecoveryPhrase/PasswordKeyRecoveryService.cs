@@ -91,8 +91,11 @@ public class PasswordKeyRecoveryService(
     {
         odinContext.Caller.AssertHasMasterKey();
         var recoveryKey = await GetKeyInternalAsync();
-        recoveryKey.InitialRecoveryKeyViewingDate = UnixTimeUtc.Now();
-        await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, recoveryKey);
+        if (null == recoveryKey.InitialRecoveryKeyViewingDate)
+        {
+            recoveryKey.InitialRecoveryKeyViewingDate = UnixTimeUtc.Now();
+            await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, recoveryKey);
+        }
     }
 
     public async Task<bool> HasRecoveryKeyBeenViewed()
@@ -100,7 +103,7 @@ public class PasswordKeyRecoveryService(
         var keyRecord = await GetKeyInternalAsync();
         return keyRecord?.InitialRecoveryKeyViewingDate != null;
     }
-    
+
     public async Task<RecoveryKeyResult> GetRecoveryKeyAsync(bool byPassWaitingPeriod, IOdinContext odinContext)
     {
         var ctx = odinContext;
@@ -122,7 +125,7 @@ public class PasswordKeyRecoveryService(
                 Key = readableText,
                 Created = recoveryKeyRecord.Created,
                 NextViewableDate = null, // doesnt matter
-                HasInitiallyReviewedKey  = recoveryKeyRecord.InitialRecoveryKeyViewingDate != null
+                HasInitiallyReviewedKey = recoveryKeyRecord.InitialRecoveryKeyViewingDate != null
             };
 
             await ClearNextViewableDate();
@@ -143,7 +146,7 @@ public class PasswordKeyRecoveryService(
                 Key = null,
                 Created = default,
                 NextViewableDate = null,
-                HasInitiallyReviewedKey  = keyRecord.InitialRecoveryKeyViewingDate != null
+                HasInitiallyReviewedKey = keyRecord.InitialRecoveryKeyViewingDate != null
             };
         }
 
@@ -154,7 +157,7 @@ public class PasswordKeyRecoveryService(
                 Key = null,
                 Created = default,
                 NextViewableDate = keyRecord.NextViewableDate,
-                HasInitiallyReviewedKey  = keyRecord.InitialRecoveryKeyViewingDate != null
+                HasInitiallyReviewedKey = keyRecord.InitialRecoveryKeyViewingDate != null
             };
         }
 
