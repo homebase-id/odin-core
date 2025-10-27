@@ -139,6 +139,64 @@ public class RedisPubSubTests
     //
 
     [Test]
+    public async Task ItShouldSendAndReceiveStringsOnMultipleChannels()
+    {
+        const string channelPrefix = "my-prefix";
+        const string testChannel1 = "test-channel1";
+        const string testChannel2 = "test-channel2";
+
+        var logger = new Mock<ILogger<RedisPubSub>>().Object;
+        var redis1 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+        var redis2 = await ConnectionMultiplexer.ConnectAsync(_redisContainer!.GetConnectionString());
+
+        var pubSub1 = new RedisPubSub(logger, redis1, channelPrefix);
+        var pubSub2 = new RedisPubSub(logger, redis2, channelPrefix);
+
+        var pubSub1Channel1MessageReceived = "";
+        var pubSub2Channel1MessageReceived = "";
+        var pubSub1Channel2MessageReceived = "";
+        var pubSub2Channel2MessageReceived = "";
+
+        await pubSub1.SubscribeStringAsync(testChannel1, async message =>
+        {
+            pubSub1Channel1MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await pubSub2.SubscribeStringAsync(testChannel1, async message =>
+        {
+            pubSub2Channel1MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await pubSub1.SubscribeStringAsync(testChannel2, async message =>
+        {
+            pubSub1Channel2MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await pubSub2.SubscribeStringAsync(testChannel2, async message =>
+        {
+            pubSub2Channel2MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await Task.Delay(500); // Give some time for subscriptions to be set up
+
+        await pubSub1.PublishStringAsync(testChannel1, "Hello");
+        await pubSub2.PublishStringAsync(testChannel2, "There");
+
+        await Task.Delay(500); // Give some time for messages to be processed
+
+        Assert.That(pubSub1Channel1MessageReceived, Is.EqualTo("Hello"));
+        Assert.That(pubSub2Channel1MessageReceived, Is.EqualTo("Hello"));
+        Assert.That(pubSub1Channel2MessageReceived, Is.EqualTo("There"));
+        Assert.That(pubSub2Channel2MessageReceived, Is.EqualTo("There"));
+    }
+
+    //
+
+    [Test]
     public async Task ItShouldUnsubscribe()
     {
         const string channelPrefix = "my-prefix";

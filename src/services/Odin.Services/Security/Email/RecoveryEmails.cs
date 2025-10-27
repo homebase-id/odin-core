@@ -401,13 +401,12 @@ public static class RecoveryEmails
     public static string FormatRecoveryRiskStatusText(OdinId odinId, RecoveryInfo info)
     {
         var risk = info.RecoveryRisk;
-        var domain = info.Email ?? "(unknown)";
         var tenant = odinId;
 
         if (!info.IsConfigured)
         {
             return @$"
-Hi {domain},
+Hi {tenant},
 
 ⚠️ Account Recovery is not yet configured.
 
@@ -438,7 +437,7 @@ Team Homebase
         };
 
         return @$"
-Hi {domain},
+Hi {tenant},
 
 {headline}
 
