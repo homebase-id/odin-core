@@ -38,6 +38,13 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
 
     //
 
+    public Task PublishStringAsync(string channel, string message)
+    {
+        return PublishAsync(channel, message);
+    }
+
+    //
+
     public async Task<object> SubscribeAsync<T>(string channel, Func<T?, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
@@ -60,6 +67,13 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
         await _subscriber.SubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), action);
 
         return action;
+    }
+
+    //
+
+    public Task<object> SubscribeStringAsync(string channel, Func<string?, Task> handler)
+    {
+        return SubscribeAsync(channel, handler);
     }
 
     //

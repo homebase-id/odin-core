@@ -176,6 +176,77 @@ public class InProcPubSubTests
     //
 
     [Test]
+    public async Task ItShouldSendAndReceiveStringsOnMultipleChannels()
+    {
+        const string channelPrefix = "my-prefix";
+        const string testChannel1 = "test-channel1";
+        const string testChannel2 = "test-channel2";
+
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<InProcPubSubBroker>(logStore);
+
+        var broker = new InProcPubSubBroker(logger);
+        var pubSub1 = new InProcPubSub(broker, channelPrefix);
+        var pubSub2 = new InProcPubSub(broker, channelPrefix);
+
+        var pubSub1Channel1MessageReceived = "";
+        var pubSub2Channel1MessageReceived = "";
+        var pubSub1Channel2MessageReceived = "";
+        var pubSub2Channel2MessageReceived = "";
+
+        await pubSub1.SubscribeStringAsync(testChannel1, async message =>
+        {
+            pubSub1Channel1MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await pubSub2.SubscribeStringAsync(testChannel1, async message =>
+        {
+            pubSub2Channel1MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await pubSub1.SubscribeStringAsync(testChannel2, async message =>
+        {
+            pubSub1Channel2MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await pubSub2.SubscribeStringAsync(testChannel2, async message =>
+        {
+            pubSub2Channel2MessageReceived = message;
+            await Task.CompletedTask;
+        });
+
+        await Task.Delay(200); // Give some time for subscriptions to be set up
+
+        var logEvents = logStore.GetLogMessages();
+        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel1\""));
+        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel2\""));
+
+        await pubSub1.PublishStringAsync(testChannel1, "Hello");
+        await pubSub2.PublishStringAsync(testChannel2, "There");
+
+        await Task.Delay(200); // Give some time for messages to be processed
+
+        Assert.That(pubSub1Channel1MessageReceived, Is.EqualTo("Hello"));
+        Assert.That(pubSub2Channel1MessageReceived, Is.EqualTo("Hello"));
+        Assert.That(pubSub1Channel2MessageReceived, Is.EqualTo("There"));
+        Assert.That(pubSub2Channel2MessageReceived, Is.EqualTo("There"));
+
+        pubSub1.Dispose();
+        pubSub2.Dispose();
+
+        await Task.Delay(200); // Give some time for messages to be processed
+
+        logEvents = logStore.GetLogMessages();
+        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Stopped processing messages for channel \"my-prefix:test-channel1\""));
+        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Stopped processing messages for channel \"my-prefix:test-channel2\""));
+    }
+
+    //
+
+    [Test]
     public async Task ItShouldUnsubscribe()
     {
         const string channelPrefix = "my-prefix";
