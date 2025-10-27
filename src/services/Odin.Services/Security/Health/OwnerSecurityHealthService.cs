@@ -63,6 +63,7 @@ public class OwnerSecurityHealthService(
         var mk = await recoveryService.AssertValidKeyAsync(recoveryKey);
         mk.Wipe();
         await UpdateVerificationStatusInternalAsync(updateRecoveryKeyLastVerified: true);
+        await recoveryService.ConfirmInitialRecoveryKeyStorage(odinContext);
     }
 
     public async Task<RecoveryInfo> GetRecoveryInfo(bool live, IOdinContext odinContext)
