@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,16 +29,17 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
         var now = DateTime.UtcNow;
         var previousRegistrations = await clientRegistrationsTable.GetByTypeAndIssuedToAsync(
             clientRegistration.Type, clientRegistration.IssuedTo);
-        var recentCount = previousRegistrations
-            .Count(r => (now - r.created.ToDateTime()) <= Window);
+        var byCategory = previousRegistrations.Where(r => r.categoryId == clientRegistration.CategoryId);
+        var recentCount = byCategory.Count(r => (now - r.created.ToDateTime()) <= Window);
 
         if (previousRegistrations.Count > Threshold)
         {
             logger.LogError(
-                "Threshold of {threshold} has been broken. ({count}) client registrations of type [{type}] created by " +
-                "why does {issuedTo} have so many client registrations?  ",
+                "Threshold of {threshold} has been broken. ({count}) client registrations of " +
+                "type [{type}] and category [{category}] created by {issuedTo}",
                 Threshold,
                 clientRegistration.Type,
+                clientRegistration.CategoryId,
                 previousRegistrations.Count,
                 clientRegistration.IssuedTo);
         }
@@ -47,11 +47,12 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
         if (recentCount > WindowThreshold)
         {
             logger.LogError(
-                "Threshold of {threshold} has been broken. ({count}) client registrations of type [{type}] created by " +
-                "IssuedTo={issuedTo} within {window}",
+                "Threshold of {threshold} has been broken. ({count}) client registrations of " +
+                "type [{type}] and category [{category}] created by {issuedTo} within {window}",
                 WindowThreshold,
                 recentCount,
                 clientRegistration.Type,
+                clientRegistration.CategoryId,
                 clientRegistration.IssuedTo,
                 FormatTimespan());
         }
