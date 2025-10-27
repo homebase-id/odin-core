@@ -121,7 +121,7 @@ public class ShamirConfigurationService(
     {
         if (!configuration.AccountRecovery.Enabled)
         {
-            throw new OdinClientException("Auto-recovery not enabled in cofiguration");
+            throw new OdinClientException("Auto-recovery not enabled in configuration");
         }
         
         var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
