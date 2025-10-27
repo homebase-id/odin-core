@@ -10,6 +10,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Services.AppNotifications.SystemNotifications;
+using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -19,38 +20,19 @@ using Odin.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.Home.Service
 {
-    public sealed class HomeAuthenticatorService : INotificationHandler<ConnectionBlockedNotification>,
-        INotificationHandler<ConnectionFinalizedNotification>,
-        INotificationHandler<ConnectionDeletedNotification>
+    public sealed class HomeAuthenticatorService(
+        CircleNetworkService circleNetworkService,
+        ExchangeGrantService exchangeGrantService,
+        TenantContext tenantContext,
+        ClientRegistrationStorage clientRegistrationStorage,
+        CircleMembershipService circleMembershipService,
+        ILogger<HomeAuthenticatorService> logger,
+        OdinContextCache cache)
+        : INotificationHandler<ConnectionBlockedNotification>,
+            INotificationHandler<ConnectionFinalizedNotification>,
+            INotificationHandler<ConnectionDeletedNotification>
     {
-        private readonly CircleNetworkService _circleNetworkService;
-        private readonly ExchangeGrantService _exchangeGrantService;
-        private readonly TenantContext _tenantContext;
-        private readonly HomeRegistrationStorage _storage;
-        private readonly CircleMembershipService _circleMembershipService;
-        private readonly ILogger<HomeAuthenticatorService> _logger;
-        private readonly OdinContextCache _cache;
-
         //
-
-        public HomeAuthenticatorService(
-            CircleNetworkService circleNetworkService,
-            ExchangeGrantService exchangeGrantService,
-            TenantContext tenantContext,
-            HomeRegistrationStorage storage,
-            CircleMembershipService circleMembershipService,
-            ILogger<HomeAuthenticatorService> logger,
-            OdinContextCache cache
-        )
-        {
-            _circleNetworkService = circleNetworkService;
-            _exchangeGrantService = exchangeGrantService;
-            _tenantContext = tenantContext;
-            _storage = storage;
-            _circleMembershipService = circleMembershipService;
-            _logger = logger;
-            _cache = cache;
-        }
 
         //
 
@@ -110,7 +92,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 return dotYouContext;
             });
 
-            return await _cache.GetOrAddContextAsync(token, creator);
+            return await cache.GetOrAddContextAsync(token, creator);
         }
 
         public async Task<bool> DeleteSessionAsync(IOdinContext odinContext)
@@ -121,7 +103,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
                 if (null != ctx)
                 {
-                    await _storage.DeleteClientAsync(ctx.AccessRegistrationId);
+                    await clientRegistrationStorage.DeleteAsync(ctx.AccessRegistrationId);
                 }
             }
             catch
@@ -141,16 +123,16 @@ namespace Odin.Hosting.Controllers.Home.Service
             IOdinContext odinContext)
         {
             var (grants, enabledCircles) = await 
-                _circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
+                circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
                     icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
-            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
-            var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
+            var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
+            var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
 
             // added to allow reading of images for reposted content
             permissionKeys.Add(PermissionKeys.UseTransitRead);
             
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(
+            var permissionCtx = await exchangeGrantService.CreatePermissionContext(
                 authToken: authToken,
                 grants: grants,
                 accessReg: accessReg,
@@ -204,21 +186,21 @@ namespace Odin.Hosting.Controllers.Home.Service
         }
 
         private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateAuthenticatedPermissionContext(
-            ClientAuthenticationToken authToken, HomeAppClient client, IOdinContext odinContext)
+            ClientAuthenticationToken authToken, HomeAppClientRegistration clientRegistration, IOdinContext odinContext)
         {
-            if (null == client)
+            if (null == clientRegistration)
             {
                 throw new OdinSecurityException("Invalid Client");
             }
 
-            if (null == client.AccessRegistration)
+            if (null == clientRegistration.AccessRegistration)
             {
                 //TODO: should we fail or fallback?  if this is missing we have a data
                 //issue on the server BUT we dont want to block the user from seeing the site.
             }
 
-            var permissionKeys = _tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
-            var anonDrivePermissions = _tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
+            var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForAuthenticatedIdentities();
+            var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForAuthenticatedIdentities();
             
             // added to support repost
             permissionKeys.Add(PermissionKeys.UseTransitRead);
@@ -228,9 +210,9 @@ namespace Odin.Hosting.Controllers.Home.Service
                 //no additional grants for authenticated
             };
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken,
+            var permissionCtx = await exchangeGrantService.CreatePermissionContext(authToken,
                 grants,
-                client.AccessRegistration!,
+                clientRegistration.AccessRegistration!,
                 odinContext: odinContext,
                 additionalPermissionKeys: permissionKeys, //read_connections
                 includeAnonymousDrives: true,
@@ -250,15 +232,15 @@ namespace Odin.Hosting.Controllers.Home.Service
             //     sharedSecretKey: ss);
 
             var cc = new CallerContext(
-                odinId: client.OdinId,
+                odinId: clientRegistration.OdinId,
                 securityLevel: SecurityGroupType.Authenticated,
                 masterKey: null,
                 circleIds: null,
                 odinClientContext: new OdinClientContext()
                 {
-                    ClientIdOrDomain = client.OdinId,
+                    ClientIdOrDomain = clientRegistration.OdinId,
                     CorsHostName = "",
-                    AccessRegistrationId = client.AccessRegistration!.Id,
+                    AccessRegistrationId = clientRegistration.AccessRegistration!.Id,
                     DevicePushNotificationKey = null
                 }
             );
@@ -266,16 +248,16 @@ namespace Odin.Hosting.Controllers.Home.Service
             return (cc, permissionCtx);
         }
 
-        private async Task<(bool, HomeAppClient? client)> HasValidClientAuthTokenAsync(ClientAuthenticationToken authToken)
+        private async Task<(bool, HomeAppClientRegistration? client)> HasValidClientAuthTokenAsync(ClientAuthenticationToken authToken)
         {
-            HomeAppClient? client = null;
+            HomeAppClientRegistration? client = null;
 
             if (authToken.ClientTokenType != ClientTokenType.BuiltInBrowserApp)
             {
                 return (false, client);
             }
 
-            client = await _storage.GetClientAsync(authToken.Id);
+            client = await clientRegistrationStorage.GetAsync<HomeAppClientRegistration>(authToken.Id);
 
             if (client == null)
             {
@@ -307,7 +289,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(bool success, ClientAccessToken? clientAccessToken)> TryCreateIdentityConnectionClientAsync(string odinId,
             ClientAuthenticationToken remoteClientAuthToken)
         {
-            var icr = await _circleNetworkService.GetIcrAsync(new OdinId(odinId), remoteClientAuthToken);
+            var icr = await circleNetworkService.GetIcrAsync(new OdinId(odinId), remoteClientAuthToken);
 
             if (!icr.IsConnected())
             {
@@ -327,12 +309,12 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<ClientAccessToken> StoreClientAsync(OdinId odinId, SensitiveByteArray grantKeyStoreKey, HomeAppClientType clientType)
         {
             var (accessRegistration, cat) =
-                await _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.BuiltInBrowserApp);
+                await exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.BuiltInBrowserApp);
 
             grantKeyStoreKey.Wipe();
 
-            var homeAppClient = new HomeAppClient(odinId, accessRegistration, clientType);
-            await _storage.SaveClientAsync(homeAppClient);
+            var homeAppClient = new HomeAppClientRegistration(odinId, accessRegistration, clientType);
+            await clientRegistrationStorage.SaveAsync(homeAppClient);
 
             return cat;
         }
@@ -344,9 +326,9 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedPermissionContextAsync(
             ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
-            _logger.LogDebug("Create Connected Permission Context");
+            logger.LogDebug("Create Connected Permission Context");
 
-            var client = await _storage.GetClientAsync(authToken.Id);
+            var client = await clientRegistrationStorage.GetAsync<HomeAppClientRegistration>(authToken.Id);
             if (client?.AccessRegistration == null)
             {
                 throw new OdinSecurityException("Invalid auth token or invalid client access registration");
@@ -355,14 +337,14 @@ namespace Odin.Hosting.Controllers.Home.Service
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
             //TODO: need to remove the override hack method below and support passing in the auth token from an icr client
-            var icr = await _circleNetworkService.GetIcrAsync(client.OdinId, odinContext, true);
+            var icr = await circleNetworkService.GetIcrAsync(client.OdinId, odinContext, true);
             bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
             // Only return the permissions if the identity is connected.
             if (isAuthenticated && isConnected)
             {
-                _logger.LogDebug("Create Connected Permission Context -> {icr} is connected", icr.OdinId);
+                logger.LogDebug("Create Connected Permission Context -> {icr} is connected", icr.OdinId);
                 var (permissionContext, enabledCircles) = await CreatePermissionContextCoreAsync(
                     icr: icr,
                     accessReg: client.AccessRegistration,
@@ -382,7 +364,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                         DevicePushNotificationKey = null
                     });
 
-                _logger.LogDebug("Create Connected Permission Context -> {icr} has circles: [{circles}]", icr.OdinId,
+                logger.LogDebug("Create Connected Permission Context -> {icr} has circles: [{circles}]", icr.OdinId,
                     string.Join(",", enabledCircles));
 
                 return (cc, permissionContext);
@@ -393,17 +375,17 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         public async Task Handle(ConnectionBlockedNotification notification, CancellationToken cancellationToken)
         {
-            await _cache.ResetAsync();
+            await cache.ResetAsync();
         }
 
         public async Task Handle(ConnectionFinalizedNotification notification, CancellationToken cancellationToken)
         {
-            await _cache.ResetAsync();
+            await cache.ResetAsync();
         }
 
         public async Task Handle(ConnectionDeletedNotification notification, CancellationToken cancellationToken)
         {
-            await _cache.ResetAsync();
+            await cache.ResetAsync();
         }
     }
 }

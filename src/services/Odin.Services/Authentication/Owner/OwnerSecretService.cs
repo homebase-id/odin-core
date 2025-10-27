@@ -93,7 +93,7 @@ namespace Odin.Services.Authentication.Owner
         /// Returns the encrypted version of the data encryption key.  This is generated when you set
         /// the initial password
         /// </summary>
-        public async Task<SensitiveByteArray> GetMasterKeyAsync(OwnerConsoleToken serverToken, SensitiveByteArray clientSecret)
+        public async Task<SensitiveByteArray> GetMasterKeyAsync(OwnerConsoleClientRegistration serverClientRegistration, SensitiveByteArray clientSecret)
         {
             var pk = await PasswordDataStorage.GetAsync<PasswordData>(tblKeyValue, PasswordKeyStorageId);
             if (null == pk)
@@ -103,12 +103,12 @@ namespace Odin.Services.Authentication.Owner
 
             //TODO: do we want to keep the extra layer of having a client and
             //server halfs to form the kek. then use that kek to decrypt the master key?
-            var kek = serverToken.TokenEncryptedKek.DecryptKeyClone(clientSecret);
+            var kek = serverClientRegistration.TokenEncryptedKek.DecryptKeyClone(clientSecret);
 
             var masterKey = pk.KekEncryptedMasterKey.DecryptKeyClone(kek);
 
             // masterKey.Wipe(); <- removed. The EncryptedDek class will zap this key on its destruction.
-            serverToken.Dispose();
+            serverClientRegistration.Dispose();
 
             return masterKey;
         }

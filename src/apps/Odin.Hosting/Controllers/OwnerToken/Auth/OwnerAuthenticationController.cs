@@ -34,6 +34,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
                 var isValid = await authService.IsValidTokenAsync(result.Id);
                 if (isValid)
                 {
+                    await authService.ExtendTokenLife(result.Id);
                     await AddUpgradeRequiredHeaderAsync();
                 }
 
@@ -66,13 +67,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
 
             Response.Cookies.Delete(OwnerAuthConstants.CookieName);
             return new JsonResult(true);
-        }
-
-        [HttpPost("extend")]
-        public async Task<NoResultResponse> Extend(Guid token)
-        {
-            await authService.ExtendTokenLifeAsync(token, 100);
-            return new NoResultResponse(true);
         }
 
         [HttpPost("expire")]

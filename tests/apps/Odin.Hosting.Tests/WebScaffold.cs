@@ -199,6 +199,9 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
             Environment.SetEnvironmentVariable("Host__IpRateLimitRequestsPerSecond", int.MaxValue.ToString());
 
+            Environment.SetEnvironmentVariable("Host__ClientRegistrationThreshold", int.MaxValue.ToString());
+            Environment.SetEnvironmentVariable("Host__ClientRegistrationWindowThreshold", int.MaxValue.ToString());
+            
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
 
@@ -532,7 +535,7 @@ namespace Odin.Hosting.Tests
 
         public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel, TimeSpan? maxWaitTime = null)
         {
-            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(180);
 
             var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
 

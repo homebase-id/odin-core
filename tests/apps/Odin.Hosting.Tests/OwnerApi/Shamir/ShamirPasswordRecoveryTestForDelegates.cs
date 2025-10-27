@@ -58,7 +58,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             _scaffold.AssertLogEvents();
         }
 
-
         [Test]
         [Description("When I configure shards with players that require approval before releasing a shard, " +
                      "that player can see a request from the dealer in a list")]
