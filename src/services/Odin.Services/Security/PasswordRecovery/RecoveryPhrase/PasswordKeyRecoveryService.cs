@@ -65,18 +65,17 @@ public class PasswordKeyRecoveryService(
     public async Task<RequestRecoveryKeyResult> RequestRecoveryKey(IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
-
         var recoveryKey = await GetKeyInternalAsync();
 
         // if they have never viewed the recovery key, allow us to see the key now
         if (recoveryKey?.InitialRecoveryKeyViewingDate == null)
         {
-            // mark they viewed it initially and let them view it now
             await ConfirmInitialRecoveryKeyStorage(odinContext);
-            var tenSecondsAgo = UnixTimeUtc.Now().AddSeconds(-10);
+            var leKeyNow = await GetRecoveryKeyAsync(true, odinContext);
             return new RequestRecoveryKeyResult()
             {
-                NextViewableDate = await MarkNextViewableDate(tenSecondsAgo)
+                Key = leKeyNow.Key,
+                NextViewableDate = UnixTimeUtc.ZeroTime
             };
         }
 
@@ -96,6 +95,12 @@ public class PasswordKeyRecoveryService(
         await RecoveryKeyStorage.UpsertAsync(tblKeyValue, RecordStorageId, recoveryKey);
     }
 
+    public async Task<bool> HasRecoveryKeyBeenViewed()
+    {
+        var keyRecord = await GetKeyInternalAsync();
+        return keyRecord?.InitialRecoveryKeyViewingDate != null;
+    }
+    
     public async Task<RecoveryKeyResult> GetRecoveryKeyAsync(bool byPassWaitingPeriod, IOdinContext odinContext)
     {
         var ctx = odinContext;
@@ -116,7 +121,8 @@ public class PasswordKeyRecoveryService(
             {
                 Key = readableText,
                 Created = recoveryKeyRecord.Created,
-                NextViewableDate = null // doesnt matter
+                NextViewableDate = null, // doesnt matter
+                HasInitiallyReviewedKey  = recoveryKeyRecord.InitialRecoveryKeyViewingDate != null
             };
 
             await ClearNextViewableDate();
@@ -136,7 +142,8 @@ public class PasswordKeyRecoveryService(
             {
                 Key = null,
                 Created = default,
-                NextViewableDate = null
+                NextViewableDate = null,
+                HasInitiallyReviewedKey  = keyRecord.InitialRecoveryKeyViewingDate != null
             };
         }
 
@@ -146,7 +153,8 @@ public class PasswordKeyRecoveryService(
             {
                 Key = null,
                 Created = default,
-                NextViewableDate = keyRecord.NextViewableDate
+                NextViewableDate = keyRecord.NextViewableDate,
+                HasInitiallyReviewedKey  = keyRecord.InitialRecoveryKeyViewingDate != null
             };
         }
 

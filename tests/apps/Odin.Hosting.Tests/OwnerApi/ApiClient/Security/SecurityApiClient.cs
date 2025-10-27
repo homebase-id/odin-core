@@ -51,6 +51,16 @@ public class SecurityApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity
         }
     }
     
+    public async Task<ApiResponse<HttpContent>> ConfirmStoredRecoveryKey()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.ConfirmStoredRecoveryKey();
+            return apiResponse;
+        }
+    }
+    
     public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword)
     {
         using var authClient = ownerApi.CreateAnonymousClient(identity.OdinId);

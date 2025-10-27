@@ -24,4 +24,5 @@ public class RecoveryKeyRecord
 public class RequestRecoveryKeyResult
 {
     public UnixTimeUtc NextViewableDate { get; set; }
+    public string Key { get; set; }
 }
