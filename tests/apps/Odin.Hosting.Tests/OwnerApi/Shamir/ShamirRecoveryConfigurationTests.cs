@@ -153,6 +153,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         }
 
         [Test]
+        [Ignore("Removed rule")]
         public async Task FailShardDistributionWhenMinMatchingShardsTooLow()
         {
             List<OdinId> peerIdentities =
