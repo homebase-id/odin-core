@@ -288,7 +288,9 @@ public class TableOutbox(
 
 
     /// <summary>
-    /// Status on the box
+    /// Status on the box.
+    /// NOTE: this is not atomic, meaning a parallel update on the box can result in skewed results.
+    /// Do NOT use for anything important.
     /// </summary>
     /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
     /// <exception cref="Exception"></exception>
@@ -334,6 +336,8 @@ public class TableOutbox(
 
     /// <summary>
     /// Status on the box
+    /// NOTE: this is not atomic, meaning a parallel update on the box can result in skewed results.
+    /// Do NOT use for anything important.
     /// </summary>
     /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
     /// <exception cref="Exception"></exception>
