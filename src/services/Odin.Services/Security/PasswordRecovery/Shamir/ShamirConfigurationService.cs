@@ -180,10 +180,10 @@ public class ShamirConfigurationService(
             $"You need at least {MinimumPlayerCount} trusted connections");
         OdinValidationUtils.AssertIsTrue(players.Count >= minShards, "The number of players must be greater than min shards");
 
-        var minAllowedShards = CalculateMinAllowedShardCount(players.Count);
-        OdinValidationUtils.AssertIsTrue(minShards >= minAllowedShards, "The minimum number of matching shards must be " +
-                                                                        $"at least {minAllowedShards} since you have {players.Count} " +
-                                                                        $"trusted connections selected");
+        // var minAllowedShards = CalculateMinAllowedShardCount(players.Count);
+        // OdinValidationUtils.AssertIsTrue(minShards >= minAllowedShards, "The minimum number of matching shards must be " +
+        //                                                                 $"at least {minAllowedShards} since you have {players.Count} " +
+        //                                                                 $"trusted connections selected");
 
         OdinValidationUtils.AssertValidRecipientList(players.Select(p => p.OdinId), false, odinContext.Tenant);
 

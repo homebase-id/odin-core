@@ -5,7 +5,6 @@ using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Base;
-using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
 using Odin.Services.Peer.AppNotification;
 
