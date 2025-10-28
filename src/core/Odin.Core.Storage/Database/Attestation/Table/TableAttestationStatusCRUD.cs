@@ -47,6 +47,38 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            if (dropExisting)
+                await SqlHelper.DeleteTableAsync(cn, "AttestationStatus");
+            var rowid = "";
+            var commentSql = "";
+            if (cn.DatabaseType == DatabaseType.Postgres)
+            {
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE AttestationStatus IS '{ \"Version\": 0 }';";
+            }
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS AttestationStatus( -- { \"Version\": 0 }\n"
+                   +rowid
+                   +"attestationId BYTEA NOT NULL UNIQUE, "
+                   +"status BIGINT NOT NULL, "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
+                   +$"){wori};"
+                   ;
+            await SqlHelper.CreateTableWithCommentAsync(cn, "AttestationStatus", createSql, commentSql);
+        }
+       */
+
         public virtual async Task<int> InsertAsync(AttestationStatusRecord item)
         {
             item.Validate();

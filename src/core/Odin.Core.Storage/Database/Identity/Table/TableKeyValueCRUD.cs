@@ -52,6 +52,38 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            if (dropExisting)
+                await SqlHelper.DeleteTableAsync(cn, "KeyValue");
+            var rowid = "";
+            var commentSql = "";
+            if (cn.DatabaseType == DatabaseType.Postgres)
+            {
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE KeyValue IS '{ \"Version\": 0 }';";
+            }
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS KeyValue( -- { \"Version\": 0 }\n"
+                   +rowid
+                   +"identityId BYTEA NOT NULL, "
+                   +"key BYTEA NOT NULL, "
+                   +"data BYTEA  "
+                   +", UNIQUE(identityId,key)"
+                   +$"){wori};"
+                   ;
+            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyValue", createSql, commentSql);
+        }
+       */
+
         protected virtual async Task<int> InsertAsync(KeyValueRecord item)
         {
             item.Validate();

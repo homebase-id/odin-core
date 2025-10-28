@@ -58,6 +58,48 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            if (dropExisting)
+                await SqlHelper.DeleteTableAsync(cn, "Inbox");
+            var rowid = "";
+            var commentSql = "";
+            if (cn.DatabaseType == DatabaseType.Postgres)
+            {
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE Inbox IS '{ \"Version\": 0 }';";
+            }
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS Inbox( -- { \"Version\": 0 }\n"
+                   +rowid
+                   +"identityId BYTEA NOT NULL, "
+                   +"fileId BYTEA NOT NULL UNIQUE, "
+                   +"boxId BYTEA NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"timeStamp BIGINT NOT NULL, "
+                   +"value BYTEA , "
+                   +"popStamp BYTEA , "
+                   +"correlationId TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
+                   +", UNIQUE(identityId,fileId)"
+                   +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0Inbox ON Inbox(identityId,timeStamp);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1Inbox ON Inbox(identityId,boxId);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2Inbox ON Inbox(identityId,popStamp);"
+                   ;
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Inbox", createSql, commentSql);
+        }
+       */
+
         protected virtual async Task<int> InsertAsync(InboxRecord item)
         {
             item.Validate();

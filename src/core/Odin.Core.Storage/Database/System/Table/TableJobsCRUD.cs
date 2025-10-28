@@ -75,6 +75,56 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            if (dropExisting)
+                await SqlHelper.DeleteTableAsync(cn, "Jobs");
+            var rowid = "";
+            var commentSql = "";
+            if (cn.DatabaseType == DatabaseType.Postgres)
+            {
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE Jobs IS '{ \"Version\": 0 }';";
+            }
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS Jobs( -- { \"Version\": 0 }\n"
+                   +rowid
+                   +"id BYTEA NOT NULL UNIQUE, "
+                   +"name TEXT NOT NULL, "
+                   +"state BIGINT NOT NULL, "
+                   +"priority BIGINT NOT NULL, "
+                   +"nextRun BIGINT NOT NULL, "
+                   +"lastRun BIGINT , "
+                   +"runCount BIGINT NOT NULL, "
+                   +"maxAttempts BIGINT NOT NULL, "
+                   +"retryDelay BIGINT NOT NULL, "
+                   +"onSuccessDeleteAfter BIGINT NOT NULL, "
+                   +"onFailureDeleteAfter BIGINT NOT NULL, "
+                   +"expiresAt BIGINT , "
+                   +"correlationId TEXT NOT NULL, "
+                   +"jobType TEXT NOT NULL, "
+                   +"jobData TEXT , "
+                   +"jobHash TEXT  UNIQUE, "
+                   +"lastError TEXT , "
+                   +"created BIGINT NOT NULL, "
+                   +"modified BIGINT NOT NULL "
+                   +$"){wori};"
+                   +"CREATE INDEX IF NOT EXISTS Idx0Jobs ON Jobs(state);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1Jobs ON Jobs(expiresAt);"
+                   +"CREATE INDEX IF NOT EXISTS Idx2Jobs ON Jobs(nextRun,priority);"
+                   ;
+            await SqlHelper.CreateTableWithCommentAsync(cn, "Jobs", createSql, commentSql);
+        }
+       */
+
         public virtual async Task<int> InsertAsync(JobsRecord item)
         {
             item.Validate();

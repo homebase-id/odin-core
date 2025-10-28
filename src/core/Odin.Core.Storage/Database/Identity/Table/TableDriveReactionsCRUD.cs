@@ -51,6 +51,40 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
+        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            if (dropExisting)
+                await SqlHelper.DeleteTableAsync(cn, "DriveReactions");
+            var rowid = "";
+            var commentSql = "";
+            if (cn.DatabaseType == DatabaseType.Postgres)
+            {
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE DriveReactions IS '{ \"Version\": 0 }';";
+            }
+            else
+               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
+            var wori = "";
+            string createSql =
+                "CREATE TABLE IF NOT EXISTS DriveReactions( -- { \"Version\": 0 }\n"
+                   +rowid
+                   +"identityId BYTEA NOT NULL, "
+                   +"driveId BYTEA NOT NULL, "
+                   +"postId BYTEA NOT NULL, "
+                   +"identity TEXT NOT NULL, "
+                   +"singleReaction TEXT NOT NULL "
+                   +", UNIQUE(identityId,driveId,postId,identity,singleReaction)"
+                   +$"){wori};"
+                   ;
+            await SqlHelper.CreateTableWithCommentAsync(cn, "DriveReactions", createSql, commentSql);
+        }
+       */
+
         protected virtual async Task<int> InsertAsync(DriveReactionsRecord item)
         {
             item.Validate();
