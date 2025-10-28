@@ -41,7 +41,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableSettingsCRUD : TableBase
     {
-        private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "Settings";
 
         public TableSettingsCRUD(ScopedSystemConnectionFactory scopedConnectionFactory)

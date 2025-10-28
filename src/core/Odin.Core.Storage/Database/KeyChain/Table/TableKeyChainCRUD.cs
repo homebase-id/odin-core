@@ -56,7 +56,7 @@ namespace Odin.Core.Storage.Database.KeyChain.Table
 
     public abstract class TableKeyChainCRUD : TableBase
     {
-        private ScopedKeyChainConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedKeyChainConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "KeyChain";
 
         public TableKeyChainCRUD(ScopedKeyChainConnectionFactory scopedConnectionFactory)

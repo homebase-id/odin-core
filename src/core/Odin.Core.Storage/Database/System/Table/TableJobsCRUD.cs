@@ -66,7 +66,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableJobsCRUD : TableBase
     {
-        private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "Jobs";
 
         public TableJobsCRUD(ScopedSystemConnectionFactory scopedConnectionFactory)

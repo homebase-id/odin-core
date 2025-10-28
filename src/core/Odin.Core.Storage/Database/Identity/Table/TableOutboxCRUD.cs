@@ -57,7 +57,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableOutboxCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "Outbox";
 
         protected TableOutboxCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)

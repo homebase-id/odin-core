@@ -42,7 +42,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableFollowsMeCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "FollowsMe";
 
         protected TableFollowsMeCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)

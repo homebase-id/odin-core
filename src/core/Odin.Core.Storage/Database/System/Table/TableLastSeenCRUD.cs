@@ -36,7 +36,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableLastSeenCRUD : TableBase
     {
-        private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "LastSeen";
 
         public TableLastSeenCRUD(ScopedSystemConnectionFactory scopedConnectionFactory)

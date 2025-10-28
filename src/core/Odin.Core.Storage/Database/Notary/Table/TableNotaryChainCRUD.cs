@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.Database.Notary.Table
 
     public abstract class TableNotaryChainCRUD : TableBase
     {
-        private ScopedNotaryConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedNotaryConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "NotaryChain";
 
         public TableNotaryChainCRUD(ScopedNotaryConnectionFactory scopedConnectionFactory)
