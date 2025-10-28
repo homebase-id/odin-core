@@ -51,34 +51,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "Circle");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Circle IS '{ \"Version\": 0 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS Circle( -- { \"Version\": 0 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"circleId BYTEA NOT NULL UNIQUE, "
-                   +"circleName TEXT NOT NULL, "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,circleId)"
-                   +$"){wori};"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "Circle", createSql, commentSql);
-        }
-
         protected virtual async Task<int> InsertAsync(CircleRecord item)
         {
             item.Validate();

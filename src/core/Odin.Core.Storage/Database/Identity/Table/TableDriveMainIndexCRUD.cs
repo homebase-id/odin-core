@@ -99,65 +99,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "DriveMainIndex");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveMainIndex IS '{ \"Version\": 202507191211 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveMainIndex( -- { \"Version\": 202507191211 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"driveId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL, "
-                   +"globalTransitId BYTEA , "
-                   +"fileState BIGINT NOT NULL, "
-                   +"requiredSecurityGroup BIGINT NOT NULL, "
-                   +"fileSystemType BIGINT NOT NULL, "
-                   +"userDate BIGINT NOT NULL, "
-                   +"fileType BIGINT NOT NULL, "
-                   +"dataType BIGINT NOT NULL, "
-                   +"archivalStatus BIGINT NOT NULL, "
-                   +"historyStatus BIGINT NOT NULL, "
-                   +"senderId TEXT , "
-                   +"groupId BYTEA , "
-                   +"uniqueId BYTEA , "
-                   +"byteCount BIGINT NOT NULL, "
-                   +"hdrEncryptedKeyHeader TEXT NOT NULL, "
-                   +"hdrVersionTag BYTEA NOT NULL, "
-                   +"hdrAppData TEXT NOT NULL, "
-                   +"hdrLocalVersionTag BYTEA , "
-                   +"hdrLocalAppData TEXT , "
-                   +"hdrReactionSummary TEXT , "
-                   +"hdrServerData TEXT NOT NULL, "
-                   +"hdrTransferHistory TEXT , "
-                   +"hdrFileMetaData TEXT NOT NULL, "
-                   +"hdrTmpDriveAlias BYTEA NOT NULL, "
-                   +"hdrTmpDriveType BYTEA NOT NULL, "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,driveId,fileId)"
-                   +", UNIQUE(identityId,driveId,uniqueId)"
-                   +", UNIQUE(identityId,driveId,globalTransitId)"
-                   +", UNIQUE(identityId,hdrVersionTag)"
-                   +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,created,rowId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,modified,rowId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx2DriveMainIndex ON DriveMainIndex(identityId,driveId,fileSystemType,requiredSecurityGroup,userDate,rowId);"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "DriveMainIndex", createSql, commentSql);
-        }
-
         protected virtual async Task<int> InsertAsync(DriveMainIndexRecord item)
         {
             item.Validate();

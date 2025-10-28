@@ -57,38 +57,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "KeyUniqueThreeValue");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE KeyUniqueThreeValue IS '{ \"Version\": 0 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyUniqueThreeValue( -- { \"Version\": 0 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"key1 BYTEA NOT NULL, "
-                   +"key2 BYTEA NOT NULL, "
-                   +"key3 BYTEA NOT NULL, "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,key1)"
-                   +", UNIQUE(identityId,key2,key3)"
-                   +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyUniqueThreeValue ON KeyUniqueThreeValue(identityId,key2);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1KeyUniqueThreeValue ON KeyUniqueThreeValue(key3);"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyUniqueThreeValue", createSql, commentSql);
-        }
-
         protected virtual async Task<int> InsertAsync(KeyUniqueThreeValueRecord item)
         {
             item.Validate();

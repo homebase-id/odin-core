@@ -45,31 +45,6 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "LastSeen");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE LastSeen IS '{ \"Version\": 202509090509 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS LastSeen( -- { \"Version\": 202509090509 }\n"
-                   +rowid
-                   +"subject TEXT NOT NULL UNIQUE, "
-                   +"timestamp BIGINT NOT NULL "
-                   +$"){wori};"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "LastSeen", createSql, commentSql);
-        }
-
         public virtual async Task<int> InsertAsync(LastSeenRecord item)
         {
             item.Validate();

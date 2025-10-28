@@ -48,34 +48,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "DriveAclIndex");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveAclIndex IS '{ \"Version\": 0 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveAclIndex( -- { \"Version\": 0 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"driveId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL, "
-                   +"aclMemberId BYTEA NOT NULL "
-                   +", UNIQUE(identityId,driveId,fileId,aclMemberId)"
-                   +$"){wori};"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "DriveAclIndex", createSql, commentSql);
-        }
-
         protected virtual async Task<int> InsertAsync(DriveAclIndexRecord item)
         {
             item.Validate();

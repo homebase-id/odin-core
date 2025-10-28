@@ -72,43 +72,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "Drives");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Drives IS '{ \"Version\": 202509220609 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS Drives( -- { \"Version\": 202509220609 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"DriveId BYTEA NOT NULL, "
-                   +"DriveAlias BYTEA NOT NULL, "
-                   +"TempOriginalDriveId BYTEA NOT NULL, "
-                   +"DriveType BYTEA NOT NULL, "
-                   +"DriveName TEXT NOT NULL, "
-                   +"MasterKeyEncryptedStorageKeyJson TEXT NOT NULL, "
-                   +"EncryptedIdIv64 TEXT NOT NULL, "
-                   +"EncryptedIdValue64 TEXT NOT NULL, "
-                   +"detailsJson TEXT NOT NULL, "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,DriveId)"
-                   +", UNIQUE(identityId,DriveId,DriveType)"
-                   +$"){wori};"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "Drives", createSql, commentSql);
-        }
-
         protected virtual async Task<int> InsertAsync(DrivesRecord item)
         {
             item.Validate();

@@ -66,45 +66,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "Outbox");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Outbox IS '{ \"Version\": 0 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS Outbox( -- { \"Version\": 0 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"driveId BYTEA NOT NULL, "
-                   +"fileId BYTEA NOT NULL, "
-                   +"recipient TEXT NOT NULL, "
-                   +"type BIGINT NOT NULL, "
-                   +"priority BIGINT NOT NULL, "
-                   +"dependencyFileId BYTEA , "
-                   +"checkOutCount BIGINT NOT NULL, "
-                   +"nextRunTime BIGINT NOT NULL, "
-                   +"value BYTEA , "
-                   +"checkOutStamp BYTEA , "
-                   +"correlationId TEXT , "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,driveId,fileId,recipient)"
-                   +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0Outbox ON Outbox(identityId,nextRunTime);"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "Outbox", createSql, commentSql);
-        }
-
         protected virtual async Task<int> InsertAsync(OutboxRecord item)
         {
             item.Validate();

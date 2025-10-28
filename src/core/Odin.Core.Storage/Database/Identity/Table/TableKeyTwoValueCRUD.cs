@@ -52,35 +52,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "KeyTwoValue");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE KeyTwoValue IS '{ \"Version\": 0 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS KeyTwoValue( -- { \"Version\": 0 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"key1 BYTEA NOT NULL, "
-                   +"key2 BYTEA , "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,key1)"
-                   +$"){wori};"
-                   +"CREATE INDEX IF NOT EXISTS Idx0KeyTwoValue ON KeyTwoValue(identityId,key2);"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "KeyTwoValue", createSql, commentSql);
-        }
-
         protected virtual async Task<int> InsertAsync(KeyTwoValueRecord item)
         {
             item.Validate();

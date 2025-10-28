@@ -69,37 +69,6 @@ namespace Odin.Core.Storage.Database.Notary.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "NotaryChain");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE NotaryChain IS '{ \"Version\": 0 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS NotaryChain( -- { \"Version\": 0 }\n"
-                   +rowid
-                   +"previousHash BYTEA NOT NULL UNIQUE, "
-                   +"identity TEXT NOT NULL, "
-                   +"timestamp BIGINT NOT NULL, "
-                   +"signedPreviousHash BYTEA NOT NULL UNIQUE, "
-                   +"algorithm TEXT NOT NULL, "
-                   +"publicKeyJwkBase64Url TEXT NOT NULL, "
-                   +"notarySignature BYTEA NOT NULL UNIQUE, "
-                   +"recordHash BYTEA NOT NULL UNIQUE "
-                   +$"){wori};"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "NotaryChain", createSql, commentSql);
-        }
-
         public virtual async Task<int> InsertAsync(NotaryChainRecord item)
         {
             item.Validate();

@@ -62,39 +62,6 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
-        public override async Task EnsureTableExistsAsync(bool dropExisting = false)
-        {
-            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            if (dropExisting)
-                await SqlHelper.DeleteTableAsync(cn, "Registrations");
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Registrations IS '{ \"Version\": 202509090509 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
-                "CREATE TABLE IF NOT EXISTS Registrations( -- { \"Version\": 202509090509 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL UNIQUE, "
-                   +"email TEXT , "
-                   +"primaryDomainName TEXT NOT NULL UNIQUE, "
-                   +"firstRunToken TEXT , "
-                   +"disabled BOOLEAN NOT NULL, "
-                   +"markedForDeletionDate BIGINT , "
-                   +"planId TEXT , "
-                   +"json TEXT , "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
-                   +$"){wori};"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "Registrations", createSql, commentSql);
-        }
-
         public virtual async Task<int> InsertAsync(RegistrationsRecord item)
         {
             item.Validate();
