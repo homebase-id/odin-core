@@ -51,7 +51,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableCertificatesCRUD : TableBase
     {
-        private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "Certificates";
 
         public TableCertificatesCRUD(ScopedSystemConnectionFactory scopedConnectionFactory)
@@ -60,6 +60,10 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
         public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -91,6 +95,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "Certificates", createSql, commentSql);
         }
+       */
 
         public virtual async Task<int> InsertAsync(CertificatesRecord item)
         {

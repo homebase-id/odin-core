@@ -41,7 +41,7 @@ namespace Odin.Core.Storage.Database.System.Table
 
     public abstract class TableSettingsCRUD : TableBase
     {
-        private ScopedSystemConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedSystemConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "Settings";
 
         public TableSettingsCRUD(ScopedSystemConnectionFactory scopedConnectionFactory)
@@ -50,6 +50,10 @@ namespace Odin.Core.Storage.Database.System.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
         public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -76,6 +80,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "Settings", createSql, commentSql);
         }
+       */
 
         public virtual async Task<int> InsertAsync(SettingsRecord item)
         {

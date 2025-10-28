@@ -39,7 +39,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableDriveAclIndexCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "DriveAclIndex";
 
         protected TableDriveAclIndexCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
@@ -48,6 +48,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
         public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -75,6 +79,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "DriveAclIndex", createSql, commentSql);
         }
+       */
 
         protected virtual async Task<int> InsertAsync(DriveAclIndexRecord item)
         {
