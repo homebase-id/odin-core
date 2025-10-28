@@ -298,44 +298,56 @@ public class TableOutbox(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            "SELECT count(*) FROM outbox WHERE identityId=@identityId;" +
-            "SELECT count(*) FROM outbox WHERE identityId=@identityId AND checkOutStamp IS NOT NULL;";
-            
-            // Wrong "SELECT nextRunTime FROM outbox WHERE identityId=@identityId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
+            """
+            SELECT 
+                COUNT(*) AS total_items,  -- Original first SELECT (total count)
+                SUM(CASE WHEN checkOutStamp IS NOT NULL THEN 1 ELSE 0 END) AS checked_out_items,  -- Original second SELECT (checked-out count, using SUM for conditional agg)
+                (SELECT nextRunTime  -- Embedded logic from NextScheduledItemAsync (the "complicated" part)
+                 FROM outbox 
+                 WHERE identityId = @identityId AND checkOutStamp IS NULL  -- Base filters
+                   AND (  -- Dependency check (copied from your original)
+                       (dependencyFileId IS NULL)
+                       OR (NOT EXISTS (
+                           SELECT 1 FROM outbox AS ib
+                           WHERE ib.identityId = outbox.identityId
+                             AND ib.fileId = outbox.dependencyFileId
+                             AND ib.recipient = outbox.recipient
+                       ))
+                   )
+                 ORDER BY priority ASC, nextRunTime ASC LIMIT 1) AS next_run_time  -- Ordering to get the "next" one
+            FROM outbox 
+            WHERE identityId = @identityId;  -- Main table scan, shared by all
+            """;
 
         var param1 = cmd.CreateParameter();
         param1.ParameterName = "@identityId";
         cmd.Parameters.Add(param1);
         param1.Value = odinIdentity.IdentityIdAsByteArray();
 
-        int totalCount = 0;
-        int poppedCount = 0;
-        using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
+        var totalCount = 0;
+        var poppedCount = 0;
+        var utc = UnixTimeUtc.ZeroTime;
+        await using (var rdr = await cmd.ExecuteReaderAsync())
         {
-            // Read the total count
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
 
-            if (!(rdr[0] == DBNull.Value))
+            if (rdr[0] != DBNull.Value)
                 totalCount = (int)(Int64) rdr[0];
 
-            // Read the popped count
-            if (await rdr.NextResultAsync() == false)
-                throw new Exception("Not possible");
-            if (await rdr.ReadAsync() == false)
-                throw new Exception("Not possible");
+            if (rdr[1] != DBNull.Value)
+                poppedCount = (int)(Int64) rdr[1];
 
-            if (!(rdr[0] == DBNull.Value))
-                poppedCount = (int)(Int64) rdr[0];
+            if (rdr[2] != DBNull.Value)
+                utc = (Int64) rdr[2];
         }
-        var utc = await NextScheduledItemAsync() ?? UnixTimeUtc.ZeroTime;
         return (totalCount, poppedCount, utc);
     }
 
     /// <summary>
     /// Status on the box
     /// </summary>
-    /// <returns>Number of total items in box, number of popped items, the next item schduled time (ZeroTime if none)</returns>
+    /// <returns>Number of total items in box, number of popped items, the next item scheduled time (ZeroTime if none)</returns>
     /// <exception cref="Exception"></exception>
     public async Task<(int, int, UnixTimeUtc)> OutboxStatusDriveAsync(Guid driveId)
     {
@@ -343,9 +355,27 @@ public class TableOutbox(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            "SELECT count(*) FROM outbox WHERE identityId=@identityId AND driveId=@driveId;" +
-            "SELECT count(*) FROM outbox WHERE identityId=@identityId AND driveId=@driveId AND checkOutStamp IS NOT NULL;";
-            // "SELECT nextRunTime FROM outbox WHERE identityId=@identityId AND driveId=@driveId AND checkOutStamp IS NULL ORDER BY nextRunTime ASC LIMIT 1;";
+            """
+            SELECT 
+              COUNT(*) AS total_items,
+              SUM(CASE WHEN checkOutStamp IS NOT NULL THEN 1 ELSE 0 END) AS checked_out_items,
+              (SELECT nextRunTime 
+               FROM outbox 
+               WHERE identityId = @identityId AND driveId = @driveId AND checkOutStamp IS NULL
+                 AND (
+                     (dependencyFileId IS NULL)
+                     OR (NOT EXISTS (
+                         SELECT 1 FROM outbox AS ib
+                         WHERE ib.identityId = outbox.identityId
+                           AND ib.driveId = outbox.driveId
+                           AND ib.fileId = outbox.dependencyFileId
+                           AND ib.recipient = outbox.recipient
+                     ))
+                 )
+               ORDER BY priority ASC, nextRunTime ASC LIMIT 1) AS next_run_time
+            FROM outbox 
+            WHERE identityId = @identityId AND driveId = @driveId;
+            """;
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
@@ -359,27 +389,24 @@ public class TableOutbox(
         param1.Value = driveId.ToByteArray();
         param2.Value = odinIdentity.IdentityIdAsByteArray();
 
-        int totalCount = 0;
-        int poppedCount = 0;
-        using (var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default))
+        var totalCount = 0;
+        var poppedCount = 0;
+        var utc = UnixTimeUtc.ZeroTime;
+        await using (var rdr = await cmd.ExecuteReaderAsync())
         {
             // Read the total count
             if (await rdr.ReadAsync() == false)
                 throw new Exception("Not possible");
 
-            if (!(rdr[0] == DBNull.Value))
+            if (rdr[0] != DBNull.Value)
                 totalCount = (int)(Int64) rdr[0];
 
-            // Read the popped count
-            if (await rdr.NextResultAsync() == false)
-                throw new Exception("Not possible");
-            if (await rdr.ReadAsync() == false)
-                throw new Exception("Not possible");
+            if (rdr[1] != DBNull.Value)
+                poppedCount = (int)(Int64) rdr[1];
 
-            if (!(rdr[0] == DBNull.Value))
-                poppedCount = (int)(Int64) rdr[0];
+            if (rdr[2] != DBNull.Value)
+                utc = (Int64) rdr[2];
         }
-        var utc = await NextScheduledItemAsync(driveId) ?? UnixTimeUtc.ZeroTime;
         return (totalCount, poppedCount, utc);
     }
 }
