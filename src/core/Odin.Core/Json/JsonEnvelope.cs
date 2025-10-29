@@ -11,7 +11,7 @@ namespace Odin.Core.Json;
 /// Wraps a serialized JSON message with its type information, enabling type-safe
 /// deserialization without prior knowledge of the concrete type.
 /// </summary>
-public class JsonEnvelope
+public sealed class JsonEnvelope
 {
     public required string MessageTypeName { get; init; }
     public required string? MessageJson { get; init; }
