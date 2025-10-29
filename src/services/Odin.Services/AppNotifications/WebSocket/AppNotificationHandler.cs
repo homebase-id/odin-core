@@ -15,6 +15,7 @@ using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
@@ -34,7 +35,6 @@ namespace Odin.Services.AppNotifications.WebSocket
             INotificationHandler<IDriveNotification>,
             INotificationHandler<InboxItemReceivedNotification>
     {
-
         //
 
         /// <summary>
@@ -189,6 +189,17 @@ namespace Odin.Services.AppNotifications.WebSocket
             var sockets = deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
 
+            //SEB - TODO
+            var dto = new PubSubTransferDto()
+            {
+                ServerFileHeader = notification.ServerFileHeader,
+                IsDeleteNotification = notification is DriveFileDeletedNotification,
+                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader
+            };
+
+            // call _pubsub.Send(dto)
+
+            // all below here is moved to the subscriber side
             foreach (var deviceSocket in sockets)
             {
                 if (!cancellationToken.IsCancellationRequested)
@@ -196,14 +207,20 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var deviceOdinContext = deviceSocket.DeviceOdinContext;
                     var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
 
+                    var driveId = notification.ServerFileHeader.FileMetadata.File.DriveId;
                     var o = new ClientDriveNotification
                     {
-                        TargetDrive = (await driveManager.GetDriveAsync(notification.File.DriveId)).TargetDriveInfo,
+                        TargetDrive = (await driveManager.GetDriveAsync(driveId)).TargetDriveInfo,
                         Header = hasSharedSecret
                             ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                             : null,
+                        // PreviousServerFileHeader = hasSharedSecret
+                        //     ? DriveFileUtility.AddIfDeletedNotification(notification, deviceOdinContext!)
+                        //     : null
                         PreviousServerFileHeader = hasSharedSecret
-                            ? DriveFileUtility.AddIfDeletedNotification(notification, deviceOdinContext!)
+                            ? dto.IsDeleteNotification
+                                ? DriveFileUtility.CreateClientFileHeader(dto.PreviousServerFileHeader, deviceOdinContext!)
+                                : null
                             : null
                     };
 
@@ -402,4 +419,11 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
     }
+}
+
+public class PubSubTransferDto
+{
+    public ServerFileHeader ServerFileHeader { get; set; }
+    public bool IsDeleteNotification { get; set; }
+    public ServerFileHeader? PreviousServerFileHeader { get; set; }
 }
