@@ -5,6 +5,12 @@ using Odin.Core.Serialization;
 
 namespace Odin.Core.Json;
 
+#nullable enable
+
+/// <summary>
+/// Wraps a serialized JSON message with its type information, enabling type-safe
+/// deserialization without prior knowledge of the concrete type.
+/// </summary>
 public class JsonEnvelope
 {
     public required string MessageTypeName { get; init; }

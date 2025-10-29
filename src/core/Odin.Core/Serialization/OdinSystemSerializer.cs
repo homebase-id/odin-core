@@ -78,9 +78,26 @@ public static class OdinSystemSerializer
         return JsonSerializer.Deserialize<T>(json, JsonSerializerOptions);
     }
 
+    public static object? Deserialize(string json, Type returnType)
+    {
+        return JsonSerializer.Deserialize(json, returnType, JsonSerializerOptions);
+    }
+
     public static T DeserializeOrThrow<T>(string json)
     {
         var result = JsonSerializer.Deserialize<T>(json, JsonSerializerOptions);
+
+        if (result == null)
+        {
+            throw new OdinSystemException("Failed to deserialize data");
+        }
+
+        return result;
+    }
+
+    public static object DeserializeOrThrow(string json, Type returnType)
+    {
+        var result = JsonSerializer.Deserialize(json, returnType, JsonSerializerOptions);
 
         if (result == null)
         {
