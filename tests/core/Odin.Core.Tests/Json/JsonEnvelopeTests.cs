@@ -93,7 +93,7 @@ public class JsonEnvelopeTests
 
         // Assert
         Assert.That(deserialized, Is.InstanceOf<TestMessage>());
-        var typed = (TestMessage)deserialized;
+        var typed = (TestMessage)deserialized!;
         Assert.That(typed.Content, Is.EqualTo("hello"));
         Assert.That(typed.Number, Is.EqualTo(123));
     }
@@ -106,7 +106,7 @@ public class JsonEnvelopeTests
         var envelope = JsonEnvelope.Create(original);
 
         // Act
-        var deserialized = envelope.DeserializeMessage<TestMessage>();
+        var deserialized = envelope.DeserializeMessage<TestMessage>()!;
 
         // Assert
         Assert.That(deserialized.Content, Is.EqualTo("world"));
@@ -144,7 +144,7 @@ public class JsonEnvelopeTests
         Assert.That(deserializedEnvelope.MessageJson, Is.EqualTo(envelope.MessageJson));
 
         // Verify we can still deserialize the inner message
-        var innerMessage = deserializedEnvelope.DeserializeMessage<TestMessage>();
+        var innerMessage = deserializedEnvelope.DeserializeMessage<TestMessage>()!;
         Assert.That(innerMessage.Content, Is.EqualTo("serialize me"));
         Assert.That(innerMessage.Number, Is.EqualTo(999));
     }
@@ -157,12 +157,27 @@ public class JsonEnvelopeTests
 
         // Act
         var envelope = JsonEnvelope.Create(message);
-        var deserialized = envelope.DeserializeMessage<TestMessage>();
+        var deserialized = envelope.DeserializeMessage<TestMessage>()!;
 
         // Assert
         Assert.That(deserialized.Content, Is.Null);
         Assert.That(deserialized.Number, Is.EqualTo(0));
     }
+
+    [Test]
+    public void Create_WithNullMessage_HandlesCorrectly()
+    {
+        // Arrange
+        TestMessage? message = null;
+
+        // Act
+        var envelope = JsonEnvelope.Create(message);
+        var deserialized = envelope.DeserializeMessage<TestMessage>()!;
+
+        // Assert
+        Assert.That(deserialized, Is.Null);
+    }
+
 
     [Test]
     public void DeserializeMessage_MultipleCallsWithCachedType_WorksCorrectly()
@@ -172,9 +187,9 @@ public class JsonEnvelopeTests
         var envelope = JsonEnvelope.Create(original);
 
         // Act - call multiple times to ensure cache doesn't break deserialization
-        var result1 = envelope.DeserializeMessage<TestMessage>();
-        var result2 = envelope.DeserializeMessage<TestMessage>();
-        var result3 = envelope.DeserializeMessage();
+        var result1 = envelope.DeserializeMessage<TestMessage>()!;
+        var result2 = envelope.DeserializeMessage<TestMessage>()!;
+        var result3 = envelope.DeserializeMessage()!;
 
         // Assert
         Assert.That(result1.Content, Is.EqualTo("cached"));

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Json;
 using Odin.Core.Serialization;
 using StackExchange.Redis;
 
@@ -14,38 +15,22 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
     private readonly ISubscriber _publisher = connectionMultiplexer.GetSubscriber();
     private readonly ISubscriber _subscriber = connectionMultiplexer.GetSubscriber();
 
-    //
-
     public void Dispose()
     {
         GC.SuppressFinalize(this);
         _subscriber.UnsubscribeAll();
     }
 
-    //
-
-    public async Task PublishAsync<T>(string channel, T? message)
+    public async Task PublishAsync(string channel, JsonEnvelope envelope)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
+        ArgumentNullException.ThrowIfNull(envelope, nameof(envelope));
 
-        var envelope = new Envelope<T>
-        {
-            Payload = message
-        };
         var json = OdinSystemSerializer.Serialize(envelope);
         await _publisher.PublishAsync(RedisChannel.Literal(channelPrefix + ":" + channel), json);
     }
 
-    //
-
-    public Task PublishStringAsync(string channel, string message)
-    {
-        return PublishAsync(channel, message);
-    }
-
-    //
-
-    public async Task<object> SubscribeAsync<T>(string channel, Func<T?, Task> handler)
+    public async Task<object> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
@@ -58,31 +43,29 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
                 return;
             }
 
-            var envelope = OdinSystemSerializer.DeserializeOrThrow<Envelope<T>>(json);
+            JsonEnvelope? envelope;
+            try
+            {
+                envelope = OdinSystemSerializer.DeserializeOrThrow<JsonEnvelope>(json);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to deserialize JsonEnvelope for {Channel}", channel);
+                return;
+            }
 
-            // Fire-and-forget
-            _ = SafeInvokeAsync(handler, envelope.Payload, channel);
+            _ = SafeInvokeAsync(handler, envelope, channel);
         };
 
         await _subscriber.SubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), action);
-
         return action;
     }
 
-    //
-
-    public Task<object> SubscribeStringAsync(string channel, Func<string?, Task> handler)
-    {
-        return SubscribeAsync(channel, handler);
-    }
-
-    //
-
-    private async Task SafeInvokeAsync<T>(Func<T, Task> handler, T instance, string channel)
+    private async Task SafeInvokeAsync(Func<JsonEnvelope, Task> handler, JsonEnvelope envelope, string channel)
     {
         try
         {
-            await handler(instance);
+            await handler(envelope);
         }
         catch (Exception ex)
         {
@@ -90,9 +73,6 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
         }
     }
 
-    //
-
-    // Note: unsubscribeToken must be the same instance as returned by SubscribeAsync
     public async Task UnsubscribeAsync(string channel, object unsubscribeToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
@@ -105,23 +85,11 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
         await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), action);
     }
 
-    //
-
     public async Task UnsubscribeAllAsync()
     {
         await _subscriber.UnsubscribeAllAsync();
     }
-
-    //
-
-    private class Envelope<T>
-    {
-        public T? Payload { get; set; }
-    }
-
 }
-
-//
 
 public class SystemRedisPubSub(
     ILogger<SystemRedisPubSub> logger,
