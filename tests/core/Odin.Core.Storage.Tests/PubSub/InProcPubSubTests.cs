@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Json;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.PubSub;
 using Odin.Test.Helpers.Logging;
@@ -26,9 +27,9 @@ public class InProcPubSubTests
 
         var pubSub1MessageReceived = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel, async message =>
+        await pubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1MessageReceived = message;
+            pubSub1MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
@@ -37,7 +38,7 @@ public class InProcPubSubTests
         var logEvents = logStore.GetLogMessages();
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel\""));
 
-        await pubSub1.PublishAsync(testChannel, "Hello");
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello"));
 
         await Task.Delay(200);
 
@@ -69,15 +70,15 @@ public class InProcPubSubTests
         var pubSub1MessageReceived = "";
         var pubSub2MessageReceived = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel, async message =>
+        await pubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1MessageReceived = message;
+            pubSub1MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel, async message =>
+        await pubSub2.SubscribeAsync(testChannel, async message =>
         {
-            pubSub2MessageReceived = message;
+            pubSub2MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
@@ -86,7 +87,7 @@ public class InProcPubSubTests
         var logEvents = logStore.GetLogMessages();
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel\""));
 
-        await pubSub1.PublishAsync(testChannel, "Hello");
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello"));
 
         await Task.Delay(200); // Give some time for messages to be processed
 
@@ -123,98 +124,27 @@ public class InProcPubSubTests
         var pubSub1Channel2MessageReceived = "";
         var pubSub2Channel2MessageReceived = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel1, async message =>
+        await pubSub1.SubscribeAsync(testChannel1, async message =>
         {
-            pubSub1Channel1MessageReceived = message;
+            pubSub1Channel1MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel1, async message =>
+        await pubSub2.SubscribeAsync(testChannel1, async message =>
         {
-            pubSub2Channel1MessageReceived = message;
+            pubSub2Channel1MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub1.SubscribeAsync<string>(testChannel2, async message =>
+        await pubSub1.SubscribeAsync(testChannel2, async message =>
         {
-            pubSub1Channel2MessageReceived = message;
+            pubSub1Channel2MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel2, async message =>
+        await pubSub2.SubscribeAsync(testChannel2, async message =>
         {
-            pubSub2Channel2MessageReceived = message;
-            await Task.CompletedTask;
-        });
-
-        await Task.Delay(200); // Give some time for subscriptions to be set up
-
-        var logEvents = logStore.GetLogMessages();
-        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel1\""));
-        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel2\""));
-
-        await pubSub1.PublishAsync(testChannel1, "Hello");
-        await pubSub2.PublishAsync(testChannel2, "There");
-
-        await Task.Delay(200); // Give some time for messages to be processed
-
-        Assert.That(pubSub1Channel1MessageReceived, Is.EqualTo("Hello"));
-        Assert.That(pubSub2Channel1MessageReceived, Is.EqualTo("Hello"));
-        Assert.That(pubSub1Channel2MessageReceived, Is.EqualTo("There"));
-        Assert.That(pubSub2Channel2MessageReceived, Is.EqualTo("There"));
-
-        pubSub1.Dispose();
-        pubSub2.Dispose();
-
-        await Task.Delay(200); // Give some time for messages to be processed
-
-        logEvents = logStore.GetLogMessages();
-        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Stopped processing messages for channel \"my-prefix:test-channel1\""));
-        Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Stopped processing messages for channel \"my-prefix:test-channel2\""));
-    }
-
-    //
-
-    [Test]
-    public async Task ItShouldSendAndReceiveStringsOnMultipleChannels()
-    {
-        const string channelPrefix = "my-prefix";
-        const string testChannel1 = "test-channel1";
-        const string testChannel2 = "test-channel2";
-
-        var logStore = new LogEventMemoryStore();
-        var logger = TestLogFactory.CreateConsoleLogger<InProcPubSubBroker>(logStore);
-
-        var broker = new InProcPubSubBroker(logger);
-        var pubSub1 = new InProcPubSub(broker, channelPrefix);
-        var pubSub2 = new InProcPubSub(broker, channelPrefix);
-
-        var pubSub1Channel1MessageReceived = "";
-        var pubSub2Channel1MessageReceived = "";
-        var pubSub1Channel2MessageReceived = "";
-        var pubSub2Channel2MessageReceived = "";
-
-        await pubSub1.SubscribeStringAsync(testChannel1, async message =>
-        {
-            pubSub1Channel1MessageReceived = message;
-            await Task.CompletedTask;
-        });
-
-        await pubSub2.SubscribeStringAsync(testChannel1, async message =>
-        {
-            pubSub2Channel1MessageReceived = message;
-            await Task.CompletedTask;
-        });
-
-        await pubSub1.SubscribeStringAsync(testChannel2, async message =>
-        {
-            pubSub1Channel2MessageReceived = message;
-            await Task.CompletedTask;
-        });
-
-        await pubSub2.SubscribeStringAsync(testChannel2, async message =>
-        {
-            pubSub2Channel2MessageReceived = message;
+            pubSub2Channel2MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
@@ -224,8 +154,8 @@ public class InProcPubSubTests
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel1\""));
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel2\""));
 
-        await pubSub1.PublishStringAsync(testChannel1, "Hello");
-        await pubSub2.PublishStringAsync(testChannel2, "There");
+        await pubSub1.PublishAsync(testChannel1, JsonEnvelope.Create("Hello"));
+        await pubSub2.PublishAsync(testChannel2, JsonEnvelope.Create("There"));
 
         await Task.Delay(200); // Give some time for messages to be processed
 
@@ -264,33 +194,33 @@ public class InProcPubSubTests
         var pubSub2MessageReceived1 = "";
         var pubSub2MessageReceived2 = "";
 
-        var unsubscribeToken11 = await pubSub1.SubscribeAsync<string>(testChannel, async message =>
+        var unsubscribeToken11 = await pubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1MessageReceived1 = message;
+            pubSub1MessageReceived1 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken12 = await pubSub1.SubscribeAsync<string>(testChannel, async message =>
+        var unsubscribeToken12 = await pubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1MessageReceived2 = message;
+            pubSub1MessageReceived2 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken21 = await pubSub2.SubscribeAsync<string>(testChannel, async message =>
+        var unsubscribeToken21 = await pubSub2.SubscribeAsync(testChannel, async message =>
         {
-            pubSub2MessageReceived1 = message;
+            pubSub2MessageReceived1 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken22 = await pubSub2.SubscribeAsync<string>(testChannel, async message =>
+        var unsubscribeToken22 = await pubSub2.SubscribeAsync(testChannel, async message =>
         {
-            pubSub2MessageReceived2 = message;
+            pubSub2MessageReceived2 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
         await Task.Delay(200); // Give some time for subscriptions to be set up
 
-        await pubSub1.PublishAsync(testChannel, "Hello");
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello"));
 
         await Task.Delay(200); // Give some time for messages to be processed
 
@@ -308,7 +238,7 @@ public class InProcPubSubTests
 
         await Task.Delay(200); // Give some time for subscriptions to be set up
 
-        await pubSub1.PublishAsync(testChannel, "Hello again");
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello again"));
 
         await Task.Delay(200); // Give some time for messages to be processed
 
@@ -326,7 +256,7 @@ public class InProcPubSubTests
 
         await Task.Delay(200); // Give some time for subscriptions to be set up
 
-        await pubSub1.PublishAsync(testChannel, "Hello again again");
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello again again"));
 
         await Task.Delay(200); // Give some time for messages to be processed
 
@@ -348,9 +278,9 @@ public class InProcPubSubTests
 
         logStore.Clear();
 
-        unsubscribeToken21 = await pubSub2.SubscribeAsync<string>(testChannel, async message =>
+        unsubscribeToken21 = await pubSub2.SubscribeAsync(testChannel, async message =>
         {
-            pubSub2MessageReceived1 = message;
+            pubSub2MessageReceived1 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
@@ -360,7 +290,7 @@ public class InProcPubSubTests
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel\""));
         Assert.That(logEvents[LogEventLevel.Debug], Does.Not.Contain("Stopped processing messages for channel \"my-prefix:test-channel\""));
 
-        await pubSub1.PublishAsync(testChannel, "Hello");
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello"));
 
         await Task.Delay(200);
 
@@ -405,34 +335,34 @@ public class InProcPubSubTests
         var pubSub1Channel2MessageReceived = "";
         var pubSub2Channel2MessageReceived = "";
 
-        await pubSub1.SubscribeAsync<string>(testChannel1, async message =>
+        await pubSub1.SubscribeAsync(testChannel1, async message =>
         {
-            pubSub1Channel1MessageReceived = message;
+            pubSub1Channel1MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel1, async message =>
+        await pubSub2.SubscribeAsync(testChannel1, async message =>
         {
-            pubSub2Channel1MessageReceived = message;
+            pubSub2Channel1MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub1.SubscribeAsync<string>(testChannel2, async message =>
+        await pubSub1.SubscribeAsync(testChannel2, async message =>
         {
-            pubSub1Channel2MessageReceived = message;
+            pubSub1Channel2MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub2.SubscribeAsync<string>(testChannel2, async message =>
+        await pubSub2.SubscribeAsync(testChannel2, async message =>
         {
-            pubSub2Channel2MessageReceived = message;
+            pubSub2Channel2MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
         await Task.Delay(200);
 
-        await pubSub1.PublishAsync(testChannel1, "Hello");
-        await pubSub2.PublishAsync(testChannel2, "There");
+        await pubSub1.PublishAsync(testChannel1, JsonEnvelope.Create("Hello"));
+        await pubSub2.PublishAsync(testChannel2, JsonEnvelope.Create("There"));
 
         await Task.Delay(200); // Give some time for messages to be processed
 
@@ -457,8 +387,8 @@ public class InProcPubSubTests
         pubSub1Channel2MessageReceived = "";
         pubSub2Channel2MessageReceived = "";
 
-        await pubSub1.PublishAsync(testChannel1, "Hello");
-        await pubSub2.PublishAsync(testChannel2, "There");
+        await pubSub1.PublishAsync(testChannel1, JsonEnvelope.Create("Hello"));
+        await pubSub2.PublishAsync(testChannel2, JsonEnvelope.Create("There"));
 
         await Task.Delay(200);
 
@@ -481,8 +411,8 @@ public class InProcPubSubTests
         pubSub1Channel2MessageReceived = "";
         pubSub2Channel2MessageReceived = "";
 
-        await pubSub1.PublishAsync(testChannel1, "Hello");
-        await pubSub2.PublishAsync(testChannel2, "There");
+        await pubSub1.PublishAsync(testChannel1, JsonEnvelope.Create("Hello"));
+        await pubSub2.PublishAsync(testChannel2, JsonEnvelope.Create("There"));
 
         await Task.Delay(200);
 
@@ -510,14 +440,14 @@ public class InProcPubSubTests
         var broker = new InProcPubSubBroker(logger);
         var pubSub1 = new InProcPubSub(broker, channelPrefix);
 
-        await pubSub1.SubscribeAsync<string>(testChannel,  _ => throw new Exception("oh no"));
+        await pubSub1.SubscribeAsync(testChannel,  _ => throw new Exception("oh no"));
 
         await Task.Delay(200);
 
         var logEvents = logStore.GetLogMessages();
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel\""));
 
-        await pubSub1.PublishAsync(testChannel, "Hello");
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello"));
 
         await Task.Delay(200);
 
@@ -549,15 +479,15 @@ public class InProcPubSubTests
         var pubSub1StringReceived = "";
         var pubSub1IntReceived = 0;
 
-        await pubSub1.SubscribeAsync<string?>(testChannel, async (string? message) =>
+        await pubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1StringReceived = message;
+            pubSub1StringReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await pubSub1.SubscribeAsync<int>(testChannel, async (int number) =>
+        await pubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1IntReceived = number;
+            pubSub1IntReceived = message.DeserializeMessage<int>();
             await Task.CompletedTask;
         });
 
@@ -566,8 +496,8 @@ public class InProcPubSubTests
         var logEvents = logStore.GetLogMessages();
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel\""));
 
-        await pubSub1.PublishAsync(testChannel, "Hello");
-        await pubSub1.PublishAsync(testChannel, 123);
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello"));
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create(123));
 
         await Task.Delay(200);
 
@@ -598,9 +528,9 @@ public class InProcPubSubTests
 
         var pubSub1StringReceived = "";
 
-        await pubSub1.SubscribeAsync<string?>(testChannel, async message =>
+        await pubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1StringReceived = message;
+            pubSub1StringReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
@@ -609,7 +539,7 @@ public class InProcPubSubTests
         var logEvents = logStore.GetLogMessages();
         Assert.That(logEvents[LogEventLevel.Debug], Does.Contain("Started processing messages for channel \"my-prefix:test-channel\""));
 
-        await pubSub1.PublishAsync<string?>(testChannel, null);
+        await pubSub1.PublishAsync(testChannel, JsonEnvelope.Create<string?>(null));
 
         await Task.Delay(200);
 

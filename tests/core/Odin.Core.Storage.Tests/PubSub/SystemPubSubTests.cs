@@ -5,6 +5,7 @@ using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Json;
 using Odin.Core.Storage.PubSub;
 using Odin.Core.Tasks;
 using StackExchange.Redis;
@@ -90,7 +91,7 @@ public class SystemPubSubTests
 
         var systemReceived = false;
 
-        await systemPubSub.SubscribeAsync<string>(testChannel, async message =>
+        await systemPubSub.SubscribeAsync(testChannel, async message =>
         {
             systemReceived = true;
             await Task.CompletedTask;
@@ -98,7 +99,7 @@ public class SystemPubSubTests
 
         await Task.Delay(500); // Give some time for subscriptions to be set up
 
-        await systemPubSub.PublishAsync(testChannel, "Hello from System!");
+        await systemPubSub.PublishAsync(testChannel, JsonEnvelope.Create("Hello from System!"));
 
         await Task.Delay(500); // Give some time for messages to be processed
 
@@ -108,3 +109,4 @@ public class SystemPubSubTests
     }
 
 }
+

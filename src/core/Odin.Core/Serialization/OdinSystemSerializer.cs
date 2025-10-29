@@ -62,12 +62,6 @@ public static class OdinSystemSerializer
         return json;
     }
 
-    public static string Serialize(object value)
-    {
-        var json = JsonSerializer.Serialize(value, JsonSerializerOptions);
-        return json;
-    }
-
     public static T? Deserialize<T>(byte[] jsonBytes)
     {
         return JsonSerializer.Deserialize<T>(jsonBytes, JsonSerializerOptions);

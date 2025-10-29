@@ -5,6 +5,7 @@ using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Json;
 using Odin.Core.Storage.PubSub;
 using Odin.Core.Tasks;
 using StackExchange.Redis;
@@ -93,21 +94,21 @@ public class TenantPubSubTests
         var pubSub1MessageReceived = "";
         var pubSub2MessageReceived = "";
 
-        await tenantPubSub1.SubscribeAsync<string>(testChannel, async message =>
+        await tenantPubSub1.SubscribeAsync(testChannel, async message =>
         {
-            pubSub1MessageReceived = message;
+            pubSub1MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        await tenantPubSub2.SubscribeAsync<string>(testChannel, async message =>
+        await tenantPubSub2.SubscribeAsync(testChannel, async message =>
         {
-            pubSub2MessageReceived = message;
+            pubSub2MessageReceived = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
         await Task.Delay(500); // Give some time for subscriptions to be set up
 
-        await tenantPubSub1.PublishAsync(testChannel, "Hello");
+        await tenantPubSub1.PublishAsync(testChannel, JsonEnvelope.Create("Hello"));
 
         await Task.Delay(500); // Give some time for messages to be processed
 
@@ -120,3 +121,4 @@ public class TenantPubSubTests
     //
 
 }
+
