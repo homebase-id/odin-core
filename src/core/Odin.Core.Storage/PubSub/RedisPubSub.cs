@@ -21,6 +21,8 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
         _subscriber.UnsubscribeAll();
     }
 
+    //
+
     public async Task PublishAsync(string channel, JsonEnvelope envelope)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
@@ -30,7 +32,9 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
         await _publisher.PublishAsync(RedisChannel.Literal(channelPrefix + ":" + channel), json);
     }
 
-    public async Task<object> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler)
+    //
+
+    public async Task<IPubSubSubscription> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
@@ -58,8 +62,11 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
         };
 
         await _subscriber.SubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), action);
-        return action;
+
+        return new RedisPubSubSubscription(this, channel, action);
     }
+
+    //
 
     private async Task SafeInvokeAsync(Func<JsonEnvelope, Task> handler, JsonEnvelope envelope, string channel)
     {
@@ -73,23 +80,23 @@ public class RedisPubSub(ILogger logger, IConnectionMultiplexer connectionMultip
         }
     }
 
-    public async Task UnsubscribeAsync(string channel, object unsubscribeToken)
+    //
+
+    public async Task UnsubscribeAsync(string channel, Action<RedisChannel, RedisValue> subscription)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
-
-        if (unsubscribeToken is not Action<RedisChannel, RedisValue> action)
-        {
-            throw new ArgumentException("Handler is of incorrect type", nameof(unsubscribeToken));
-        }
-
-        await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), action);
+        await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channelPrefix + ":" + channel), subscription);
     }
+
+    //
 
     public async Task UnsubscribeAllAsync()
     {
         await _subscriber.UnsubscribeAllAsync();
     }
 }
+
+//
 
 public class SystemRedisPubSub(
     ILogger<SystemRedisPubSub> logger,

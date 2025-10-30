@@ -169,13 +169,13 @@ public class RedisPubSubTests
              await Task.CompletedTask;
          });
 
-         var unsubscribeToken1 = await pubSub2.SubscribeAsync(testChannel, async message =>
+         var subscription1 = await pubSub2.SubscribeAsync(testChannel, async message =>
          {
              pubSub2MessageReceived1 = message.DeserializeMessage<string>();
              await Task.CompletedTask;
          });
 
-         var unsubscribeToken2 = await pubSub2.SubscribeAsync(testChannel, async message =>
+         var subscription2 = await pubSub2.SubscribeAsync(testChannel, async message =>
          {
              pubSub2MessageReceived2 = message.DeserializeMessage<string>();
              await Task.CompletedTask;
@@ -197,7 +197,7 @@ public class RedisPubSubTests
          pubSub2MessageReceived1 = "";
          pubSub2MessageReceived2 = "";
 
-         await pubSub2.UnsubscribeAsync(testChannel, unsubscribeToken1);
+         await subscription1.UnsubscribeAsync();
 
          await Task.Delay(500); // Give some time for subscriptions to be set up
 
@@ -215,7 +215,7 @@ public class RedisPubSubTests
          pubSub2MessageReceived1 = "";
          pubSub2MessageReceived2 = "";
 
-         await pubSub2.UnsubscribeAsync(testChannel, unsubscribeToken2);
+         await subscription2.UnsubscribeAsync();
 
          await Task.Delay(500); // Give some time for subscriptions to be set up
 
