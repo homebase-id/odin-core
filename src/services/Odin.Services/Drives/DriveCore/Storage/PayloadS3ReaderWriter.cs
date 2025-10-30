@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.S3;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Util;
 
@@ -9,7 +10,7 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 #nullable enable
 
-public class PayloadS3ReaderWriter(IS3PayloadStorage s3PayloadsStorage) : IPayloadReaderWriter
+public class PayloadS3ReaderWriter(ILogger<PayloadS3ReaderWriter> logger, IS3PayloadStorage s3PayloadsStorage) : IPayloadReaderWriter
 {
     public async Task WriteFileAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
     {
@@ -146,13 +147,14 @@ public class PayloadS3ReaderWriter(IS3PayloadStorage s3PayloadsStorage) : IPaylo
     private RetryBuilder CreateRetry(CancellationToken cancellationToken)
     {
         return Core.Util.TryRetry.Create()
-            .WithAttempts(5)
-            .WithExponentialBackoff(TimeSpan.FromSeconds(10))
+            .WithAttempts(1)
+            .WithExponentialBackoff(TimeSpan.FromSeconds(1))
             .WithCancellation(cancellationToken)
+            .WithLogging(logger)
             .WithoutWrapper()
             .RetryOnPredicate((ex, _) =>
             {
-                if (ex is not AmazonS3Exception s3Ex)
+                if (ex.InnerException is not AmazonS3Exception s3Ex)
                 {
                     return false;
                 }
