@@ -8,6 +8,10 @@ namespace Odin.Core.Storage.PubSub;
 
 /// <summary>
 /// Fire-and-forget publish/subscribe with at-most-once delivery semantics.
+/// All messages are transported as serialized JSON (via JsonEnvelope) to maintain
+/// implementation parity between in-process and distributed (Redis) backends.
+/// This ensures no serialization surprises when switching implementations, but
+/// trades in-process performance for consistency.
 /// </summary>
 public interface IPubSub
 {
@@ -43,4 +47,6 @@ public interface IPubSub
 
 public interface ISystemPubSub : IPubSub;
 public interface ITenantPubSub : IPubSub;
+
+
 
