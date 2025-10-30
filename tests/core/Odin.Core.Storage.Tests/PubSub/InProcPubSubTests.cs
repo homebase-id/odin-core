@@ -194,25 +194,25 @@ public class InProcPubSubTests
         var pubSub2MessageReceived1 = "";
         var pubSub2MessageReceived2 = "";
 
-        var unsubscribeToken11 = await pubSub1.SubscribeAsync(testChannel, async message =>
+        var subscription11 = await pubSub1.SubscribeAsync(testChannel, async message =>
         {
             pubSub1MessageReceived1 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken12 = await pubSub1.SubscribeAsync(testChannel, async message =>
+        var subscription12 = await pubSub1.SubscribeAsync(testChannel, async message =>
         {
             pubSub1MessageReceived2 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken21 = await pubSub2.SubscribeAsync(testChannel, async message =>
+        var subscription21 = await pubSub2.SubscribeAsync(testChannel, async message =>
         {
             pubSub2MessageReceived1 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
         });
 
-        var unsubscribeToken22 = await pubSub2.SubscribeAsync(testChannel, async message =>
+        var subscription22 = await pubSub2.SubscribeAsync(testChannel, async message =>
         {
             pubSub2MessageReceived2 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
@@ -234,7 +234,7 @@ public class InProcPubSubTests
         pubSub2MessageReceived1 = "";
         pubSub2MessageReceived2 = "";
 
-        await pubSub2.UnsubscribeAsync(testChannel, unsubscribeToken21);
+        await subscription21.UnsubscribeAsync();
 
         await Task.Delay(200); // Give some time for subscriptions to be set up
 
@@ -252,7 +252,7 @@ public class InProcPubSubTests
         pubSub2MessageReceived1 = "";
         pubSub2MessageReceived2 = "";
 
-        await pubSub2.UnsubscribeAsync(testChannel, unsubscribeToken22);
+        await subscription22.UnsubscribeAsync();
 
         await Task.Delay(200); // Give some time for subscriptions to be set up
 
@@ -268,8 +268,8 @@ public class InProcPubSubTests
         var logEvents = logStore.GetLogMessages();
         Assert.That(logEvents[LogEventLevel.Debug], Does.Not.Contain("Stopped processing messages for channel \"my-prefix:test-channel\""));
 
-        await pubSub1.UnsubscribeAsync(testChannel, unsubscribeToken11);
-        await pubSub1.UnsubscribeAsync(testChannel, unsubscribeToken12);
+        await subscription11.UnsubscribeAsync();
+        await subscription12.UnsubscribeAsync();
 
         await Task.Delay(200);
 
@@ -278,7 +278,7 @@ public class InProcPubSubTests
 
         logStore.Clear();
 
-        unsubscribeToken21 = await pubSub2.SubscribeAsync(testChannel, async message =>
+        subscription21 = await pubSub2.SubscribeAsync(testChannel, async message =>
         {
             pubSub2MessageReceived1 = message.DeserializeMessage<string>();
             await Task.CompletedTask;
@@ -296,7 +296,7 @@ public class InProcPubSubTests
 
         Assert.That(pubSub2MessageReceived1, Is.EqualTo("Hello"));
 
-        await pubSub2.UnsubscribeAsync(testChannel, unsubscribeToken21);
+        await subscription21.UnsubscribeAsync();
 
         await Task.Delay(200);
 

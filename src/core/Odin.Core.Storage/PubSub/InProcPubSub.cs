@@ -25,28 +25,15 @@ public class InProcPubSub(InProcPubSubBroker broker, string channelPrefix) : IPu
 
     //
 
-    public Task<object> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler)
+    public Task<IPubSubSubscription> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
 
         var channelName = channelPrefix + ':' + channel;
-        var unsubscribeToken = broker.Subscribe(this, channelName, handler);
+        var subscription = broker.Subscribe(this, channelName, handler);
 
-        return  Task.FromResult(unsubscribeToken);
-    }
-
-    //
-
-    // Note: unsubscribeToken must be the same instance as returned by SubscribeAsync
-    public Task UnsubscribeAsync(string channel, object unsubscribeToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
-
-        var channelName = channelPrefix + ':' + channel;
-        broker.Unsubscribe(channelName, unsubscribeToken);
-
-        return Task.CompletedTask;
+        return  Task.FromResult(subscription);
     }
 
     //
@@ -62,7 +49,7 @@ public class InProcPubSub(InProcPubSubBroker broker, string channelPrefix) : IPu
     public void Dispose()
     {
         GC.SuppressFinalize(this);
-        UnsubscribeAllAsync();
+        UnsubscribeAllAsync().GetAwaiter().GetResult();;
     }
 
     //

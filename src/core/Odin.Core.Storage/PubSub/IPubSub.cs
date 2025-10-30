@@ -8,6 +8,10 @@ namespace Odin.Core.Storage.PubSub;
 
 /// <summary>
 /// Fire-and-forget publish/subscribe with at-most-once delivery semantics.
+/// All messages are transported as serialized JSON (via JsonEnvelope) to maintain
+/// implementation parity between in-process and distributed (Redis) backends.
+/// This ensures no serialization surprises when switching implementations, but
+/// trades in-process performance for consistency.
 /// </summary>
 public interface IPubSub
 {
@@ -23,16 +27,8 @@ public interface IPubSub
     /// </summary>
     /// <param name="channel">Name of channel to get message from.</param>
     /// <param name="handler">Handler being called with the envelope. Mismatching types are dropped.</param>
-    /// <returns>UnsubscribeToken. Use this to unsubscribe to the named channel.</returns>
-    Task<object> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler);
-
-    /// <summary>
-    /// Unsubscribe from a named channel.
-    /// </summary>
-    /// <param name="channel">Name of the channel to unsubscribe from.</param>
-    /// <param name="unsubscribeToken">The token returned by <see cref="SubscribeAsync"/></param>
-    /// <returns></returns>
-    Task UnsubscribeAsync(string channel, object unsubscribeToken);
+    /// <returns>IPubSubSubscription. Use this to unsubscribe from the named channel.</returns>
+    Task<IPubSubSubscription> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler);
 
     /// <summary>
     /// Unsubscribe all channels
@@ -43,4 +39,12 @@ public interface IPubSub
 
 public interface ISystemPubSub : IPubSub;
 public interface ITenantPubSub : IPubSub;
+
+public interface IPubSubSubscription : IDisposable, IAsyncDisposable
+{
+    /// <summary>
+    /// Unsubscribe from messages
+    /// </summary>
+    Task UnsubscribeAsync();
+}
 
