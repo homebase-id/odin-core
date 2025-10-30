@@ -764,6 +764,19 @@ public class TryRetryTests
         Assert.That(duration, Is.LessThanOrEqualTo(maxDelay * 3 + initialDelay + TimeSpan.FromMilliseconds(100)));
     }
 
+    [Test]
+    public void ExecuteAsync_ReturnValue_NoExceptionWrapper()
+    {
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var builder = TryRetry.Create().WithoutWrapper();
+
+        Assert.Throws<IOException>(() =>
+        {
+            builder.Execute(() => throw new IOException("Test failure"));
+        });
+    }
+
     // Logging Tests
     [Test]
     public void Execute_Void_WithLogger_LogsAttemptsAndSuccess()

@@ -65,6 +65,7 @@ public class RetryBuilder
     private ValueTuple<TimeSpan, TimeSpan>? _randomDelay;
     private CancellationToken _cancellationToken = CancellationToken.None;
     private ILogger? _logger;
+    private bool _wrapException = true;
 
     /// <summary>
     /// Sets the number of retry attempts
@@ -159,6 +160,15 @@ public class RetryBuilder
     public RetryBuilder WithLogging(ILogger logger)
     {
         _logger = logger;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a logger to log retry attempts
+    /// </summary>
+    public RetryBuilder WithoutWrapper()
+    {
+        _wrapException = false;
         return this;
     }
 
@@ -305,7 +315,11 @@ public class RetryBuilder
             catch (Exception e)
             {
                 _logger?.LogWarning("All {attempts} retry attempts failed: '{message}'", attempt, e.Message);
-                throw new TryRetryException($"{e.Message} (giving up after {attempt} attempt(s))", e);
+                if (_wrapException)
+                {
+                    throw new TryRetryException($"{e.Message} (giving up after {attempt} attempt(s))", e);
+                }
+                throw;
             }
         }
     }
