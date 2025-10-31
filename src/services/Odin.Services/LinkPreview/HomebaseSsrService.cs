@@ -258,22 +258,15 @@ public class HomebaseSsrService(
             {
                 var channelKey = channel.Slug;
                 contentBuilder.AppendLine(Template($"/posts/{channelKey}", lastModified));
-                var (posts, _) = await channelContentService.GetChannelPosts(
-                    channelKey, odinContext, maxPosts: 1000, useContentFallback: false);
+                var (idList, _) = await channelContentService.GetChannelPostIds(channelKey, odinContext, maxPosts: 1000);
 
-                foreach (var post in posts)
+                foreach (var(id, modified) in idList)
                 {
-                    var content = post.Content;
-                    if (content != null && !string.IsNullOrEmpty(content.Id)) // the id will be null when the payload holds the content
-                    {
-                        var id = string.IsNullOrEmpty(post.Content.Slug?.Trim()) ? post.FileId.ToString() : post.Content.Slug;
-                        
-                        // logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
-                        contentBuilder.AppendLine(Template(
-                            path: $"/posts/{channelKey}/{id}",
-                            lastModified: post.Modified.ToDateTime(),
-                            freq: "monthly"));
-                    }
+                    // logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
+                    contentBuilder.AppendLine(Template(
+                        path: $"/posts/{channelKey}/{id}",
+                        lastModified: modified.ToDateTime(),
+                        freq: "monthly"));
                 }
             }
         }

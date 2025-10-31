@@ -376,7 +376,7 @@ public class LinkPreviewService(
         builder.Append($"<meta property='og:image' content='{imageUrl}'/>\n");
         builder.Append($"<link rel='alternate' href='{GetDisplayUrlWithSsr(httpContextAccessor.HttpContext)}' />\n");
         builder.Append($"<link rel='canonical' href='{GetHumanReadableVersion(httpContextAccessor.HttpContext)}' />\n");
-        builder.AppendLine($"<meta name='robots' content='{robotsTag}'>");
+        builder.AppendLine($"<meta name='robots' content='{robotsTag}' />");
 
         builder.Append(PrepareIdentityContent(person));
 
