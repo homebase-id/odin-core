@@ -233,17 +233,16 @@ public static class DriveFileUtility
         return r;
     }
 
-
-    public static SharedSecretEncryptedFileHeader AddIfDeletedNotification(IDriveNotification notification, IOdinContext deviceOdinContext)
-    {
-        var deletedNotification = notification as DriveFileDeletedNotification;
-        if (deletedNotification == null)
-        {
-            return null;
-        }
-
-        return CreateClientFileHeader(deletedNotification.PreviousServerFileHeader, deviceOdinContext);
-    }
+    // public static SharedSecretEncryptedFileHeader AddIfDeletedNotification(IDriveNotification notification, IOdinContext deviceOdinContext)
+    // {
+    //     var deletedNotification = notification as DriveFileDeletedNotification;
+    //     if (deletedNotification == null)
+    //     {
+    //         return null;
+    //     }
+    //
+    //     return CreateClientFileHeader(deletedNotification.PreviousServerFileHeader, deviceOdinContext);
+    // }
 
     public static Guid CreateVersionTag()
     {
