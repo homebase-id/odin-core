@@ -120,8 +120,7 @@ public class HomebaseChannelContentService(
     public async Task<(List<(string id, UnixTimeUtc modified)> channelPosts, string cursor)> GetChannelPostIds(
         string channelKey,
         IOdinContext odinContext,
-        UnixTimeUtc? fromTimestamp = null,
-        int maxPosts = 10,
+        int maxPosts,
         CancellationToken cancellationToken = default)
     {
         var targetDrive = await GetChannelDrive(channelKey, odinContext);
@@ -141,19 +140,28 @@ public class HomebaseChannelContentService(
             IncludeTransferHistory = false,
             Sorting = QueryBatchSortField.UserDate,
             Ordering = QueryBatchSortOrder.NewestFirst,
-            Cursor = fromTimestamp == null ? null : QueryBatchCursor.FromStartPoint(fromTimestamp.GetValueOrDefault())
+            Cursor = null
         };
 
         var batch = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
 
+        logger.LogDebug("Processing posts for channel: [{ck}]", channelKey);
+
         var list = new List<(string, UnixTimeUtc Updated)>();
         foreach (var postHeader in batch.SearchResults)
         {
-            var pc = OdinSystemSerializer.Deserialize<PostContent>(postHeader.FileMetadata.AppData.Content);
+            var content = postHeader.FileMetadata.AppData.Content;
+            var pc = OdinSystemSerializer.Deserialize<PostContent>(content);
+            
+            logger.LogDebug("Raw post content for fileId:{fid} [{pc}]", postHeader.FileId, content);
+            
             var slug = pc?.Slug?.Trim();
+            var id = slug ?? postHeader.FileId.ToString();
+            
+            logger.LogDebug("For fileId: {fix}; using Id:{id} ", postHeader.FileId, id);
             list.Add(
                 (
-                    slug ?? postHeader.FileId.ToString(),
+                    id,
                     postHeader.FileMetadata.Updated
                 )
             );

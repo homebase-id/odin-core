@@ -258,7 +258,7 @@ public class HomebaseSsrService(
             {
                 var channelKey = channel.Slug;
                 contentBuilder.AppendLine(Template($"/posts/{channelKey}", lastModified));
-                var (idList, _) = await channelContentService.GetChannelPostIds(channelKey, odinContext, maxPosts: 1000);
+                var (idList, _) = await channelContentService.GetChannelPostIds(channelKey, odinContext, 1000);
 
                 foreach (var(id, modified) in idList)
                 {
