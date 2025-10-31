@@ -137,7 +137,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                                 NotificationType = ClientNotificationType.AuthenticationError,
                                 Data = "Invalid Token",
                             }), cancellationToken,
-                            deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
+                            deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                            sendEvenIfNoDeviceOdinContext: true);
                         continue;
                     }
                     catch (Exception)
@@ -255,7 +256,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         //
 
         private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken,
-            bool encrypt = true, Guid? groupId = null)
+            bool encrypt = true, Guid? groupId = null, bool sendEvenIfNoDeviceOdinContext = false)
         {
             var socket = deviceSocket.Socket;
 
@@ -268,6 +269,18 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 logger.LogInformation("Invalid/Stale Device found; removing from list");
+                if (sendEvenIfNoDeviceOdinContext)
+                {
+                    var payload = new ClientNotificationPayload()
+                    {
+                        IsEncrypted = false,
+                        Payload = message
+                    };
+
+                    var json = OdinSystemSerializer.Serialize(payload);
+                    await deviceSocket.FireAndForgetAsync(json, cancellationToken);
+                }
+
                 return;
             }
 
