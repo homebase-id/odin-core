@@ -157,6 +157,12 @@ public class HomebaseChannelContentService(
             
             var slug = pc?.Slug?.Trim();
             var id = slug ?? postHeader.FileId.ToString();
+
+            // if the slug is a guid, we will use the fileid.  this accounts for a bug on the FE
+            if (Guid.TryParse(slug, out _))
+            {
+                id = postHeader.FileId.ToString();
+            }
             
             logger.LogDebug("For fileId: {fix}; using Id:{id} ", postHeader.FileId, id);
             list.Add(
