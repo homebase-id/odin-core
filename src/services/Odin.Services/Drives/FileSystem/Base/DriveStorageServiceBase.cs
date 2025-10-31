@@ -1571,5 +1571,17 @@ namespace Odin.Services.Drives.FileSystem.Base
                     string.Join(",", sl));
             }
         }
+        
+        private async Task AssertDriveIsNotArchived(Guid driveId, IOdinContext odinContext)
+        {
+            var theDrive = await DriveManager.GetDriveAsync(driveId);
+            if (theDrive.IsArchived)
+            {
+                if (!odinContext.Caller.HasMasterKey)
+                {
+                    throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
+                }
+            }
+        }
     }
 }

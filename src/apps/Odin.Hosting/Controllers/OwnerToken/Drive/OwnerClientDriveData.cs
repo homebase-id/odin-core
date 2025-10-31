@@ -16,6 +16,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public bool AllowSubscriptions { get; set; }
         public bool AllowAnonymousReads { get; set; }
         public bool OwnerOnly { get; set; }
+        public bool IsArchived { get; set; }
+        public bool IsSystemDrive { get; set; }
 
         public Dictionary<string, string> Attributes { get; set; }
     }
