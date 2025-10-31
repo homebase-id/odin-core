@@ -266,9 +266,11 @@ public class HomebaseSsrService(
                     var content = post.Content;
                     if (content != null && !string.IsNullOrEmpty(content.Id)) // the id will be null when the payload holds the content
                     {
+                        var id = string.IsNullOrEmpty(post.Content.Slug?.Trim()) ? post.FileId.ToString() : post.Content.Slug;
+                        
                         // logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
                         contentBuilder.AppendLine(Template(
-                            path: $"/posts/{channelKey}/{post.FileId}",
+                            path: $"/posts/{channelKey}/{id}",
                             lastModified: post.Modified.ToDateTime(),
                             freq: "monthly"));
                     }
