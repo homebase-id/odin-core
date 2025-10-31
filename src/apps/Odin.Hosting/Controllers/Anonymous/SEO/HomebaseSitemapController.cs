@@ -32,7 +32,7 @@ public class HomebaseSitemapController(HomebaseSsrService ssrService) : OdinCont
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var content = $"""
                        User-agent: *
-                       Disallow:
+                       Disallow: /preview
 
                        Sitemap: {baseUrl}/sitemap.xml
                        """;
