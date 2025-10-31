@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Net.WebSockets;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Odin.Services.AppNotifications.WebSocket;
 
@@ -13,9 +12,9 @@ public class DeviceSocketCollection
 {
     private readonly ConcurrentDictionary<Guid, DeviceSocket> _sockets = new();
 
-    public ConcurrentDictionary<Guid, DeviceSocket> GetAll()
+    public Dictionary<Guid, DeviceSocket> GetAll()
     {
-        return _sockets;
+        return _sockets.ToDictionary();
     }
 
     public void AddSocket(DeviceSocket socket)
