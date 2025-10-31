@@ -117,6 +117,51 @@ public class HomebaseChannelContentService(
         return (channelPosts, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
     }
 
+    public async Task<(List<(string id, UnixTimeUtc modified)> channelPosts, string cursor)> GetChannelPostIds(
+        string channelKey,
+        IOdinContext odinContext,
+        UnixTimeUtc? fromTimestamp = null,
+        int maxPosts = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var targetDrive = await GetChannelDrive(channelKey, odinContext);
+
+        var qp = new FileQueryParams
+        {
+            TargetDrive = targetDrive,
+            FileType = [PostFileType]
+        };
+
+        var options = new QueryBatchResultOptions
+        {
+            MaxRecords = maxPosts,
+            IncludeHeaderContent = true,
+            ExcludePreviewThumbnail = true,
+            ExcludeServerMetaData = true,
+            IncludeTransferHistory = false,
+            Sorting = QueryBatchSortField.UserDate,
+            Ordering = QueryBatchSortOrder.NewestFirst,
+            Cursor = fromTimestamp == null ? null : QueryBatchCursor.FromStartPoint(fromTimestamp.GetValueOrDefault())
+        };
+
+        var batch = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
+
+        var list = new List<(string, UnixTimeUtc Updated)>();
+        foreach (var postHeader in batch.SearchResults)
+        {
+            var pc = OdinSystemSerializer.Deserialize<PostContent>(postHeader.FileMetadata.AppData.Content);
+            var slug = pc?.Slug?.Trim();
+            list.Add(
+                (
+                    slug ?? postHeader.FileId.ToString(),
+                    postHeader.FileMetadata.Updated
+                )
+            );
+        }
+
+        return (list, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
+    }
+
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
         Guid? postIdAsTag = null, int? fileType = null)
     {
