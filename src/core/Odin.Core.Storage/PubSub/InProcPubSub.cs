@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Json;
 
 namespace Odin.Core.Storage.PubSub;
 
@@ -12,54 +13,27 @@ public class InProcPubSub(InProcPubSubBroker broker, string channelPrefix) : IPu
 
     //
 
-    public Task PublishAsync<T>(string channel, T? message)
+    public Task PublishAsync(string channel, JsonEnvelope envelope)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
 
         var channelName = channelPrefix + ':' + channel;
-        broker.Publish(channelName, message);
+        broker.Publish(channelName, envelope);
 
         return Task.CompletedTask;
     }
 
     //
 
-    public Task PublishStringAsync(string channel, string message)
-    {
-        return PublishAsync(channel, message);
-    }
-
-    //
-
-    public Task<object> SubscribeAsync<T>(string channel, Func<T?, Task> handler)
+    public Task<IPubSubSubscription> SubscribeAsync(string channel, Func<JsonEnvelope, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
 
         var channelName = channelPrefix + ':' + channel;
-        var unsubscribeToken = broker.Subscribe(this, channelName, handler);
+        var subscription = broker.Subscribe(this, channelName, handler);
 
-        return  Task.FromResult(unsubscribeToken);
-    }
-
-    //
-
-    public Task<object> SubscribeStringAsync(string channel, Func<string?, Task> handler)
-    {
-        return SubscribeAsync(channel, handler);
-    }
-
-    //
-
-    // Note: unsubscribeToken must be the same instance as returned by SubscribeAsync
-    public Task UnsubscribeAsync(string channel, object unsubscribeToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
-
-        var channelName = channelPrefix + ':' + channel;
-        broker.Unsubscribe(channelName, unsubscribeToken);
-
-        return Task.CompletedTask;
+        return  Task.FromResult(subscription);
     }
 
     //
@@ -75,7 +49,7 @@ public class InProcPubSub(InProcPubSubBroker broker, string channelPrefix) : IPu
     public void Dispose()
     {
         GC.SuppressFinalize(this);
-        UnsubscribeAllAsync();
+        UnsubscribeAllAsync().GetAwaiter().GetResult();;
     }
 
     //

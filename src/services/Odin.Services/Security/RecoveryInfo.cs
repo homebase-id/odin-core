@@ -24,4 +24,5 @@ public class RecoveryInfo
     public VerificationStatus Status { get; init; }
     
     public DealerRecoveryRiskReport RecoveryRisk { get; set; }
+    public bool HasRecoveryKeyBeenViewed { get; set; }
 }

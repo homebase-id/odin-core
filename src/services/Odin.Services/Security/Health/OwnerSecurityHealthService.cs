@@ -73,6 +73,7 @@ public class OwnerSecurityHealthService(
         var package = await shamirConfigurationService.GetDealerShardPackage(odinContext);
         var recoveryInfo = await recoveryService.GetRecoveryInfo();
 
+
         if (package == null)
         {
             return new RecoveryInfo
@@ -83,6 +84,7 @@ public class OwnerSecurityHealthService(
                 Email = recoveryInfo?.Email,
                 EmailLastVerified = recoveryInfo?.EmailLastVerified,
                 Status = await GetVerificationStatusInternalAsync(),
+                HasRecoveryKeyBeenViewed = await recoveryService.HasRecoveryKeyBeenViewed(),
                 RecoveryRisk = null
             };
         }
@@ -107,6 +109,7 @@ public class OwnerSecurityHealthService(
             UsesAutomaticRecovery = package.UsesAutomatedRecovery,
             EmailLastVerified = recoveryInfo?.EmailLastVerified,
             Status = await GetVerificationStatusInternalAsync(),
+            HasRecoveryKeyBeenViewed = await recoveryService.HasRecoveryKeyBeenViewed(),
             RecoveryRisk = DealerShardAnalyzer.Analyze(package, healthCheckStatus)
         };
     }

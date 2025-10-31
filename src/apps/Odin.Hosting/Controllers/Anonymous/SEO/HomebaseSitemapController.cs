@@ -25,4 +25,18 @@ public class HomebaseSitemapController(HomebaseSsrService ssrService) : OdinCont
 
         await Response.WriteAsync(contentBuilder.ToString());
     }
+
+    [HttpGet("robots.txt")]
+    public IActionResult RenderRobots()
+    {
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var content = $"""
+                       User-agent: *
+                       Disallow:
+
+                       Sitemap: {baseUrl}/sitemap.xml
+                       """;
+
+        return Content(content, "text/plain");
+    }
 }

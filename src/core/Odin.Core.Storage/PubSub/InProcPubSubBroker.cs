@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Json;
 
 namespace Odin.Core.Storage.PubSub;
 
@@ -17,37 +17,37 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
 
     //
 
-    public void Publish<T>(string channel, T? message)
+    public void Publish(string channel, JsonEnvelope envelope)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
 
         if (_namedChannels.TryGetValue(channel, out var namedChannel))
         {
-            namedChannel.Publish(message);
+            namedChannel.Publish(envelope);
         }
     }
 
     //
 
-    public object Subscribe<T>(IPubSub subscriber, string channel, Func<T?, Task> handler)
+    public IPubSubSubscription Subscribe(IPubSub subscriber, string channel, Func<JsonEnvelope, Task> handler)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
         ArgumentNullException.ThrowIfNull(handler, nameof(handler));
 
         var namedChannel = _namedChannels.GetOrAdd(channel, _ => new NamedChannel(logger, channel, maxQueuedMessages));
-
-        return namedChannel.AddHandler(subscriber, handler);
+        var handlerRegistration = namedChannel.AddHandler(subscriber, handler);
+        return new InProcPubSubSubscription(this, channel, handlerRegistration);
     }
 
     //
 
-    public void Unsubscribe(string channel, object unsubscribeToken)
+    public void Unsubscribe(string channel, HandlerRegistration subscription)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel, nameof(channel));
 
         if (_namedChannels.TryGetValue(channel, out var namedChannel))
         {
-            namedChannel.RemoveHandler(unsubscribeToken);
+            namedChannel.RemoveHandler(subscription);
         }
     }
 
@@ -66,14 +66,14 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
     private class NamedChannel(ILogger logger, string channelName, int maxQueuedMessages)
     {
         private readonly Lock _mutex = new();
-        private readonly Dictionary<object, HandlerRegistration> _handlers = new();
+        private readonly List<HandlerRegistration> _handlers = [];
 
         private Channel<object>? _channel;
         private CancellationTokenSource? _cts;
 
         //
 
-        public void Publish<T>(T? message)
+        public void Publish(JsonEnvelope envelope)
         {
             lock (_mutex)
             {
@@ -82,42 +82,33 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                     return;
                 }
 
-                var envelope = new Envelope<T>
-                {
-                    Payload = message
-                };
-
                 _channel.Writer.TryWrite(envelope);
             }
         }
 
         //
 
-        public object AddHandler<T>(IPubSub owner, Func<T?, Task> handler)
+        public HandlerRegistration AddHandler(IPubSub owner, Func<JsonEnvelope, Task> handler)
         {
-            var unsubscribeToken = Guid.NewGuid();
+            var handlerRegistration = new HandlerRegistration
+            {
+                Owner = owner,
+                Handler = async envelope =>
+                {
+                    try
+                    {
+                        await handler(envelope);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, "Handler failed: {message}", e.Message);
+                    }
+                }
+            };
 
             lock (_mutex)
             {
-                _handlers[unsubscribeToken] = new HandlerRegistration
-                {
-                    Owner = owner,
-                    Handler = async envelope =>
-                    {
-                        if (envelope is Envelope<T> typed)
-                        {
-                            try
-                            {
-                                await handler(typed.Payload);
-                            }
-                            catch (Exception e)
-                            {
-                                logger.LogError(e, "Handler failed: {message}", e.Message);
-                            }
-
-                        }
-                    }
-                };
+                _handlers.Add(handlerRegistration);
 
                 if (_handlers.Count == 1)
                 {
@@ -139,16 +130,16 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                 }
             }
 
-            return unsubscribeToken;
+            return handlerRegistration;
         }
 
         //
 
-        public void RemoveHandler(object unsubscribeToken)
+        public void RemoveHandler(HandlerRegistration handlerRegistration)
         {
             lock (_mutex)
             {
-                if (_handlers.Remove(unsubscribeToken) && _handlers.Count == 0)
+                if (_handlers.Remove(handlerRegistration) && _handlers.Count == 0)
                 {
                     _cts?.Cancel();
                     _cts?.Dispose();
@@ -164,13 +155,7 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
         {
             lock (_mutex)
             {
-                var keysToRemove = _handlers
-                    .Where(x => ReferenceEquals(x.Value.Owner, owner))
-                    .Select(kvp => kvp.Key).ToList();
-                foreach (var key in keysToRemove)
-                {
-                    _handlers.Remove(key);
-                }
+                _handlers.RemoveAll(h => ReferenceEquals(h.Owner, owner));
                 if (_handlers.Count == 0)
                 {
                     _cts?.Cancel();
@@ -193,16 +178,21 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
             {
                 await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
                 {
+                    if (message is not JsonEnvelope envelope)
+                    {
+                        continue;
+                    }
+
                     List<HandlerRegistration> handlerRegistrations;
                     lock (_mutex)
                     {
-                        handlerRegistrations = new List<HandlerRegistration>(_handlers.Values);
+                        handlerRegistrations = new List<HandlerRegistration>(_handlers);
                     }
 
                     foreach (var handlerRegistration in handlerRegistrations)
                     {
                         // Fire-and-forget
-                        _ = handlerRegistration.Handler(message);
+                        _ = handlerRegistration.Handler(envelope);
                     }
                 }
             }
@@ -215,20 +205,15 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                 logger.LogError(e, "StartProcessingMessages: {Message}", e.Message);
             }
         }
-
-        //
-
-        private class HandlerRegistration
-        {
-            public required IPubSub Owner { get; set; }
-            public required Func<object, Task> Handler { get; set; }
-        }
-
     }
 
-    private class Envelope<T>
+    //
+
+    public class HandlerRegistration
     {
-        public T? Payload { get; set; }
+        public required IPubSub Owner { get; init; }
+        public required Func<JsonEnvelope, Task> Handler { get; init; }
     }
+
 }
 

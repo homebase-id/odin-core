@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
-using Microsoft.Extensions.Logging;
-using Moq;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -16,6 +14,7 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Test.Helpers.Logging;
 using Odin.Test.Helpers.Secrets;
 using Testcontainers.Minio;
 
@@ -34,7 +33,6 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     private IAmazonS3 _s3Client = null!;
     private IS3PayloadStorage _s3PayloadStorage = null!;
     private MinioContainer _minioContainer = null!;
-    private readonly Mock<ILogger<S3AwsPayloadStorage>> _loggerMock = new ();
 
     //
 
@@ -117,7 +115,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         _bucketName = $"zz-ci-test-{Guid.NewGuid():N}";
         await _s3Client.PutBucketAsync(_bucketName);
 
-        _s3PayloadStorage = new S3AwsPayloadStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var logger = TestLogFactory.CreateConsoleLogger<S3AwsPayloadStorage>();
+        _s3PayloadStorage = new S3AwsPayloadStorage(logger, _s3Client, _bucketName);
     }
 
     //
@@ -176,7 +175,8 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
     private async Task CreateFileAsync(string filePath, string content = "hello")
     {
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
         var someBytes = content.ToUtf8ByteArray();
         await rw.WriteFileAsync(filePath, someBytes);
     }
@@ -191,7 +191,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         var appKey = "testAppKey";
         var timestamp = UnixTimeUtcUnique.Now();
 
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
 
         var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
         Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
@@ -215,7 +217,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         var appKey = "testAppKey";
         var timestamp = UnixTimeUtcUnique.Now();
 
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
 
         var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
         Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
@@ -246,7 +250,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         var appKey = "testAppKey";
         var timestamp = UnixTimeUtcUnique.Now();
 
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
 
         var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
         Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
@@ -276,7 +282,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         var appKey = "testAppKey";
         var timestamp = UnixTimeUtcUnique.Now();
 
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
 
         var srcPath = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
         Assert.That(srcPath, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
@@ -312,7 +320,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     [Test]
     public Task PayloadS3_MoveFileAsync_ShouldThrowOnMissingSrcFile()
     {
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
 
         var srcFile = Path.Combine(TestRootPath, Guid.NewGuid().ToString());
         var dstFile = Path.Combine(TestRootPath, Guid.NewGuid().ToString());
@@ -328,7 +338,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
     public async Task PayloadS3_CreateDirectoryAsync_ShouldCreateDirectory()
     {
         var root = Path.Combine(_tenantPathManager.RootPayloadsPath, "frodo/sam");
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
         await rw.CreateDirectoryAsync(root);
         Assert.Pass(); // No-op: S3 does not have directories in the same way as a file system.
     }
@@ -348,7 +360,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
 
         var dstFile = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
 
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
 
         await rw.CopyPayloadFileAsync(srcFile, dstFile);
         var exists = await rw.FileExistsAsync(dstFile);
@@ -366,7 +380,9 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
         var appKey = "testAppKey";
         var timestamp = UnixTimeUtcUnique.Now();
 
-        var rw = new PayloadS3ReaderWriter(_tenantContext, _s3PayloadStorage);
+        var logger = TestLogFactory.CreateConsoleLogger<PayloadS3ReaderWriter>();
+        var rw = new PayloadS3ReaderWriter(logger, _s3PayloadStorage);
+
 
         var path = _tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, appKey, timestamp);
         Assert.That(path, Does.StartWith(_tenantContext.DotYouRegistryId.ToString()));
