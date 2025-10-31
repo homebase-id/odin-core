@@ -105,7 +105,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 {
                     var completeMessage = ms.ToArray();
                     byte[] decryptedBytes;
-                    
+
                     try
                     {
                         if (deviceSocket.DeviceOdinContext == null)
@@ -113,19 +113,33 @@ namespace Odin.Services.AppNotifications.WebSocket
                             var authenticationPackage = OdinSystemSerializer.Deserialize<SocketAuthenticationPackage>(completeMessage);
 
                             OdinValidationUtils.AssertNotNull(authenticationPackage, "authenticationPackage");
-                            OdinValidationUtils.AssertNotNull(authenticationPackage!.ClientAuthToken64, nameof(authenticationPackage.ClientAuthToken64));
-                            OdinValidationUtils.AssertNotNull(authenticationPackage.SharedSecretEncryptedOptions, nameof(authenticationPackage.SharedSecretEncryptedOptions));
-                            
+                            OdinValidationUtils.AssertNotNull(authenticationPackage!.ClientAuthToken64,
+                                nameof(authenticationPackage.ClientAuthToken64));
+                            OdinValidationUtils.AssertNotNull(authenticationPackage.SharedSecretEncryptedOptions,
+                                nameof(authenticationPackage.SharedSecretEncryptedOptions));
+
                             var clientAuthToken64 = authenticationPackage.ClientAuthToken64;
                             deviceSocket.DeviceOdinContext = await HandleAuthentication(clientAuthToken64, currentOdinContext);
-                            decryptedBytes = authenticationPackage.SharedSecretEncryptedOptions!.Decrypt(deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey);
+                            decryptedBytes =
+                                authenticationPackage.SharedSecretEncryptedOptions!.Decrypt(deviceSocket.DeviceOdinContext
+                                    .PermissionsContext.SharedSecretKey);
                         }
                         else
                         {
                             var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
                             decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
                         }
+                    }
+                    catch (OdinSecurityException)
+                    {
+                        await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
+                            {
+                                NotificationType = ClientNotificationType.AuthenticationError,
+                                Data = "Invalid Token",
+                            }), cancellationToken,
+                            deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
 
+                        return;
                     }
                     catch (Exception)
                     {
@@ -304,7 +318,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 throw new OdinSystemException("DeviceOdinContext is null");
             }
-            
+
             var odinContext = deviceSocket.DeviceOdinContext;
 
             //process the command
