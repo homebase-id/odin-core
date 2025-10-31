@@ -30,8 +30,7 @@ public class TableDrivesCachedTests : IocTestBase
         var item1 = new DrivesRecord
         {
             DriveId = Guid.NewGuid(),
-            DriveAlias = Guid.NewGuid(),
-            TempOriginalDriveId = Guid.NewGuid(),
+            StorageKeyCheckValue = Guid.NewGuid(),
             DriveType = Guid.NewGuid(),
             DriveName = "My Drive 1",
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(driveKey),
@@ -69,14 +68,14 @@ public class TableDrivesCachedTests : IocTestBase
         }
 
         {
-            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveAlias, item1.DriveType, TimeSpan.FromMilliseconds(100));
+            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveId, item1.DriveType, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Null);
             Assert.That(tableDrivesCached.Hits, Is.EqualTo(2));
             Assert.That(tableDrivesCached.Misses, Is.EqualTo(3));
         }
 
         {
-            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveAlias, item1.DriveType, TimeSpan.FromMilliseconds(100));
+            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveId, item1.DriveType, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Null);
             Assert.That(tableDrivesCached.Hits, Is.EqualTo(3));
             Assert.That(tableDrivesCached.Misses, Is.EqualTo(3));
@@ -141,14 +140,14 @@ public class TableDrivesCachedTests : IocTestBase
         }
 
         {
-            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveAlias, item1.DriveType, TimeSpan.FromMilliseconds(100));
+            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveId, item1.DriveType, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDrivesCached.Hits, Is.EqualTo(7));
             Assert.That(tableDrivesCached.Misses, Is.EqualTo(8));
         }
 
         {
-            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveAlias, item1.DriveType, TimeSpan.FromMilliseconds(100));
+            var record = await tableDrivesCached.GetByTargetDriveAsync(item1.DriveId, item1.DriveType, TimeSpan.FromMilliseconds(100));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDrivesCached.Hits, Is.EqualTo(8));
             Assert.That(tableDrivesCached.Misses, Is.EqualTo(8));

@@ -207,6 +207,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<uint> WriteTempStream(TempFile tempFile, string extension, Stream stream, IOdinContext odinContext)
         {
+            throw new NotImplementedException("you need to call AssertDriveIsNotArchived everywhere");
+            
             await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
             return await uploadStorageManager.WriteStream(tempFile, extension, stream);
         }

@@ -36,4 +36,7 @@ public class StorageDriveDetails
     public virtual bool AllowSubscriptions { get; set; }
 
     public virtual Dictionary<string, string> Attributes { get; set; }
+    
+    public bool IsArchived { get; set; }
+
 }
