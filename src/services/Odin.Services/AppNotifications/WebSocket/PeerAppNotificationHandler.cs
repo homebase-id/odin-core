@@ -126,7 +126,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         }
                         else
                         {
-                            var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
+                            var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext!.SharedSecretKey;
                             decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
                         }
                     }
@@ -138,8 +138,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                                 Data = "Invalid Token",
                             }), cancellationToken,
                             deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
-
-                        return;
+                        continue;
                     }
                     catch (Exception)
                     {
