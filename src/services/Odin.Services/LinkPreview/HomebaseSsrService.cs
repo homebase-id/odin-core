@@ -268,7 +268,7 @@ public class HomebaseSsrService(
                     {
                         // logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
                         contentBuilder.AppendLine(Template(
-                            path: $"/posts/{channelKey}/{content.Id}",
+                            path: $"/posts/{channelKey}/{post.FileId}",
                             lastModified: post.Modified.ToDateTime(),
                             freq: "monthly"));
                     }
