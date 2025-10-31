@@ -83,7 +83,6 @@ public class PeerIncomingGroupReactionInboxRouterService(
             TargetDrive = file.TargetDrive,
             TransferFileType = TransferFileType.Normal,
             FileSystemType = item.FileSystemType,
-            OdinContext = odinContext,
         });
     }
 }
