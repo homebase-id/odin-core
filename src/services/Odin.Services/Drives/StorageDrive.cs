@@ -105,7 +105,6 @@ namespace Odin.Services.Drives
         public override bool IsArchived
         {
             get => _inner.IsArchived;
-            set => _inner.IsArchived = value;
         }
 
         public string GetDrivePayloadPath()
