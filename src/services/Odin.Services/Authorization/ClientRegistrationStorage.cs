@@ -37,7 +37,7 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
 
         if (previousRegistrations.Count > threshold)
         {
-            logger.LogError(
+            logger.LogDebug(
                 "Threshold of {threshold} has been broken. ({count}) client registrations of " +
                 "type [{type}] and category [{category}] created by {issuedTo}",
                 threshold,
@@ -49,7 +49,7 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
 
         if (recentCount > windowThreshold)
         {
-            logger.LogError(
+            logger.LogDebug(
                 "Threshold of {threshold} has been broken. ({count}) client registrations of " +
                 "type [{type}] and category [{category}] created by {issuedTo} within {window}",
                 windowThreshold,
