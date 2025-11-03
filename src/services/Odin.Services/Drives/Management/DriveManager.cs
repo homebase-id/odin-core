@@ -335,7 +335,6 @@ public class DriveManager : IDriveManager
         return results;
     }
 
-
     private async Task<StorageDriveData?> GetDriveInternal(Guid driveId)
     {
         var record = await _tableDrives.GetAsync(driveId);

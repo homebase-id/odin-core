@@ -31,7 +31,7 @@ public sealed class HomeAppClientRegistration : IClientRegistration
     public string IssuedTo => this.OdinId;
     public int Type => 200;
     public int TimeToLiveSeconds => (int)TimeSpan.FromDays(60).TotalSeconds;
-    public Guid CategoryId => Guid.Empty;
+    public Guid CategoryId => Guid.Parse("ab4f65dd-cd5c-409c-a337-96cdc6ac4f01");
 
     public string GetValue()
     {
