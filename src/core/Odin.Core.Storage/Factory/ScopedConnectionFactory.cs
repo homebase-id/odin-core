@@ -212,7 +212,7 @@ public class ScopedConnectionFactory<T>(
             _counters.IncrementNoDbOpened();
             _connection = await _connectionFactory.OpenAsync();
             _connectionId = Guid.NewGuid();
-            Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
+            Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {DateTimeOffset.UtcNow:O} {filePath}:{lineNumber}";
             LogTrace("Created connection");
         }
 
