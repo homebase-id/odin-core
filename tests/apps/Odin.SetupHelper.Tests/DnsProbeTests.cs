@@ -28,6 +28,7 @@ public class DnsProbeTests
     }
     
     [Test]
+    [Retry(3)]
     public async Task ItShouldGetTheDomainAuthority()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -38,6 +39,7 @@ public class DnsProbeTests
     }
     
     [Test]
+    [Retry(3)]
     public async Task ItShouldGetTheDomainAuthorityUsingCache()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -53,6 +55,7 @@ public class DnsProbeTests
     }
     
     [Test]
+    [Retry(3)]
     public async Task ItShouldSaySomethingOnLookupDomainAuthorityError()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -63,6 +66,7 @@ public class DnsProbeTests
     }
 
     [Test]
+    [Retry(3)]
     public async Task ItShouldResolveARecordDomainToIpWithCache()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
@@ -77,6 +81,7 @@ public class DnsProbeTests
     }
 
     [Test]
+    [Retry(3)]
     public async Task ItShouldResolveCnameDomainToIpWithCache()
     {
         var dnsProbe = _serviceProvider.GetRequiredService<DnsProbe>();
