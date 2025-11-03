@@ -109,7 +109,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
             catch (Exception e)
             {
                 _logger.LogError(e, "HandleAuthorizationCodeCallback error: {message}", e.ToString());
-                var url = $"{authState.FinalUrl}?error=unknown";
+                var url = $"{authState.FinalUrl}?error=unknown-check-server-logs";
                 return Redirect(url);
             }
         }
