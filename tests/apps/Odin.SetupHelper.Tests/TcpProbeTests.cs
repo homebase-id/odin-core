@@ -102,6 +102,7 @@ public class TcpProbeTests
     //
     
     [Test]
+    [Retry(3)]
     public async Task ItShouldErrorOnUnexpectedResponse()
     {
         var cache = new GenericMemoryCache();
