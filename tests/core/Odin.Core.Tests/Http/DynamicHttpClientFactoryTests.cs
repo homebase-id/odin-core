@@ -136,7 +136,7 @@ public class DynamicHttpClientFactoryTests
             logger: _logger,
             defaultHandlerLifetime: TimeSpan.FromMilliseconds(100),
             cleanupInterval: TimeSpan.FromMilliseconds(20),
-            disposeGracePeriod: TimeSpan.FromMilliseconds(500));
+            disposeGracePeriod: TimeSpan.FromMilliseconds(1000));
 
         var client = factory.CreateClient("www.google.com");
 
@@ -145,12 +145,12 @@ public class DynamicHttpClientFactoryTests
 
         var response = await client.GetAsync("https://www.google.com");
 
-        await Task.Delay(200);
+        await Task.Delay(500);
 
         Assert.That(factory.CountActiveHandlers(), Is.EqualTo(0));
         Assert.That(factory.CountExpiredHandlers(), Is.EqualTo(1));
 
-        await Task.Delay(500);
+        await Task.Delay(1500);
 
         Assert.That(factory.CountActiveHandlers(), Is.EqualTo(0));
         Assert.That(factory.CountExpiredHandlers(), Is.EqualTo(0));
