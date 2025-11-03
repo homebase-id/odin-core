@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Storage.ObjectStorage;
+using Odin.Test.Helpers.Logging;
 using Odin.Test.Helpers.Secrets;
 using Testcontainers.Minio;
 
@@ -24,7 +25,7 @@ public class S3AwsStorageTests
     private string _testRootPath = "";
     private IAmazonS3 _s3Client = null!;
     private MinioContainer _minioContainer = null!;
-    private readonly Mock<ILogger<S3AwsStorage>> _loggerMock = new ();
+    private ILogger<S3AwsStorage> _logger = TestLogFactory.CreateConsoleLogger<S3AwsStorage>();
 
     [SetUp]
     public async Task SetUp()
@@ -143,7 +144,7 @@ public class S3AwsStorageTests
     public async Task S3AwsStorage_ItShouldCreateABucket()
     {
         var someOtherBucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, someOtherBucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, someOtherBucketName);
         await bucket.CreateBucketAsync();
         var bucketExists = await bucket.BucketExistsAsync();
         await _s3Client.DeleteBucketAsync(new DeleteBucketRequest { BucketName = someOtherBucketName });
@@ -155,7 +156,7 @@ public class S3AwsStorageTests
     [Test]
     public async Task S3AwsStorage_BucketShouldExist()
     {
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
         var bucketExists = await bucket.BucketExistsAsync();
         Assert.That(bucketExists, Is.True);
         Assert.That(bucket.BucketName, Is.EqualTo(_bucketName));
@@ -169,7 +170,7 @@ public class S3AwsStorageTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
@@ -187,7 +188,7 @@ public class S3AwsStorageTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName, "the-root");
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "the-root");
 
         // Write to bucket
         await bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
@@ -205,7 +206,7 @@ public class S3AwsStorageTests
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(path, bytes);
@@ -223,7 +224,7 @@ public class S3AwsStorageTests
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(path, bytes);
@@ -241,7 +242,7 @@ public class S3AwsStorageTests
         const string path = "the-file";
         var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         await bucket.WriteBytesAsync(path, bytes);
 
@@ -257,7 +258,7 @@ public class S3AwsStorageTests
     {
         const string path = "the-file-not-existing";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         var exception = Assert.ThrowsAsync<S3StorageException>(() =>  bucket.ReadBytesAsync(path));
         var inner = exception!.InnerException as AmazonS3Exception;
@@ -274,7 +275,7 @@ public class S3AwsStorageTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         var exists = await bucket.FileExistsAsync(path);
         Assert.That(exists, Is.False);
@@ -293,7 +294,7 @@ public class S3AwsStorageTests
         const string path = "the-file/";
         const string text = "test";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         var result = bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
         Assert.ThrowsAsync<S3StorageException>(async () => await result);
@@ -307,7 +308,7 @@ public class S3AwsStorageTests
         const string path = "the-file";
         const string text = "test";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         await bucket.DeleteFileAsync(path); // should not throw
         await bucket.WriteBytesAsync(path, System.Text.Encoding.UTF8.GetBytes(text));
@@ -329,7 +330,7 @@ public class S3AwsStorageTests
         const string text = "test";
         const int fileCount = 10;
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName, root);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, root);
 
         await bucket.DeleteDirectoryAsync(dir); // Should not throw
 
@@ -366,7 +367,7 @@ public class S3AwsStorageTests
         const string dstPath = "the-dst-file";
         const string text = "test";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.CopyFileAsync(srcPath, dstPath);
@@ -387,7 +388,7 @@ public class S3AwsStorageTests
         const string dstPath = "the-dst-file";
         const string text = "test";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
         await bucket.MoveFileAsync(srcPath, dstPath);
@@ -410,7 +411,7 @@ public class S3AwsStorageTests
         var srcFile = Path.Combine(_testRootPath, srcPath);
         await File.WriteAllTextAsync(srcFile, "Hello");
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
         await bucket.UploadFileAsync(srcFile, dstPath);
 
         var exists = await bucket.FileExistsAsync(dstPath);
@@ -429,7 +430,7 @@ public class S3AwsStorageTests
         const string dstPath = "the-dst-file";
         const string text = "hello";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
@@ -454,7 +455,7 @@ public class S3AwsStorageTests
         const string srcPath = "the-src-file";
         const string text = "hello";
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         // Write to bucket
         await bucket.WriteBytesAsync(srcPath, System.Text.Encoding.UTF8.GetBytes(text));
@@ -471,7 +472,7 @@ public class S3AwsStorageTests
     {
         var srcPath = Guid.NewGuid().ToString("N");
 
-        var bucket = new S3AwsStorage(_loggerMock.Object, _s3Client, _bucketName);
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
 
         var exception = Assert.ThrowsAsync<S3StorageException>(() => bucket.FileLengthAsync(srcPath));
         var inner = exception!.InnerException as AmazonS3Exception;
