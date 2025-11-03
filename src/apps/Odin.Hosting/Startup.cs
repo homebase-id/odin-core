@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Autofac;
@@ -87,10 +88,20 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         // Provisioning mapping
         if (config.Registry.ProvisioningEnabled)
         {
+            string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];
+
             app.MapWhen(
-                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                context =>
+                    context.Request.Host.Host == config.Registry.ProvisioningDomain &&
+                    !excludedPaths.Any(p => context.Request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)),
                 a => Provisioning.Map(a, env, logger));
+
+            //
+            // app.MapWhen(
+            //     context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+            //     a => Provisioning.Map(a, env, logger));
         }
+
 
         // Admin mapping
         if (config.Admin.ApiEnabled)

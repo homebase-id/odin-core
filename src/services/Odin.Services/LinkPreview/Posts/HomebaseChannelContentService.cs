@@ -117,6 +117,65 @@ public class HomebaseChannelContentService(
         return (channelPosts, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
     }
 
+    public async Task<(List<(string id, UnixTimeUtc modified)> channelPosts, string cursor)> GetChannelPostIds(
+        string channelKey,
+        IOdinContext odinContext,
+        int maxPosts,
+        CancellationToken cancellationToken = default)
+    {
+        var targetDrive = await GetChannelDrive(channelKey, odinContext);
+
+        var qp = new FileQueryParams
+        {
+            TargetDrive = targetDrive,
+            FileType = [PostFileType]
+        };
+
+        var options = new QueryBatchResultOptions
+        {
+            MaxRecords = maxPosts,
+            IncludeHeaderContent = true,
+            ExcludePreviewThumbnail = true,
+            ExcludeServerMetaData = true,
+            IncludeTransferHistory = false,
+            Sorting = QueryBatchSortField.UserDate,
+            Ordering = QueryBatchSortOrder.NewestFirst,
+            Cursor = null
+        };
+
+        var batch = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
+
+        logger.LogDebug("Processing posts for channel: [{ck}]", channelKey);
+
+        var list = new List<(string, UnixTimeUtc Updated)>();
+        foreach (var postHeader in batch.SearchResults)
+        {
+            var content = postHeader.FileMetadata.AppData.Content;
+            var pc = OdinSystemSerializer.Deserialize<PostContent>(content);
+            
+            logger.LogDebug("Raw post content for fileId:{fid} [{pc}]", postHeader.FileId, content);
+            
+            var slug = pc?.Slug?.Trim();
+            var id = slug ?? postHeader.FileId.ToString();
+
+            // if the slug is a guid, we will use the fileid.  this accounts for a bug on the FE
+            if (Guid.TryParse(slug, out _))
+            {
+                id = postHeader.FileId.ToString();
+            }
+            
+            logger.LogDebug("For fileId: {fix}; using Id:{id} ", postHeader.FileId, id);
+            list.Add(
+                (
+                    id,
+                    postHeader.FileMetadata.Updated
+                )
+            );
+        }
+
+        return (list, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
+    }
+
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
         Guid? postIdAsTag = null, int? fileType = null)
     {
@@ -338,6 +397,7 @@ public class HomebaseChannelContentService(
 
         var post = new ChannelPost()
         {
+            FileId = fileId.FileId,
             Content = content,
             ImageUrl = imageUrl,
             Modified = postFile.FileMetadata.Updated

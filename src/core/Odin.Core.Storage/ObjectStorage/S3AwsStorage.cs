@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -93,7 +94,9 @@ public class S3AwsStorage : IS3Storage
                 ContentType = "application/octet-stream"
             };
 
+            var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
+            _logger.LogDebug("S3AwsStorage:WriteBytesAsync {elapsed}ms", sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
@@ -293,7 +296,9 @@ public class S3AwsStorage : IS3Storage
 
         try
         {
+            var sw = Stopwatch.StartNew();
             await _s3Client.CopyObjectAsync(request, cancellationToken);
+            _logger.LogDebug("S3AwsStorage:CopyFileAsync {elapsed}ms", sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
@@ -328,7 +333,9 @@ public class S3AwsStorage : IS3Storage
                 ContentType = "application/octet-stream"
             };
 
+            var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
+            _logger.LogDebug("S3AwsStorage:UploadFileAsync {elapsed}ms", sw.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {

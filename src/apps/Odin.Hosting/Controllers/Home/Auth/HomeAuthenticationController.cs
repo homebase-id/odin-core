@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -28,15 +29,21 @@ namespace Odin.Hosting.Controllers.Home.Auth
     [Route(HomeApiPathConstants.AuthV1)]
     public class HomeAuthenticationController : OdinControllerBase
     {
+        private readonly ILogger<HomeAuthenticationController> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly HomeAuthenticatorService _homeAuthenticatorService;
         private readonly string _currentTenant;
         private readonly PublicPrivateKeyService _pkService;
 
 
-        public HomeAuthenticationController(ITenantProvider tenantProvider, HomeAuthenticatorService homeAuthenticatorService,
-            PublicPrivateKeyService pkService, IOdinHttpClientFactory odinHttpClientFactory)
+        public HomeAuthenticationController(
+            ILogger<HomeAuthenticationController> logger,
+            ITenantProvider tenantProvider,
+            HomeAuthenticatorService homeAuthenticatorService,
+            PublicPrivateKeyService pkService,
+            IOdinHttpClientFactory odinHttpClientFactory)
         {
+            _logger = logger;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _homeAuthenticatorService = homeAuthenticatorService;
             _pkService = pkService;
@@ -99,9 +106,10 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 string url = $"{authState.FinalUrl}?error=remoteValidationCallFailed";
                 return Redirect(url);
             }
-            catch
+            catch (Exception e)
             {
-                string url = $"{authState.FinalUrl}?error=unknown";
+                _logger.LogError(e, "HandleAuthorizationCodeCallback error: {message}", e.ToString());
+                var url = $"{authState.FinalUrl}?error=unknown-check-server-logs";
                 return Redirect(url);
             }
         }

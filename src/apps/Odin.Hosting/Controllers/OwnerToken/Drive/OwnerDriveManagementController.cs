@@ -38,7 +38,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes
+                    Attributes = drive.Attributes,
+                    IsArchived = drive.IsArchived,
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
+
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
@@ -83,6 +86,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return Ok();
         }
 
+        [HttpPost("set-archive-drive")]
+        public async Task<IActionResult> SetArchiveDriveFlag([FromBody] UpdateDriveArchiveFlag request)
+        {
+            await driveManager.SetArchiveDriveFlagAsync(request.TargetDrive.Alias, request.Archived, WebOdinContext);
+            return Ok();
+        }
+
+        
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpGet("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
@@ -99,7 +110,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes
+                    Attributes = drive.Attributes,
+                    IsArchived = drive.IsArchived,
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);
@@ -134,5 +147,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool AllowSubscriptions { get; set; }
+    }
+    
+    public class UpdateDriveArchiveFlag
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool Archived { get; set; }
     }
 }
