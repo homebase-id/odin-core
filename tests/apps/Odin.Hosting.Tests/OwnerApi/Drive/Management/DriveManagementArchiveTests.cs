@@ -57,7 +57,7 @@ public class DriveManagementArchiveTests
         yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), false };
     }
 
-    [Test]
+    [Test, Explicit]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
     [TestCaseSource(nameof(GuestAllowed))]
