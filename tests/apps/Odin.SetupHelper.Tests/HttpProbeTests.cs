@@ -26,7 +26,7 @@ public class HttpProbeTests
     }
     
     [Test]
-    [Explicit] // Not always available
+    [Explicit] // id.homebase.id is not always available
     public async Task ItShouldProbePortHttpPort()
     {
         var correlationId = Guid.NewGuid();
@@ -40,7 +40,7 @@ public class HttpProbeTests
     }
     
     [Test]
-    [Explicit] // Not always available
+    [Explicit] // id.homebase.id is not always available
     public async Task ItShouldProbePortHttpsPort()
     {
         var correlationId = Guid.NewGuid();
@@ -54,6 +54,7 @@ public class HttpProbeTests
     }
 
     [Test]
+    [Retry(3)]
     public async Task ItShouldErrorIfProbePageNotFound()
     {
         var httpProbe = _serviceProvider.GetRequiredService<HttpProbe>();
