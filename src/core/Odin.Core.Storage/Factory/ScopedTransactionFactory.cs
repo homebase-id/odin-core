@@ -1,5 +1,7 @@
 using System;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,11 +19,15 @@ namespace Odin.Core.Storage.Factory;
 // Interfaces
 //
 
+#nullable enable
+
 public interface IScopedTransactionFactory
 {
     Task<IScopedTransaction> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0);
 }
 
 //
@@ -43,14 +49,17 @@ public interface IScopedTransaction : IDisposable, IAsyncDisposable
 public class ScopedTransactionFactory<T>(ScopedConnectionFactory<T> scopedConnectionFactory)
     : IScopedTransactionFactory where T : IDbConnectionFactory
 {
+    [SuppressMessage("ReSharper", "ExplicitCallerInfoArgument")]
     public async Task<IScopedTransaction> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0)
     {
-        var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        var cn = await scopedConnectionFactory.CreateScopedConnectionAsync(filePath, lineNumber);
         try
         {
-            var tx = await cn.BeginStackedTransactionAsync(isolationLevel, cancellationToken);
+            var tx = await cn.BeginStackedTransactionAsync(isolationLevel, cancellationToken, filePath, lineNumber);
             return new ScopedTransaction(cn, tx);
         }
         catch (Exception e)

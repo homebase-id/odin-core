@@ -1,4 +1,8 @@
 using System;
+using System.Data;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Identity.Abstractions;
@@ -8,6 +12,9 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity;
 
+#nullable enable
+
+[SuppressMessage("ReSharper", "ExplicitCallerInfoArgument")]
 public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IIdentityDbConnectionFactory>(lifetimeScope)
 {
     private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
@@ -15,69 +22,75 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
     //
     // Abstractions
     //
-    private Lazy<MainIndexMeta> _mainIndexMeta;
+    private Lazy<MainIndexMeta>? _mainIndexMeta;
     public MainIndexMeta MainIndexMeta => LazyResolve(ref _mainIndexMeta);
 
     //
     // Caching
     //
-    private Lazy<TableAppGrantsCached> _appGrantsCached;
+    private Lazy<TableAppGrantsCached>? _appGrantsCached;
     public TableAppGrantsCached AppGrantsCached => LazyResolve(ref _appGrantsCached);
 
-    private Lazy<TableAppNotificationsCached> _appNotificationsCached;
+    private Lazy<TableAppNotificationsCached>? _appNotificationsCached;
     public TableAppNotificationsCached AppNotificationsCached => LazyResolve(ref _appNotificationsCached);
 
-    private Lazy<TableCircleCached> _circleCached;
+    private Lazy<TableCircleCached>? _circleCached;
     public TableCircleCached CircleCached => LazyResolve(ref _circleCached);
 
-    private Lazy<TableCircleMemberCached> _circleMemberCached;
+    private Lazy<TableCircleMemberCached>? _circleMemberCached;
     public TableCircleMemberCached CircleMemberCached => LazyResolve(ref _circleMemberCached);
 
-    private Lazy<TableConnectionsCached> _connectionsCached;
+    private Lazy<TableConnectionsCached>? _connectionsCached;
     public TableConnectionsCached ConnectionsCached => LazyResolve(ref _connectionsCached);
 
-    private Lazy<TableDriveMainIndexCached> _driveMainIndexCached;
+    private Lazy<TableDriveMainIndexCached>? _driveMainIndexCached;
     public TableDriveMainIndexCached DriveMainIndexCached => LazyResolve(ref _driveMainIndexCached);
 
-    private Lazy<TableFollowsMeCached> _followsMeCached;
+    private Lazy<TableFollowsMeCached>? _followsMeCached;
     public TableFollowsMeCached FollowsMeCached => LazyResolve(ref _followsMeCached);
 
-    private Lazy<TableImFollowingCached> _imFollowingCached;
+    private Lazy<TableImFollowingCached>? _imFollowingCached;
     public TableImFollowingCached ImFollowingCached => LazyResolve(ref _imFollowingCached);
 
-    private Lazy<TableKeyThreeValueCached> _keyThreeValueCached;
+    private Lazy<TableKeyThreeValueCached>? _keyThreeValueCached;
     public TableKeyThreeValueCached KeyThreeValueCached => LazyResolve(ref _keyThreeValueCached);
 
-    private Lazy<TableKeyTwoValueCached> _keyTwoValueCached;
+    private Lazy<TableKeyTwoValueCached>? _keyTwoValueCached;
     public TableKeyTwoValueCached KeyTwoValueCached => LazyResolve(ref _keyTwoValueCached);
 
-    private Lazy<TableKeyValueCached> _keyValueCached;
+    private Lazy<TableKeyValueCached>? _keyValueCached;
     public TableKeyValueCached KeyValueCached => LazyResolve(ref _keyValueCached);
 
-    private Lazy<MainIndexMetaCached> _mainIndexMetaCached;
+    private Lazy<MainIndexMetaCached>? _mainIndexMetaCached;
     public MainIndexMetaCached MainIndexMetaCached => LazyResolve(ref _mainIndexMetaCached);
 
-    private Lazy<TableDrivesCached> _tableDrivesCached;
+    private Lazy<TableDrivesCached>? _tableDrivesCached;
     public TableDrivesCached DrivesCached => LazyResolve(ref _tableDrivesCached);
 
     
     //
     // Connection
     //
-    public override async Task<IConnectionWrapper> CreateScopedConnectionAsync()
+    public override async Task<IConnectionWrapper> CreateScopedConnectionAsync(
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0)
     {
         var factory = _lifetimeScope.Resolve<ScopedIdentityConnectionFactory>();
-        var cn = await factory.CreateScopedConnectionAsync();
+        var cn = await factory.CreateScopedConnectionAsync(filePath, lineNumber);
         return cn;
     }
 
     //
     // Transaction
     //
-    public override async Task<IScopedTransaction> BeginStackedTransactionAsync()
+    public override async Task<IScopedTransaction> BeginStackedTransactionAsync(
+        IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+        CancellationToken cancellationToken = default,
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0)
     {
         var factory = _lifetimeScope.Resolve<ScopedIdentityTransactionFactory>();
-        var tx = await factory.BeginStackedTransactionAsync();
+        var tx = await factory.BeginStackedTransactionAsync(isolationLevel, cancellationToken, filePath, lineNumber);
         return tx;
     }
 
