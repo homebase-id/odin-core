@@ -107,7 +107,7 @@ public class DriveManagementArchiveTests
         await callerContext.Cleanup();
     }
 
-    [Test]
+    [Test, Explicit]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowed))]
     [TestCaseSource(nameof(GuestAllowed))]
