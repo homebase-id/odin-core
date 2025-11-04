@@ -136,7 +136,7 @@ public class OwnerShamirRecoveryController : OdinControllerBase
 <body>
   <div class=""container"">
     <h1>Verify your email</h1>
-    <p>Click below to continue, or wait a moment — we’ll take you there automatically.</p>
+    <p>Click below to continue.</p>
     <a class=""button"" href=""{link}"">Continue</a>
   </div>
 </body>
