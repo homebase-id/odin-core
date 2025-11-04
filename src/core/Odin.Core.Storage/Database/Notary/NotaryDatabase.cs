@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Immutable;
-using System.Data;
+﻿using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Notary.Connection;
-using Odin.Core.Storage.Database.Notary.Table;
-using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Notary;
@@ -27,7 +23,7 @@ public partial class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractData
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        var factory = _lifetimeScope.Resolve<ScopedSystemConnectionFactory>();
+        var factory = _lifetimeScope.Resolve<ScopedNotaryConnectionFactory>();
         var cn = await factory.CreateScopedConnectionAsync(filePath, lineNumber);
         return cn;
     }
@@ -41,7 +37,7 @@ public partial class NotaryDatabase(ILifetimeScope lifetimeScope) : AbstractData
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        var factory = _lifetimeScope.Resolve<ScopedSystemTransactionFactory>();
+        var factory = _lifetimeScope.Resolve<ScopedNotaryTransactionFactory>();
         var tx = await factory.BeginStackedTransactionAsync(isolationLevel, cancellationToken, filePath, lineNumber);
         return tx;
     }

@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Immutable;
-using System.Data;
+﻿using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.Attestation.Connection;
-using Odin.Core.Storage.Database.Attestation.Table;
-using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Attestation;
@@ -27,7 +23,7 @@ public partial class AttestationDatabase(ILifetimeScope lifetimeScope) : Abstrac
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        var factory = _lifetimeScope.Resolve<ScopedSystemConnectionFactory>();
+        var factory = _lifetimeScope.Resolve<ScopedAttestationConnectionFactory>();
         var cn = await factory.CreateScopedConnectionAsync(filePath, lineNumber);
         return cn;
     }
@@ -41,7 +37,7 @@ public partial class AttestationDatabase(ILifetimeScope lifetimeScope) : Abstrac
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        var factory = _lifetimeScope.Resolve<ScopedSystemTransactionFactory>();
+        var factory = _lifetimeScope.Resolve<ScopedAttestationTransactionFactory>();
         var tx = await factory.BeginStackedTransactionAsync(isolationLevel, cancellationToken, filePath, lineNumber);
         return tx;
     }

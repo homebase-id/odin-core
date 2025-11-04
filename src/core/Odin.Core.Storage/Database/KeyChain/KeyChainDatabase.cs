@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Odin.Core.Storage.Database.KeyChain.Connection;
-using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.KeyChain;
@@ -28,7 +27,7 @@ public partial class KeyChainDatabase(ILifetimeScope lifetimeScope) : AbstractDa
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        var factory = _lifetimeScope.Resolve<ScopedSystemConnectionFactory>();
+        var factory = _lifetimeScope.Resolve<ScopedKeyChainConnectionFactory>();
         var cn = await factory.CreateScopedConnectionAsync(filePath, lineNumber);
         return cn;
     }
@@ -42,7 +41,7 @@ public partial class KeyChainDatabase(ILifetimeScope lifetimeScope) : AbstractDa
         [CallerFilePath] string? filePath = null,
         [CallerLineNumber] int lineNumber = 0)
     {
-        var factory = _lifetimeScope.Resolve<ScopedSystemTransactionFactory>();
+        var factory = _lifetimeScope.Resolve<ScopedKeyChainTransactionFactory>();
         var tx = await factory.BeginStackedTransactionAsync(isolationLevel, cancellationToken, filePath, lineNumber);
         return tx;
     }
