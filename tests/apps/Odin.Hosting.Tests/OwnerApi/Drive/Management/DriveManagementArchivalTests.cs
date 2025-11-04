@@ -11,7 +11,7 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
-public class DriveManagementArchiveTests
+public class DriveManagementArchivalTests
 {
     private WebScaffold _scaffold;
 
