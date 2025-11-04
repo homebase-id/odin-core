@@ -8,7 +8,8 @@ on:
   workflow_dispatch: # Allows manual triggering from the UI
 
 jobs:
-  build:
+  ci-tests:
+    name: Test ubuntu/sqlite/release
     runs-on: ubuntu-latest
 
     env:
