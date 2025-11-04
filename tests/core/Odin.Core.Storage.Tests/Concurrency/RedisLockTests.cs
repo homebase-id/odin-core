@@ -119,7 +119,7 @@ public class RedisLockTests
         // Allow a short time for the Lua script to execute.
         await Task.Delay(50);
 
-        await using (await redisLock.LockAsync(lockKey, TimeSpan.FromSeconds(100), TimeSpan.FromSeconds(10)))
+        await using (await redisLock.LockAsync(lockKey, TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10)))
         {
             Assert.Pass();
         }
@@ -179,6 +179,41 @@ public class RedisLockTests
     }
 
     //
+
+    [Test]
+    public async Task LockAsync_ThrowsOnBadTimeoutParams()
+    {
+        await RegisterServicesAsync();
+
+        var lockKey = NodeLockKey.Create("testlock1");
+        var redisLock = _services!.Resolve<INodeLock>();
+
+        var ex = Assert.ThrowsAsync<RedisLockException>(async () =>
+            await redisLock.LockAsync(
+                lockKey,
+                TimeSpan.FromSeconds(0),
+                TimeSpan.FromSeconds(1),
+                CancellationToken.None));
+        Assert.That(ex!.Message, Is.EqualTo("timeout must be greater than zero"));
+
+        ex = Assert.ThrowsAsync<RedisLockException>(async () =>
+            await redisLock.LockAsync(
+                lockKey,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(0),
+                CancellationToken.None));
+        Assert.That(ex!.Message, Is.EqualTo("forcedRelease must be greater than zero"));
+
+        ex = Assert.ThrowsAsync<RedisLockException>(async () =>
+            await redisLock.LockAsync(
+                lockKey,
+                TimeSpan.FromSeconds(20),
+                TimeSpan.FromSeconds(10),
+                CancellationToken.None));
+        Assert.That(ex!.Message, Is.EqualTo($"timeout must be less than forcedRelease"));
+
+    }
+
 
 }
 
