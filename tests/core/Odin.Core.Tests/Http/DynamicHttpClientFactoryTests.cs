@@ -34,6 +34,13 @@ public class DynamicHttpClientFactoryTests
     }
 
     [Test]
+    public void AAA_OhDear()
+    {
+        Assert.Fail();
+    }
+
+
+    [Test]
     public async Task CreateClient_WorksWith_DefaultConfig()
     {
         using var factory = new DynamicHttpClientFactory(_logger);
