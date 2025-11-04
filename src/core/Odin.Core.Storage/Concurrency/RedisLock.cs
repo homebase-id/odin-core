@@ -12,7 +12,7 @@ namespace Odin.Core.Storage.Concurrency;
 public sealed class RedisLock(IConnectionMultiplexer connectionMultiplexer) : INodeLock
 {
     private const string Prefix = "odin:lock:";
-    private static readonly TimeSpan DefaultForcedRelease = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan DefaultForcedRelease = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(10);
     private readonly IConnectionMultiplexer _connectionMultiplexer = connectionMultiplexer;
@@ -27,6 +27,21 @@ public sealed class RedisLock(IConnectionMultiplexer connectionMultiplexer) : IN
     {
         timeout ??= DefaultTimeout;
         forcedRelease ??= DefaultForcedRelease;
+
+        if (timeout <= TimeSpan.Zero  )
+        {
+            throw new RedisLockException($"{nameof(timeout)} must be greater than zero");
+        }
+
+        if (forcedRelease <= TimeSpan.Zero  )
+        {
+            throw new RedisLockException($"{nameof(forcedRelease)} must be greater than zero");
+        }
+
+        if (timeout >= forcedRelease )
+        {
+            throw new RedisLockException($"{nameof(timeout)} must be less than {nameof(forcedRelease)}");
+        }
 
         var timeoutTime = DateTimeOffset.UtcNow + timeout;
         var value = Guid.NewGuid().ToString();
