@@ -132,12 +132,6 @@ public class OwnerShamirRecoveryController : OdinControllerBase
       background-color: #1e40af;
     }}
   </style>
-  <script>
-    // Auto-redirect after 2 seconds
-    setTimeout(function() {{
-      window.location.href = '{link}';
-    }}, 2000);
-  </script>
 </head>
 <body>
   <div class=""container"">
