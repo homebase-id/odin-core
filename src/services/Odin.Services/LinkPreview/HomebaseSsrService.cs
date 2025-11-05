@@ -338,7 +338,11 @@ public class HomebaseSsrService(
         try
         {
             var bodyJson = Convert.ToString(post.Content.Body) ?? string.Empty;
-            if (!string.IsNullOrEmpty(bodyJson))
+            if (string.IsNullOrEmpty(bodyJson))
+            {
+                logger.LogDebug("Post body is empty for file {f} on channel [{ck}]", post.FileId, channelKey);
+            }
+            else
             {
                 var bodyHtml = PlateRichTextParser.Parse(bodyJson);
                 contentBuilder.AppendLine($"<div>");
@@ -357,12 +361,13 @@ public class HomebaseSsrService(
                             contentBuilder.AppendLine("<li>");
                             var href = $"<a href='https://{comment.OdinId}'>{comment.OdinId}</a>";
                             contentBuilder.AppendLine($"{href} : {comment.Content} ({comment.Updated.ToDateTime()})");
-                            
+
                             contentBuilder.AppendLine("<span>");
                             foreach (var reaction in comment.Reactions)
                             {
                                 contentBuilder.AppendLine($"{reaction.ReactionContent} ({reaction.Count})");
                             }
+
                             contentBuilder.AppendLine("</span>");
 
                             contentBuilder.AppendLine("</li>");
