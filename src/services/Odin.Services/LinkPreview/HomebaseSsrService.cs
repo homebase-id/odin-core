@@ -341,6 +341,7 @@ public class HomebaseSsrService(
             if (string.IsNullOrEmpty(bodyJson))
             {
                 logger.LogDebug("Post body is empty for file {f} on channel [{ck}]", post.FileId, channelKey);
+                contentBuilder.AppendLine($"<p>nb</p>");
             }
             else
             {
