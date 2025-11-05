@@ -333,6 +333,7 @@ public class HomebaseSsrService(
     {
         contentBuilder.AppendLine($"<h1>{post.Content.Caption}</h1>");
         contentBuilder.AppendLine($"<img src='{post.ImageUrl}' width='600'/>");
+        contentBuilder.AppendLine($"<p>{post.Content.Abstract}</p>");
         contentBuilder.AppendLine($"<p>{post.Content.UserDate.GetValueOrDefault().ToDateTime()}</p>");
         contentBuilder.AppendLine($"<hr/>");
         try
@@ -340,6 +341,7 @@ public class HomebaseSsrService(
             var bodyJson = Convert.ToString(post.Content.Body) ?? string.Empty;
             if (string.IsNullOrEmpty(bodyJson))
             {
+                logger.LogDebug("Post body is empty for file {f} on channel [{ck}]", post.FileId, channelKey);
                 contentBuilder.AppendLine($"<p>nb</p>");
             }
             else
