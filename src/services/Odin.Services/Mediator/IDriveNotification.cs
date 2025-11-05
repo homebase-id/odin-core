@@ -16,7 +16,6 @@ public interface IDriveNotification : INotification
     public ServerFileHeader ServerFileHeader { get; init; }
 
     public IOdinContext OdinContext { get; init; }
-    // public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 
     /// <summary>
     /// Feed hack so I can ensure certain update events do not get distributed 
