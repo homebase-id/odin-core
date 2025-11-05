@@ -2,9 +2,9 @@ name: "Host: CI main/ubuntu/sqlite/release"
 
 on:
   push:
-    branches: [main, seb-ci]
+    branches: [main]
   pull_request:
-    branches: [main, seb-ci]
+    branches: [main]
   workflow_dispatch: # Allows manual triggering from the UI
 
 jobs:

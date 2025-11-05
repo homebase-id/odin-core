@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using HtmlAgilityPack;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
@@ -260,7 +261,7 @@ public class HomebaseSsrService(
                 contentBuilder.AppendLine(Template($"/posts/{channelKey}", lastModified));
                 var (idList, _) = await channelContentService.GetChannelPostIds(channelKey, odinContext, 1000);
 
-                foreach (var(id, modified) in idList)
+                foreach (var (id, modified) in idList)
                 {
                     // logger.LogDebug("Content: {id}|{slug}|{caption}", content.Id, content.Slug, content.Caption);
                     contentBuilder.AppendLine(Template(
@@ -343,6 +344,39 @@ public class HomebaseSsrService(
                 var bodyHtml = PlateRichTextParser.Parse(bodyJson);
                 contentBuilder.AppendLine($"<div>");
                 contentBuilder.Append(bodyHtml);
+
+                // render the reaction preview
+
+                try
+                {
+                    if (null != post.ReactionSummary)
+                    {
+                        contentBuilder.AppendLine($"<h3>Comments {post.ReactionSummary.TotalCommentCount}</h3>");
+                        contentBuilder.AppendLine("<ul>");
+                        foreach (var comment in post.ReactionSummary.Comments)
+                        {
+                            contentBuilder.AppendLine("<li>");
+                            var href = $"<a href='https://{comment.OdinId}'>{comment.OdinId}</a>";
+                            contentBuilder.AppendLine($"{href} : {comment.Content} ({comment.Updated.ToDateTime()})");
+                            
+                            contentBuilder.AppendLine("<span>");
+                            foreach (var reaction in comment.Reactions)
+                            {
+                                contentBuilder.AppendLine($"{reaction.ReactionContent} ({reaction.Count})");
+                            }
+                            contentBuilder.AppendLine("</span>");
+
+                            contentBuilder.AppendLine("</li>");
+                        }
+
+                        contentBuilder.AppendLine("</ul>");
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to render reaction summary");
+                }
+
                 contentBuilder.AppendLine($"</div>");
             }
         }
