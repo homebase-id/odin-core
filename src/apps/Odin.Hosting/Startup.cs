@@ -185,34 +185,12 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
-            
             // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
             app.MapWhen(ctx => true,
                 homeApp =>
                 {
-                    var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-                    homeApp.Run(async context =>
-                    {
-                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-
-                        var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
-                        var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
-
-                        var indexFile = Path.Combine(publicPath, "index.html");
-
-                        try
-                        {
-                            await svc.WriteIndexFileAsync(indexFile, odinContext);
-                        }
-                        catch (Exception)
-                        {
-                            // #super parnoid
-                            await context.Response.SendFileAsync(indexFile);
-                        }
-                    });
-                    //
-                    // homeApp.UseSpa(
-                    //     spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
+                    homeApp.UseSpa(
+                        spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
                 });
         }
         else
