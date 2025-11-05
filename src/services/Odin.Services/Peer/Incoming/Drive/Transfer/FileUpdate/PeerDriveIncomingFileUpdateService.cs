@@ -251,7 +251,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 TargetDrive = (await driveManager.GetDriveAsync(item.DriveId)).TargetDriveInfo,
                 TransferFileType = TransferFileType.Normal,
                 FileSystemType = item.FileSystemType,
-                OdinContext = odinContext,
             });
 
             return PeerResponseCode.AcceptedIntoInbox;
