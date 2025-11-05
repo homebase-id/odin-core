@@ -316,10 +316,6 @@ namespace Odin.Services.AppNotifications.WebSocket
                     Header = hasSharedSecret
                         ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                         : null,
-                    // TODD:TODO is this correct? It's copied from the same code in AppNotificationHandler
-                    // PreviousServerFileHeader = hasSharedSecret
-                    //     ? DriveFileUtility.AddIfDeletedNotification(notification, deviceOdinContext!)
-                    //     : null
                     PreviousServerFileHeader = hasSharedSecret
                         ? notification.IsDeleteNotification
                             ? DriveFileUtility.CreateClientFileHeader(notification.PreviousServerFileHeader, deviceOdinContext!)
