@@ -270,7 +270,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             await mediator.Publish(new InboxItemReceivedNotification
             {
-                OdinContext = odinContext,
                 TargetDrive = targetDrive,
                 FileSystemType = fileSystemType,
                 TransferFileType = TransferFileType.ReadReceipt,
@@ -427,7 +426,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 TargetDrive = (await driveManager.GetDriveAsync(item.DriveId)).TargetDriveInfo,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.FileSystemType,
-                OdinContext = odinContext,
             });
 
             return PeerResponseCode.AcceptedIntoInbox;
