@@ -340,7 +340,6 @@ public class HomebaseSsrService(
             var bodyJson = Convert.ToString(post.Content.Body) ?? string.Empty;
             if (string.IsNullOrEmpty(bodyJson))
             {
-                logger.LogDebug("Post body is empty for file {f} on channel [{ck}]", post.FileId, channelKey);
                 contentBuilder.AppendLine($"<p>nb</p>");
             }
             else
@@ -395,7 +394,6 @@ public class HomebaseSsrService(
             odinContext,
             post.Content.UserDate,
             maxPosts: 10,
-            useContentFallback: true,
             cancellationToken);
 
         contentBuilder.AppendLine($"<hr/>");
