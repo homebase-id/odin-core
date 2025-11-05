@@ -358,16 +358,6 @@ public class LinkPreviewService(
         return string.IsNullOrEmpty(data) ? null : data;
     }
 
-    private string Truncate(string data)
-    {
-        if (string.IsNullOrEmpty(data))
-        {
-            return null;
-        }
-
-        return data.Substring(0, 160);
-    }
-
 
     private async Task<string> PrepareIndexHtml(string indexFilePath, string title, string imageUrl, string description,
         PersonSchema person, string siteType, string robotsTag, string noScriptContent, IOdinContext odinContext)
@@ -474,7 +464,7 @@ public class LinkPreviewService(
         }
     }
 
-    public static string Truncate(string input, int maxLength)
+    private static string Truncate(string input, int maxLength = 160)
     {
         if (string.IsNullOrEmpty(input) || maxLength <= 0)
         {
