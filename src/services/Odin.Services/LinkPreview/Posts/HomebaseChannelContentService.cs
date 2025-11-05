@@ -400,7 +400,8 @@ public class HomebaseChannelContentService(
             FileId = fileId.FileId,
             Content = content,
             ImageUrl = imageUrl,
-            Modified = postFile.FileMetadata.Updated
+            Modified = postFile.FileMetadata.Updated,
+            ReactionSummary = postFile.FileMetadata.ReactionPreview
         };
 
         return post;
