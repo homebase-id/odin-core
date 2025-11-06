@@ -28,8 +28,6 @@ namespace Odin.Services.Apps
 
         public Int64 FileByteCount { get; set; }
 
-        public string CdnPayloadBaseUrl { get; set; }
-
         public void AssertFileIsActive()
         {
             if (this.FileState == FileState.Deleted)

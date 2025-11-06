@@ -7,7 +7,6 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
@@ -16,7 +15,6 @@ namespace Odin.Services.Drives.FileSystem.Standard
 {
     public class StandardFileDriveStorageService(
         ILoggerFactory loggerFactory,
-        OdinConfiguration config,
         IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
@@ -26,7 +24,6 @@ namespace Odin.Services.Drives.FileSystem.Standard
         IdentityDatabase db)
         : DriveStorageServiceBase(
             loggerFactory,
-            config,
             mediator,
             driveAclAuthorizationService,
             driveManager,
