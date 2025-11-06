@@ -4,6 +4,8 @@ using Odin.Core.Threading;
 
 namespace Odin.Core.Util;
 
+// NOTE: this class does not scale horizontally. Prefer INodeLock if possible.
+
 public class SharedKeyedAsyncLock<TRegisteredService> where TRegisteredService : notnull
 {
     private readonly KeyedAsyncLock _keyedAsyncLock = new();
@@ -17,6 +19,4 @@ public class SharedKeyedAsyncLock<TRegisteredService> where TRegisteredService :
     {
         return _keyedAsyncLock.LockAsync(key);
     }
-
-
 }

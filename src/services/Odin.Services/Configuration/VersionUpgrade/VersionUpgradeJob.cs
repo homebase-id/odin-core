@@ -50,7 +50,7 @@ public class VersionUpgradeJob(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Version Upgrade Job railed to run");
+            logger.LogError(e, "Version Upgrade Job failed to run");
             return JobExecutionResult.Fail();
         }
 

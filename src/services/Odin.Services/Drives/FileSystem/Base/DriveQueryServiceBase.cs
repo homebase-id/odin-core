@@ -89,6 +89,31 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertCanReadDriveAsync(driveId, odinContext);
             return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
         }
+        
+        public async Task<QueryBatchResult> GetSmartBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
+            IOdinContext odinContext,
+            bool forceIncludeServerMetadata = false)
+        {
+            await AssertCanReadDriveAsync(driveId, odinContext);
+            var drive = await DriveManager.GetDriveAsync(driveId);
+            var (cursor, fileIdList, hasMoreRows) = await _driveQuery.GetSmartBatchCoreAsync(
+                drive,
+                odinContext,
+                GetFileSystemType(),
+                qp,
+                options);
+
+            var (headers, _) = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
+
+            return new QueryBatchResult()
+            {
+                QueryTime = UnixTimeUtc.Now().milliseconds,
+                IncludeMetadataHeader = options.IncludeHeaderContent,
+                Cursor = cursor,
+                SearchResults = headers,
+                HasMoreRows = hasMoreRows
+            };
+        }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
             ResultOptions options, IOdinContext odinContext)

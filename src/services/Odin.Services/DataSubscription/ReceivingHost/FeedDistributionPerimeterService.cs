@@ -291,7 +291,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     TargetDrive = SystemDriveConstants.FeedDrive,
                     TransferFileType = item.TransferInstructionSet.TransferFileType,
                     FileSystemType = item.TransferInstructionSet.FileSystemType,
-                    OdinContext = odinContext,
                 });
 
                 return new PeerTransferResponse

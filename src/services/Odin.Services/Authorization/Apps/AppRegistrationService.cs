@@ -2,23 +2,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Apps;
-using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Connections;
@@ -27,49 +22,24 @@ using Odin.Services.Util;
 
 namespace Odin.Services.Authorization.Apps
 {
-    public class AppRegistrationService : IAppRegistrationService
+    public class AppRegistrationService(
+        ExchangeGrantService exchangeGrantService,
+        TenantContext tenantContext,
+        IMediator mediator,
+        IcrKeyService icrKeyService,
+        ILogger<AppRegistrationService> logger,
+        TableKeyThreeValueCached tblKeyThreeValue,
+        ClientRegistrationStorage clientRegistrationStorage,
+        OdinContextCache cache)
+        : IAppRegistrationService
     {
         private static readonly byte[] AppRegistrationDataType = Guid.Parse("14c83583-acfd-4368-89ad-6566636ace3d").ToByteArray();
         private const string AppRegContextKey = "661e097f-6aa5-459f-a445-a9ea65348fde";
 
         private static readonly ThreeKeyValueStorage AppRegistrationValueStorage =
             TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(AppRegContextKey));
-
-        private static readonly byte[] AppClientDataType = Guid.Parse("54e60e2f-4687-449c-83ad-6ae6ff4ba1cf").ToByteArray();
-        private const string AppClientContextKey = "fb080b07-0566-4db8-bc0d-daed6b50b104";
-
-        private static readonly ThreeKeyValueStorage AppClientValueStorage =
-            TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(AppClientContextKey));
-
-        private readonly ExchangeGrantService _exchangeGrantService;
-        private readonly IcrKeyService _icrKeyService;
-        private readonly ILogger<AppRegistrationService> _logger;
-        private readonly TableKeyThreeValueCached _tblKeyThreeValue;
-
-        private readonly OdinContextCache _cache;
-        private readonly TenantContext _tenantContext;
-
-        private readonly IMediator _mediator;
-
-        public AppRegistrationService(
-            ExchangeGrantService exchangeGrantService,
-            OdinConfiguration config,
-            TenantContext tenantContext,
-            IMediator mediator,
-            IcrKeyService icrKeyService,
-            ILogger<AppRegistrationService> logger,
-            TableKeyThreeValueCached tblKeyThreeValue,
-            OdinContextCache cache)
-        {
-            _exchangeGrantService = exchangeGrantService;
-            _tenantContext = tenantContext;
-            _mediator = mediator;
-            _icrKeyService = icrKeyService;
-            _logger = logger;
-            _tblKeyThreeValue = tblKeyThreeValue;
-            _cache = cache;
-        }
-
+        
+        
         public async Task<RedactedAppRegistration> RegisterAppAsync(AppRegistrationRequest request, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
@@ -82,7 +52,7 @@ namespace Odin.Services.Authorization.Apps
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
-            var icrKey = hasTransit ? await _icrKeyService.GetDecryptedIcrKeyAsync(odinContext) : null;
+            var icrKey = hasTransit ? await icrKeyService.GetDecryptedIcrKeyAsync(odinContext) : null;
 
             var drives = new List<DriveGrantRequest>(request.Drives ?? new List<DriveGrantRequest>());
 
@@ -103,7 +73,7 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
-            var appGrant = await _exchangeGrantService.CreateExchangeGrantAsync(
+            var appGrant = await exchangeGrantService.CreateExchangeGrantAsync(
                 keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
@@ -120,7 +90,7 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, appReg.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appReg.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
 
             await NotifyAppChanged(null, appReg, odinContext);
             return appReg.Redacted();
@@ -141,7 +111,7 @@ namespace Odin.Services.Authorization.Apps
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
-            var icrKey = hasTransit ? await _icrKeyService.GetDecryptedIcrKeyAsync(odinContext) : null;
+            var icrKey = hasTransit ? await icrKeyService.GetDecryptedIcrKeyAsync(odinContext) : null;
 
             var drives = new List<DriveGrantRequest>(request.Drives ?? new List<DriveGrantRequest>());
 
@@ -162,10 +132,10 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
-            appReg.Grant = await _exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives, masterKey,
+            appReg.Grant = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives, masterKey,
                 icrKey);
 
-            await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -207,7 +177,7 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType,
+            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType,
                 updatedAppReg);
 
             //TODO: consider optimize by checking if anything actually changed before calling notify app changed
@@ -215,28 +185,6 @@ namespace Odin.Services.Authorization.Apps
             await NotifyAppChanged(oldRegistration, updatedAppReg, odinContext);
             await ResetAppPermissionContextCacheAsync();
         }
-
-        // public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClientPkAsync(GuidId appId,
-        //     byte[] clientPublicKey,
-        //     string friendlyName, IOdinContext odinContext)
-        // {
-        //     var (cat, corsHostName) = await RegisterClientAsync(appId, friendlyName, odinContext);
-        //
-        //     var data = cat.ToPortableBytes();
-        //     var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-        //     var encryptedData = publicKey.Encrypt(data);
-        //
-        //     data.Wipe();
-        //
-        //     var response = new AppClientRegistrationResponse()
-        //     {
-        //         EncryptionVersion = 1,
-        //         Token = cat.Id,
-        //         Data = encryptedData
-        //     };
-        //
-        //     return (response, corsHostName);
-        // }
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientAsync(GuidId appId, string friendlyName,
             IOdinContext odinContext)
@@ -251,9 +199,9 @@ namespace Odin.Services.Authorization.Apps
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var (accessRegistration, cat) =
-                await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
+                await exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
-            var appClient = new AppClient(appId, friendlyName, accessRegistration);
+            var appClient = new AppClientRegistration(odinContext.Tenant, appId, friendlyName, accessRegistration);
             await SaveClientAsync(appClient);
             return (cat, appReg.CorsHostName);
         }
@@ -287,7 +235,7 @@ namespace Odin.Services.Authorization.Apps
                 };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
-                var permissionContext = await _exchangeGrantService.CreatePermissionContext(
+                var permissionContext = await exchangeGrantService.CreatePermissionContext(
                     token,
                     grantDictionary,
                     accessReg,
@@ -296,9 +244,9 @@ namespace Odin.Services.Authorization.Apps
 
                 var dotYouContext = new OdinContext()
                 {
-                    Tenant = _tenantContext.HostOdinId,
+                    Tenant = tenantContext.HostOdinId,
                     Caller = new CallerContext(
-                        odinId: _tenantContext.HostOdinId,
+                        odinId: tenantContext.HostOdinId,
                         masterKey: null,
                         securityLevel: SecurityGroupType.Owner,
                         odinClientContext: new OdinClientContext()
@@ -315,17 +263,17 @@ namespace Odin.Services.Authorization.Apps
                 return dotYouContext;
             }
 
-            var result = await _cache.GetOrAddContextAsync(token, Creator);
+            var result = await cache.GetOrAddContextAsync(token, Creator);
             return result;
         }
 
         public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
             ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
-            var appClient = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, authToken.Id);
+            var appClient = await clientRegistrationStorage.GetAsync<AppClientRegistration>(authToken.Id);
             if (null == appClient)
             {
-                _logger.LogDebug("null app client");
+                logger.LogDebug("null app client");
                 return (false, null, null);
             }
 
@@ -333,13 +281,13 @@ namespace Odin.Services.Authorization.Apps
 
             if (null == appReg || null == appReg.Grant)
             {
-                _logger.LogDebug("null app registration or app registration grant");
+                logger.LogDebug("null app registration or app registration grant");
                 return (false, null, null);
             }
 
             if (appClient.AccessRegistration.IsRevoked || appReg.Grant.IsRevoked)
             {
-                _logger.LogDebug("app client or app is revoked");
+                logger.LogDebug("app client or app is revoked");
                 return (false, null, null);
             }
 
@@ -363,7 +311,7 @@ namespace Odin.Services.Authorization.Apps
 
             //TODO: revoke all clients? or is the one flag enough?
 
-            await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -377,14 +325,15 @@ namespace Odin.Services.Authorization.Apps
                 appReg.Grant.IsRevoked = false;
             }
 
-            await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext)
         {
-            var list = await AppClientValueStorage.GetByCategoryAsync<AppClient>(_tblKeyThreeValue, AppClientDataType);
+            var list = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<AppClientRegistration>(AppClientRegistration.CatType,
+                appId);
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
@@ -401,7 +350,7 @@ namespace Odin.Services.Authorization.Apps
         public async Task RevokeClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await clientRegistrationStorage.GetAsync<AppClientRegistration>(accessRegistrationId);
 
             if (null == client)
             {
@@ -428,35 +377,35 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinSecurityException("Invalid call to Delete app client");
             }
 
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await clientRegistrationStorage.GetAsync<AppClientRegistration>(accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            await AppClientValueStorage.DeleteAsync(_tblKeyThreeValue, accessRegistrationId);
+            await clientRegistrationStorage.DeleteAsync(accessRegistrationId);
         }
 
         public async Task DeleteClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await clientRegistrationStorage.GetAsync<AppClientRegistration>(accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            await AppClientValueStorage.DeleteAsync(_tblKeyThreeValue, accessRegistrationId);
+            await clientRegistrationStorage.DeleteAsync(accessRegistrationId);
         }
 
         public async Task AllowClientAsync(GuidId accessRegistrationId, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
 
-            var client = await AppClientValueStorage.GetAsync<AppClient>(_tblKeyThreeValue, accessRegistrationId);
+            var client = await clientRegistrationStorage.GetAsync<AppClientRegistration>(accessRegistrationId);
 
             if (null == client)
             {
@@ -478,7 +427,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
             }
 
-            await AppRegistrationValueStorage.DeleteAsync(_tblKeyThreeValue, appId);
+            await AppRegistrationValueStorage.DeleteAsync(tblKeyThreeValue, appId);
 
             //TODO: reenable this after youauth domain work
 
@@ -501,45 +450,28 @@ namespace Odin.Services.Authorization.Apps
             return await GetRegisteredAppsInternalAsync();
         }
 
-        internal async Task Temp_ReconcileDrives()
-        {
-            var apps = await AppRegistrationValueStorage.GetByCategoryAsync<AppRegistration>(_tblKeyThreeValue, AppRegistrationDataType);
-
-            foreach (var appReg in apps)
-            {
-                foreach (var grant in appReg.Grant.KeyStoreKeyEncryptedDriveGrants)
-                {
-                    grant.DriveId = grant.PermissionedDrive.Drive.Alias;
-                }
-
-                await AppRegistrationValueStorage.UpsertAsync(_tblKeyThreeValue, appReg.AppId, GuidId.Empty, AppRegistrationDataType,
-                    appReg);
-            }
-        }
-
         private async Task<List<RedactedAppRegistration>> GetRegisteredAppsInternalAsync()
         {
-            var apps = await AppRegistrationValueStorage.GetByCategoryAsync<AppRegistration>(_tblKeyThreeValue, AppRegistrationDataType);
+            var apps = await AppRegistrationValueStorage.GetByCategoryAsync<AppRegistration>(tblKeyThreeValue, AppRegistrationDataType);
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return redactedList;
         }
 
-        private async Task SaveClientAsync(AppClient appClient)
+        private async Task SaveClientAsync(AppClientRegistration appClientRegistration)
         {
-            await AppClientValueStorage.UpsertAsync(_tblKeyThreeValue, appClient.AccessRegistration.Id, appClient.AppId, AppClientDataType,
-                appClient);
+            await clientRegistrationStorage.SaveAsync(appClientRegistration);
         }
 
         private async Task<AppRegistration?> GetAppRegistrationInternalAsync(GuidId appId)
         {
-            var appReg = await AppRegistrationValueStorage.GetAsync<AppRegistration>(_tblKeyThreeValue, appId);
+            var appReg = await AppRegistrationValueStorage.GetAsync<AppRegistration>(tblKeyThreeValue, appId);
             return appReg;
         }
 
         private async Task NotifyAppChanged(AppRegistration? oldAppRegistration, AppRegistration newAppRegistration,
             IOdinContext odinContext)
         {
-            await _mediator.Publish(new AppRegistrationChangedNotification
+            await mediator.Publish(new AppRegistrationChangedNotification
             {
                 OldAppRegistration = oldAppRegistration,
                 NewAppRegistration = newAppRegistration,
@@ -552,7 +484,7 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         private async Task ResetAppPermissionContextCacheAsync()
         {
-            await _cache.ResetAsync();
+            await cache.ResetAsync();
         }
 
         private bool HasRequestedTransit(PermissionSet? permissionSet)

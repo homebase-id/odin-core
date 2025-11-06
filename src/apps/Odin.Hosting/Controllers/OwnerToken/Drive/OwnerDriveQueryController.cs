@@ -41,7 +41,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             
             return await base.QueryModified(queryModifiedRequest);
         }
-
+        
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("batch")]
         public new async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
@@ -59,6 +59,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return await base.QueryBatch(queryBatchRequest);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("smart-batch")]
+        public new async Task<QueryBatchResponse> QuerySmartBatch([FromBody] QueryBatchRequest request)
+        {
+            return await base.QuerySmartBatch(request);
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpGet("smart-batch")]
+        public async Task<QueryBatchResponse> QuerySmartBatchGet([FromQuery] GetQueryBatchRequest request)
+        {
+            var queryBatchRequest = request.ToQueryBatchRequest();
+            return await base.QuerySmartBatch(queryBatchRequest);
+        }
+        
         /// <summary>
         /// Returns multiple <see cref="QueryBatchResponse"/>s
         /// </summary>

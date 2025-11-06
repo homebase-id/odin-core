@@ -38,7 +38,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
 
     public abstract class TableAttestationStatusCRUD : TableBase
     {
-        private ScopedAttestationConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedAttestationConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "AttestationStatus";
 
         public TableAttestationStatusCRUD(ScopedAttestationConnectionFactory scopedConnectionFactory)
@@ -47,6 +47,10 @@ namespace Odin.Core.Storage.Database.Attestation.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
         public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -73,6 +77,7 @@ namespace Odin.Core.Storage.Database.Attestation.Table
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "AttestationStatus", createSql, commentSql);
         }
+       */
 
         public virtual async Task<int> InsertAsync(AttestationStatusRecord item)
         {

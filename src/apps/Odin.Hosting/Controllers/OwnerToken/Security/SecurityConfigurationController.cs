@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Security.PasswordRecovery.Shamir.ShardRequestApproval;
 
@@ -11,7 +12,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class SecurityConfigurationController(ShamirConfigurationService shamirConfigurationService, ShamirRecoveryService recoveryService)
+public class SecurityConfigurationController(
+    ShamirConfigurationService shamirConfigurationService,
+    ShamirRecoveryService recoveryService,
+    OwnerSecurityHealthService securityHealthService
+)
     : OdinControllerBase
 {
     [HttpGet("config")]
@@ -59,6 +64,13 @@ public class SecurityConfigurationController(ShamirConfigurationService shamirCo
     public async Task<IActionResult> RejectShardRequest([FromBody] RejectShardRequest request)
     {
         await recoveryService.RejectShardRequest(request.ShardId, request.OdinId, WebOdinContext);
+        return Ok();
+    }
+
+    [HttpPost("notify-user")]
+    public async Task<IActionResult> NotifyUser()
+    {
+        await securityHealthService.NotifyUser(WebOdinContext);
         return Ok();
     }
 }

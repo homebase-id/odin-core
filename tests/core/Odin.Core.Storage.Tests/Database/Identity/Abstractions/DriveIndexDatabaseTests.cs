@@ -141,6 +141,48 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
         }
 
 
+        /// <summary>
+        /// Scenario: A newly installed chat client downloads the entire database. Gets everything in one go.
+        /// The newest chat item will be the first result[0] and the oldest will be result[4]
+        /// Tests only the QueryBatch().
+        /// </summary>
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task UserDateSpanTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+
+            var driveId = Guid.NewGuid();
+
+            var s1 = SequentialGuid.CreateGuid().ToString();
+            var t1 = SequentialGuid.CreateGuid();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(1), 0, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(2), 1, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(3), 2, null, null, 1);
+            await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, userDate: new UnixTimeUtc(4), 2, null, null, 1);
+
+            QueryBatchCursor cursor = null;
+            var (result, moreRows, refCursor) = await metaIndex.QueryBatchSmartCursorAsync(driveId, 10, cursor, sortOrder: QueryBatchSortOrder.NewestFirst, sortField: QueryBatchSortField.UserDate, userdateSpan: new UnixTimeUtcRange(new UnixTimeUtc(2), new UnixTimeUtc(3)), requiredSecurityGroup: allIntRange);
+            ClassicAssert.IsTrue(result.Count == 2);
+            ClassicAssert.IsTrue(moreRows == false);
+
+            ClassicAssert.IsTrue(result[0].userDate == new UnixTimeUtc(3));
+            ClassicAssert.IsTrue(result[1].userDate == new UnixTimeUtc(2));
+        }
+
+
+
 
 
         /// <summary>
@@ -209,6 +251,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.IsTrue(new TimeRowCursor(c5, 5).Equals(refCursor.stopAtBoundary));
             ClassicAssert.IsTrue(moreRows == false);
         }
+
 
 
 

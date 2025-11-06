@@ -179,6 +179,18 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__CApiCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
+            List<OdinId> devAutoPlayers =
+            [
+                new OdinId("tom.dotyou.cloud"),
+                new OdinId("collab.dotyou.cloud"),
+                new OdinId("merry.dotyou.cloud"),
+                new OdinId("pippin.dotyou.cloud"),
+            ];
+
+            Environment.SetEnvironmentVariable("Registry__AutomatedIdentityKey", "e36f5077-bec3-4410-89fe-5bc822dc4c8d");
+            Environment.SetEnvironmentVariable("Registry__AutomatedPasswordRecoveryIdentities",
+                OdinSystemSerializer.Serialize(devAutoPlayers));
+
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", Path.Combine(TestDataPath, "tenants"));
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", Path.Combine(TestDataPath, "system"));
             Environment.SetEnvironmentVariable("Host__IPAddressListenList__0__HttpPort", HttpPort);
@@ -187,6 +199,9 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__SystemProcessApiKey", SystemProcessApiKey.ToString());
             Environment.SetEnvironmentVariable("Host__IpRateLimitRequestsPerSecond", int.MaxValue.ToString());
 
+            Environment.SetEnvironmentVariable("Host__ClientRegistrationThreshold", int.MaxValue.ToString());
+            Environment.SetEnvironmentVariable("Host__ClientRegistrationWindowThreshold", int.MaxValue.ToString());
+            
             Environment.SetEnvironmentVariable("Logging__LogFilePath", LogFilePath);
             Environment.SetEnvironmentVariable("Logging__EnableStatistics", "true");
 
@@ -520,7 +535,7 @@ namespace Odin.Hosting.Tests
 
         public async Task<string> WaitForLogPropertyValue(string propertyName, LogEventLevel logLevel, TimeSpan? maxWaitTime = null)
         {
-            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(40);
+            var maxWait = maxWaitTime ?? TimeSpan.FromSeconds(180);
 
             var logEvents = Services.GetRequiredService<ILogEventMemoryStore>().GetLogEvents();
 

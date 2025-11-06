@@ -36,7 +36,7 @@ public sealed class NodeLockKey
 
     //
 
-    public static NodeLockKey Create(string[] parts)
+    public static NodeLockKey Create(params string[] parts)
     {
         ArgumentNullException.ThrowIfNull(parts, nameof(parts));
 
@@ -45,17 +45,18 @@ public sealed class NodeLockKey
             throw new ArgumentException($"{nameof(parts)} must not be empty.", nameof(parts));
         }
 
+        var key = string.Join(":", parts);
         foreach (var part in parts)
         {
             if (string.IsNullOrWhiteSpace(part))
             {
-                throw new ArgumentException($"{nameof(parts)} must not be empty", nameof(parts));
+                throw new ArgumentException($"One or more parts are null or whitespace in key '{key}'", nameof(parts));
             }
         }
 
         var nodeLockKey = new NodeLockKey
         {
-            Key = string.Join(":", parts)
+            Key = key
         };
 
         return nodeLockKey;

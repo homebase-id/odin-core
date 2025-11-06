@@ -29,5 +29,6 @@ public enum ClientNotificationType
     /// </summary>
     Unused = 8001,
     Error = 0xBADBEEF,
+    AuthenticationError = 403
     
 }

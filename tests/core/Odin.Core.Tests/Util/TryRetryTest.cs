@@ -153,6 +153,13 @@ public class TryRetryTests
         Assert.That(builder, Is.Not.Null); // No exception, just doesn't add duplicate
     }
 
+    [Test]
+    public void RetryOnPredicate_SetsPredicateSuccessfully()
+    {
+        var builder = TryRetry.Create().RetryOnPredicate((e, a) => false);
+        Assert.That(builder, Is.Not.Null);
+    }
+
     // Synchronous Execution Tests (Void Return)
     [Test]
     public void Execute_Void_SuccessOnFirstTry_ExecutesOnce()
@@ -239,6 +246,52 @@ public class TryRetryTests
 
         Assert.That(callCount, Is.EqualTo(2)); // Should retry since FileNotFoundException derives from IOException
     }
+
+    [Test]
+    public void Execute_Void_RetryOnPredicate_RetriesException()
+    {
+        var callCount = 0;
+        var builder = TryRetry
+            .Create()
+            .WithAttempts(3)
+            .WithDelay(TimeSpan.FromMilliseconds(10))
+            .RetryOnPredicate((ex, attempt) => ex is IOException);
+
+        builder.Execute(() =>
+        {
+            callCount++;
+            if (callCount < 2)
+            {
+                throw new FileNotFoundException("Test failure");
+            }
+        });
+
+        Assert.That(callCount, Is.EqualTo(2)); // Should retry since FileNotFoundException derives from IOException
+    }
+
+    [Test]
+    public void Execute_Void_RetryOnPredicate_DoesNotRetryException()
+    {
+        var callCount = 0;
+        var builder = TryRetry
+            .Create()
+            .WithAttempts(3)
+            .WithDelay(TimeSpan.FromMilliseconds(10))
+            .RetryOnPredicate((ex, attempt) => ex is ArgumentException);
+
+        var ex = Assert.Throws<TryRetryException>(() =>
+        {
+            builder.Execute(() =>
+            {
+                callCount++;
+                throw new FileNotFoundException("Test failure");
+            });
+        });
+
+        Assert.That(callCount, Is.EqualTo(1));
+        Assert.That(ex!.InnerException, Is.TypeOf<FileNotFoundException>());
+    }
+
 
     // Synchronous Execution Tests (With Return Value)
     [Test]
@@ -600,6 +653,19 @@ public class TryRetryTests
             }));
     }
 
+    [Test]
+    public void ExecuteAsync_ReturnValue_TaskCanceledException_ThrowsOperationCanceledException()
+    {
+        var builder = TryRetry.Create();
+
+        Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            await builder.ExecuteAsync(async () =>
+            {
+                await Task.CompletedTask;
+                throw new TaskCanceledException("oh no");
+            }));
+    }
+
     // Delay Strategy Tests
     [Test]
     public void Execute_Void_WithFixedDelay_AppliesDelayBetweenRetries()
@@ -696,6 +762,19 @@ public class TryRetryTests
         Assert.That(callCount, Is.EqualTo(5));
         // Total delay should not exceed sum of max delays (rough check with margin)
         Assert.That(duration, Is.LessThanOrEqualTo(maxDelay * 3 + initialDelay + TimeSpan.FromMilliseconds(100)));
+    }
+
+    [Test]
+    public void ExecuteAsync_ReturnValue_NoExceptionWrapper()
+    {
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var builder = TryRetry.Create().WithoutWrapper();
+
+        Assert.Throws<IOException>(() =>
+        {
+            builder.Execute(() => throw new IOException("Test failure"));
+        });
     }
 
     // Logging Tests

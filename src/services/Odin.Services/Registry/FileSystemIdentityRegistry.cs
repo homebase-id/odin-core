@@ -25,7 +25,6 @@ using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using StackExchange.Redis;
@@ -280,6 +279,17 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await this.SaveRegistrationInternal(registration);
     }
 
+    public Task AssetValidFirstRunToken(Guid firstRunToken, IOdinContext odinContext)
+    {
+        var registration = GetByFirstRunToken(firstRunToken);
+        if ((OdinId)registration.PrimaryDomainName != odinContext.Tenant)
+        {
+            throw new OdinSecurityException("Invalid first run token");
+        }
+        
+        return Task.CompletedTask;
+    }
+    
     public async Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken)
     {
         var registration = GetByFirstRunToken(firstRunToken);

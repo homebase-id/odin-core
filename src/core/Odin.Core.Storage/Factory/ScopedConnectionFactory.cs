@@ -132,7 +132,9 @@ public interface IConnectionWrapper : IDisposable, IAsyncDisposable
     bool HasTransaction { get; }
     Task<ITransactionWrapper> BeginStackedTransactionAsync(
         IsolationLevel isolationLevel = IsolationLevel.Unspecified,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0);
     void AddPostCommitAction(Func<Task> action);
     void AddPostRollbackAction(Func<Task> action);
     ICommandWrapper CreateCommand([CallerFilePath] string? filePath = null, [CallerLineNumber] int lineNumber = 0);
@@ -180,8 +182,10 @@ public class ScopedConnectionFactory<T>(
     T connectionFactory,
     DatabaseCounters counters) : IScopedConnectionFactory where T : IDbConnectionFactory
 {
-    // ReSharper disable once StaticMemberInGenericType
-    private static readonly ConcurrentDictionary<Guid, string> Diagnostics = new();
+    // ReSharper disable StaticMemberInGenericType
+    private static readonly ConcurrentDictionary<Guid, string> ConnectionDiagnostics = new();
+    private static readonly ConcurrentDictionary<Guid, string> TransactionDiagnostics = new();
+    // ReSharper restore StaticMemberInGenericType
 
     private readonly ILogger<ScopedConnectionFactory<T>> _logger = logger;
     private readonly T _connectionFactory = connectionFactory;
@@ -190,11 +194,12 @@ public class ScopedConnectionFactory<T>(
     private readonly List<Func<Task>> _postRollbackActions = [];
     private int _parallelDetectionRefCount;
     private DbConnection? _connection;
+    private Guid _connectionId;
     private int _connectionRefCount;
     private DbTransaction? _transaction;
+    private Guid _transactionId;
     private int _transactionRefCount;
     private bool _commit;
-    private Guid _connectionId;
 
     public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
     public bool HasTransaction => _transaction != null;
@@ -212,7 +217,7 @@ public class ScopedConnectionFactory<T>(
             _counters.IncrementNoDbOpened();
             _connection = await _connectionFactory.OpenAsync();
             _connectionId = Guid.NewGuid();
-            Diagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {filePath}:{lineNumber}";
+            ConnectionDiagnostics[_connectionId] = $"scope:{lifetimeScope.Tag} {DateTimeOffset.UtcNow:O} {filePath}:{lineNumber}";
             LogTrace("Created connection");
         }
 
@@ -304,7 +309,9 @@ public class ScopedConnectionFactory<T>(
 
         public async Task<ITransactionWrapper> BeginStackedTransactionAsync(
             IsolationLevel isolationLevel = IsolationLevel.Unspecified,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            [CallerFilePath] string? filePath = null,
+            [CallerLineNumber] int lineNumber = 0)
         {
             using var _ = instance.NoParallelism(nameof(BeginStackedTransactionAsync));
 
@@ -320,6 +327,9 @@ public class ScopedConnectionFactory<T>(
                 {
                     instance.LogTrace("Beginning transaction");
                     instance._transaction = await instance._connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+                    instance._transactionId = Guid.NewGuid();
+                    TransactionDiagnostics[instance._transactionId] =
+                        $"cn:{instance._connectionId} {DateTimeOffset.UtcNow:O} {filePath}:{lineNumber}";
                 }
                 catch (Exception e)
                 {
@@ -417,7 +427,7 @@ public class ScopedConnectionFactory<T>(
                 instance._connection = null;
                 _disposed = true;
 
-                Diagnostics.TryRemove(instance._connectionId, out _);
+                ConnectionDiagnostics.TryRemove(instance._connectionId, out _);
 
                 instance.LogTrace("Disposed connection");
             }
@@ -586,11 +596,14 @@ public class ScopedConnectionFactory<T>(
                 finally
                 {
                     await instance._transaction!.DisposeAsync();
+
                     instance._postCommitActions.Clear();
                     instance._postRollbackActions.Clear();
                     instance._transaction = null!;
                     instance._commit = false;
                     _disposed = true;
+
+                    TransactionDiagnostics.TryRemove(instance._transactionId, out _);
                 }
 
                 instance.LogTrace("Disposed transaction");
@@ -837,9 +850,13 @@ public class ScopedConnectionFactory<T>(
     {
         if (_logger.IsEnabled(LogLevel.Debug))
         {
-            foreach (var (guid, info) in Diagnostics)
+            foreach (var (guid, info) in ConnectionDiagnostics)
             {
-                _logger.LogDebug("DB diag: connection {id} was created at {info}", guid, info);
+                _logger.LogDebug("DB-CN diag: connection {id} was created at {info}", guid, info);
+            }
+            foreach (var (guid, info) in TransactionDiagnostics)
+            {
+                _logger.LogDebug("DB-TX diag: transaction {id} was created at {info}", guid, info);
             }
         }
     }

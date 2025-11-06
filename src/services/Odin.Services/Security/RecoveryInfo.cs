@@ -16,8 +16,13 @@ public class RecoveryInfo
     public UnixTimeUtc? ConfigurationUpdated { get; set; }
 
     public string Email { get; init; }
+    
     public UnixTimeUtc? EmailLastVerified { get; set; }
 
+    public bool UsesAutomaticRecovery { get; set; }
+
     public VerificationStatus Status { get; init; }
+    
     public DealerRecoveryRiskReport RecoveryRisk { get; set; }
+    public bool HasRecoveryKeyBeenViewed { get; set; }
 }

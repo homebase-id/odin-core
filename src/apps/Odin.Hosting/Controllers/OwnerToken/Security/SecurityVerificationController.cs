@@ -15,7 +15,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
-public class SecurityVerificationController(OwnerSecurityHealthService securityHealthService) : OdinControllerBase
+public class SecurityVerificationController(
+    OwnerSecurityHealthService securityHealthService,
+    PasswordKeyRecoveryService passwordKeyRecoveryService) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
@@ -54,11 +56,47 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
         return Ok();
     }
 
+    [HttpGet("needs-attention")]
+    public async Task<ActionResult<NeedsAttentionResponse>> RecoveryNeedsAttention()
+    {
+        if (!(await passwordKeyRecoveryService.HasRecoveryKeyBeenViewed()))
+        {
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
+        }
+
+        var recoveryInfo = await securityHealthService.GetRecoveryInfo(live: false, WebOdinContext);
+
+        if (recoveryInfo is null)
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
+
+        if (!recoveryInfo.IsConfigured ||
+            string.IsNullOrEmpty(recoveryInfo.Email) ||
+            !recoveryInfo.EmailLastVerified.HasValue ||
+            !recoveryInfo.RecoveryRisk.IsRecoverable)
+        {
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
+        }
+
+        var maxWait = TimeSpan.FromDays(30 * 6);
+        var now = DateTime.UtcNow;
+
+        bool IsStale(DateTime dt) => now - dt.ToUniversalTime() > maxWait;
+
+        if (IsStale(recoveryInfo.EmailLastVerified.Value.ToDateTime()) ||
+            IsStale(recoveryInfo.Status.RecoveryKeyLastVerified.ToDateTime()) ||
+            IsStale(recoveryInfo.Status.PasswordLastVerified.ToDateTime()))
+        {
+            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
+        }
+
+        return Ok(new NeedsAttentionResponse() { NeedsAttention = false });
+    }
+
     [HttpGet("verify-email")]
     public async Task<IActionResult> VerifyRecoveryEmail([FromQuery] string id)
     {
         await securityHealthService.FinalizeUpdateRecoveryEmail(Guid.Parse(id), WebOdinContext);
-        
+
         const string redirect = "/owner/security/overview?fv=1";
         return Redirect(redirect);
     }
@@ -66,7 +104,12 @@ public class SecurityVerificationController(OwnerSecurityHealthService securityH
     [HttpGet("recovery-risk-report")]
     public async Task<IActionResult> GetHealthCheck()
     {
-        var check = await securityHealthService.RunHeathCheck(WebOdinContext);
+        var check = await securityHealthService.RunHealthCheck(WebOdinContext);
         return Ok(check);
     }
+}
+
+public class NeedsAttentionResponse
+{
+    public bool NeedsAttention { get; set; }
 }

@@ -4,24 +4,30 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
+using Odin.Services.AppNotifications.Push;
+using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
+using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Services.Security.Email;
 
-public class RecoveryEmailer(
+public class RecoveryNotifier(
     OdinConfiguration configuration,
-    ILogger<RecoveryEmailer> logger,
+    ILogger<RecoveryNotifier> logger,
     TenantContext tenantContext,
     TableNonce nonceTable,
-    IJobManager jobManager)
+    IJobManager jobManager,
+    PushNotificationService pushNotificationService)
 {
     /// <summary>
     /// Uses for integration testing so I can get the nonceId from the log during ShamirPasswordRecoveryTests
@@ -29,6 +35,9 @@ public class RecoveryEmailer(
     public const string EnterNoncePropertyName = "enterNonceId";
 
     public const string ExitNoncePropertyName = "exitNonceId";
+
+    public const string FinalRecoveryNonceIdPropertyName = "finalRecoveryEmailNonceId";
+    public const string FinalRecoveryKeyPropertyName = "finalRecoveryKey";
 
     public async Task<string> GetNonceDataOrFail(Guid nonceId)
     {
@@ -48,7 +57,7 @@ public class RecoveryEmailer(
         var tenant = tenantContext.HostOdinId;
         var nonceId = await MakeNonce(email.Address);
 
-        var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email", nonceId, "");
+        var link = BuildResetUrl($"https://{tenant}{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email-fwd", nonceId, "");
 
 #if DEBUG
         logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
@@ -130,7 +139,8 @@ public class RecoveryEmailer(
             finalRecoveryKey.ToString());
 
 #if DEBUG
-        logger.LogInformation("\n\n\n{link}\n\n\n{nonceId}", link, nonceId);
+        logger.LogInformation("\n\n\n{link}\n\n\n{finalRecoveryEmailNonceId} with token {finalRecoveryKey}", link, nonceId,
+            finalRecoveryKey);
 #endif
 
         AssertEmailEnabled();
@@ -159,6 +169,52 @@ public class RecoveryEmailer(
             });
         }
     }
+
+    public async Task NotifyUser(OdinId odinId, RecoveryInfo recoveryInfo, IOdinContext odinContext)
+    {
+        if (configuration.Mailgun.Enabled) //for #debug state
+        {
+            var email = recoveryInfo.Email;
+            var job = jobManager.NewJob<SendEmailJob>();
+            job.Data = new SendEmailJobData()
+            {
+                Envelope = new Envelope
+                {
+                    To = [new NameAndEmailAddress { Email = email }],
+                    Subject = "Your Homebase Account Recovery Risk Report",
+                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo),
+                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo)
+                },
+            };
+
+            await jobManager.ScheduleJobAsync(job, new JobSchedule
+            {
+                RunAt = DateTimeOffset.Now.AddSeconds(1),
+                MaxAttempts = 20,
+                RetryDelay = TimeSpan.FromMinutes(1),
+                OnSuccessDeleteAfter = TimeSpan.FromMinutes(1),
+                OnFailureDeleteAfter = TimeSpan.FromMinutes(1),
+            });
+        }
+
+        await pushNotificationService.EnqueueNotification(odinId, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = ShamirConfigurationService.SecurityRiskReportNotificationTypeId,
+                TagId = odinId,
+                Silent = false,
+                PeerSubscriptionId = default,
+                Recipients = [odinId],
+                UnEncryptedMessage = "Your security risk report has been generated.  Tap to review..."
+                // UnEncryptedJson = OdinSystemSerializer.Serialize(new
+                // {
+                //     IntroducerOdinId = introducer,
+                //     Introduction = introduction,
+                // })
+            },
+            OdinContextUpgrades.UsePermissions(odinContext, PermissionKeys.SendPushNotifications));
+    }
+
 
     private async Task<Guid> MakeNonce(string data = "")
     {

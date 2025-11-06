@@ -190,10 +190,10 @@ namespace Odin.Core.Time
         {
             if (inclusive)
             {
-                return start >= this && end <= this;
+                return this >= start && this <= end;
             }
 
-            return start > this && end < this;
+            return this > start && this < end;
         }
 
         public static TimeSpan operator -(UnixTimeUtc left, UnixTimeUtc right)

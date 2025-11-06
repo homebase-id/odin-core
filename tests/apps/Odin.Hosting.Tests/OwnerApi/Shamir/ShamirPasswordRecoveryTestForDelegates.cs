@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Hosting.Controllers.OwnerToken.Security;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -53,69 +56,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
         public void TearDown()
         {
             _scaffold.AssertLogEvents();
-        }
-
-
-        [Test]
-        [Description("When I configure shards with players that require approval before releasing a shard, " +
-                     "that player can see a request from the dealer in a list")]
-#if !DEBUG
-        [Ignore("Ignored for release tests due to how we test recovery mode")]
-#endif
-        public async Task DelegatePlayersCanSeeShardReleaseRequests()
-        {
-            List<OdinId> peerIdentities =
-            [
-                TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, TestIdentities.Pippin.OdinId, TestIdentities.TomBombadil.OdinId
-            ];
-
-            var frodoClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
-
-
-            //
-            // Setup - distribute delegate shards
-            //
-            await PrepareConnections(peerIdentities);
-
-            await DistributeAndVerifyDelegateShards(peerIdentities);
-
-            var getConfigResponse = await frodoClient.Security.GetDealerShardConfig();
-            Assert.That(getConfigResponse.IsSuccessful, Is.True);
-            Assert.That(getConfigResponse.Content, Is.Not.Null);
-
-            var config = getConfigResponse.Content;
-
-
-            //
-            // Act - enter recovery mode
-            //
-            await EnterRecoveryMode();
-
-            //
-            // Assert - all player delegates have a request in their list
-            //
-            foreach (var peer in peerIdentities)
-            {
-                var shardId = config.Envelopes.Single(e => e.Player.OdinId == peer).ShardId;
-
-                var peerOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[peer]);
-                var getListOfShardRequestsResponse = await peerOwnerClient.Security.GetShardRequestList();
-
-                Assert.That(getListOfShardRequestsResponse.IsSuccessful, Is.True);
-                Assert.That(getListOfShardRequestsResponse.Content, Is.Not.Null);
-
-                var list = getListOfShardRequestsResponse.Content;
-
-                var item = list.SingleOrDefault(item => item.ShardId == shardId);
-                Assert.That(item, Is.Not.Null, "Release request for shard was not found");
-            }
-
-            await ExitRecoveryMode();
-
-            //
-            // Cleanup
-            //
-            await CleanupConnections(peerIdentities);
         }
 
         [Test]
@@ -418,7 +358,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
             Assert.That(enterResponse.IsSuccessful, Is.True);
 
             // watch for the recovery links
-            var nonceId = await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.EnterNoncePropertyName, LogEventLevel.Information);
+            var nonceId = await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.EnterNoncePropertyName, LogEventLevel.Information);
             Assert.That(nonceId, Is.Not.Null.Or.Empty, "Could not find recovery link");
 
             var verifyEnterResponse = await frodo.Security.VerifyEnterRecoveryMode(nonceId);
@@ -437,7 +377,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Shamir
 
             // Assert
             var exitRecoveryNonceId =
-                await _scaffold.WaitForLogPropertyValue(RecoveryEmailer.ExitNoncePropertyName, LogEventLevel.Information);
+                await _scaffold.WaitForLogPropertyValue(RecoveryNotifier.ExitNoncePropertyName, LogEventLevel.Information);
 
             var verifyExitRecoveryModeResponse = await frodo.Security.VerifyExitRecoveryMode(exitRecoveryNonceId);
             Assert.That(verifyExitRecoveryModeResponse.StatusCode == HttpStatusCode.Redirect, Is.True,

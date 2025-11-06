@@ -38,6 +38,11 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         get => Data.AllowSubscriptions;
         set => Data.AllowSubscriptions = value;
     }
+    public bool IsArchived
+    {
+        get => Data.IsArchived;
+        set => Data.IsArchived = value;
+    }
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => Data.MasterKeyEncryptedStorageKey;
     public byte[] EncryptedIdIv => Data.EncryptedIdIv;
     public byte[] EncryptedIdValue => Data.EncryptedIdValue;
@@ -46,7 +51,8 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         get => Data.AllowAnonymousReads;
         set => Data.AllowAnonymousReads = value;
     }
-
+    
+    
     public Dictionary<string, string> Attributes
     {
         get => Data.Attributes ?? new Dictionary<string, string>();
@@ -176,4 +182,7 @@ public sealed class StorageDriveData
     public bool AllowSubscriptions { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
+    
+    public bool IsArchived { get; set; }
+
 }

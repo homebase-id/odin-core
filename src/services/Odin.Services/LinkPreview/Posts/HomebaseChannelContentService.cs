@@ -36,6 +36,7 @@ public class HomebaseChannelContentService(
     private const string DefaultPayloadKey = "dflt_key";
     private const int PostFileType = 101;
     private const int ChannelDefinitionFileType = 103;
+    private const string PostFullTextPayloadKey = "pst_text";
 
     public async Task<ChannelPost> GetPost(
         string channelKey,
@@ -108,11 +109,71 @@ public class HomebaseChannelContentService(
         var channelPosts = new List<ChannelPost>();
         foreach (var sr in batch.SearchResults)
         {
+            // logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
             var post = await ParsePostFile(sr, targetDrive, odinContext, cancellationToken);
             channelPosts.Add(post);
         }
 
         return (channelPosts, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
+    }
+
+    public async Task<(List<(string id, UnixTimeUtc modified)> channelPosts, string cursor)> GetChannelPostIds(
+        string channelKey,
+        IOdinContext odinContext,
+        int maxPosts,
+        CancellationToken cancellationToken = default)
+    {
+        var targetDrive = await GetChannelDrive(channelKey, odinContext);
+
+        var qp = new FileQueryParams
+        {
+            TargetDrive = targetDrive,
+            FileType = [PostFileType]
+        };
+
+        var options = new QueryBatchResultOptions
+        {
+            MaxRecords = maxPosts,
+            IncludeHeaderContent = true,
+            ExcludePreviewThumbnail = true,
+            ExcludeServerMetaData = true,
+            IncludeTransferHistory = false,
+            Sorting = QueryBatchSortField.UserDate,
+            Ordering = QueryBatchSortOrder.NewestFirst,
+            Cursor = null
+        };
+
+        var batch = await fileSystem.Query.GetBatch(driveId: targetDrive.Alias, qp, options, odinContext);
+
+        logger.LogDebug("Processing posts for channel: [{ck}]", channelKey);
+
+        var list = new List<(string, UnixTimeUtc Updated)>();
+        foreach (var postHeader in batch.SearchResults)
+        {
+            var content = postHeader.FileMetadata.AppData.Content;
+            var pc = OdinSystemSerializer.Deserialize<PostContent>(content);
+
+            logger.LogDebug("Raw post content for fileId:{fid} [{pc}]", postHeader.FileId, content);
+
+            var slug = pc?.Slug?.Trim();
+            var id = slug ?? postHeader.FileId.ToString();
+
+            // if the slug is a guid, we will use the fileid.  this accounts for a bug on the FE
+            if (Guid.TryParse(slug, out _))
+            {
+                id = postHeader.FileId.ToString();
+            }
+
+            logger.LogDebug("For fileId: {fix}; using Id:{id} ", postHeader.FileId, id);
+            list.Add(
+                (
+                    id,
+                    postHeader.FileMetadata.Updated
+                )
+            );
+        }
+
+        return (list, batch.Cursor?.pagingCursor?.Time.milliseconds.ToString() ?? "");
     }
 
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
@@ -235,6 +296,22 @@ public class HomebaseChannelContentService(
         IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
+        async Task<PostContent> LoadBodyFromPayload(InternalDriveFileId fileId)
+        {
+            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, PostFullTextPayloadKey, null, odinContext);
+            using var reader = new StreamReader(payloadStream.Stream);
+            var json = await reader.ReadToEndAsync(cancellationToken);
+            return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+        }
+
+        async Task<PostContent> LoadContentFromPayload(InternalDriveFileId fileId)
+        {
+            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
+            using var reader = new StreamReader(payloadStream.Stream);
+            var json = await reader.ReadToEndAsync(cancellationToken);
+            return OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+        }
+
         var fileId = new InternalDriveFileId()
         {
             DriveId = channelDrive.Alias,
@@ -243,31 +320,46 @@ public class HomebaseChannelContentService(
 
         PostContent content = null;
         var payloadHeader = postFile.FileMetadata.Payloads.SingleOrDefault(k => k.KeyEquals(DefaultPayloadKey));
-        var json = "";
-
-        if (payloadHeader == null)
-        {
-            // logger.LogDebug("Using content used from AppData.Content");
-            json = postFile.FileMetadata.AppData.Content;
-        }
-        else
-        {
-            // if there is a default payload, then all content is there;
-            // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
-            using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(fileId, DefaultPayloadKey, null, odinContext);
-            using var reader = new StreamReader(payloadStream.Stream);
-            json = await reader.ReadToEndAsync(cancellationToken);
-        }
 
         try
         {
-            content = OdinSystemSerializer.DeserializeOrThrow<PostContent>(json);
+            content = OdinSystemSerializer.Deserialize<PostContent>(postFile.FileMetadata.AppData.Content);
+
+            if (content == null)
+            {
+                logger.LogDebug("Failed deserializing post content from header.  Will try loading from default key({key}). json: [{json}]",
+                    DefaultPayloadKey,
+                    postFile.FileMetadata.AppData.Content);
+                
+                content = await LoadContentFromPayload(fileId);
+            }
+            else
+            {
+                if (postFile.FileMetadata.Payloads.Any(p => p.KeyEquals(PostFullTextPayloadKey)))
+                {
+                    var bodyFromPayload = await LoadBodyFromPayload(fileId);
+                    content.Body = bodyFromPayload.Body;
+                }
+            }
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Failed deserializing post content. json: [{json}]", json);
-            throw;
+            // if incomplete and there is a payload try parsing that
+            logger.LogError(e, "Failed deserializing post content from header. json: [{json}]", postFile.FileMetadata.AppData.Content);
+
+            if (payloadHeader != null)
+            {
+                // if there is a default payload, then all content is there;
+                // logger.LogDebug("Post content used from payload with key {pk}", DefaultPayloadKey);
+                content = await LoadContentFromPayload(fileId);
+            }
         }
+
+        if (null == content)
+        {
+            throw new OdinSystemException("Could not parse post content");
+        }
+
         content.UserDate = postFile.FileMetadata.AppData.UserDate;
 
         var context = httpContextAccessor.HttpContext;
@@ -317,8 +409,11 @@ public class HomebaseChannelContentService(
 
         var post = new ChannelPost()
         {
+            FileId = fileId.FileId,
             Content = content,
-            ImageUrl = imageUrl
+            ImageUrl = imageUrl,
+            Modified = postFile.FileMetadata.Updated,
+            ReactionSummary = postFile.FileMetadata.ReactionPreview
         };
 
         return post;

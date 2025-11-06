@@ -162,6 +162,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             metadata.OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor;
 
             // WriteFileHeaderInternal sets the Created / Updated on header.FileMetadata
+            await AssertPayloadsExistOnFileSystemAsync(header);
             await WriteFileHeaderInternal(header, odinContext);
 
             //HACKed in for Feed drive -> Should become a data subscription check
@@ -535,6 +536,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
+                await AssertPayloadsExistOnFileSystemAsync(serverHeader);
+
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
@@ -631,6 +634,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             try
             {
+                await AssertPayloadsExistOnFileSystemAsync(serverHeader);
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
@@ -929,6 +933,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext);
             try
             {
+                await AssertPayloadsExistOnFileSystemAsync(header);
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
@@ -1254,8 +1259,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 payloadDiskUsage = header.FileMetadata.Payloads?.Sum(p => p.BytesWritten) ?? 0;
 
                 thumbnailDiskUsage = header.FileMetadata.Payloads?
-                   .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
-                   .Sum(pp => pp.BytesWritten) ?? 0;
+                    .SelectMany(p => p.Thumbnails ?? new List<ThumbnailDescriptor>())
+                    .Sum(pp => pp.BytesWritten) ?? 0;
             }
 
             return (payloadDiskUsage, thumbnailDiskUsage);
@@ -1264,14 +1269,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header, IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
-            await AssertPayloadsExistOnFileSystemAsync(header);
-
             // Note: these validations here are just-in-case checks; however at this point many
             // other operations will have occured, so these checks also exist in the upload validation
 
             _logger.LogDebug("Calling header.validate on gtid: {file}", header.FileMetadata.GlobalTransitId);
             header.Validate(odinContext);
-            
+
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
 
@@ -1566,7 +1569,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return missingPayloads;
         }
 
-        private async Task AssertPayloadsExistOnFileSystemAsync(ServerFileHeader header)
+        public async Task AssertPayloadsExistOnFileSystemAsync(ServerFileHeader header)
         {
             var metadata = header.FileMetadata;
             if (metadata.PayloadsAreRemote)
@@ -1578,9 +1581,25 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (sl.Count > 0)
             {
-                throw new OdinFileHeaderHasCorruptPayloadException(
-                    $"File metadata ({metadata.File.ToString()}) missing these payloads / thumbnails:" +
+                _logger.LogError("File metadata ({file}) missing these payloads / thumbnails:[{pt}]",
+                    metadata.File,
                     string.Join(",", sl));
+
+                // throw new OdinFileHeaderHasCorruptPayloadException(
+                //     $"File metadata ({metadata.File.ToString()}) missing these payloads / thumbnails:" +
+                //     string.Join(",", sl));
+            }
+        }
+
+        private async Task AssertDriveIsNotArchived(Guid driveId, IOdinContext odinContext)
+        {
+            var theDrive = await DriveManager.GetDriveAsync(driveId);
+            if (theDrive.IsArchived)
+            {
+                if (!odinContext.Caller.HasMasterKey)
+                {
+                    throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
+                }
             }
         }
     }

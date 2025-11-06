@@ -43,7 +43,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
 
     public abstract class TableKeyValueCRUD : TableBase
     {
-        private ScopedIdentityConnectionFactory _scopedConnectionFactory { get; init; }
+        private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
         public override string TableName { get; } = "KeyValue";
 
         protected TableKeyValueCRUD(ScopedIdentityConnectionFactory scopedConnectionFactory)
@@ -52,6 +52,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
         }
 
 
+       /*
+        * This method is no longer used.
+        * It is kept here, commented-out, so you can see how the table is created without having to locate its latest migration.
+        *
         public override async Task EnsureTableExistsAsync(bool dropExisting = false)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
@@ -78,6 +82,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "KeyValue", createSql, commentSql);
         }
+       */
 
         protected virtual async Task<int> InsertAsync(KeyValueRecord item)
         {
@@ -305,6 +310,55 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         }
                         var r = ReadRecordFromReader0(rdr,identityId,key);
                         return r;
+                    } // using
+                } //
+            } // using
+        }
+
+        protected KeyValueRecord ReadRecordFromReader1(DbDataReader rdr,Guid identityId)
+        {
+            var result = new List<KeyValueRecord>();
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var guid = new byte[16];
+            var item = new KeyValueRecord();
+            item.identityId = identityId;
+            item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
+            item.key = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (byte[])(rdr[1]);
+            if (item.key?.Length < 16)
+                throw new Exception("Too little data in key...");
+            item.data = (rdr[2] == DBNull.Value) ? null : (byte[])(rdr[2]);
+            if (item.data?.Length < 0)
+                throw new Exception("Too little data in data...");
+            return item;
+       }
+
+        protected virtual async Task<List<KeyValueRecord>> GetAllByIdentityIdAsync(Guid identityId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var get1Command = cn.CreateCommand();
+            {
+                get1Command.CommandText = "SELECT rowId,key,data FROM KeyValue " +
+                                             "WHERE identityId = @identityId "+
+                                             ";";
+
+                get1Command.AddParameter("@identityId", DbType.Binary, identityId);
+                {
+                    using (var rdr = await get1Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        if (await rdr.ReadAsync() == false)
+                        {
+                            return new List<KeyValueRecord>();
+                        }
+                        var result = new List<KeyValueRecord>();
+                        while (true)
+                        {
+                            result.Add(ReadRecordFromReader1(rdr,identityId));
+                            if (!await rdr.ReadAsync())
+                                break;
+                        }
+                        return result;
                     } // using
                 } //
             } // using

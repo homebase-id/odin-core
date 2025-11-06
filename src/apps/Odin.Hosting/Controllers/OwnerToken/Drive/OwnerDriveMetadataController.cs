@@ -6,6 +6,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
+using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Swashbuckle.AspNetCore.Annotations;
@@ -48,7 +49,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
                     OwnerOnly = drive.OwnerOnly,
-                    Attributes = drive.Attributes
+                    Attributes = drive.Attributes,
+                    IsArchived = drive.IsArchived,
+                    IsSystemDrive = SystemDriveConstants.IsSystemDrive(drive.Id)
                 }).ToList();
 
             var page = new PagedResult<OwnerClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

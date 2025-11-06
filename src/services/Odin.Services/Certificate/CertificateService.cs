@@ -99,24 +99,32 @@ public class CertificateService : ICertificateService
 
     public async Task<bool> RenewIfAboutToExpireAsync(string domain, string[] sans, CancellationToken cancellationToken = default)
     {
+        var x509 = await GetCertificateAsync(domain);
+
+        if (x509 != null && !AboutToExpire(x509))
+        {
+            return false;
+        }
+
         await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken);
 
-        var x509 = await GetCertificateAsync(domain);
-        if (x509 == null || AboutToExpire(x509))
+        x509 = await GetCertificateAsync(domain);
+
+        if (x509 != null && !AboutToExpire(x509))
         {
-            _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
-            x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
-            if (x509 != null)
-            {
-                _logger.LogDebug("Completed background renew of {domain} certificate", domain);
-                return true;
-            }
-            else
-            {
-                _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
-                return false;
-            }
+            _logger.LogDebug("Background renew of certificate {domain} completed on another thread", domain);
+            return false;
         }
+
+        _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
+        x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
+        if (x509 != null)
+        {
+            _logger.LogDebug("Completed background renew of {domain} certificate", domain);
+            return true;
+        }
+
+        _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
         return false;
     }
 

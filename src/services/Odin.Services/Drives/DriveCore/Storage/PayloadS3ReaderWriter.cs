@@ -1,27 +1,23 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.S3;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.ObjectStorage;
-using Odin.Services.Base;
-using Odin.Services.Drives.FileSystem.Base;
+using Odin.Core.Util;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
 #nullable enable
 
-public class PayloadS3ReaderWriter(
-    TenantContext tenantContext,
-    IS3PayloadStorage s3PayloadsStorage) : IPayloadReaderWriter
+public class PayloadS3ReaderWriter(ILogger<PayloadS3ReaderWriter> logger, IS3PayloadStorage s3PayloadsStorage) : IPayloadReaderWriter
 {
-    private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
-
-    //
-
     public async Task WriteFileAsync(string filePath, byte[] bytes, CancellationToken cancellationToken = default)
     {
         try
         {
-            await s3PayloadsStorage.WriteBytesAsync(filePath, bytes, cancellationToken);
+            await TryRetry(async () =>
+                await s3PayloadsStorage.WriteBytesAsync(filePath, bytes, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -35,7 +31,8 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            await s3PayloadsStorage.DeleteFileAsync(filePath, cancellationToken);
+            await TryRetry(async () =>
+                await s3PayloadsStorage.DeleteFileAsync(filePath, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -49,7 +46,8 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            return await s3PayloadsStorage.FileLengthAsync(filePath, cancellationToken);
+            return await TryRetry(async () =>
+                await s3PayloadsStorage.FileLengthAsync(filePath, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -63,7 +61,8 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            return await s3PayloadsStorage.FileExistsAsync(filePath, cancellationToken);
+            return await TryRetry(async () =>
+                await s3PayloadsStorage.FileExistsAsync(filePath, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -77,7 +76,8 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            await s3PayloadsStorage.MoveFileAsync(srcFilePath, dstFilePath, cancellationToken);
+            await TryRetry(async () =>
+                await s3PayloadsStorage.MoveFileAsync(srcFilePath, dstFilePath, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -99,7 +99,8 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            await s3PayloadsStorage.UploadFileAsync(srcFilePath, dstFilePath, cancellationToken);
+            await TryRetry(async () =>
+                await s3PayloadsStorage.UploadFileAsync(srcFilePath, dstFilePath, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -113,7 +114,8 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            return await s3PayloadsStorage.ReadBytesAsync(filePath, cancellationToken);
+            return await TryRetry(async () =>
+                await s3PayloadsStorage.ReadBytesAsync(filePath, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -131,7 +133,8 @@ public class PayloadS3ReaderWriter(
     {
         try
         {
-            return await s3PayloadsStorage.ReadBytesAsync(filePath, start, length, cancellationToken);
+            return await TryRetry(async () =>
+                await s3PayloadsStorage.ReadBytesAsync(filePath, start, length, cancellationToken), cancellationToken);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -140,5 +143,52 @@ public class PayloadS3ReaderWriter(
     }
 
     //
+
+    private RetryBuilder CreateRetry(CancellationToken cancellationToken)
+    {
+        return Core.Util.TryRetry.Create()
+            .WithAttempts(1)
+            .WithExponentialBackoff(TimeSpan.FromSeconds(1))
+            .WithCancellation(cancellationToken)
+            .WithLogging(logger)
+            .WithoutWrapper()
+            .RetryOnPredicate((ex, _) =>
+            {
+                if (ex.InnerException is not AmazonS3Exception s3Ex)
+                {
+                    return false;
+                }
+
+                // Retry on timeout
+                if (s3Ex.Message.Contains("did not respond in time"))
+                {
+                    return true;
+                }
+
+                // Retry on http status code 5xx (outer)
+                if ((int)s3Ex.StatusCode >= 500)
+                {
+                    return true;
+                }
+
+                // Retry on http status code 5xx (inner)
+                if (s3Ex.InnerException is Amazon.Runtime.Internal.HttpErrorResponseException httpException)
+                {
+                    if ((int)httpException.Response.StatusCode >= 500)
+                    {
+                        return true;
+                    }
+                }
+
+                // Don't retry 4xx client errors (NotFound, AccessDenied, etc.)
+                return false;
+            });
+    }
+
+    private Task<T> TryRetry<T>(Func<Task<T>> operation, CancellationToken ct)
+        => CreateRetry(ct).ExecuteAsync(operation);
+
+    private Task TryRetry(Func<Task> operation, CancellationToken ct)
+        => CreateRetry(ct).ExecuteAsync(operation);
 
 }

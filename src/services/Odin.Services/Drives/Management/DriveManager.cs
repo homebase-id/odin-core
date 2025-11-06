@@ -217,6 +217,38 @@ public class DriveManager : IDriveManager
         }
     }
 
+    public async Task SetArchiveDriveFlagAsync(Guid driveId, bool value, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+        
+        if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
+        {
+            throw new OdinClientException("Cannot archive system drive");
+        }
+
+        //only change if needed
+        if (storageDrive.IsArchived != value)
+        {
+            storageDrive.IsArchived = value;
+
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+            await _mediator.Publish(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext,
+            });
+        }
+    }
+    
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -302,7 +334,8 @@ public class DriveManager : IDriveManager
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
-
+    
+    
     private async Task<StorageDriveData?> GetDriveInternal(Guid driveId)
     {
         var record = await _tableDrives.GetAsync(driveId);

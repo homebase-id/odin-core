@@ -1,11 +1,9 @@
 using System;
 using Autofac;
 using MediatR;
-using Odin.Core.Cache;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Util;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
@@ -68,11 +66,11 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.LinkPreview.Posts;
 using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
+using Odin.Services.Authorization;
+using Odin.Core.Storage.PubSub;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
-using Odin.Services.Security;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
-using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -100,11 +98,9 @@ public static class TenantServices
 
         cb.RegisterInstance(new OdinIdentity(registration.Id, registration.PrimaryDomainName)).SingleInstance();
 
-        cb.RegisterGeneric(typeof(GenericMemoryCache<>)).As(typeof(IGenericMemoryCache<>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedConcurrentDictionary<,,>)).SingleInstance();
-        cb.RegisterGeneric(typeof(SharedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
-        cb.RegisterGeneric(typeof(SharedKeyedAsyncLock<>)).SingleInstance(); // SEB:TODO does not scale
-        cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance(); // SEB:TODO does not scale
+        cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance();
+
+        cb.RegisterType<ClientRegistrationStorage>().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
 
@@ -183,15 +179,14 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
             .As<INotificationHandler<ConnectionDeletedNotification>>()
             .InstancePerLifetimeScope();
-
-        cb.RegisterType<HomeRegistrationStorage>().InstancePerLifetimeScope();
-
+        
         cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().InstancePerLifetimeScope();
 
         cb.RegisterType<YouAuthDomainRegistrationService>().InstancePerLifetimeScope();
 
-        cb.RegisterType<RecoveryEmailer>().InstancePerLifetimeScope();
+        cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
+        
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<OwnerSecretService>().InstancePerLifetimeScope();
@@ -319,7 +314,7 @@ public static class TenantServices
         cb.RegisterType<V3ToV4VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V4ToV5VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V5ToV6VersionMigrationService>().InstancePerLifetimeScope();
-
+        
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();
 
@@ -334,6 +329,7 @@ public static class TenantServices
 
         cb.RegisterType<HomebaseProfileContentService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<HomebaseChannelContentService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<HomebaseSsrService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<Defragmenter>().AsSelf().InstancePerDependency();
 
@@ -345,6 +341,9 @@ public static class TenantServices
 
         // Tenant cache services
         cb.AddTenantCaches(registration.Id.ToString());
+
+        // Tenant PubSub services
+        cb.AddTenantPubSub(registration.Id.ToString(), odinConfig.Redis.Enabled);
 
         // Payload storage
         if (odinConfig.S3PayloadStorage.Enabled)

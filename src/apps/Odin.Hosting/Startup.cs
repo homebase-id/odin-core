@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Autofac;
@@ -29,6 +30,7 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
 using Odin.Core.Storage.Database.System;
+using StackExchange.Redis;
 
 namespace Odin.Hosting;
 
@@ -86,10 +88,20 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         // Provisioning mapping
         if (config.Registry.ProvisioningEnabled)
         {
+            string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];
+
             app.MapWhen(
-                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                context =>
+                    context.Request.Host.Host == config.Registry.ProvisioningDomain &&
+                    !excludedPaths.Any(p => context.Request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)),
                 a => Provisioning.Map(a, env, logger));
+
+            //
+            // app.MapWhen(
+            //     context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+            //     a => Provisioning.Map(a, env, logger));
         }
+
 
         // Admin mapping
         if (config.Admin.ApiEnabled)
@@ -368,6 +380,16 @@ public static class HostExtensions
         {
             var root = services.GetRequiredService<IMultiTenantContainer>();
             new AutofacDiagnostics(root, logger).AssertSingletonDependencies();
+        }
+
+        // Ensure Redis is reachable
+        logger.LogInformation("Redis enabled: {enabled}", config.Redis.Enabled);
+        if (config.Redis.Enabled)
+        {
+            var multiplexer = services.GetRequiredService<IConnectionMultiplexer>();
+            var subscriber = multiplexer.GetSubscriber();
+            var responseTime = subscriber.PingAsync().Result;
+            logger.LogInformation("Redis is up, ping: {ms}ms", responseTime.TotalMilliseconds);
         }
 
         // Sanity ping cache

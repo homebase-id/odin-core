@@ -24,7 +24,7 @@ public static class TryRetry
     }
 
     /// <summary>
-    /// Creates a retry builder configured to handle specific exception types
+    /// Creates a retry builder configured to retry on specific exception type
     /// </summary>
     public static RetryBuilder RetryOn<TException>() where TException : Exception
     {
@@ -32,12 +32,22 @@ public static class TryRetry
     }
 
     /// <summary>
-    /// Creates a retry builder configured to handle multiple exception types
+    /// Creates a retry builder configured to retry on multiple exception types
     /// </summary>
     public static RetryBuilder RetryOn(params Type[] exceptionTypes)
     {
         return new RetryBuilder().RetryOn(exceptionTypes);
     }
+
+    /// <summary>
+    /// Creates a retry builder configured to retry on supplied predicate:
+    ///   bool Predicate(Exception exception, int currentAttempt)
+    /// </summary>
+    public static RetryBuilder RetryOnPredicate(Func<Exception, int, bool> predicate)
+    {
+        return new RetryBuilder().RetryOnPredicate(predicate);
+    }
+
 }
 
 /// <summary>
@@ -47,6 +57,7 @@ public static class TryRetry
 public class RetryBuilder
 {
     private readonly List<Type> _exceptionTypes = []; // Defaults to retry on all exceptions
+    private Func<Exception, int, bool>? _exceptionRetryPredicate;
     private int _attempts = 3;
     private TimeSpan? _exponentialBackoff = TimeSpan.FromMilliseconds(100);
     private TimeSpan? _maxExponentialBackoff;
@@ -54,6 +65,7 @@ public class RetryBuilder
     private ValueTuple<TimeSpan, TimeSpan>? _randomDelay;
     private CancellationToken _cancellationToken = CancellationToken.None;
     private ILogger? _logger;
+    private bool _wrapException = true;
 
     /// <summary>
     /// Sets the number of retry attempts
@@ -152,9 +164,18 @@ public class RetryBuilder
     }
 
     /// <summary>
+    /// Sets a logger to log retry attempts
+    /// </summary>
+    public RetryBuilder WithoutWrapper()
+    {
+        _wrapException = false;
+        return this;
+    }
+
+    /// <summary>
     /// Specifies a single exception type to retry on
     /// </summary>
-    public RetryBuilder RetryOn<TException>() where TException : Exception
+    public RetryBuilder RetryOn<TException>(Func<Exception, bool>? filter = null) where TException : Exception
     {
         _exceptionTypes.Clear();
         _exceptionTypes.Add(typeof(TException));
@@ -194,6 +215,15 @@ public class RetryBuilder
         {
             _exceptionTypes.Add(exceptionType);
         }
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a custom retry predicate
+    /// </summary>
+    public RetryBuilder RetryOnPredicate(Func<Exception, int, bool> predicate)
+    {
+        _exceptionRetryPredicate = predicate;
         return this;
     }
 
@@ -284,8 +314,12 @@ public class RetryBuilder
             }
             catch (Exception e)
             {
-                _logger?.LogWarning("All {attempts} retry attempts failed: '{message}'", _attempts, e.Message);
-                throw new TryRetryException($"{e.Message} (giving up after {_attempts} attempt(s))", e);
+                _logger?.LogWarning("All {attempts} retry attempts failed: '{message}'", attempt, e.Message);
+                if (_wrapException)
+                {
+                    throw new TryRetryException($"{e.Message} (giving up after {attempt} attempt(s))", e);
+                }
+                throw;
             }
         }
     }
@@ -321,6 +355,10 @@ public class RetryBuilder
                 _logger?.LogTrace("Attempt {attempt} succeeded", attempt);
                 return result;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception e) when (ShouldRetry(attempt, e))
             {
                 var delayMs = CalculateDelay(attempt);
@@ -341,9 +379,22 @@ public class RetryBuilder
 
     private bool ShouldRetry(int currentAttempt, Exception exception)
     {
-        return
-            currentAttempt < _attempts &&
-            (_exceptionTypes.Count == 0 || _exceptionTypes.Any(type => type.IsAssignableFrom(exception.GetType())));
+        if (currentAttempt >= _attempts)
+        {
+            return false;
+        }
+
+        if (_exceptionRetryPredicate != null)
+        {
+            return _exceptionRetryPredicate(exception, currentAttempt);
+        }
+
+        if (_exceptionTypes.Count == 0)
+        {
+            return true;
+        }
+
+        return _exceptionTypes.Any(type => type.IsAssignableFrom(exception.GetType()));
     }
 
     //
