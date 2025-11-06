@@ -110,7 +110,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     private async Task WriteNewFile(ShardApprovalRequest request, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        var file = await fileSystem.Storage.CreateInternalFileId(driveId);
+        var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
 

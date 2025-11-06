@@ -11,6 +11,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
 
         public TargetDrive TargetDriveInfo { get; set; }
 
+        // added extra field to 
+        public TargetDrive TargetDrive => TargetDriveInfo;
+
         public string Metadata { get; set; }
         public bool IsReadonly { get; set; }
         public bool AllowSubscriptions { get; set; }
