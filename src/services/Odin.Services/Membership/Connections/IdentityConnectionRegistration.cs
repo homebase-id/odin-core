@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Services.Membership.Connections
@@ -46,6 +47,11 @@ namespace Odin.Services.Membership.Connections
         public bool IsConnected()
         {
             return this._status == ConnectionStatus.Connected;
+        }
+
+        public bool IsConfirmedConnection()
+        {
+            return AccessGrant!.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out _);
         }
 
         /// <summary>

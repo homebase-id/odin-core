@@ -15,21 +15,20 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
     [Route(PeerApiPathConstants.PasswordRecoveryV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
     public class ShamirPasswordRecoveryPeerController(
-        ShamirConfigurationService configurationService,
+        ShamirReadinessCheckerService readinessCheckerService,
         ShamirRecoveryService recoveryService) : OdinControllerBase
     {
         [HttpPost("verify-readiness")]
         public async Task<IActionResult> VerifyReadiness()
         {
-            var result = await configurationService.VerifyReadiness(WebOdinContext);
+            var result = await readinessCheckerService.VerifyReadiness(WebOdinContext);
             return Ok(result);
         }
-
         
         [HttpPost("verify-shard")]
         public async Task<IActionResult> VerifyShard(VerifyShardRequest request)
         {
-            var result = await configurationService.VerifyDealerShard(request.ShardId, WebOdinContext);
+            var result = await readinessCheckerService.VerifyDealerShard(request.ShardId, WebOdinContext);
             return Ok(result);
         }
 
