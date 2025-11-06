@@ -110,12 +110,11 @@ public class DriveManager : IDriveManager
             DriveId = id,
             DriveName = request.Name,
             DriveType = request.TargetDrive.Type.Value,
-            DriveAlias = request.TargetDrive.Alias.Value,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(driveKey),
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(driveData),
-            TempOriginalDriveId = id
+            StorageKeyCheckValue = id
         };
 
         try
@@ -222,12 +221,12 @@ public class DriveManager : IDriveManager
         odinContext.Caller.AssertHasMasterKey();
 
         var storageDrive = await GetDriveAsync(driveId);
-        
+
         if (storageDrive == null)
         {
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
-        
+
         if (SystemDriveConstants.SystemDrives.Any(d => d == storageDrive.TargetDriveInfo))
         {
             throw new OdinClientException("Cannot archive system drive");
@@ -248,7 +247,7 @@ public class DriveManager : IDriveManager
             });
         }
     }
-    
+
     public async Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext)
     {
         odinContext.Caller.AssertHasMasterKey();
@@ -258,6 +257,7 @@ public class DriveManager : IDriveManager
         {
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
+
         storageDrive.Metadata = metadata;
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
     }
@@ -271,7 +271,7 @@ public class DriveManager : IDriveManager
         {
             throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
         }
-        
+
         storageDrive.Attributes = attributes;
 
         await _tableDrives.UpsertAsync(ToRecord(storageDrive));
@@ -334,8 +334,7 @@ public class DriveManager : IDriveManager
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
-    
-    
+
     private async Task<StorageDriveData?> GetDriveInternal(Guid driveId)
     {
         var record = await _tableDrives.GetAsync(driveId);
@@ -359,6 +358,7 @@ public class DriveManager : IDriveManager
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
             Attributes = storageDrive.Attributes,
+            IsArchived = storageDrive.IsArchived
         };
 
         var record = new DrivesRecord
@@ -366,12 +366,11 @@ public class DriveManager : IDriveManager
             DriveId = storageDrive.Id,
             DriveName = storageDrive.Name,
             DriveType = storageDrive.TargetDriveInfo.Type.Value,
-            DriveAlias = storageDrive.TargetDriveInfo.Alias.Value,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDrive.MasterKeyEncryptedStorageKey),
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
             detailsJson = OdinSystemSerializer.Serialize(details),
-            TempOriginalDriveId = storageDrive.TempOriginalDriveId
+            StorageKeyCheckValue = storageDrive.TempOriginalDriveId
         };
 
         return record;
@@ -393,13 +392,22 @@ public class DriveManager : IDriveManager
             RootInvalidationTag);
 
         var allDrives = allDrivesData.Select(ToStorageDrive).ToList();
+        
+        // only show archived drives to the owner console
+        var shouldFilterArchivedDrive = odinContext?.Caller == null || odinContext.Caller.HasMasterKey == false;
+        if (shouldFilterArchivedDrive)
+        {
+            allDrives = allDrives.Where(d => !d.IsArchived).ToList();
+        }
 
-        var caller = odinContext.Caller;
+        
+        var caller = odinContext?.Caller;
         if (caller?.IsOwner ?? false)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
 
+      
         var level = caller?.SecurityLevel ?? SecurityGroupType.Anonymous;
         if (level == SecurityGroupType.System)
         {
@@ -426,7 +434,7 @@ public class DriveManager : IDriveManager
         var sdd = new StorageDriveData
         {
             Id = record.DriveId,
-            TempOriginalDriveId = record.TempOriginalDriveId,
+            TempOriginalDriveId = record.StorageKeyCheckValue,
             Name = record.DriveName,
             TargetDriveInfo = new TargetDrive
             {
@@ -445,7 +453,8 @@ public class DriveManager : IDriveManager
             IsReadonly = driveDetails.IsReadonly,
             AllowAnonymousReads = driveDetails.AllowAnonymousReads,
             AllowSubscriptions = driveDetails.AllowSubscriptions,
-            Attributes = driveDetails.Attributes
+            Attributes = driveDetails.Attributes,
+            IsArchived = driveDetails.IsArchived
         };
 
         return sdd;
@@ -455,5 +464,4 @@ public class DriveManager : IDriveManager
     {
         return new StorageDrive(_tenantContext.TenantPathManager, sdd);
     }
-
 }

@@ -97,7 +97,7 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
             DrivePermission.Write, odinContext);
 
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        var file = await fileSystem.Storage.CreateInternalFileId(driveId);
+        var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
         var fileMetadata = new FileMetadata(file)

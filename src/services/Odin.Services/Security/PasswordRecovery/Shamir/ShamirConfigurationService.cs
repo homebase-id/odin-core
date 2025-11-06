@@ -21,7 +21,6 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
@@ -518,7 +517,7 @@ public class ShamirConfigurationService(
     private async Task WriteNewDealerEnvelopeFile(DealerShardPackage dealerShard, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        var file = await FileSystem.Storage.CreateInternalFileId(driveId);
+        var file = await FileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
 
@@ -566,7 +565,7 @@ public class ShamirConfigurationService(
     private async Task<ServerFileHeader> WritePlayerEncryptedShardToTempDrive(PlayerEncryptedShard shard, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.TransientTempDrive.Alias;
-        var file = await FileSystem.Storage.CreateInternalFileId(driveId);
+        var file = await FileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
 
