@@ -25,5 +25,6 @@ namespace Odin.Services.Base
         public const string RequiresInitialConfiguration = "X-REQUIRES-INITIAL-CONFIGURATION";
 
         public const string OdinVersionTag = "X-Odin-Version";
+        public const string OdinCdnPayload = "X-Odin-Cdn-Payload";
     }
 }
