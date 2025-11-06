@@ -20,6 +20,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -49,7 +50,9 @@ public class ShamirConfigurationService(
     OwnerSecretService secretService,
     OdinConfiguration configuration,
     PeerOutbox peerOutbox,
-    ILastSeenService lastSeenService)
+    ILastSeenService lastSeenService
+    // ,VersionUpgradeScheduler versionUpgradeScheduler
+    )
 {
     private const int DealerShardConfigFiletype = 44532;
     private const int PlayerEncryptedShardFileType = 74829;
@@ -123,7 +126,7 @@ public class ShamirConfigurationService(
         {
             throw new OdinClientException("Auto-recovery not enabled in configuration");
         }
-        
+
         var autoPlayers = configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities?.Select(r => (OdinId)r).ToList() ?? [];
 
         if (autoPlayers.Count() < MinimumPlayerCount || configuration.AccountRecovery.AutomatedIdentityKey == Guid.Empty)
@@ -202,6 +205,48 @@ public class ShamirConfigurationService(
         return (distributionKey, shards.PlayerShards);
     }
 
+    public async Task<RemotePlayerReadinessResult> VerifyReadiness(IOdinContext odinContext)
+    {
+        // var (requiresUpgrade, _, _) = await versionUpgradeScheduler.RequiresUpgradeAsync();
+
+        return new RemotePlayerReadinessResult()
+        {
+            IsValid = false, // !requiresUpgrade,
+            TrustLevel = await GetTrustLevel(odinContext)
+        };
+    }
+
+    /// <summary>
+    /// Checks a remote identity for its ability to hold a shard
+    /// </summary>
+    public async Task<RemotePlayerReadinessResult> VerifyRemotePlayerReadiness(OdinId odinId, IOdinContext odinContext)
+    {
+        try
+        {
+            var client = CreateClientAsync(odinId, odinContext);
+            var response = await client.VerifyReadiness();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = response.Content;
+                return result;
+            }
+
+            logger.LogDebug("Shard verification call failed for identity: {identity}.  Http Status " +
+                            "code: {code}", odinId, response.StatusCode);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed during shard verification for identity: {identity}", odinContext);
+        }
+
+        return new RemotePlayerReadinessResult()
+        {
+            IsValid = false,
+            TrustLevel = ShardTrustLevel.Critical
+        };
+    }
+
     /// <summary>
     /// Verifies shards held by players
     /// </summary>
@@ -219,7 +264,7 @@ public class ShamirConfigurationService(
         var results = new Dictionary<string, ShardVerificationResult>();
         foreach (var envelope in package.Envelopes)
         {
-            var result = await VerifyRemotePlayer(envelope.Player.OdinId, envelope.ShardId, odinContext);
+            var result = await VerifyRemotePlayerShard(envelope.Player.OdinId, envelope.ShardId, odinContext);
             results.Add(envelope.Player.OdinId, result);
         }
 
@@ -229,7 +274,7 @@ public class ShamirConfigurationService(
         };
     }
 
-    public async Task<ShardVerificationResult> VerifyRemotePlayer(OdinId player, Guid shardId, IOdinContext odinContext)
+    public async Task<ShardVerificationResult> VerifyRemotePlayerShard(OdinId player, Guid shardId, IOdinContext odinContext)
     {
         //todo: change to generic file system call
         try
@@ -300,33 +345,14 @@ public class ShamirConfigurationService(
 
             if (isValid)
             {
-                var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
                 var trustLevel = ShardTrustLevel.Critical; // default = worst case
-
                 if (shard.Player.Type == PlayerType.Automatic)
                 {
                     trustLevel = ShardTrustLevel.High;
                 }
                 else
                 {
-                    if (lastSeen.HasValue)
-                    {
-                        var now = DateTime.UtcNow;
-                        var elapsed = now - lastSeen.Value.ToDateTime();
-
-                        if (elapsed < TimeSpan.FromDays(14))
-                        {
-                            trustLevel = ShardTrustLevel.High;
-                        }
-                        else if (elapsed < TimeSpan.FromDays(30))
-                        {
-                            trustLevel = ShardTrustLevel.Low;
-                        }
-                        else if (elapsed < TimeSpan.FromDays(90))
-                        {
-                            trustLevel = ShardTrustLevel.Medium;
-                        }
-                    }
+                    trustLevel = await GetTrustLevel(odinContext);
                 }
 
                 return new ShardVerificationResult
@@ -527,7 +553,7 @@ public class ShamirConfigurationService(
         {
             throw new OdinSystemException("Automated recovery is disabled in config");
         }
-        
+
         if (!configuration.AccountRecovery.AutomatedPasswordRecoveryIdentities.Any())
         {
             throw new OdinSystemException("No Automated identities are configured");
@@ -578,6 +604,32 @@ public class ShamirConfigurationService(
         return Task.FromResult<IOdinContext>(dotYouContext);
     }
 
+    private async Task<ShardTrustLevel> GetTrustLevel(IOdinContext odinContext)
+    {
+        var lastSeen = await lastSeenService.GetLastSeenAsync(odinContext.Tenant);
+        var trustLevel = ShardTrustLevel.Critical;
+        if (lastSeen.HasValue)
+        {
+            var now = DateTime.UtcNow;
+            var elapsed = now - lastSeen.Value.ToDateTime();
+
+            if (elapsed < TimeSpan.FromDays(14))
+            {
+                trustLevel = ShardTrustLevel.High;
+            }
+            else if (elapsed < TimeSpan.FromDays(30))
+            {
+                trustLevel = ShardTrustLevel.Low;
+            }
+            else if (elapsed < TimeSpan.FromDays(90))
+            {
+                trustLevel = ShardTrustLevel.Medium;
+            }
+        }
+
+        return trustLevel;
+    }
+    
     private IPeerPasswordRecoveryHttpClient CreateClientAsync(OdinId odinId, IOdinContext odinContext)
     {
         // var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);

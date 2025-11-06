@@ -43,10 +43,17 @@ public class SecurityConfigurationController(
     [HttpPost("verify-remote-player-shard")]
     public async Task<ShardVerificationResult> VerifyRemotePlayer([FromBody] VerifyRemotePlayerShardRequest request)
     {
-        var results = await shamirConfigurationService.VerifyRemotePlayer(request.OdinId, request.ShardId, WebOdinContext);
+        var results = await shamirConfigurationService.VerifyRemotePlayerShard(request.OdinId, request.ShardId, WebOdinContext);
         return results;
     }
 
+    [HttpPost("verify-remote-player-readiness")]
+    public async Task<RemotePlayerReadinessResult> VerifyRemotePlayerReadiness([FromBody] VerifyRemotePlayerReadinessRequest request)
+    {
+        var results = await shamirConfigurationService.VerifyRemotePlayerReadiness(request.OdinId, WebOdinContext);
+        return results;
+    }
+    
     [HttpGet("shard-request-list")]
     public async Task<List<ShardApprovalRequest>> GetShardRequestList()
     {

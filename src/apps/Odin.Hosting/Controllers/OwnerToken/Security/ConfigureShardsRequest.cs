@@ -17,6 +17,11 @@ public class VerifyRemotePlayerShardRequest
     public Guid ShardId { get; init; }
 }
 
+public class VerifyRemotePlayerReadinessRequest
+{
+    public OdinId OdinId { get; init; }
+}
+
 public class ApproveShardRequest
 {
     public OdinId OdinId { get; init; }

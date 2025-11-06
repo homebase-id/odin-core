@@ -18,6 +18,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
         ShamirConfigurationService configurationService,
         ShamirRecoveryService recoveryService) : OdinControllerBase
     {
+        [HttpPost("verify-readiness")]
+        public async Task<IActionResult> VerifyReadiness()
+        {
+            var result = await configurationService.VerifyReadiness(WebOdinContext);
+            return Ok(result);
+        }
+
+        
         [HttpPost("verify-shard")]
         public async Task<IActionResult> VerifyShard(VerifyShardRequest request)
         {
