@@ -85,7 +85,7 @@ public abstract class FileSystemStreamWriterBase
         if (overwriteFileId == Guid.Empty)
         {
             //get a new file id
-            file = await FileSystem.Storage.CreateInternalFileId(driveId);
+            file = await FileSystem.Storage.CreateInternalFileId(driveId, odinContext);
         }
         else
         {

@@ -775,7 +775,7 @@ public class ShamirConfigurationService(
     private async Task WriteNewDealerEnvelopeFile(DealerShardPackage dealerShard, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
-        var file = await fileSystem.Storage.CreateInternalFileId(driveId);
+        var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
 
@@ -823,7 +823,7 @@ public class ShamirConfigurationService(
     private async Task<ServerFileHeader> WritePlayerEncryptedShardToTempDrive(PlayerEncryptedShard shard, IOdinContext odinContext)
     {
         var driveId = SystemDriveConstants.TransientTempDrive.Alias;
-        var file = await fileSystem.Storage.CreateInternalFileId(driveId);
+        var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
         var keyHeader = KeyHeader.Empty();
 
