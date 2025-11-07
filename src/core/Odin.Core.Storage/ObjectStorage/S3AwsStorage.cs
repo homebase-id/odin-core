@@ -445,7 +445,9 @@ public static class S3AwsStorageExtensions
                 AuthenticationRegion = region,
                 ForcePathStyle = forcePathStyle,
                 ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
-                RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
+                RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+                MaxErrorRetry = 2,
+                Timeout = TimeSpan.FromMinutes(5),
             }));
         return services;
     }

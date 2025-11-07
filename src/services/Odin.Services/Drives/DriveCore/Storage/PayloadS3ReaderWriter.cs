@@ -147,8 +147,8 @@ public class PayloadS3ReaderWriter(ILogger<PayloadS3ReaderWriter> logger, IS3Pay
     private RetryBuilder CreateRetry(CancellationToken cancellationToken)
     {
         return Core.Util.TryRetry.Create()
-            .WithAttempts(1)
-            .WithExponentialBackoff(TimeSpan.FromSeconds(1))
+            .WithAttempts(5)
+            .WithExponentialBackoff(TimeSpan.FromSeconds(5))
             .WithCancellation(cancellationToken)
             .WithLogging(logger)
             .WithoutWrapper()
