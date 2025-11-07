@@ -13,6 +13,7 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Hosting.Controllers.Anonymous.Cdn;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -89,8 +90,8 @@ namespace Odin.Hosting.Middleware
 
 
             //Paths that should not have their responses encrypted with shared secret
-            _ignoredPathsForResponses = new List<string>
-            {
+            _ignoredPathsForResponses =
+            [
                 $"{OwnerApiPathConstants.DriveV1}/files/payload",
                 $"{OwnerApiPathConstants.DriveV1}/files/thumb",
 
@@ -120,8 +121,10 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstants.DriveV1}/files/thumb",
                 $"{GuestApiPathConstants.DriveV1}/files/payload",
-                "/cdn",
-            };
+
+                $"{CdnApiPathConstants.DriveV1}/files/thumb",
+                $"{CdnApiPathConstants.DriveV1}/files/payload",
+            ];
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
 
