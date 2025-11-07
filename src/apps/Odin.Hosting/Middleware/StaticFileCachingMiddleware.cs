@@ -1,36 +1,39 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Primitives;
 
-namespace Odin.Hosting.Middleware
+namespace Odin.Hosting.Middleware;
+
+public class StaticFileCachingMiddleware(RequestDelegate next, IHostEnvironment env)
 {
-    public class StaticFileCachingMiddleware(RequestDelegate next)
+    private static readonly StringValues MaxAgeOneYear = new("max-age=31536000");
+    private static readonly string[] Paths =
+    [
+        "/assets",
+        "/emoji",
+        "/icons",
+        "/owner/assets",
+        "/owner/icons"
+    ];
+
+    private readonly bool _isDevelopment = env.IsDevelopment();
+
+    public Task Invoke(HttpContext httpContext)
     {
-        //Note: be sure it does not end with a "/"
-        private static readonly List<string> paths = new List<string>()
+        if (_isDevelopment)
         {
-            "/assets",
-            "/owner/assets",
-            "/assets",
-            "/owner/assets",
-            "/owner/icons",
-            "/icons",
-            "/emoji",
-        };
-
-        public async Task Invoke(HttpContext httpContext, IHostEnvironment env)
-        {
-            var isDev = env.IsDevelopment();
-
-            if (paths.Any(s => httpContext.Request.Path.StartsWithSegments(s)) && !isDev)
-            {
-                httpContext.Response.Headers.Append("Cache-Control", "max-age=31536000");
-            }
-
-            await next(httpContext);
+            return next(httpContext);
         }
+
+        var path = httpContext.Request.Path;
+        if (Paths.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)))
+        {
+            httpContext.Response.Headers.CacheControl = MaxAgeOneYear;
+        }
+
+        return next(httpContext);
     }
 }

@@ -3,35 +3,23 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Odin.Core.Logging.CorrelationId;
 
-namespace Odin.Hosting.Middleware.Logging
+namespace Odin.Hosting.Middleware.Logging;
+
+public class CorrelationIdMiddleware(RequestDelegate next, ICorrelationContext correlationContext)
 {
-    public class CorrelationIdMiddleware
+    private const string CorrelationIdHeader = ICorrelationContext.DefaultHeaderName;
+
+    //
+
+    public Task Invoke(HttpContext context)
     {
-        private readonly RequestDelegate _next;
-        private readonly ICorrelationContext _correlationContext;
-        private readonly string _correlationIdHeader;
-
-        //
-
-        public CorrelationIdMiddleware(RequestDelegate next, ICorrelationContext correlationContext)
+        var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(correlationId))
         {
-            _next = next;
-            _correlationIdHeader = ICorrelationContext.DefaultHeaderName;
-            _correlationContext = correlationContext;
+            correlationContext.Id = correlationId;
         }
+        context.Response.Headers[CorrelationIdHeader] = correlationContext.Id;
 
-        //
-
-        public Task Invoke(HttpContext context)
-        {
-            var correlationId = context.Request.Headers[_correlationIdHeader].FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(correlationId))
-            {
-                _correlationContext.Id = correlationId;
-            }
-            context.Response.Headers[_correlationIdHeader] = _correlationContext.Id;
-
-            return _next(context);
-        }
+        return next(context);
     }
 }
