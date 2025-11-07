@@ -51,7 +51,7 @@ namespace Odin.Services.Membership.Connections
 
         public bool IsConfirmedConnection()
         {
-            return AccessGrant!.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out _);
+            return AccessGrant?.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out _) ?? false;
         }
 
         /// <summary>

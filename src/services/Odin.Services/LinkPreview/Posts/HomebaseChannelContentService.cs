@@ -153,7 +153,7 @@ public class HomebaseChannelContentService(
             var content = postHeader.FileMetadata.AppData.Content;
             var pc = OdinSystemSerializer.Deserialize<PostContent>(content);
 
-            logger.LogDebug("Raw post content for fileId:{fid} [{pc}]", postHeader.FileId, content);
+            // logger.LogDebug("Raw post content for fileId:{fid} [{pc}]", postHeader.FileId, content);
 
             var slug = pc?.Slug?.Trim();
             var id = slug ?? postHeader.FileId.ToString();
