@@ -8,7 +8,7 @@ namespace Odin.Hosting.Middleware.Logging;
 
 #nullable enable
 
-public class RequestLoggingMiddleware
+public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
 {
     private static readonly string[] LoggablePaths =
     {
@@ -21,24 +21,15 @@ public class RequestLoggingMiddleware
         "/.well-known/acme-challenge"
     };
 
-    private readonly RequestDelegate _next;
-    private readonly ILogger<RequestLoggingMiddleware> _logger;
-
-    public RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     //
 
     public async Task Invoke(HttpContext context)
     {
         var path = context.Request.Path + context.Request.QueryString;
 
-        if (!_logger.IsEnabled(LogLevel.Trace) && !IsLoggable(path))
+        if (!logger.IsEnabled(LogLevel.Trace) && !IsLoggable(path))
         {
-            await _next(context);
+            await next(context);
             return;
         }
 
@@ -47,28 +38,28 @@ public class RequestLoggingMiddleware
 
         if (context.WebSockets.IsWebSocketRequest)
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 "{RemoteIp} websock handshake {Path}",
                 remoteIp,
                 path
             );
-            await _next(context);
+            await next(context);
         }
         else
         {
             var stopwatch = Stopwatch.StartNew();
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "{RemoteIp} request starting {Method} {Path}",
                 remoteIp,
                 method,
                 path
             );
 
-            await _next(context);
+            await next(context);
 
             var elapsed = stopwatch.Elapsed.TotalMilliseconds;
-            _logger.LogInformation("{RemoteIp} request finished {Method} {Path} in {Elapsed}ms {Status}",
+            logger.LogInformation("{RemoteIp} request finished {Method} {Path} in {Elapsed}ms {Status}",
                 remoteIp,
                 method,
                 path,
@@ -79,7 +70,7 @@ public class RequestLoggingMiddleware
             if (elapsed > 60000)
             {
                 var agent = context.Request.Headers["User-Agent"].ToString();
-                _logger.LogWarning("Slow agent: {Agent} {Elapsed}ms", agent, elapsed);
+                logger.LogWarning("Slow agent: {Agent} {Elapsed}ms", agent, elapsed);
                 LogHeaders(context.Request.Headers, LogLevel.Debug);
             }
         }
@@ -89,14 +80,14 @@ public class RequestLoggingMiddleware
 
     private void LogHeaders(IHeaderDictionary headers, LogLevel level)
     {
-        if (_logger.IsEnabled(level))
+        if (logger.IsEnabled(level))
         {
             var strings = new List<string>();
             foreach (var (key, value) in headers)
             {
                 strings.Add("\"" + key + ":" + value + "\"");
             }
-            _logger.Log(level, "Request headers: {RequestHeaders}", string.Join(';', strings));
+            logger.Log(level, "Request headers: {RequestHeaders}", string.Join(';', strings));
         }
     }
 
