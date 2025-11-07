@@ -9,14 +9,14 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
-namespace Odin.Hosting.Controllers.Anonymous;
+namespace Odin.Hosting.Controllers.Anonymous.Cdn;
 
 /// <summary>
 /// These endpoints are meant to be called exclusively by a CDN
 /// </summary>
 
 [ApiController]
-[Route("/api/cdn/v1/drive/files")]
+[Route(CdnApiPathConstants.DriveStorageV1)]
 [AllowAnonymous]
 public class CdnDriveStorageController(
     OdinConfiguration config,
