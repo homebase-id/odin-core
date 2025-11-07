@@ -21,6 +21,12 @@ public class ShardVerificationResult
     public ShardTrustLevel TrustLevel { get; set; }
 }
 
+public class RemotePlayerReadinessResult
+{
+    public bool IsValid { get; set; }
+    public ShardTrustLevel TrustLevel { get; set; }
+}
+
 public enum ShardTrustLevel
 {
     /// <summary>

@@ -865,7 +865,6 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.NotAnAutoConnection);
             }
 
-
             await using var tx = await db.BeginStackedTransactionAsync();
 
             await UpgradeTokenEncryptionIfNeededAsync(icr, odinContext);

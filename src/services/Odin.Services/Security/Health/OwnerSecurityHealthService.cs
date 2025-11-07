@@ -28,6 +28,7 @@ public class OwnerSecurityHealthService(
     OwnerSecretService secretService,
     PasswordKeyRecoveryService recoveryService,
     ShamirConfigurationService shamirConfigurationService,
+    ShamirReadinessCheckerService readinessCheckerService,
     PublicPrivateKeyService publicPrivateKeyService,
     IDriveManager driveManager,
     ILogger<OwnerSecurityHealthService> logger,
@@ -169,7 +170,7 @@ public class OwnerSecurityHealthService(
             IsConfigured = true
         };
 
-        var verificationResult = await shamirConfigurationService.VerifyRemotePlayerShards(odinContext);
+        var verificationResult = await readinessCheckerService.VerifyRemotePlayerShards(odinContext);
 
         foreach (var (odinId, result) in verificationResult.Players)
         {

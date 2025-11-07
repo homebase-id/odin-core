@@ -14,6 +14,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class SecurityConfigurationController(
     ShamirConfigurationService shamirConfigurationService,
+    ShamirReadinessCheckerService readinessCheckerService,
     ShamirRecoveryService recoveryService,
     OwnerSecurityHealthService securityHealthService
 )
@@ -36,17 +37,24 @@ public class SecurityConfigurationController(
     public async Task<RemoteShardVerificationResult> Verify()
     {
         WebOdinContext.Caller.AssertHasMasterKey();
-        var results = await shamirConfigurationService.VerifyRemotePlayerShards(WebOdinContext);
+        var results = await readinessCheckerService.VerifyRemotePlayerShards(WebOdinContext);
         return results;
     }
 
     [HttpPost("verify-remote-player-shard")]
     public async Task<ShardVerificationResult> VerifyRemotePlayer([FromBody] VerifyRemotePlayerShardRequest request)
     {
-        var results = await shamirConfigurationService.VerifyRemotePlayer(request.OdinId, request.ShardId, WebOdinContext);
+        var results = await readinessCheckerService.VerifyRemotePlayerShard(request.OdinId, request.ShardId, WebOdinContext);
         return results;
     }
 
+    [HttpPost("verify-remote-player-readiness")]
+    public async Task<RemotePlayerReadinessResult> VerifyRemotePlayerReadiness([FromBody] VerifyRemotePlayerReadinessRequest request)
+    {
+        var results = await readinessCheckerService.VerifyRemotePlayerReadiness(request.OdinId, WebOdinContext);
+        return results;
+    }
+    
     [HttpGet("shard-request-list")]
     public async Task<List<ShardApprovalRequest>> GetShardRequestList()
     {

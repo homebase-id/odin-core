@@ -186,6 +186,7 @@ public static class TenantServices
 
         cb.RegisterType<RecoveryNotifier>().InstancePerLifetimeScope();
         cb.RegisterType<ShamirConfigurationService>().InstancePerLifetimeScope();
+        cb.RegisterType<ShamirReadinessCheckerService>().InstancePerLifetimeScope();
         
         cb.RegisterType<ShamirRecoveryService>().InstancePerLifetimeScope();
         cb.RegisterType<PasswordKeyRecoveryService>().InstancePerLifetimeScope();

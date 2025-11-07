@@ -86,30 +86,54 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseHsts();
 
         // Provisioning mapping
+        string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];
+
+        // Provisioning mapping
         if (config.Registry.ProvisioningEnabled)
         {
-            string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];
-
             app.MapWhen(
-                context =>
-                    context.Request.Host.Host == config.Registry.ProvisioningDomain &&
-                    !excludedPaths.Any(p => context.Request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)),
-                a => Provisioning.Map(a, env, logger));
+                context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
+                appBranch =>
+                {
+                    appBranch.Use(async (context, next) =>
+                    {
+                        if (excludedPaths.Any(p => context.Request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            context.Response.StatusCode = StatusCodes.Status404NotFound;
+                            await context.Response.WriteAsync("Not Found");
+                            return;
+                        }
 
-            //
-            // app.MapWhen(
-            //     context => context.Request.Host.Host == config.Registry.ProvisioningDomain,
-            //     a => Provisioning.Map(a, env, logger));
+                        await next();
+                    });
+
+                    Provisioning.Map(appBranch, env, logger);
+                });
         }
-
 
         // Admin mapping
         if (config.Admin.ApiEnabled)
         {
             app.MapWhen(
                 context => context.Request.Host.Host == config.Admin.Domain,
-                a => Admin.Map(a, env, logger));
+                appBranch =>
+                {
+                    appBranch.Use(async (context, next) =>
+                    {
+                        if (excludedPaths.Any(p => context.Request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            context.Response.StatusCode = StatusCodes.Status404NotFound;
+                            await context.Response.WriteAsync("Not Found");
+                            return;
+                        }
+
+                        await next();
+                    });
+
+                    Admin.Map(appBranch, env, logger);
+                });
         }
+
 
         app.UseMultiTenancy();
 
@@ -160,12 +184,9 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             ssrApp =>
             {
                 ssrApp.UseRouting();
-                ssrApp.UseEndpoints(endpoints =>
-                {
-                    endpoints.MapControllers();
-                });
+                ssrApp.UseEndpoints(endpoints => { endpoints.MapControllers(); });
             });
-        
+
         if (env.IsDevelopment())
         {
             app.UseSwagger();
@@ -285,7 +306,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         return;
                     });
                 });
-            
+
             app.MapWhen(ctx => true,
                 homeApp =>
                 {
@@ -465,5 +486,4 @@ public static class HostExtensions
     }
 
     //
-
 }

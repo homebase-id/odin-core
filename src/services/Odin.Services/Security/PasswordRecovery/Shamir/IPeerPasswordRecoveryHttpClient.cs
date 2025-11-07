@@ -8,7 +8,10 @@ namespace Odin.Services.Security.PasswordRecovery.Shamir
     public interface IPeerPasswordRecoveryHttpClient
     {
         private const string PasswdRoot = PeerApiPathConstants.PasswordRecoveryV1;
-
+        
+        [Post(PasswdRoot + "/verify-readiness")]
+        Task<ApiResponse<RemotePlayerReadinessResult>> VerifyReadiness();
+        
         [Post(PasswdRoot + "/verify-shard")]
         Task<ApiResponse<ShardVerificationResult>> VerifyShard([Body] VerifyShardRequest request);
 
