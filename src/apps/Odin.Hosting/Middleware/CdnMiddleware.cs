@@ -9,13 +9,13 @@ namespace Odin.Hosting.Middleware;
 
 public class CdnMiddleware(RequestDelegate next, OdinConfiguration config)
 {
-    public async Task InvokeAsync(HttpContext httpContext)
+    public Task InvokeAsync(HttpContext httpContext)
     {
         if (config.Cdn.Enabled)
         {
             httpContext.Response.Headers[OdinHeaderNames.OdinCdnPayload] = config.Cdn.PayloadBaseUrl;
         }
-        await next(httpContext);
+        return next(httpContext);
     }
 }
 
