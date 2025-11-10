@@ -274,7 +274,7 @@ public class HomebaseChannelContentService(
         // slug was not found
         if (targetDrive == null)
         {
-            throw new OdinClientException("invalid channel");
+            throw new OdinClientException($"Invalid Channel (key: {channelKey})");
         }
 
         return targetDrive;

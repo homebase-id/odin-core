@@ -1613,12 +1613,21 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         private async Task AssertDriveIsNotArchived(Guid driveId, IOdinContext odinContext)
         {
-            var theDrive = await DriveManager.GetDriveAsync(driveId);
-            if (theDrive.IsArchived)
+            if (null == DriveManager)
             {
-                if (!odinContext.Caller.HasMasterKey)
+                _logger.LogError("Drive Manager is null");
+            }
+            else
+            {
+                var theDrive = await DriveManager.GetDriveAsync(driveId);
+                if (theDrive.IsArchived)
                 {
-                    throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
+                    OdinValidationUtils.AssertNotNull(odinContext, "odinContext must not be null");
+
+                    if (!odinContext.Caller.HasMasterKey)
+                    {
+                        throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
+                    }
                 }
             }
         }
