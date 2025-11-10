@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.Anonymous.Ident
     /// </summary>
     public interface IIdentHttpClient
     {
-        [Get(GuestApiPathConstants.AuthV1 + "/ident")]
+        [Get(GuestApiPathConstantsV1.AuthV1 + "/ident")]
         Task<ApiResponse<GetIdentResponse>> GetIdent();
     }
 }

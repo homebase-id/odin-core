@@ -10,7 +10,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
     /// Routes requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.PeerNotificationsV1)]
+    [Route(AppApiPathConstantsV1.PeerNotificationsV1)]
     [AuthorizeValidAppToken]
     public class AppPeerNotificationController(
         PeerAppNotificationService peerAppNotificationService) :

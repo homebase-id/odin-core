@@ -71,21 +71,21 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.SecurityRecoveryV1}/needs-attention", // <wtf^2!?
                 
 
-                $"{GuestApiPathConstants.DriveV1}/files/upload",
-                $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",
-                $"{GuestApiPathConstants.PeerSenderV1}/files/send",
-                $"{GuestApiPathConstants.DriveV1}/files/update",
+                $"{GuestApiPathConstantsV1.DriveV1}/files/upload",
+                $"{GuestApiPathConstantsV1.DriveV1}/files/uploadpayload",
+                $"{GuestApiPathConstantsV1.PeerSenderV1}/files/send",
+                $"{GuestApiPathConstantsV1.DriveV1}/files/update",
 
-                $"{AppApiPathConstants.PeerV1}/app/process", //TODO: why is this here??
-                $"{AppApiPathConstants.PeerSenderV1}/files/send",
+                $"{AppApiPathConstantsV1.PeerV1}/app/process", //TODO: why is this here??
+                $"{AppApiPathConstantsV1.PeerSenderV1}/files/send",
 
-                $"{AppApiPathConstants.DriveV1}/files/upload",
-                $"{AppApiPathConstants.DriveV1}/files/update",
-                $"{AppApiPathConstants.DriveV1}/files/uploadpayload",
-                $"{AppApiPathConstants.AuthV1}/logout",
-                $"{AppApiPathConstants.NotificationsV1}/preauth",
-                $"{AppApiPathConstants.PeerNotificationsV1}/preauth",
-                $"{GuestApiPathConstants.PeerNotificationsV1}/preauth"
+                $"{AppApiPathConstantsV1.DriveV1}/files/upload",
+                $"{AppApiPathConstantsV1.DriveV1}/files/update",
+                $"{AppApiPathConstantsV1.DriveV1}/files/uploadpayload",
+                $"{AppApiPathConstantsV1.AuthV1}/logout",
+                $"{AppApiPathConstantsV1.NotificationsV1}/preauth",
+                $"{AppApiPathConstantsV1.PeerNotificationsV1}/preauth",
+                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth"
             ];
 
 
@@ -104,23 +104,23 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.PeerV1}/query/payload_byglobaltransitid",
                 $"{OwnerApiPathConstants.PeerV1}/query/thumb_byglobaltransitid",
 
-                $"{AppApiPathConstants.DriveV1}/files/payload",
-                $"{AppApiPathConstants.DriveV1}/files/thumb",
+                $"{AppApiPathConstantsV1.DriveV1}/files/payload",
+                $"{AppApiPathConstantsV1.DriveV1}/files/thumb",
 
-                $"{AppApiPathConstants.PeerQueryV1}/payload",
-                $"{AppApiPathConstants.PeerQueryV1}/thumb",
+                $"{AppApiPathConstantsV1.PeerQueryV1}/payload",
+                $"{AppApiPathConstantsV1.PeerQueryV1}/thumb",
 
-                $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
-                $"{AppApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
+                $"{AppApiPathConstantsV1.DriveQuerySpecializedClientUniqueId}/payload",
+                $"{AppApiPathConstantsV1.DriveQuerySpecializedClientUniqueId}/thumb",
 
-                $"{AppApiPathConstants.PeerQueryV1}/payload_byglobaltransitid",
-                $"{AppApiPathConstants.PeerQueryV1}/thumb_byglobaltransitid",
+                $"{AppApiPathConstantsV1.PeerQueryV1}/payload_byglobaltransitid",
+                $"{AppApiPathConstantsV1.PeerQueryV1}/thumb_byglobaltransitid",
 
-                $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/payload",
-                $"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb",
+                $"{GuestApiPathConstantsV1.DriveQuerySpecializedClientUniqueId}/payload",
+                $"{GuestApiPathConstantsV1.DriveQuerySpecializedClientUniqueId}/thumb",
 
-                $"{GuestApiPathConstants.DriveV1}/files/thumb",
-                $"{GuestApiPathConstants.DriveV1}/files/payload",
+                $"{GuestApiPathConstantsV1.DriveV1}/files/thumb",
+                $"{GuestApiPathConstantsV1.DriveV1}/files/payload",
 
                 $"{CdnApiPathConstants.DriveV1}/files/thumb",
                 $"{CdnApiPathConstants.DriveV1}/files/payload",
@@ -132,8 +132,8 @@ namespace Odin.Hosting.Middleware
             var allExtensions = MimeTypeHelper.SubtypeToExtension.Select(kvp => kvp.Value);
             foreach (var extension in allExtensions)
             {
-                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveV1}/files/thumb{extension}");
-                _ignoredPathsForResponses.Add($"{GuestApiPathConstants.DriveQuerySpecializedClientUniqueId}/thumb{extension}");
+                _ignoredPathsForResponses.Add($"{GuestApiPathConstantsV1.DriveV1}/files/thumb{extension}");
+                _ignoredPathsForResponses.Add($"{GuestApiPathConstantsV1.DriveQuerySpecializedClientUniqueId}/thumb{extension}");
             }
         }
 

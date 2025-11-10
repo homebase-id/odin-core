@@ -130,7 +130,8 @@ public class FileSystemHttpRequestResolver
 
         if (!Enum.TryParse(typeof(FileSystemType), ctx!.Request.Headers[OdinHeaderNames.FileSystemTypeHeader], true, out var fileSystemType))
         {
-            throw new OdinClientException("Invalid file system type or no header specified", OdinClientErrorCode.InvalidFileSystemType);
+            // throw new OdinClientException("Invalid file system type or no header specified", OdinClientErrorCode.InvalidFileSystemType);
+            return FileSystemType.Standard;
         }
 
         return (FileSystemType)fileSystemType!;

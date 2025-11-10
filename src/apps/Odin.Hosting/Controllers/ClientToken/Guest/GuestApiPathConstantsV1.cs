@@ -5,7 +5,7 @@
         public const string IgnoreAuthCookie = "iac";
     }
 
-    public static class GuestApiPathConstants
+    public static class GuestApiPathConstantsV1
     {
         public const string BasePathV1 = "/api/guest/v1";
 
@@ -31,5 +31,12 @@
         public const string PublicKeysV1 = BasePathV1 + "/public/keys";
 
         public const string BuiltIn = BasePathV1 + "/builtin";
+    }
+
+
+    public static class GuestApiPathConstantsV2
+    {
+        public const string BasePathV2 = "/api/guest/v2";
+        public const string DriveV2 = BasePathV2 + "/drive";
     }
 }

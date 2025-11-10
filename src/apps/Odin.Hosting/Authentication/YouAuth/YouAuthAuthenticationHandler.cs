@@ -43,14 +43,14 @@ namespace Odin.Hosting.Authentication.YouAuth
             var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
             bool isAppPath =
-                this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+                this.Context.Request.Path.StartsWithSegments(AppApiPathConstantsV1.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
             {
                 return await HandleAppAuth(dotYouContext);
             }
 
             bool isYouAuthPath =
-                this.Context.Request.Path.StartsWithSegments(GuestApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+                this.Context.Request.Path.StartsWithSegments(GuestApiPathConstantsV1.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {
                 return await HandleYouAuth(dotYouContext);
@@ -107,7 +107,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             };
 
             // Steal this path from the http controller because here we have the client auth token
-            if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstants.NotificationsV1}/preauth"))
+            if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstantsV1.NotificationsV1}/preauth"))
             {
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.AppCookieName, authToken);
             }

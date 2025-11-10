@@ -11,8 +11,8 @@ using Odin.Hosting.Controllers.ClientToken.Guest;
 namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
-    [Route(AppApiPathConstants.BasePathV1)]
-    [Route(GuestApiPathConstants.BasePathV1)]
+    [Route(AppApiPathConstantsV1.BasePathV1)]
+    [Route(GuestApiPathConstantsV1.BasePathV1)]
     [Route(OwnerApiPathConstants.BasePathV1)]
     public class OptionsController : OdinControllerBase
     {

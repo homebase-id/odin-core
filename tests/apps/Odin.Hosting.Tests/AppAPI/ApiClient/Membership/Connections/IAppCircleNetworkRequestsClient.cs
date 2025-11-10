@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Connections
     [Obsolete]
     public interface IAppCircleNetworkRequestsClient
     {
-        private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
+        private const string RootPath = AppApiPathConstantsV1.CirclesV1 + "/requests";
         private const string SentPathRoot = RootPath + "/sent";
         private const string PendingPathRoot = RootPath + "/pending";
 

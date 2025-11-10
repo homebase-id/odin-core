@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Follower
 {
     public interface ITestFollowerAppClient
     {
-        private const string RootPath = AppApiPathConstants.FollowersV1;
+        private const string RootPath = AppApiPathConstantsV1.FollowersV1;
 
         [Get(RootPath + "/IdentitiesIFollow")]
         Task<ApiResponse<CursoredResult<string>>> GetIdentitiesIFollow(string cursor);

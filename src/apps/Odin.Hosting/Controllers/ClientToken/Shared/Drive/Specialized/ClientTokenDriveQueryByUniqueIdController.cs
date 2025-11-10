@@ -11,8 +11,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive.Specialized
 {
     /// <summary />
     [ApiController]
-    [Route(AppApiPathConstants.DriveQuerySpecializedClientUniqueId)]
-    [Route(GuestApiPathConstants.DriveQuerySpecializedClientUniqueId)]
+    [Route(AppApiPathConstantsV1.DriveQuerySpecializedClientUniqueId)]
+    [Route(GuestApiPathConstantsV1.DriveQuerySpecializedClientUniqueId)]
     [AuthorizeValidGuestOrAppToken]
     public class ClientTokenDriveQueryByUniqueIdController(
         ILogger<ClientTokenDriveQueryByUniqueIdController> logger,

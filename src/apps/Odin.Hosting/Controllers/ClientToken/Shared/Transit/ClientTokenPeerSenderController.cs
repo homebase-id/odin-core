@@ -9,8 +9,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Transit
 {
     /// <summary />
     [ApiController]
-    [Route(AppApiPathConstants.PeerSenderV1)]
-    [Route(GuestApiPathConstants.PeerSenderV1)]
+    [Route(AppApiPathConstantsV1.PeerSenderV1)]
+    [Route(GuestApiPathConstantsV1.PeerSenderV1)]
     [AuthorizeValidGuestOrAppToken]
     public class ClientTokenPeerSenderController(ILogger<ClientTokenPeerSenderController> logger, PeerOutgoingTransferService peerOutgoingTransferService) :
         PeerSenderControllerBase(logger, peerOutgoingTransferService);

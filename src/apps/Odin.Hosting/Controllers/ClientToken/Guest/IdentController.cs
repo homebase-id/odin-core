@@ -8,7 +8,7 @@ using Odin.Hosting.Controllers.Base;
 namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]
-    [Route(GuestApiPathConstants.AuthV1)]
+    [Route(GuestApiPathConstantsV1.AuthV1)]
     public class IdentController : OdinControllerBase
     {
         private readonly IIdentityRegistry _registry;

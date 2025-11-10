@@ -11,7 +11,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.PublicPrivateKey
     /// </summary>
     public interface IPublicPrivateKeyHttpClientForOwner
     {
-        private const string RootEndpoint = GuestApiPathConstants.PublicKeysV1;
+        private const string RootEndpoint = GuestApiPathConstantsV1.PublicKeysV1;
 
         [Get(RootEndpoint + "/signing")]
         Task<ApiResponse<GetPublicKeyResponse>> GetSigningPublicKey();

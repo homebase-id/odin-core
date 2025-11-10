@@ -9,7 +9,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.CircleMembership
 {
     public interface ICircleMembershipAppHttpClient
     {
-        private const string RootPath = AppApiPathConstants.CirclesV1 + "/membership";
+        private const string RootPath = AppApiPathConstantsV1.CirclesV1 + "/membership";
 
         [Post(RootPath + "/list")]
         Task<ApiResponse<List<CircleDomainResult>>> GetDomainsInCircle([Body] GetCircleMembersRequest request);
