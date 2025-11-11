@@ -235,9 +235,15 @@ public class DriveManager : IDriveManager
         //only change if needed
         if (storageDrive.IsArchived != value)
         {
+            _logger.LogDebug("Archiving Drive - new value: {e}", value);
             storageDrive.IsArchived = value;
 
-            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+            var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+            _logger.LogDebug("Archiving Drive - rows affected value: {e}", affected);
+            if (affected != 1)
+            {
+                throw new OdinSystemException($"Archive drive should have updated 1 and only 1 row.  Number updated: {affected}");
+            }
 
             await _mediator.Publish(new DriveDefinitionAddedNotification
             {
@@ -392,7 +398,7 @@ public class DriveManager : IDriveManager
             RootInvalidationTag);
 
         var allDrives = allDrivesData.Select(ToStorageDrive).ToList();
-        
+
         // only show archived drives to the owner console
         var shouldFilterArchivedDrive = odinContext?.Caller == null || odinContext.Caller.HasMasterKey == false;
         if (shouldFilterArchivedDrive)
@@ -400,14 +406,14 @@ public class DriveManager : IDriveManager
             allDrives = allDrives.Where(d => !d.IsArchived).ToList();
         }
 
-        
+
         var caller = odinContext?.Caller;
         if (caller?.IsOwner ?? false)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
 
-      
+
         var level = caller?.SecurityLevel ?? SecurityGroupType.Anonymous;
         if (level == SecurityGroupType.System)
         {
