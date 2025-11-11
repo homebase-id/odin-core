@@ -42,15 +42,20 @@ namespace Odin.Hosting.Authentication.YouAuth
         {
             var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
-            bool isAppPath =
-                this.Context.Request.Path.StartsWithSegments(AppApiPathConstantsV1.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstantsV1.BasePathV1,
+                                 StringComparison.InvariantCultureIgnoreCase) ||
+                             this.Context.Request.Path.StartsWithSegments(AppApiPathConstantsV2.BasePathV2,
+                                 StringComparison.InvariantCultureIgnoreCase);
+
             if (isAppPath)
             {
                 return await HandleAppAuth(dotYouContext);
             }
 
-            bool isYouAuthPath =
-                this.Context.Request.Path.StartsWithSegments(GuestApiPathConstantsV1.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
+            bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstantsV1.BasePathV1,
+                                     StringComparison.InvariantCultureIgnoreCase) ||
+                                 this.Context.Request.Path.StartsWithSegments(GuestApiPathConstantsV2.BasePathV2,
+                                     StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {
                 return await HandleYouAuth(dotYouContext);
@@ -232,7 +237,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             anonPerms.Add(PermissionKeys.UseTransitRead);
-            
+
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
                 { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
@@ -267,7 +272,8 @@ namespace Odin.Hosting.Authentication.YouAuth
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()),
-                new(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                new(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
+                    OdinClaimTypes.YouFoundationIssuer),
                 new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
             };
             return claims;

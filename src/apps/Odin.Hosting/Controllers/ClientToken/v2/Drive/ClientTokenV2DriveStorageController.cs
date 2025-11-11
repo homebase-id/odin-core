@@ -17,7 +17,7 @@ namespace Odin.Hosting.Controllers.ClientToken.v2.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(AppApiQueryConstantsV2.DriveV2 + "/files")]
+    [Route(AppApiPathConstantsV2.DriveV2 + "/files")]
     [Route(GuestApiPathConstantsV2.DriveV2 + "/files")]
     [AuthorizeValidGuestOrAppToken]
     public class ClientTokenV2DriveStorageController(

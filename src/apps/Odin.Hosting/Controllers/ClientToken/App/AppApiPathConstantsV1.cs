@@ -1,6 +1,6 @@
 ﻿namespace Odin.Hosting.Controllers.ClientToken.App
 {
-    public static class AppApiQueryConstantsV2
+    public static class AppApiPathConstantsV2
     {
         public const string BasePathV2 = "/api/apps/v2";
         public const string DriveV2 = BasePathV2 + "/drive";

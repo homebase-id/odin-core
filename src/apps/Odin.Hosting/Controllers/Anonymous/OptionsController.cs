@@ -12,7 +12,9 @@ namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(AppApiPathConstantsV1.BasePathV1)]
+    [Route(AppApiPathConstantsV2.BasePathV2)]
     [Route(GuestApiPathConstantsV1.BasePathV1)]
+    [Route(GuestApiPathConstantsV2.BasePathV2)]
     [Route(OwnerApiPathConstants.BasePathV1)]
     public class OptionsController : OdinControllerBase
     {
