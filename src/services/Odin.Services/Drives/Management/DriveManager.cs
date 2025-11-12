@@ -246,7 +246,7 @@ public class DriveManager : IDriveManager
 
             _logger.LogDebug("freshAndCleanClean: [{fresh}]", freshAndNewRecord?.detailsJson ?? "empty");
             _logger.LogDebug("cachedVersion: [{cache}]", cachedRecord?.detailsJson ?? "empty");
-            
+
             if (affected != 1)
             {
                 throw new OdinSystemException($"Archive drive should have updated 1 and only 1 row.  Number updated: {affected}");
