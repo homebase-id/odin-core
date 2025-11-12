@@ -9,6 +9,7 @@ namespace Odin.Hosting.Controllers.Anonymous;
 public class YouAuthKmpController : ControllerBase
 {
     // curl https://frodo.dotyou.cloud/api/v1/kmp/auth
+    // frodo.baggins.demo.rocks/api/v1/kmp/auth
     [HttpGet("/api/v1/kmp/auth")]
     public ActionResult Auth()
     {
