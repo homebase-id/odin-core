@@ -413,13 +413,11 @@ public class DriveManager : IDriveManager
             allDrives = allDrives.Where(d => !d.IsArchived).ToList();
         }
 
-
         var caller = odinContext?.Caller;
         if (caller?.IsOwner ?? false)
         {
             return new PagedResult<StorageDrive>(pageOptions, 1, allDrives);
         }
-
 
         var level = caller?.SecurityLevel ?? SecurityGroupType.Anonymous;
         if (level == SecurityGroupType.System)
