@@ -31,6 +31,7 @@ using Odin.Hosting.Controllers.Admin;
 using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Multitenant;
+using Odin.Hosting.UnifiedV2.Authentication;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Background;
 using Odin.Services.Base;
@@ -127,7 +128,8 @@ public static class SystemServices
             .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
             .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
             .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
-            .AddSystemAuthentication();
+            .AddSystemAuthentication()
+            .AddUnifiedAuthentication();
 
         services.AddAuthorization(policy =>
         {

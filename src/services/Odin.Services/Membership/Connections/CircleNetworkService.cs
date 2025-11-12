@@ -952,7 +952,7 @@ namespace Odin.Services.Membership.Connections
 
             var grantKeyStoreKey = odinContext.PermissionsContext.GetKeyStoreKey();
             var (accessRegistration, token) = await exchangeGrantService.CreateClientAccessToken(
-                grantKeyStoreKey, ClientTokenType.RemoteNotificationSubscriber);
+                grantKeyStoreKey, ClientTokenType.PeerNotificationSubscriber);
 
             var client = new PeerIcrClient
             {

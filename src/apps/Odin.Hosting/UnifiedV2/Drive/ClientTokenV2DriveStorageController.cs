@@ -11,7 +11,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
-namespace Odin.Hosting.Controllers.ClientToken.v2.Drive
+namespace Odin.Hosting.UnifiedV2.Drive
 {
     /// <summary>
     /// Api endpoints for reading drives

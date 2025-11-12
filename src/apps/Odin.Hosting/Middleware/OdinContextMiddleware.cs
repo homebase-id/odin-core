@@ -111,7 +111,7 @@ namespace Odin.Hosting.Middleware
         {
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
-                if (clientAuthToken.ClientTokenType == ClientTokenType.AutomatedPasswordRecovery)
+                if (clientAuthToken.ClientTokenType == ClientTokenType.PeerAutomatedPasswordRecovery)
                 {
                     await LoadAutomatedIdentityContext(httpContext, clientAuthToken, odinContext);
                     return;

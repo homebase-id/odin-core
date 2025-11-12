@@ -199,7 +199,7 @@ namespace Odin.Services.Authorization.Apps
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var (accessRegistration, cat) =
-                await exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
+                await exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.App);
 
             var appClient = new AppClientRegistration(odinContext.Tenant, appId, friendlyName, accessRegistration);
             await SaveClientAsync(appClient);

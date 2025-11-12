@@ -26,7 +26,6 @@ using Odin.Services.Membership.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Service;
-using Odin.Services.Peer.AppNotification;
 
 namespace Odin.Hosting.Authentication.YouAuth
 {
@@ -43,8 +42,6 @@ namespace Odin.Hosting.Authentication.YouAuth
             var dotYouContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
             bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstantsV1.BasePathV1,
-                                 StringComparison.InvariantCultureIgnoreCase) ||
-                             this.Context.Request.Path.StartsWithSegments(AppApiPathConstantsV2.BasePathV2,
                                  StringComparison.InvariantCultureIgnoreCase);
 
             if (isAppPath)
@@ -53,8 +50,6 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             bool isYouAuthPath = this.Context.Request.Path.StartsWithSegments(GuestApiPathConstantsV1.BasePathV1,
-                                     StringComparison.InvariantCultureIgnoreCase) ||
-                                 this.Context.Request.Path.StartsWithSegments(GuestApiPathConstantsV2.BasePathV2,
                                      StringComparison.InvariantCultureIgnoreCase);
             if (isYouAuthPath)
             {

@@ -88,7 +88,7 @@ namespace Odin.Services.Authentication.Owner
             {
                 Id = serverToken.Id,
                 AccessTokenHalfKey = new SensitiveByteArray(clientToken.GetKey()),
-                ClientTokenType = ClientTokenType.Other
+                ClientTokenType = ClientTokenType.Owner
             };
 
             var clientContext = new OdinClientContext()
