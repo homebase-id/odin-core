@@ -240,6 +240,13 @@ public class DriveManager : IDriveManager
 
             var affected = await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
             _logger.LogDebug("Archiving Drive - rows affected value: {e}", affected);
+
+            var freshAndNewRecord = await _tableDrives.GetDriveDirectAsync(driveId);
+            var cachedRecord = await _tableDrives.GetAsync(driveId);
+
+            _logger.LogDebug("freshAndCleanClean: [{fresh}]", freshAndNewRecord?.detailsJson ?? "empty");
+            _logger.LogDebug("cachedVersion: [{cache}]", cachedRecord?.detailsJson ?? "empty");
+
             if (affected != 1)
             {
                 throw new OdinSystemException($"Archive drive should have updated 1 and only 1 row.  Number updated: {affected}");
