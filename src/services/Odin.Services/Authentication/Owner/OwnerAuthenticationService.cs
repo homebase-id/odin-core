@@ -140,7 +140,7 @@ namespace Odin.Services.Authentication.Owner
             {
                 throw new OdinSecurityException("Invalid owner token");
             }
-            
+
             //HACK: need to clone this here because the owner console token is getting wipe by the owner console token finalizer
             var len = loginToken!.SharedSecret.Length;
             var clone = new byte[len];
@@ -154,7 +154,6 @@ namespace Odin.Services.Authentication.Owner
             SensitiveByteArray clientSharedSecret,
             IOdinContext odinContext)
         {
-
             var icrKey = await icrKeyService.GetMasterKeyEncryptedIcrKeyAsync();
             var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
 
@@ -190,9 +189,9 @@ namespace Odin.Services.Authentication.Owner
                 {
                     throw new OdinSecurityException("Invalid owner token");
                 }
-                
+
                 var (masterKey, clientSharedSecret) = await GetMasterKeyAsync(token.Id, token.AccessTokenHalfKey);
-                
+
                 var dotYouContext = new OdinContext
                 {
                     Caller = new CallerContext(
@@ -201,14 +200,14 @@ namespace Odin.Services.Authentication.Owner
                         securityLevel: SecurityGroupType.Owner,
                         odinClientContext: clientContext)
                 };
-                
+
                 dotYouContext.SetAuthContext(OwnerAuthConstants.SchemeName);
 
-                var  permissionContext = await GetPermissionContextAsync(masterKey, clientSharedSecret, dotYouContext);
+                var permissionContext = await GetPermissionContextAsync(masterKey, clientSharedSecret, dotYouContext);
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.AuthTokenCreated = SequentialGuid.ToUnixTimeUtc(token.Id);
-                
+
                 return dotYouContext;
             });
 
@@ -272,14 +271,11 @@ namespace Odin.Services.Authentication.Owner
                 return false;
             }
 
-            //🐈⏰
-            var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);
-            odinContext.AuthTokenCreated = catTime;
-
+            odinContext.AuthTokenCreated = ctx.AuthTokenCreated;
             odinContext.Caller = ctx.Caller;
-            callerLogContext.Caller = odinContext.Caller.OdinId;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
+            callerLogContext.Caller = odinContext.Caller.OdinId;
             return true;
         }
 
