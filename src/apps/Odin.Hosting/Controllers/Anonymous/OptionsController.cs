@@ -7,15 +7,16 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
+using Odin.Hosting.UnifiedV2;
+using Odin.Hosting.UnifiedV2.Authentication;
 
 namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(AppApiPathConstantsV1.BasePathV1)]
-    [Route(AppApiPathConstantsV2.BasePathV2)]
     [Route(GuestApiPathConstantsV1.BasePathV1)]
-    [Route(GuestApiPathConstantsV2.BasePathV2)]
     [Route(OwnerApiPathConstants.BasePathV1)]
+    [Route(UnifiedApiRouteConstants.BasePath)]
     public class OptionsController : OdinControllerBase
     {
         [HttpOptions("{**thePath}")]

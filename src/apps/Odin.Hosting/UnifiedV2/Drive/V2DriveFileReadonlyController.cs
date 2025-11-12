@@ -4,9 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.Controllers.ClientToken.App;
-using Odin.Hosting.Controllers.ClientToken.Guest;
-using Odin.Hosting.Controllers.ClientToken.Shared;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -17,15 +14,14 @@ namespace Odin.Hosting.UnifiedV2.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstantsV2.DriveV2 + "/files")]
-    [Route(GuestApiPathConstantsV2.DriveV2 + "/files")]
-    [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenV2DriveStorageController(
-        ILogger<ClientTokenV2DriveStorageController> logger,
+    [Route(UnifiedApiRouteConstants.Drive + "/files")]
+    [UnifiedV2Authorize]
+    public class V2DriveFileReadonlyController(
+        ILogger<V2DriveFileReadonlyController> logger,
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
-        private readonly ILogger<ClientTokenV2DriveStorageController> _logger = logger;
+        private readonly ILogger<V2DriveFileReadonlyController> _logger = logger;
 
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeader([FromQuery] Guid fileId, [FromQuery] Guid driveId)

@@ -32,11 +32,4 @@
 
         public const string BuiltIn = BasePathV1 + "/builtin";
     }
-
-
-    public static class GuestApiPathConstantsV2
-    {
-        public const string BasePathV2 = "/api/guest/v2";
-        public const string DriveV2 = BasePathV2 + "/drive";
-    }
 }

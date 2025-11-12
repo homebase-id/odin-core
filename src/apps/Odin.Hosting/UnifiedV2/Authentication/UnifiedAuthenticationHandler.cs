@@ -51,7 +51,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             // look for the cat
             var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
-            if (!TryFindingTheCat(out var token))
+            if (!TryFindThePussyCat(out var token))
             {
                 return AuthenticateResult.Fail("Invalid Token");
             }
@@ -73,7 +73,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             }
         }
 
-        private bool TryFindingTheCat(out ClientAuthenticationToken clientAuthToken)
+        private bool TryFindThePussyCat(out ClientAuthenticationToken clientAuthToken)
         {
             if (AuthUtils.TryGetClientAuthToken(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken, true))
             {
