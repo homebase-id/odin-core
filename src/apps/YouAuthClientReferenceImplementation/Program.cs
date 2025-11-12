@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
+using Odin.Core.Http;
 using YouAuthClientReferenceImplementation;
 
 const int tcpPort = 7280;
@@ -16,25 +17,15 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
         var assemblyLocation = Assembly.GetExecutingAssembly().Location;
         var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
 
-        var certPem = File.ReadAllText(Path.Combine(assemblyDirectory!, "certificate.crt"));
-        var keyPem = File.ReadAllText(Path.Combine(assemblyDirectory!, "private.key"));
+        var certPem = File.ReadAllText(Path.Combine(assemblyDirectory!, "../../../../Odin.Hosting/https/thirdparty.dotyou.cloud/certificate.crt"));
+        var keyPem = File.ReadAllText(Path.Combine(assemblyDirectory!, "../../../../Odin.Hosting/https/thirdparty.dotyou.cloud/private.key"));
         var x509 = X509Certificate2.CreateFromPem(certPem, keyPem);
         listenOptions.UseHttps(x509);
     });
 });
 
 builder.Services.AddSingleton<ConcurrentDictionary<string, State>>();
-builder.Services.AddHttpClient("default")
-    .ConfigureHttpClient(c =>
-    {
-        // this is called everytime you request a httpclient
-        c.Timeout = TimeSpan.FromSeconds(5);
-    })
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-    {
-        AllowAutoRedirect = false,
-        UseCookies = false
-    });
+builder.Services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
 
 var app = builder.Build();
 app.UseMiddleware<LoggingMiddleware>();

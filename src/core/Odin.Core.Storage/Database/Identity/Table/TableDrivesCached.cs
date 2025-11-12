@@ -58,6 +58,11 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
         return result;
     }
 
+    public async Task<DrivesRecord?> GetDriveDirectAsync(Guid driveId)
+    {
+        return await table.GetAsync(driveId);
+    }
+    
     //
 
     public async Task<List<DrivesRecord>> GetDrivesByTypeAsync(Guid driveType, TimeSpan? ttl = null)
@@ -87,6 +92,7 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
         {
             await Cache.InvalidateAllAsync();
         }
+
         return result;
     }
 
@@ -101,7 +107,8 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
 
     //
 
-    public async Task<(List<DrivesRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor, TimeSpan? ttl = null)
+    public async Task<(List<DrivesRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor,
+        TimeSpan? ttl = null)
     {
         var result = await Cache.GetOrSetAsync(
             GetDriveListCacheKey(count, inCursor),
@@ -133,5 +140,4 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
     }
 
     //
-
 }
