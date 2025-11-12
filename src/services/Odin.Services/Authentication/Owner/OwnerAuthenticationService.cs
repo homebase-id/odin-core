@@ -124,7 +124,7 @@ namespace Odin.Services.Authentication.Owner
         /// <summary>
         /// Returns the LoginKek used to access the primary and application data encryption keys
         /// </summary>
-        public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKeyAsync(Guid sessionTokenId, SensitiveByteArray clientSecret)
+        private async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKeyAsync(Guid sessionTokenId, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
             var loginToken = await clientRegistrationStorage.GetAsync<OwnerConsoleClientRegistration>(sessionTokenId);
@@ -136,6 +136,11 @@ namespace Odin.Services.Authentication.Owner
 
             var mk = await secretService.GetMasterKeyAsync(loginToken, clientSecret);
 
+            if (mk.IsEmpty())
+            {
+                throw new OdinSecurityException("Invalid owner token");
+            }
+            
             //HACK: need to clone this here because the owner console token is getting wipe by the owner console token finalizer
             var len = loginToken!.SharedSecret.Length;
             var clone = new byte[len];
@@ -145,65 +150,65 @@ namespace Odin.Services.Authentication.Owner
             return (mk, clone.ToSensitiveByteArray());
         }
 
-        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContextAsync(
-            ClientAuthenticationToken token,
+        private async Task<PermissionContext> GetPermissionContextAsync(SensitiveByteArray masterKey,
+            SensitiveByteArray clientSharedSecret,
             IOdinContext odinContext)
         {
-            if (await IsValidTokenAsync(token.Id))
+
+            var icrKey = await icrKeyService.GetMasterKeyEncryptedIcrKeyAsync();
+            var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
+
+            var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
             {
-                var (masterKey, clientSharedSecret) = await GetMasterKeyAsync(token.Id, token.AccessTokenHalfKey);
-
-                var icrKey = await icrKeyService.GetMasterKeyEncryptedIcrKeyAsync();
-
-                var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
-                var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
+                DriveId = d.Id,
+                KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
+                PermissionedDrive = new PermissionedDrive()
                 {
-                    DriveId = d.Id,
-                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = d.TargetDriveInfo,
-                        Permission = DrivePermission.All
-                    },
-                });
+                    Drive = d.TargetDriveInfo,
+                    Permission = DrivePermission.All
+                },
+            });
 
-                var permissionGroupMap = new Dictionary<string, PermissionGroup>
-                {
-                    { "owner_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey, icrKey) },
-                };
+            var permissionGroupMap = new Dictionary<string, PermissionGroup>
+            {
+                { "owner_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey, icrKey) },
+            };
 
-                var ctx = new PermissionContext(permissionGroupMap, clientSharedSecret);
+            var ctx = new PermissionContext(permissionGroupMap, clientSharedSecret);
 
-                return (masterKey, ctx);
-            }
-
-            throw new OdinSecurityException("Invalid owner token");
+            return ctx;
         }
 
         /// <summary>
         /// Gets the <see cref="OdinContext"/> for the specified token from cache or disk.
         /// </summary>
-        public async Task<IOdinContext> GetDotYouContextAsync(ClientAuthenticationToken token, OdinClientContext clientContext,
-            IOdinContext odinContext)
+        private async Task<IOdinContext> GetDotYouContextAsync(ClientAuthenticationToken token, OdinClientContext clientContext)
         {
             var creator = new Func<Task<IOdinContext>>(async () =>
             {
-                var dotYouContext = new OdinContext();
-                var (masterKey, permissionContext) = await GetPermissionContextAsync(token, odinContext);
-
-                if (null == permissionContext || masterKey.IsEmpty())
+                if (!await IsValidTokenAsync(token.Id))
                 {
                     throw new OdinSecurityException("Invalid owner token");
                 }
+                
+                var (masterKey, clientSharedSecret) = await GetMasterKeyAsync(token.Id, token.AccessTokenHalfKey);
+                
+                var dotYouContext = new OdinContext
+                {
+                    Caller = new CallerContext(
+                        odinId: tenantContext.HostOdinId,
+                        masterKey: masterKey,
+                        securityLevel: SecurityGroupType.Owner,
+                        odinClientContext: clientContext)
+                };
+                
+                dotYouContext.SetAuthContext(OwnerAuthConstants.SchemeName);
 
+                var  permissionContext = await GetPermissionContextAsync(masterKey, clientSharedSecret, dotYouContext);
                 dotYouContext.SetPermissionContext(permissionContext);
 
-                dotYouContext.Caller = new CallerContext(
-                    odinId: tenantContext.HostOdinId,
-                    masterKey: masterKey,
-                    securityLevel: SecurityGroupType.Owner,
-                    odinClientContext: clientContext);
-
+                dotYouContext.AuthTokenCreated = SequentialGuid.ToUnixTimeUtc(token.Id);
+                
                 return dotYouContext;
             });
 
@@ -260,24 +265,7 @@ namespace Odin.Services.Authentication.Owner
         {
             odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
 
-            //HACK: fix this
-            //a bit of a hack here: we have to set the context as owner
-            //because it's required to build the permission context
-            // this is justified because we're heading down the owner api path
-            // just below this, we check to see if the token was good.  if not, the call fails.
-            odinContext.Caller = new CallerContext(
-                odinId: tenantContext.HostOdinId,
-                masterKey: null, //will be set later
-                securityLevel: SecurityGroupType.Owner,
-                odinClientContext: clientContext ?? new OdinClientContext
-                {
-                    CorsHostName = null,
-                    AccessRegistrationId = null,
-                    DevicePushNotificationKey = null,
-                    ClientIdOrDomain = null
-                });
-
-            IOdinContext ctx = await this.GetDotYouContextAsync(token, clientContext, odinContext);
+            IOdinContext ctx = await this.GetDotYouContextAsync(token, clientContext);
 
             if (null == ctx)
             {

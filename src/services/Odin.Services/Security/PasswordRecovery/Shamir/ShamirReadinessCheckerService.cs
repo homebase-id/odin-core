@@ -37,7 +37,7 @@ public class ShamirReadinessCheckerService(
         //&& !isConfirmedConnection
         return new RemotePlayerReadinessResult()
         {
-            IsValid = isValid,
+            IsValid = false,
             TrustLevel = await GetTrustLevel(odinContext)
         };
     }
