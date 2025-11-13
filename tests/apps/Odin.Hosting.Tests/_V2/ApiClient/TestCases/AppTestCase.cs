@@ -13,12 +13,12 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._V2.ApiClient.TestCases;
 
-public class AppTestCase(TargetDrive targetDrive, TestPermissionKeyList keys = null) : IApiClientContext
+public class AppTestCase(TargetDrive targetDrive, DrivePermission drivePermission, TestPermissionKeyList keys = null) : IApiClientContext
 {
     private ApiClientFactoryV2 _factory;
 
     public TargetDrive TargetDrive { get; } = targetDrive;
-    public DrivePermission DrivePermission { get; } = DrivePermission.Read;
+    public DrivePermission DrivePermission { get; } = drivePermission;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {

@@ -46,8 +46,8 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [HttpGet("payload")]
         public async Task<IActionResult> GetPayload([FromQuery] Guid fileId, [FromQuery] Guid driveId,
             [FromQuery] string key,
-            [FromQuery] int? chunkStart,
-            [FromQuery] int? chunkLength)
+            [FromQuery] int? start,
+            [FromQuery] int? length)
         {
             var file = new InternalDriveFileId()
             {
@@ -55,7 +55,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 DriveId = driveId
             };
 
-            FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
+            FileChunk chunk = this.GetChunk(start == 0 ? null : start, length == 0 ? null : length);
             var payload = await GetPayloadStream(file, key, chunk);
 
             if (WebOdinContext.Caller.IsAnonymous)
