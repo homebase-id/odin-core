@@ -1,0 +1,43 @@
+using System.Net.Http;
+using System.Threading.Tasks;
+using Odin.Core.Identity;
+using Odin.Core.Storage;
+using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.Tests._Universal.V2.ApiClient;
+using Odin.Services.Apps;
+using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base;
+using Refit;
+
+namespace Odin.Hosting.Tests._V2.ApiClient;
+
+public class DriveV2Client(OdinId identity, IApiClientFactory factory)
+{
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias);
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPayload(file.FileId, file.TargetDrive.Alias, key, chunk?.Start ?? 0, chunk?.Length ?? 0);
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
+        FileSystemType fileSystemType = FileSystemType.Standard, bool directMatchOnly = false)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveHttpClientApiV2>(client, sharedSecret);
+
+        var thumbnailResponse = await svc.GetThumbnail(file.FileId, file.TargetDrive.Alias, payloadKey, width, height);
+
+        return thumbnailResponse;
+    }
+}

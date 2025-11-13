@@ -75,17 +75,17 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         private bool TryFindThePussyCat(out ClientAuthenticationToken clientAuthToken)
         {
+            if (AuthUtils.TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
+            {
+                return true;
+            }
+
             if (AuthUtils.TryGetClientAuthToken(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken, true))
             {
                 return true;
             }
 
-            if (AuthUtils.TryGetClientAuthToken(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken))
-            {
-                return true;
-            }
-
-            return AuthUtils.TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken);
+            return AuthUtils.TryGetClientAuthToken(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
         }
 
         public async Task SignOutAsync(AuthenticationProperties? properties)

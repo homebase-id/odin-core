@@ -14,7 +14,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(UnifiedApiRouteConstants.Drive + "/files")]
+    [Route(UnifiedApiRouteConstants.Files)]
     [UnifiedV2Authorize]
     public class V2DriveFileReadonlyController(
         ILogger<V2DriveFileReadonlyController> logger,
