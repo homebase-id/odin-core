@@ -1,6 +1,6 @@
 ﻿namespace Odin.Hosting.Controllers.ClientToken.App
 {
-    public static class AppApiPathConstants
+    public static class AppApiPathConstantsV1
     {
         public const string BasePathV1 = "/api/apps/v1";
 
@@ -47,5 +47,6 @@
         public const string PushNotificationsV1 = BasePathV1 + "/notify/push";
         
         public const string CdnV1 = OptimizationV1 + "/cdn";
+        
     }
 }

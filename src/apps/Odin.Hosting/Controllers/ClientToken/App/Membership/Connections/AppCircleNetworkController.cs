@@ -8,7 +8,7 @@ using Odin.Services.Membership.Connections.Verification;
 namespace Odin.Hosting.Controllers.ClientToken.App.Membership.Connections
 {
     [ApiController]
-    [Route(AppApiPathConstants.CirclesV1 + "/connections")]
+    [Route(AppApiPathConstantsV1.CirclesV1 + "/connections")]
     [AuthorizeValidAppToken]
     public class AppCircleNetworkController(CircleNetworkService cn, CircleNetworkVerificationService verificationService)
         : CircleNetworkControllerBase(cn, verificationService);

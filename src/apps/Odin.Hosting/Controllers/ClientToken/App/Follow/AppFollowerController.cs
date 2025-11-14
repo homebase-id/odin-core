@@ -7,7 +7,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Follow
 {
     /// <summary />
     [ApiController]
-    [Route(AppApiPathConstants.FollowersV1)]
+    [Route(AppApiPathConstantsV1.FollowersV1)]
     [AuthorizeValidAppToken]
     public class AppFollowerController : FollowerControllerBase
     {

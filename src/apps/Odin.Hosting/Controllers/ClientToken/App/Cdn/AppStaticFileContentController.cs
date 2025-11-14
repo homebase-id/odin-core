@@ -6,7 +6,7 @@ using Odin.Services.Base;
 namespace Odin.Hosting.Controllers.ClientToken.App.Cdn
 {
     [ApiController]
-    [Route(AppApiPathConstants.CdnV1)]
+    [Route(AppApiPathConstantsV1.CdnV1)]
     [AuthorizeValidAppToken]
     public class AppStaticFileContentController : StaticFileContentPublishControllerBase
     {

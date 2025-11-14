@@ -84,7 +84,7 @@ public class NotificationsTest
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{AppApiPathConstantsV1.NotificationsV1}/ws");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
         //
@@ -167,7 +167,7 @@ public class NotificationsTest
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{AppApiPathConstantsV1.NotificationsV1}/ws");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
         //

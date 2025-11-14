@@ -10,7 +10,7 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.Controllers.ClientToken.App.Security
 {
     [ApiController]
-    [Route(AppApiPathConstants.AuthV1)]
+    [Route(AppApiPathConstantsV1.AuthV1)]
     [AuthorizeValidAppToken]
     public class AppAuthController(
         IAppRegistrationService appRegistrationService) : OdinControllerBase

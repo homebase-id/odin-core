@@ -10,8 +10,8 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 {
     [ApiController]
-    [Route(AppApiPathConstants.DriveQueryV1)]
-    [Route(GuestApiPathConstants.DriveQueryV1)]
+    [Route(AppApiPathConstantsV1.DriveQueryV1)]
+    [Route(GuestApiPathConstantsV1.DriveQueryV1)]
     [AuthorizeValidGuestOrAppToken]
     public class DriveQueryController : DriveQueryControllerBase
     {

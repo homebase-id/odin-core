@@ -9,7 +9,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     /// Routes reaction requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.PeerReactionContentV1)]
+    [Route(AppApiPathConstantsV1.PeerReactionContentV1)]
     [AuthorizeValidAppToken]
     public class AppPeerReactionContentSenderController(
         PeerReactionSenderService peerReactionSenderService)

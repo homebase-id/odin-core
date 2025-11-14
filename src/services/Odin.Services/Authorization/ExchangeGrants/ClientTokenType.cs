@@ -12,7 +12,11 @@ public enum ClientTokenType
     /// </summary>
     IdentityConnectionRegistration = 2,
 
-    Other = 3,
+    Owner = 3,
+
+    Other = 5,
+    
+    App = 6,
 
     /// <summary>
     /// The bearer was granted access to send data to this identity 
@@ -32,7 +36,7 @@ public enum ClientTokenType
     /// <summary>
     /// The bearer is granted this when s/he is listening to app notifications from a remote identity 
     /// </summary>
-    RemoteNotificationSubscriber = 254,
+    PeerNotificationSubscriber = 254,
 
-    AutomatedPasswordRecovery = 4
+    PeerAutomatedPasswordRecovery = 4
 }

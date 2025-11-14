@@ -5,7 +5,7 @@
         public const string IgnoreAuthCookie = "iac";
     }
 
-    public static class GuestApiPathConstants
+    public static class GuestApiPathConstantsV1
     {
         public const string BasePathV1 = "/api/guest/v1";
 
