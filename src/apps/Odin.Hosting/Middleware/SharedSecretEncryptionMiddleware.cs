@@ -21,6 +21,8 @@ using Odin.Services.Peer;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
+using Odin.Hosting.UnifiedV2;
+using Odin.Hosting.UnifiedV2.Authentication;
 using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting.Middleware
@@ -124,6 +126,10 @@ namespace Odin.Hosting.Middleware
 
                 $"{CdnApiPathConstants.DriveV1}/files/thumb",
                 $"{CdnApiPathConstants.DriveV1}/files/payload",
+                
+                $"{UnifiedApiRouteConstants.Files}/thumb",
+                $"{UnifiedApiRouteConstants.Files}/payload",
+                $"{UnifiedApiRouteConstants.Auth}/verify-shared-secret-encryption",
             ];
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);

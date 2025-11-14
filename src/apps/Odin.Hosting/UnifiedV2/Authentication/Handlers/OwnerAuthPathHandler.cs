@@ -20,26 +20,19 @@ public static class OwnerAuthPathHandler
     {
         if (AuthUtils.TryGetClientAuthToken(context, OwnerAuthConstants.CookieName, out var authResult))
         {
-            try
+            var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
+            var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(context.Request);
+            var clientContext = new OdinClientContext
             {
-                var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-                var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(context.Request);
-                var clientContext = new OdinClientContext
-                {
-                    CorsHostName = null,
-                    ClientIdOrDomain = null,
-                    AccessRegistrationId = authResult.Id,
-                    DevicePushNotificationKey = pushDeviceToken
-                };
-                
-                if (!await authService.UpdateOdinContextAsync(authResult, clientContext, odinContext))
-                {
-                    return AuthenticateResult.Fail("Invalid Owner Token");
-                }
-            }
-            catch (OdinSecurityException e)
+                CorsHostName = null,
+                ClientIdOrDomain = null,
+                AccessRegistrationId = authResult.Id,
+                DevicePushNotificationKey = pushDeviceToken
+            };
+
+            if (!await authService.UpdateOdinContextAsync(authResult, clientContext, odinContext))
             {
-                return AuthenticateResult.Fail(e.Message);
+                return AuthenticateResult.Fail("Invalid Owner Token");
             }
 
             if (odinContext.Caller.OdinId == null)

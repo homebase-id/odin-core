@@ -6,4 +6,7 @@ public static class UnifiedAuthConstants
     /// Scheme for authenticating an individual to the Digital Identity they own
     /// </summary>
     public const string SchemeName = "unified-scheme";
+    
+    public const string Cookie = "xtkn";
+
 }

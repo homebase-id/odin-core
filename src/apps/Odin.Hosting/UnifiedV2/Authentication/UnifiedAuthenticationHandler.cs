@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.UnifiedV2.Authentication.Handlers;
@@ -51,28 +52,39 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         {
             var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
+            // Issue: 
+            // this will break guest becaue it should fall back to anonymous
+
             if (!TryFindThePussyCat(out var token))
             {
+                // fall back to anonymous?  but how do i know if it's youauth or owner, etc.
                 return AuthenticateResult.Fail("Invalid Token");
             }
 
-            switch (token.ClientTokenType)
+            try
             {
-                case ClientTokenType.BuiltInBrowserApp:
-                case ClientTokenType.YouAuth:
-                    return await GuestAuthPathHandler.Handle(Context, odinContext);
+                switch (token.ClientTokenType)
+                {
+                    case ClientTokenType.BuiltInBrowserApp:
+                    case ClientTokenType.YouAuth:
+                        return await GuestAuthPathHandler.Handle(Context, odinContext);
 
-                case ClientTokenType.Owner:
-                    return await OwnerAuthPathHandler.Handle(Context, odinContext);
+                    case ClientTokenType.Owner:
+                        return await OwnerAuthPathHandler.Handle(Context, odinContext);
 
-                case ClientTokenType.App:
-                    return await AppAuthPathHandler.Handle(Context, odinContext);
+                    case ClientTokenType.App:
+                        return await AppAuthPathHandler.Handle(Context, odinContext);
 
-                default:
-                    return AuthenticateResult.Fail("Invalid Path");
+                    default:
+                        return AuthenticateResult.Fail("Invalid Path");
+                }
+            }
+            catch (OdinSecurityException e)
+            {
+                return AuthenticateResult.Fail(e.Message);
             }
         }
-        
+
         public async Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (properties == null)
@@ -108,9 +120,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         {
             return Task.CompletedTask;
         }
-        
+
         //
-        
+
         private bool TryFindThePussyCat(out ClientAuthenticationToken clientAuthToken)
         {
             if (AuthUtils.TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
@@ -125,6 +137,5 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             return AuthUtils.TryGetClientAuthToken(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
         }
-
     }
 }
