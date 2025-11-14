@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.UnifiedV2.Authentication.Handlers;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -48,7 +49,6 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         /// <summary/>
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            // look for the cat
             var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
             if (!TryFindThePussyCat(out var token))
@@ -72,22 +72,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                     return AuthenticateResult.Fail("Invalid Path");
             }
         }
-
-        private bool TryFindThePussyCat(out ClientAuthenticationToken clientAuthToken)
-        {
-            if (AuthUtils.TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
-            {
-                return true;
-            }
-
-            if (AuthUtils.TryGetClientAuthToken(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken, true))
-            {
-                return true;
-            }
-
-            return AuthUtils.TryGetClientAuthToken(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
-        }
-
+        
         public async Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (properties == null)
@@ -123,5 +108,23 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         {
             return Task.CompletedTask;
         }
+        
+        //
+        
+        private bool TryFindThePussyCat(out ClientAuthenticationToken clientAuthToken)
+        {
+            if (AuthUtils.TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
+            {
+                return true;
+            }
+
+            if (AuthUtils.TryGetClientAuthToken(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken, true))
+            {
+                return true;
+            }
+
+            return AuthUtils.TryGetClientAuthToken(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
+        }
+
     }
 }

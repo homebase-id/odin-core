@@ -160,7 +160,7 @@ public class GetPayloadTests
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var metadata = SampleMetadataData.Create(fileType: 100);
-        metadata.AccessControlList = AccessControlList.Anonymous;
+        metadata.AccessControlList = AccessControlList.Authenticated;
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
         var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: false, callerContext);

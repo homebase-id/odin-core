@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Odin.Services.Authorization.ExchangeGrants;
 
-namespace Odin.Hosting.UnifiedV2.Authentication;
+namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
 public static class AuthUtils
 {

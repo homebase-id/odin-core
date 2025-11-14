@@ -22,7 +22,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.YouAuth;
 
-namespace Odin.Hosting.UnifiedV2.Authentication;
+namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
 public static class GuestAuthPathHandler
 {

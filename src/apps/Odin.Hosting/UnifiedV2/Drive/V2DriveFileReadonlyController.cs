@@ -21,11 +21,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
-        private readonly ILogger<V2DriveFileReadonlyController> _logger = logger;
-
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeader([FromQuery] Guid fileId, [FromQuery] Guid driveId)
         {
+            logger.LogDebug("V2 call to get file header");
             var storage = this.GetHttpFileSystemResolver().ResolveFileSystem().Storage;
             var file = new InternalDriveFileId()
             {
@@ -49,6 +48,8 @@ namespace Odin.Hosting.UnifiedV2.Drive
             [FromQuery] int? start,
             [FromQuery] int? length)
         {
+            logger.LogDebug("V2 call to get file payload");
+
             var file = new InternalDriveFileId()
             {
                 FileId = fileId,
@@ -73,6 +74,8 @@ namespace Odin.Hosting.UnifiedV2.Drive
             [FromQuery] string payloadKey,
             [FromQuery] bool directMatchOnly)
         {
+            logger.LogDebug("V2 call to get file thumb");
+
             var file = new InternalDriveFileId()
             {
                 FileId = fileId,

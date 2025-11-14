@@ -12,7 +12,7 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
 using Odin.Services.Base;
 
-namespace Odin.Hosting.UnifiedV2.Authentication;
+namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
 public static class OwnerAuthPathHandler
 {

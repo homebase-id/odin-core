@@ -11,7 +11,7 @@ using Odin.Services.Authorization;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Base;
 
-namespace Odin.Hosting.UnifiedV2.Authentication;
+namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
 public static class AppAuthPathHandler
 {
