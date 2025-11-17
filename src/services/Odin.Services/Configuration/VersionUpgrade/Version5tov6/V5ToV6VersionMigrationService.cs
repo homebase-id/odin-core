@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -37,7 +38,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             await circleDefinitionService.EnsureSystemCirclesExistAsync();
 
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             await EnsureShardRecoveryDriveIsConfiguredForConnectedIdentitiesCircle(odinContext, cancellationToken);
         }
 
@@ -84,10 +85,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             odinContext.Caller.AssertHasMasterKey();
             var allIdentities = await circleNetworkService.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
-            await using var tx = await db.BeginStackedTransactionAsync();
+            await using var tx = await db.BeginStackedTransactionAsync(IsolationLevel.Unspecified, cancellationToken);
 
             var circleId = SystemCircleConstants.ConfirmedConnectionsCircleId;
-            foreach (var identity in allIdentities.Results)
+            foreach (var identity in allIdentities.Results.Where(ident => ident.IsConfirmedConnection()))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
