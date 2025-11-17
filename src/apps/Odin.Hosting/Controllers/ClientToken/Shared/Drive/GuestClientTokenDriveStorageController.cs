@@ -126,7 +126,6 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/thumb")]
         public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            
             return await base.GetThumbnail(request);
         }
 
