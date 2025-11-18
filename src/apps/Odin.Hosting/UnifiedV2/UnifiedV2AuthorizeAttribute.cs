@@ -17,4 +17,5 @@ public static class UnifiedApiRouteConstants
     public const string Auth = BasePath + "/auth";
     public const string Drive = BasePath + "/drive";
     public const string Files = Drive + "/files";
+    public const string Query = Drive + "/query";
 }
