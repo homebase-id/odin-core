@@ -170,6 +170,7 @@ public class GuidId : IGenericCloneable<GuidId>
         }
     }
 
+    // Please don't use this method for anything static
     public static GuidId FromString(string input, bool toLower = true)
     {
         var guid = ByteArrayUtil.ReduceSHA256Hash(toLower ? input.ToLower() : input);

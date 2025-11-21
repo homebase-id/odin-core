@@ -19,38 +19,38 @@ public static class SystemDriveConstants
     
     public static readonly TargetDrive ShardRecoveryDrive = new()
     {
-        Alias = Guid.Parse("46242d0d-6760-4b2a-a683-f05cd48d4aef"),
-        Type = Guid.Parse("43138ae9-0206-480b-9ff4-93580ca147ee")
+        Alias = Guid.Parse("46242d0d67604b2aa683f05cd48d4aef"),
+        Type = Guid.Parse("43138ae90206480b9ff493580ca147ee")
     };
     
     public static readonly TargetDrive TransientTempDrive = new()
     {
-        Alias = GuidId.FromString("transit_temp_drive"),
-        Type = GuidId.FromString("transit_temp_drive")
+        Alias = Guid.Parse("90f5e74ab7f9efda0ac298373a32ad8c"),
+        Type = Guid.Parse("90f5e74ab7f9efda0ac298373a32ad8c"),
     };
 
     public static readonly TargetDrive ContactDrive = new()
     {
-        Alias = GuidId.FromString("built_in_contacts_drive"),
-        Type = GuidId.FromString("contact_drive")
+        Alias = Guid.Parse("2612429d1c3f037282b8d42fb2cc0499"),
+        Type = Guid.Parse("70e92f0f94d05f5c7dcd36466094f3a5")
     };
 
     public static readonly TargetDrive ProfileDrive = new()
     {
-        Alias = GuidId.FromString("standard_profile_drive"),
-        Type = GuidId.FromString("profile_drive")
+        Alias = Guid.Parse("8f12d8c4933813d378488d91ed23b64c"),
+        Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
     };
 
     public static readonly TargetDrive WalletDrive = new()
     {
-        Alias = GuidId.FromString("standard_wallet_drive"),
-        Type = GuidId.FromString("profile_drive")
+        Alias = Guid.Parse("a6f991e214b11c8c9796f664e1ec0cac"),
+        Type = Guid.Parse("597241530e3ef24b28b9a75ec3a5c45c")
     };
 
     public static readonly TargetDrive ChatDrive = new()
     {
-        Alias = GuidId.FromString("builtin_chat_drive"),
-        Type = GuidId.FromString("chat_drive")
+        Alias = Guid.Parse("9ff813aff2d61e2f9b9db189e72d1a11"),
+        Type = Guid.Parse("66ea8355ae4155c39b5a719166b510e3")
     };
 
     public static readonly TargetDrive MailDrive = new()
@@ -61,8 +61,8 @@ public static class SystemDriveConstants
 
     public static readonly TargetDrive FeedDrive = new()
     {
-        Alias = GuidId.FromString("builtin_feed_drive"),
-        Type = GuidId.FromString("feed_drive")
+        Alias = Guid.Parse("4db49422ebad02e99ab96e9c477d1e08"),
+        Type = Guid.Parse("a3227ffba87608beeb24fee9b70d92a6")
     };
 
     public static readonly TargetDrive HomePageConfigDrive = new()
