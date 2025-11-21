@@ -9,8 +9,8 @@ namespace Odin.Services.Membership.Circles;
 
 public static class SystemCircleConstants
 {
-    public static readonly GuidId ConfirmedConnectionsCircleId = GuidId.FromString("we_are_connected");
-    public static readonly GuidId AutoConnectionsCircleId = new Guid("9e22b429-52f7-4d25-80e1-1250b651d343");
+    public static readonly GuidId ConfirmedConnectionsCircleId = Guid.Parse("bb2683fa-402a-ff86-6e77-1a6495765a15");
+    public static readonly GuidId AutoConnectionsCircleId = Guid.Parse("9e22b429-52f7-4d25-80e1-1250b651d343");
 
     public static bool IsSystemCircle(Guid circleId)
     {
