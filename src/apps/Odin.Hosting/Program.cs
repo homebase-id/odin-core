@@ -25,6 +25,7 @@ using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Hosting.Cli;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
+using Odin.Services.Drives;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
@@ -39,6 +40,8 @@ namespace Odin.Hosting
     {
         public static int Main(string[] args)
         {
+            var x = SystemDriveConstants.ChannelDriveType;
+
             var (didHandle, exitCode) = CommandLine.HandleCommandLineArgs(args);
             if (didHandle)
             {
