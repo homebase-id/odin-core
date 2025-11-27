@@ -17,16 +17,21 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 
 namespace Odin.Hosting.UnifiedV2.Authentication
 {
-    public class UnifiedAuthenticationHandler : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
+    public class UnifiedAuthenticationHandler
+        : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
+        private readonly OdinConfiguration _config;
+
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder)
+            UrlEncoder encoder,OdinConfiguration config)
             : base(options, logger, encoder)
         {
+            _config = config;
         }
 
         /// <summary/>
@@ -53,11 +58,11 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
             // Issue: 
-            // this will break guest becaue it should fall back to anonymous
+            // this will break guest because it should fall back to anonymous
 
             if (!TryFindThePussyCat(out var token))
             {
-                // fall back to anonymous?  but how do i know if it's youauth or owner, etc.
+                // fall back to anonymous?  but how do I know if it's youauth or owner, etc.
                 return AuthenticateResult.Fail("Invalid Token");
             }
 
@@ -65,6 +70,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             {
                 switch (token.ClientTokenType)
                 {
+                    case ClientTokenType.Cdn:
+                        return await CdnAuthPathHandler.Handle(Context, odinContext);
+                    
                     case ClientTokenType.BuiltInBrowserApp:
                     case ClientTokenType.YouAuth:
                         return await GuestAuthPathHandler.Handle(Context, odinContext);
@@ -125,6 +133,14 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         private bool TryFindThePussyCat(out ClientAuthenticationToken clientAuthToken)
         {
+            if (_config.Cdn.Enabled)
+            {
+                if (AuthUtils.TryGetClientAuthToken(this.Context, OdinHeaderNames.OdinCdnAuth, out clientAuthToken, preferHeader: true))
+                {
+                    return true;
+                }
+            }
+            
             if (AuthUtils.TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
             {
                 return true;

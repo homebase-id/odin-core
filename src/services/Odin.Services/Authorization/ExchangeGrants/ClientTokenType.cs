@@ -15,7 +15,7 @@ public enum ClientTokenType
     Owner = 3,
 
     Other = 5,
-    
+
     App = 6,
 
     /// <summary>
@@ -38,5 +38,7 @@ public enum ClientTokenType
     /// </summary>
     PeerNotificationSubscriber = 254,
 
-    PeerAutomatedPasswordRecovery = 4
+    PeerAutomatedPasswordRecovery = 4,
+
+    Cdn = 17
 }

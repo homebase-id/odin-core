@@ -567,6 +567,10 @@ public class OdinConfiguration
         public bool Enabled { get; init; }
         public string PayloadBaseUrl { get; init; } = null;
 
+        /// <summary>
+        /// A ClientAuthentication Token in base64 format
+        /// </summary>
+        public string RequiredAuthToken64 { get; init; }
         public CdnSection()
         {
             // Mockable support
@@ -590,6 +594,8 @@ public class OdinConfiguration
                         PayloadBaseUrl += '/';
                     }
                 }
+
+                RequiredAuthToken64 = config.Required<string>("Cdn:RequiredAuthToken");
             }
         }
     }
