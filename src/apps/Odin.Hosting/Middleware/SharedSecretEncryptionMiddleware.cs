@@ -69,7 +69,8 @@ namespace Odin.Hosting.Middleware
                 $"{OwnerApiPathConstants.SecurityRecoveryV1}/verify-email",
                 $"{OwnerApiPathConstants.SecurityRecoveryV1}/recovery-info", // <wtf!?
                 $"{OwnerApiPathConstants.SecurityRecoveryV1}/needs-attention", // <wtf^2!?
-                
+                $"{OwnerApiPathConstants.SecurityRecoveryV1}/update-monthly-security-health-report-status", // <wtf^2!?
+                $"{OwnerApiPathConstants.SecurityRecoveryV1}/monthly-security-health-report-status", // <wtf^2!?
 
                 $"{GuestApiPathConstants.DriveV1}/files/upload",
                 $"{GuestApiPathConstants.DriveV1}/files/uploadpayload",

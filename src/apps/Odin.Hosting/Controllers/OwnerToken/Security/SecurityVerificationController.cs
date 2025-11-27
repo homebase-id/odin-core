@@ -6,6 +6,7 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Configuration;
 using Odin.Services.Security;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -17,6 +18,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class SecurityVerificationController(
     OwnerSecurityHealthService securityHealthService,
+    TenantConfigService tenantConfigService,
     PasswordKeyRecoveryService passwordKeyRecoveryService) : OdinControllerBase
 {
     [HttpPost("verify-password")]
@@ -47,6 +49,26 @@ public class SecurityVerificationController(
     public async Task<RecoveryInfo> GetRecoveryInfo([FromQuery] bool live = false)
     {
         return await securityHealthService.GetRecoveryInfo(live, WebOdinContext);
+    }
+
+    [HttpPost("update-monthly-security-health-report-status")]
+    public async Task<IActionResult> UpdateMonthlyReportStatus([FromQuery] bool enabled = false)
+    {
+        var request = new UpdateFlagRequest()
+        {
+            FlagName = TenantConfigFlagNames.SendMonthlySecurityHealthReport.ToString(),
+            Value = enabled.ToString()
+        };
+
+        await tenantConfigService.UpdateSystemFlagAsync(request, WebOdinContext);
+        return Ok();
+    }
+    
+    [HttpGet("monthly-security-health-report-status")]
+    public async Task<IActionResult> GetSecurityHealthReportStatus()
+    {
+        var settings = await tenantConfigService.GetTenantSettingsAsync();
+        return Ok(settings.SendMonthlySecurityHealthReport);
     }
 
     [HttpPost("update-recovery-email")]

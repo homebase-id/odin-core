@@ -33,5 +33,8 @@ public enum TenantConfigFlagNames
     ConnectedIdentitiesCanCommentOnAnonymousDrives,
     
     /// <summary/>
-    DisableAutoAcceptIntroductionsForTests
+    DisableAutoAcceptIntroductionsForTests,
+    
+    /// <summary/>
+    SendMonthlySecurityHealthReport
 }

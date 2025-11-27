@@ -125,6 +125,14 @@ public class SecurityHealthCheckJob(
             return null;
         }
 
+        var settings = lifetimeScope.Resolve<TenantSettings>();
+        if (settings.
+            SendMonthlySecurityHealthReport)
+        {
+            logger.LogDebug("{tenant} has opt-ed out of monthly security health check", Data.Tenant);
+            return null;
+        }
+
         var driveManager = lifetimeScope.Resolve<IDriveManager>();
         var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
         if (null == shardDrive)

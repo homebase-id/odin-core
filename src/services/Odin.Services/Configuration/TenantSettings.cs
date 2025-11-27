@@ -21,7 +21,8 @@ public class TenantSettings
         AuthenticatedIdentitiesCanReactOnAnonymousDrives = true,
         ConnectedIdentitiesCanReactOnAnonymousDrives = true,
         ConnectedIdentitiesCanCommentOnAnonymousDrives = true,
-        DisableAutoAcceptIntroductionsForTests = false
+        DisableAutoAcceptIntroductionsForTests = false,
+        SendMonthlySecurityHealthReport = true
     };
 
     /// <summary/>
@@ -48,6 +49,8 @@ public class TenantSettings
     public bool ConnectedIdentitiesCanReactOnAnonymousDrives { get; set; }
     
     public bool DisableAutoAcceptIntroductionsForTests { get; set; }
+    
+    public bool SendMonthlySecurityHealthReport { get; set; }
     
     public bool DisableAutoAcceptIntroductions { get; set; }
 
@@ -84,8 +87,7 @@ public class TenantSettings
 
         return anonymousDrivePermission;
     }
-
-
+    
     public List<int> GetAdditionalPermissionKeysForConnectedIdentities()
     {
         List<int> permissionKeys = new List<int>();
