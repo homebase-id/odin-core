@@ -22,7 +22,7 @@ public class TenantSettings
         ConnectedIdentitiesCanReactOnAnonymousDrives = true,
         ConnectedIdentitiesCanCommentOnAnonymousDrives = true,
         DisableAutoAcceptIntroductionsForTests = false,
-        SendMonthlySecurityHealthReport = true
+        SendMonthlySecurityHealthReport = false
     };
 
     /// <summary/>

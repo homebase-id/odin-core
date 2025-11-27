@@ -79,9 +79,26 @@ public class SecurityHealthCheckJob(
             var recoveryInfo = await RunHealthCheck(scope, odinContext);
             if (null != recoveryInfo)
             {
-                // notify the user of health check
-                var recoveryNotifier = scope.Resolve<RecoveryNotifier>();
-                await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext);
+                var settings = scope.Resolve<TenantSettings>();
+                if (settings.SendMonthlySecurityHealthReport)
+                {
+                    var service = scope.Resolve<OwnerSecurityHealthService>();
+                    var needsAttention = await service.GetSecurityNeedsAttentionStatus(odinContext);
+                    if (needsAttention)
+                    {
+                        // notify the user of health check
+                        var recoveryNotifier = scope.Resolve<RecoveryNotifier>();
+                        await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext);
+                    }
+                    else
+                    {
+                        logger.LogDebug("{tenant} -> Not sending security health report since no items need attention", Data.Tenant);
+                    }
+                }
+                else
+                {
+                    logger.LogDebug("{tenant} has opt-ed out of monthly security health check", Data.Tenant);
+                }
             }
         }
         catch (Exception e)
@@ -125,25 +142,17 @@ public class SecurityHealthCheckJob(
             return null;
         }
 
-        var settings = lifetimeScope.Resolve<TenantSettings>();
-        if (settings.
-            SendMonthlySecurityHealthReport)
-        {
-            logger.LogDebug("{tenant} has opt-ed out of monthly security health check", Data.Tenant);
-            return null;
-        }
-
         var driveManager = lifetimeScope.Resolve<IDriveManager>();
         var shardDrive = await driveManager.GetDriveAsync(SystemDriveConstants.ShardRecoveryDrive.Alias);
         if (null == shardDrive)
         {
-            logger.LogDebug("{job} -> Sharding drive not yet configured (Tenant probably needs to upgrade)",
-                nameof(SecurityHealthCheckJob));
+            logger.LogDebug("{job} -> Sharding drive not yet configured (Tenant might need to upgrade)", nameof(SecurityHealthCheckJob));
             return null;
         }
 
         var service = lifetimeScope.Resolve<OwnerSecurityHealthService>();
         var result = await service.GetRecoveryInfo(live: true, odinContext);
+        
         return result;
     }
 

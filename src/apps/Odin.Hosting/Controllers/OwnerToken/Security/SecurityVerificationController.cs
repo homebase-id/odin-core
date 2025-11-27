@@ -18,8 +18,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class SecurityVerificationController(
     OwnerSecurityHealthService securityHealthService,
-    TenantConfigService tenantConfigService,
-    PasswordKeyRecoveryService passwordKeyRecoveryService) : OdinControllerBase
+    TenantConfigService tenantConfigService) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
@@ -63,7 +62,7 @@ public class SecurityVerificationController(
         await tenantConfigService.UpdateSystemFlagAsync(request, WebOdinContext);
         return Ok();
     }
-    
+
     [HttpGet("monthly-security-health-report-status")]
     public async Task<IActionResult> GetSecurityHealthReportStatus()
     {
@@ -81,37 +80,8 @@ public class SecurityVerificationController(
     [HttpGet("needs-attention")]
     public async Task<ActionResult<NeedsAttentionResponse>> RecoveryNeedsAttention()
     {
-        if (!(await passwordKeyRecoveryService.HasRecoveryKeyBeenViewed()))
-        {
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-        }
-
-        var recoveryInfo = await securityHealthService.GetRecoveryInfo(live: false, WebOdinContext);
-
-        if (recoveryInfo is null)
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-
-        if (!recoveryInfo.IsConfigured ||
-            string.IsNullOrEmpty(recoveryInfo.Email) ||
-            !recoveryInfo.EmailLastVerified.HasValue ||
-            !recoveryInfo.RecoveryRisk.IsRecoverable)
-        {
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-        }
-
-        var maxWait = TimeSpan.FromDays(30 * 6);
-        var now = DateTime.UtcNow;
-
-        bool IsStale(DateTime dt) => now - dt.ToUniversalTime() > maxWait;
-
-        if (IsStale(recoveryInfo.EmailLastVerified.Value.ToDateTime()) ||
-            IsStale(recoveryInfo.Status.RecoveryKeyLastVerified.ToDateTime()) ||
-            IsStale(recoveryInfo.Status.PasswordLastVerified.ToDateTime()))
-        {
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-        }
-
-        return Ok(new NeedsAttentionResponse() { NeedsAttention = false });
+        var needsAttention = await securityHealthService.GetSecurityNeedsAttentionStatus(WebOdinContext);
+        return Ok(new NeedsAttentionResponse() { NeedsAttention = needsAttention });
     }
 
     [HttpGet("verify-email")]

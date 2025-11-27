@@ -11,6 +11,7 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
@@ -27,6 +28,7 @@ namespace Odin.Services.Security.Health;
 public class OwnerSecurityHealthService(
     OwnerSecretService secretService,
     PasswordKeyRecoveryService recoveryService,
+    TenantConfigService tenantConfigService,
     ShamirConfigurationService shamirConfigurationService,
     ShamirReadinessCheckerService readinessCheckerService,
     PublicPrivateKeyService publicPrivateKeyService,
@@ -134,6 +136,15 @@ public class OwnerSecurityHealthService(
     {
         odinContext.Caller.AssertHasMasterKey();
         await recoveryService.UpdateAccountRecoveryEmail(nonceId);
+        
+        logger.LogDebug("Account Recovery Email verified, enabling security health report");
+        var request = new UpdateFlagRequest()
+        {
+            FlagName = TenantConfigFlagNames.SendMonthlySecurityHealthReport.ToString(),
+            Value = true.ToString()
+        };
+
+        await tenantConfigService.UpdateSystemFlagAsync(request, odinContext);
     }
 
     /// <summary>
@@ -202,6 +213,43 @@ public class OwnerSecurityHealthService(
         await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
     }
 
+    public async Task<bool> GetSecurityNeedsAttentionStatus(IOdinContext odinContext)
+    {
+        if (!(await recoveryService.HasRecoveryKeyBeenViewed()))
+        {
+            return true;
+        }
+
+        var recoveryInfo = await GetRecoveryInfo(live: false, odinContext);
+
+        if (recoveryInfo is null)
+        {
+            return true;
+        }
+
+        if (!recoveryInfo.IsConfigured ||
+            string.IsNullOrEmpty(recoveryInfo.Email) ||
+            !recoveryInfo.EmailLastVerified.HasValue ||
+            !recoveryInfo.RecoveryRisk.IsRecoverable)
+        {
+            return true;
+        }
+
+        var maxWait = TimeSpan.FromDays(30 * 6);
+        var now = DateTime.UtcNow;
+
+        bool IsStale(DateTime dt) => now - dt.ToUniversalTime() > maxWait;
+
+        if (IsStale(recoveryInfo.EmailLastVerified.Value.ToDateTime()) ||
+            IsStale(recoveryInfo.Status.RecoveryKeyLastVerified.ToDateTime()) ||
+            IsStale(recoveryInfo.Status.PasswordLastVerified.ToDateTime()))
+        {
+            return true;
+        }
+
+        return false;
+    }
+    
     private async Task<VerificationStatus> GetVerificationStatusInternalAsync()
     {
         var status = await VerificationStatusStorage.GetAsync<VerificationStatus>(keyValueTable, VerificationStorageId);
