@@ -9,19 +9,15 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
 public static class AppAuthPathHandler
 {
-    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext)
+    public static async Task<AuthenticateResult> Handle(HttpContext context, ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
     {
-        if (!AuthUtils.TryGetClientAuthToken(context, YouAuthConstants.AppCookieName, out var clientAuthToken, true))
-        {
-            return AuthenticateResult.Fail("Invalid App Token");
-        }
-
         var appRegService = context.RequestServices.GetRequiredService<IAppRegistrationService>();
         odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
@@ -49,7 +45,7 @@ public static class AppAuthPathHandler
             AuthenticationCookieUtil.SetCookie(context.Response, YouAuthConstants.AppCookieName, clientAuthToken);
         }
 
-        return AuthUtils.CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName, clientAuthToken.ClientTokenType);
+        return AuthUtils.CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName, clientAuthToken);
     }
 
     public static Task HandleSignOut(HttpContext context, IOdinContext odinContext)

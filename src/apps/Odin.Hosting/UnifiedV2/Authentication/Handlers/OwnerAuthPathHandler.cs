@@ -6,73 +6,55 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Core.Exceptions;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
 public static class OwnerAuthPathHandler
 {
-    public static async Task<AuthenticateResult> Handle(HttpContext context, IOdinContext odinContext)
+    public static async Task<AuthenticateResult> Handle(HttpContext context, ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
     {
-        if (AuthUtils.TryGetClientAuthToken(context, OwnerAuthConstants.CookieName, out var authResult))
+        var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
+        var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(context.Request);
+        var clientContext = new OdinClientContext
         {
-            var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(context.Request);
-            var clientContext = new OdinClientContext
-            {
-                CorsHostName = null,
-                ClientIdOrDomain = null,
-                AccessRegistrationId = authResult.Id,
-                DevicePushNotificationKey = pushDeviceToken
-            };
+            CorsHostName = null,
+            ClientIdOrDomain = null,
+            AccessRegistrationId = clientAuthToken.Id,
+            DevicePushNotificationKey = pushDeviceToken
+        };
 
-            if (!await authService.UpdateOdinContextAsync(authResult, clientContext, odinContext))
-            {
-                return AuthenticateResult.Fail("Invalid Owner Token");
-            }
-
-            if (odinContext.Caller.OdinId == null)
-            {
-                return AuthenticateResult.Fail("Missing OdinId");
-            }
-
-            var claims = new List<Claim>()
-            {
-                new(ClaimTypes.Name, odinContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.Issuer),
-                new(OdinClaimTypes.IsIdentityOwner, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-                new(OdinClaimTypes.IsAuthorizedApp, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-                new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
-            };
-
-            var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
-            ClaimsPrincipal principal = new ClaimsPrincipal(identity);
-
-            AuthenticationProperties authProperties = new AuthenticationProperties
-            {
-                IssuedUtc = DateTime.UtcNow,
-                ExpiresUtc = DateTime.UtcNow.AddDays(1),
-                AllowRefresh = true,
-                IsPersistent = true
-            };
-
-            var ticket = new AuthenticationTicket(principal, authProperties, UnifiedAuthConstants.SchemeName);
-            ticket.Properties.SetParameter(OwnerAuthConstants.CookieName, authResult.Id);
-            return AuthenticateResult.Success(ticket);
+        if (!await authService.UpdateOdinContextAsync(clientAuthToken, clientContext, odinContext))
+        {
+            return AuthenticateResult.Fail("Invalid Owner Token");
         }
 
-        return AuthenticateResult.Fail("Invalid or missing token");
+        if (odinContext.Caller.OdinId == null)
+        {
+            return AuthenticateResult.Fail("Missing OdinId");
+        }
+
+        var claims = new List<Claim>()
+        {
+            new(ClaimTypes.Name, odinContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.Issuer),
+            new(OdinClaimTypes.IsIdentityOwner, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+            new(OdinClaimTypes.IsAuthorizedApp, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
+            new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
+        };
+       
+        var result = AuthUtils.CreateAuthenticationResult(claims, 
+            UnifiedAuthConstants.SchemeName,
+            clientAuthToken);
+        return result;
     }
 
-    public static async Task HandleSignOut(HttpContext context)
+    public static async Task HandleSignOut(HttpContext context, Guid tokenId)
     {
-        if (AuthUtils.TryGetClientAuthToken(context, OwnerAuthConstants.CookieName, out var token))
-        {
-            var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            await authService.ExpireTokenAsync(token.Id);
-        }
+        var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
+        await authService.ExpireTokenAsync(tokenId);
     }
 }

@@ -347,6 +347,15 @@ public class DriveManager : IDriveManager
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
+    
+    public async Task<PagedResult<StorageDrive>> GetCdnEnabledDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
+    {
+        var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
+        var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads || drive.AttributeHasFalseValue(StorageDrive.BlockCdnAttributeName)).ToList();
+        var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
+        return results;
+    }
+
 
     private async Task<StorageDriveData?> GetDriveInternal(Guid driveId)
     {
