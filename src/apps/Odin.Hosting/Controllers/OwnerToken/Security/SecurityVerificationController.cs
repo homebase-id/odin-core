@@ -7,8 +7,10 @@ using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Configuration;
+using Odin.Services.JobManagement;
 using Odin.Services.Security;
 using Odin.Services.Security.Health;
+using Odin.Services.Security.Job;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
@@ -18,7 +20,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class SecurityVerificationController(
     OwnerSecurityHealthService securityHealthService,
-    TenantConfigService tenantConfigService) : OdinControllerBase
+    TenantConfigService tenantConfigService,
+    IJobManager jobManager) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
@@ -63,6 +66,27 @@ public class SecurityVerificationController(
         return Ok();
     }
 
+    [HttpPost("force-send-monthly-security-health-report")]
+    public async Task<IActionResult> ForceMonthlyReportSend()
+    {
+        var job = jobManager.NewJob<SecurityHealthCheckJob>();
+        job.Data = new SecurityHealthCheckJobData()
+        {
+            Tenant =  WebOdinContext.Tenant
+        };
+
+        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now,
+            MaxAttempts = 20,
+            RetryDelay = TimeSpan.FromSeconds(3),
+            OnSuccessDeleteAfter = TimeSpan.FromMinutes(0),
+            OnFailureDeleteAfter = TimeSpan.FromMinutes(0),
+        });
+
+        return Ok();
+    }
+    
     [HttpGet("monthly-security-health-report-status")]
     public async Task<IActionResult> GetSecurityHealthReportStatus()
     {

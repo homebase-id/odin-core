@@ -79,7 +79,8 @@ public class SecurityHealthCheckJob(
             var recoveryInfo = await RunHealthCheck(scope, odinContext);
             if (null != recoveryInfo)
             {
-                var settings = scope.Resolve<TenantSettings>();
+                var cfg = scope.Resolve<TenantConfigService>();
+                var settings = await cfg.GetTenantSettingsAsync();
                 if (settings.SendMonthlySecurityHealthReport)
                 {
                     var service = scope.Resolve<OwnerSecurityHealthService>();
@@ -112,7 +113,7 @@ public class SecurityHealthCheckJob(
 
     public override string? CreateJobHash()
     {
-        var text = JobType + Data.Tenant;
+        var text = JobType + Data.Tenant + "p";
         return SHA256.HashData(text.ToUtf8ByteArray()).ToBase64();
     }
 
@@ -152,7 +153,7 @@ public class SecurityHealthCheckJob(
 
         var service = lifetimeScope.Resolve<OwnerSecurityHealthService>();
         var result = await service.GetRecoveryInfo(live: true, odinContext);
-        
+
         return result;
     }
 
