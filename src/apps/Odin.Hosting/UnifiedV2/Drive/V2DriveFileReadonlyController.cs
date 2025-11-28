@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -22,10 +23,11 @@ namespace Odin.Hosting.UnifiedV2.Drive
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
         [HttpGet("header")]
-        public async Task<IActionResult> GetFileHeader([FromQuery] Guid fileId, [FromQuery] Guid driveId)
+        public async Task<IActionResult> GetFileHeader([FromQuery] Guid fileId, [FromQuery] Guid driveId,
+            [FromQuery] FileSystemType fst = FileSystemType.Standard)
         {
             logger.LogDebug("V2 call to get file header");
-            var storage = this.GetHttpFileSystemResolver().ResolveFileSystem().Storage;
+            var storage = this.GetHttpFileSystemResolver().ResolveFileSystem(fst).Storage;
             var file = new InternalDriveFileId()
             {
                 FileId = fileId,
@@ -46,7 +48,8 @@ namespace Odin.Hosting.UnifiedV2.Drive
         public async Task<IActionResult> GetPayload([FromQuery] Guid fileId, [FromQuery] Guid driveId,
             [FromQuery] string key,
             [FromQuery] int? start,
-            [FromQuery] int? length)
+            [FromQuery] int? length,
+            [FromQuery] FileSystemType fst = FileSystemType.Standard)
         {
             logger.LogDebug("V2 call to get file payload");
 
@@ -57,7 +60,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
             };
 
             FileChunk chunk = this.GetChunk(start == 0 ? null : start, length == 0 ? null : length);
-            var payload = await GetPayloadStream(file, key, chunk);
+            var payload = await GetPayloadStream(file, key, chunk, fst);
 
             if (WebOdinContext.Caller.IsAnonymous)
             {
@@ -70,9 +73,11 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [HttpGet("thumb")]
         [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid driveId,
-            [FromQuery] int width, [FromQuery] int height,
+            [FromQuery] int width,
+            [FromQuery] int height,
             [FromQuery] string payloadKey,
-            [FromQuery] bool directMatchOnly)
+            [FromQuery] bool directMatchOnly,
+            [FromQuery] FileSystemType fst = FileSystemType.Standard)
         {
             logger.LogDebug("V2 call to get file thumb");
 
@@ -82,7 +87,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 DriveId = driveId
             };
 
-            return await GetThumbnail(file, width, height, payloadKey, directMatchOnly);
+            return await GetThumbnail(file, width, height, payloadKey, directMatchOnly, fst);
         }
     }
 }

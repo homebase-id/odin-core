@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
@@ -99,14 +100,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
-            return await GetPayloadStream(MapToInternalFile(request.File), request.Key, request.Chunk);
+            var fst = this.GetHttpFileSystemResolver().GetFileSystemType();
+            return await GetPayloadStream(MapToInternalFile(request.File), request.Key, request.Chunk, fst);
         }
 
-        protected async Task<IActionResult> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
+        protected async Task<IActionResult> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk, FileSystemType fst)
         {
             TenantPathManager.AssertValidPayloadKey(key);
 
-            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = GetHttpFileSystemResolver().ResolveFileSystem(fst);
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, key, WebOdinContext);
@@ -170,19 +172,21 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
+            var fst = this.GetHttpFileSystemResolver().GetFileSystemType();
             return await GetThumbnail(MapToInternalFile(request.File),
-                request.Width, 
-                request.Height, 
+                request.Width,
+                request.Height,
                 request.PayloadKey,
-                request.DirectMatchOnly);
+                request.DirectMatchOnly,
+                fst);
         }
 
         protected async Task<IActionResult> GetThumbnail(InternalDriveFileId file, int width, int height, string payloadKey,
-            bool directMatchOnly)
+            bool directMatchOnly, FileSystemType fst)
         {
             TenantPathManager.AssertValidPayloadKey(payloadKey);
 
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem(fst);
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, payloadKey, WebOdinContext);

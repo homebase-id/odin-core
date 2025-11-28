@@ -90,12 +90,9 @@ public class FileSystemHttpRequestResolver
         throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
     }
 
-    /// <summary />
-    public IDriveFileSystem ResolveFileSystem()
+    public IDriveFileSystem ResolveFileSystem(FileSystemType fst)
     {
         var ctx = _contextAccessor.HttpContext;
-
-        var fst = GetFileSystemType();
 
         if (fst == FileSystemType.Standard)
         {
@@ -108,6 +105,13 @@ public class FileSystemHttpRequestResolver
         }
 
         throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
+    }
+    
+    /// <summary />
+    public IDriveFileSystem ResolveFileSystem()
+    {
+        var fst = GetFileSystemType();
+        return ResolveFileSystem(fst);
     }
 
     public FileSystemType GetFileSystemType()
