@@ -72,7 +72,8 @@ public class SecurityVerificationController(
         var job = jobManager.NewJob<SecurityHealthCheckJob>();
         job.Data = new SecurityHealthCheckJobData()
         {
-            Tenant =  WebOdinContext.Tenant
+            Tenant =  WebOdinContext.Tenant,
+            Force = true
         };
 
         await jobManager.ScheduleJobAsync(job, new JobSchedule

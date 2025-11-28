@@ -30,6 +30,7 @@ namespace Odin.Services.Security.Job;
 public class SecurityHealthCheckJobData
 {
     public OdinId Tenant { get; init; }
+    public bool Force { get; set; }
 }
 
 // ReSharper disable once ClassNeverInstantiated.Global (well, it is done so by DI)
@@ -113,7 +114,7 @@ public class SecurityHealthCheckJob(
 
     public override string? CreateJobHash()
     {
-        var text = JobType + Data.Tenant + "p";
+        var text = JobType + Data.Tenant + (Data.Force ? Guid.NewGuid().ToString() : string.Empty);
         return SHA256.HashData(text.ToUtf8ByteArray()).ToBase64();
     }
 
