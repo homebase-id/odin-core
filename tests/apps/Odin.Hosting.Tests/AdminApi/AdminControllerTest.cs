@@ -246,12 +246,12 @@ public class AdminControllerTest
 
         var exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.True);
-        var deleted = await jobManager.DeleteJobAsync(jobId);
+        var deleted = await jobManager.DeleteJobByIdAsync(jobId);
         Assert.That(deleted, Is.True);
 
         exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.False);
-        deleted = await jobManager.DeleteJobAsync(jobId);
+        deleted = await jobManager.DeleteJobByIdAsync(jobId);
         Assert.That(deleted, Is.False);
 
         request = NewRequestMessage(HttpMethod.Get, location);
@@ -309,12 +309,12 @@ public class AdminControllerTest
 
         var exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.True);
-        var deleted = await jobManager.DeleteJobAsync(jobId);
+        var deleted = await jobManager.DeleteJobByIdAsync(jobId);
         Assert.That(deleted, Is.True);
 
         exists = await jobManager.JobExistsAsync(jobId);
         Assert.That(exists, Is.False);
-        deleted = await jobManager.DeleteJobAsync(jobId);
+        deleted = await jobManager.DeleteJobByIdAsync(jobId);
         Assert.That(deleted, Is.False);
 
         request = NewRequestMessage(HttpMethod.Get, location);
