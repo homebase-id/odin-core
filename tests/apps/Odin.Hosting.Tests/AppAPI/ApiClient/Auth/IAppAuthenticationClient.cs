@@ -8,12 +8,12 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Auth
 {
     public interface IAppAuthenticationClient
     {
-        private const string RootPath = AppApiPathConstants.AuthV1;
+        private const string RootPath = AppApiPathConstantsV1.AuthV1;
 
         [Post(RootPath + "/logout")]
         public Task<HttpContent> Logout();
 
-        [Post(AppApiPathConstants.NotificationsV1 + "/preauth")]
+        [Post(AppApiPathConstantsV1.NotificationsV1 + "/preauth")]
         public Task<ApiResponse<HttpContent>> PreAuthWebsocket();
     }
 }

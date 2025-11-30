@@ -6,7 +6,7 @@ using Odin.Services.Base;
 namespace Odin.Hosting.Controllers.ClientToken.App.Membership.CircleMembership
 {
     [ApiController]
-    [Route(AppApiPathConstants.CirclesV1 + "/membership")]
+    [Route(AppApiPathConstantsV1.CirclesV1 + "/membership")]
     [AuthorizeValidAppToken]
     public class AppCircleMembershipController : CircleMembershipControllerBase
     {

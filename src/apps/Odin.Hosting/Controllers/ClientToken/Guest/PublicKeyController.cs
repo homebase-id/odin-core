@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Odin.Hosting.Controllers.ClientToken.Guest
 {
     [ApiController]
-    [Route(GuestApiPathConstants.PublicKeysV1)]
+    [Route(GuestApiPathConstantsV1.PublicKeysV1)]
     public class PublicKeyController(PublicPrivateKeyService publicKeyService) : ControllerBase
     {
         [HttpGet("signing")]

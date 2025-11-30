@@ -9,7 +9,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Drive.Outbox
 {
     /// <summary />
     [ApiController]
-    [Route(AppApiPathConstants.DriveV1)]
+    [Route(AppApiPathConstantsV1.DriveV1)]
     [AuthorizeValidAppToken]
     public class AppDriveDriveStatusController(
         StandardFileSystem fileSystem,

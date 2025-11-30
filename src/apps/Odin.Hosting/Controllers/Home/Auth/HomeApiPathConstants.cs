@@ -4,7 +4,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 {
     public static class HomeApiPathConstants
     {
-        private const string BasePathV1 = GuestApiPathConstants.BuiltIn +"/home";
+        private const string BasePathV1 = GuestApiPathConstantsV1.BuiltIn +"/home";
         public const string AuthV1 = BasePathV1 + "/auth";
         public const string DataV1 = BasePathV1 + "/data";
         public const string CacheableV1 = DataV1 + "/cacheable";

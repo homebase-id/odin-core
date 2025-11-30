@@ -9,6 +9,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Util;
 
@@ -17,9 +18,12 @@ namespace Odin.Services.Authorization;
 /// <summary>
 /// Stores the server-side aspect of a <see cref="ClientAccessToken"/>
 /// </summary>
-public class ClientRegistrationStorage(TableClientRegistrations clientRegistrationsTable, ILogger<ClientRegistrationStorage> logger, OdinConfiguration configuration)
+public class ClientRegistrationStorage(
+    TableClientRegistrations clientRegistrationsTable,
+    ILogger<ClientRegistrationStorage> logger,
+    OdinConfiguration configuration,
+    OdinContextCache odinContextCache)
 {
-    
     private static readonly TimeSpan Window = TimeSpan.FromDays(1);
 
     public async Task SaveAsync(IClientRegistration clientRegistration)
@@ -28,7 +32,7 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
 
         var threshold = configuration.Host.ClientRegistrationThreshold;
         var windowThreshold = configuration.Host.ClientRegistrationWindowThreshold;
-        
+
         var now = DateTime.UtcNow;
         var previousRegistrations = await clientRegistrationsTable.GetByTypeAndIssuedToAsync(
             clientRegistration.Type, clientRegistration.IssuedTo);
@@ -112,9 +116,9 @@ public class ClientRegistrationStorage(TableClientRegistrations clientRegistrati
     public async Task DeleteAsync(Guid tokenId)
     {
         await clientRegistrationsTable.DeleteAsync(tokenId);
+        await odinContextCache.ResetAsync();
     }
-
-
+    
     private static string FormatTimespan()
     {
         var span = Window;

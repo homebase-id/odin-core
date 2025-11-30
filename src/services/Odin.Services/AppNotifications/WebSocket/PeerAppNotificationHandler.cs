@@ -480,7 +480,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             if (ClientAuthenticationToken.TryParse(clientAuthToken64, out var clientAuthToken))
             {
-                if (clientAuthToken.ClientTokenType != ClientTokenType.RemoteNotificationSubscriber)
+                if (clientAuthToken.ClientTokenType != ClientTokenType.PeerNotificationSubscriber)
                 {
                     throw new OdinSecurityException("Invalid Client Token Type");
                 }

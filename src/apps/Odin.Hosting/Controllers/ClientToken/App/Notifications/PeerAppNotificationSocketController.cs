@@ -16,7 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
     [ApiController]
     // [AuthorizeValidAppNotificationSubscriberToken]
-    [Route(GuestApiPathConstants.PeerNotificationsV1)]
+    [Route(GuestApiPathConstantsV1.PeerNotificationsV1)]
     public class PeerAppNotificationSocketController(
         PeerAppNotificationHandler notificationHandler,
         IHostApplicationLifetime hostApplicationLifetime)

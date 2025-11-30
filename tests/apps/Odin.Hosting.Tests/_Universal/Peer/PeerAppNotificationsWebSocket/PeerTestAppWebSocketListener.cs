@@ -47,7 +47,7 @@ public sealed class PeerTestAppWebSocketListener
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{GuestApiPathConstants.PeerNotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{GuestApiPathConstantsV1.PeerNotificationsV1}/ws");
         await _clientWebSocket.ConnectAsync(uri, tokenSource.Token);
 
         var request = new SocketCommand

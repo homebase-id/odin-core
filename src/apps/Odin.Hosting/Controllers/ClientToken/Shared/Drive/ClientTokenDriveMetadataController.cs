@@ -13,8 +13,8 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 {
     [ApiController]
-    [Route(AppApiPathConstants.DriveV1)]
-    [Route(GuestApiPathConstants.DriveV1)]
+    [Route(AppApiPathConstantsV1.DriveV1)]
+    [Route(GuestApiPathConstantsV1.DriveV1)]
     [AuthorizeValidGuestOrAppToken]
     public class ClientTokenDriveMetadataController : OdinControllerBase
     {

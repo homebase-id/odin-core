@@ -11,8 +11,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Configuration;
 /// Configuration for the owner's system
 /// </summary>
 [ApiController]
-[Route(AppApiPathConstants.DriveV1)]
-[Route(GuestApiPathConstants.DriveV1)]
+[Route(AppApiPathConstantsV1.DriveV1)]
+[Route(GuestApiPathConstantsV1.DriveV1)]
 [AuthorizeValidGuestOrAppToken]
 public class ConfigurationController : Controller
 {

@@ -22,7 +22,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
     /// </summary>
     public interface IDriveTestHttpClientForApps
     {
-        private const string RootEndpoint = AppApiPathConstants.DriveV1;
+        private const string RootEndpoint = AppApiPathConstantsV1.DriveV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/upload")]

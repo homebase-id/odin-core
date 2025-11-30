@@ -8,7 +8,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Drive.GroupReactions;
 
 /// <summary />
 [ApiController]
-[Route(AppApiPathConstants.DriveGroupReactionsV1)]
+[Route(AppApiPathConstantsV1.DriveGroupReactionsV1)]
 [AuthorizeValidAppToken]
 public class AppDriveGroupReactionContentController : DriveGroupReactionControllerBase
 {

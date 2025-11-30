@@ -18,7 +18,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.DriveV1)]
+    [Route(AppApiPathConstantsV1.DriveV1)]
     [AuthorizeValidAppToken]
     public class AppClientTokenDriveStorageController(
         ILogger<AppClientTokenDriveStorageController> logger,

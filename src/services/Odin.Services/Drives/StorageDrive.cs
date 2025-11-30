@@ -17,42 +17,49 @@ namespace Odin.Services.Drives;
 [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
 public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDriveData data)
 {
+    public const string BlockCdnAttributeName = "blockcdn";
     internal StorageDriveData Data { get; } = data;
 
     public Guid Id => Data.Id;
     public string Name => Data.Name;
     public TargetDrive TargetDriveInfo => Data.TargetDriveInfo;
     public Guid TempOriginalDriveId => Data.TempOriginalDriveId;
+
     public string Metadata
     {
         get => Data.Metadata;
         set => Data.Metadata = value;
     }
+
     public bool IsReadonly
     {
         get => Data.IsReadonly;
         set => Data.IsReadonly = value;
     }
+
     public bool AllowSubscriptions
     {
         get => Data.AllowSubscriptions;
         set => Data.AllowSubscriptions = value;
     }
+
     public bool IsArchived
     {
         get => Data.IsArchived;
         set => Data.IsArchived = value;
     }
+
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => Data.MasterKeyEncryptedStorageKey;
     public byte[] EncryptedIdIv => Data.EncryptedIdIv;
     public byte[] EncryptedIdValue => Data.EncryptedIdValue;
+
     public bool AllowAnonymousReads
     {
         get => Data.AllowAnonymousReads;
         set => Data.AllowAnonymousReads = value;
     }
-    
-    
+
+
     public Dictionary<string, string> Attributes
     {
         get => Data.Attributes ?? new Dictionary<string, string>();
@@ -128,12 +135,33 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
                flagValue;
     }
 
+    public bool AttributeHasFalseValue(string attribute)
+    {
+        if (null == Attributes)
+        {
+            return false;
+        }
+
+        // if the attribute does not exist, the attribute as a false value
+        if (!Attributes.TryGetValue(attribute, out string value))
+        {
+            return true;
+        }
+
+        // if the attribute value cannot be parsed, it is a false value
+        if (!bool.TryParse(value, out bool flagValue))
+        {
+            return true;
+        }
+
+        return flagValue == false;
+    }
+
     public bool IsCollaborationDrive()
     {
         return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
     }
 }
-
 
 // This guy needs to be serializable
 public sealed class StorageDriveData
@@ -182,7 +210,6 @@ public sealed class StorageDriveData
     public bool AllowSubscriptions { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
-    
-    public bool IsArchived { get; set; }
 
+    public bool IsArchived { get; set; }
 }
