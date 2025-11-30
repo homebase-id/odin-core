@@ -106,28 +106,8 @@ public class JobManager(
                 var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
                 if (existingRecord != null)
                 {
-                    if (record.nextRun < existingRecord.nextRun)
-                    {
-                        // Update existing job to run earlier
-                        existingRecord.nextRun = record.nextRun;
-                        await tableJobs.UpdateAsync(existingRecord);
-                        logger.LogDebug(
-                            "JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, updated existing job id:{OldJobId} to run at {runat}",
-                            existingRecord.name,
-                            jobId,
-                            record.jobHash,
-                            existingRecord.id,
-                            DateTimeOffset.FromUnixTimeMilliseconds(existingRecord.nextRun.milliseconds).ToString("O"));
-                    }
-                    else
-                    {
-                        logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                            existingRecord.name,
-                            jobId,
-                            record.jobHash,
-                            existingRecord.id);
-                    }
-
+                    logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
+                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
                     return existingRecord.id;
                 }
 
