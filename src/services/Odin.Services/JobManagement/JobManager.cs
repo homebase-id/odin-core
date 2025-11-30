@@ -21,7 +21,8 @@ public interface IJobManager
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
     Task<long> CountJobsAsync();
-    Task<bool> DeleteJobAsync(Guid jobId);
+    Task<bool> DeleteJobByIdAsync(Guid jobId);
+    Task<bool> DeleteJobByHashAsync(string jobHash);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
     Task DeleteExpiredJobsAsync();
@@ -77,7 +78,9 @@ public class JobManager(
         if (record.jobHash == null)
         {
             logger.LogDebug("JobManager scheduling job '{name}' id:{jobId} for {runat}",
-                job.Name, jobId, schedule.RunAt.ToString("O"));
+                job.Name,
+                jobId,
+                schedule.RunAt.ToString("O"));
             await tableJobs.InsertAsync(record);
         }
         else
@@ -85,10 +88,15 @@ public class JobManager(
             logger.LogDebug("JobManager scheduling unique job '{name}' id:{jobId} hash:{jobHash} for {runat}",
                 job.Name, jobId, record.jobHash, schedule.RunAt.ToString("O"));
 
+            //
             // We give it a few tries to insert the job / lookup the existing job from the unique hash, since
             // a race between many jobs having the same hash, where one of them completes and then being deleted
             // while another job is being scheduled with the same hash, will fail to look it up. In which case
             // we let it retry the insert.
+            //
+            // It is not allowed to reschedule unique jobs here, since jobs that are created during program startup
+            // might never get to run.
+            //
 
             var didInsert = false;
             var attempt = 0;
@@ -98,8 +106,28 @@ public class JobManager(
                 var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
                 if (existingRecord != null)
                 {
-                    logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
+                    if (record.nextRun < existingRecord.nextRun)
+                    {
+                        // Update existing job to run earlier
+                        existingRecord.nextRun = record.nextRun;
+                        await tableJobs.UpdateAsync(existingRecord);
+                        logger.LogDebug(
+                            "JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, updated existing job id:{OldJobId} to run at {runat}",
+                            existingRecord.name,
+                            jobId,
+                            record.jobHash,
+                            existingRecord.id,
+                            DateTimeOffset.FromUnixTimeMilliseconds(existingRecord.nextRun.milliseconds).ToString("O"));
+                    }
+                    else
+                    {
+                        logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
+                            existingRecord.name,
+                            jobId,
+                            record.jobHash,
+                            existingRecord.id);
+                    }
+
                     return existingRecord.id;
                 }
 
@@ -344,11 +372,20 @@ public class JobManager(
 
     //
 
-    public async Task<bool> DeleteJobAsync(Guid jobId)
+    public async Task<bool> DeleteJobByIdAsync(Guid jobId)
     {
         var result = await tableJobs.DeleteAsync(jobId);
         return result > 0;
     }
+
+    //
+
+    public async Task<bool> DeleteJobByHashAsync(string jobHash)
+    {
+        var result = await tableJobs.DeleteByHashAsync(jobHash);
+        return result > 0;
+    }
+
 
     //
 

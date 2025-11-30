@@ -287,7 +287,7 @@ public class JobManagerTests
         Assert.That(jobCount, Is.EqualTo(1));
 
         // Act
-        var deleted = await jobManager.DeleteJobAsync(jobId);
+        var deleted = await jobManager.DeleteJobByIdAsync(jobId);
         
         // Assert
         Assert.That(deleted, Is.True);

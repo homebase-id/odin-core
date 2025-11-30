@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.System.Connection;
 using Odin.Core.Storage.Factory;
@@ -49,6 +50,23 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
 
         var count = (long)(await cmd.ExecuteScalarAsync() ?? 0L);
         return count > 0L;
+    }
+
+    //
+
+    public async Task<int> DeleteByHashAsync(string jobHash)
+    {
+        if (string.IsNullOrEmpty(jobHash))
+        {
+            return 0;
+        }
+
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM Jobs WHERE jobHash = @hash";
+        cmd.AddParameter("@hash", DbType.String, jobHash);
+        var count = await cmd.ExecuteNonQueryAsync();
+        return count;
     }
 
     //
