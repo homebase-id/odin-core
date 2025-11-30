@@ -50,13 +50,13 @@ public class JobManager(
     
     public async Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null)
     {
-        var jobId = Guid.NewGuid();
+        Guid? result = null;
         
         schedule ??= new JobSchedule();
 
         var record = new JobsRecord
         {
-            id = jobId,
+            id = Guid.NewGuid(),
             name = job.Name,
             state = (int)JobState.Scheduled,
             priority = schedule.Priority,
@@ -78,15 +78,19 @@ public class JobManager(
         if (record.jobHash == null)
         {
             logger.LogDebug("JobManager scheduling job '{name}' id:{jobId} for {runat}",
-                job.Name,
-                jobId,
-                schedule.RunAt.ToString("O"));
+                record.name,
+                record.id,
+                DateTimeOffset.FromUnixTimeMilliseconds(record.nextRun.milliseconds).ToString("O"));
             await tableJobs.InsertAsync(record);
+            result = record.id;
         }
         else
         {
             logger.LogDebug("JobManager scheduling unique job '{name}' id:{jobId} hash:{jobHash} for {runat}",
-                job.Name, jobId, record.jobHash, schedule.RunAt.ToString("O"));
+                record.name,
+                record.id,
+                record.jobHash,
+                DateTimeOffset.FromUnixTimeMilliseconds(record.nextRun.milliseconds).ToString("O"));
 
             //
             // We give it a few tries to insert the job / lookup the existing job from the unique hash, since
@@ -94,41 +98,60 @@ public class JobManager(
             // while another job is being scheduled with the same hash, will fail to look it up. In which case
             // we let it retry the insert.
             //
-            // It is not allowed to reschedule unique jobs here, since jobs that are created during program startup
-            // might never get to run.
-            //
 
-            var didInsert = false;
             var attempt = 0;
-            while (!didInsert && attempt < 5)
+            while (result == null && attempt < 5)
             {
-                // Check if job already exists, lets look it up using the jobHash
+                // Check if job already exists by looking up the jobHash
                 var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
-                if (existingRecord != null)
+
+                if (existingRecord == null)
+                {
+                    // Create new unique job
+                    if (await tableJobs.TryInsertAsync(record))
+                    {
+                        result = record.id;
+                    }
+                }
+                else if (record.nextRun < existingRecord.nextRun)
+                {
+                    // Allow rescheduling an existing unique job to an earlier time.
+                    // NOTE that it is NOT allowed to reschedule to a later time, since that could cause
+                    // jobs created at program start to never run.
+                    existingRecord.nextRun = record.nextRun;
+                    logger.LogDebug("JobManager rescheduling existing unique job '{name}' id:{id} hash:{jobHash} for {runat}",
+                        existingRecord.name,
+                        existingRecord.id,
+                        existingRecord.jobHash,
+                        DateTimeOffset.FromUnixTimeMilliseconds(existingRecord.nextRun.milliseconds).ToString("O"));
+                    await tableJobs.UpdateAsync(existingRecord);
+                    result = existingRecord.id;
+                }
+                else
                 {
                     logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                        existingRecord.name,
-                        jobId,
+                        record.name,
+                        record.id,
                         record.jobHash,
                         existingRecord.id);
-                    return existingRecord.id;
+                    result = existingRecord.id;
                 }
 
-                didInsert = await tableJobs.TryInsertAsync(record);
                 attempt++;
             }
-            if (!didInsert)
-            {
-                var error = $"Could neither insert nor lookup job '{job.Name}' with hash:{record.jobHash}. Check logs. Good luck.";
-                logger.LogError(error);
-                throw new JobNotFoundException(error);
-            }
         }
-        
+
+        if (result == null)
+        {
+            var error = $"Could neither insert nor lookup job '{record.name}' with hash:{record.jobHash}. Check logs. Good luck.";
+            logger.LogError(error);
+            throw new JobManagerException(error);
+        }
+
         // Signal job runner to wake up
         await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
 
-        return jobId;
+        return result.Value;
     }
 
     //
