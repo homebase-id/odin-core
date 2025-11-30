@@ -6,8 +6,11 @@ using Odin.Core.Cryptography.Login;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Configuration;
+using Odin.Services.JobManagement;
 using Odin.Services.Security;
 using Odin.Services.Security.Health;
+using Odin.Services.Security.Job;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Security;
@@ -17,7 +20,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class SecurityVerificationController(
     OwnerSecurityHealthService securityHealthService,
-    PasswordKeyRecoveryService passwordKeyRecoveryService) : OdinControllerBase
+    TenantConfigService tenantConfigService,
+    IJobManager jobManager) : OdinControllerBase
 {
     [HttpPost("verify-password")]
     public async Task<IActionResult> VerifyPassword([FromBody] PasswordReply package)
@@ -49,6 +53,48 @@ public class SecurityVerificationController(
         return await securityHealthService.GetRecoveryInfo(live, WebOdinContext);
     }
 
+    [HttpPost("update-monthly-security-health-report-status")]
+    public async Task<IActionResult> UpdateMonthlyReportStatus([FromQuery] bool enabled = false)
+    {
+        var request = new UpdateFlagRequest()
+        {
+            FlagName = TenantConfigFlagNames.SendMonthlySecurityHealthReport.ToString(),
+            Value = enabled.ToString()
+        };
+
+        await tenantConfigService.UpdateSystemFlagAsync(request, WebOdinContext);
+        return Ok();
+    }
+
+    [HttpPost("force-send-monthly-security-health-report")]
+    public async Task<IActionResult> ForceMonthlyReportSend()
+    {
+        var job = jobManager.NewJob<SecurityHealthCheckJob>();
+        job.Data = new SecurityHealthCheckJobData()
+        {
+            Tenant =  WebOdinContext.Tenant,
+            Force = true
+        };
+
+        await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            RunAt = DateTimeOffset.Now,
+            MaxAttempts = 20,
+            RetryDelay = TimeSpan.FromSeconds(3),
+            OnSuccessDeleteAfter = TimeSpan.FromMinutes(0),
+            OnFailureDeleteAfter = TimeSpan.FromMinutes(0),
+        });
+
+        return Ok();
+    }
+    
+    [HttpGet("monthly-security-health-report-status")]
+    public async Task<IActionResult> GetSecurityHealthReportStatus()
+    {
+        var settings = await tenantConfigService.GetTenantSettingsAsync();
+        return Ok(settings.SendMonthlySecurityHealthReport);
+    }
+
     [HttpPost("update-recovery-email")]
     public async Task<IActionResult> UpdateRecoveryEmail([FromBody] UpdateRecoveryEmailRequest request)
     {
@@ -59,37 +105,8 @@ public class SecurityVerificationController(
     [HttpGet("needs-attention")]
     public async Task<ActionResult<NeedsAttentionResponse>> RecoveryNeedsAttention()
     {
-        if (!(await passwordKeyRecoveryService.HasRecoveryKeyBeenViewed()))
-        {
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-        }
-
-        var recoveryInfo = await securityHealthService.GetRecoveryInfo(live: false, WebOdinContext);
-
-        if (recoveryInfo is null)
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-
-        if (!recoveryInfo.IsConfigured ||
-            string.IsNullOrEmpty(recoveryInfo.Email) ||
-            !recoveryInfo.EmailLastVerified.HasValue ||
-            !recoveryInfo.RecoveryRisk.IsRecoverable)
-        {
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-        }
-
-        var maxWait = TimeSpan.FromDays(30 * 6);
-        var now = DateTime.UtcNow;
-
-        bool IsStale(DateTime dt) => now - dt.ToUniversalTime() > maxWait;
-
-        if (IsStale(recoveryInfo.EmailLastVerified.Value.ToDateTime()) ||
-            IsStale(recoveryInfo.Status.RecoveryKeyLastVerified.ToDateTime()) ||
-            IsStale(recoveryInfo.Status.PasswordLastVerified.ToDateTime()))
-        {
-            return Ok(new NeedsAttentionResponse() { NeedsAttention = true });
-        }
-
-        return Ok(new NeedsAttentionResponse() { NeedsAttention = false });
+        var needsAttention = await securityHealthService.GetSecurityNeedsAttentionStatus(WebOdinContext);
+        return Ok(new NeedsAttentionResponse() { NeedsAttention = needsAttention });
     }
 
     [HttpGet("verify-email")]

@@ -324,9 +324,12 @@ public class TenantConfigService(
                 cfg.DisableAutoAcceptIntroductionsForTests = bool.Parse(request.Value);
                 break;
 
+            case TenantConfigFlagNames.SendMonthlySecurityHealthReport:
+                cfg.SendMonthlySecurityHealthReport = bool.Parse(request.Value);
+                break;
+
             default:
-                throw new OdinClientException("Flag name is valid but not handled",
-                    OdinClientErrorCode.UnknownFlagName);
+                throw new OdinClientException("Flag name is valid but not handled", OdinClientErrorCode.UnknownFlagName);
         }
 
         await ConfigStorage.UpsertAsync(identityDatabase.KeyValueCached, TenantSettings.ConfigKey, cfg);
