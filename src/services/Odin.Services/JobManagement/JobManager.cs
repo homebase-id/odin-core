@@ -107,7 +107,10 @@ public class JobManager(
                 if (existingRecord != null)
                 {
                     logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
+                        existingRecord.name,
+                        jobId,
+                        record.jobHash,
+                        existingRecord.id);
                     return existingRecord.id;
                 }
 
