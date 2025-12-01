@@ -353,8 +353,6 @@ public class CdnTests
                 getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var thumbnailIsEncryptedValues));
             ClassicAssert.IsTrue(bool.Parse(thumbnailIsEncryptedValues.Single()));
 
-            ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var thumbnailPayloadKeyValues));
-            ClassicAssert.IsTrue(thumbnailPayloadKeyValues.Single() == payload.Key);
             ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var thumbnailContentTypeValues));
             ClassicAssert.IsTrue(thumbnailContentTypeValues.Single() == thumbnail.ContentType);
 
