@@ -98,7 +98,7 @@ public class GetPayloadTests
         //
         // can get header
         //
-        var getHeaderResponse = await client.GetFileHeader(file);
+        var getHeaderResponse = await client.GetFileHeaderAsync(file);
         ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode, $"code was {getHeaderResponse.StatusCode}");
         var header = getHeaderResponse.Content;
         ClassicAssert.IsNotNull(header);
@@ -113,7 +113,7 @@ public class GetPayloadTests
 
 
         // Get the payload and check the headers
-        var getPayloadKey1Response = await client.GetPayload(file, payload.Key);
+        var getPayloadKey1Response = await client.GetPayloadAsync(file, payload.Key);
 
         ClassicAssert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode, $"Code should have been {expectedStatusCode} but" +
                                                                                       $" was {getPayloadKey1Response.StatusCode}");
@@ -174,7 +174,7 @@ public class GetPayloadTests
         //
         // can get header
         //
-        var getHeaderResponse = await client.GetFileHeader(file);
+        var getHeaderResponse = await client.GetFileHeaderAsync(file);
         ClassicAssert.IsTrue(getHeaderResponse.StatusCode == expectedStatusCode, $"code was {getHeaderResponse.StatusCode}");
         
 
@@ -196,7 +196,7 @@ public class GetPayloadTests
 
 
             // Get the payload and check the headers
-            var getPayloadKey1Response = await client.GetPayload(file, payload.Key);
+            var getPayloadKey1Response = await client.GetPayloadAsync(file, payload.Key);
 
             ClassicAssert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode, $"Code should have been {expectedStatusCode} but" +
                                                                                           $" was {getPayloadKey1Response.StatusCode}");

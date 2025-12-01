@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public class DriveV2Client(OdinId identity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file,
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(ExternalFileIdentifier file,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
@@ -21,7 +21,7 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
         return apiResponse;
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
+    public async Task<ApiResponse<HttpContent>> GetPayloadAsync(ExternalFileIdentifier file, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
@@ -29,8 +29,8 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetPayload(file.FileId, file.TargetDrive.Alias, key, chunk?.Start ?? 0, chunk?.Length ?? 0);
     }
 
-    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, string payloadKey,
-        FileSystemType fileSystemType = FileSystemType.Standard, bool directMatchOnly = false)
+    public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(ExternalFileIdentifier file, int width, int height, string payloadKey,
+        bool directMatchOnly = false, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IDriveHttpClientApiV2>(client, sharedSecret);

@@ -141,11 +141,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-
-            if (WebOdinContext.Caller.ClientTokenType != ClientTokenType.Cdn)
-            {
-                HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
-            }
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader?.ToBase64());
 
             if (null != chunk)
             {
@@ -219,12 +215,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-
-            if (WebOdinContext.Caller.ClientTokenType != ClientTokenType.Cdn)
-            {
-                HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64,
-                    encryptedKeyHeaderForPayload.ToBase64());
-            }
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64,
+                encryptedKeyHeaderForPayload?.ToBase64());
 
             AddGuestApiCacheHeader();
 
