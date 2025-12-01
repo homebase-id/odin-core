@@ -342,7 +342,7 @@ public class CdnTests
                 $"get thumbnail failed - code was {getThumbnailResponse.StatusCode}");
            
             var expectedThumbnail = uploadedThumbnails.Single();
-            var actualThumbnailBytes = await getPayloadKey1Response.Content.ReadAsByteArrayAsync();
+            var actualThumbnailBytes = await getThumbnailResponse.Content.ReadAsByteArrayAsync();
             ClassicAssert.IsTrue(expectedThumbnail.EncryptedContent64 == actualThumbnailBytes.ToBase64(), "thumbnail content is not as expected");
 
             
