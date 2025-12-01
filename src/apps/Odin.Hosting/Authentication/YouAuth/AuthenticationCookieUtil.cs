@@ -6,9 +6,10 @@ namespace Odin.Hosting.Authentication.YouAuth;
 
 internal static class AuthenticationCookieUtil
 {
-    public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken,
-        SameSiteMode ssm = SameSiteMode.Strict)
+    public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken)
     {
+        SameSiteMode ssm = SameSiteMode.Strict;
+        
         var options = new CookieOptions()
         {
             HttpOnly = true,

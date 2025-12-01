@@ -43,6 +43,8 @@ public static class AppAuthPathHandler
         if (context.Request.Path.StartsWithSegments($"{AppApiPathConstantsV1.NotificationsV1}/preauth"))
         {
             AuthenticationCookieUtil.SetCookie(context.Response, YouAuthConstants.AppCookieName, clientAuthToken);
+            // v2 auth
+            AuthenticationCookieUtil.SetCookie(context.Response, UnifiedAuthConstants.CookieName, clientAuthToken);
         }
 
         return AuthUtils.CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName, clientAuthToken);

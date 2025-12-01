@@ -34,13 +34,15 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         private readonly OdinConfiguration _config;
+        private readonly ILogger<UnifiedAuthenticationHandler> _localLogger;
 
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, OdinConfiguration config)
+            UrlEncoder encoder, OdinConfiguration config, ILogger<UnifiedAuthenticationHandler> localLogger)
             : base(options, logger, encoder)
         {
             _config = config;
+            _localLogger = localLogger;
         }
 
         /// <summary/>
@@ -158,8 +160,10 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             return result ?? await CreateAnonResult(context, odinContext);
         }
 
+        
         private bool TryFindClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
+         
             if (_config.Cdn.Enabled)
             {
                 if (TryGetClientAuthToken(this.Context, OdinHeaderNames.OdinCdnAuth, out clientAuthToken, preferHeader: true))
@@ -168,6 +172,12 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                 }
             }
 
+            if (TryGetClientAuthToken(this.Context, UnifiedAuthConstants.CookieName, out clientAuthToken))
+            {
+                _localLogger.LogDebug("Using the Unified cookie");
+                return true;
+            }
+            
             if (TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
             {
                 return true;

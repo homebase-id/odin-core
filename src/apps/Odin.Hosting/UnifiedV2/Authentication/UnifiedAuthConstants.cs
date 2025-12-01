@@ -7,6 +7,6 @@ public static class UnifiedAuthConstants
     /// </summary>
     public const string SchemeName = "unified-scheme";
     
-    public const string Cookie = "xtkn";
+    public const string CookieName = "xtkn";
 
 }

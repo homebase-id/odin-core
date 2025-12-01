@@ -21,6 +21,7 @@ using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Home.Service;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Odin.Hosting.UnifiedV2.Authentication;
 using Odin.Services.Authorization;
 
 namespace Odin.Hosting.Controllers.Home.Auth
@@ -97,6 +98,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
                 var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccessAsync(odinId, clientAuthToken);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken!.ToAuthenticationToken());
+                AuthenticationCookieUtil.SetCookie(Response, UnifiedAuthConstants.CookieName, clientAccessToken!.ToAuthenticationToken());
 
                 var url = GetFinalUrl(odinId, clientAccessToken, authState);
                 return Redirect(url);
