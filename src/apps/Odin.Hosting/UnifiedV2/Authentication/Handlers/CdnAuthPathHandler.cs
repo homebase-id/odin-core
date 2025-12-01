@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core;
-using Odin.Core.Exceptions;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;
@@ -35,15 +34,24 @@ public static class CdnAuthPathHandler
         {
             return AuthenticateResult.Fail("Invalid path");
         }
-        
+
         var config = context.RequestServices.GetRequiredService<OdinConfiguration>();
 
-        if (config.Cdn.ExpectedAuthToken.Id != clientAuthToken.Id || 
-            config.Cdn.ExpectedAuthToken.AccessTokenHalfKey != clientAuthToken.AccessTokenHalfKey)
+        if (config.Cdn.Enabled == false)
+        {
+            return AuthenticateResult.Fail("CDN is not enabled");
+        }
+
+        var idMatches = config.Cdn.ExpectedAuthToken.Id == clientAuthToken.Id;
+        var halfKeyMatches = ByteArrayUtil.EquiByteArrayCompare(
+            config.Cdn.ExpectedAuthToken.AccessTokenHalfKey.GetKey(),
+            clientAuthToken.AccessTokenHalfKey.GetKey());
+        
+        if (!(idMatches && halfKeyMatches))
         {
             return AuthenticateResult.Fail("Invalid auth token");
         }
-        
+
         odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
 
         return await CreateAuthResult(context, odinContext);
@@ -72,7 +80,7 @@ public static class CdnAuthPathHandler
 
         if (!drives.Results.Any())
         {
-           return AuthenticateResult.Fail("No CDN enabled drives configured");
+            return AuthenticateResult.Fail("No CDN enabled drives configured");
         }
 
         var anonDriveGrants = drives.Results.Select(d => new DriveGrant()
@@ -93,7 +101,8 @@ public static class CdnAuthPathHandler
         odinContext.Caller = new CallerContext(
             odinId: null,
             securityLevel: SecurityGroupType.System,
-            masterKey: null
+            masterKey: null,
+            tokenType: ClientTokenType.Cdn
         );
 
         odinContext.SetPermissionContext(

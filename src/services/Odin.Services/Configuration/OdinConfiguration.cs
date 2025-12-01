@@ -569,6 +569,7 @@ public class OdinConfiguration
         public string PayloadBaseUrl { get; init; } = null;
 
         public ClientAuthenticationToken ExpectedAuthToken { get; init; }
+        
         public CdnSection()
         {
             // Mockable support

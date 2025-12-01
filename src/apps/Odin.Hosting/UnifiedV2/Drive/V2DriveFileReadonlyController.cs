@@ -66,7 +66,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
             {
                 HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
             }
-
+            
             return payload;
         }
 
