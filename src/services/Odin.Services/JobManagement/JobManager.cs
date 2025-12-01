@@ -21,7 +21,8 @@ public interface IJobManager
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
     Task<long> CountJobsAsync();
-    Task<bool> DeleteJobAsync(Guid jobId);
+    Task<bool> DeleteJobByIdAsync(Guid jobId);
+    Task<bool> DeleteJobByHashAsync(string jobHash);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
     Task DeleteExpiredJobsAsync();
@@ -49,13 +50,13 @@ public class JobManager(
     
     public async Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null)
     {
-        var jobId = Guid.NewGuid();
+        Guid? result = null;
         
         schedule ??= new JobSchedule();
 
         var record = new JobsRecord
         {
-            id = jobId,
+            id = Guid.NewGuid(),
             name = job.Name,
             state = (int)JobState.Scheduled,
             priority = schedule.Priority,
@@ -77,47 +78,66 @@ public class JobManager(
         if (record.jobHash == null)
         {
             logger.LogDebug("JobManager scheduling job '{name}' id:{jobId} for {runat}",
-                job.Name, jobId, schedule.RunAt.ToString("O"));
+                record.name,
+                record.id,
+                DateTimeOffset.FromUnixTimeMilliseconds(record.nextRun.milliseconds).ToString("O"));
             await tableJobs.InsertAsync(record);
+            result = record.id;
         }
         else
         {
             logger.LogDebug("JobManager scheduling unique job '{name}' id:{jobId} hash:{jobHash} for {runat}",
-                job.Name, jobId, record.jobHash, schedule.RunAt.ToString("O"));
+                record.name,
+                record.id,
+                record.jobHash,
+                DateTimeOffset.FromUnixTimeMilliseconds(record.nextRun.milliseconds).ToString("O"));
 
+            //
             // We give it a few tries to insert the job / lookup the existing job from the unique hash, since
             // a race between many jobs having the same hash, where one of them completes and then being deleted
             // while another job is being scheduled with the same hash, will fail to look it up. In which case
             // we let it retry the insert.
+            //
 
-            var didInsert = false;
             var attempt = 0;
-            while (!didInsert && attempt < 5)
+            while (result == null && attempt < 5)
             {
-                // Check if job already exists, lets look it up using the jobHash
+                // Check if job already exists by looking up the jobHash
                 var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
-                if (existingRecord != null)
+
+                if (existingRecord == null)
+                {
+                    // Create new unique job
+                    if (await tableJobs.TryInsertAsync(record))
+                    {
+                        result = record.id;
+                    }
+                }
+                else
                 {
                     logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
-                        existingRecord.name, jobId, record.jobHash, existingRecord.id);
-                    return existingRecord.id;
+                        record.name,
+                        record.id,
+                        record.jobHash,
+                        existingRecord.id);
+                    result = existingRecord.id;
                 }
 
-                didInsert = await tableJobs.TryInsertAsync(record);
                 attempt++;
             }
-            if (!didInsert)
-            {
-                var error = $"Could neither insert nor lookup job '{job.Name}' with hash:{record.jobHash}. Check logs. Good luck.";
-                logger.LogError(error);
-                throw new JobNotFoundException(error);
-            }
         }
-        
+
+        if (result == null)
+        {
+            var error = $"Could neither insert nor lookup job '{record.name}' with hash:{record.jobHash}. Check logs. Good luck.";
+            logger.LogError(error);
+            throw new JobManagerException(error);
+        }
+
         // Signal job runner to wake up
         await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
 
-        return jobId;
+        return result.Value;
     }
 
     //
@@ -344,11 +364,20 @@ public class JobManager(
 
     //
 
-    public async Task<bool> DeleteJobAsync(Guid jobId)
+    public async Task<bool> DeleteJobByIdAsync(Guid jobId)
     {
         var result = await tableJobs.DeleteAsync(jobId);
         return result > 0;
     }
+
+    //
+
+    public async Task<bool> DeleteJobByHashAsync(string jobHash)
+    {
+        var result = await tableJobs.DeleteByHashAsync(jobHash);
+        return result > 0;
+    }
+
 
     //
 

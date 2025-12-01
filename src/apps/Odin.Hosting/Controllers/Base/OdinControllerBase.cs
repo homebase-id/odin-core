@@ -59,6 +59,8 @@ public abstract class OdinControllerBase : ControllerBase
         // Validates the drive exists
         _ = driveManager.GetDriveAsync(file.TargetDrive.Alias, failIfInvalid: true).GetAwaiter().GetType();
 
+        OdinValidationUtils.AssertNotEmptyGuid(file.TargetDrive.Alias, "Target drive alias is required");
+        
         return new InternalDriveFileId()
         {
             FileId = file.FileId,

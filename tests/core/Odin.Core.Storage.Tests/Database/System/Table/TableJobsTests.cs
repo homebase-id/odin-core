@@ -163,6 +163,34 @@ public class TableJobsTests : IocTestBase
 
     //
 
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldDeleteJobByHash(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var jobs = scope.Resolve<TableJobs>();
+
+        var record = NewJobsRecord();
+        record.jobHash = "my unique hash value";
+        await jobs.InsertAsync(record);
+
+        var job = await jobs.GetJobByHashAsync(record.jobHash);
+        Assert.That(job, Is.Not.Null);
+        Assert.That(job!.id, Is.EqualTo(record.id));
+
+        var deletedCount = await jobs.DeleteByHashAsync("my unique hash value");
+        Assert.That(deletedCount, Is.EqualTo(1));
+
+        job = await jobs.GetJobByHashAsync("my unique hash value");
+        Assert.That(job, Is.Null);
+    }
+
+    //
+
     private JobsRecord NewJobsRecord()
     {
         return new JobsRecord

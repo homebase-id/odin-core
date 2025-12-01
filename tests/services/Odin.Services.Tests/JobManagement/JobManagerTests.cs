@@ -287,7 +287,7 @@ public class JobManagerTests
         Assert.That(jobCount, Is.EqualTo(1));
 
         // Act
-        var deleted = await jobManager.DeleteJobAsync(jobId);
+        var deleted = await jobManager.DeleteJobByIdAsync(jobId);
         
         // Assert
         Assert.That(deleted, Is.True);
@@ -848,7 +848,7 @@ public class JobManagerTests
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _container.Resolve<IJobManager>();
 
-        var dt1 = DateTimeOffset.UtcNow.AddMinutes(1);
+        var dt1 = DateTimeOffset.UtcNow.AddMinutes(10);
         var schedule1 = new JobSchedule { RunAt = dt1 };
 
         var job1 = _container.Resolve<JobWithHashTest>();
@@ -869,8 +869,22 @@ public class JobManagerTests
 
         {
             // Make sure the schedule didn't change
-            var scheduleJob1 = await jobManager.GetJobAsync<JobWithHashTest>(jobId2);
-            Assert.That(scheduleJob1!.Record!.nextRun.milliseconds, Is.EqualTo(dt1.ToUnixTimeMilliseconds()));
+            var scheduleJob = await jobManager.GetJobAsync<JobWithHashTest>(jobId2);
+            Assert.That(scheduleJob!.Record!.nextRun.milliseconds, Is.EqualTo(dt1.ToUnixTimeMilliseconds()));
+        }
+
+        var dt3 = DateTimeOffset.UtcNow.AddMinutes(-2);
+        var schedule3 = new JobSchedule { RunAt = dt3 };
+
+        var job3 = _container.Resolve<JobWithHashTest>();
+        var jobId3 = await jobManager.ScheduleJobAsync(job3, schedule3);
+
+        Assert.That(jobId1, Is.EqualTo(jobId3));
+
+        {
+            // Make sure the schedule didn't change
+            var scheduleJob = await jobManager.GetJobAsync<JobWithHashTest>(jobId3);
+            Assert.That(scheduleJob!.Record!.nextRun.milliseconds, Is.EqualTo(dt1.ToUnixTimeMilliseconds()));
         }
 
         AssertLogEvents();

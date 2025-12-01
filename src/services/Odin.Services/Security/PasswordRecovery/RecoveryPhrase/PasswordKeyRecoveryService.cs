@@ -198,6 +198,7 @@ public class PasswordKeyRecoveryService(
         var recovery = await GetAccountRecoveryInfo() ?? new AccountRecoveryInfo();
         recovery.Email = email;
         recovery.EmailLastVerified = UnixTimeUtc.Now();
+        
         await AccountRecoveryInfoStorage.UpsertAsync(tblKeyValue, _accountRecoveryInfoStorageId, recovery);
     }
 

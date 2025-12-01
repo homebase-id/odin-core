@@ -117,7 +117,11 @@ public sealed class YouAuthAuthorizeRequest
         }
         if (ClientType == ClientType.domain && ClientId != redirectUriHost)
         {
-            throw new BadRequestException($"{ClientIdName} must equal host {redirectUriHost} when {ClientTypeName} is {ClientType.domain}");
+            // Make it easier to do local app development
+            if (redirectUriHost != "localhost")
+            {
+                throw new BadRequestException($"{ClientIdName} must equal host {redirectUriHost} when {ClientTypeName} is {ClientType.domain}");
+            }
         }
         if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(PermissionRequest))
         {
