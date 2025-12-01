@@ -113,20 +113,6 @@ public class JobManager(
                         result = record.id;
                     }
                 }
-                else if (record.nextRun < existingRecord.nextRun)
-                {
-                    // Allow rescheduling an existing unique job to an earlier time.
-                    // NOTE that it is NOT allowed to reschedule to a later time, since that could cause
-                    // jobs created at program start to never run.
-                    existingRecord.nextRun = record.nextRun;
-                    logger.LogDebug("JobManager rescheduling existing unique job '{name}' id:{id} hash:{jobHash} for {runat}",
-                        existingRecord.name,
-                        existingRecord.id,
-                        existingRecord.jobHash,
-                        DateTimeOffset.FromUnixTimeMilliseconds(existingRecord.nextRun.milliseconds).ToString("O"));
-                    await tableJobs.UpdateAsync(existingRecord);
-                    result = existingRecord.id;
-                }
                 else
                 {
                     logger.LogDebug("JobManager unique job '{name}' id:{NewJobId} hash:{jobHash} already exists, returning existing job id:{OldJobId}",
