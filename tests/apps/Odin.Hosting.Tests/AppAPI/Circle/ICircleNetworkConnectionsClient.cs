@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
     [Obsolete]
     public interface ICircleNetworkConnectionsClient
     {
-        private const string root_path = AppApiPathConstants.CirclesV1 + "/connections";
+        private const string root_path = AppApiPathConstantsV1.CirclesV1 + "/connections";
 
         [Post(root_path + "/unblock")]
         Task<ApiResponse<bool>> Unblock([Body]OdinIdRequest request);

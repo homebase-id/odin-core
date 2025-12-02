@@ -15,7 +15,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive.Reactions
     /// </summary>
     public interface IDriveTestHttpClientForAppReactions
     {
-        private const string ReactionRootEndpoint = AppApiPathConstants.DriveReactionsV1;
+        private const string ReactionRootEndpoint = AppApiPathConstantsV1.DriveReactionsV1;
         
         [Post(ReactionRootEndpoint + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body]AddReactionRequest request);

@@ -23,6 +23,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Services.Drives.FileSystem.Base
 {
@@ -78,10 +79,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 return (null, null, null, false);
             }
 
-            var payloadEncryptedKeyHeader = DriveFileUtility.GetPayloadEncryptedKeyHeader(
-                serverFileHeader,
-                payloadDescriptor,
-                odinContext);
+            EncryptedKeyHeader payloadEncryptedKeyHeader = odinContext.Caller.ClientTokenType == ClientTokenType.Cdn
+                ? null
+                : DriveFileUtility.GetPayloadEncryptedKeyHeader(
+                    serverFileHeader,
+                    payloadDescriptor,
+                    odinContext);
 
             return (serverFileHeader, payloadDescriptor, payloadEncryptedKeyHeader, true);
         }

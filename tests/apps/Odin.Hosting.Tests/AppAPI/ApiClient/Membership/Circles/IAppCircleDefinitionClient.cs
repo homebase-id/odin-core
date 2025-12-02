@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Membership.Circles
 {
     public interface IAppCircleDefinitionClient
     {
-        private const string RootPath = AppApiPathConstants.CirclesDefinitionsV1;
+        private const string RootPath = AppApiPathConstantsV1.CirclesDefinitionsV1;
 
         [Get(RootPath + "/list")]
         Task<ApiResponse<List<CircleDefinition>>> GetCircleDefinitions(bool includeSystemCircle = false);

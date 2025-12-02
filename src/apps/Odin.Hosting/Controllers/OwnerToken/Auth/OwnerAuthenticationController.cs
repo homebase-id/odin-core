@@ -12,6 +12,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.UnifiedV2.Authentication;
 using Odin.Services.Security;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Auth
@@ -48,8 +49,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<OwnerAuthenticationResult> Authenticate([FromBody] PasswordReply package)
         {
             var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request);
-            var (result, sharedSecret) = await authService.AuthenticateAsync(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
-            AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
+            var (clientAuthToken, sharedSecret) = await authService.AuthenticateAsync(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
+            AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, clientAuthToken);
+            // v2 auth
+            AuthenticationCookieUtil.SetCookieWithPath(Response, UnifiedAuthConstants.CookieName, clientAuthToken);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
             //TODO: need to encrypt shared secret using client public key

@@ -11,8 +11,8 @@ using Odin.Hosting.Controllers.ClientToken.Guest;
 namespace Odin.Hosting.Controllers.ClientToken.Shared.Circles
 {
     [ApiController]
-    [Route(AppApiPathConstants.CirclesV1 + "/connections")]
-    [Route(GuestApiPathConstants.CirclesV1 + "/connections")]
+    [Route(AppApiPathConstantsV1.CirclesV1 + "/connections")]
+    [Route(GuestApiPathConstantsV1.CirclesV1 + "/connections")]
     [AuthorizeValidGuestOrAppToken]
     public class CircleNetworkController(CircleNetworkService cn) : OdinControllerBase
     {

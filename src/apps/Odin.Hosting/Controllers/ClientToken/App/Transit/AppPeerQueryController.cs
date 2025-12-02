@@ -11,11 +11,11 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
     /// Routes requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(AppApiPathConstants.PeerQueryV1)]
+    [Route(AppApiPathConstantsV1.PeerQueryV1)]
     // [AuthorizeValidAppToken]
 
     //test
-    [Route(GuestApiPathConstants.PeerQueryV1)]
+    [Route(GuestApiPathConstantsV1.PeerQueryV1)]
     [AuthorizeValidGuestOrAppToken]
     public class AppPeerQueryController(PeerDriveQueryService peerDriveQueryService)
         : PeerQueryControllerBase(peerDriveQueryService);

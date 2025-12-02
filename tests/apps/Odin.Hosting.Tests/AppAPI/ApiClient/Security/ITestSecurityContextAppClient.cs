@@ -11,7 +11,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Security
     /// </summary>
     public interface ITestSecurityContextAppClient
     {
-        [Get(AppApiPathConstants.SecurityV1 + "/context")]
+        [Get(AppApiPathConstantsV1.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetDotYouContext();
     }
 }

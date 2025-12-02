@@ -72,6 +72,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 return;
             }
 
+            logger.LogDebug("CleanupInboxTemporaryFiles called - tempFile: {t}", tempFile);
+
             await CleanupTempFilesInternal(tempFile, descriptors);
             
             //TODO: the extensions should be centralized
@@ -81,6 +83,11 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 await GetTempFilenameAndPathInternal(tempFile, TenantPathManager.TransferInstructionSetExtension)
             ];
 
+            foreach (var file in additionalFiles)
+            {
+                logger.LogDebug("CleanupInboxTemporaryFiles Deleting additional File: {file}", file);
+            }
+            
             // clean up the transfer header and metadata since we keep those in the inbox
             fileReaderWriter.DeleteFiles(additionalFiles);
         }

@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
 {
     public interface ICircleNetworkRequestsClient
     {
-        private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
+        private const string RootPath = AppApiPathConstantsV1.CirclesV1 + "/requests";
         private const string SentPathRoot = RootPath + "/sent/list";
         private const string PendingPathRoot = RootPath + "/pending/list";
 

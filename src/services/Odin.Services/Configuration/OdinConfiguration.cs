@@ -8,6 +8,7 @@ using Odin.Core.Configuration;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Email;
 using Odin.Services.Registry.Registration;
 
@@ -567,6 +568,8 @@ public class OdinConfiguration
         public bool Enabled { get; init; }
         public string PayloadBaseUrl { get; init; } = null;
 
+        public ClientAuthenticationToken ExpectedAuthToken { get; init; }
+        
         public CdnSection()
         {
             // Mockable support
@@ -590,6 +593,15 @@ public class OdinConfiguration
                         PayloadBaseUrl += '/';
                     }
                 }
+                
+                var value = config.Required<string>("Cdn:RequiredAuthToken");
+
+                if (!ClientAuthenticationToken.TryParse(value, out var requiredAuthToken))
+                {
+                    throw new OdinConfigException("Missing required auth token config.");
+                }
+
+                ExpectedAuthToken = requiredAuthToken;
             }
         }
     }

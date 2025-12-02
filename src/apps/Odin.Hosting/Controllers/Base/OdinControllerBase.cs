@@ -50,13 +50,14 @@ public abstract class OdinControllerBase : ControllerBase
             VersionUpgradeScheduler.SetRequiresUpgradeResponse(HttpContext);
         }
     }
-
+    
     /// <summary />
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
     {
         var driveManager = this.HttpContext.RequestServices.GetRequiredService<DriveManager>();
         
-        _ = driveManager.GetDriveAsync(file.TargetDrive.Alias, true).GetAwaiter().GetType();
+        // Validates the drive exists
+        _ = driveManager.GetDriveAsync(file.TargetDrive.Alias, failIfInvalid: true).GetAwaiter().GetType();
 
         OdinValidationUtils.AssertNotEmptyGuid(file.TargetDrive.Alias, "Target drive alias is required");
         

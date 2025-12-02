@@ -6,7 +6,7 @@ using Odin.Services.Base;
 namespace Odin.Hosting.Controllers.ClientToken.App.List
 {
     [ApiController]
-    [Route(AppApiPathConstants.NotificationsV1)]
+    [Route(AppApiPathConstantsV1.NotificationsV1)]
     [AuthorizeValidAppToken]
     public class AppNotificationListDataListController : NotificationListDataControllerBase
     {

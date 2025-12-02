@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Transit.Reactions
 {
     public interface IRefitAppTransitReactionSender
     {
-        private const string RootEndpoint = AppApiPathConstants.PeerReactionContentV1;
+        private const string RootEndpoint = AppApiPathConstantsV1.PeerReactionContentV1;
 
         [Post(RootEndpoint + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body] PeerAddReactionRequest request);

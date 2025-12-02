@@ -14,7 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 {
     [ApiController]
     [AuthorizeValidAppToken]
-    [Route(AppApiPathConstants.NotificationsV1)]
+    [Route(AppApiPathConstantsV1.NotificationsV1)]
     public class AppNotificationSocketController : OdinControllerBase
     {
         private readonly AppNotificationHandler _notificationHandler;

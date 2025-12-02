@@ -12,8 +12,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Security;
 /// Security information for the current user
 /// </summary>
 [ApiController]
-[Route(AppApiPathConstants.SecurityV1)]
-[Route(GuestApiPathConstants.SecurityV1)]
+[Route(AppApiPathConstantsV1.SecurityV1)]
+[Route(GuestApiPathConstantsV1.SecurityV1)]
 [AuthorizeValidGuestOrAppToken]
 public class SecurityController : OdinControllerBase
 {

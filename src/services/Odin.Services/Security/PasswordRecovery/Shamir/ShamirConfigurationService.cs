@@ -427,7 +427,7 @@ public class ShamirConfigurationService(
                 {
                     Id = configuration.AccountRecovery.AutomatedIdentityKey,
                     AccessTokenHalfKey = configuration.AccountRecovery.AutomatedIdentityKey.ToByteArray().ToSensitiveByteArray(),
-                    ClientTokenType = ClientTokenType.AutomatedPasswordRecovery,
+                    ClientTokenType = ClientTokenType.PeerAutomatedPasswordRecovery,
                     SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
                 };
 
