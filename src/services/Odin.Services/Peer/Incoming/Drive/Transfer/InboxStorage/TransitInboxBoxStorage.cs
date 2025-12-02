@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
@@ -14,7 +16,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)
     /// </summary>
-    public class TransitInboxBoxStorage(TableInbox tableInbox)
+    public class TransitInboxBoxStorage(TableInbox tableInbox, ILogger<TransitInboxBoxStorage> logger)
     {
         public async Task AddAsync(TransferInboxItem item)
         {
@@ -81,13 +83,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public async Task<int> MarkCompleteAsync(InternalDriveFileId file, Guid marker)
         {
-            int r = await tableInbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
+            int n = await tableInbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
 
-            // TODO TODD, you need to throw an exception here is r != 1.
-            
+            if (n != 1)
+            {
+                logger.LogError("Failed to mark inbox record complete. File:{file}.  Marker:{marker}", file, marker);
+                throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
+            }
+
+            logger.LogDebug("Mark inbox record complete. File:{file}.  Marker:{marker}", file, marker);
+
             PerformanceCounter.IncrementCounter("Inbox Mark Complete");
 
-            return r;
+            return n;
         }
 
         public async Task<int> MarkFailureAsync(InternalDriveFileId file, Guid marker)

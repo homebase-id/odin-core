@@ -29,13 +29,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
-            IOdinContext odinContext, 
+            IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
             var fileSystemType = instructionSet.FileSystemType;
             var fs = fileSystemResolver.ResolveFileSystem(fileSystemType);
+
+            logger.LogDebug("PeerFileUpdateWriter - UpsertFileAsync called tempFile: {file}", tempFile);
+
             var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext);
 
             // Validations
@@ -58,6 +61,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             if (null == existingHeader)
             {
+                logger.LogDebug("PeerFileUpdateWriter WriteNewFile - temp file: {file}. Payload count: {pc}",
+                    tempFile,
+                    incomingMetadata.Payloads?.Count);
                 //
                 // we must create a new file
                 //
@@ -74,6 +80,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                             useThisVersionTag: instructionSet.Request.NewVersionTag);
                     });
 
+                logger.LogDebug("PeerFileUpdateWriter WriteNewFile - success: {success} committed payload count {pc}",
+                    success,
+                    payloads?.Count);
 
                 return (success, payloads);
             }
@@ -81,6 +90,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //Update existing file
             await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter UpdateExistingFile", async () =>
             {
+                logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - temp file: {file}. Payload count: {pc}. GTID: {gtid}",
+                    tempFile,
+                    incomingMetadata.Payloads?.Count,
+                    incomingMetadata.GlobalTransitId);
+                
                 if (!isCollaborationChannel)
                 {
                     existingHeader.AssertOriginalSender((OdinId)existingHeader.FileMetadata.SenderOdinId);
@@ -106,6 +120,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 };
 
                 (success, payloads) = await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext, markComplete);
+                
+                logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - success: {success} committed payload count {pc}",
+                    success,
+                    payloads?.Count);
+
             });
 
             return (success, payloads);
