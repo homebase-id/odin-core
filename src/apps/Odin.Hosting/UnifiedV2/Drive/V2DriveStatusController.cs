@@ -1,22 +1,30 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Identity;
+using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-namespace Odin.Hosting.Controllers.Base.Drive.Status;
+namespace Odin.Hosting.UnifiedV2.Drive;
 
-public abstract class DriveStatusControllerBase(
+[ApiController]
+[Route(UnifiedApiRouteConstants.Drive)]
+[UnifiedV2Authorize]
+public class V2DriveStatusController(
     StandardFileSystem fileSystem,
     PeerOutbox peerOutbox,
-    TransitInboxBoxStorage peerInbox) : OdinControllerBase
+    TransitInboxBoxStorage peerInbox,
+    PeerOutgoingTransferService peerOutgoingTransferService)
+    : DriveStorageControllerBase(peerOutgoingTransferService)
 {
     [HttpGet("status")]
-    public async Task<IActionResult> GetStatus(Guid alias)
+    public async Task<IActionResult> GetStatus(Guid driveId)
     {
-        var driveId = alias;
+        WebOdinContext.Caller.AssertCallerIsOwner();
+        
         var status = new DriveStatus()
         {
             Inbox = await peerInbox.GetStatusAsync(driveId),
@@ -25,13 +33,5 @@ public abstract class DriveStatusControllerBase(
         };
 
         return new JsonResult(status);
-    }
-
-    [HttpGet("outbox-item")]
-    public async Task<IActionResult> GetOutboxItem(Guid alias, Guid fileId, string recipient)
-    {
-        var driveId = alias;
-        var item = await peerOutbox.GetItemAsync(driveId, fileId, (OdinId)recipient);
-        return new JsonResult(item);
     }
 }

@@ -7,7 +7,6 @@ using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Hosting.Tests._Universal;
-using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
@@ -19,7 +18,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 
-namespace Odin.Hosting.Tests._V2;
+namespace Odin.Hosting.Tests._V2.Drive;
 
 public class GetPayloadTests
 {
@@ -62,8 +61,7 @@ public class GetPayloadTests
 
         yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
-
-
+    
     public static IEnumerable TestCasesSecuredDrive()
     {
         yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
