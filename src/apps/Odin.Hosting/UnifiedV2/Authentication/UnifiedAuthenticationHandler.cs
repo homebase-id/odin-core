@@ -160,10 +160,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             return result ?? await CreateAnonResult(context, odinContext);
         }
 
-        
+
         private bool TryFindClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
-         
             if (_config.Cdn.Enabled)
             {
                 if (TryGetClientAuthToken(this.Context, OdinHeaderNames.OdinCdnAuth, out clientAuthToken, preferHeader: true))
@@ -172,18 +171,12 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                 }
             }
 
-            if (TryGetClientAuthToken(this.Context, UnifiedAuthConstants.CookieName, out clientAuthToken))
-            {
-                _localLogger.LogDebug("Using the Unified cookie");
-                return true;
-            }
-            
             if (TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
             {
                 return true;
             }
 
-            if (TryGetClientAuthToken(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken, true))
+            if (TryGetClientAuthToken(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken, preferHeader: true))
             {
                 return true;
             }

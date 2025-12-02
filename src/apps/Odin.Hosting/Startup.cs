@@ -30,7 +30,6 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
 using Odin.Core.Storage.Database.System;
-using Odin.Hosting.Middleware.V2Auth;
 using StackExchange.Redis;
 
 namespace Odin.Hosting;
@@ -156,7 +155,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         app.UseCors();
         app.UseApiCors();
-        app.UseCookieMigration();
         app.UseMiddleware<SharedSecretEncryptionMiddleware>();
         app.UseMiddleware<StaticFileCachingMiddleware>();
         app.UseMiddleware<CdnMiddleware>();
