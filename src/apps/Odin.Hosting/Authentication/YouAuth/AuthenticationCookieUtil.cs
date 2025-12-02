@@ -26,4 +26,39 @@ internal static class AuthenticationCookieUtil
 
         response.Cookies.Append(cookieName, authToken.ToString(), options);
     }
+    
+    public static void SetCookieWithPath(HttpResponse response, string cookieName, ClientAuthenticationToken authToken)
+    {
+
+        string path = "";
+        switch (authToken.ClientTokenType)
+        {
+            case ClientTokenType.Owner:
+                path = "/owner";
+                break;
+
+            case ClientTokenType.App:
+                path = "/apps";
+                break;
+        }
+        
+        SameSiteMode ssm = SameSiteMode.Strict;
+        
+        var options = new CookieOptions()
+        {
+            HttpOnly = true,
+            IsEssential = true,
+            Secure = true,
+            SameSite = ssm,
+            Expires = DateTime.UtcNow.AddMonths(6),
+            Path = path
+        };
+
+        // if (ssm == SameSiteMode.None)
+        // {
+        //     options.Path = "/; Partitioned";
+        // }
+
+        response.Cookies.Append(cookieName, authToken.ToString(), options);
+    }
 }

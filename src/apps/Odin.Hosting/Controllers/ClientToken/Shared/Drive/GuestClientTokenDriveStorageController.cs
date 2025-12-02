@@ -59,7 +59,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         }
 
         [HttpGet("files/header")]
-        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid driveId,
+        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
             return await GetFileHeader(
@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     FileId = fileId,
                     TargetDrive = new TargetDrive()
                     {
-                        Alias = driveId,
+                        Alias = alias,
                         Type = type
                     }
                 });
@@ -89,7 +89,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid driveId, [FromQuery] Guid type,
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
             [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
@@ -103,7 +103,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                         FileId = fileId,
                         TargetDrive = new()
                         {
-                            Alias = driveId,
+                            Alias = alias,
                             Type = type
                         }
                     },
@@ -131,7 +131,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
 
         [HttpGet("files/thumb")]
         [HttpGet("files/thumb.{extension}")] // for link-preview support in signal/whatsapp
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid driveId,
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
             [FromQuery] Guid type,
             [FromQuery] int width, [FromQuery] int height,
             [FromQuery] string payloadKey)
@@ -143,7 +143,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                     FileId = fileId,
                     TargetDrive = new()
                     {
-                        Alias = driveId,
+                        Alias = alias,
                         Type = type
                     }
                 },

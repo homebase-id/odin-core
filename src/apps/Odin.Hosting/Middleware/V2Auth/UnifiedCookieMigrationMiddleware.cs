@@ -36,14 +36,7 @@ public class UnifiedCookieMigrationMiddleware(RequestDelegate next)
                 if (context.Request.Cookies.TryGetValue(legacyName, out var tokenValue) &&
                     !string.IsNullOrWhiteSpace(tokenValue) && ClientAuthenticationToken.TryParse(tokenValue, out var authToken))
                 {
-                    // Write a *new* cookie without modifying the original
-                    AuthenticationCookieUtil.SetCookie(
-                        context.Response,
-                        UnifiedAuthConstants.CookieName,
-                        authToken
-                    );
-
-                    break; // stop after the first valid legacy cookie
+                    AuthenticationCookieUtil.SetCookieWithPath(context.Response, UnifiedAuthConstants.CookieName, authToken);
                 }
             }
         }

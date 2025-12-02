@@ -98,7 +98,7 @@ namespace Odin.Hosting.Controllers.Home.Auth
 
                 var clientAccessToken = await _homeAuthenticatorService.RegisterBrowserAccessAsync(odinId, clientAuthToken);
                 AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken!.ToAuthenticationToken());
-                AuthenticationCookieUtil.SetCookie(Response, UnifiedAuthConstants.CookieName, clientAccessToken!.ToAuthenticationToken());
+                AuthenticationCookieUtil.SetCookieWithPath(Response, UnifiedAuthConstants.CookieName, clientAccessToken!.ToAuthenticationToken());
 
                 var url = GetFinalUrl(odinId, clientAccessToken, authState);
                 return Redirect(url);

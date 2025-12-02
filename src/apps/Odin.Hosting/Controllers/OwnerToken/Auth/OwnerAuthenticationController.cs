@@ -52,7 +52,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             var (clientAuthToken, sharedSecret) = await authService.AuthenticateAsync(package, pushDeviceToken.GetValueOrDefault(), WebOdinContext);
             AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, clientAuthToken);
             // v2 auth
-            AuthenticationCookieUtil.SetCookie(Response, UnifiedAuthConstants.CookieName, clientAuthToken);
+            AuthenticationCookieUtil.SetCookieWithPath(Response, UnifiedAuthConstants.CookieName, clientAuthToken);
             PushNotificationCookieUtil.EnsureDeviceCookie(HttpContext);
 
             //TODO: need to encrypt shared secret using client public key
