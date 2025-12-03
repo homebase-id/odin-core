@@ -32,6 +32,7 @@ using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Multitenant;
 using Odin.Hosting.UnifiedV2.Authentication;
+using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Background;
 using Odin.Services.Base;
@@ -138,6 +139,7 @@ public static class SystemServices
             YouAuthPolicies.AddPolicies(policy);
             PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCertificateAuthScheme);
             PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
+            UnifiedPolicies.AddPolicies(policy);
         });
 
         // In production, the React files will be served from this directory

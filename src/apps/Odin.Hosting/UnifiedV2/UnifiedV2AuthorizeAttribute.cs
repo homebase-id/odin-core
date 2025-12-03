@@ -5,8 +5,9 @@ namespace Odin.Hosting.UnifiedV2;
 
 public class UnifiedV2AuthorizeAttribute : AuthorizeAttribute
 {
-    public UnifiedV2AuthorizeAttribute()
+    public UnifiedV2AuthorizeAttribute(string policy = null)
     {
         AuthenticationSchemes = UnifiedAuthConstants.SchemeName;
+        Policy = policy;
     }
 }

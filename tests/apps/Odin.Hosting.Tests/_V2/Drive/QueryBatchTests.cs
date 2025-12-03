@@ -5,20 +5,15 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
-using Odin.Core;
-using Odin.Core.Storage;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.Peer.Encryption;
 
 namespace Odin.Hosting.Tests._V2.Drive;
 
@@ -83,14 +78,12 @@ public class QueryBatchTests
         var identity = TestIdentities.Samwise;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
-        var metadata = SampleMetadataData.Create(fileType: 100);
+        const int fileType = 100;
+        var metadata = SampleMetadataData.Create(fileType: fileType);
         metadata.AccessControlList = AccessControlList.Anonymous;
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
         var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
-
-        // get the file header using v2 api
-        // var client = new ApiClientV2(ownerApi: null, identity);
 
         await callerContext.Initialize(ownerApiClient);
         var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
@@ -100,7 +93,7 @@ public class QueryBatchTests
             QueryParams = new FileQueryParams
             {
                 TargetDrive = callerContext.TargetDrive,
-                FileType = null,
+                FileType = [fileType],
                 FileState = null,
                 DataType = null,
                 ArchivalStatus = null,

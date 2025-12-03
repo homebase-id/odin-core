@@ -17,6 +17,7 @@ using Odin.Core.Exceptions;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.UnifiedV2.Authentication.Handlers;
+using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization;
@@ -34,15 +35,19 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         private readonly OdinConfiguration _config;
-        private readonly ILogger<UnifiedAuthenticationHandler> _localLogger;
+
+        private static readonly IAuthPathHandler OwnerHandler = new OwnerAuthPathHandler();
+        private static readonly IAuthPathHandler GuestHandler = new GuestAuthPathHandler();
+        private static readonly IAuthPathHandler BuiltInHandler = new BuiltInBrowserAppHandler();
+        private static readonly IAuthPathHandler AppHandler = new AppAuthPathHandler();
+        private static readonly IAuthPathHandler CdnHandler = new CdnAuthPathHandler();
 
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, OdinConfiguration config, ILogger<UnifiedAuthenticationHandler> localLogger)
+            UrlEncoder encoder, OdinConfiguration config)
             : base(options, logger, encoder)
         {
             _config = config;
-            _localLogger = localLogger;
         }
 
         /// <summary/>
@@ -63,7 +68,6 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             return Task.CompletedTask;
         }
 
-        /// <summary/>
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
@@ -75,31 +79,28 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             try
             {
-                switch (token.ClientTokenType)
+                var handler = GetHandler(token.ClientTokenType);
+
+                if (handler == null)
                 {
-                    case ClientTokenType.Cdn:
-                        return await CdnAuthPathHandler.Handle(Context, token, odinContext);
+                    return AuthenticateResult.Fail("Invalid Token Type");
+                }
 
-                    case ClientTokenType.Owner:
-                        return await OwnerAuthPathHandler.Handle(Context, token, odinContext);
+                var result = await handler.HandleAsync(Context, token, odinContext);
 
-                    case ClientTokenType.App:
-                        return await AppAuthPathHandler.Handle(Context, token, odinContext);
+                odinContext.SetAuthContext(UnifiedAuthConstants.SchemeName);
 
-                    case ClientTokenType.BuiltInBrowserApp:
-                        return await HandleWithAnonymousFallback(
-                            () => BuiltInBrowserAppHandler.Handle(Context, token, odinContext),
-                            Context,
-                            odinContext);
+                switch (result.Status)
+                {
+                    case AuthHandlerStatus.Success:
+                        return CreateSuccessResult(result.Claims!, token, odinContext);
 
-                    case ClientTokenType.YouAuth:
-                        return await HandleWithAnonymousFallback(
-                            () => GuestAuthPathHandler.Handle(Context, token, odinContext),
-                            Context,
-                            odinContext);
+                    case AuthHandlerStatus.AnonymousFallback:
+                        return await CreateAnonResult(Context, odinContext);
 
+                    case AuthHandlerStatus.Fail:
                     default:
-                        return AuthenticateResult.Fail("Invalid Token Type");
+                        return AuthenticateResult.Fail("Invalid Token");
                 }
             }
             catch (OdinSecurityException e)
@@ -111,37 +112,23 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         public async Task SignOutAsync(AuthenticationProperties? properties)
         {
             if (properties == null)
-            {
                 return;
-            }
 
-            if (properties.Items.TryGetValue(nameof(ClientTokenType), out var value))
-            {
-                if (Enum.TryParse<ClientTokenType>(value, out var tt))
-                {
-                    var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
+            var typeString = properties.GetParameter<string>("clientTokenType");
+            if (typeString == null)
+                return;
 
-                    switch (tt)
-                    {
-                        case ClientTokenType.BuiltInBrowserApp:
-                            await BuiltInBrowserAppHandler.HandleSignOut(Context, odinContext);
-                            break;
+            if (!Enum.TryParse<ClientTokenType>(typeString, out var tokenType))
+                return;
 
-                        case ClientTokenType.YouAuth:
-                            await GuestAuthPathHandler.HandleSignOut(Context, odinContext);
-                            break;
+            var handler = GetHandler(tokenType);
+            if (handler == null)
+                return;
 
-                        case ClientTokenType.Owner:
-                            var id = properties.GetParameter<Guid>(OwnerAuthConstants.CookieName);
-                            await OwnerAuthPathHandler.HandleSignOut(Context, id);
-                            break;
+            var odinContext = Context.RequestServices.GetRequiredService<IOdinContext>();
 
-                        case ClientTokenType.App:
-                            await AppAuthPathHandler.HandleSignOut(Context, odinContext);
-                            break;
-                    }
-                }
-            }
+            var tokenId = properties.GetParameter<Guid?>("tokenId");
+            await handler.HandleSignOutAsync(tokenId.GetValueOrDefault(), Context, odinContext);
         }
 
         public Task SignInAsync(ClaimsPrincipal user, AuthenticationProperties? properties)
@@ -151,15 +138,32 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         //
 
-        private async Task<AuthenticateResult> HandleWithAnonymousFallback(
-            Func<Task<AuthenticateResult?>> handler,
-            HttpContext context,
+        private static AuthenticateResult CreateSuccessResult(
+            List<Claim> claims,
+            ClientAuthenticationToken token, 
             IOdinContext odinContext)
         {
-            var result = await handler();
-            return result ?? await CreateAnonResult(context, odinContext);
-        }
+            var scheme = UnifiedAuthConstants.SchemeName;
+            
+            claims.Add(new Claim(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()));
+            claims.Add(new Claim(UnifiedClaimTypes.ClientTokenType,
+                UnifiedPolicies.AsClaimValue(token.ClientTokenType),
+                ClaimValueTypes.Integer32,
+                UnifiedClaimTypes.Issuer));
 
+            var claimsIdentity = new ClaimsIdentity(claims, scheme);
+
+            var props = new AuthenticationProperties();
+            props.SetParameter("tokenId", token.Id);
+            props.SetParameter("clientTokenType", token.ClientTokenType.ToString());
+
+            var ticket = new AuthenticationTicket(
+                new ClaimsPrincipal(claimsIdentity),
+                props,
+                scheme);
+
+            return AuthenticateResult.Success(ticket);
+        }
 
         private bool TryFindClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
@@ -266,6 +270,30 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);
             var ticket = new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), YouAuthConstants.YouAuthScheme);
             return AuthenticateResult.Success(ticket);
+        }
+
+        private static IAuthPathHandler? GetHandler(ClientTokenType type)
+        {
+            switch (type)
+            {
+                case ClientTokenType.Owner:
+                    return OwnerHandler;
+
+                case ClientTokenType.YouAuth:
+                    return GuestHandler;
+
+                case ClientTokenType.BuiltInBrowserApp:
+                    return BuiltInHandler;
+
+                case ClientTokenType.App:
+                    return AppHandler;
+
+                case ClientTokenType.Cdn:
+                    return CdnHandler;
+
+                default:
+                    return null;
+            }
         }
     }
 }

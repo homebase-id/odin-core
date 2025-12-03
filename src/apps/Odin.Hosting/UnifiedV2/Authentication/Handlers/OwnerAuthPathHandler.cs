@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Services.AppNotifications.Push;
@@ -14,9 +13,9 @@ using Odin.Services.Base;
 
 namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
-public static class OwnerAuthPathHandler
+public class OwnerAuthPathHandler : IAuthPathHandler
 {
-    public static async Task<AuthenticateResult> Handle(HttpContext context, ClientAuthenticationToken clientAuthToken, IOdinContext odinContext)
+    public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
         var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(context.Request);
@@ -24,18 +23,18 @@ public static class OwnerAuthPathHandler
         {
             CorsHostName = null,
             ClientIdOrDomain = null,
-            AccessRegistrationId = clientAuthToken.Id,
+            AccessRegistrationId = token.Id,
             DevicePushNotificationKey = pushDeviceToken
         };
 
-        if (!await authService.UpdateOdinContextAsync(clientAuthToken, clientContext, odinContext))
+        if (!await authService.UpdateOdinContextAsync(token, clientContext, odinContext))
         {
-            return AuthenticateResult.Fail("Invalid Owner Token");
+            return AuthHandlerResult.Fail();
         }
 
         if (odinContext.Caller.OdinId == null)
         {
-            return AuthenticateResult.Fail("Missing OdinId");
+            return AuthHandlerResult.Fail();
         }
 
         var claims = new List<Claim>()
@@ -45,14 +44,15 @@ public static class OwnerAuthPathHandler
             new(OdinClaimTypes.IsAuthorizedApp, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
             new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
         };
-       
-        var result = AuthUtils.CreateAuthenticationResult(claims, 
-            UnifiedAuthConstants.SchemeName,
-            clientAuthToken);
-        return result;
+
+        return new AuthHandlerResult
+        {
+            Status = AuthHandlerStatus.Success,
+            Claims = claims
+        };
     }
 
-    public static async Task HandleSignOut(HttpContext context, Guid tokenId)
+    public async Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
     {
         var authService = context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
         await authService.ExpireTokenAsync(tokenId);

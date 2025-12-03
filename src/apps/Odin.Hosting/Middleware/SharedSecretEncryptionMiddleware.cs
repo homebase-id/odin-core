@@ -13,7 +13,6 @@ using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
-using Odin.Hosting.Controllers.Anonymous.Cdn;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -22,7 +21,6 @@ using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.UnifiedV2;
-using Odin.Hosting.UnifiedV2.Authentication;
 using Odin.Services.LinkPreview;
 
 namespace Odin.Hosting.Middleware
@@ -125,9 +123,6 @@ namespace Odin.Hosting.Middleware
                 $"{GuestApiPathConstantsV1.DriveV1}/files/thumb",
                 $"{GuestApiPathConstantsV1.DriveV1}/files/payload",
 
-                $"{CdnApiPathConstants.DriveV1}/files/thumb",
-                $"{CdnApiPathConstants.DriveV1}/files/payload",
-                
                 $"{UnifiedApiRouteConstants.Files}/thumb",
                 $"{UnifiedApiRouteConstants.Files}/payload",
                 $"{UnifiedApiRouteConstants.Auth}/verify-shared-secret-encryption",

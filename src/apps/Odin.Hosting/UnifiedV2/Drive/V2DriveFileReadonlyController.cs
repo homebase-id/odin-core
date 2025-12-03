@@ -10,7 +10,6 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
-
 namespace Odin.Hosting.UnifiedV2.Drive
 {
     /// <summary>
@@ -18,7 +17,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
     /// </summary>
     [ApiController]
     [Route(UnifiedApiRouteConstants.Files)]
-    [UnifiedV2Authorize]
+    [UnifiedV2Authorize(policy:"abc")]
     public class V2DriveFileReadonlyController(
         ILogger<V2DriveFileReadonlyController> logger,
         PeerOutgoingTransferService peerOutgoingTransferService)
@@ -74,7 +73,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
 
         [HttpGet("thumb")]
         [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid driveId,
+        public async Task<IActionResult> GetThumbnail([FromQuery] Guid fileId, [FromQuery] Guid driveId,
             [FromQuery] int width,
             [FromQuery] int height,
             [FromQuery] string payloadKey,
@@ -96,12 +95,14 @@ namespace Odin.Hosting.UnifiedV2.Drive
         public async Task<FileTransferHistoryResponse> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid driveId,
             [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
         {
+            WebOdinContext.Caller.AssertCallerIsOwner();
+            
             var file = new InternalDriveFileId()
             {
                 FileId = fileId,
                 DriveId = driveId
             };
-
+            
             var storage = GetHttpFileSystemResolver().ResolveFileSystem(fileSystemType).Storage;
             var (count, history) = await storage.GetTransferHistory(file, WebOdinContext);
             if (history == null)

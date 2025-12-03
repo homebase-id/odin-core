@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
+using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -12,7 +13,7 @@ namespace Odin.Hosting.UnifiedV2.Drive;
 
 [ApiController]
 [Route(UnifiedApiRouteConstants.Drive)]
-[UnifiedV2Authorize]
+[UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 public class V2DriveStatusController(
     StandardFileSystem fileSystem,
     PeerOutbox peerOutbox,
