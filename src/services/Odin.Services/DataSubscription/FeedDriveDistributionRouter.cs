@@ -74,8 +74,6 @@ namespace Odin.Services.DataSubscription
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            _logger.LogDebug("FeedDriveDistributionRouter Handle");
-
             var odinContext = notification.OdinContext;
 
             var drive = await _driveManager.GetDriveAsync(notification.File.DriveId);
@@ -140,6 +138,10 @@ namespace Odin.Services.DataSubscription
                         await _backgroundServiceTrigger.PulseBackgroundProcessorAsync();
                     }
                 }
+            }
+            else
+            {
+                _logger.LogDebug("FeedDriveDistributionRouter Handle -> should not distribute");
             }
         }
 

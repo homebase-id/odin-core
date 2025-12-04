@@ -32,22 +32,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public abstract Task<int> ExecuteAsync();
     }
 
-    public class MarkInboxComplete : WriteSecondDatabaseRowBase
+    public class MarkInboxComplete(TransitInboxBoxStorage s, InternalDriveFileId t, Guid m) : WriteSecondDatabaseRowBase
     {
-        private TransitInboxBoxStorage _storage;
-        private InternalDriveFileId _file;
-        private Guid _marker;
-
-        public MarkInboxComplete(TransitInboxBoxStorage s, InternalDriveFileId t, Guid m)
+        public override async Task<int> ExecuteAsync()
         {
-            _storage = s;
-            _file = t;
-            _marker = m;
-        }
-
-        public async override Task<int> ExecuteAsync()
-        {
-            return await _storage.MarkCompleteAsync(_file, _marker);
+            return await s.MarkCompleteAsync(t, m);
         }
     }
 
@@ -169,7 +158,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             TransferInboxItem inboxItem, PeerFileWriter writer,
             IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
-            correlationContext.Id = inboxItem.CorrelationId ?? FallbackCorrelationId;
+            var newId = inboxItem.CorrelationId ?? FallbackCorrelationId;
+            logger.LogDebug("Using correlationId from inbox item.  Old Id: {oldId} New Id: {newId}", correlationContext.Id, newId);
+            correlationContext.Id = newId;
             logger.LogDebug("Begin processing Inbox item");
 
             try
@@ -386,6 +377,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 
+            logger.LogDebug("PeerFileUpdateWriter called. Sender: {sender} FileId: {file}", inboxItem.Sender, inboxItem.FileId);
             return await writer.UpsertFileAsync(tempFile, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext,
                 markComplete);
         }
