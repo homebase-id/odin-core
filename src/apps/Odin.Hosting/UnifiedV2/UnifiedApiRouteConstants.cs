@@ -4,7 +4,9 @@ public static class UnifiedApiRouteConstants
 {
     public const string BasePath = "/api/v2";
     public const string Auth = BasePath + "/auth";
-    public const string Drive  = BasePath + "/drives/{driveId:guid}";
-    public const string Files  = Drive + "/files";
-    public const string Query  = Drive + "/files";
+    public const string DrivesRoot = BasePath + "/drives";
+    public const string ByDriveId = DrivesRoot + "/{driveId:guid}";
+    public const string FilesRoot = ByDriveId + "/files";
+    public const string ByFileId = FilesRoot + "/{fileId:guid}";
+    public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
 }

@@ -18,20 +18,28 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
 public class CdnAuthPathHandler : IAuthPathHandler
 {
-    static readonly List<string> AllowedPaths =
+    static readonly List<string> AllowedPrefixes =
     [
-        $"{UnifiedApiRouteConstants.Files}/payload",
-        $"{UnifiedApiRouteConstants.Files}/thumb"
+        UnifiedApiRouteConstants.DrivesRoot
+    ];
+
+    static readonly List<string> AllowedSuffixes =
+    [
+        "/payload",
+        "/thumb"
     ];
 
     private static bool IsValidPath(HttpContext context)
     {
-        var path = context.Request.Path;
+        var path = context.Request.Path.Value ?? string.Empty;
 
-        foreach (var allowed in AllowedPaths)
+        if (!AllowedPrefixes.Any(prefix => path.StartsWith(prefix)))
+            return false;
+
+        foreach (var suffix in AllowedSuffixes)
         {
-            if (path.StartsWithSegments(allowed) ||
-                path.StartsWithSegments(allowed + ".")) // the . is to handle thumbnail.{extension}
+            if (path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ||
+                path.Contains($"{suffix}.", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

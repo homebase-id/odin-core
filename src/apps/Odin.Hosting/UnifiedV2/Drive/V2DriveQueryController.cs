@@ -9,7 +9,7 @@ using Odin.Services.Drives;
 namespace Odin.Hosting.UnifiedV2.Drive
 {
     [ApiController]
-    [Route(UnifiedApiRouteConstants.Files)]
+    [Route(UnifiedApiRouteConstants.FilesRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveQueryController : OdinControllerBase

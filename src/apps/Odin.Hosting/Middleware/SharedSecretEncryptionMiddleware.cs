@@ -43,6 +43,12 @@ namespace Odin.Hosting.Middleware
         private readonly List<string> _ignoredPathsForResponses;
         //
 
+        private static readonly HashSet<string> IgnoredSuffixes =
+        [
+            "/payload",
+            "/thumb"
+        ];
+
         /// <summary />
         public SharedSecretEncryptionMiddleware(
             RequestDelegate next,
@@ -122,9 +128,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstantsV1.DriveV1}/files/thumb",
                 $"{GuestApiPathConstantsV1.DriveV1}/files/payload",
-
-                $"{UnifiedApiRouteConstants.Files}/thumb",
-                $"{UnifiedApiRouteConstants.Files}/payload",
+                
                 $"{UnifiedApiRouteConstants.Auth}/verify-shared-secret-encryption",
             ];
 
@@ -321,6 +325,14 @@ namespace Odin.Hosting.Middleware
             {
                 return false;
             }
+            
+            if (context.Request.Path.StartsWithSegments(UnifiedApiRouteConstants.BasePath, StringComparison.OrdinalIgnoreCase))
+            {
+                if (IsPayloadOrThumbnail(context.Request.Path.Value))
+                {
+                    return false;
+                }
+            }
 
             return !_ignoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
         }
@@ -329,6 +341,30 @@ namespace Odin.Hosting.Middleware
         {
             var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
             return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
+        }
+        
+        private bool HasThumbnailExtension(string path, string suffix)
+        {
+            // Handles /thumb.png /thumb.jpeg /thumb.webp etc.
+            if (!path.Contains(suffix + ".", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // e.g. "/thumb.png" length = 5 extra
+            return true;
+        }
+
+        private static bool IsPayloadOrThumbnail(string path)
+        {
+            foreach (var suffix in IgnoredSuffixes)
+            {
+                if (path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (path.Contains(suffix + ".", StringComparison.OrdinalIgnoreCase)) // thumb.png, thumb.webp, etc.
+                    return true;
+            }
+
+            return false;
         }
     }
 }

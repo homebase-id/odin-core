@@ -8,8 +8,8 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public interface IDriveStatusHttpClientApiV2
 {
-    private const string RootDriveEndpoint = UnifiedApiRouteConstants.Drive;
-    
+    private const string RootDriveEndpoint = UnifiedApiRouteConstants.ByDriveId;
+
     [Get(RootDriveEndpoint + "/status")]
-    Task<ApiResponse<DriveStatus>> GetDriveStatus(Guid driveId);
+    Task<ApiResponse<DriveStatus>> GetDriveStatus([AliasAs("driveId:guid")] Guid driveId);
 }

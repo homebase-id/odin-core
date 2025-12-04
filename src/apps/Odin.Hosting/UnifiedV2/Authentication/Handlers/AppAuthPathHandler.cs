@@ -16,7 +16,6 @@ public class AppAuthPathHandler : IAuthPathHandler
     public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken token, IOdinContext odinContext)
     {
         var appRegService = context.RequestServices.GetRequiredService<IAppRegistrationService>();
-        odinContext.SetAuthContext(YouAuthConstants.AppSchemeName);
 
         var ctx = await appRegService.GetAppPermissionContextAsync(token, odinContext);
 

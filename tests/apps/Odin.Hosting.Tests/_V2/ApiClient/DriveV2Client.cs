@@ -8,6 +8,7 @@ using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Services.Apps;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Refit;
@@ -21,7 +22,7 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveStorageHttpClientApiV2>(client, sharedSecret);
-        var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, fileSystemType);
+        var apiResponse = await svc.GetFileHeader(file.TargetDrive.Alias, file.FileId, fileSystemType);
         return apiResponse;
     }
 
@@ -30,7 +31,7 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveStorageHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetPayload(file.FileId, file.TargetDrive.Alias, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
+        return await svc.GetPayload(file.TargetDrive.Alias, file.FileId, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(ExternalFileIdentifier file, int width, int height, string payloadKey,
@@ -38,32 +39,59 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveStorageHttpClientApiV2>(client, sharedSecret);
-        var thumbnailResponse = await svc.GetThumbnail(file.FileId, file.TargetDrive.Alias, payloadKey, width, height, directMatchOnly,
+        var thumbnailResponse = await svc.GetThumbnail(file.TargetDrive.Alias, file.FileId, payloadKey, width, height, directMatchOnly,
             fileSystemType);
         return thumbnailResponse;
     }
 
-    public async Task<ApiResponse<QueryBatchResponse>> GetBatchAsync(QueryBatchRequest request)
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(Guid uid, Guid driveId,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveFileByUidHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.GetFileHeader(driveId, uid, fileSystemType);
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetPayloadAsync(Guid uid, Guid driveId, string key, FileChunk chunk = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveFileByUidHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetPayload(driveId, uid, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(Guid uid, Guid driveId, int width, int height, string payloadKey,
+        bool directMatchOnly = false, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveFileByUidHttpClientApiV2>(client, sharedSecret);
+        var thumbnailResponse = await svc.GetThumbnail(driveId, uid, payloadKey, width, height, directMatchOnly,
+            fileSystemType);
+        return thumbnailResponse;
+    }
+
+    public async Task<ApiResponse<QueryBatchResponse>> GetBatchAsync(Guid driveId, QueryBatchRequest request)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetBatch(request);
+        return await svc.GetBatch(driveId, request);
     }
-    
-    public async Task<ApiResponse<QueryBatchResponse>> GetSmartBatchAsync(QueryBatchRequest request)
+
+    public async Task<ApiResponse<QueryBatchResponse>> GetSmartBatchAsync(Guid driveId, QueryBatchRequest request)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetSmartBatch(request);
+        return await svc.GetSmartBatch(driveId, request);
     }
-    
-    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollectionAsync(QueryBatchCollectionRequest request)
+
+    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollectionAsync(Guid driveId, QueryBatchCollectionRequest request)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetBatchCollection(request);
+        return await svc.GetBatchCollection(driveId, request);
     }
-    
+
     public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistoryAsync(ExternalFileIdentifier file,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {

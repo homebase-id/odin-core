@@ -13,7 +13,6 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
         public const string Anonymous = "Unified-Anonymous";
         public const string Owner = "Unified-OwnerToken";
         public const string OwnerOrApp = "Unified-OwnerOrApp";
-        public const string App = "Unified-HasValidAppToken";
         public const string Guest = "Unified-HasValidGuestAccessToken";
 
         public static void AddPolicies(AuthorizationOptions options)
@@ -28,7 +27,12 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
             options.AddPolicy(Anonymous, policy =>
             {
                 policy.AuthenticationSchemes.Add(UnifiedAuthConstants.SchemeName);
-                policy.RequireClaim(UnifiedClaimTypes.IsAuthenticated, bool.FalseString.ToLower());
+                //so long as it is set
+                policy.RequireClaim(UnifiedClaimTypes.IsAuthenticated, [
+                    "",
+                    bool.TrueString.ToLower(),
+                    bool.FalseString.ToLower()
+                ]);
             });
 
             options.AddPolicy(OwnerOrApp, policy =>
@@ -47,7 +51,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
             options.AddPolicy(Guest, policy =>
             {
                 policy.RequireAuthenticatedUser();
-                
+
                 policy.RequireClaim(UnifiedClaimTypes.ClientTokenType,
                     [
                         AsClaimValue(ClientTokenType.YouAuth)

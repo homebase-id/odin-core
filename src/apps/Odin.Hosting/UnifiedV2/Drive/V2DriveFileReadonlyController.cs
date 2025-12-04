@@ -17,7 +17,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(UnifiedApiRouteConstants.Files)]
+    [Route(UnifiedApiRouteConstants.ByFileId)]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileReadonlyController(
@@ -25,8 +25,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
-        [HttpGet("{fileId:guid}/header")]
-        public async Task<IActionResult> GetFileHeader(Guid driveId, Guid fileId,
+        [HttpGet("header")]
+        public async Task<IActionResult> GetFileHeader(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId,
             [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
         {
             logger.LogDebug("V2 call to get file header");
@@ -47,8 +49,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return new JsonResult(result);
         }
 
-        [HttpGet("{fileId:guid}/payload")]
-        public async Task<IActionResult> GetPayload([FromQuery] Guid fileId, [FromQuery] Guid driveId,
+        [HttpGet("payload")]
+        public async Task<IActionResult> GetPayload(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId,
             [FromQuery] string key,
             [FromQuery] int? start,
             [FromQuery] int? length,
@@ -73,9 +77,11 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return payload;
         }
 
-        [HttpGet("{fileId:guid}/thumb")]
-        [HttpGet("{fileId:guid}/thumb.{extension}")] // for link-preview support in signal/whatsapp
-        public async Task<IActionResult> GetThumbnail([FromQuery] Guid fileId, [FromQuery] Guid driveId,
+        [HttpGet("thumb")]
+        [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
+        public async Task<IActionResult> GetThumbnail(
+            [FromRoute]Guid driveId,
+            [FromRoute]Guid fileId,
             [FromQuery] int width,
             [FromQuery] int height,
             [FromQuery] string payloadKey,
@@ -93,8 +99,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return await GetThumbnail(file, width, height, payloadKey, directMatchOnly, fileSystemType);
         }
 
-        [HttpGet("{fileId:guid}/transfer-history")]
-        public async Task<FileTransferHistoryResponse> GetFileTransferHistory([FromQuery] Guid fileId, [FromQuery] Guid driveId,
+        [HttpGet("/transfer-history")]
+        public async Task<FileTransferHistoryResponse> GetFileTransferHistory(
+            [FromRoute]Guid driveId,
+            [FromRoute]Guid fileId,
             [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
         {
             WebOdinContext.Caller.AssertCallerIsOwner();
@@ -119,6 +127,5 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 History = history
             };
         }
-        
     }
 }

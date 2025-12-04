@@ -12,7 +12,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 namespace Odin.Hosting.UnifiedV2.Drive;
 
 [ApiController]
-[Route(UnifiedApiRouteConstants.Drive)]
+[Route(UnifiedApiRouteConstants.ByDriveId)]
 [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2DriveStatusController(

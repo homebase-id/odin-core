@@ -58,7 +58,7 @@ public class QueryBatchTests
 
         yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
-    
+
     public static IEnumerable TestCasesSecuredDrive()
     {
         yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
@@ -88,7 +88,8 @@ public class QueryBatchTests
         await callerContext.Initialize(ownerApiClient);
         var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
 
-        var getBatchResponse = await client.GetBatchAsync(new QueryBatchRequest
+        var driveId = callerContext.TargetDrive.Alias;
+        var getBatchResponse = await client.GetBatchAsync(driveId, new QueryBatchRequest
         {
             QueryParams = new FileQueryParams
             {
@@ -112,9 +113,8 @@ public class QueryBatchTests
 
         ClassicAssert.IsTrue(getBatchResponse.StatusCode == expectedStatusCode);
         var batch = getBatchResponse.Content;
-        
+
         ClassicAssert.IsTrue(batch.SearchResults.Single().FileId == file.FileId);
-        
     }
 
     private async Task<ExternalFileIdentifier> UploadFile(TestIdentity identity, UploadFileMetadata uploadedFileMetadata,

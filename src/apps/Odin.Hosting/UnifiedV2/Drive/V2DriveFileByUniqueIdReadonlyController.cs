@@ -17,7 +17,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(UnifiedApiRouteConstants.Files + "/by-uid")]
+    [Route(UnifiedApiRouteConstants.ByUniqueId)]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileByUniqueIdReadonlyController(
@@ -25,8 +25,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
         PeerOutgoingTransferService peerOutgoingTransferService)
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
-        [HttpGet("{uid:guid}/header")]
-        public async Task<IActionResult> GetFileHeaderByUid(Guid driveId, Guid uid,
+        [HttpGet("header")]
+        public async Task<IActionResult> GetFileHeaderByUid(
+            [FromRoute]Guid driveId,
+            [FromRoute]Guid uid,
             [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
         {
             var result = await GetFileHeaderByUniqueIdInternal(uid, driveId, fileSystemType);
@@ -38,8 +40,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return new JsonResult(result);
         }
 
-        [HttpGet("{uid:guid}/payload")]
-        public async Task<IActionResult> GetPayloadByUniqueId([FromQuery] Guid uid, [FromQuery] Guid driveId,
+        [HttpGet("payload")]
+        public async Task<IActionResult> GetPayloadByUniqueId(
+            [FromRoute]Guid driveId,
+            [FromRoute]Guid uid,
             [FromQuery] string key,
             [FromQuery] int? start,
             [FromQuery] int? length,
@@ -65,9 +69,11 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return payload;
         }
         
-        [HttpGet("{uid:guid}/thumb")]
-        [HttpGet("{uid:guid}/thumb.{extension}")] // for link-preview support in signal/whatsapp
-        public async Task<IActionResult> GetThumbnail([FromQuery] Guid uid, [FromQuery] Guid driveId,
+        [HttpGet("thumb")]
+        [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
+        public async Task<IActionResult> GetThumbnail(
+            [FromRoute]Guid driveId,
+            [FromRoute]Guid uid,
             [FromQuery] int width,
             [FromQuery] int height,
             [FromQuery] string payloadKey,

@@ -11,19 +11,23 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public interface IDriveStorageHttpClientApiV2
 {
-    private const string RootStorageEndpoint = UnifiedApiRouteConstants.Files;
+    private const string Endpoint = UnifiedApiRouteConstants.ByFileId;
 
-    [Get(RootStorageEndpoint + "/header")]
-    Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid driveId, FileSystemType fileSystemType);
+    [Get(Endpoint + "/header")]
+    Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("fileId:guid")] Guid fileId, FileSystemType fileSystemType);
 
-    [Get(RootStorageEndpoint + "/payload")]
-    Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid driveId, string key, int start, int length, FileSystemType fileSystemType);
+    [Get(Endpoint + "/payload")]
+    Task<ApiResponse<HttpContent>> GetPayload([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId, string key,
+        int start, int length, FileSystemType fileSystemType);
 
-    [Get(RootStorageEndpoint + "/thumb")]
-    Task<ApiResponse<HttpContent>> GetThumbnail(Guid fileId, Guid driveId, string payloadKey, int width, int height, bool directMatchOnly, FileSystemType fileSystemType);
-
-    [Get(RootStorageEndpoint + "/transfer-history")]
-    Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory(Guid fileId, Guid driveId);
+    [Get(Endpoint + "/thumb")]
+    Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId,
+        string payloadKey, int width, int height, bool directMatchOnly, FileSystemType fileSystemType);
     
+    [Get(Endpoint + "/transfer-history")]
+    Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory([AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("fileId:guid")] Guid fileId);
+
     // add create, update, delete here
 }
