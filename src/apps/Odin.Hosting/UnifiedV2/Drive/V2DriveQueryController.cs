@@ -3,16 +3,18 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.UnifiedV2.Drive
 {
     [ApiController]
-    [Route(UnifiedApiRouteConstants.Query)]
-    [UnifiedV2Authorize]
+    [Route(UnifiedApiRouteConstants.Files)]
+    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
+    [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveQueryController : OdinControllerBase
     {
-        [HttpPost("batch")]
+        [HttpPost("query-batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
             var fs = GetHttpFileSystemResolver().ResolveFileSystem(request.FileSystemType);
@@ -22,14 +24,14 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return QueryBatchResponse.FromResult(batch);
         }
 
-        [HttpGet("batch")]
+        [HttpGet("query-batch")]
         public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
         {
             var queryBatchRequest = request.ToQueryBatchRequest();
             return await QueryBatch(queryBatchRequest);
         }
 
-        [HttpPost("smart-batch")]
+        [HttpPost("query-smart-batch")]
         public async Task<QueryBatchResponse> QuerySmartBatch([FromBody] QueryBatchRequest request)
         {
             var driveId = request.QueryParams.TargetDrive.Alias;
@@ -43,14 +45,14 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return QueryBatchResponse.FromResult(batch);
         }
 
-        [HttpGet("smart-batch")]
+        [HttpGet("query-smart-batch")]
         public async Task<QueryBatchResponse> QuerySmartBatchGet([FromQuery] GetQueryBatchRequest request)
         {
             var queryBatchRequest = request.ToQueryBatchRequest();
             return await QuerySmartBatch(queryBatchRequest);
         }
 
-        [HttpPost("batch-collection")]
+        [HttpPost("query-batch-collection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
         {
             var fs = GetHttpFileSystemResolver().ResolveFileSystem(request.FileSystemType);
@@ -58,7 +60,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return collection;
         }
 
-        [HttpGet("batch-collection")]
+        [HttpGet("query-batch-collection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollectionGet([FromQuery] GetCollectionQueryParamSection[] queries,
             [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
         {

@@ -18,7 +18,6 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.ApiExceptions.Client;
-using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {

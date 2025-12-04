@@ -10,6 +10,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
             return ((int)tt).ToString();
         }
 
+        public const string Anonymous = "Unified-Anonymous";
         public const string Owner = "Unified-OwnerToken";
         public const string OwnerOrApp = "Unified-OwnerOrApp";
         public const string App = "Unified-HasValidAppToken";
@@ -22,6 +23,12 @@ namespace Odin.Hosting.UnifiedV2.Authentication.Policy
                 policy.RequireAuthenticatedUser();
                 policy.RequireClaim(UnifiedClaimTypes.ClientTokenType, AsClaimValue(ClientTokenType.Owner));
                 policy.AuthenticationSchemes.Add(UnifiedAuthConstants.SchemeName);
+            });
+
+            options.AddPolicy(Anonymous, policy =>
+            {
+                policy.AuthenticationSchemes.Add(UnifiedAuthConstants.SchemeName);
+                policy.RequireClaim(UnifiedClaimTypes.IsAuthenticated, bool.FalseString.ToLower());
             });
 
             options.AddPolicy(OwnerOrApp, policy =>

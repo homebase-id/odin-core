@@ -60,10 +60,7 @@ public static class SystemServices
         services.AddSingleton(config);
 
         services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-        services.Configure<HostOptions>(options =>
-        {
-            options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds);
-        });
+        services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
 
         services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
@@ -114,11 +111,26 @@ public static class SystemServices
             c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
                 $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
             c.EnableAnnotations();
+            
             c.SwaggerDoc("v1", new()
             {
                 Title = "Odin API",
                 Version = "v1"
             });
+
+            c.SwaggerDoc("v2", new()
+            {
+                Title = "Odin API v2",
+                Version = "v2"
+            });
+
+            // Ensure actions land in the correct doc based on GroupName
+            c.DocInclusionPredicate((docName, apiDesc) =>
+            {
+                var group = apiDesc.GroupName ?? "v1"; // default group is v1
+                return group == docName;
+            });
+
         });
 
         services.AddCorsPolicies();
@@ -280,5 +292,4 @@ public static class SystemServices
     }
 
     //
-
 }

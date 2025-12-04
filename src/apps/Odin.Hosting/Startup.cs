@@ -190,7 +190,11 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         if (env.IsDevelopment())
         {
             app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1");
+                c.SwaggerEndpoint("/swagger/v2/swagger.json", "Odin API v2");
+            });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/"); }); });

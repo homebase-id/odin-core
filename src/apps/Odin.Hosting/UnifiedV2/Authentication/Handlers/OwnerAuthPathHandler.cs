@@ -37,14 +37,7 @@ public class OwnerAuthPathHandler : IAuthPathHandler
             return AuthHandlerResult.Fail();
         }
 
-        var claims = new List<Claim>()
-        {
-            new(ClaimTypes.Name, odinContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.Issuer),
-            new(OdinClaimTypes.IsIdentityOwner, bool.TrueString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-            new(OdinClaimTypes.IsAuthorizedApp, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer),
-            new(OdinClaimTypes.IsAuthorizedGuest, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.Issuer)
-        };
-
+        var claims = new List<Claim>();
         return new AuthHandlerResult
         {
             Status = AuthHandlerStatus.Success,

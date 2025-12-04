@@ -20,7 +20,6 @@ using Odin.Hosting.UnifiedV2.Authentication.Handlers;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.YouAuth;
-using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -140,15 +139,21 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         private static AuthenticateResult CreateSuccessResult(
             List<Claim> claims,
-            ClientAuthenticationToken token, 
+            ClientAuthenticationToken token,
             IOdinContext odinContext)
         {
             var scheme = UnifiedAuthConstants.SchemeName;
-            
+
             claims.Add(new Claim(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()));
+            
             claims.Add(new Claim(UnifiedClaimTypes.ClientTokenType,
                 UnifiedPolicies.AsClaimValue(token.ClientTokenType),
                 ClaimValueTypes.Integer32,
+                UnifiedClaimTypes.Issuer));
+
+            claims.Add(new Claim(UnifiedClaimTypes.IsAuthenticated,
+                bool.TrueString.ToLower(),
+                ClaimValueTypes.Boolean,
                 UnifiedClaimTypes.Issuer));
 
             var claimsIdentity = new ClaimsIdentity(claims, scheme);
@@ -261,10 +266,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             var claims = new[]
             {
-                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
-                    OdinClaimTypes.YouFoundationIssuer),
-                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
-                    OdinClaimTypes.YouFoundationIssuer)
+                new Claim(UnifiedClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, UnifiedClaimTypes.Issuer)
             };
 
             var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);

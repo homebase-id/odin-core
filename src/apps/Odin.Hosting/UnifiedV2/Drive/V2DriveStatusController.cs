@@ -14,6 +14,7 @@ namespace Odin.Hosting.UnifiedV2.Drive;
 [ApiController]
 [Route(UnifiedApiRouteConstants.Drive)]
 [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+[ApiExplorerSettings(GroupName = "v2")]
 public class V2DriveStatusController(
     StandardFileSystem fileSystem,
     PeerOutbox peerOutbox,
