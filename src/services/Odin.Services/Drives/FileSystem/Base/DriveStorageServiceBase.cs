@@ -553,6 +553,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
                     await WriteNewFileHeader(targetFile, serverHeader, odinContext, useThisVersionTag: useThisVersionTag);
+                    
+                    _logger.LogDebug("{method} -> markComplete {message}", 
+                        nameof(CommitNewFile),
+                        markComplete == null ? "is not configured" : "will be called");
+                    
                     if (markComplete != null)
                     {
                         int n = await markComplete.ExecuteAsync();
@@ -651,6 +656,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     // Now commit the file header to the database and the inbox record in one transaction
                     await WriteFileHeaderInternal(serverHeader, odinContext);
+                    _logger.LogDebug("{method} -> markComplete {message}", 
+                        nameof(OverwriteFile),
+                        markComplete == null ? "is not configured" : "will be called");
+                    
                     if (markComplete != null)
                     {
                         int n = await markComplete.ExecuteAsync();
@@ -879,6 +888,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     var (updatedHistory, modifiedTime) = await longTermStorageManager.SaveTransferHistoryAsync(
                         drive.Id, file.FileId, recipient, updateData);
+                   
+                    _logger.LogDebug("{method} -> markComplete {message}", 
+                        nameof(UpdateTransferHistory),
+                        markComplete == null ? "is not configured" : "will be called");
+                    
                     if (markComplete != null)
                     {
                         int n = await markComplete.ExecuteAsync();
@@ -959,6 +973,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                     await OverwriteMetadataInternal(manifest.KeyHeader.Iv, header, manifest.FileMetadata,
                         manifest.ServerMetadata, odinContext, manifest.NewVersionTag);
 
+                    _logger.LogDebug("{method} -> markComplete {message}", 
+                        nameof(UpdateBatchAsync),
+                        markComplete == null ? "is not configured" : "will be called");
+                    
                     if (markComplete != null)
                     {
                         int n = await markComplete.ExecuteAsync();
@@ -1367,6 +1385,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                     await WriteFileHeaderInternal(deletedServerFileHeader, odinContext);
                     await longTermStorageManager.DeleteReactionSummary(drive, deletedServerFileHeader.FileMetadata.File.FileId);
                     await longTermStorageManager.DeleteTransferHistoryAsync(drive, deletedServerFileHeader.FileMetadata.File.FileId);
+                    
+                    _logger.LogDebug("{method} -> markComplete {message}", 
+                        nameof(WriteDeletedFileHeader),
+                        markComplete == null ? "is not configured" : "will be called");
+                    
                     if (markComplete != null)
                     {
                         int n = await markComplete.ExecuteAsync();

@@ -111,6 +111,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     // This function will have marked the inbox item as complete if successful
                     // Otherwise if it returns false, it's a failure
                     (success, payloads) = await ProcessInboxItemAsync(tempFile, inboxItem, writer, odinContext, markComplete);
+
+                    logger.LogDebug("Item with tempFile ({file}) Processed.  success: {s}", tempFile.File.FileId, success);
                 }
                 finally
                 {
