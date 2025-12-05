@@ -77,7 +77,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                             serverMetadata,
                             ignorePayload: false,
                             odinContext,
-                            useThisVersionTag: instructionSet.Request.NewVersionTag);
+                            useThisVersionTag: instructionSet.Request.NewVersionTag, 
+                            markComplete);
                     });
 
                 logger.LogDebug("PeerFileUpdateWriter WriteNewFile - success: {success} committed payload count {pc}",
