@@ -9,17 +9,8 @@ public static class YouAuthPolicies
 
     public const string IsYouAuthAuthorized = "IsClientTokenIdentified";
 
-    // public const string IsAppNotificationSubscriber = "IsAppNotificationSubscriber";
-
     public static void AddPolicies(AuthorizationOptions policy)
     {
-        // policy.AddPolicy(IsAppNotificationSubscriber, pb =>
-        // {
-        //     pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower());
-        //     pb.RequireClaim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower());
-        //     pb.AuthenticationSchemes.Add(YouAuthConstants.AppNotificationSubscriberScheme);
-        // });
-
         policy.AddPolicy(IsYouAuthAuthorized, pb =>
         {
             pb.RequireClaim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower());

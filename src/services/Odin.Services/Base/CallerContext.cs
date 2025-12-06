@@ -24,7 +24,7 @@ namespace Odin.Services.Base
         /// </summary>
         public SecurityGroupType SecurityLevel { get; set; }
 
-        public ClientTokenType ClientTokenType { get; set; } = ClientTokenType.Other;
+        public ClientTokenType ClientTokenType { get; set; }
         public IEnumerable<GuidId> Circles { get; set; }
 
         /// <summary>
