@@ -282,7 +282,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 return context;
             }
 
-            throw new Exception($"No token found for {identity}");
+            throw new Exception($"No token found for {identity}.  " +
+                                $"Did you include {identity} in OneTimeSetup?" +
+                                $"(example: _scaffold.RunBeforeAnyTests(testIdentities: [TestIdentities.Frodo, " +
+                                $"TestIdentities.Samwise]);");
         }
 
         public void UpdateOwnerAuthContext(OdinId identity, ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)

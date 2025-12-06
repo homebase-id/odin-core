@@ -24,10 +24,10 @@ public interface IDriveStorageHttpClientApiV2
     [Get(Endpoint + "/thumb")]
     Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId,
         string payloadKey, int width, int height, bool directMatchOnly, FileSystemType fileSystemType);
-    
+
     [Get(Endpoint + "/transfer-history")]
     Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory([AliasAs("driveId:guid")] Guid driveId,
-        [AliasAs("fileId:guid")] Guid fileId);
+        [AliasAs("fileId:guid")] Guid fileId, FileSystemType fileSystemType);
 
     // add create, update, delete here
 }

@@ -5,10 +5,8 @@ using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
-using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Services.Apps;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Refit;
@@ -44,7 +42,7 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
         return thumbnailResponse;
     }
 
-    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(Guid uid, Guid driveId,
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueIdAsync(Guid uid, Guid driveId,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -53,7 +51,7 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
         return apiResponse;
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayloadAsync(Guid uid, Guid driveId, string key, FileChunk chunk = null,
+    public async Task<ApiResponse<HttpContent>> GetPayloadByUniqueIdAsync(Guid uid, Guid driveId, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -61,7 +59,7 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetPayload(driveId, uid, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
     }
 
-    public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(Guid uid, Guid driveId, int width, int height, string payloadKey,
+    public async Task<ApiResponse<HttpContent>> GetThumbnailUniqueIdAsync(Guid uid, Guid driveId, int width, int height, string payloadKey,
         bool directMatchOnly = false, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -96,8 +94,8 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
-        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        var apiResponse = await svc.GetTransferHistory(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+        var svc = RefitCreator.RestServiceFor<IDriveStorageHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.GetTransferHistory(file.TargetDrive.Alias, file.FileId, fileSystemType);
         return apiResponse;
     }
 

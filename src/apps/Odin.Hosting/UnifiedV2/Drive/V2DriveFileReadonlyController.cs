@@ -99,7 +99,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
             return await GetThumbnail(file, width, height, payloadKey, directMatchOnly, fileSystemType);
         }
 
-        [HttpGet("/transfer-history")]
+        [HttpGet("transfer-history")]
         public async Task<FileTransferHistoryResponse> GetFileTransferHistory(
             [FromRoute]Guid driveId,
             [FromRoute]Guid fileId,

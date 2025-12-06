@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core;
+using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -74,7 +75,7 @@ public class CdnAuthPathHandler : IAuthPathHandler
         };
 
         odinContext.Caller = new CallerContext(
-            odinId: null,
+            odinId: (OdinId)"cdn.tb.cloud",
             securityLevel: SecurityGroupType.System,
             masterKey: null,
             tokenType: ClientTokenType.Cdn
@@ -92,7 +93,7 @@ public class CdnAuthPathHandler : IAuthPathHandler
     public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken token, IOdinContext odinContext)
     {
         if (!IsValidPath(context))
-        {
+        {   
             return AuthHandlerResult.Fail();
         }
 
