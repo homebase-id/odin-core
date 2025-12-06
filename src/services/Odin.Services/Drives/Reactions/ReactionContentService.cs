@@ -70,6 +70,10 @@ public class ReactionContentService(
             await driveQuery.DeleteReactionAsync(drive, senderId, file.FileId, reactionContent);
             // We could check here if 1 row was deleted ...
 
+            logger.LogDebug("{method} -> markComplete {message}", 
+                nameof(DeleteReactionAsync),
+                markComplete == null ? "is not configured" : "will be called");
+            
             if (markComplete != null)
             {
                 var n = await markComplete.ExecuteAsync();

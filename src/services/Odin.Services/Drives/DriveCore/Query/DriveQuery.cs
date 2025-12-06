@@ -374,6 +374,10 @@ public class DriveQuery(
                 singleReaction = reaction
             });
 
+            logger.LogDebug("{method} -> markComplete {message}", 
+                nameof(AddReactionAsync),
+                markComplete == null ? "is not configured" : "will be called");
+            
             if (markComplete != null)
             {
                 int n = await markComplete.ExecuteAsync();

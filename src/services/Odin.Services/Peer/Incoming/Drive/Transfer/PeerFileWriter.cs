@@ -349,6 +349,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 await feedWriter.WriteNewFileToFeedDriveAsync(keyHeader, newMetadata, odinContext);
 
+                logger.LogDebug("{method} -> markComplete {message}", 
+                    nameof(StoreEncryptedFeedFile),
+                    markComplete == null ? "is not configured" : "will be called");
+                
                 if (markComplete != null)
                 {
                     int n = await markComplete.ExecuteAsync();
@@ -385,6 +389,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 bypassCallerCheck: driveOriginWasCollaborative, // the caller will not be original sender in the case of a collab drive 
                 keyHeader: keyHeader);
 
+            logger.LogDebug("{method} -> markComplete {message}", 
+                nameof(StoreEncryptedFeedFile),
+                markComplete == null ? "is not configured" : "will be called");
+            
             //note: we also update the key header because it might have been changed by the sender
             if (markComplete != null)
             {
