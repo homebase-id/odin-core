@@ -358,8 +358,7 @@ namespace Odin.Hosting.Tests
             return RefitCreator.RestServiceFor<T>(client, sharedSecret);
         }
 
-
-        public OdinClientErrorCode GetErrorCode(ApiException apiException)
+        public static OdinClientErrorCode GetErrorCode(ApiException apiException)
         {
             var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
             ClassicAssert.IsNotNull(problemDetails);

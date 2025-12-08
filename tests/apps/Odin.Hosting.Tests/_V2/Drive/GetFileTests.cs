@@ -74,6 +74,16 @@ public class GetFileTests
         yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
+    public static IEnumerable TestCasesSecuredDriveForEncryptedFiles()
+    {
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
+
+        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
+
+        yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+    }
+
     [Test]
     [TestCaseSource(nameof(TestCasesAnonDrive))]
     public async Task CanGetHeaderAndPayloadAndThumbnailsOnAnonymousDriveV2ByFileId(IApiClientContext callerContext,
@@ -133,21 +143,21 @@ public class GetFileTests
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
             ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
 
-            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64,
-                out var encryptedHeader64Values));
+            // Assert: header must not exist, or if it does, must be empty/null
+            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                out var encryptedHeader64Values);
+            ClassicAssert.IsTrue(
+                encryptedHeader64Values == null || encryptedHeader64Values.All(string.IsNullOrEmpty),
+                "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when file not encrypted"
+            );
 
-            var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
-            ClassicAssert.IsNotNull(payloadEkh);
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, payload.Iv));
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey,
-                header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
 
             ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders,
                 out var lastModifiedHeaderValue));
             //Note commented as I'm having some conversion issues i think
             ClassicAssert.IsTrue(lastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
-            
-            
+
+
             //
             // Ge the thumbnail
             //
@@ -155,15 +165,16 @@ public class GetFileTests
             var thumbnail = payload.Thumbnails.Single();
             var getThumbnailResponse = await client.GetThumbnailAsync(file, thumbnail.PixelWidth, thumbnail.PixelHeight, payload.Key,
                 directMatchOnly: true);
-            
+
             ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.OK,
                 $"get thumbnail failed - code was {getThumbnailResponse.StatusCode}");
 
             var expectedThumbnail = payload.Thumbnails.Single();
             var actualThumbnailBytes = await getThumbnailResponse.Content.ReadAsByteArrayAsync();
-            
-            ClassicAssert.IsTrue(expectedThumbnail.Content.ToBase64() == actualThumbnailBytes.ToBase64(), "thumbnail content is not as expected");
-            
+
+            ClassicAssert.IsTrue(expectedThumbnail.Content.ToBase64() == actualThumbnailBytes.ToBase64(),
+                "thumbnail content is not as expected");
+
             ClassicAssert.IsNotNull(getThumbnailResponse.ContentHeaders);
             ClassicAssert.IsNotNull(getThumbnailResponse.Headers);
 
@@ -171,11 +182,13 @@ public class GetFileTests
                 getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var thumbnailIsEncryptedValues));
             ClassicAssert.IsFalse(bool.Parse(thumbnailIsEncryptedValues.Single()));
 
-            ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var thumbnailContentTypeValues));
+            ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType,
+                out var thumbnailContentTypeValues));
             ClassicAssert.IsTrue(thumbnailContentTypeValues.Single() == thumbnail.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
-            getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var thumbnailSharedSecretValues);
+            getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                out var thumbnailSharedSecretValues);
             ClassicAssert.IsTrue(
                 thumbnailSharedSecretValues == null || thumbnailSharedSecretValues.All(string.IsNullOrEmpty),
                 "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when file not encrypted"
@@ -245,22 +258,21 @@ public class GetFileTests
 
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
-            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            ClassicAssert.IsTrue(payloadKeyValues.Single() == payload.Key);
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == payload.Key);
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == payload.ContentType);
 
-            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64,
-                out var encryptedHeader64Values));
-
-            var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
-            ClassicAssert.IsNotNull(payloadEkh);
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, payload.Iv));
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey,
-                header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
+            // Assert: header must not exist, or if it does, must be empty/null
+            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                out var encryptedHeader64Values);
+            ClassicAssert.IsTrue(
+                encryptedHeader64Values == null || encryptedHeader64Values.All(string.IsNullOrEmpty),
+                "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when file not encrypted"
+            );
 
             ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders,
                 out var lastModifiedHeaderValue));
@@ -327,22 +339,16 @@ public class GetFileTests
 
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
-            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            ClassicAssert.IsTrue(payloadKeyValues.Single() == payload.Key);
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == payload.Key);
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == payload.ContentType);
 
-            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64,
-                out var encryptedHeader64Values));
-
-            var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
-            ClassicAssert.IsNotNull(payloadEkh);
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, payload.Iv));
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey,
-                header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
+            ClassicAssert.IsFalse(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out _),
+                "SharedSecretEncryptedHeader64 should not exist on unencrypted file");
 
             ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders,
                 out var lastModifiedHeaderValue));
@@ -353,7 +359,7 @@ public class GetFileTests
 
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
-    public async Task CanGetHeaderAndPayloadAndThumbnailsOnSecuredDriveV2ByUniqueId(IApiClientContext callerContext,
+    public async Task CanGetHeaderAndPayloadAndThumbnailsOnUnEncryptedFileOnSecuredDriveV2ByUniqueId(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Samwise;
@@ -411,27 +417,147 @@ public class GetFileTests
 
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
-            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            ClassicAssert.IsTrue(payloadKeyValues.Single() == payload.Key);
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == payload.Key);
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == payload.ContentType);
 
-            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64,
-                out var encryptedHeader64Values));
 
-            var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
-            ClassicAssert.IsNotNull(payloadEkh);
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, payload.Iv));
-            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey,
-                header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
+            ClassicAssert.IsFalse(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out _),
+                "SharedSecretEncryptedHeader64 should not exist on unencrypted file");
 
             ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders,
                 out var lastModifiedHeaderValue));
             //Note commented as I'm having some conversion issues i think
             ClassicAssert.IsTrue(lastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
+        }
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCasesSecuredDriveForEncryptedFiles))]
+    public async Task CanGetHeaderAndPayloadAndThumbnailsOn_Encrypted_FileOnSecuredDriveV2ByUniqueId(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+        var clientUniqueId = Guid.NewGuid();
+        var driveId = callerContext.TargetDrive.Alias;
+
+        const string unencryptedContent = "some content here";
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.AppData.Content = unencryptedContent;
+        metadata.AccessControlList = AccessControlList.Connected;
+        metadata.AppData.UniqueId = clientUniqueId;
+
+        var unencryptedPayload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        unencryptedPayload.Iv = ByteArrayUtil.GetRndByteArray(16);
+
+        var unencryptedThumbnail = unencryptedPayload.Thumbnails.Single();
+
+        var keyHeader = KeyHeader.NewRandom16();
+        var (uploadResult, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) =
+            await UploadEncryptedFile(identity, metadata, unencryptedPayload, keyHeader, callerContext);
+
+        await callerContext.Initialize(ownerApiClient);
+        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+
+        //
+        // can get header
+        //
+        var getHeaderResponse = await client.GetFileHeaderByUniqueIdAsync(clientUniqueId, driveId);
+        ClassicAssert.IsTrue(getHeaderResponse.StatusCode == expectedStatusCode, $"code was {getHeaderResponse.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK) //test more
+        {
+            var header = getHeaderResponse.Content;
+            ClassicAssert.IsNotNull(header);
+            ClassicAssert.IsTrue(header.FileId == uploadResult.File.FileId);
+            ClassicAssert.IsTrue(header.FileMetadata.Payloads.Count() == 1);
+
+            ClassicAssert.IsTrue(header.FileMetadata.AppData.Content == encryptedJsonContent64, "encrypted content does not match");
+            var decryptedContentBytes = keyHeader.Decrypt(header.FileMetadata.AppData.Content.FromBase64());
+            ClassicAssert.IsTrue(decryptedContentBytes.ToStringFromUtf8Bytes() == unencryptedContent);
+
+            //
+            // can get payload
+            //
+            var payloadFromHeader = header.FileMetadata.GetPayloadDescriptor(unencryptedPayload.Key);
+            ClassicAssert.IsNotNull(payloadFromHeader, "payload not found in header");
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadFromHeader.Iv, unencryptedPayload.Iv));
+
+
+            // Get the payload and check the headers
+            var getPayloadKey1Response = await client.GetPayloadByUniqueIdAsync(clientUniqueId, driveId, unencryptedPayload.Key);
+
+            ClassicAssert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode,
+                $"Code should have been {expectedStatusCode} but" +
+                $" was {getPayloadKey1Response.StatusCode}");
+
+            ClassicAssert.IsNotNull(getPayloadKey1Response.ContentHeaders);
+            ClassicAssert.IsNotNull(getPayloadKey1Response.Headers);
+
+            ClassicAssert.IsTrue(
+                getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
+            ClassicAssert.IsTrue(bool.Parse(isEncryptedValues!.Single()));
+
+            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == unencryptedPayload.Key);
+            ClassicAssert.IsTrue(
+                getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == unencryptedPayload.ContentType);
+
+            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                out var payloadSharedSecretEncryptedHeader64Values));
+
+            // decrypt the payload the same as an FE client
+            var payloadEkh = EncryptedKeyHeader.FromBase64(payloadSharedSecretEncryptedHeader64Values!.Single());
+
+            ClassicAssert.IsNotNull(payloadEkh);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.Iv, unencryptedPayload.Iv));
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(payloadEkh.EncryptedAesKey,
+                header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
+
+            var sharedSecret = client.GetSharedSecret();
+            var decryptedPayloadKeyHeader = payloadEkh.DecryptAesToKeyHeader(ref sharedSecret);
+
+            var decryptedPayloadBytes = decryptedPayloadKeyHeader.Decrypt(await getPayloadKey1Response.Content.ReadAsByteArrayAsync());
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedPayloadBytes, unencryptedPayload.Content));
+
+            ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getPayloadKey1Response.ContentHeaders,
+                out var lastModifiedHeaderValue));
+            //Note commented as I'm having some conversion issues I think
+            ClassicAssert.IsTrue(lastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
+
+            //
+            // now get the thumbnail and decrypt
+            //
+            var getThumbnailResponse = await client.GetThumbnailUniqueIdAsync(clientUniqueId, driveId, unencryptedThumbnail.PixelWidth,
+                unencryptedThumbnail.PixelHeight,
+                unencryptedPayload.Key, true);
+
+            ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);
+            ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() < DateTimeOffset.Now.AddSeconds(10));
+
+            ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                out var thumbnailSharedSecretEncryptedHeader64));
+
+            // decrypt the payload the same as an FE client
+            var thumbnailEkh = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretEncryptedHeader64!.Single());
+            ClassicAssert.IsNotNull(thumbnailEkh);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnailEkh.Iv, unencryptedPayload.Iv));
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnailEkh.EncryptedAesKey,
+                header.SharedSecretEncryptedKeyHeader.EncryptedAesKey));
+
+            var thumbContentBytes = await getThumbnailResponse.Content.ReadAsByteArrayAsync();
+            var decryptedThumbnailKeyHeader = thumbnailEkh.DecryptAesToKeyHeader(ref sharedSecret);
+            var decryptedThumbnailBytes = decryptedThumbnailKeyHeader.Decrypt(thumbContentBytes);
+            ClassicAssert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedThumbnailBytes ,unencryptedThumbnail.Content));
+            
         }
     }
 
@@ -461,5 +587,40 @@ public class GetFileTests
         var uploadResult = response.Content;
         ClassicAssert.IsNotNull(uploadResult);
         return uploadResult.File;
+    }
+
+    private async
+        Task<(UploadResult uploadResult, string encryptedJsonContent64, List<EncryptedAttachmentUploadResult>
+            uploadedThumbnails, List<EncryptedAttachmentUploadResult> uploadedPayloads)>
+        UploadEncryptedFile(TestIdentity identity,
+            UploadFileMetadata uploadedFileMetadata,
+            TestPayloadDefinition payloadDefinition,
+            KeyHeader keyHeader,
+            IApiClientContext callerContext)
+    {
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+        var targetDrive = callerContext.TargetDrive;
+        // create drive
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", false);
+
+        // upload file
+        var testPayloads = new List<TestPayloadDefinition> { payloadDefinition };
+
+        var uploadManifest = new UploadManifest()
+        {
+            PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
+        };
+
+        var (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) =
+            await ownerApiClient.DriveRedux.UploadNewEncryptedFile(targetDrive, keyHeader, uploadedFileMetadata, uploadManifest,
+                testPayloads);
+
+        // send back details - fileid
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode);
+        var uploadResult = response.Content;
+        ClassicAssert.IsNotNull(uploadResult);
+
+        return (uploadResult, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
     }
 }

@@ -16,6 +16,7 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Query;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
+using Odin.Services.Drives.DriveCore.Query;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -273,7 +274,16 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             
             var driveId = targetDrive.Alias;
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, WebOdinContext, excludePreviewThumbnail: false);
+            
+            var options = new ResultOptions()
+            {
+                MaxRecords = 1,
+                IncludeHeaderContent = true,
+                ExcludePreviewThumbnail = false
+            };
+            
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, options, WebOdinContext);
+
             return result;
         }
 

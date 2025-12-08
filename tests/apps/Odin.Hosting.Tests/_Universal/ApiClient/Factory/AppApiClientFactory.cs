@@ -11,16 +11,9 @@ using Odin.Hosting.Tests.AppAPI.ApiClient.Base;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
-public class AppApiClientFactory : IApiClientFactory
+public class AppApiClientFactory(ClientAuthenticationToken token, byte[] secret) : IApiClientFactory
 {
-    private readonly ClientAuthenticationToken _token;
-    private readonly byte[] _sharedSecret;
-
-    public AppApiClientFactory(ClientAuthenticationToken token, byte[] sharedSecret)
-    {
-        _token = token;
-        _sharedSecret = sharedSecret;
-    }
+    public SensitiveByteArray SharedSecret { get; } = secret?.ToSensitiveByteArray();
 
     public HttpClient CreateHttpClient(OdinId identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -28,18 +21,18 @@ public class AppApiClientFactory : IApiClientFactory
             $"{nameof(AppApiClientFactory)}:{identity}:{WebScaffold.HttpsPort}",
             config => config.MessageHandlerChain.Add(inner => new SharedSecretGetRequestHandler(inner)));
 
-        var token = _token;
-        sharedSecret = _sharedSecret.ToSensitiveByteArray();
+        var token1 = token;
+        sharedSecret = secret.ToSensitiveByteArray();
 
         //
         // SEB:NOTE below is a hack to make SharedSecretGetRequestHandler work without instance data.
         // DO NOT do this in production code!
         //
         {
-            var cookieValue = $"{YouAuthConstants.AppCookieName}={token}";
+            var cookieValue = $"{YouAuthConstants.AppCookieName}={token1}";
             client.DefaultRequestHeaders.Add("Cookie", cookieValue);
             client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
-            client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(_sharedSecret));
+            client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(secret));
         }
 
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));

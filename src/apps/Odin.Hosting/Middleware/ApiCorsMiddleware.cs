@@ -63,7 +63,7 @@ namespace Odin.Hosting.Middleware
                 context.Response.Headers.Append("Access-Control-Expose-Headers",
                     new[]
                     {
-                        HttpHeaderConstants.SharedSecretEncryptedHeader64, HttpHeaderConstants.PayloadEncrypted, HttpHeaderConstants.DecryptedContentType
+                        HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, HttpHeaderConstants.PayloadEncrypted, HttpHeaderConstants.DecryptedContentType
                     });
             }
 

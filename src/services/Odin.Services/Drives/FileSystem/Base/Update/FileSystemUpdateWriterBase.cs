@@ -128,7 +128,7 @@ public abstract class FileSystemUpdateWriterBase
                 return fileByGlobalTransitId?.FileId;
 
             case FileIdentifierType.UniqueId:
-                var fileByClientUniqueId = await FileSystem.Query.GetFileByClientUniqueId(fileIdentifier.TargetDrive.Alias,
+                var fileByClientUniqueId = await FileSystem.Query.GetFileByClientUniqueIdForWriting(fileIdentifier.TargetDrive.Alias,
                     fileIdentifier.UniqueId.GetValueOrDefault(), odinContext);
                 return fileByClientUniqueId?.FileId;
             default:

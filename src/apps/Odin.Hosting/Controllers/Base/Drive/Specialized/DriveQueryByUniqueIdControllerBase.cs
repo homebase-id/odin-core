@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Services.Apps;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
@@ -87,7 +88,15 @@ namespace Odin.Hosting.Controllers.Base.Drive.Specialized
         private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid driveId)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext);
+            
+            var options = new ResultOptions()
+            {
+                MaxRecords = 1,
+                IncludeHeaderContent = true,
+                ExcludePreviewThumbnail = false
+            };
+            
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, options, WebOdinContext);
             return result;
         }
     }

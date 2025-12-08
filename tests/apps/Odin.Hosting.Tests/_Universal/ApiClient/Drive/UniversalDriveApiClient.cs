@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -385,6 +386,12 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             var driveSvc = RestService.For<IUniversalDriveHttpClientApi>(client);
             ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
 
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                var code = WebScaffold.GetErrorCode(response.Error);
+                throw new Exception($"BadRequest returned.  OdinClientErrorCode was {code}");
+            }
+            
             return (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
         }
     }

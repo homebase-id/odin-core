@@ -12,6 +12,8 @@ namespace Odin.Hosting.Tests._V2.ApiClient.Factory;
 
 public class ApiClientFactoryV2(string cookieName, ClientAuthenticationToken token, byte[]? secret = null) : IApiClientFactory
 {
+    public SensitiveByteArray? SharedSecret { get; } = secret?.ToSensitiveByteArray();
+
     public HttpClient CreateHttpClient(OdinId identity, out SensitiveByteArray? sharedSecret,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {

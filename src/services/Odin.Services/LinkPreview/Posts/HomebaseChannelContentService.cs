@@ -225,10 +225,6 @@ public class HomebaseChannelContentService(
             };
 
             postFile = await fileSystem.Query.GetFileByClientUniqueId(driveId: targetDrive.Alias, uid, options, odinContext);
-            // logger.LogDebug("Searching for post with key [{pk}] using post as Slug: {uid}] result: {result}",
-            //     postKey,
-            //     uid,
-            //     postFile == null ? "not found" : "found");
         }
 
         return postFile;
@@ -330,7 +326,7 @@ public class HomebaseChannelContentService(
                 logger.LogDebug("Failed deserializing post content from header.  Will try loading from default key({key}). json: [{json}]",
                     DefaultPayloadKey,
                     postFile.FileMetadata.AppData.Content);
-                
+
                 content = await LoadContentFromPayload(fileId);
             }
             else

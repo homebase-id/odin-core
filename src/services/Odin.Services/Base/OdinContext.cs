@@ -32,7 +32,7 @@ namespace Odin.Services.Base
     {
         public PermissionContext PermissionsContext { get; private set; }
         public string AuthContext { get; private set; }
-        public OdinId Tenant { get; set; }
+        public OdinId Tenant { get; set; } 
         public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
 

@@ -230,7 +230,7 @@ public abstract class FileSystemStreamWriterBase
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
-                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId,
+                    var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(Package.InternalFile.DriveId, incomingClientUniqueId,
                         odinContext);
 
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
@@ -252,7 +252,7 @@ public abstract class FileSystemStreamWriterBase
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId,
+                var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(Package.InternalFile.DriveId, incomingClientUniqueId,
                     odinContext);
 
                 if (null != existingFile && existingFile.FileState != FileState.Deleted)
@@ -545,7 +545,7 @@ public abstract class FileSystemStreamWriterBase
 
             if (metadata.IsEncrypted && !Package.Payloads.All(p => p.HasStrongIv()))
             {
-                throw new OdinClientException("When the file is encrypted, you must specify a valid payload IV of 16 bytes",
+                throw new OdinClientException("When the file is encrypted and you've added one or more payloads, you must specify a valid payload IV of 16 bytes for each payload",
                     OdinClientErrorCode.InvalidUpload);
             }
         }

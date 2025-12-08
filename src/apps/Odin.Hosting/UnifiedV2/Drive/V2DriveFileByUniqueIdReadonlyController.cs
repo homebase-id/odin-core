@@ -8,6 +8,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Apps;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
@@ -96,7 +97,14 @@ namespace Odin.Hosting.UnifiedV2.Drive
             FileSystemType fileSystemType)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem(fileSystemType).Query;
-            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, excludePreviewThumbnail: false, odinContext: WebOdinContext);
+            var options = new ResultOptions()
+            {
+                MaxRecords = 1,
+                IncludeHeaderContent = true,
+                ExcludePreviewThumbnail = false
+            };
+            
+            var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, options, WebOdinContext);
             return result;
         }
     }

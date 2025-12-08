@@ -545,7 +545,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile, Key = WebScaffold.PAYLOAD_KEY });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
-                var payloadSS64 = payloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
+                var payloadSS64 = payloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64).Single();
 
                 var payloadEkh = EncryptedKeyHeader.FromBase64(payloadSS64);
                 var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
@@ -659,7 +659,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
                 ClassicAssert.IsTrue(payloadIsEncrypted);
 
-                var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
+                var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
 
                 var getTransitPayloadContentTypeHeader = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
@@ -691,7 +691,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 ClassicAssert.IsTrue(thumbnailIsEncrypted);
 
                 var thumbnailSharedSecretKeyHeaderValue =
-                    getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
+                    getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
 
                 var getTransitThumbnailContentTypeHeader = getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
@@ -1408,7 +1408,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
                 ClassicAssert.IsTrue(payloadIsEncrypted);
 
-                var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
+                var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
 
                 var getTransitPayloadContentTypeHeader = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
@@ -1440,7 +1440,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                 ClassicAssert.IsTrue(thumbnailIsEncrypted);
 
                 var thumbnailSharedSecretKeyHeaderValue =
-                    getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
+                    getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
 
                 var getTransitThumbnailContentTypeHeader = getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();

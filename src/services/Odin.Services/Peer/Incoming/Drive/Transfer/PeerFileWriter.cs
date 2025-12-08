@@ -295,7 +295,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             // If there is no file matching the gtid, let's check if the UID might point to one
             if (header == null && newMetadata.AppData.UniqueId.HasValue)
             {
-                header = await fs.Query.GetFileByClientUniqueId(targetDriveId, newMetadata.AppData.UniqueId.Value, odinContext);
+                header = await fs.Query.GetFileByClientUniqueIdForWriting(targetDriveId, newMetadata.AppData.UniqueId.Value, odinContext);
             }
 
             if (header == null)

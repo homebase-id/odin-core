@@ -118,7 +118,7 @@ public class DirectDrivePayloadTests_1
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
             ClassicAssert.IsTrue(contentTypeValues.Single() == uploadedPayloadDefinition.ContentType);
 
-            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var encryptedHeader64Values));
+            ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var encryptedHeader64Values));
 
             var payloadEkh = EncryptedKeyHeader.FromBase64(encryptedHeader64Values.Single());
             ClassicAssert.IsNotNull(payloadEkh);

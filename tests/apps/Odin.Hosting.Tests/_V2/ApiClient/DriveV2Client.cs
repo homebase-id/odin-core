@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
@@ -15,6 +16,11 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public class DriveV2Client(OdinId identity, IApiClientFactory factory)
 {
+    public SensitiveByteArray GetSharedSecret()
+    {
+        return factory.SharedSecret;
+    }
+    
     public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(ExternalFileIdentifier file,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
