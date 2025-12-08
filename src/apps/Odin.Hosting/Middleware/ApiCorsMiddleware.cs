@@ -4,34 +4,28 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Odin.Services.Base;
 using Odin.Hosting.Authentication.YouAuth;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Configuration;
 
 namespace Odin.Hosting.Middleware
 {
-    public class ApiCorsMiddleware
+    public class ApiCorsMiddleware(RequestDelegate next, OdinConfiguration config)
     {
-        private readonly RequestDelegate _next;
-        private readonly OdinConfiguration _config;
-
-        public ApiCorsMiddleware(RequestDelegate next, OdinConfiguration config)
-        {
-            _next = next;
-            _config = config;
-        }
+        private readonly OdinConfiguration _config = config;
 
         public Task Invoke(HttpContext context, IOdinContext odinContext)
         {
             if (context.Request.Method == "OPTIONS")
             {
                 //handled by a controller
-                return _next.Invoke(context);
+                return next.Invoke(context);
             }
 
             bool shouldSetHeaders = false;
 
             List<string> allowHeaders = new List<string>();
 
-            if (odinContext.AuthContext == YouAuthConstants.AppSchemeName)
+            if (odinContext.AuthContext == YouAuthConstants.AppSchemeName || odinContext.Caller.ClientTokenType == ClientTokenType.App)
             {
                 var appHostName = odinContext.Caller.OdinClientContext.CorsHostName;
                 if (!string.IsNullOrEmpty(appHostName))
@@ -49,13 +43,7 @@ namespace Odin.Hosting.Middleware
                     allowHeaders.Add(OdinHeaderNames.UpgradeIsRunning);
                 }
             }
-
-            // removed when we supported auth via websocket
-            // if (odinContext.AuthContext == YouAuthConstants.AppNotificationSubscriberScheme)
-            // {
-            //     allowHeaders.Add(YouAuthConstants.SubscriberCookieName);
-            // }
-
+            
             if (shouldSetHeaders)
             {
                 context.Response.Headers.Append("Access-Control-Allow-Credentials", new[] { "true" });
@@ -67,7 +55,7 @@ namespace Odin.Hosting.Middleware
                     });
             }
 
-            return _next.Invoke(context);
+            return next.Invoke(context);
         }
     }
 
