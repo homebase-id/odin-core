@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Threading.Tasks;
 using Bitcoin.BIP39;
 using Microsoft.AspNetCore.Mvc;
@@ -29,8 +30,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         [HttpGet("verifyToken")]
         public async Task<IActionResult> VerifyCookieBasedToken()
         {
-            var value = Request.Cookies[OwnerAuthConstants.CookieName];
-            if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
+            var value = Request.Cookies[OwnerAuthConstants.CookieName] ?? "";
+            if (value == "")
+            {
+                value = WebUtility.UrlDecode(Request.Headers[OwnerAuthConstants.CookieName].ToString());
+            }
+
+            if (ClientAuthenticationToken.TryParse(value, out var result))
             {
                 var isValid = await authService.IsValidTokenAsync(result.Id);
                 if (isValid)

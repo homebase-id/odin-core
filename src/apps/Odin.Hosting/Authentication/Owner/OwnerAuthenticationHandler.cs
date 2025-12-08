@@ -150,8 +150,12 @@ namespace Odin.Hosting.Authentication.Owner
 
         private bool GetToken(out ClientAuthenticationToken? authenticationResult)
         {
-            //TODO: can we remove some of the sensitive cookie values from memory
-            var value = Context.Request.Cookies[OwnerAuthConstants.CookieName];
+            var value = Context.Request.Cookies[OwnerAuthConstants.CookieName] ?? "";
+            if (value == "")
+            {
+                value = WebUtility.UrlDecode(Request.Headers[OwnerAuthConstants.CookieName].ToString());
+            }
+
             if (ClientAuthenticationToken.TryParse(value, out var result))
             {
                 authenticationResult = result;
