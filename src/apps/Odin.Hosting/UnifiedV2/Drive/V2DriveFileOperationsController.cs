@@ -11,7 +11,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
 {
     /// <summary>
     /// File operations for the Unified V2 Drive API.
-    /// Includes metadata updates, deletion operations (single & batch), 
+    /// Includes metadata updates, deletion operations (single and batch), 
     /// hard deletes, and read receipts.
     /// </summary>
     [ApiController]
