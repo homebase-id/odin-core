@@ -123,7 +123,25 @@ public static class SystemServices
                 Title = "Odin API v2",
                 Version = "v2"
             });
-
+            
+            c.SwaggerDoc("owner-v1", new()
+            {
+                Title = "Odin API v2",
+                Version = "OwnerV1"
+            });
+            
+            c.SwaggerDoc("peer-v1", new ()
+            {
+                Title = "Peer2Peer",
+                Version = "v1"
+            });
+            
+            c.SwaggerDoc("admin-v1", new ()
+            {
+                Title = "Admin V1",
+                Version = "AdminV1"
+            });
+            
             // Ensure actions land in the correct doc based on GroupName
             c.DocInclusionPredicate((docName, apiDesc) =>
             {

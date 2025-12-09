@@ -14,6 +14,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     [Route(PeerApiPathConstants.ConnectionsV1)]
     [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork,
         AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
+    [ApiExplorerSettings(GroupName = "peer-v1")]
     public class ConnectionsController(
         CircleNetworkService circleNetwork,
         CircleNetworkVerificationService verificationService) : OdinControllerBase

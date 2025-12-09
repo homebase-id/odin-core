@@ -9,6 +9,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.CircleMembership
     [ApiController]
     [Route(OwnerApiPathConstants.CirclesV1 + "/membership")]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerCircleMembershipController : CircleMembershipControllerBase
     {
         public OwnerCircleMembershipController(

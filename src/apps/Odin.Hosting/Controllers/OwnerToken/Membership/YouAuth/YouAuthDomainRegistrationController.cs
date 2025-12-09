@@ -12,6 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
     [ApiController]
     [Route(OwnerApiPathConstants.YouAuthDomainManagementV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class YouAuthDomainRegistrationController(YouAuthDomainRegistrationService registrationService) : OdinControllerBase
     {
         /// <summary>

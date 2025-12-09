@@ -12,6 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerReactionContentV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerPeerReactionContentSenderController : PeerReactionContentSenderControllerBase
     {
         public OwnerPeerReactionContentSenderController(

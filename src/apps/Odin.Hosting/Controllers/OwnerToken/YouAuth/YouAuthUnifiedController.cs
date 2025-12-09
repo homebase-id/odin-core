@@ -25,6 +25,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.YouAuthV1)]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class YouAuthUnifiedController : OdinControllerBase
     {
         private readonly ILogger<YouAuthUnifiedController> _logger;

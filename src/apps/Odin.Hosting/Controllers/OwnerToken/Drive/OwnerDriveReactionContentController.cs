@@ -14,6 +14,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveReactionsV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDriveReactionContentController : DriveReactionContentControllerBase
     {
 

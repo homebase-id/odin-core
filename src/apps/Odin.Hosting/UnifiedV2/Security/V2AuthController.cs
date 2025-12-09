@@ -14,6 +14,7 @@ namespace Odin.Hosting.UnifiedV2.Security
     [ApiController]
     [Route(UnifiedApiRouteConstants.Auth)]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
+    [ApiExplorerSettings(GroupName = "v2")]
     public class V2AuthController(ClientRegistrationStorage storage) : OdinControllerBase
     {
         /// <summary>

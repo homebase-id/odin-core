@@ -11,6 +11,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Specialized
     [ApiController]
     [Route(OwnerApiPathConstants.DriveQuerySpecializedClientUniqueId)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDriveQueryByUniqueIdController(
         ILogger<OwnerDriveQueryByUniqueIdController> logger,
         PeerOutgoingTransferService peerOutgoingTransferService)

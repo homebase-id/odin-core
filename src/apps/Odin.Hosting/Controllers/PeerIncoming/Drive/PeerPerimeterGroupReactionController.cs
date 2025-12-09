@@ -13,6 +13,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [ApiController]
     [Route(PeerApiPathConstants.GroupReactionsV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
+    [ApiExplorerSettings(GroupName = "peer-v1")]
     public class PeerPerimeterGroupReactionController(
         PeerIncomingGroupReactionInboxRouterService groupReactionInboxRouterService)
         : OdinControllerBase

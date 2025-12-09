@@ -18,6 +18,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
     [ApiController]
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.NotificationsV1)]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerAppNotificationSocketController : OdinControllerBase
     {
         private readonly AppNotificationHandler _notificationHandler;

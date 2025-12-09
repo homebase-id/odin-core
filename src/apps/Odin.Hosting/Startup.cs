@@ -194,6 +194,9 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1");
                 c.SwaggerEndpoint("/swagger/v2/swagger.json", "Odin API v2");
+                c.SwaggerEndpoint("/swagger/owner-v1/swagger.json", "Odin Owner API v1");
+                c.SwaggerEndpoint("/swagger/peer-v1/swagger.json", "Odin Peer2Peer API v1");
+                c.SwaggerEndpoint("/swagger/admin-v1/swagger.json", "Odin Admin API v1");
             });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),

@@ -12,6 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
     [ApiController]
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.PushNotificationsV1)]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerPushNotificationController(
         PushNotificationService notificationService,
         ILoggerFactory loggerFactory)

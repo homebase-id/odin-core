@@ -13,6 +13,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerQueryV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerPeerSecurityContextController : PeerSecurityContextControllerBase
     {
         public OwnerPeerSecurityContextController(

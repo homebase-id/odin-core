@@ -11,6 +11,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Drive.GroupReactions;
 /// <summary />
 [ApiController]
 [Route(OwnerApiPathConstants.DriveGroupReactionsV1)]
+[ApiExplorerSettings(GroupName = "owner-v1")]
 [AuthorizeValidOwnerToken]
 public class OwnerDriveGroupReactionContentController : DriveGroupReactionControllerBase
 {

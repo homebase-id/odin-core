@@ -9,5 +9,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerV1 + "/inbox/processor")]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerPeerProcessController(PeerInboxProcessor peerInboxProcessor) : PeerProcessControllerBase(peerInboxProcessor);
 }

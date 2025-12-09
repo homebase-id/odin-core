@@ -19,6 +19,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {
     [ApiController]
     [Route(OwnerApiPathConstants.AuthV1)]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerAuthenticationController(
         OwnerAuthenticationService authService,
         OwnerSecretService ss,

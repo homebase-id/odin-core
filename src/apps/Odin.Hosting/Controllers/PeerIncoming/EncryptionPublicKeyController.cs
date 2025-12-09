@@ -14,6 +14,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     [ApiController]
     [Route(PeerApiPathConstants.EncryptionV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
+    [ApiExplorerSettings(GroupName = "peer-v1")]
     public class EncryptionPublicKeyController(
         PublicPrivateKeyService publicPrivateKeyService,
         ILogger<EncryptionPublicKeyController> logger) : ControllerBase

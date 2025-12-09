@@ -17,6 +17,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     [ApiController]
     [Route(PeerApiPathConstants.FollowersV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
+    [ApiExplorerSettings(GroupName = "peer-v1")]
     public class FollowPerimeterController : OdinControllerBase
     {
         private readonly FollowerPerimeterService _followerPerimeterService;
