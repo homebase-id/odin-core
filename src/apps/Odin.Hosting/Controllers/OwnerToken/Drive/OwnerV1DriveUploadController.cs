@@ -14,15 +14,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
     [ApiExplorerSettings(GroupName = "owner-v1")]
-    public class OwnerDriveUploadController(ILogger<OwnerDriveUploadController> logger) :
-        DriveUploadControllerBase(logger)
+    public class OwnerV1DriveUploadController(ILogger<OwnerV1DriveUploadController> logger) :
+        V1DriveUploadControllerBase(logger)
     {
         /// <summary/>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
         public async Task<UploadResult> Upload()
         {
-            return await base.ReceiveFileStream();
+            return await base.ReceiveNewFileStream();
         }
 
         /// <summary>

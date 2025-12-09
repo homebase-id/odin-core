@@ -10,6 +10,7 @@ using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Drive
 {
@@ -26,6 +27,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         : DriveStorageControllerBase(peerOutgoingTransferService)
     {
         [HttpGet("header")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeader(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
@@ -50,6 +52,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         }
 
         [HttpGet("payload")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetPayload(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
@@ -79,6 +82,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
 
         [HttpGet("thumb")]
         [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetThumbnail(
             [FromRoute]Guid driveId,
             [FromRoute]Guid fileId,
@@ -100,6 +104,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         }
 
         [HttpGet("transfer-history")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<FileTransferHistoryResponse> GetFileTransferHistory(
             [FromRoute]Guid driveId,
             [FromRoute]Guid fileId,

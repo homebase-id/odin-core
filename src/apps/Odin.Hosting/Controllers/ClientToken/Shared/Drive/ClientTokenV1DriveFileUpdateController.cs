@@ -11,8 +11,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstantsV1.DriveStorageV1)]
     [Route(GuestApiPathConstantsV1.DriveStorageV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenDriveFileUpdateController(ILogger<ClientTokenDriveFileUpdateController> logger)
-        : DriveFileUpdateControllerBase(logger)
+    public class ClientTokenV1DriveFileUpdateController(ILogger<ClientTokenV1DriveFileUpdateController> logger)
+        : V1DriveFileUpdateControllerBase(logger)
     {
     }
 }

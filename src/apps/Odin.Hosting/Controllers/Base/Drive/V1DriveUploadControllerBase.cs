@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -6,8 +7,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 
@@ -16,12 +19,12 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// <summary>
     /// Base API Controller for uploading multi-part streams
     /// </summary>
-    public abstract class DriveUploadControllerBase(ILogger logger) : OdinControllerBase
+    public abstract class V1DriveUploadControllerBase(ILogger logger) : OdinControllerBase
     {
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
         /// </summary>
-        protected async Task<UploadResult> ReceiveFileStream()
+        protected async Task<UploadResult> ReceiveNewFileStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -50,6 +53,74 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
         }
 
+        protected async Task<FileUpdateResult> ReceiveFileUpdate()
+        {
+            var fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
+            var updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
+
+            try
+            {
+                if (!IsMultipartContentType(HttpContext.Request.ContentType))
+                {
+                    throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
+                }
+
+                var boundary = GetBoundary(HttpContext.Request.ContentType);
+                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+                var section = await reader.ReadNextSectionAsync();
+                AssertIsPart(section, MultipartUploadParts.Instructions);
+
+                string json = await new StreamReader(section!.Body).ReadToEndAsync();
+                var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
+
+
+                await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
+
+                //
+                // Firstly, collect everything and store in the temp drive
+                //
+                section = await reader.ReadNextSectionAsync();
+                while (null != section)
+                {
+                    if (IsMetadataPart(section))
+                    {
+                        await updateWriter.AddMetadata(section!.Body);
+                    }
+
+                    if (IsPayloadPart(section))
+                    {
+                        AssertIsPayloadPart(section, out var fileSection, out var payloadKey, out var contentTypeFromMultipartSection);
+                        await updateWriter.AddPayload(payloadKey, contentTypeFromMultipartSection, fileSection.FileStream, WebOdinContext);
+                    }
+
+                    if (IsThumbnail(section))
+                    {
+                        AssertIsValidThumbnailPart(section, out var fileSection, out var thumbnailUploadKey,
+                            out var contentTypeFromMultipartSection);
+                        await updateWriter.AddThumbnail(thumbnailUploadKey, contentTypeFromMultipartSection, fileSection.FileStream,
+                            WebOdinContext);
+                    }
+
+                    section = await reader.ReadNextSectionAsync();
+                }
+
+                var result = await updateWriter.FinalizeFileUpdate(WebOdinContext);
+                return result;
+            }
+            finally
+            {
+                try
+                {
+                    await updateWriter.CleanupTempFiles(WebOdinContext);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failure during file cleanup");
+                }
+            }
+        }
+        
         private async Task<UploadResult> ProcessUpload(MultipartReader reader, FileSystemStreamWriterBase driveUploadService)
         {
             var section = await reader.ReadNextSectionAsync();
@@ -149,7 +220,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 {
                     await writer.CleanupTempFiles(WebOdinContext);
                 }
-                catch(Exception e) 
+                catch (Exception e)
                 {
                     logger.LogError(e, " Failure during file cleanup");
                 }

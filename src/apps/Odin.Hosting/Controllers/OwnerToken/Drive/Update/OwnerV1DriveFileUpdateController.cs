@@ -10,8 +10,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Update
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
     [ApiExplorerSettings(GroupName = "owner-v1")]
-    public class OwnerDriveFileUpdateController(ILogger<OwnerDriveFileUpdateController> logger) :
-        DriveFileUpdateControllerBase(logger)
+    public class OwnerV1DriveFileUpdateController(ILogger<OwnerV1DriveFileUpdateController> logger) :
+        V1DriveFileUpdateControllerBase(logger)
     {
     }
 }

@@ -15,8 +15,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstantsV1.DriveV1)]
     [Route(GuestApiPathConstantsV1.DriveV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class ClientTokenDriveUploadController(ILogger<ClientTokenDriveUploadController> logger)
-        : DriveUploadControllerBase(logger)
+    public class ClientTokenV1DriveUploadController(ILogger<ClientTokenV1DriveUploadController> logger)
+        : V1DriveUploadControllerBase(logger)
     {
         
         /// <summary>
@@ -27,7 +27,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()
         {
-            return await base.ReceiveFileStream();
+            return await base.ReceiveNewFileStream();
         }
         
         /// <summary>

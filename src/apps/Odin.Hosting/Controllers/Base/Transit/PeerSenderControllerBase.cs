@@ -26,7 +26,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
     public abstract class PeerSenderControllerBase(
         ILogger<PeerSenderControllerBase> logger,
         PeerOutgoingTransferService peerOutgoingTransferService)
-        : DriveUploadControllerBase(logger)
+        : V1DriveUploadControllerBase(logger)
     {
         /// <summary>
         /// Uploads a file using multi-part form data
