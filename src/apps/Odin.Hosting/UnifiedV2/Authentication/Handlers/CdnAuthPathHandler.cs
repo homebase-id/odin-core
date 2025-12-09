@@ -34,8 +34,20 @@ public class CdnAuthPathHandler : IAuthPathHandler
     {
         var path = context.Request.Path.Value ?? string.Empty;
 
-        if (!AllowedPrefixes.Any(prefix => path.StartsWith(prefix)))
+        bool prefixAllowed = false;
+        foreach (var prefix in AllowedPrefixes)
+        {
+            if (path.StartsWith(prefix))
+            {
+                prefixAllowed = true;
+                break;
+            }
+        }
+
+        if (!prefixAllowed)
+        {
             return false;
+        }
 
         foreach (var suffix in AllowedSuffixes)
         {
@@ -117,8 +129,8 @@ public class CdnAuthPathHandler : IAuthPathHandler
         return await CreateAuthResult(context, odinContext);
     }
 
-    public async Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
+    public Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
     {
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }

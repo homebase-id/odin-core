@@ -92,7 +92,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                 switch (result.Status)
                 {
                     case AuthHandlerStatus.Success:
-                        return CreateSuccessResult(result.Claims!, token, odinContext);
+                        return CreateSuccessResult(result.Claims, token, odinContext);
 
                     case AuthHandlerStatus.AnonymousFallback:
                         return await CreateAnonResult(Context, odinContext);
@@ -138,12 +138,17 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         //
 
         private static AuthenticateResult CreateSuccessResult(
-            List<Claim> claims,
+            List<Claim>? claims,
             ClientAuthenticationToken token,
             IOdinContext odinContext)
         {
             var scheme = UnifiedAuthConstants.SchemeName;
 
+            if (claims == null)
+            {
+                return AuthenticateResult.Fail("null claims");
+            }
+            
             claims.Add(new Claim(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()));
             
             claims.Add(new Claim(UnifiedClaimTypes.ClientTokenType,

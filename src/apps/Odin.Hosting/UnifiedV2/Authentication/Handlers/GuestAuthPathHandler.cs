@@ -29,8 +29,8 @@ public class GuestAuthPathHandler : IAuthPathHandler
         return AuthHandlerResult.Success();
     }
 
-    public async Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
+    public Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
     {
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }

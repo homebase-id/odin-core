@@ -32,7 +32,7 @@ public class BuiltInBrowserAppHandler : IAuthPathHandler
         var homeAuthenticatorService = context.RequestServices.GetRequiredService<HomeAuthenticatorService>();
         var ctx = await homeAuthenticatorService.GetDotYouContextAsync(token, odinContext);
 
-        if (null == ctx)
+        if (ctx == null)
         {
             return AuthHandlerResult.Fallback();
         }
@@ -42,8 +42,8 @@ public class BuiltInBrowserAppHandler : IAuthPathHandler
         return AuthHandlerResult.Success();
     }
 
-    public async Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
+    public Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
     {
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 }
