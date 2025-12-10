@@ -10,6 +10,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Follow
     [ApiController]
     [Route(OwnerApiPathConstants.FollowersV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerFollowerController : FollowerControllerBase
     {
         /// <summary />

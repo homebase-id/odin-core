@@ -14,6 +14,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives.Management;
 
@@ -70,7 +71,15 @@ public abstract class OdinControllerBase : ControllerBase
 
     protected void AddGuestApiCacheHeader(int? minutes = null)
     {
-        if (WebOdinContext.AuthContext == YouAuthConstants.YouAuthScheme || WebOdinContext.AuthContext == YouAuthConstants.AppSchemeName)
+        var isYouAuthV2 = WebOdinContext.Caller.ClientTokenType == ClientTokenType.YouAuth;
+        var isYouAuthV1 = WebOdinContext.AuthContext == YouAuthConstants.YouAuthScheme;
+        var isYouAuth = isYouAuthV1 || isYouAuthV2;
+        
+        var isAppAuthV2 = WebOdinContext.Caller.ClientTokenType == ClientTokenType.App;
+        var isAppAuthV1 = WebOdinContext.AuthContext == YouAuthConstants.AppSchemeName;
+        var isAppAuth = isAppAuthV2 || isAppAuthV1;
+        
+        if (isYouAuth || isAppAuth)
         {
             var seconds = minutes == null
                 ? TimeSpan.FromDays(365).TotalSeconds

@@ -15,6 +15,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityV1)]
 [AuthorizeValidOwnerToken]
+[ApiExplorerSettings(GroupName = "owner-v1")]
 public class OwnerSecurityController : OdinControllerBase
 {
     private readonly PasswordKeyRecoveryService _recoveryService;

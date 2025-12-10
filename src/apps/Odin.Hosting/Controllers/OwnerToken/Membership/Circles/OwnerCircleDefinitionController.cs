@@ -11,6 +11,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.Circles
     [ApiController]
     [Route(OwnerApiPathConstants.CirclesDefinitionsV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerCircleDefinitionController : CircleDefinitionControllerBase
     {
         public OwnerCircleDefinitionController(

@@ -21,6 +21,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership.Feed
     [ApiController]
     [Route(PeerApiPathConstants.FeedV1)]
     [Microsoft.AspNetCore.Authorization.Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.FeedAuthScheme)]
+    [ApiExplorerSettings(GroupName = "peer-v1")]
     public class FeedDriveIncomingController : OdinControllerBase
     {
         private readonly FileSystemResolver _fileSystemResolver;

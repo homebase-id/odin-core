@@ -18,7 +18,6 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.ApiExceptions.Client;
-using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
@@ -141,7 +140,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader?.ToBase64());
+            if (header.FileMetadata.IsEncrypted)
+            {
+                HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
+            }
 
             if (null != chunk)
             {
@@ -215,9 +217,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
             HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.IsEncrypted.ToString());
             HttpContext.Response.Headers.LastModified = payloadDescriptor.GetLastModifiedHttpHeaderValue();
             HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedHeader64,
-                encryptedKeyHeaderForPayload?.ToBase64());
 
+            if (header.FileMetadata.IsEncrypted)
+            {
+                HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                    encryptedKeyHeaderForPayload?.ToBase64());
+            }
+            
             AddGuestApiCacheHeader();
 
             var result = new FileStreamResult(thumbPayload, header.FileMetadata.IsEncrypted

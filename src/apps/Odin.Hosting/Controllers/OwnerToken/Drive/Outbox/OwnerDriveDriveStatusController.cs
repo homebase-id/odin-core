@@ -12,6 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive.Outbox
     [ApiController]
     [Route(OwnerApiPathConstants.DriveV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDriveDriveStatusController(
         StandardFileSystem fileSystem,
         PeerOutbox peerOutbox,

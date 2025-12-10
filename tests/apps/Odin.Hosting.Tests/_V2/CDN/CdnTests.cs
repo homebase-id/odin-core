@@ -136,7 +136,7 @@ public class CdnTests
             ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
-            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var values);
+            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var values);
             ClassicAssert.IsTrue(
                 values == null || values.All(string.IsNullOrEmpty),
                 "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when using CDN token type"
@@ -205,7 +205,7 @@ public class CdnTests
             ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
-            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var values);
+            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var values);
             ClassicAssert.IsTrue(
                 values == null || values.All(string.IsNullOrEmpty),
                 "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when using CDN token type"
@@ -303,7 +303,7 @@ public class CdnTests
             ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
-            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var values);
+            getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var values);
             ClassicAssert.IsTrue(
                 values == null || values.All(string.IsNullOrEmpty),
                 "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when using CDN token type"
@@ -357,7 +357,7 @@ public class CdnTests
             ClassicAssert.IsTrue(thumbnailContentTypeValues.Single() == thumbnail.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
-            getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64, out var thumbnailSharedSecretValues);
+            getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var thumbnailSharedSecretValues);
             ClassicAssert.IsTrue(
                 thumbnailSharedSecretValues == null || thumbnailSharedSecretValues.All(string.IsNullOrEmpty),
                 "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when using CDN token type"

@@ -10,6 +10,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.PeerSenderV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerPeerSenderController : PeerSenderControllerBase
     {
         public OwnerPeerSenderController(

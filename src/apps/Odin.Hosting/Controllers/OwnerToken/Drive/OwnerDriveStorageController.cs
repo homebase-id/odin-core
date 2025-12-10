@@ -20,6 +20,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDriveStorageController(
         ILogger<OwnerDriveStorageController> logger,
         PeerOutgoingTransferService peerOutgoingTransferService)

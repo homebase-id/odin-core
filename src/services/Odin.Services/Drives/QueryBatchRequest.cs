@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
@@ -12,10 +13,14 @@ public class QueryBatchRequest
     public FileQueryParams QueryParams { get; set; }
 
     public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
+    
+    public FileSystemType FileSystemType { get; set; } = FileSystemType.Standard;
 }
 
 public class GetQueryBatchRequest
 {
+    public FileSystemType FileSystemType { get; set; } = FileSystemType.Standard;
+
     // FileQueryParams
 
     public Guid Alias { get; set; }
@@ -45,8 +50,7 @@ public class GetQueryBatchRequest
     public Guid[] LocalTagsMatchAtLeastOne { get; set; } = null;
 
     public Guid[] GlobalTransitId { get; set; } = null;
-
-
+    
     // QueryBatchResultOptionsRequest
 
     public string CursorState { get; set; }
@@ -60,6 +64,7 @@ public class GetQueryBatchRequest
     /// Specifies if the result set includes the metadata header (assuming the file has one)
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
+
     public bool IncludeTransferHistory { get; set; }
 
     public QueryBatchSortOrder Ordering { get; set; }
@@ -70,6 +75,7 @@ public class GetQueryBatchRequest
     {
         return new QueryBatchRequest()
         {
+            FileSystemType = this.FileSystemType,
             QueryParams = new FileQueryParams()
             {
                 TargetDrive = new TargetDrive()
@@ -83,7 +89,9 @@ public class GetQueryBatchRequest
                 ArchivalStatus = this.ArchivalStatus,
                 Sender = this.Sender,
                 GroupId = this.GroupId,
-                UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange((UnixTimeUtc)this.UserDateStart.Value, (UnixTimeUtc)this.UserDateEnd.Value) : null,
+                UserDate = this.UserDateStart != null && this.UserDateEnd != null
+                    ? new UnixTimeUtcRange((UnixTimeUtc)this.UserDateStart.Value, (UnixTimeUtc)this.UserDateEnd.Value)
+                    : null,
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
                 TagsMatchAll = this.TagsMatchAll,

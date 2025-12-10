@@ -15,9 +15,8 @@ namespace Odin.Services.Drives.FileSystem.Standard
         ILogger<StandardFileDriveQueryService> logger,
         IDriveManager driveManager,
         DriveQuery driveQuery,
-        StandardFileDriveStorageService storage,
-        IdentityDatabase db)
-        : DriveQueryServiceBase(logger, driveManager, driveQuery, storage, db)
+        StandardFileDriveStorageService storage)
+        : DriveQueryServiceBase(logger, driveManager, driveQuery, storage)
     {
         public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
         {

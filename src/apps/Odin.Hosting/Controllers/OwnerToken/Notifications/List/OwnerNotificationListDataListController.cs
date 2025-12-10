@@ -9,6 +9,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications.List
     [ApiController]
     [Route(OwnerApiPathConstants.NotificationsV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerNotificationListDataListController : NotificationListDataControllerBase
     {
         public OwnerNotificationListDataListController(

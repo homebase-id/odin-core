@@ -21,6 +21,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
     //so here i could change the transit to have two policies - one that requires an app and one that is an certificate only
     //how do you know it is the owner console tho?
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
+    [ApiExplorerSettings(GroupName = "peer-v1")]
     public class InvitationsController(
         CircleNetworkRequestService circleNetworkRequestService) : OdinControllerBase
     {

@@ -81,7 +81,7 @@ public abstract class ShamirBaseService<TLogger>(
             IncludeTransferHistory = false
         };
 
-        var existingFile = await FileSystem.Query.GetFileByClientUniqueId(driveId, uid, options: options, odinContext);
+        var existingFile = await FileSystem.Query.GetFileByClientUniqueId(driveId, uid, options, odinContext);
 
         if (null == existingFile)
         {

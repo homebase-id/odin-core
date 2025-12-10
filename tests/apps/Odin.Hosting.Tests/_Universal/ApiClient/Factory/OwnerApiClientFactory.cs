@@ -10,17 +10,9 @@ using Odin.Hosting.Tests.OwnerApi.Utils;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Factory;
 
-public class OwnerApiClientFactory : IApiClientFactory
+public class OwnerApiClientFactory(ClientAuthenticationToken token, byte[] secret) : IApiClientFactory
 {
-    private readonly ClientAuthenticationToken _token;
-    private readonly byte[] _sharedSecret;
-
-    public OwnerApiClientFactory(ClientAuthenticationToken token, byte[] sharedSecret)
-    {
-        _token = token;
-        _sharedSecret = sharedSecret;
-    }
-
+    public SensitiveByteArray SharedSecret { get; } = secret?.ToSensitiveByteArray();
     public HttpClient CreateHttpClient(OdinId identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = WebScaffold.HttpClientFactory.CreateClient(
@@ -32,17 +24,17 @@ public class OwnerApiClientFactory : IApiClientFactory
         // DO NOT do this in production code!
         //
         {
-            var cookieValue = $"{OwnerAuthConstants.CookieName}={_token}";
+            var cookieValue = $"{OwnerAuthConstants.CookieName}={token}";
             client.DefaultRequestHeaders.Add("Cookie", cookieValue);
             client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
-            client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(_sharedSecret));
+            client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(secret));
         }
 
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
         client.Timeout = TimeSpan.FromMinutes(15);
 
         client.BaseAddress = new Uri($"https://{identity}:{WebScaffold.HttpsPort}{OwnerApiPathConstants.BasePathV1}");
-        sharedSecret = _sharedSecret.ToSensitiveByteArray();
+        sharedSecret = secret.ToSensitiveByteArray();
         return client;
     }
 }

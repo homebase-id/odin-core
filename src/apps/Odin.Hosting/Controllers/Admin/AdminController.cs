@@ -13,6 +13,7 @@ namespace Odin.Hosting.Controllers.Admin;
 [ApiController]
 [Route(AdminApiPathConstants.BasePathV1)]
 [ServiceFilter(typeof(AdminApiRestrictedAttribute))]
+[ApiExplorerSettings(GroupName = "admin-v1")]
 public class AdminController : ControllerBase
 {
     private const string AdminJobStateRouteName = "AdminJobStateRoute";

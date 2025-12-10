@@ -11,6 +11,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Cdn
     [ApiController]
     [Route(OwnerApiPathConstants.CdnV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerStaticFileContentController : StaticFileContentPublishControllerBase
     {
         private readonly StaticFileContentService _staticFileContentService;

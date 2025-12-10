@@ -170,7 +170,7 @@ public class RemotePayloadTests
         var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
         Assert.That(response.StatusCode == HttpStatusCode.BadRequest, Is.True);
 
-        var correctErrorCode = _scaffold.GetErrorCode(response.Error) == OdinClientErrorCode.InvalidPayloadContent;
+        var correctErrorCode = WebScaffold.GetErrorCode(response.Error) == OdinClientErrorCode.InvalidPayloadContent;
         Assert.That(correctErrorCode, Is.True);
     }
 
@@ -207,7 +207,7 @@ public class RemotePayloadTests
         var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, []);
         Assert.That(response.StatusCode == HttpStatusCode.BadRequest, Is.True);
 
-        var correctErrorCode = _scaffold.GetErrorCode(response.Error) == OdinClientErrorCode.MissingPayloadKeys;
+        var correctErrorCode = WebScaffold.GetErrorCode(response.Error) == OdinClientErrorCode.MissingPayloadKeys;
         Assert.That(correctErrorCode, Is.True);
     }
 
@@ -268,7 +268,7 @@ public class RemotePayloadTests
 
         var response = await callerDriveClient.UpdateFile(updateInstructionSet, uploadedFileMetadata, payloads: []);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        var errorCode = _scaffold.GetErrorCode(response.Error);
+        var errorCode = WebScaffold.GetErrorCode(response.Error);
         Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
     }
 
@@ -318,7 +318,7 @@ public class RemotePayloadTests
 
         var response = await callerDriveClient.UpdateExistingMetadata(uploadedFile.File, uploadedFile.NewVersionTag, uploadedFileMetadata);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        var errorCode = _scaffold.GetErrorCode(response.Error);
+        var errorCode = WebScaffold.GetErrorCode(response.Error);
         Assert.That(errorCode, Is.EqualTo(OdinClientErrorCode.CannotModifyRemotePayloadIdentity));
     }
 

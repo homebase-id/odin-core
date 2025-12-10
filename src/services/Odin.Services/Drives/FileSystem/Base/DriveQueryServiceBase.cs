@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage;
-using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Services.Apps;
@@ -21,21 +20,18 @@ namespace Odin.Services.Drives.FileSystem.Base
         private readonly ILogger _logger;
         private readonly DriveQuery _driveQuery;
         private readonly DriveStorageServiceBase _storage;
-        private readonly IdentityDatabase _db;
 
         protected DriveQueryServiceBase(
             ILogger logger,
             IDriveManager driveManager,
             DriveQuery driveQuery,
-            DriveStorageServiceBase storage,
-            IdentityDatabase db
+            DriveStorageServiceBase storage
         )
         {
             _logger = logger;
             _driveQuery = driveQuery;
             DriveManager = driveManager;
             _storage = storage;
-            _db = db;
         }
 
         protected override IDriveManager DriveManager { get; }
@@ -119,34 +115,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
-            ResultOptions options, IOdinContext odinContext)
-        {
-            await AssertDriveIsNotArchived(driveId, odinContext);
-            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
-
-            var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId, GetFileSystemType());
-
-            if (null == record)
-            {
-                return null;
-            }
-
-            var (headers, aclFailures) = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext,
-                logAclFailuresAsErrors: false);
-            var theSingleLonelyResult = headers.SingleOrDefault();
-            if (theSingleLonelyResult == null)
-            {
-                // see if it's because of a permissions issue
-                if (aclFailures.Any(f => f.FileMetadata.AppData.UniqueId == clientUniqueId))
-                {
-                    throw new OdinSecurityException($"Cannot access file with uniqueId: {clientUniqueId}");
-                }
-            }
-
-            return theSingleLonelyResult;
-        }
-
         public async Task<SharedSecretEncryptedFileHeader> GetSingleFileByTag(Guid driveId, Guid tag, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
@@ -168,20 +136,29 @@ namespace Odin.Services.Drives.FileSystem.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
-            IOdinContext odinContext,
-            bool excludePreviewThumbnail = true)
+        /// <summary>
+        /// Permissions check allows you to get the file if you only have DrivePermission.Write
+        /// </summary>
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueIdForWriting(Guid driveId, Guid clientUniqueId,
+            IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
-
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
             var options = new ResultOptions()
             {
-                MaxRecords = 10,
-                IncludeHeaderContent = !excludePreviewThumbnail,
-                ExcludePreviewThumbnail = excludePreviewThumbnail
+                MaxRecords = 1,
+                IncludeHeaderContent = true,
+                ExcludePreviewThumbnail = true
             };
-
-            return await GetFileByClientUniqueId(driveId, clientUniqueId, options, odinContext);
+            
+            return await GetFileByClientUniqueIdInternal(driveId, clientUniqueId, options, odinContext);
+        }
+        
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
+            ResultOptions options,
+            IOdinContext odinContext)
+        {
+            await AssertCanReadDriveAsync(driveId, odinContext);
+            return await GetFileByClientUniqueIdInternal(driveId, clientUniqueId, options, odinContext);
         }
 
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext,
@@ -541,6 +518,33 @@ namespace Odin.Services.Drives.FileSystem.Base
                     throw new OdinClientException("Drive is archived", OdinClientErrorCode.InvalidDrive);
                 }
             }
+        }
+
+        private async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueIdInternal(Guid driveId, Guid clientUniqueId,
+            ResultOptions options, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(driveId, odinContext);
+
+            var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId, GetFileSystemType());
+
+            if (null == record)
+            {
+                return null;
+            }
+
+            var (headers, aclFailures) = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext,
+                logAclFailuresAsErrors: false);
+            var theSingleLonelyResult = headers.SingleOrDefault();
+            if (theSingleLonelyResult == null)
+            {
+                // see if it's because of a permissions issue
+                if (aclFailures.Any(f => f.FileMetadata.AppData.UniqueId == clientUniqueId))
+                {
+                    throw new OdinSecurityException($"Cannot access file with uniqueId: {clientUniqueId}");
+                }
+            }
+
+            return theSingleLonelyResult;
         }
     }
 

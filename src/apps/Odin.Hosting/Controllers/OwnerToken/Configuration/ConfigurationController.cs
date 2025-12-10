@@ -19,6 +19,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 [ApiController]
 [AuthorizeValidOwnerToken]
 [Route(OwnerApiPathConstants.ConfigurationV1)]
+[ApiExplorerSettings(GroupName = "owner-v1")]
 public class OwnerConfigurationController : OdinControllerBase
 {
     private readonly TenantConfigService _tenantConfigService;

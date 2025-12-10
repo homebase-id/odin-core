@@ -15,6 +15,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
     [ApiController]
     [Route(OwnerApiPathConstants.DataConversion)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class OwnerDataConversionController(
         V0ToV1VersionMigrationService fixer,
         TenantConfigService configService,

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
@@ -384,6 +386,12 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
             var driveSvc = RestService.For<IUniversalDriveHttpClientApi>(client);
             ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
 
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                var code = WebScaffold.GetErrorCode(response.Error);
+                throw new Exception($"BadRequest returned.  OdinClientErrorCode was {code}");
+            }
+            
             return (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
         }
     }
@@ -401,6 +409,11 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
+
+        if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
+        {
+            throw new Exception("You set recipients but did not allow file distribution; tsk tsk");
+        }
 
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
@@ -433,7 +446,6 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
                     Enum.GetName(MultipartUploadParts.Metadata))
-
             ];
 
             foreach (var payloadDefinition in payloads)
@@ -1018,7 +1030,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     {
         await this.WaitForEmptyOutbox(drive, timeout);
     }
-    
+
     public async Task<ApiResponse<PagedResult<ClientDriveData>>> GetDrivesByType(Guid type)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
@@ -1032,5 +1044,4 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
 
         return response;
     }
-
 }

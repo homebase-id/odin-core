@@ -12,6 +12,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityRecoveryV1)]
 [AuthorizeValidOwnerToken]
+[ApiExplorerSettings(GroupName = "owner-v1")]
 public class SecurityConfigurationController(
     ShamirConfigurationService shamirConfigurationService,
     ShamirReadinessCheckerService readinessCheckerService,

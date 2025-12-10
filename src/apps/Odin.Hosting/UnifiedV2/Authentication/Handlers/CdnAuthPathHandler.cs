@@ -1,14 +1,12 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core;
-using Odin.Hosting.Authentication.YouAuth;
-using Odin.Services.Authorization;
+using Odin.Core.Identity;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -19,52 +17,42 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.UnifiedV2.Authentication.Handlers;
 
-public static class CdnAuthPathHandler
+public class CdnAuthPathHandler : IAuthPathHandler
 {
-    static readonly List<string> AllowedPaths =
+    static readonly List<string> AllowedPrefixes =
     [
-        $"{UnifiedApiRouteConstants.Files}/payload",
-        $"{UnifiedApiRouteConstants.Files}/thumb"
+        UnifiedApiRouteConstants.DrivesRoot
     ];
 
-    public static async Task<AuthenticateResult> Handle(HttpContext context, ClientAuthenticationToken clientAuthToken,
-        IOdinContext odinContext)
-    {
-        if (!IsValidPath(context))
-        {
-            return AuthenticateResult.Fail("Invalid path");
-        }
-
-        var config = context.RequestServices.GetRequiredService<OdinConfiguration>();
-
-        if (config.Cdn.Enabled == false)
-        {
-            return AuthenticateResult.Fail("CDN is not enabled");
-        }
-
-        var idMatches = config.Cdn.ExpectedAuthToken.Id == clientAuthToken.Id;
-        var halfKeyMatches = ByteArrayUtil.EquiByteArrayCompare(
-            config.Cdn.ExpectedAuthToken.AccessTokenHalfKey.GetKey(),
-            clientAuthToken.AccessTokenHalfKey.GetKey());
-        
-        if (!(idMatches && halfKeyMatches))
-        {
-            return AuthenticateResult.Fail("Invalid auth token");
-        }
-
-        odinContext.SetAuthContext(YouAuthConstants.YouAuthScheme);
-
-        return await CreateAuthResult(context, odinContext);
-    }
+    static readonly List<string> AllowedSuffixes =
+    [
+        "/payload",
+        "/thumb"
+    ];
 
     private static bool IsValidPath(HttpContext context)
     {
-        var path = context.Request.Path;
+        var path = context.Request.Path.Value ?? string.Empty;
 
-        foreach (var allowed in AllowedPaths)
+        bool prefixAllowed = false;
+        foreach (var prefix in AllowedPrefixes)
         {
-            if (path.StartsWithSegments(allowed) ||
-                path.StartsWithSegments(allowed + ".")) // the . is to handle thumbnail.{extension}
+            if (path.StartsWith(prefix))
+            {
+                prefixAllowed = true;
+                break;
+            }
+        }
+
+        if (!prefixAllowed)
+        {
+            return false;
+        }
+
+        foreach (var suffix in AllowedSuffixes)
+        {
+            if (path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ||
+                path.Contains($"{suffix}.", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -73,14 +61,14 @@ public static class CdnAuthPathHandler
         return false;
     }
 
-    private static async Task<AuthenticateResult> CreateAuthResult(HttpContext httpContext, IOdinContext odinContext)
+    private static async Task<AuthHandlerResult> CreateAuthResult(HttpContext httpContext, IOdinContext odinContext)
     {
         var driveManager = httpContext.RequestServices.GetRequiredService<IDriveManager>();
         var drives = await driveManager.GetCdnEnabledDrivesAsync(PageOptions.All, odinContext);
 
         if (!drives.Results.Any())
         {
-            return AuthenticateResult.Fail("No CDN enabled drives configured");
+            return AuthHandlerResult.Fail();
         }
 
         var anonDriveGrants = drives.Results.Select(d => new DriveGrant()
@@ -99,7 +87,7 @@ public static class CdnAuthPathHandler
         };
 
         odinContext.Caller = new CallerContext(
-            odinId: null,
+            odinId: (OdinId)"cdn.tb.cloud",
             securityLevel: SecurityGroupType.System,
             masterKey: null,
             tokenType: ClientTokenType.Cdn
@@ -111,16 +99,38 @@ public static class CdnAuthPathHandler
                 sharedSecretKey: null
             ));
 
-        var claims = new[]
-        {
-            new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
-                OdinClaimTypes.YouFoundationIssuer),
-            new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean,
-                OdinClaimTypes.YouFoundationIssuer)
-        };
+        return AuthHandlerResult.Success();
+    }
 
-        var claimsIdentity = new ClaimsIdentity(claims, YouAuthConstants.YouAuthScheme);
-        var ticket = new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), YouAuthConstants.YouAuthScheme);
-        return AuthenticateResult.Success(ticket);
+    public async Task<AuthHandlerResult> HandleAsync(HttpContext context, ClientAuthenticationToken token, IOdinContext odinContext)
+    {
+        if (!IsValidPath(context))
+        {   
+            return AuthHandlerResult.Fail();
+        }
+
+        var config = context.RequestServices.GetRequiredService<OdinConfiguration>();
+
+        if (config.Cdn.Enabled == false)
+        {
+            return AuthHandlerResult.Fail();
+        }
+
+        var idMatches = config.Cdn.ExpectedAuthToken.Id == token.Id;
+        var halfKeyMatches = ByteArrayUtil.EquiByteArrayCompare(
+            config.Cdn.ExpectedAuthToken.AccessTokenHalfKey.GetKey(),
+            token.AccessTokenHalfKey.GetKey());
+
+        if (!(idMatches && halfKeyMatches))
+        {
+            return AuthHandlerResult.Fail();
+        }
+
+        return await CreateAuthResult(context, odinContext);
+    }
+
+    public Task HandleSignOutAsync(Guid tokenId, HttpContext context, IOdinContext odinContext)
+    {
+        return Task.CompletedTask;
     }
 }

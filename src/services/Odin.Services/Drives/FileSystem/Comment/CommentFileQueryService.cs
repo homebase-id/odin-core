@@ -11,17 +11,13 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.FileSystem.Comment
 {
-    public class CommentFileQueryService : DriveQueryServiceBase
+    public class CommentFileQueryService(
+        ILogger<CommentFileQueryService> logger,
+        IDriveManager driveManager,
+        DriveQuery driveQuery,
+        CommentFileStorageService commentStorage)
+        : DriveQueryServiceBase(logger, driveManager, driveQuery, commentStorage)
     {
-        public CommentFileQueryService(
-            ILogger<CommentFileQueryService> logger,
-            IDriveManager driveManager,
-            DriveQuery driveQuery,
-            CommentFileStorageService commentStorage, IdentityDatabase db) :
-            base(logger, driveManager, driveQuery, commentStorage, db)
-        {
-        }
-
         public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
         {
             var drive = await DriveManager.GetDriveAsync(driveId, true);

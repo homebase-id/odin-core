@@ -1,4 +1,5 @@
 using System;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Query;
@@ -54,6 +55,8 @@ public class GetCollectionQueryParamSection {
     public QueryBatchSortOrder Ordering { get; set; }
 
     public QueryBatchSortField Sorting { get; set; }
+
+    public FileSystemType FileSystemType { get; set; } = FileSystemType.Standard;
 
     public CollectionQueryParamSection ToCollectionQueryParamSection () {
         return new CollectionQueryParamSection() {

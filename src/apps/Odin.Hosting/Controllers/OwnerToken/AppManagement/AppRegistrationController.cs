@@ -15,6 +15,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
     [ApiController]
     [Route(OwnerApiPathConstants.AppManagementV1)]
     [AuthorizeValidOwnerToken]
+    [ApiExplorerSettings(GroupName = "owner-v1")]
     public class AppRegistrationController(IAppRegistrationService appRegistrationService, IYouAuthUnifiedService youAuthUnifiedService)
         : OdinControllerBase
     {

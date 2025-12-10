@@ -32,6 +32,7 @@ using Odin.Hosting.Controllers.Registration;
 using Odin.Hosting.Extensions;
 using Odin.Hosting.Multitenant;
 using Odin.Hosting.UnifiedV2.Authentication;
+using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Admin.Tenants;
 using Odin.Services.Background;
 using Odin.Services.Base;
@@ -59,10 +60,7 @@ public static class SystemServices
         services.AddSingleton(config);
 
         services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
-        services.Configure<HostOptions>(options =>
-        {
-            options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds);
-        });
+        services.Configure<HostOptions>(options => { options.ShutdownTimeout = TimeSpan.FromSeconds(config.Host.ShutdownTimeoutSeconds); });
 
         services.AddSingleton<IDynamicHttpClientFactory, DynamicHttpClientFactory>();
         services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
@@ -113,11 +111,44 @@ public static class SystemServices
             c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
                 $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
             c.EnableAnnotations();
+            
             c.SwaggerDoc("v1", new()
             {
                 Title = "Odin API",
                 Version = "v1"
             });
+
+            c.SwaggerDoc("v2", new()
+            {
+                Title = "Odin API v2",
+                Version = "v2"
+            });
+            
+            c.SwaggerDoc("owner-v1", new()
+            {
+                Title = "Odin API v2",
+                Version = "OwnerV1"
+            });
+            
+            c.SwaggerDoc("peer-v1", new ()
+            {
+                Title = "Peer2Peer",
+                Version = "v1"
+            });
+            
+            c.SwaggerDoc("admin-v1", new ()
+            {
+                Title = "Admin V1",
+                Version = "AdminV1"
+            });
+            
+            // Ensure actions land in the correct doc based on GroupName
+            c.DocInclusionPredicate((docName, apiDesc) =>
+            {
+                var group = apiDesc.GroupName ?? "v1"; // default group is v1
+                return group == docName;
+            });
+
         });
 
         services.AddCorsPolicies();
@@ -138,6 +169,7 @@ public static class SystemServices
             YouAuthPolicies.AddPolicies(policy);
             PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCertificateAuthScheme);
             PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
+            UnifiedPolicies.AddPolicies(policy);
         });
 
         // In production, the React files will be served from this directory
@@ -278,5 +310,4 @@ public static class SystemServices
     }
 
     //
-
 }

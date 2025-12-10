@@ -25,7 +25,9 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var uid = shard.Id;
-        var existingFile = await fileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
+        
+        var existingFile = await fileSystem.Query.GetFileByClientUniqueIdForWriting(driveId, uid, odinContext);
+        
         if (existingFile == null)
         {
             await WriteNewFile(shard, odinContext);

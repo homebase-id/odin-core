@@ -391,7 +391,7 @@ public class ShamirConfigurationService(
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
         var uid = Guid.Parse(DealerShardConfigUid);
-        var existingFile = await FileSystem.Query.GetFileByClientUniqueId(driveId, uid, odinContext);
+        var existingFile = await FileSystem.Query.GetFileByClientUniqueIdForWriting(driveId, uid, odinContext);
         if (existingFile == null)
         {
             await WriteNewDealerEnvelopeFile(envelope, odinContext);

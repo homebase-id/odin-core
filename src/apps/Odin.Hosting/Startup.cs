@@ -30,7 +30,6 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
 using Odin.Core.Storage.Database.System;
-using Odin.Hosting.Middleware.V2Auth;
 using StackExchange.Redis;
 
 namespace Odin.Hosting;
@@ -156,7 +155,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         app.UseCors();
         app.UseApiCors();
-        app.UseCookieMigration();
         app.UseMiddleware<SharedSecretEncryptionMiddleware>();
         app.UseMiddleware<StaticFileCachingMiddleware>();
         app.UseMiddleware<CdnMiddleware>();
@@ -192,7 +190,14 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         if (env.IsDevelopment())
         {
             app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1");
+                c.SwaggerEndpoint("/swagger/v2/swagger.json", "Odin API v2");
+                c.SwaggerEndpoint("/swagger/owner-v1/swagger.json", "Odin Owner API v1");
+                c.SwaggerEndpoint("/swagger/peer-v1/swagger.json", "Odin Peer2Peer API v1");
+                c.SwaggerEndpoint("/swagger/admin-v1/swagger.json", "Odin Admin API v1");
+            });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/"); }); });
