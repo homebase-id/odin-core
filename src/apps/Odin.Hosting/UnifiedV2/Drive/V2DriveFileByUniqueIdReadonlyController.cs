@@ -12,7 +12,6 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
-
 namespace Odin.Hosting.UnifiedV2.Drive
 {
     /// <summary>
@@ -46,15 +45,15 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [HttpGet("payload")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetPayloadByUniqueId(
-            [FromRoute] Guid driveId,
-            [FromRoute] Guid uid,
+            [FromRoute]Guid driveId,
+            [FromRoute]Guid uid,
             [FromQuery] string key,
             [FromQuery] int? start,
             [FromQuery] int? length,
             [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
         {
             FileChunk chunk = this.GetChunk(start == 0 ? null : start, length == 0 ? null : length);
-
+            
             var header = await this.GetFileHeaderByUniqueIdInternal(uid, driveId, fileSystemType);
             if (null == header)
             {
@@ -76,8 +75,8 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetThumbnail(
-            [FromRoute] Guid driveId,
-            [FromRoute] Guid uid,
+            [FromRoute]Guid driveId,
+            [FromRoute]Guid uid,
             [FromQuery] int width,
             [FromQuery] int height,
             [FromQuery] string payloadKey,
@@ -95,8 +94,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
             var file = new InternalDriveFileId(driveId, header.FileId);
             return await GetThumbnail(file, width, height, payloadKey, directMatchOnly, fileSystemType);
         }
-
-        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid driveId,
+        private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid driveId, 
             FileSystemType fileSystemType)
         {
             var queryService = GetHttpFileSystemResolver().ResolveFileSystem(fileSystemType).Query;
@@ -106,7 +104,6 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 IncludeHeaderContent = true,
                 ExcludePreviewThumbnail = false
             };
-
             var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, options, WebOdinContext);
             return result;
         }
