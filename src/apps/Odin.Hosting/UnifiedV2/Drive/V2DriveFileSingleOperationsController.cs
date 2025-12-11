@@ -1,16 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
-using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
-using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -25,7 +22,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileSingleOperationsController(PeerOutgoingTransferService peerOutgoingTransferService)
-        : OdinControllerBase
+        : V2DriveControllerBase(peerOutgoingTransferService)
     {
         [SwaggerOperation(
             Summary = "Update local metadata tags",
@@ -33,17 +30,24 @@ namespace Odin.Hosting.UnifiedV2.Drive
             Tags = [SwaggerInfo.FileWrite]
         )]
         [HttpPatch("update-local-metadata-tags")]
-        public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataTags(Guid driveId, Guid fileId,
-            [FromBody] UpdateLocalMetadataTagsRequest request)
+        public async Task<UpdateLocalMetadataResultV2> UpdateLocalMetadataTags(Guid driveId, Guid fileId,
+            [FromBody] UpdateLocalMetadataTagsRequestV2 request)
         {
-            OdinValidationUtils.AssertIsTrue(request.File.HasValue(), "File is invalid");
+            OdinValidationUtils.AssertNotEmptyGuid(fileId, "file id is invalid");
 
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
-            return await fs.Storage.UpdateLocalMetadataTags(
+            var fs = this.GetFileSystem();
+            var v1 = await fs.Storage.UpdateLocalMetadataTags(
                 new InternalDriveFileId(driveId, fileId),
                 request.LocalVersionTag,
                 request.Tags,
                 WebOdinContext);
+
+            var v2 = new UpdateLocalMetadataResultV2()
+            {
+                NewLocalVersionTag = v1.NewLocalVersionTag
+            };
+
+            return v2;
         }
 
         [SwaggerOperation(
@@ -53,11 +57,11 @@ namespace Odin.Hosting.UnifiedV2.Drive
         )]
         [HttpPatch("update-local-metadata-content")]
         public async Task<UpdateLocalMetadataResult> UpdateLocalMetadataContent(Guid driveId, Guid fileId,
-            [FromBody] UpdateLocalMetadataContentRequest request)
+            [FromBody] UpdateLocalMetadataContentRequestV2 request)
         {
-            OdinValidationUtils.AssertIsTrue(request.File.HasValue(), "File is invalid");
+            OdinValidationUtils.AssertNotEmptyGuid(fileId, "File is invalid");
 
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
+            var fs = this.GetFileSystem();
             return await fs.Storage.UpdateLocalMetadataContent(
                 new InternalDriveFileId(driveId, fileId),
                 request.LocalVersionTag,
@@ -74,7 +78,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteFile(Guid driveId, Guid fileId, [FromBody] DeleteFileOptionsV2 options)
         {
-            var result = await PerformFileDeleteInternal(driveId, fileId, options);
+            var result = await PerformFileDelete(driveId, fileId, options);
             return Ok(result);
         }
 
@@ -93,7 +97,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
             }
 
             var file = new InternalDriveFileId(driveId, fileId);
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem(request.FileSystemType);
+            var fs = this.GetFileSystem();
 
             return new DeletePayloadResult()
             {
@@ -120,54 +124,9 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 FileId = fileId
             };
 
-            await GetHttpFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file, WebOdinContext);
+            var fs = this.GetFileSystem();
+            await fs.Storage.HardDeleteLongTermFile(file, WebOdinContext);
             return Ok();
-        }
-
-        private async Task<DeleteFileResultV2> PerformFileDeleteInternal(Guid driveId, Guid fileId, DeleteFileOptionsV2 options)
-        {
-            var recipients = options.Recipients;
-
-            OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
-
-            var file = new InternalDriveFileId()
-            {
-                FileId = fileId,
-                DriveId = driveId
-            };
-
-            var result = new DeleteFileResultV2()
-            {
-                FileId = fileId,
-                RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
-                LocalFileDeleted = false
-            };
-
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem(options.FileSystemType);
-            var header = await fs.Storage.GetServerFileHeaderForWriting(file, WebOdinContext);
-            if (header == null)
-            {
-                result.LocalFileNotFound = true;
-                return result;
-            }
-
-            if (recipients.Any())
-            {
-                //send the deleted file
-                var responses = await peerOutgoingTransferService.SendDeleteFileRequest(file,
-                    new FileTransferOptions()
-                    {
-                        FileSystemType = header.ServerMetadata.FileSystemType,
-                        TransferFileType = TransferFileType.Normal
-                    },
-                    recipients, WebOdinContext);
-
-                result.RecipientStatus = responses;
-            }
-
-            await fs.Storage.SoftDeleteLongTermFile(file, WebOdinContext, null);
-            result.LocalFileDeleted = true;
-            return result;
         }
     }
 }

@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("upload")]
         public async Task<UploadResult> Upload()
         {
-            return await base.ReceiveNewFileStream();
+            return await base.ReceiveNewFileStream( );
         }
 
         /// <summary>

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2;
+using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Services.Apps;
 using Refit;
 
@@ -11,7 +12,7 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public interface IDriveFileByUidHttpClientApiV2
 {
-    private const string Endpoint = UnifiedApiRouteConstants.ByUniqueId;
+    private const string Endpoint = $"{UnifiedApiRouteConstants.FilesRoot}/{V2DriveFileReadonlyController.ByUniqueId}";
 
     [Get(Endpoint + "/header")]
     Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
