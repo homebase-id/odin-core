@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
@@ -174,39 +175,61 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             return AuthenticateResult.Success(ticket);
         }
-
+        
         private bool TryFindClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
             if (_config.Cdn.Enabled)
             {
-                if (TryGetClientAuthToken(this.Context, OdinHeaderNames.OdinCdnAuth, out clientAuthToken, preferHeader: true))
+                // get from auth header
+                if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
                 {
                     return true;
                 }
             }
-
-            if (TryGetClientAuthToken(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
+            
+            if (TryGetClientAuthTokenFromCookie(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
+            {
+                return true;
+            }
+            
+            // app header preferred
+            if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
+            {
+                return true;
+            }
+            
+            if (TryGetClientAuthTokenFromCookie(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken))
             {
                 return true;
             }
 
-            if (TryGetClientAuthToken(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken, preferHeader: true))
-            {
-                return true;
-            }
+            return TryGetClientAuthTokenFromCookie(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
+        }
+        
+        private static bool TryGetClientAuthTokenFromHeader(HttpContext context, out ClientAuthenticationToken clientAuthToken)
+        {
+            clientAuthToken = default!;
 
-            return TryGetClientAuthToken(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
+            if (!context.Request.Headers.TryGetValue("Authorization", out var headerValue))
+                return false;
+
+            if (!AuthenticationHeaderValue.TryParse(headerValue, out var authHeader))
+                return false;
+
+            // Check schema (prefix) is Bearer
+            if (!authHeader.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var token = authHeader.Parameter;
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+
+            return ClientAuthenticationToken.TryParse(token, out clientAuthToken);
         }
 
-        private static bool TryGetClientAuthToken(HttpContext context, string cookieName, out ClientAuthenticationToken clientAuthToken,
-            bool preferHeader = false)
+        private static bool TryGetClientAuthTokenFromCookie(HttpContext context, string cookieName, out ClientAuthenticationToken clientAuthToken)
         {
             var clientAccessTokenValue64 = string.Empty;
-            if (preferHeader)
-            {
-                clientAccessTokenValue64 = context.Request.Headers[cookieName];
-            }
-
             if (string.IsNullOrWhiteSpace(clientAccessTokenValue64))
             {
                 clientAccessTokenValue64 = context.Request.Cookies[cookieName];

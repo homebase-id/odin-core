@@ -10,6 +10,8 @@ using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Services.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.FileSystem.Base.Update;
+using Odin.Services.Peer.Encryption;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -20,7 +22,7 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
     {
         return factory.SharedSecret;
     }
-    
+
     public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(ExternalFileIdentifier file,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -111,5 +113,39 @@ public class DriveV2Client(OdinId identity, IApiClientFactory factory)
         var svc = RefitCreator.RestServiceFor<IDriveStatusHttpClientApiV2>(client, sharedSecret);
         var apiResponse = await svc.GetDriveStatus(driveId);
         return apiResponse;
+    }
+
+    public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadataTags(Guid driveId, Guid fileId,
+        UpdateLocalMetadataTagsRequest request,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var keyHeader = KeyHeader.NewRandom16();
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var driveSvc = RefitCreator.RestServiceFor<IDriveStorageHttpClientApiV2>(client, sharedSecret);
+            ApiResponse<UpdateLocalMetadataResult> response = await driveSvc.UpdateLocalMetadataTags(driveId, fileId, request);
+
+            keyHeader.AesKey.Wipe();
+
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadataContent(Guid driveId, Guid fileId,
+        UpdateLocalMetadataContentRequest request,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var keyHeader = KeyHeader.NewRandom16();
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        {
+            var driveSvc = RefitCreator.RestServiceFor<IDriveStorageHttpClientApiV2>(client, sharedSecret);
+            ApiResponse<UpdateLocalMetadataResult> response = await driveSvc.UpdateLocalMetadataContent(driveId, fileId, request);
+
+            keyHeader.AesKey.Wipe();
+
+            return response;
+        }
     }
 }
