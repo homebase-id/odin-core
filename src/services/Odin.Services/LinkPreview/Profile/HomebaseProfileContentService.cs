@@ -196,11 +196,9 @@ public class HomebaseProfileContentService(
                             {
                                 // logger.LogDebug("Post has usable thumbnail");
 
+                                var driveId = targetDrive.Alias;
                                 StringBuilder b = new StringBuilder();
-                                b.Append($"&alias={targetDrive.Alias}");
-                                b.Append($"&type={targetDrive.Type}");
-                                b.Append($"&fileId={s.FileId}");
-                                b.Append($"&key={imageKey}");
+                                b.Append($"&payloadKey={imageKey}");
                                 b.Append($"&width={400}&height={400}");
                                 b.Append($"&lastModified={s.FileMetadata.Updated.milliseconds}");
                                 b.Append($"&xfst=Standard"); // note: No comment support
@@ -208,7 +206,7 @@ public class HomebaseProfileContentService(
 
                                 var builder = new UriBuilder("https", odinContext.Tenant)
                                 {
-                                    Path = $"api/guest/v1/drive/files/payload",
+                                    Path = $"api/v2/drives/{driveId}/files/{s.FileId}/thumb",
                                     Query = b.ToString()
                                 };
 

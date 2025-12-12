@@ -380,11 +380,8 @@ public class HomebaseChannelContentService(
             if (theThumbnail != null)
             {
                 // logger.LogDebug("Post has usable thumbnail");
-
-                StringBuilder b = new StringBuilder(100);
-                b.Append($"&alias={channelDrive.Alias}");
-                b.Append($"&type={channelDrive.Type}");
-                b.Append($"&fileId={postFile.FileId}");
+                var driveId = channelDrive.Alias;
+                StringBuilder b = new StringBuilder();
                 b.Append($"&payloadKey={content.PrimaryMediaFile.FileKey}");
                 b.Append($"&width={idealWidth}&height={idealHeight}");
                 b.Append($"&lastModified={mediaPayload?.LastModified.milliseconds}");
@@ -393,9 +390,9 @@ public class HomebaseChannelContentService(
 
                 var extension = MimeTypeHelper.GetFileExtensionFromMimeType(theThumbnail.ContentType) ?? ".jpg";
 
-                var builder = new UriBuilder(context.Request.Scheme, context.Request.Host.Host)
+                var builder = new UriBuilder("https", odinContext.Tenant)
                 {
-                    Path = $"api/guest/v1/drive/files/thumb{extension}",
+                    Path = $"api/v2/drives/{driveId}/files/{postFile.FileId}/thumb{extension}",
                     Query = b.ToString()
                 };
 
