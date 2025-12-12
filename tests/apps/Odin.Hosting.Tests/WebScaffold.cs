@@ -33,9 +33,6 @@ using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
 using System;
-using Testcontainers.Minio;
-using Testcontainers.PostgreSql;
-using Testcontainers.Redis;
 
 namespace Odin.Hosting.Tests
 {
@@ -314,7 +311,7 @@ namespace Odin.Hosting.Tests
         {
             return new OwnerApiClientRedux(this._oldOwnerApi, identity);
         }
-
+        
         public AppApiClientRedux CreateAppApiClientRedux(OdinId identity, ClientAccessToken accessToken)
         {
             return new AppApiClientRedux(identity, accessToken.ToAuthenticationToken(), accessToken.SharedSecret.GetKey());

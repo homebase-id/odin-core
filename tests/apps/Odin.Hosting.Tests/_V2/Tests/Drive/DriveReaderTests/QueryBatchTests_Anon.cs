@@ -16,9 +16,9 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
-namespace Odin.Hosting.Tests._V2.Drive;
+namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
-public class QueryBatchTests_Secured
+public class QueryBatchTests_Anon
 {
     private WebScaffold _scaffold;
 
@@ -49,19 +49,22 @@ public class QueryBatchTests_Secured
         _scaffold.AssertLogEvents();
     }
 
-    public static IEnumerable TestCasesSecuredDrive()
+    public static IEnumerable TestCasesAnonDrive()
     {
         yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
         yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
 
-        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
-        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
+        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.OK };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.OK };
 
         yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+
+        yield return new object[] { new CdnTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Unauthorized };
     }
+    
 
     [Test]
-    [TestCaseSource(nameof(TestCasesSecuredDrive))]
+    [TestCaseSource(nameof(TestCasesAnonDrive))]
     public async Task CanQueryBatch(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -73,11 +76,11 @@ public class QueryBatchTests_Secured
         metadata.AccessControlList = AccessControlList.Anonymous;
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
-        var file1 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: false, callerContext);
-        var file2 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: false, callerContext);
+        var file1 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
+        var file2 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         var driveId = callerContext.TargetDrive.Alias;
         var getBatchResponse = await client.GetBatchAsync(driveId, new QueryBatchRequest
@@ -119,7 +122,7 @@ public class QueryBatchTests_Secured
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCasesSecuredDrive))]
+    [TestCaseSource(nameof(TestCasesAnonDrive))]
     public async Task CanQuerySmartBatch(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -131,11 +134,11 @@ public class QueryBatchTests_Secured
         metadata.AccessControlList = AccessControlList.Anonymous;
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
-        var file1 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: false, callerContext);
-        var file2 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: false, callerContext);
+        var file1 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
+        var file2 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         var driveId = callerContext.TargetDrive.Alias;
         var getBatchResponse = await client.GetSmartBatchAsync(driveId, new QueryBatchRequest
@@ -176,7 +179,7 @@ public class QueryBatchTests_Secured
     }
 
     [Test]
-    [TestCaseSource(nameof(TestCasesSecuredDrive))]
+    [TestCaseSource(nameof(TestCasesAnonDrive))]
     public async Task CanQueryBatchCollection(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -188,17 +191,17 @@ public class QueryBatchTests_Secured
         metadata.AccessControlList = AccessControlList.Anonymous;
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
-        var file1 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: false, callerContext);
+        var file1 = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
 
         const int fileType2 = 202;
         var metadata2 = SampleMetadataData.Create(fileType: fileType2);
         metadata2.AccessControlList = AccessControlList.Anonymous;
         var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
-        var file2 = await UploadFile(identity, metadata2, payload2, allowAnonymousReadsOnDrive: false, callerContext);
+        var file2 = await UploadFile(identity, metadata2, payload2, allowAnonymousReadsOnDrive: true, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         var driveId = callerContext.TargetDrive.Alias;
 
@@ -254,25 +257,8 @@ public class QueryBatchTests_Secured
             FileSystemType = FileSystemType.Standard
         });
 
-        //
-        // Query batch collection always returns 200 but gives you access details per drive
-        //
-        ClassicAssert.IsTrue(getBatchResponse.IsSuccessStatusCode);
+        ClassicAssert.IsTrue(getBatchResponse.StatusCode == expectedStatusCode);
 
-        if (expectedStatusCode == HttpStatusCode.Forbidden)
-        {
-            // test forbbin per drive
-            var batches = getBatchResponse.Content.Results;
-            ClassicAssert.IsNotEmpty(batches);
-            var batch1 = batches.SingleOrDefault(x => x.Name == "q1");
-            ClassicAssert.IsNotNull(batch1);
-            ClassicAssert.IsTrue(batch1!.InvalidDrive);
-            
-            var batch2 = batches.SingleOrDefault(x => x.Name == "q2");
-            ClassicAssert.IsNotNull(batch2);
-            ClassicAssert.IsTrue(batch2!.InvalidDrive);
-        }
-        
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var batches = getBatchResponse.Content.Results;

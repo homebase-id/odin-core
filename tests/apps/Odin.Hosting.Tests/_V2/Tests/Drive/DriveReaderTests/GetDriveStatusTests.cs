@@ -6,19 +6,17 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
-using Odin.Core;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
-using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
 
-namespace Odin.Hosting.Tests._V2.Drive;
+namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
 public class GetDriveStatusTests
 {
@@ -82,7 +80,7 @@ public class GetDriveStatusTests
         await TransferFile(identity, metadata, payload, recipients, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         var getStatusResponse = await client.GetDriveStatusAsync(callerContext.TargetDrive.Alias);
         ClassicAssert.IsTrue(getStatusResponse.StatusCode == expectedStatusCode, $"status was {getStatusResponse.StatusCode}");

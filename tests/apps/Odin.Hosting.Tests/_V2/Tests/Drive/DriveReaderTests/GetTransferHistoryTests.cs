@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using MediatR.NotificationPublishers;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal;
@@ -18,7 +17,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
 
-namespace Odin.Hosting.Tests._V2.Drive;
+namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
 public class GetTransferHistoryTests
 {
@@ -79,7 +78,7 @@ public class GetTransferHistoryTests
         var uploadResult = await TransferFile(identity, metadata, payload, recipients, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         //
         // can get transfer history

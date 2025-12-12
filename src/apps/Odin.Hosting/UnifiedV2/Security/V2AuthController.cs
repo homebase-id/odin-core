@@ -19,7 +19,7 @@ namespace Odin.Hosting.UnifiedV2.Security
     public class V2AuthController(ClientRegistrationStorage storage) : OdinControllerBase
     {
         /// <summary>
-        /// Verifies the ClientAuthToken (provided as a cookie) is Valid.
+        /// Verifies the ClientAuthToken (provided as a cookie order heaader for app/guest) is Valid.
         /// </summary>
         [HttpGet("verify-token")]
         [SwaggerOperation(Tags = [SwaggerInfo.Auth])]

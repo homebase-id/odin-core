@@ -14,7 +14,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Encryption;
 
-namespace Odin.Hosting.Tests._V2.Drive.LocalAppMetadata;
+namespace Odin.Hosting.Tests._V2.Tests.Drive.LocalAppMetadata;
 
 public class LocalAppMetadataEncryptedContentTests
 {
@@ -88,7 +88,7 @@ public class LocalAppMetadataEncryptedContentTests
 
         // Act - update the local app metadata
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
         var localContentIv = ByteArrayUtil.GetRndByteArray(16);
         var content = "some local content here";
@@ -143,7 +143,7 @@ public class LocalAppMetadataEncryptedContentTests
 
         // Act - update the local app metadata
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
         var localContentIv = ByteArrayUtil.GetRndByteArray(16);
         var content = "some local content here";

@@ -40,7 +40,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         }
 
         [HttpPost("delete-batch/by-group-id")]
-        [SwaggerOperation(Tags = [SwaggerInfo.FileDelete])]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileWrite])]
         public async Task<IActionResult> DeleteFilesByGroupIdBatch(Guid driveId, [FromBody] DeleteFilesByGroupIdBatchRequestV2 batchRequest)
         {
             var deleteBatchFinalResult = new DeleteFilesByGroupIdBatchResultV2()
@@ -96,7 +96,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [SwaggerOperation(
             Summary = "Batch delete files",
             Description = "Deletes multiple files in a single API call.",
-            Tags = [SwaggerInfo.FileDelete]
+            Tags = [SwaggerInfo.FileWrite]
         )]
         public async Task<IActionResult> DeleteFileIdBatch(Guid driveId, [FromBody] DeleteFileIdBatchRequestV2 request)
         {

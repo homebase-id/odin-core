@@ -14,7 +14,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base.Update;
 
-namespace Odin.Hosting.Tests._V2.Drive.LocalAppMetadata;
+namespace Odin.Hosting.Tests._V2.Tests.Drive.LocalAppMetadata;
 
 public class LocalAppMetadataTests
 {
@@ -89,7 +89,7 @@ public class LocalAppMetadataTests
 
         // Act - update the local app metadata
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
         var tag1 = Guid.NewGuid();
         var tag2 = Guid.NewGuid();
@@ -170,7 +170,7 @@ public class LocalAppMetadataTests
         };
 
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(targetFile.FileId, targetFile.TargetDrive.Alias, request2);
         ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
@@ -236,7 +236,7 @@ public class LocalAppMetadataTests
         };
 
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(targetFile.FileId, targetFile.TargetDrive.Alias, request2);
         ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
@@ -299,7 +299,7 @@ public class LocalAppMetadataTests
             Tags = [tag1r2, tag2r2]
         };
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(targetFile.FileId, targetFile.TargetDrive.Alias, request2);
         ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
 
@@ -342,7 +342,7 @@ public class LocalAppMetadataTests
         };
 
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
         var response = await callerDriveClient.UpdateLocalAppMetadataTags(request.File.FileId, targetDrive.Alias, request);
         ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
     }
@@ -383,7 +383,7 @@ public class LocalAppMetadataTests
         // Act - update the local app metadata
 
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
         var qbr = new QueryBatchRequest
         {
             QueryParams = new FileQueryParams()
@@ -449,7 +449,7 @@ public class LocalAppMetadataTests
         // Act - update the local app metadata
 
         await callerContext.Initialize(ownerApiClient);
-        var callerDriveClient = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var callerDriveClient = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
         var qbr = new QueryBatchRequest
         {
             QueryParams = new FileQueryParams()

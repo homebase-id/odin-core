@@ -11,7 +11,7 @@ using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Services.Drives;
 
-namespace Odin.Hosting.Tests._V2.Auth;
+namespace Odin.Hosting.Tests._V2.Tests.Auth;
 
 public class AuthTests
 {

@@ -14,9 +14,6 @@ public static class SwaggerInfo
     // File write/update endpoints (upload, metadata updates, patch)
     public const string FileWrite = "File Write Operations";
 
-    // Delete, hard-delete, payload-delete, batch-delete
-    public const string FileDelete = "File Delete Operations";
-
     // Query endpoints (batch, smart batch, collections)
     public const string FileQuery = "File Query";
 

@@ -19,7 +19,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 
-namespace Odin.Hosting.Tests._V2.Drive;
+namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
 public class GetFileTests
 {
@@ -101,7 +101,7 @@ public class GetFileTests
         // var client = new ApiClientV2(ownerApi: null, identity);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         //
         // can get header
@@ -220,7 +220,7 @@ public class GetFileTests
         // var client = new ApiClientV2(ownerApi: null, identity);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         //
         // can get header
@@ -305,7 +305,7 @@ public class GetFileTests
         // var client = new ApiClientV2(ownerApi: null, identity);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         //
         // can get header
@@ -379,7 +379,7 @@ public class GetFileTests
         // var client = new ApiClientV2(ownerApi: null, identity);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         //
         // can get header
@@ -463,7 +463,7 @@ public class GetFileTests
             await UploadEncryptedFile(identity, metadata, unencryptedPayload, keyHeader, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         //
         // can get header

@@ -19,7 +19,7 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 
-namespace Odin.Hosting.Tests._V2.CDN;
+namespace Odin.Hosting.Tests._V2.Tests.CDN;
 
 public class CdnTests
 {
@@ -80,7 +80,7 @@ public class CdnTests
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
 
-        var client = new DriveV2Client(sam.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(sam.OdinId, callerContext.GetFactory());
 
         // fail to get header since it's not an allowed path
         var getHeaderResponse = await client.GetFileHeaderAsync(file);
@@ -102,7 +102,7 @@ public class CdnTests
         var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         //
         // can get payload
@@ -178,7 +178,7 @@ public class CdnTests
         var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: false, callerContext);
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         // can get thumbnail
 
@@ -273,7 +273,7 @@ public class CdnTests
         var file = uploadResult.File;
 
         await callerContext.Initialize(ownerApiClient);
-        var client = new DriveV2Client(identity.OdinId, callerContext.GetFactory());
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         var getPayloadKey1Response = await client.GetPayloadAsync(file, payload.Key);
 

@@ -85,7 +85,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [SwaggerOperation(
             Summary = "Delete file payload",
             Description = "Deletes a payload associated with a file without removing the file entry itself.",
-            Tags = [SwaggerInfo.FileDelete]
+            Tags = [SwaggerInfo.FileWrite]
         )]
         [HttpPost("delete-payload")]
         public async Task<DeletePayloadResult> DeletePayload(Guid driveId, Guid fileId, DeletePayloadRequestV2 request)
@@ -108,7 +108,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
         [SwaggerOperation(
             Summary = "Hard delete a file",
             Description = "Permanently removes a file and all associated metadata. Irreversible.",
-            Tags = [SwaggerInfo.FileDelete]
+            Tags = [SwaggerInfo.FileWrite]
         )]
         [HttpPost("hard-delete")]
         public async Task<IActionResult> HardDeleteFile(Guid driveId, Guid fileId, [FromBody] DeleteFileOptionsV2 options)
