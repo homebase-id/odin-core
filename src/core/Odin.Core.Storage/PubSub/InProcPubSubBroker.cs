@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -66,7 +66,7 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
     private class NamedChannel(ILogger logger, string channelName, int maxQueuedMessages)
     {
         private readonly Lock _mutex = new();
-        private readonly List<HandlerRegistration> _handlers = [];
+        private ImmutableArray<HandlerRegistration> _handlers = ImmutableArray<HandlerRegistration>.Empty;
 
         private Channel<object>? _channel;
         private CancellationTokenSource? _cts;
@@ -77,7 +77,7 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
         {
             lock (_mutex)
             {
-                if (_channel == null || _handlers.Count == 0)
+                if (_channel == null || _handlers.Length == 0)
                 {
                     return;
                 }
@@ -108,9 +108,9 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
 
             lock (_mutex)
             {
-                _handlers.Add(handlerRegistration);
+                _handlers = _handlers.Add(handlerRegistration);
 
-                if (_handlers.Count == 1)
+                if (_handlers.Length == 1)
                 {
                     var channel = Channel.CreateBounded<object>(new BoundedChannelOptions(maxQueuedMessages)
                     {
@@ -142,7 +142,8 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
         {
             lock (_mutex)
             {
-                if (_handlers.Remove(handlerRegistration) && _handlers.Count == 0)
+                _handlers = _handlers.Remove(handlerRegistration);
+                if (_handlers.IsEmpty)
                 {
                     _cts?.Cancel();
                     _cts = null;
@@ -157,8 +158,8 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
         {
             lock (_mutex)
             {
-                _handlers.RemoveAll(h => ReferenceEquals(h.Owner, owner));
-                if (_handlers.Count == 0)
+                _handlers = _handlers.RemoveAll(h => ReferenceEquals(h.Owner, owner));
+                if (_handlers.IsEmpty)
                 {
                     _cts?.Cancel();
                     _cts = null;
@@ -183,16 +184,11 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                             continue;
                         }
 
-                        List<HandlerRegistration> handlerRegistrations;
-                        lock (_mutex)
-                        {
-                            handlerRegistrations = new List<HandlerRegistration>(_handlers);
-                        }
-
-                        foreach (var handlerRegistration in handlerRegistrations)
+                        var handlers = _handlers;
+                        foreach (var handler in handlers)
                         {
                             // Fire-and-forget
-                            _ = handlerRegistration.Handler(envelope);
+                            _ = handler.Handler(envelope);
                         }
                     }
                 }
