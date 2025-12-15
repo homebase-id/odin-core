@@ -13,13 +13,15 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Services.Drives.Management;
+using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Drive
 {
     /// <summary>
-    /// Base API Controller for uploading multi-part streams
+    /// Base API Controller for uploading multipart streams
     /// </summary>
-    public abstract class V1DriveUploadControllerBase(ILogger logger) : OdinControllerBase
+    public abstract class V1DriveUploadControllerBase(ILogger logger, DriveManager driveManager) : OdinControllerBase
     {
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
@@ -74,7 +76,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 string json = await new StreamReader(section!.Body).ReadToEndAsync();
                 var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
 
-
+                if (!instructionSet.File.TargetDrive.IsValid())
+                {
+                    // v2 fallback to allow just driveId to be set so the FE is NOT bound to the target drive
+                    var theDrive = await driveManager.GetDriveAsync(instructionSet.File.DriveId);
+                    instructionSet.File.TargetDrive = theDrive!.TargetDriveInfo;
+                }
+                
                 await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
                 //
@@ -120,7 +128,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 }
             }
         }
-        
+
         private async Task<UploadResult> ProcessUpload(MultipartReader reader, FileSystemStreamWriterBase driveUploadService)
         {
             var section = await reader.ReadNextSectionAsync();
@@ -128,7 +136,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
             try
             {
                 logger.LogDebug("ReceiveFileStream: StartUpload");
-                await driveUploadService.StartUpload(section!.Body, WebOdinContext);
+                string json = await new StreamReader(section!.Body).ReadToEndAsync();
+                var instructionSet = OdinSystemSerializer.Deserialize<UploadInstructionSet>(json);
+
+                var driveId = instructionSet.StorageOptions.Drive.IsValid()
+                    ? instructionSet.StorageOptions.Drive.Alias.Value
+                    : instructionSet.StorageOptions.DriveId;
+
+                OdinValidationUtils.AssertNotEmptyGuid(driveId, "Invalid Drive Id");
+                await driveUploadService.StartUpload(driveId, instructionSet, WebOdinContext);
             }
             catch (JsonException e)
             {

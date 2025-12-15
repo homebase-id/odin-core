@@ -92,7 +92,9 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstantsV1.AuthV1}/logout",
                 $"{AppApiPathConstantsV1.NotificationsV1}/preauth",
                 $"{AppApiPathConstantsV1.PeerNotificationsV1}/preauth",
-                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth"
+                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth",
+                $"{UnifiedApiRouteConstants.DrivesRoot}/files/upload",
+                $"{UnifiedApiRouteConstants.DrivesRoot}/files/update"
             ];
 
 
@@ -295,12 +297,20 @@ namespace Odin.Hosting.Middleware
             {
                 return false;
             }
-
-            if (context.Request.Method.ToUpper() == "POST" && context.Request.Headers.ContentLength == 0)
+            
+            if (context.Request.Method.ToUpper() == "POST")
             {
-                return false;
-            }
+                if (context.Request.Headers.ContentLength == 0)
+                {
+                    return false;
+                }
 
+                if (IsUnifiedFilesPath(context.Request.Path))
+                {
+                    return false;
+                }
+            }
+            
             if (context.Request.Method.ToUpper() == "GET" && context.Request.QueryString.HasValue == false)
             {
                 return false;
@@ -332,6 +342,11 @@ namespace Odin.Hosting.Middleware
                 {
                     return false;
                 }
+                
+                if (IsUnifiedFilesPath(context.Request.Path))
+                {
+                    return false;
+                }
             }
 
             return !_ignoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
@@ -342,6 +357,20 @@ namespace Odin.Hosting.Middleware
             var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
             return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }
+        
+        private static bool IsUnifiedFilesPath(string path)
+        {
+            // /api/v2/drives/{guid}/files or anything below it
+            if (!path.StartsWith(UnifiedApiRouteConstants.DrivesRoot + "/", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+            // [api, v2, drives, {guid}, files, ...]
+            return segments.Length >= 5
+                   && segments[4].Equals("files", StringComparison.OrdinalIgnoreCase);
+        }
+
         
         private bool HasThumbnailExtension(string path, string suffix)
         {

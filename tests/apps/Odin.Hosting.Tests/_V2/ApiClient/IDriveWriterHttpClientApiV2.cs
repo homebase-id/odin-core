@@ -21,10 +21,10 @@ public interface IDriveWriterHttpClientApiV2
         [AliasAs("fileId:guid")] Guid fileId, [Body] UpdateLocalMetadataContentRequest request);
 
     [Multipart]
-    [Post(FilesRoot + "/upload")]
-    Task<ApiResponse<UploadResult>> UploadStream([AliasAs("driveId:guid")] Guid driveId, StreamPart[] streamdata);
+    [Post(UnifiedApiRouteConstants.DrivesRoot + "/files/upload")]
+    Task<ApiResponse<UploadResult>> Upload(StreamPart[] streamdata);
 
     [Multipart]
-    [Patch(FilesRoot + "/update")]
-    Task<ApiResponse<FileUpdateResult>> UpdateFile([AliasAs("driveId:guid")] Guid driveId, StreamPart[] streamdata);
+    [Post(UnifiedApiRouteConstants.DrivesRoot + "/files/update")]
+    Task<ApiResponse<FileUpdateResult>> Update(StreamPart[] streamdata);
 }

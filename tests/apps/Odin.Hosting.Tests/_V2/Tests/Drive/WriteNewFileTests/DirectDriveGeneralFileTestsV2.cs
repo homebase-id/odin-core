@@ -12,6 +12,7 @@ using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -53,31 +54,21 @@ public class DirectDriveGeneralFileTestsV2
         _scaffold.AssertLogEvents();
     }
 
-    public static IEnumerable OwnerAllowed()
+    public static IEnumerable TestCasesSecuredDrive()
     {
-        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-    }
+        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Forbidden };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
 
-    public static IEnumerable AppAllowed()
-    {
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-    }
+        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
 
-    public static IEnumerable GuestAllowed()
-    {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new CdnTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Unauthorized };
+        yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
-
-    public static IEnumerable WhenGuestOnlyHasReadAccess()
-    {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.Forbidden };
-    }
-
+    
+    
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
-    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    [TestCaseSource(nameof(TestCasesSecuredDrive))]
     public async Task CanUploadMetadataDataWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -100,10 +91,7 @@ public class DirectDriveGeneralFileTestsV2
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
-    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    [TestCaseSource(nameof(TestCasesSecuredDrive))]
     public async Task CanUploadFileWith2PayloadsAnd2Thumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -127,7 +115,8 @@ public class DirectDriveGeneralFileTestsV2
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
+        var driveId = targetDrive.Alias;
+        var response = await callerDriveClient.UploadNewFile(driveId, uploadedFileMetadata, uploadManifest, testPayloads);
         ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
@@ -186,10 +175,8 @@ public class DirectDriveGeneralFileTestsV2
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
-    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    [TestCaseSource(nameof(TestCasesSecuredDrive))]
+
     public async Task DeletingFileDeletesAllPayloadsAndThumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -250,10 +237,7 @@ public class DirectDriveGeneralFileTestsV2
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
-    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    [TestCaseSource(nameof(TestCasesSecuredDrive))]
     public async Task CanDeleteByMultipleFileIds(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -318,10 +302,7 @@ public class DirectDriveGeneralFileTestsV2
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
-    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    [TestCaseSource(nameof(TestCasesSecuredDrive))]
     public async Task CanDeleteMultipleFilesByGroupIdList(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -433,10 +414,7 @@ public class DirectDriveGeneralFileTestsV2
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestAllowed))]
-    [TestCaseSource(nameof(WhenGuestOnlyHasReadAccess))]
+    [TestCaseSource(nameof(TestCasesSecuredDrive))]
     public async Task CanGetDeletedFileByGlobalTransitId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;

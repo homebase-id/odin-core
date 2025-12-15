@@ -8,13 +8,14 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
+using Odin.Services.Drives.Management;
 using Odin.Services.Util;
 
 namespace Odin.Hosting.Controllers.Base.Drive.Update
 {
     /// <summary />
     [ApiController]
-    public abstract class V1DriveFileUpdateControllerBase(ILogger logger) : V1DriveUploadControllerBase(logger)
+    public abstract class V1DriveFileUpdateControllerBase(ILogger logger, DriveManager driveManager) : V1DriveUploadControllerBase(logger, driveManager)
     {
         private readonly ILogger _logger = logger;
 
