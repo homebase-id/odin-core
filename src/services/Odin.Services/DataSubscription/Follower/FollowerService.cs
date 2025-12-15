@@ -112,13 +112,9 @@ namespace Odin.Services.DataSubscription.Follower
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
                 {
-                    foreach (var channel in request.Channels)
-                    {
-                        var driveId = channel.Alias;
-                        await driveManager.AssertIsDriveType(driveId, SystemDriveConstants.ChannelDriveType);
-                    }
 
-                    //use the alias because we don't most likely will not have the channel on the callers identity
+                    // Note I do not validate these are channel drive types because the driveId is coming from the remote identity
+                    
                     foreach (var channel in request.Channels)
                     {
                         await db.ImFollowingCached.InsertAsync(new ImFollowingRecord

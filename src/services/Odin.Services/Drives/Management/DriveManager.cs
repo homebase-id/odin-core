@@ -353,7 +353,7 @@ public class DriveManager : IDriveManager
 
     public async Task AssertIsDriveType(GuidId driveId, Guid expectedDriveType)
     {
-        var theDrive = await this.GetDriveAsync(driveId, true);
+        var theDrive = await this.GetDriveAsync(driveId);
 
         if (theDrive?.Type != expectedDriveType)
         {
