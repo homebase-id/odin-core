@@ -145,7 +145,6 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                     _cts?.Dispose();
                     _cts = null;
                     _channel = null;
-                    logger.LogDebug("RemoveHandler {ChannelName}", channelName);
                 }
             }
         }
@@ -163,7 +162,6 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                     _cts?.Dispose();
                     _cts = null;
                     _channel = null;
-                    logger.LogDebug("RemoveHandlers {ChannelName}", channelName);
                 }
             }
         }
@@ -172,13 +170,26 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
 
         private async Task StartProcessingMessages()
         {
-            var channel = _channel ?? throw new InvalidOperationException("Channel not set");
-            var cancellationToken = _cts?.Token ?? throw new InvalidOperationException("Token not set");
+            Channel<object>? channel;
+            CancellationToken? cancellationToken;
+
+            lock (_mutex)
+            {
+                channel = _channel;
+                cancellationToken = _cts?.Token;
+            }
+
+            // Bail out if channel was removed behind our back
+            if (channel == null || cancellationToken == null)
+            {
+                logger.LogDebug("StartProcessingMessages: {ChannelName} is gone", channelName);
+                return;
+            }
 
             logger.LogDebug("Started processing messages for channel {ChannelName}", channelName);
             try
             {
-                await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
+                await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken.Value))
                 {
                     if (message is not JsonEnvelope envelope)
                     {
