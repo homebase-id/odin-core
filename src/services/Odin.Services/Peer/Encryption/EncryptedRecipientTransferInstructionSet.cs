@@ -15,7 +15,6 @@ namespace Odin.Services.Peer.Encryption
     {
         public TargetDrive TargetDrive { get; set; }
 
-        [JsonIgnore]
         public Guid DriveId => this.TargetDrive?.Alias ?? Guid.Empty;
 
         public TransferFileType TransferFileType { get; set; }
