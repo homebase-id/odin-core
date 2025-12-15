@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -14,6 +15,7 @@ namespace Odin.Services.Peer.Encryption
     {
         public TargetDrive TargetDrive { get; set; }
 
+        [JsonIgnore]
         public Guid DriveId => this.TargetDrive.Alias;
 
         public TransferFileType TransferFileType { get; set; }
