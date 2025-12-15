@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Odin.Services.Drives.Management;
@@ -13,4 +14,5 @@ public class CreateDriveRequest
     public bool OwnerOnly { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
+    public Guid Type => this.TargetDrive.Type;
 }

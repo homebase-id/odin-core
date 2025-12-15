@@ -66,7 +66,7 @@ public class PermissionedDrive : IEquatable<PermissionedDrive>, IGenericCloneabl
     public override string ToString()
     {
         var alias = Drive?.Alias;
-        var type = Drive?.Type?.ToString() ?? "<no-type>";
-        return $"PermissionedDrive [Alias={alias}, Type={type}, Permission={Permission}]";
+        // var type = Drive?.Type?.ToString() ?? "<no-type>";
+        return $"PermissionedDrive [Alias={alias}, Permission={Permission}]";
     }
 }

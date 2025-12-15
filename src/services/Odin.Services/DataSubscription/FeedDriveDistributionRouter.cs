@@ -375,7 +375,7 @@ namespace Odin.Services.DataSubscription
         private async Task<bool> SupportsSubscription(Guid driveId)
         {
             var drive = await _driveManager.GetDriveAsync(driveId);
-            return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
+            return drive.AllowSubscriptions && drive.Type == SystemDriveConstants.ChannelDriveType;
         }
 
         private async Task AddToFeedOutbox(OdinId recipient, FeedDistributionItem distroItem, DataSource dataSourceOverride)
