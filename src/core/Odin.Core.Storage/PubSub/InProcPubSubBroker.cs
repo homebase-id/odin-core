@@ -145,6 +145,7 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                     _cts?.Dispose();
                     _cts = null;
                     _channel = null;
+                    logger.LogDebug("RemoveHandler {ChannelName}", channelName);
                 }
             }
         }
@@ -162,6 +163,7 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
                     _cts?.Dispose();
                     _cts = null;
                     _channel = null;
+                    logger.LogDebug("RemoveHandlers {ChannelName}", channelName);
                 }
             }
         }
