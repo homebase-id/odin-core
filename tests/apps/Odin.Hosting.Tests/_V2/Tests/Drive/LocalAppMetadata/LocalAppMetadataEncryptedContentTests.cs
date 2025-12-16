@@ -10,6 +10,8 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests._V2.ApiClient.TestCases;
+using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Encryption;
@@ -47,25 +49,15 @@ public class LocalAppMetadataEncryptedContentTests
         _scaffold.AssertLogEvents();
     }
 
-    public static IEnumerable OwnerAllowed()
+    public static IEnumerable TestCasesReadWrite()
     {
-        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-    }
-
-    public static IEnumerable AppAllowed()
-    {
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-    }
-
-    public static IEnumerable GuestNotAllowed()
-    {
-        yield return new object[] { new GuestReadOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite), HttpStatusCode.OK };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite), HttpStatusCode.OK };
+        yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    [TestCaseSource(nameof(TestCasesReadWrite))]
     public async Task CanUpdateLocalAppMetadataContentForEncryptedTargetFile(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -77,7 +69,7 @@ public class LocalAppMetadataEncryptedContentTests
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "data data data";
-       
+
         var keyHeader = KeyHeader.NewRandom16();
 
         // Act
@@ -94,19 +86,19 @@ public class LocalAppMetadataEncryptedContentTests
         var content = "some local content here";
         var encryptedLocalMetadataContent = AesCbc.Encrypt(content.ToUtf8ByteArray(), keyHeader.AesKey, localContentIv);
 
-        var request = new UpdateLocalMetadataContentRequest()
+        var request = new UpdateLocalMetadataContentRequestV2()
         {
             Iv = localContentIv,
-            File = targetFile,
             Content = encryptedLocalMetadataContent.ToBase64()
         };
 
-        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.FileId, targetFile.TargetDrive.Alias,request);
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.TargetDrive.Alias, targetFile.FileId, request);
         var result = response.Content;
         ClassicAssert.IsFalse(result.NewLocalVersionTag == Guid.Empty);
 
         // Assert - getting the file should include the metadata
-        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Get the file and see that it's updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
@@ -117,13 +109,10 @@ public class LocalAppMetadataEncryptedContentTests
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    [TestCaseSource(nameof(TestCasesReadWrite))]
     public async Task FailsWithBadRequestWhenMissingIvOnEncryptedTargetFile(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
-        
         // Setup
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -132,7 +121,7 @@ public class LocalAppMetadataEncryptedContentTests
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.Content = "data data data";
-       
+
         var keyHeader = KeyHeader.NewRandom16();
 
         // Act
@@ -149,14 +138,13 @@ public class LocalAppMetadataEncryptedContentTests
         var content = "some local content here";
         var encryptedLocalMetadataContent = AesCbc.Encrypt(content.ToUtf8ByteArray(), keyHeader.AesKey, localContentIv);
 
-        var request = new UpdateLocalMetadataContentRequest()
+        var request = new UpdateLocalMetadataContentRequestV2()
         {
             Iv = Guid.Empty.ToByteArray(), //weak or no key
-            File = targetFile,
             Content = encryptedLocalMetadataContent.ToBase64()
         };
 
-        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.FileId, targetFile.TargetDrive.Alias,request);
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.TargetDrive.Alias, targetFile.FileId, request);
         ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
     }
 }

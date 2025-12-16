@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography;
@@ -10,15 +11,16 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive;
+using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -30,250 +32,190 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         return factory.SharedSecret;
     }
 
-    public async Task<ApiResponse<UploadResult>> UploadNewMetadata(Guid driveId, UploadFileMetadata fileMetadata)
+    public async Task<ApiResponse<CreateFileResult>> UploadNewMetadata(
+        Guid driveId,
+        UploadFileMetadata fileMetadata)
     {
-        var transitOptions = new TransitOptions();
-        return await this.UploadNewMetadata(driveId, fileMetadata, transitOptions);
+        return await UploadNewMetadata(
+            driveId,
+            fileMetadata,
+            new TransitOptions());
     }
 
-    public async Task<ApiResponse<UploadResult>> UploadNewMetadata(Guid driveId,
+    public async Task<ApiResponse<CreateFileResult>> UploadNewMetadata(
+        Guid driveId,
         UploadFileMetadata fileMetadata,
         TransitOptions transitOptions)
     {
-        var transferIv = ByteArrayUtil.GetRndByteArray(16);
-        var keyHeader = KeyHeader.NewRandom16();
+        // Explicitly mark as unencrypted metadata
+        fileMetadata.IsEncrypted = false;
 
-        UploadInstructionSet instructionSet = new UploadInstructionSet()
-        {
-            TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                Drive = default, // Note in this v2 client we leave it empty since it is specified on the http path
-                OverwriteFileId = default
-            },
-            TransitOptions = transitOptions
-        };
-
-        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        {
-            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-
-            fileMetadata.IsEncrypted = false;
-
-            var descriptor = new UploadFileDescriptor()
-            {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
-                FileMetadata = fileMetadata
-            };
-
-            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-
-            List<StreamPart> parts =
-            [
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Instructions)),
-
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Metadata))
-            ];
-
-            var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-            ApiResponse<UploadResult> response = await driveSvc.Upload(parts.ToArray());
-
-            keyHeader.AesKey.Wipe();
-
-            return response;
-        }
+        return await CreateNewUnencryptedFile(
+            driveId: driveId,
+            fileMetadata: fileMetadata,
+            uploadManifest: null,
+            payloads: [],
+            transitOptions: transitOptions
+        );
     }
 
-
-    /// <summary>
-    /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
-    /// </summary>
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(
-        Guid driveId,
+    public async Task<(
+        ApiResponse<CreateFileResult> response,
+        string encryptedJsonContent64,
+        List<EncryptedAttachmentUploadResult> uploadedThumbnails,
+        List<EncryptedAttachmentUploadResult> uploadedPayloads
+        )> CreateEncryptedFile(
         UploadFileMetadata fileMetadata,
         StorageOptions storageOptions,
         TransitOptions transitOptions,
+        UploadManifest uploadManifest = null,
+        List<TestPayloadDefinition> payloads = null,
+        AppNotificationOptions notificationOptions = null,
         KeyHeader keyHeader = null)
     {
-        bool wipeKeyHeader = false;
-        var transferIv = ByteArrayUtil.GetRndByteArray(16);
-        if (keyHeader == null)
+
+        if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
         {
-            wipeKeyHeader = true;
-            keyHeader = KeyHeader.NewRandom16();
+            throw new Exception("You set recipients but did not allow file distribution; tsk tsk");
         }
-
-        UploadInstructionSet instructionSet = new UploadInstructionSet()
-        {
-            TransferIv = transferIv,
-            StorageOptions = storageOptions,
-            TransitOptions = transitOptions
-        };
-
-        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        {
-            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-
-            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
-            fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.IsEncrypted = true;
-
-            var descriptor = new UploadFileDescriptor()
-            {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
-                FileMetadata = fileMetadata
-            };
-
-            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-
-            List<StreamPart> parts =
-            [
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Metadata))
-            ];
-
-            var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-            ApiResponse<UploadResult> response = await driveSvc.Upload(parts.ToArray());
-
-            if (wipeKeyHeader)
-            {
-                keyHeader.AesKey.Wipe();
-            }
-
-            return (response, encryptedJsonContent64);
-        }
-    }
-
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64)> UploadNewEncryptedMetadata(
-        Guid driveId,
-        UploadFileMetadata fileMetadata,
-        KeyHeader keyHeader = null)
-    {
-        keyHeader ??= KeyHeader.NewRandom16();
-
-        var s = new StorageOptions()
-        {
-            Drive = default,
-        };
-
-        var t = new TransitOptions();
-
-        return await UploadNewEncryptedMetadata(driveId, fileMetadata, s, t, keyHeader);
-    }
-
-    /// <summary>
-    /// Uploads a new file, encrypted with metadata only; without any attachments (payload, thumbnails, etc.)
-    /// </summary>
-    public async Task<(ApiResponse<UploadResult> response, string encryptedJsonContent64, List<EncryptedAttachmentUploadResult>
-        uploadedThumbnails, List<EncryptedAttachmentUploadResult> uploadedPayloads)> UploadNewEncryptedFile(Guid driveId,
-        KeyHeader keyHeader,
-        UploadFileMetadata fileMetadata,
-        UploadManifest uploadManifest,
-        List<TestPayloadDefinition> payloads,
-        AppNotificationOptions notificationOptions = null)
-    {
+        
         var uploadedThumbnails = new List<EncryptedAttachmentUploadResult>();
         var uploadedPayloads = new List<EncryptedAttachmentUploadResult>();
 
+        var wipeKeyHeader = false;
+        if (keyHeader == null)
+        {
+            keyHeader = KeyHeader.NewRandom16();
+            wipeKeyHeader = true;
+        }
+
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
-        UploadInstructionSet instructionSet = new UploadInstructionSet()
+        var instructionSet = new UploadInstructionSet
         {
             TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                Drive = default,
-            },
-            TransitOptions = new TransitOptions
-            {
-                UseAppNotification = notificationOptions != null,
-                AppNotificationOptions = notificationOptions
-            },
-            Manifest = uploadManifest,
+            StorageOptions = storageOptions,
+            TransitOptions = transitOptions ?? new TransitOptions(),
+            Manifest = uploadManifest
         };
 
-        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        if (notificationOptions != null)
         {
-            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+            instructionSet.TransitOptions.UseAppNotification = true;
+            instructionSet.TransitOptions.AppNotificationOptions = notificationOptions;
+        }
 
-            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
-            fileMetadata.AppData.Content = encryptedJsonContent64;
-            fileMetadata.IsEncrypted = true;
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
 
-            var descriptor = new UploadFileDescriptor()
+        var instructionStream =
+            new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+        // Encrypt metadata content
+        var encryptedJsonContent64 =
+            keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+
+        fileMetadata.AppData.Content = encryptedJsonContent64;
+        fileMetadata.IsEncrypted = true;
+
+        var descriptor = new UploadFileDescriptor
+        {
+            EncryptedKeyHeader =
+                EncryptedKeyHeader.EncryptKeyHeaderAes(
+                    keyHeader,
+                    instructionSet.TransferIv,
+                    ref sharedSecret),
+            FileMetadata = fileMetadata
+        };
+
+        var fileDescriptorCipher =
+            TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+
+        List<StreamPart> parts =
+        [
+            new StreamPart(
+                instructionStream,
+                "instructionSet.encrypted",
+                "application/json",
+                Enum.GetName(MultipartUploadParts.Instructions)),
+
+            new StreamPart(
+                fileDescriptorCipher,
+                "fileDescriptor.encrypted",
+                "application/json",
+                Enum.GetName(MultipartUploadParts.Metadata))
+        ];
+
+        // Optional encrypted payloads + thumbnails
+        if (payloads != null && payloads.Count > 0)
+        {
+            foreach (var payload in payloads)
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
-                FileMetadata = fileMetadata
-            };
-
-            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-
-            List<StreamPart> parts =
-            [
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Metadata))
-            ];
-
-            // Encrypt and add payloads
-            foreach (var payloadDefinition in payloads)
-            {
-                var payloadKeyHeader = new KeyHeader()
+                var payloadKeyHeader = new KeyHeader
                 {
-                    Iv = payloadDefinition.Iv,
+                    Iv = payload.Iv,
                     AesKey = new SensitiveByteArray(keyHeader.AesKey.GetKey())
                 };
 
-                var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payloadDefinition.Content);
-                parts.Add(new StreamPart(payloadCipher, payloadDefinition.Key, payloadDefinition.ContentType,
+                var payloadCipher =
+                    payloadKeyHeader.EncryptDataAesAsStream(payload.Content);
+
+                parts.Add(new StreamPart(
+                    payloadCipher,
+                    payload.Key,
+                    payload.ContentType,
                     Enum.GetName(MultipartUploadParts.Payload)));
-                uploadedPayloads.Add(new EncryptedAttachmentUploadResult()
+
+                uploadedPayloads.Add(new EncryptedAttachmentUploadResult
                 {
-                    Key = payloadDefinition.Key,
-                    ContentType = payloadDefinition.ContentType,
+                    Key = payload.Key,
+                    ContentType = payload.ContentType,
                     EncryptedContent64 = payloadCipher.ToByteArray().ToBase64()
                 });
 
                 payloadCipher.Position = 0;
 
-                // Encrypt and add thumbnails
-                foreach (var thumbnail in payloadDefinition.Thumbnails)
+                foreach (var thumb in payload.Thumbnails)
                 {
-                    var thumbnailCipher = payloadKeyHeader.EncryptDataAesAsStream(thumbnail.Content);
-                    var thumbnailKey =
-                        $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
-                    parts.Add(new StreamPart(thumbnailCipher, thumbnailKey, thumbnail.ContentType,
+                    var thumbCipher =
+                        payloadKeyHeader.EncryptDataAesAsStream(thumb.Content);
+
+                    var thumbKey =
+                        $"{payload.Key}{thumb.PixelWidth}{thumb.PixelHeight}";
+
+                    parts.Add(new StreamPart(
+                        thumbCipher,
+                        thumbKey,
+                        thumb.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 
-                    uploadedThumbnails.Add(new EncryptedAttachmentUploadResult()
+                    uploadedThumbnails.Add(new EncryptedAttachmentUploadResult
                     {
-                        Key = thumbnailKey,
-                        ContentType = thumbnail.ContentType,
-                        EncryptedContent64 = thumbnailCipher.ToByteArray().ToBase64()
+                        Key = thumbKey,
+                        ContentType = thumb.ContentType,
+                        EncryptedContent64 = thumbCipher.ToByteArray().ToBase64()
                     });
-                    thumbnailCipher.Position = 0;
+
+                    thumbCipher.Position = 0;
                 }
             }
-
-            var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-            ApiResponse<UploadResult> response = await driveSvc.Upload(parts.ToArray());
-
-            if (response.StatusCode == HttpStatusCode.BadRequest)
-            {
-                var code = WebScaffold.GetErrorCode(response.Error);
-                throw new Exception($"BadRequest returned.  OdinClientErrorCode was {code}");
-            }
-
-            return (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
         }
-    }
 
-    public async Task<ApiResponse<UploadResult>> UploadNewFile(
+        var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
+        var response = await driveSvc.Upload(parts.ToArray());
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            var code = WebScaffold.GetErrorCode(response.Error);
+            throw new Exception($"BadRequest returned. OdinClientErrorCode was {code}");
+        }
+
+        if (wipeKeyHeader)
+            keyHeader.AesKey.Wipe();
+
+        return (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
+    }
+    
+    public async Task<ApiResponse<CreateFileResult>> CreateNewUnencryptedFile(
         Guid driveId,
         UploadFileMetadata fileMetadata,
         UploadManifest uploadManifest,
@@ -293,15 +235,9 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             TransferIv = transferIv,
             StorageOptions = new()
             {
-                Drive = new TargetDrive
-                {
-                    Alias = driveId,
-                    Type = Guid.NewGuid() //bullshit
-                },
+                DriveId = driveId,
             },
-            TransitOptions = transitOptions ?? new TransitOptions()
-            {
-            },
+            TransitOptions = transitOptions ?? new TransitOptions(),
             Manifest = uploadManifest
         };
 
@@ -340,7 +276,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             }
 
             var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-            ApiResponse<UploadResult> response = await driveSvc.Upload(parts.ToArray());
+            ApiResponse<CreateFileResult> response = await driveSvc.Upload(parts.ToArray());
 
             keyHeader.AesKey.Wipe();
 
@@ -348,7 +284,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         }
     }
 
-    public async Task<ApiResponse<FileUpdateResult>> UpdateFile(
+    public async Task<ApiResponse<UpdateFileResult>> UpdateFile(
         FileUpdateInstructionSet uploadInstructionSet,
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads)
@@ -390,7 +326,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             }
 
             var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-            ApiResponse<FileUpdateResult> response = await driveSvc.Update(parts.ToArray());
+            ApiResponse<UpdateFileResult> response = await driveSvc.Update(parts.ToArray());
 
             keyHeader.AesKey.Wipe();
 
@@ -400,7 +336,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
 
     public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadataTags(Guid driveId, Guid fileId,
-        UpdateLocalMetadataTagsRequest request)
+        UpdateLocalMetadataTagsRequestV2 request)
     {
         var keyHeader = KeyHeader.NewRandom16();
 
@@ -416,7 +352,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
     }
 
     public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadataContent(Guid driveId, Guid fileId,
-        UpdateLocalMetadataContentRequest request)
+        UpdateLocalMetadataContentRequestV2 request)
     {
         var keyHeader = KeyHeader.NewRandom16();
 
@@ -433,40 +369,71 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
     //
 
-    public async Task<ApiResponse<DeleteFileResult>> SoftDeleteFile(ExternalFileIdentifier file, List<string> recipients = null)
+    public async Task<ApiResponse<DeleteFileResultV2>> SoftDeleteFile(Guid driveId, Guid fileId, List<string> recipients = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        //wth - refit is not sending headers when you do GET request - why not!?
-        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        var apiResponse = await svc.SoftDeleteFile(new DeleteFileRequest()
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.SoftDeleteFile(driveId, fileId, new DeleteFileOptionsV2()
         {
-            File = file,
             Recipients = recipients
         });
 
         return apiResponse;
     }
 
-    public async Task<ApiResponse<DeleteFilesByGroupIdBatchResult>> DeleteFilesByGroupIdList(DeleteFilesByGroupIdBatchRequest batch)
+    public async Task<ApiResponse<DeleteFilesByGroupIdBatchResultV2>> DeleteFilesByGroupIdList(Guid driveId,
+        DeleteFilesByGroupIdBatchRequestV2 batch)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        //wth - refit is not sending headers when you do GET request - why not!?
-        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        var apiResponse = await svc.DeleteFilesByGroupIdBatch(batch);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.DeleteFilesByGroupIdBatch(driveId, batch);
 
         return apiResponse;
     }
 
-    public async Task<ApiResponse<DeleteFileIdBatchResult>> DeleteFileList(List<DeleteFileRequest> requests)
+    public async Task<ApiResponse<DeleteFileIdBatchResultV2>> DeleteFileList(Guid driveId, List<DeleteFileRequestV2> requests)
     {
-        var batch = new DeleteFileIdBatchRequest()
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.DeleteFileIdBatch(driveId, new DeleteFileIdBatchRequestV2
         {
             Requests = requests
+        });
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<DeletePayloadResult>> DeletePayload(Guid driveId, Guid fileId, string key, Guid versionTag)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.DeletePayload(driveId, fileId, new DeletePayloadRequestV2
+            {
+                Key = key,
+                VersionTag = versionTag
+            }
+        );
+
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<HttpContent>> HardDeleteFile(Guid driveId, Guid fileId)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.HardDeleteFile(driveId, fileId, null);
+        return apiResponse;
+    }
+
+    public async Task<ApiResponse<SendReadReceiptResultV2>> SendReadReceipt(Guid driveId, List<Guid> files)
+    {
+        var request = new SendReadReceiptRequestV2
+        {
+            Files = files
         };
 
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
-        var apiResponse = await svc.DeleteFileIdBatch(batch);
+        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
+        var apiResponse = await svc.SendReadReceiptBatch(driveId, request);
         return apiResponse;
     }
 }

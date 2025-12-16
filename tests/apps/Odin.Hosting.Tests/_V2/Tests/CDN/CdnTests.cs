@@ -12,12 +12,14 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Encryption;
+using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.CDN;
 
@@ -83,7 +85,7 @@ public class CdnTests
         var client = new DriveReaderV2Client(sam.OdinId, callerContext.GetFactory());
 
         // fail to get header since it's not an allowed path
-        var getHeaderResponse = await client.GetFileHeaderAsync(file);
+        var getHeaderResponse = await client.GetFileHeaderAsync(file.DriveId, file.FileId);
         ClassicAssert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Unauthorized, $"code was {getHeaderResponse.StatusCode}");
     }
 
@@ -109,7 +111,7 @@ public class CdnTests
         //
 
         // Get the payload and check the headers
-        var getPayloadKey1Response = await client.GetPayloadAsync(file, payload.Key);
+        var getPayloadKey1Response = await client.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
 
         ClassicAssert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode, $"Code should have been {expectedStatusCode} but" +
                                                                                       $" was {getPayloadKey1Response.StatusCode}");
@@ -148,7 +150,8 @@ public class CdnTests
             //
             // Get the payload from header using owner client
             //
-            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(file);
+            var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
+            var getHeaderResponse = await v2Owner.DriveReader.GetFileHeaderAsync(file.DriveId, file.FileId);
             ClassicAssert.IsTrue(getHeaderResponse.StatusCode == expectedStatusCode, $"code was {getHeaderResponse.StatusCode}");
 
             var header = getHeaderResponse.Content;
@@ -185,7 +188,7 @@ public class CdnTests
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             // Get the payload and check the headers
-            var getPayloadKey1Response = await client.GetPayloadAsync(file, payload.Key);
+            var getPayloadKey1Response = await client.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
 
             ClassicAssert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode,
                 $"Code should have been {expectedStatusCode} but" +
@@ -214,7 +217,8 @@ public class CdnTests
             //
             // Get the payload from header using owner client
             //
-            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(file);
+            var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
+            var getHeaderResponse = await v2Owner.DriveReader.GetFileHeaderAsync(file.DriveId, file.FileId);
             ClassicAssert.IsTrue(getHeaderResponse.StatusCode == expectedStatusCode, $"code was {getHeaderResponse.StatusCode}");
 
             var header = getHeaderResponse.Content;
@@ -264,18 +268,30 @@ public class CdnTests
         //
         // upload encrypted file with encrypted payloads
         //
-        var (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) =
-            await ownerApiClient.DriveRedux.UploadNewEncryptedFile(targetDrive, originalKeyHeader, uploadedFileMetadata, uploadManifest,
-                testPayloads);
+        var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
+       
+        var (response, _, uploadedThumbnails, uploadedPayloads) =
+            await v2Owner.DriveWriter.CreateEncryptedFile(
+                fileMetadata: uploadedFileMetadata,
+                storageOptions: new StorageOptions
+                {
+                    DriveId = callerContext.DriveId
+                },
+                transitOptions: new TransitOptions(),
+                uploadManifest: uploadManifest,
+                payloads: testPayloads,
+                notificationOptions: null,
+                keyHeader: originalKeyHeader
+            );
+        
         ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
         ClassicAssert.IsNotNull(uploadResult);
-        var file = uploadResult.File;
 
         await callerContext.Initialize(ownerApiClient);
         var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
-        var getPayloadKey1Response = await client.GetPayloadAsync(file, payload.Key);
+        var getPayloadKey1Response = await client.GetPayloadAsync(uploadResult.DriveId, uploadResult.FileId, payload.Key);
 
         ClassicAssert.IsTrue(getPayloadKey1Response.StatusCode == expectedStatusCode, $"Code should have been {expectedStatusCode} but" +
                                                                                       $" was {getPayloadKey1Response.StatusCode}");
@@ -312,7 +328,7 @@ public class CdnTests
             //
             // Get the payload from header using owner client
             //
-            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(file);
+            var getHeaderResponse = await v2Owner.DriveReader.GetFileHeaderAsync(uploadResult.DriveId, uploadResult.FileId);
             ClassicAssert.IsTrue(getHeaderResponse.StatusCode == expectedStatusCode, $"code was {getHeaderResponse.StatusCode}");
 
             var header = getHeaderResponse.Content;
@@ -335,17 +351,19 @@ public class CdnTests
             //
 
             var thumbnail = payload.Thumbnails.Single();
-            var getThumbnailResponse = await client.GetThumbnailAsync(file, thumbnail.PixelWidth, thumbnail.PixelHeight, payload.Key,
+            var getThumbnailResponse = await client.GetThumbnailAsync(uploadResult.DriveId, uploadResult.FileId, thumbnail.PixelWidth,
+                thumbnail.PixelHeight, payload.Key,
                 directMatchOnly: true);
-            
+
             ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.OK,
                 $"get thumbnail failed - code was {getThumbnailResponse.StatusCode}");
-           
+
             var expectedThumbnail = uploadedThumbnails.Single();
             var actualThumbnailBytes = await getThumbnailResponse.Content.ReadAsByteArrayAsync();
-            ClassicAssert.IsTrue(expectedThumbnail.EncryptedContent64 == actualThumbnailBytes.ToBase64(), "thumbnail content is not as expected");
+            ClassicAssert.IsTrue(expectedThumbnail.EncryptedContent64 == actualThumbnailBytes.ToBase64(),
+                "thumbnail content is not as expected");
 
-            
+
             ClassicAssert.IsNotNull(getThumbnailResponse.ContentHeaders);
             ClassicAssert.IsNotNull(getThumbnailResponse.Headers);
 
@@ -353,11 +371,13 @@ public class CdnTests
                 getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var thumbnailIsEncryptedValues));
             ClassicAssert.IsTrue(bool.Parse(thumbnailIsEncryptedValues.Single()));
 
-            ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var thumbnailContentTypeValues));
+            ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType,
+                out var thumbnailContentTypeValues));
             ClassicAssert.IsTrue(thumbnailContentTypeValues.Single() == thumbnail.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
-            getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var thumbnailSharedSecretValues);
+            getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                out var thumbnailSharedSecretValues);
             ClassicAssert.IsTrue(
                 thumbnailSharedSecretValues == null || thumbnailSharedSecretValues.All(string.IsNullOrEmpty),
                 "SharedSecretEncryptedHeader64 should not be present, or should be null/empty when using CDN token type"
@@ -368,22 +388,20 @@ public class CdnTests
 
             //Note commented as I'm having some conversion issues i think
             ClassicAssert.IsTrue(thumbnailLastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
-            
         }
     }
 
-    private async Task<ExternalFileIdentifier> UploadFile(TestIdentity identity, UploadFileMetadata uploadedFileMetadata,
+    private async Task<CreateFileResult> UploadFile(TestIdentity identity, UploadFileMetadata uploadedFileMetadata,
         TestPayloadDefinition payloadDefinition,
         bool allowAnonymousReadsOnDrive,
         IApiClientContext callerContext)
     {
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-
-        var targetDrive = callerContext.TargetDrive;
         // create drive
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReadsOnDrive);
 
         // upload file
+        var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
         var testPayloads = new List<TestPayloadDefinition> { payloadDefinition };
 
         var uploadManifest = new UploadManifest()
@@ -391,12 +409,12 @@ public class CdnTests
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
-        var response = await ownerApiClient.DriveRedux.UploadNewFile(targetDrive, uploadedFileMetadata, uploadManifest, testPayloads);
+        var response = await v2Owner.DriveWriter.CreateNewUnencryptedFile(callerContext.DriveId, uploadedFileMetadata, uploadManifest, testPayloads);
 
         // send back details - fileid
         ClassicAssert.IsTrue(response.IsSuccessStatusCode);
         var uploadResult = response.Content;
         ClassicAssert.IsNotNull(uploadResult);
-        return uploadResult.File;
+        return uploadResult;
     }
 }

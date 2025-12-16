@@ -88,7 +88,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
                 var result = await handler.HandleAsync(Context, token, odinContext);
 
-                // odinContext.SetAuthContext(UnifiedAuthConstants.SchemeName);
+                odinContext.SetApiVersion(2);
 
                 switch (result.Status)
                 {

@@ -10,6 +10,7 @@ namespace Odin.Services.Base
     public interface IOdinContext : IGenericCloneable<IOdinContext>
     {
         string AuthContext { get; }
+        int ApiVersion { get; }
         OdinId Tenant { get; set; }
         CallerContext Caller { get; set; }
         PermissionContext PermissionsContext { get; }
@@ -20,6 +21,7 @@ namespace Odin.Services.Base
         UnixTimeUtc? AuthTokenCreated { get; set; }
 
         OdinId GetCallerOdinIdOrFail();
+        void SetApiVersion(int version);
         void SetPermissionContext(PermissionContext pc);
         void SetAuthContext(string authContext);
         void AssertCanManageConnections();
@@ -32,7 +34,9 @@ namespace Odin.Services.Base
     {
         public PermissionContext PermissionsContext { get; private set; }
         public string AuthContext { get; private set; }
-        public OdinId Tenant { get; set; } 
+        public int ApiVersion { get; private set; } = 1;
+
+        public OdinId Tenant { get; set; }
         public UnixTimeUtc? AuthTokenCreated { get; set; }
         public CallerContext Caller { get; set; }
 
@@ -44,6 +48,7 @@ namespace Odin.Services.Base
                 Caller = Caller?.Clone(),
                 PermissionsContext = PermissionsContext?.Clone(),
                 AuthContext = AuthContext,
+                ApiVersion = ApiVersion,
                 AuthTokenCreated = AuthTokenCreated?.Clone()
             };
         }
@@ -73,6 +78,11 @@ namespace Odin.Services.Base
             }
 
             AuthContext = authContext;
+        }
+
+        public void SetApiVersion(int version)
+        {
+            this.ApiVersion = version;
         }
 
         public void AssertCanManageConnections()

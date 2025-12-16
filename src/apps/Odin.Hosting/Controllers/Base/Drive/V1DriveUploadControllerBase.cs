@@ -76,13 +76,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 string json = await new StreamReader(section!.Body).ReadToEndAsync();
                 var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
 
-                if (!instructionSet.File.TargetDrive.IsValid())
+                //v2 reads from the driveId field, so we overwrite it. this stops callers from being bound to the target drive
+                if (WebOdinContext.ApiVersion == 2)
                 {
-                    // v2 fallback to allow just driveId to be set so the FE is NOT bound to the target drive
                     var theDrive = await driveManager.GetDriveAsync(instructionSet.File.DriveId);
                     instructionSet.File.TargetDrive = theDrive!.TargetDriveInfo;
                 }
-                
+
                 await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
                 //
@@ -139,9 +139,20 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 string json = await new StreamReader(section!.Body).ReadToEndAsync();
                 var instructionSet = OdinSystemSerializer.Deserialize<UploadInstructionSet>(json);
 
-                var driveId = instructionSet.StorageOptions.Drive.IsValid()
-                    ? instructionSet.StorageOptions.Drive.Alias.Value
-                    : instructionSet.StorageOptions.DriveId;
+                Guid driveId;
+                // v2 reads from driveId.  we will remove .Drive when we remove v1
+                if (WebOdinContext.ApiVersion == 2)
+                {
+                    driveId = instructionSet.StorageOptions.DriveId;
+                    if (instructionSet.StorageOptions.OverwriteFileId.HasValue)
+                    {
+                        throw new OdinClientException("Cannot use OverwriteFileId in version 2; use PATCH method instead");
+                    }
+                }
+                else
+                {
+                    driveId = instructionSet.StorageOptions.Drive.Alias.Value;
+                }
 
                 OdinValidationUtils.AssertNotEmptyGuid(driveId, "Invalid Drive Id");
                 await driveUploadService.StartUpload(driveId, instructionSet, WebOdinContext);

@@ -19,7 +19,7 @@ public class ConnectedIdentityLoggedInOnGuestApi(OdinId identity, TestPermission
 
     public TargetDrive TargetDrive { get; }
     public DrivePermission DrivePermission { get; }
-
+    public Guid DriveId => TargetDrive.Alias;
     private OwnerApiClientRedux _api;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)

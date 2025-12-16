@@ -7,6 +7,8 @@ using NUnit.Framework.Legacy;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests._V2.ApiClient.TestCases;
+using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -44,25 +46,15 @@ public class LocalAppMetadataContentTests
         _scaffold.AssertLogEvents();
     }
 
-    public static IEnumerable OwnerAllowed()
+    public static IEnumerable TestCasesReadWriteDrive()
     {
-        yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-    }
-
-    public static IEnumerable AppAllowed()
-    {
-        yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-    }
-
-    public static IEnumerable GuestWriteOnlyAccessToDrive()
-    {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
+        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite), HttpStatusCode.OK };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite), HttpStatusCode.OK };
+        yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    [TestCaseSource(nameof(GuestWriteOnlyAccessToDrive))]
+    [TestCaseSource(nameof(TestCasesReadWriteDrive))]
     public async Task CanUpdateLocalAppMetadataContentWhenNotSetInTargetFile(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -84,14 +76,13 @@ public class LocalAppMetadataContentTests
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
         const string content = "some local content here";
-        var request = new UpdateLocalMetadataContentRequest()
+        var request = new UpdateLocalMetadataContentRequestV2()
         {
-            File = targetFile,
             LocalVersionTag = Guid.Empty,
             Content = content
         };
 
-        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.FileId, targetFile.TargetDrive.Alias, request);
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.TargetDrive.Alias, targetFile.FileId, request);
         ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
@@ -110,9 +101,7 @@ public class LocalAppMetadataContentTests
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    [TestCaseSource(nameof(TestCasesReadWriteDrive))]
     public async Task CanUpdateLocalAppMetadataContentWhenSetInTargetFileUsingValidLocalVersionTag(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -152,16 +141,15 @@ public class LocalAppMetadataContentTests
         //
         // Act - try to update the local metadata with a bad local version tag
         //
-        var request2 = new UpdateLocalMetadataContentRequest()
+        var request2 = new UpdateLocalMetadataContentRequestV2()
         {
-            File = targetFile,
             LocalVersionTag = latestLocalVersionTag,
             Content = content2
         };
 
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.FileId, targetFile.TargetDrive.Alias, request2);
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.TargetDrive.Alias, targetFile.FileId, request2);
         ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
@@ -175,11 +163,8 @@ public class LocalAppMetadataContentTests
         ClassicAssert.IsTrue(theUpdatedFile.FileMetadata.LocalAppData.Content == content2, "the content should have changed");
     }
 
-
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    [TestCaseSource(nameof(TestCasesReadWriteDrive))]
     public async Task TagsAreNotChangedWhenUpdatingLocalMetadataContent(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -222,16 +207,15 @@ public class LocalAppMetadataContentTests
         //
         const string expectedContent = "some content goes here";
 
-        var request2 = new UpdateLocalMetadataContentRequest()
+        var request2 = new UpdateLocalMetadataContentRequestV2()
         {
-            File = targetFile,
             LocalVersionTag = latestLocalVersionTag,
             Content = expectedContent
         };
 
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.FileId, targetFile.TargetDrive.Alias, request2);
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.TargetDrive.Alias, targetFile.FileId, request2);
         ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
@@ -249,9 +233,7 @@ public class LocalAppMetadataContentTests
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
-    // [TestCaseSource(nameof(GuestNotAllowed))] //not required in this test
+    [TestCaseSource(nameof(TestCasesReadWriteDrive))]
     public async Task FailsWithBadRequestWhenInvalidLocalVersionTagSpecified(IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
@@ -289,17 +271,16 @@ public class LocalAppMetadataContentTests
         //
         // Act - try to udpate the loca metadata with a bad local version tag
         //
-        var request2 = new UpdateLocalMetadataContentRequest()
+        var request2 = new UpdateLocalMetadataContentRequestV2()
         {
-            File = targetFile,
             LocalVersionTag = Guid.NewGuid(), //random guid so it will fail
             Content = content2
         };
 
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.FileId, targetFile.TargetDrive.Alias, request2);
-        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(targetFile.TargetDrive.Alias, targetFile.FileId, request2);
+        ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed with bad request");
 
         // Get the file and see that it was not updated
         var updatedFileResponse = await ownerApiClient.DriveRedux.GetFileHeader(targetFile);
@@ -310,8 +291,7 @@ public class LocalAppMetadataContentTests
     }
 
     [Test]
-    [TestCaseSource(nameof(OwnerAllowed))]
-    [TestCaseSource(nameof(AppAllowed))]
+    [TestCaseSource(nameof(TestCasesReadWriteDrive))]
     public async Task FailsWithBadRequestWhenFileDoesNotExist(IApiClientContext callerContext, HttpStatusCode _)
     {
         //
@@ -319,26 +299,21 @@ public class LocalAppMetadataContentTests
         //
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
-        var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         //
         // Act - try to update local metadata for non-existent file
         //
-        var request = new UpdateLocalMetadataContentRequest()
+        var request = new UpdateLocalMetadataContentRequestV2()
         {
-            File = new ExternalFileIdentifier()
-            {
-                FileId = Guid.NewGuid(), //random non-existent file
-                TargetDrive = targetDrive
-            },
             LocalVersionTag = Guid.Empty,
             Content = "some local content here"
         };
 
+        var randomFileId = Guid.NewGuid();
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var response = await callerDriveClient.UpdateLocalAppMetadataContent(request.File.FileId, request.File.TargetDrive.Alias, request);
+        var response = await callerDriveClient.UpdateLocalAppMetadataContent(callerContext.DriveId, randomFileId, request);
         ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest, "should have failed");
     }
 }

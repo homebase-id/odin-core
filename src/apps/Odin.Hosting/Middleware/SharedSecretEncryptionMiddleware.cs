@@ -92,9 +92,7 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstantsV1.AuthV1}/logout",
                 $"{AppApiPathConstantsV1.NotificationsV1}/preauth",
                 $"{AppApiPathConstantsV1.PeerNotificationsV1}/preauth",
-                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth",
-                $"{UnifiedApiRouteConstants.DrivesRoot}/files/upload",
-                $"{UnifiedApiRouteConstants.DrivesRoot}/files/update"
+                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth"
             ];
 
 
@@ -130,7 +128,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstantsV1.DriveV1}/files/thumb",
                 $"{GuestApiPathConstantsV1.DriveV1}/files/payload",
-                
+
                 $"{UnifiedApiRouteConstants.Auth}/verify-shared-secret-encryption",
             ];
 
@@ -297,7 +295,7 @@ namespace Odin.Hosting.Middleware
             {
                 return false;
             }
-            
+
             if (context.Request.Method.ToUpper() == "POST")
             {
                 if (context.Request.Headers.ContentLength == 0)
@@ -305,12 +303,12 @@ namespace Odin.Hosting.Middleware
                     return false;
                 }
 
-                if (IsUnifiedFilesPath(context.Request.Path))
+                if (IsUnifiedFilesPath(context.Request))
                 {
                     return false;
                 }
             }
-            
+
             if (context.Request.Method.ToUpper() == "GET" && context.Request.QueryString.HasValue == false)
             {
                 return false;
@@ -335,15 +333,15 @@ namespace Odin.Hosting.Middleware
             {
                 return false;
             }
-            
+
             if (context.Request.Path.StartsWithSegments(UnifiedApiRouteConstants.BasePath, StringComparison.OrdinalIgnoreCase))
             {
                 if (IsPayloadOrThumbnail(context.Request.Path.Value))
                 {
                     return false;
                 }
-                
-                if (IsUnifiedFilesPath(context.Request.Path))
+
+                if (IsUnifiedFilesPath(context.Request))
                 {
                     return false;
                 }
@@ -357,21 +355,23 @@ namespace Odin.Hosting.Middleware
             var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
             return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }
-        
-        private static bool IsUnifiedFilesPath(string path)
+
+        private static bool IsUnifiedFilesPath(HttpRequest request)
         {
-            // /api/v2/drives/{guid}/files or anything below it
-            if (!path.StartsWith(UnifiedApiRouteConstants.DrivesRoot + "/", StringComparison.OrdinalIgnoreCase))
-                return false;
+            // if we are creating or updating files
+            if (request.Method.ToUpper() == "POST" || request.Method.ToUpper() == "PATCH")
+            {
+                var path = request.Path;
+                if (path.StartsWithSegments($"{UnifiedApiRouteConstants.DrivesRoot}/files"))
+                {
+                    return true;
+                }
+            }
 
-            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-            // [api, v2, drives, {guid}, files, ...]
-            return segments.Length >= 5
-                   && segments[4].Equals("files", StringComparison.OrdinalIgnoreCase);
+            return false;
         }
 
-        
+
         private bool HasThumbnailExtension(string path, string suffix)
         {
             // Handles /thumb.png /thumb.jpeg /thumb.webp etc.

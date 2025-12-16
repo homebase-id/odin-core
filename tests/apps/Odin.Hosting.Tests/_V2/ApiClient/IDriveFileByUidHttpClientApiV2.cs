@@ -12,7 +12,7 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public interface IDriveFileByUidHttpClientApiV2
 {
-    private const string Endpoint = $"{UnifiedApiRouteConstants.FilesRoot}/{V2DriveFileReadonlyController.ByUniqueId}";
+    private const string Endpoint = $"{UnifiedApiRouteConstants.FilesRoot}/{V2DriveFileReadonlyByUidController.ByUniqueId}";
 
     [Get(Endpoint + "/header")]
     Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,

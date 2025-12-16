@@ -19,6 +19,7 @@ public class AppTestCase(TargetDrive targetDrive, DrivePermission drivePermissio
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = drivePermission;
+    public Guid DriveId { get; } = targetDrive.Alias;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -61,6 +62,7 @@ public class AppTestCase(TargetDrive targetDrive, DrivePermission drivePermissio
 
     public override string ToString()
     {
-        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var name= System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        return $"{name} with drive:{DrivePermission}";
     }
 }

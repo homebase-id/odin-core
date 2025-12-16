@@ -12,9 +12,11 @@ public interface IApiClientContext
     // Create the app and setup permissions
     // Create the guest domain and setup permissions
     Task Initialize(OwnerApiClientRedux ownerApiClient);
-    
+
     TargetDrive TargetDrive { get; }
-    
+
+    Guid DriveId { get; }
+
     DrivePermission DrivePermission { get; }
 
     IApiClientFactory GetFactory();

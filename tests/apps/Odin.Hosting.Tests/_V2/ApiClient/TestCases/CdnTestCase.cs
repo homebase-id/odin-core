@@ -19,6 +19,7 @@ public class CdnTestCase(TargetDrive targetDrive, DrivePermission drivePermissio
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = drivePermission;
+    public Guid DriveId { get; } = targetDrive.Alias;
 
     static CdnTestCase()
     {
@@ -49,7 +50,8 @@ public class CdnTestCase(TargetDrive targetDrive, DrivePermission drivePermissio
 
     public override string ToString()
     {
-        return MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var name= System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        return $"{name} with drive:{DrivePermission}";
     }
 
     public static string GetAuthToken64()

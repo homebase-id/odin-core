@@ -21,29 +21,29 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
         return factory.SharedSecret;
     }
 
-    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(ExternalFileIdentifier file,
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsync(Guid driveId, Guid fileId,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveReaderHttpClientApiV2>(client, sharedSecret);
-        var apiResponse = await svc.GetFileHeader(file.TargetDrive.Alias, file.FileId, fileSystemType);
+        var apiResponse = await svc.GetFileHeader(driveId, fileId, fileSystemType);
         return apiResponse;
     }
 
-    public async Task<ApiResponse<HttpContent>> GetPayloadAsync(ExternalFileIdentifier file, string key, FileChunk chunk = null,
+    public async Task<ApiResponse<HttpContent>> GetPayloadAsync(Guid driveId, Guid fileId, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveReaderHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetPayload(file.TargetDrive.Alias, file.FileId, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
+        return await svc.GetPayload(driveId, fileId, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
     }
 
-    public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(ExternalFileIdentifier file, int width, int height, string payloadKey,
+    public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(Guid driveId, Guid fileId, int width, int height, string payloadKey,
         bool directMatchOnly = false, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveReaderHttpClientApiV2>(client, sharedSecret);
-        var thumbnailResponse = await svc.GetThumbnail(file.TargetDrive.Alias, file.FileId, payloadKey, width, height, directMatchOnly,
+        var thumbnailResponse = await svc.GetThumbnail(driveId, fileId, payloadKey, width, height, directMatchOnly,
             fileSystemType);
         return thumbnailResponse;
     }
@@ -96,12 +96,12 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetBatchCollection(driveId, request);
     }
 
-    public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistoryAsync(ExternalFileIdentifier file,
+    public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistoryAsync(Guid driveId, Guid fileId,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveReaderHttpClientApiV2>(client, sharedSecret);
-        var apiResponse = await svc.GetTransferHistory(file.TargetDrive.Alias, file.FileId, fileSystemType);
+        var apiResponse = await svc.GetTransferHistory(driveId, fileId, fileSystemType);
         return apiResponse;
     }
 

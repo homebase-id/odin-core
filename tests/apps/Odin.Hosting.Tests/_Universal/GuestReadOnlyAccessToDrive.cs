@@ -19,7 +19,7 @@ public class GuestReadOnlyAccessToDrive(TargetDrive targetDrive, TestPermissionK
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = DrivePermission.Read;
-
+    public Guid DriveId => TargetDrive.Alias;
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         var domain = new AsciiDomainName($"{Guid.NewGuid():n}-test.org");

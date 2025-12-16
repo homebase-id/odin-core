@@ -2,20 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base;
-using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem;
-using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
-using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Drive
 {
@@ -25,7 +18,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
 
         protected async Task<DeleteFileResultV2> PerformFileDelete(Guid driveId, Guid fileId, DeleteFileOptionsV2 options)
         {
-            var recipients = options.Recipients;
+            var recipients = options?.Recipients ?? [];
 
             OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: true);
 
@@ -87,12 +80,12 @@ namespace Odin.Hosting.UnifiedV2.Drive
 
             return results;
         }
-        
+
         protected IDriveFileSystem GetFileSystem()
         {
             return GetHttpFileSystemResolver().ResolveFileSystem();
         }
-        
+
         protected FileSystemType GetFileSystemType()
         {
             return GetHttpFileSystemResolver().GetFileSystemType();

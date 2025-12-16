@@ -16,7 +16,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
     /// </summary>
     [ApiController]
     [Route(UnifiedApiRouteConstants.FilesRoot)]
-    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileBatchOperationsController(PeerOutgoingTransferService peerOutgoingTransferService) :
         V2DriveControllerBase(peerOutgoingTransferService)
@@ -25,23 +25,31 @@ namespace Odin.Hosting.UnifiedV2.Drive
         /// Sends a read receipt for a file.
         /// </summary>
         [SwaggerOperation(
-            Summary = "Send read receipt",
+            Summary = "Send read receipt for one or more files",
             Description = "Sends a read receipt to the peer transfer service.",
             Tags = [SwaggerInfo.FileTransfer]
         )]
-        [HttpPost("send-read-receipt")]
-        public async Task<IActionResult> SendReadReceipt(Guid driveId, [FromBody] SendReadReceiptRequestV2 request)
+        [HttpPost("send-read-receipt-batch")]
+        public async Task<SendReadReceiptResultV2> SendReadReceipt(Guid driveId, [FromBody] SendReadReceiptRequestV2 request)
         {
             var internalFiles = request.Files.Select(fileId => new InternalDriveFileId(driveId, fileId)).ToList();
-            var result = await PeerOutgoingTransferService.SendReadReceipt(internalFiles,
+            var v1Result = await PeerOutgoingTransferService.SendReadReceipt(internalFiles,
                 WebOdinContext,
                 base.GetFileSystemType());
-            return new JsonResult(result);
+
+            return new SendReadReceiptResultV2
+            {
+                Results = v1Result.Results.Select(v1Item => new SendReadReceiptResultFileItemV2
+                {
+                    FileId = v1Item.File.FileId,
+                    Status = v1Item.Status
+                }).ToList()
+            };
         }
 
         [HttpPost("delete-batch/by-group-id")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileWrite])]
-        public async Task<IActionResult> DeleteFilesByGroupIdBatch(Guid driveId, [FromBody] DeleteFilesByGroupIdBatchRequestV2 batchRequest)
+        public async Task<DeleteFilesByGroupIdBatchResultV2> DeleteFilesByGroupIdBatch(Guid driveId, [FromBody] DeleteFilesByGroupIdBatchRequestV2 batchRequest)
         {
             var deleteBatchFinalResult = new DeleteFilesByGroupIdBatchResultV2()
             {
@@ -86,7 +94,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 });
             }
 
-            return new JsonResult(deleteBatchFinalResult);
+            return deleteBatchFinalResult;
         }
 
         /// <summary>
@@ -98,7 +106,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
             Description = "Deletes multiple files in a single API call.",
             Tags = [SwaggerInfo.FileWrite]
         )]
-        public async Task<IActionResult> DeleteFileIdBatch(Guid driveId, [FromBody] DeleteFileIdBatchRequestV2 request)
+        public async Task<DeleteFileIdBatchResultV2> DeleteFileIdBatch(Guid driveId, [FromBody] DeleteFileIdBatchRequestV2 request)
         {
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
@@ -107,7 +115,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 Results = await DeleteFileIdBatchInternal(driveId, request.Requests)
             };
 
-            return new JsonResult(batchResult);
+            return batchResult;
         }
     }
 }

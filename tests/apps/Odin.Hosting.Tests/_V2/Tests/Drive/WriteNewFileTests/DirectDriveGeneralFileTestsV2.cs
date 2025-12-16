@@ -8,12 +8,12 @@ using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography;
-using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -57,16 +57,15 @@ public class DirectDriveGeneralFileTestsV2
     public static IEnumerable TestCasesSecuredDrive()
     {
         yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Forbidden };
-        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Forbidden };
 
         yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
-        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden };
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.OK };
 
-        yield return new object[] { new CdnTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Unauthorized };
         yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
-    
-    
+
+
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
     public async Task CanUploadMetadataDataWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
@@ -116,18 +115,19 @@ public class DirectDriveGeneralFileTestsV2
 
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
         var driveId = targetDrive.Alias;
-        var response = await callerDriveClient.UploadNewFile(driveId, uploadedFileMetadata, uploadManifest, testPayloads);
+        var response = await callerDriveClient.CreateNewUnencryptedFile(driveId, uploadedFileMetadata, uploadManifest, testPayloads);
         ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         // Let's test more
         if (expectedStatusCode == HttpStatusCode.OK)
         {
+            var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
             var uploadResult = response.Content;
             ClassicAssert.IsNotNull(uploadResult);
 
             // use the owner api client to validate the file that was uploaded
-            var getHeaderResponse = await ownerApiClient.DriveRedux.GetFileHeader(uploadResult.File);
+            var getHeaderResponse = await v2Owner.DriveReader.GetFileHeaderAsync(uploadResult.DriveId, uploadResult.FileId);
             ClassicAssert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
             var header = getHeaderResponse.Content;
             ClassicAssert.IsNotNull(header);
@@ -147,7 +147,8 @@ public class DirectDriveGeneralFileTestsV2
             // Get the payloads
             foreach (var definition in testPayloads)
             {
-                var getPayloadResponse = await ownerApiClient.DriveRedux.GetPayload(uploadResult.File, definition.Key);
+                var getPayloadResponse = await v2Owner.DriveReader.GetPayloadAsync(uploadResult.DriveId, uploadResult.FileId,
+                    definition.Key);
                 ClassicAssert.IsTrue(getPayloadResponse.IsSuccessStatusCode);
                 ClassicAssert.IsTrue(getPayloadResponse.ContentHeaders!.LastModified.HasValue);
                 ClassicAssert.IsTrue(getPayloadResponse.ContentHeaders.LastModified.GetValueOrDefault() <
@@ -159,7 +160,7 @@ public class DirectDriveGeneralFileTestsV2
                 // Check all the thumbnails
                 foreach (var thumbnail in definition.Thumbnails)
                 {
-                    var getThumbnailResponse = await ownerApiClient.DriveRedux.GetThumbnail(uploadResult.File,
+                    var getThumbnailResponse = await v2Owner.DriveReader.GetThumbnailAsync(uploadResult.DriveId, uploadResult.FileId,
                         thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
 
                     ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
@@ -176,7 +177,6 @@ public class DirectDriveGeneralFileTestsV2
 
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
-
     public async Task DeletingFileDeletesAllPayloadsAndThumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -207,7 +207,7 @@ public class DirectDriveGeneralFileTestsV2
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
-        var deleteFileResponse = await callerDriveClient.SoftDeleteFile(uploadResult.File);
+        var deleteFileResponse = await callerDriveClient.SoftDeleteFile(callerContext.DriveId, uploadResult.File.FileId);
         ClassicAssert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
 
         // Test more if we can
@@ -242,6 +242,7 @@ public class DirectDriveGeneralFileTestsV2
     {
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
 
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
@@ -255,21 +256,21 @@ public class DirectDriveGeneralFileTestsV2
         UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);
         UploadResult uploadResult3 = await this.UploadAndValidate(f3, targetDrive);
 
-        var deleteList = new List<DeleteFileRequest>()
+        var deleteList = new List<DeleteFileRequestV2>()
         {
             new()
             {
-                File = uploadResult1.File,
+                FileId = uploadResult1.File.FileId,
                 Recipients = new List<string>()
             },
             new()
             {
-                File = uploadResult2.File,
+                FileId = uploadResult2.File.FileId,
                 Recipients = new List<string>()
             },
             new()
             {
-                File = uploadResult3.File,
+                FileId = uploadResult3.File.FileId,
                 Recipients = new List<string>()
             }
         };
@@ -277,7 +278,8 @@ public class DirectDriveGeneralFileTestsV2
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
-        var deleteListResponse = await callerDriveClient.DeleteFileList(deleteList);
+        var driveId = callerContext.DriveId;
+        var deleteListResponse = await callerDriveClient.DeleteFileList(driveId, deleteList);
         ClassicAssert.IsTrue(deleteListResponse.StatusCode == expectedStatusCode,
             $"Status code should be {expectedStatusCode} but was {deleteListResponse.StatusCode}");
         if (expectedStatusCode == HttpStatusCode.OK)
@@ -293,8 +295,7 @@ public class DirectDriveGeneralFileTestsV2
 
             foreach (var request in deleteList)
             {
-                var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(request.File);
-
+                var getDeletedHeader = await v2Owner.DriveReader.GetFileHeaderAsync(driveId, request.FileId);
                 ClassicAssert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
                 ClassicAssert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
             }
@@ -307,6 +308,7 @@ public class DirectDriveGeneralFileTestsV2
     {
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
         var targetDrive = callerContext.TargetDrive;
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
@@ -329,18 +331,16 @@ public class DirectDriveGeneralFileTestsV2
         // perform the deletes
         //
 
-        var deleteRequests = new List<DeleteFileByGroupIdRequest>()
+        var deleteRequests = new List<DeleteFileByGroupIdRequestV2>()
         {
             new()
             {
                 GroupId = groupId1,
-                TargetDrive = targetDrive,
                 Recipients = default
             },
             new()
             {
                 GroupId = groupId2,
-                TargetDrive = targetDrive,
                 Recipients = default
             }
         };
@@ -348,10 +348,12 @@ public class DirectDriveGeneralFileTestsV2
         await callerContext.Initialize(ownerApiClient);
         var uniDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
-        var deleteFilesByGroupIdListResponse = await uniDriveClient.DeleteFilesByGroupIdList(new DeleteFilesByGroupIdBatchRequest()
-        {
-            Requests = deleteRequests
-        });
+        var driveId = callerContext.DriveId;
+        var deleteFilesByGroupIdListResponse = await uniDriveClient.DeleteFilesByGroupIdList(driveId,
+            new DeleteFilesByGroupIdBatchRequestV2()
+            {
+                Requests = deleteRequests
+            });
 
         ClassicAssert.IsTrue(deleteFilesByGroupIdListResponse.StatusCode == expectedStatusCode,
             $"Status code should be {expectedStatusCode} but was {deleteFilesByGroupIdListResponse.StatusCode}");
@@ -369,15 +371,15 @@ public class DirectDriveGeneralFileTestsV2
             ClassicAssert.IsNotNull(deletesForGroupId1);
 
             ClassicAssert.IsTrue(deletesForGroupId1!.DeleteFileResults.Count == 2);
-            ClassicAssert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult1.File));
-            ClassicAssert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult2.File));
+            ClassicAssert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.FileId == uploadResult1.File.FileId));
+            ClassicAssert.IsNotNull(deletesForGroupId1.DeleteFileResults.SingleOrDefault(d => d.FileId == uploadResult2.File.FileId));
 
             foreach (var fileDeleteResult in deletesForGroupId1.DeleteFileResults)
             {
                 ClassicAssert.IsTrue(fileDeleteResult.LocalFileDeleted);
                 ClassicAssert.IsFalse(fileDeleteResult.RecipientStatus.Any());
 
-                var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(fileDeleteResult.File);
+                var getDeletedHeader = await v2Owner.DriveReader.GetFileHeaderAsync(driveId, fileDeleteResult.FileId);
 
                 ClassicAssert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
                 ClassicAssert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
@@ -390,14 +392,14 @@ public class DirectDriveGeneralFileTestsV2
             var deletesForGroupId2 = deleteBatchResult.Results.SingleOrDefault(r => r.GroupId == groupId2);
             ClassicAssert.IsNotNull(deletesForGroupId2);
             ClassicAssert.IsTrue(deletesForGroupId2!.DeleteFileResults.Count == 1);
-            ClassicAssert.IsNotNull(deletesForGroupId2.DeleteFileResults.SingleOrDefault(d => d.File == uploadResult3.File));
+            ClassicAssert.IsNotNull(deletesForGroupId2.DeleteFileResults.SingleOrDefault(d => d.FileId == uploadResult3.File.FileId));
 
             foreach (var fileDeleteResult in deletesForGroupId2.DeleteFileResults)
             {
                 ClassicAssert.IsTrue(fileDeleteResult.LocalFileDeleted);
                 ClassicAssert.IsFalse(fileDeleteResult.RecipientStatus.Any());
 
-                var getDeletedHeader = await ownerApiClient.DriveRedux.GetFileHeader(fileDeleteResult.File);
+                var getDeletedHeader = await v2Owner.DriveReader.GetFileHeaderAsync(driveId, fileDeleteResult.FileId);
 
                 ClassicAssert.IsTrue(getDeletedHeader.IsSuccessStatusCode);
                 ClassicAssert.IsTrue(getDeletedHeader.Content.FileState == FileState.Deleted);
@@ -435,7 +437,7 @@ public class DirectDriveGeneralFileTestsV2
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
 
-        var deleteFileResponse = await callerDriveClient.SoftDeleteFile(uploadResult.File);
+        var deleteFileResponse = await callerDriveClient.SoftDeleteFile(callerContext.DriveId, uploadResult.File.FileId);
         ClassicAssert.IsTrue(deleteFileResponse.StatusCode == expectedStatusCode, $"actual was {deleteFileResponse.StatusCode}");
 
         // Test more if we can

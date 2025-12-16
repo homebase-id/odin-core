@@ -18,7 +18,7 @@ public class AppPermissionsKeysOnly(TestPermissionKeyList keys = null)
 
     public TargetDrive TargetDrive { get; } = TargetDrive.NewTargetDrive();
     public DrivePermission DrivePermission { get; } = DrivePermission.None;
-
+    public Guid DriveId => TargetDrive.Alias;
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         // Prepare the app

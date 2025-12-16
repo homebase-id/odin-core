@@ -84,7 +84,7 @@ public class GetTransferHistoryTests
         // can get transfer history
         //
         var file = uploadResult.File;
-        var getTransferHistory = await client.GetTransferHistoryAsync(file);
+        var getTransferHistory = await client.GetTransferHistoryAsync(file.TargetDrive.Alias, file.FileId);
         ClassicAssert.IsTrue(getTransferHistory.StatusCode == expectedStatusCode, $"code was {getTransferHistory.StatusCode}");
 
         // test more
@@ -102,7 +102,7 @@ public class GetTransferHistoryTests
                     $"actual status was {item.LatestTransferStatus}");
             }
         }
-        
+
         await Cleanup(identity, recipients);
     }
 

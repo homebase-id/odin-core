@@ -33,6 +33,7 @@ using Odin.Test.Helpers.Logging;
 using Refit;
 using Serilog.Events;
 using System;
+using Odin.Hosting.Tests._V2.ApiClient;
 
 namespace Odin.Hosting.Tests
 {
@@ -310,6 +311,11 @@ namespace Odin.Hosting.Tests
         public OwnerApiClientRedux CreateOwnerApiClientRedux(TestIdentity identity)
         {
             return new OwnerApiClientRedux(this._oldOwnerApi, identity);
+        }
+
+        public OwnerV2ClientCollection CreateOwnerV2ClientCollection(TestIdentity identity)
+        {
+            return new OwnerV2ClientCollection(this._oldOwnerApi, identity);
         }
         
         public AppApiClientRedux CreateAppApiClientRedux(OdinId identity, ClientAccessToken accessToken)

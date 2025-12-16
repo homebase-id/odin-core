@@ -76,10 +76,10 @@ namespace Odin.Hosting.UnifiedV2.Drive
             Tags = [SwaggerInfo.FileWrite]
         )]
         [HttpPost("delete")]
-        public async Task<IActionResult> DeleteFile(Guid driveId, Guid fileId, [FromBody] DeleteFileOptionsV2 options)
+        public async Task<DeleteFileResultV2> DeleteFile(Guid driveId, Guid fileId, [FromBody] DeleteFileOptionsV2 options)
         {
             var result = await PerformFileDelete(driveId, fileId, options);
-            return Ok(result);
+            return result;
         }
 
         [SwaggerOperation(
