@@ -296,14 +296,14 @@ namespace Odin.Hosting.Middleware
                 return false;
             }
 
+            if (IsUnifiedFilesPath(context.Request))
+            {
+                return false;
+            }
+            
             if (context.Request.Method.ToUpper() == "POST")
             {
                 if (context.Request.Headers.ContentLength == 0)
-                {
-                    return false;
-                }
-
-                if (IsUnifiedFilesPath(context.Request))
                 {
                     return false;
                 }

@@ -79,10 +79,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 //v2 reads from the driveId field, so we overwrite it. this stops callers from being bound to the target drive
                 if (WebOdinContext.ApiVersion == 2)
                 {
+                    OdinValidationUtils.AssertNotEmptyGuid(instructionSet.File.DriveId, "Version 2 requires DriveId to be set");
                     var theDrive = await driveManager.GetDriveAsync(instructionSet.File.DriveId);
                     instructionSet.File.TargetDrive = theDrive!.TargetDriveInfo;
                 }
-
+                
+                WebOdinContext.PermissionsContext.AssertCanWriteToDrive(instructionSet.File.TargetDrive.Alias);
+                
                 await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
                 //

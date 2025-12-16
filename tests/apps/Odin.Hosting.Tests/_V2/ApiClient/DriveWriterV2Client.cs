@@ -367,8 +367,6 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         }
     }
 
-    //
-
     public async Task<ApiResponse<DeleteFileResultV2>> SoftDeleteFile(Guid driveId, Guid fileId, List<string> recipients = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
@@ -415,15 +413,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         return apiResponse;
     }
-
-    public async Task<ApiResponse<HttpContent>> HardDeleteFile(Guid driveId, Guid fileId)
-    {
-        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        var svc = RefitCreator.RestServiceFor<IDriveWriterHttpClientApiV2>(client, sharedSecret);
-        var apiResponse = await svc.HardDeleteFile(driveId, fileId, null);
-        return apiResponse;
-    }
-
+    
     public async Task<ApiResponse<SendReadReceiptResultV2>> SendReadReceipt(Guid driveId, List<Guid> files)
     {
         var request = new SendReadReceiptRequestV2

@@ -29,11 +29,7 @@ public interface IDriveWriterHttpClientApiV2
     [Post(FileIdEndpoint + "/delete-payload")]
     Task<ApiResponse<DeletePayloadResult>> DeletePayload([AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("fileId:guid")] Guid fileId, [Body] DeletePayloadRequestV2 request);
-
-    [Post(FileIdEndpoint + "/hard-delete")]
-    Task<ApiResponse<HttpContent>> HardDeleteFile([AliasAs("driveId:guid")] Guid driveId,
-        [AliasAs("fileId:guid")] Guid fileId, [Body] DeleteFileOptionsV2 options);
-
+    
     [Multipart]
     [Post(UnifiedApiRouteConstants.DrivesRoot + "/files")]
     Task<ApiResponse<CreateFileResult>> Upload(StreamPart[] streamdata);

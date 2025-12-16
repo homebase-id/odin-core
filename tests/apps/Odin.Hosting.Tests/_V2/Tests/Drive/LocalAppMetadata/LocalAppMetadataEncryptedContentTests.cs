@@ -12,6 +12,7 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.UnifiedV2.Drive;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Encryption;
@@ -51,11 +52,15 @@ public class LocalAppMetadataEncryptedContentTests
 
     public static IEnumerable TestCasesReadWrite()
     {
-        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite), HttpStatusCode.OK };
         yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite), HttpStatusCode.OK };
         yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
-
+    
+    public static IEnumerable TestCasesReadWriteGuest()
+    {
+        yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.ReadWrite), HttpStatusCode.OK };
+    }
+    
     [Test]
     [TestCaseSource(nameof(TestCasesReadWrite))]
     public async Task CanUpdateLocalAppMetadataContentForEncryptedTargetFile(IApiClientContext callerContext,

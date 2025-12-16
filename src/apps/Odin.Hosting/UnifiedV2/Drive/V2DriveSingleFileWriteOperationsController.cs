@@ -19,9 +19,9 @@ namespace Odin.Hosting.UnifiedV2.Drive
     /// </summary>
     [ApiController]
     [Route(UnifiedApiRouteConstants.ByFileId)]
-    [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveFileSingleOperationsController(PeerOutgoingTransferService peerOutgoingTransferService)
+    public class V2DriveSingleFileWriteOperationsController(PeerOutgoingTransferService peerOutgoingTransferService)
         : V2DriveControllerBase(peerOutgoingTransferService)
     {
         [SwaggerOperation(

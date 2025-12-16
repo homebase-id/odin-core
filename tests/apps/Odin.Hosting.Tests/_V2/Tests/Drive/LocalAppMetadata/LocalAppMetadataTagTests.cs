@@ -118,6 +118,7 @@ public class LocalAppMetadataTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
@@ -182,6 +183,7 @@ public class LocalAppMetadataTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;
@@ -247,6 +249,7 @@ public class LocalAppMetadataTests
         await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
+        uploadedFileMetadata.AccessControlList = AccessControlList.Anonymous;
         var prepareFileResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(targetDrive, uploadedFileMetadata);
         ClassicAssert.IsTrue(prepareFileResponse.IsSuccessStatusCode);
         var targetFile = prepareFileResponse.Content.File;

@@ -11,7 +11,7 @@ namespace Odin.Hosting.UnifiedV2.Drive
 
     [ApiController]
     [Route(UnifiedApiRouteConstants.DrivesRoot)]
-    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveUploadController(ILogger<V2DriveUploadController> logger, DriveManager driveManager)
         : V1DriveUploadControllerBase(logger, driveManager)
