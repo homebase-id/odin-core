@@ -84,8 +84,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     instructionSet.File.TargetDrive = theDrive!.TargetDriveInfo;
                 }
                 
-                WebOdinContext.PermissionsContext.AssertCanWriteToDrive(instructionSet.File.TargetDrive.Alias);
-                
+               
                 await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
                 //
