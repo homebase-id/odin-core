@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -66,7 +66,7 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
     private class NamedChannel(ILogger logger, string channelName, int maxQueuedMessages)
     {
         private readonly Lock _mutex = new();
-        private readonly List<HandlerRegistration> _handlers = [];
+        private ImmutableArray<HandlerRegistration> _handlers = ImmutableArray<HandlerRegistration>.Empty;
 
         private Channel<object>? _channel;
         private CancellationTokenSource? _cts;
@@ -77,7 +77,7 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
         {
             lock (_mutex)
             {
-                if (_channel == null || _handlers.Count == 0)
+                if (_channel == null || _handlers.Length == 0)
                 {
                     return;
                 }
@@ -108,18 +108,21 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
 
             lock (_mutex)
             {
-                _handlers.Add(handlerRegistration);
+                _handlers = _handlers.Add(handlerRegistration);
 
-                if (_handlers.Count == 1)
+                if (_handlers.Length == 1)
                 {
-                    _channel = Channel.CreateBounded<object>(new BoundedChannelOptions(maxQueuedMessages)
+                    var channel = Channel.CreateBounded<object>(new BoundedChannelOptions(maxQueuedMessages)
                     {
                         FullMode = BoundedChannelFullMode.DropOldest
                     });
-                    _cts = new CancellationTokenSource();
+                    var cts = new CancellationTokenSource();
+
+                    _channel = channel;
+                    _cts = cts;
 
                     Task
-                        .Run(StartProcessingMessages)
+                        .Run(() => StartProcessingMessages(channel, cts))
                         .ContinueWith(t =>
                         {
                             if (t.IsFaulted)
@@ -139,10 +142,10 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
         {
             lock (_mutex)
             {
-                if (_handlers.Remove(handlerRegistration) && _handlers.Count == 0)
+                _handlers = _handlers.Remove(handlerRegistration);
+                if (_handlers.IsEmpty)
                 {
                     _cts?.Cancel();
-                    _cts?.Dispose();
                     _cts = null;
                     _channel = null;
                 }
@@ -155,11 +158,10 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
         {
             lock (_mutex)
             {
-                _handlers.RemoveAll(h => ReferenceEquals(h.Owner, owner));
-                if (_handlers.Count == 0)
+                _handlers = _handlers.RemoveAll(h => ReferenceEquals(h.Owner, owner));
+                if (_handlers.IsEmpty)
                 {
                     _cts?.Cancel();
-                    _cts?.Dispose();
                     _cts = null;
                     _channel = null;
                 }
@@ -168,41 +170,36 @@ public class InProcPubSubBroker(ILogger<InProcPubSubBroker> logger, int maxQueue
 
         //
 
-        private async Task StartProcessingMessages()
+        private async Task StartProcessingMessages(Channel<object> channel, CancellationTokenSource cts)
         {
-            var channel = _channel ?? throw new InvalidOperationException("Channel not set");
-            var cancellationToken = _cts?.Token ?? throw new InvalidOperationException("Token not set");
-
-            logger.LogDebug("Started processing messages for channel {ChannelName}", channelName);
-            try
+            using (cts)
             {
-                await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
+                logger.LogDebug("Started processing messages for channel {ChannelName}", channelName);
+                try
                 {
-                    if (message is not JsonEnvelope envelope)
+                    await foreach (var message in channel.Reader.ReadAllAsync(cts.Token))
                     {
-                        continue;
-                    }
+                        if (message is not JsonEnvelope envelope)
+                        {
+                            continue;
+                        }
 
-                    List<HandlerRegistration> handlerRegistrations;
-                    lock (_mutex)
-                    {
-                        handlerRegistrations = new List<HandlerRegistration>(_handlers);
-                    }
-
-                    foreach (var handlerRegistration in handlerRegistrations)
-                    {
-                        // Fire-and-forget
-                        _ = handlerRegistration.Handler(envelope);
+                        var handlers = _handlers;
+                        foreach (var handler in handlers)
+                        {
+                            // Fire-and-forget
+                            _ = handler.Handler(envelope);
+                        }
                     }
                 }
-            }
-            catch (OperationCanceledException e) when (e.CancellationToken == cancellationToken)
-            {
-                logger.LogDebug("Stopped processing messages for channel {ChannelName}", channelName);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "StartProcessingMessages: {Message}", e.Message);
+                catch (OperationCanceledException e) when (e.CancellationToken == cts.Token)
+                {
+                    logger.LogDebug("Stopped processing messages for channel {ChannelName}", channelName);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "StartProcessingMessages: {Message}", e.Message);
+                }
             }
         }
     }
