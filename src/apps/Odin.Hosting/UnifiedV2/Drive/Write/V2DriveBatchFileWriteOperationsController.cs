@@ -9,7 +9,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Odin.Hosting.UnifiedV2.Drive
+namespace Odin.Hosting.UnifiedV2.Drive.Write
 {
     /// <summary>
     /// Operations on multiple files at a time

@@ -6,7 +6,7 @@ using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Odin.Hosting.UnifiedV2.Drive
+namespace Odin.Hosting.UnifiedV2.Drive.Write
 {
 
     [ApiController]

@@ -4,14 +4,11 @@ using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Util;
 
-namespace Odin.Services.Drives.DriveCore.Query;
+namespace Odin.Hosting.UnifiedV2.Drive.Read;
 
-public class FileQueryParams
+public class FileQueryParamsV2
 {
-    public TargetDrive TargetDrive { get; set; }
-    
-    public Guid DriveId => TargetDrive.Alias;
-    
+    public Guid DriveId { get; set; }
     public IEnumerable<int> FileType { get; set; } = null;
   
     public IEnumerable<FileState> FileState { get; set; } = null;
@@ -36,23 +33,10 @@ public class FileQueryParams
     public IEnumerable<Guid> LocalTagsMatchAll { get; set; } = null;
     
     public IEnumerable<Guid> GlobalTransitId { get; set; }
-
+    
     public void AssertIsValid()
     {
-        OdinValidationUtils.AssertNotEmptyGuid(DriveId, "driveId");
-    }
-
-    /// <summary>
-    /// Creates a new instance matching the list of filetypes specified
-    /// </summary>
-    /// <returns></returns>
-    public static FileQueryParams FromFileType(TargetDrive drive, params int[] fileType)
-    {
-        return new FileQueryParams()
-        {
-            TargetDrive = drive,
-            FileType = fileType
-        };
+        OdinValidationUtils.AssertNotEmptyGuid(this.DriveId, "driveid");
     }
 }
 

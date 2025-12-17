@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
-namespace Odin.Hosting.UnifiedV2.Drive;
+namespace Odin.Hosting.UnifiedV2.Drive.Write;
 
 public class DeleteFileResultV2
 {

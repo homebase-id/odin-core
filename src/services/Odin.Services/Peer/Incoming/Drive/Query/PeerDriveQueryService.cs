@@ -21,7 +21,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
         public async Task<QueryModifiedResult> QueryModified(FileQueryParams qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
         {
-            var results = await fileSystem.Query.GetModified(qp.TargetDrive.Alias, qp, options, odinContext);
+            var results = await fileSystem.Query.GetModified(qp.DriveId, qp, options, odinContext);
             return results;
         }
 
@@ -33,7 +33,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
 
         public async Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options, IOdinContext odinContext)
         {
-            var results = await fileSystem.Query.GetBatch(qp.TargetDrive.Alias, qp, options, odinContext);
+            var results = await fileSystem.Query.GetBatch(qp.DriveId, qp, options, odinContext);
             return results;
         }
 

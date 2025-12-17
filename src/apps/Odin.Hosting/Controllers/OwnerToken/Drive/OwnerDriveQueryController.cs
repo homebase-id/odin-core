@@ -5,7 +5,6 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.Collections.Generic;
 using Odin.Services.Authentication.Owner;
 using Odin.Hosting.Controllers.Base.Drive;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Drive
 {

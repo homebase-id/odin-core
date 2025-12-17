@@ -7,14 +7,12 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
-using Odin.Services.Apps;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Odin.Hosting.UnifiedV2.Drive
+namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
     /// <summary>
     /// Api endpoints for reading drives

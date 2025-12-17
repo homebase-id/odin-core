@@ -12,7 +12,7 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Odin.Hosting.UnifiedV2.Drive
+namespace Odin.Hosting.UnifiedV2.Drive.Write
 {
     /// <summary>
     /// File operations for the Unified V2 Drive API.
