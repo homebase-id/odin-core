@@ -34,6 +34,9 @@ using Refit;
 using Serilog.Events;
 using System;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Testcontainers.Minio;
+using Testcontainers.PostgreSql;
+using Testcontainers.Redis;
 
 namespace Odin.Hosting.Tests
 {
