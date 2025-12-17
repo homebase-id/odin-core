@@ -82,12 +82,14 @@ public static class IdentityExtensions
 
         // Abstractions
         cb.RegisterType<MainIndexMeta>().InstancePerLifetimeScope();
+        cb.RegisterType<QueryBatch>().InstancePerLifetimeScope();
 
         // Cache support
         cb.RegisterType<IdentityTransactionalCacheFactory>().As<IIdentityTransactionalCacheFactory>().InstancePerLifetimeScope();
 
         // Table Caches
         cb.RegisterType<MainIndexMetaCached>().InstancePerLifetimeScope();
+        cb.RegisterType<QueryBatchCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableAppGrantsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableAppNotificationsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableCircleCached>().InstancePerLifetimeScope();

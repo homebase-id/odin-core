@@ -17,6 +17,7 @@ public class MainIndexMetaTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var tableDriveMainIndex = scope.Resolve<TableDriveMainIndex>();
         var mainIndexMeta = scope.Resolve<MainIndexMeta>();
+        var queryBatch = scope.Resolve<QueryBatch>();
 
         var item1 = new DriveMainIndexRecord()
         {
@@ -46,7 +47,7 @@ public class MainIndexMetaTests : IocTestBase
         await tableDriveMainIndex.InsertAsync(item1);
 
         {
-            var (records, _, _) = await mainIndexMeta.QueryModifiedAsync(item1.driveId, 100, null!, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatch.QueryModifiedAsync(item1.driveId, 100, null!, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
         }
 
@@ -57,7 +58,7 @@ public class MainIndexMetaTests : IocTestBase
         await Task.Delay(100);
 
         {
-            var (records, _, _) = await mainIndexMeta.QueryModifiedAsync(item1.driveId, 100, null!, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatch.QueryModifiedAsync(item1.driveId, 100, null!, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
         }
 
