@@ -89,7 +89,7 @@ public class ShardRequestApprovalCollector(StandardFileSystem fileSystem, IMedia
     {
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             FileType = [CollectedShardRequestFileType]
         };

@@ -57,7 +57,7 @@ public class PeerQueryTests
         var peerQueryBatchRequest = new PeerQueryBatchRequest()
         {
             OdinId = TestIdentities.Frodo.OdinId,
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = scenarioConfig.TargetDrive,
                 FileType = [scenarioConfig.FileType]

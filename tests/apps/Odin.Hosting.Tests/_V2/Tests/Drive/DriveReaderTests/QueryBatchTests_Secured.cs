@@ -5,12 +5,12 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
-using Odin.Core.Storage;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
+using Odin.Hosting.UnifiedV2.Drive.Read;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -82,7 +82,7 @@ public class QueryBatchTests_Secured
         var driveId = callerContext.TargetDrive.Alias;
         var getBatchResponse = await client.GetBatchAsync(driveId, new QueryBatchRequest
         {
-            QueryParams = new FileQueryParams
+            QueryParams = new FileQueryParamsV1
             {
                 TargetDrive = callerContext.TargetDrive,
                 FileType = [fileType],
@@ -140,7 +140,7 @@ public class QueryBatchTests_Secured
         var driveId = callerContext.TargetDrive.Alias;
         var getBatchResponse = await client.GetSmartBatchAsync(driveId, new QueryBatchRequest
         {
-            QueryParams = new FileQueryParams
+            QueryParams = new FileQueryParamsV1
             {
                 TargetDrive = callerContext.TargetDrive,
                 FileType = [fileType],
@@ -200,14 +200,12 @@ public class QueryBatchTests_Secured
         await callerContext.Initialize(ownerApiClient);
         var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
-        var driveId = callerContext.TargetDrive.Alias;
-
-        var q1 = new CollectionQueryParamSection
+        var q1 = new CollectionQueryParamSectionV2
         {
             Name = "q1",
-            QueryParams = new FileQueryParams
+            QueryParams = new FileQueryParamsV2
             {
-                TargetDrive = callerContext.TargetDrive,
+                DriveId = callerContext.TargetDrive.Alias,
                 FileType = [fileType1],
                 FileState = null,
                 DataType = null,
@@ -225,12 +223,12 @@ public class QueryBatchTests_Secured
             ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
         };
 
-        var q2 = new CollectionQueryParamSection
+        var q2 = new CollectionQueryParamSectionV2
         {
             Name = "q2",
-            QueryParams = new FileQueryParams
+            QueryParams = new FileQueryParamsV2
             {
-                TargetDrive = callerContext.TargetDrive,
+                DriveId = callerContext.TargetDrive.Alias,
                 FileType = [fileType2],
                 FileState = null,
                 DataType = null,
@@ -248,10 +246,9 @@ public class QueryBatchTests_Secured
             ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
         };
 
-        var getBatchResponse = await client.GetBatchCollectionAsync(driveId, new QueryBatchCollectionRequest
+        var getBatchResponse = await client.GetBatchCollectionAsync(new QueryBatchCollectionRequestV2
         {
-            Queries = [q1, q2],
-            FileSystemType = FileSystemType.Standard
+            Queries = [q1, q2]
         });
 
         //
@@ -267,12 +264,12 @@ public class QueryBatchTests_Secured
             var batch1 = batches.SingleOrDefault(x => x.Name == "q1");
             ClassicAssert.IsNotNull(batch1);
             ClassicAssert.IsTrue(batch1!.InvalidDrive);
-            
+
             var batch2 = batches.SingleOrDefault(x => x.Name == "q2");
             ClassicAssert.IsNotNull(batch2);
             ClassicAssert.IsTrue(batch2!.InvalidDrive);
         }
-        
+
         if (expectedStatusCode == HttpStatusCode.OK) //test more
         {
             var batches = getBatchResponse.Content.Results;

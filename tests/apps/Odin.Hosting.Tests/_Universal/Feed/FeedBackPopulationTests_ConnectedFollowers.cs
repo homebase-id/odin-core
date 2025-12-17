@@ -126,7 +126,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }
@@ -163,7 +163,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
             var samQueryFeedResponse = await ownerSam.DriveRedux.QueryBatch(new QueryBatchRequest()
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = SystemDriveConstants.FeedDrive,
                     FileType = new List<int>() { fileType }
@@ -261,7 +261,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
         var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }
@@ -298,7 +298,7 @@ public class FeedBackPopulationTests_ConnectedFollowers
 
             var samQueryFeedResponse = await ownerSam.DriveRedux.QueryBatch(new QueryBatchRequest()
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = SystemDriveConstants.FeedDrive,
                     FileType = new List<int>() { }

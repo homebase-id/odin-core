@@ -66,8 +66,7 @@ public class DriveQuery(
 
         return (nextCursor, results, moreRows);
     }
-
-
+    
     public async Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetSmartBatchCoreAsync(
         StorageDrive drive,
         IOdinContext odinContext,

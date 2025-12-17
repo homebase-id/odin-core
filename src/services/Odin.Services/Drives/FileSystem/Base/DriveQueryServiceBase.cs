@@ -56,7 +56,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options,
+        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParamsV1 qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
@@ -120,7 +120,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TagsMatchAll = [tag]
             };
@@ -149,10 +149,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 IncludeHeaderContent = true,
                 ExcludePreviewThumbnail = true
             };
-            
+
             return await GetFileByClientUniqueIdInternal(driveId, clientUniqueId, options, odinContext);
         }
-        
+
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
             ResultOptions options,
             IOdinContext odinContext)
@@ -161,16 +161,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetFileByClientUniqueIdInternal(driveId, clientUniqueId, options, odinContext);
         }
 
-        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext,
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection(List<CollectionQueryParamSection> queries,
+            IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            foreach (var query in request.Queries)
+            foreach (var query in queries)
             {
                 var driveId = query.QueryParams.DriveId;
                 await AssertDriveIsNotArchived(driveId, odinContext);
             }
 
-            if (request.Queries.DistinctBy(q => q.Name).Count() != request.Queries.Count())
+            if (queries.DistinctBy(q => q.Name).Count() != queries.Count())
             {
                 throw new OdinClientException("The Names of Queries must be unique", OdinClientErrorCode.InvalidQuery);
             }
@@ -178,7 +179,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             var permissionContext = odinContext.PermissionsContext;
 
             var collection = new QueryBatchCollectionResponse();
-            foreach (var query in request.Queries)
+            foreach (var query in queries)
             {
                 var driveId = query.QueryParams.DriveId;
                 var canReadDrive = permissionContext.HasDrivePermission(driveId, DrivePermission.Read);

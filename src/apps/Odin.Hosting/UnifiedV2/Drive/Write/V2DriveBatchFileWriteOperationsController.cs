@@ -62,7 +62,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             {
                 var groupIdToBeDeleted = request.GroupId;
 
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = new TargetDrive(),
                     GroupId = new List<Guid>() { groupIdToBeDeleted }

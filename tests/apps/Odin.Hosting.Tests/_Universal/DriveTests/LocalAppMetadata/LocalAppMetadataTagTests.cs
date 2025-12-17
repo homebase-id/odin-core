@@ -380,7 +380,7 @@ public class LocalAppMetadataTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var qbr = new QueryBatchRequest
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 LocalTagsMatchAtLeastOne = [tag3]
@@ -445,7 +445,7 @@ public class LocalAppMetadataTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var qbr = new QueryBatchRequest
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 LocalTagsMatchAll = [tag1, tag2]
@@ -509,7 +509,7 @@ public class LocalAppMetadataTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var qmr = new QueryModifiedRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 LocalTagsMatchAtLeastOne = [tag3]
@@ -577,7 +577,7 @@ public class LocalAppMetadataTests
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         var qmr = new QueryModifiedRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 LocalTagsMatchAtLeastOne = [tag3]

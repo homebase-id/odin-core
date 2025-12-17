@@ -168,7 +168,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
 
     private async Task<SharedSecretEncryptedFileHeader> GetHeaderFromFeedDrive(OwnerApiClient client, UploadResult uploadResult)
     {
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }

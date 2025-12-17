@@ -65,7 +65,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var (anonymousFileUploadResult, _) = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 TagsMatchAtLeastOne = new List<Guid>() { tag }
@@ -117,7 +117,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var (anonymousFileUploadResult, _) = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
             var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, circleSecuredAcl);
 
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 TagsMatchAtLeastOne = new List<Guid>() { tag }
@@ -176,7 +176,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             {
                 var svc = RestService.For<IRefitGuestDriveQuery>(client);
 
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = targetDrive,
                     TagsMatchAtLeastOne = new List<Guid>() { tag }
@@ -216,7 +216,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = uploadResult.File.TargetDrive,
                     TagsMatchAtLeastOne = new List<Guid>() { tag }
@@ -254,7 +254,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = uploadResult.File.TargetDrive,
                 };
@@ -310,7 +310,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = uploadResult.File.TargetDrive,
                 };

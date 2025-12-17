@@ -85,7 +85,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
                 var request = new QueryBatchRequest()
                 {
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = uploadContext.TestAppContext.TargetDrive,
                         TagsMatchAtLeastOne = tags
@@ -141,7 +141,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
                 var request = new QueryBatchRequest()
                 {
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = uploadContext.TestAppContext.TargetDrive,
                         ArchivalStatus = new List<int>() { archivalStatus }
@@ -194,7 +194,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             {
                 var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
 
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };
@@ -287,7 +287,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             {
                 var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
 
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
                     ArchivalStatus = new List<int>() { archivalStatus }
@@ -363,7 +363,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var client = _scaffold.AppApi.CreateAppApiHttpClient(uploadContext.TestAppContext);
             {
                 var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
                 };

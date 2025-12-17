@@ -7,6 +7,7 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.Status;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.UnifiedV2.Drive.Read;
 using Odin.Services.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -89,11 +90,11 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetSmartBatch(driveId, request);
     }
 
-    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollectionAsync(Guid driveId, QueryBatchCollectionRequest request)
+    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollectionAsync(QueryBatchCollectionRequestV2 request)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetBatchCollection(driveId, request);
+        return await svc.GetBatchCollection(request);
     }
 
     public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistoryAsync(Guid driveId, Guid fileId,

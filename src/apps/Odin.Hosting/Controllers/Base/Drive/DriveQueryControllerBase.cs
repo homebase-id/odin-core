@@ -31,7 +31,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         protected async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)    
         {
-            var collection = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatchCollection(request, WebOdinContext);
+            var collection = await GetHttpFileSystemResolver().ResolveFileSystem().Query.GetBatchCollection(request.Queries, WebOdinContext);
             return collection;
         }
     }

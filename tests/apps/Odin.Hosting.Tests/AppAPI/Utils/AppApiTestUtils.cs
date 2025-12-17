@@ -499,7 +499,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestAppContext appContext, FileQueryParams queryParams,
+        public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestAppContext appContext, FileQueryParamsV1 queryParams,
             QueryBatchResultOptionsRequest options)
         {
             var client = this.CreateAppApiHttpClient(appContext);

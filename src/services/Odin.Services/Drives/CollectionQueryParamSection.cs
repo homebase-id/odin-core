@@ -7,7 +7,7 @@ public class CollectionQueryParamSection
 {
     public string Name { get; set; }
 
-    public FileQueryParams QueryParams { get; set; }
+    public FileQueryParamsV1 QueryParams { get; set; }
 
     public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
 

@@ -118,7 +118,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = commentUploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
                 GlobalTransitId = new List<Guid>() { commentUploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }
@@ -205,7 +205,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = commentUploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
                 GlobalTransitId = new List<Guid>() { commentUploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }

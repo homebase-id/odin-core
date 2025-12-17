@@ -129,7 +129,7 @@ public class HomebaseProfileContentService(
             return null;
         }
 
-        var qp = new FileQueryParams
+        var qp = new FileQueryParamsV1
         {
             TargetDrive = SystemDriveConstants.ProfileDrive,
             FileType = [AttributeFileType],
