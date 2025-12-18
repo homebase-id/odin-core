@@ -12,6 +12,9 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         public TargetDrive Drive { get; set; }
 
+        // field to allow v2 set the drive id w/o being bound to the TargetDrive type
+        public Guid DriveId { get; set; }
+
         /// <summary>
         /// The fileId to overwrite if it exists
         /// </summary>
@@ -32,7 +35,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// the payload in the upload, otherwise the existing payload will be deleted (same applies to thumbnails)
         /// </summary>
         NewFileOrOverwrite = 0,
-        
+
         /// <summary>
         /// Updates metadata without touching the thumbnails or payload; however the metadata
         /// thumbnails and payload collections will be validated to match the existing metadata file

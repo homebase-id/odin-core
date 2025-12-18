@@ -486,7 +486,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task CheckDrivePayloadsIntegrity(TargetDrive targetDrive, bool cleanup)
         {
-            var query = new FileQueryParams
+            var query = new FileQueryParamsV1
             {
                 TargetDrive = targetDrive,
                 FileType = null,

@@ -261,7 +261,7 @@ public class PeerUpdateFileTests
             // 
             var searchResponse = await recipientOwnerClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = recipientFile.TargetDrive,
                     DataType = [updatedFileMetadata.AppData.DataType]

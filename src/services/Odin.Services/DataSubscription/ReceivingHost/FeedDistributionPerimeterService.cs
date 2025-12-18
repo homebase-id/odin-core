@@ -152,21 +152,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 {
                     Log.Debug("Seeking the global transit id: {gtid} (as hex x'{hex}')", file.GlobalTransitId,
                         Convert.ToHexString(file.GlobalTransitId.ToByteArray()));
-                    var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
-                    var dump = await fs.Query.DumpGlobalTransitId(allDrives.Results.ToList(), file.GlobalTransitId, odinContext);
-
-                    foreach (var result in dump.Results)
-                    {
-                        Log.Information("Results for {name}", result.Name);
-                        foreach (var sr in result.SearchResults)
-                        {
-                            Log.Information("FileId:{fileId}\tSender: {sender}\tuniqueId:{uniqueId}\tstate:{fs}",
-                                sr.FileId,
-                                sr.FileMetadata.SenderOdinId,
-                                sr.FileMetadata.AppData.UniqueId,
-                                sr.FileState);
-                        }
-                    }
                 }
                 catch (Exception e)
                 {
@@ -179,17 +164,6 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     {
                         Log.Debug("Seeking the uniqueId id: {uid} (as hex x'{hex}')", uid.GetValueOrDefault(),
                             Convert.ToHexString(uid.GetValueOrDefault().ToByteArray()));
-                        var allDrives = await driveManager.GetDrivesAsync(PageOptions.All, odinContext);
-                        var dump = await fs.Query.DumpUniqueId(allDrives.Results.ToList(), uid.GetValueOrDefault(), odinContext);
-
-                        foreach (var result in dump.Results)
-                        {
-                            Log.Information("Results for {name}", result.Name);
-                            foreach (var f in result.RecordList)
-                            {
-                                Log.Information("FileId:{fileId}", f);
-                            }
-                        }
                     }
                     catch (Exception e)
                     {

@@ -54,17 +54,8 @@ public abstract class FileSystemStreamWriterBase
     protected IDriveFileSystem FileSystem { get; }
 
     public FileUploadPackage Package { get; private set; }
-
-    public virtual async Task StartUpload(Stream data, IOdinContext odinContext)
-    {
-        //TODO: need to partially encrypt upload instruction set
-        string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = OdinSystemSerializer.Deserialize<UploadInstructionSet>(json);
-
-        await this.StartUpload(instructionSet, odinContext);
-    }
-
-    public virtual async Task StartUpload(UploadInstructionSet instructionSet, IOdinContext odinContext)
+    
+    public virtual async Task StartUpload(Guid driveId, UploadInstructionSet instructionSet, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(instructionSet, nameof(instructionSet));
         instructionSet?.AssertIsValid();
@@ -75,7 +66,6 @@ public abstract class FileSystemStreamWriterBase
         }
 
         InternalDriveFileId file;
-        var driveId = instructionSet!.StorageOptions!.Drive.Alias;
         var overwriteFileId = instructionSet.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
         // odinContext.PermissionsContext.AssertCanWriteToDrive(driveId);

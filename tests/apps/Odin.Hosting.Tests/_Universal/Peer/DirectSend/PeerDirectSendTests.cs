@@ -123,7 +123,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             // File should be on recipient server and accessible by global transit id
             var qp = new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                     GlobalTransitId = new List<Guid>()
@@ -224,7 +224,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             // File should be on recipient server and accessible by global transit id
             var qp = new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = commentUploadResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                     GlobalTransitId = new List<Guid>() { commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
@@ -325,7 +325,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             // File should be on recipient server and accessible by global transit id
             var qp = new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                     GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
@@ -453,7 +453,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             // File should be on recipient server and accessible by global transit id
             var qp = new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                     GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
@@ -553,7 +553,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             // File should be on recipient server and accessible by global transit id
             var qp = new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                     GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }

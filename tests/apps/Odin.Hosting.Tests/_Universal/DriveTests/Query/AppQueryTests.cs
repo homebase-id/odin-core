@@ -56,7 +56,7 @@ public class AppQueryTests
 
         var query = new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = scenarioConfig.TargetDrive,
                 FileType = [scenarioConfig.FileType]

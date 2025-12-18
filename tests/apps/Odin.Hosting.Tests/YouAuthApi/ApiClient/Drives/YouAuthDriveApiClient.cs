@@ -29,7 +29,7 @@ public class YouAuthDriveApiClient
         _token = token;
     }
 
-    public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
+    public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParamsV1 qp, QueryBatchResultOptionsRequest resultOptions = null)
     {
         var client = CreateYouAuthApiHttpClient(_token, fileSystemType);
         {

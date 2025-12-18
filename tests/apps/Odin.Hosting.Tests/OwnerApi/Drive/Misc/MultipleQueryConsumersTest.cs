@@ -86,7 +86,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, targetDrive, commentFile, "some payload data", payloadKey:WebScaffold.PAYLOAD_KEY);
 
-            var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Standard, new FileQueryParams()
+            var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Standard, new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 FileType = new[] { standardFile.AppData.FileType }
@@ -94,7 +94,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Misc
 
             ClassicAssert.IsNotNull(standardFileResults.SearchResults.SingleOrDefault(f => f.FileId == standardFileUploadResult.File.FileId));
 
-            var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Comment, new FileQueryParams()
+            var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Comment, new FileQueryParamsV1()
             {
                 TargetDrive = targetDrive,
                 FileType = new[] { commentFile.AppData.FileType }

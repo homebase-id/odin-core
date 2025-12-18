@@ -75,7 +75,7 @@ public class PlayerShardCollector(StandardFileSystem fileSystem)
 
         var driveId = SystemDriveConstants.ShardRecoveryDrive.Alias;
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             FileType = [CollectedPlayerShardFileType]
         };

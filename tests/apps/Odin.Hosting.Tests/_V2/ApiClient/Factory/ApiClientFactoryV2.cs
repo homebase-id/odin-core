@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
@@ -39,6 +40,7 @@ public class ApiClientFactoryV2(string cookieName, ClientAuthenticationToken tok
             //TODO: this needs to send the client token type w/ the cooke
             var cookieValue = $"{cookieName}={token}";
             client.DefaultRequestHeaders.Add("Cookie", cookieValue);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.ToPortableBytes64());
             client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
             if (secret != null)
             {

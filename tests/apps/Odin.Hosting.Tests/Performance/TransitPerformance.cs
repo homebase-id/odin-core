@@ -212,7 +212,7 @@ TaskPerformanceTest_Transit
 
                 var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = recipientAppContext.TargetDrive,
                         FileType = new List<int>() { FileType }

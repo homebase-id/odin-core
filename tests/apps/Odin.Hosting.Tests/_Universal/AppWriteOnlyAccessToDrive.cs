@@ -24,7 +24,7 @@ public class AppWriteOnlyAccessToDrive : IApiClientContext
 
     public TargetDrive TargetDrive { get; }
     public DrivePermission DrivePermission { get; } = DrivePermission.Write;
-
+    public Guid DriveId => TargetDrive.Alias;
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         // Prepare the app

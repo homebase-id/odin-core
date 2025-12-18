@@ -112,7 +112,7 @@ public class Feed_Comment_Tests
         var driveClient = new UniversalDriveApiClient(TestIdentities.Frodo.OdinId, callerContext.GetFactory());
         var frodoQueryFeedResponse = await driveClient.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }
@@ -144,7 +144,7 @@ public class Feed_Comment_Tests
 
             var samQueryFeedResponse = await ownerSam.DriveRedux.QueryBatch(new QueryBatchRequest()
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = SystemDriveConstants.FeedDrive,
                     FileType = new List<int>() { }

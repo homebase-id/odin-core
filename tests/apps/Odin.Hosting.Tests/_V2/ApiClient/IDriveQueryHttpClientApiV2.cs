@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
+using Odin.Hosting.UnifiedV2.Drive.Read;
 using Odin.Services.Drives;
 using Refit;
 
@@ -13,9 +14,8 @@ public interface IDriveQueryHttpClientApiV2
     [Post(RootQueryEndpoint + "/query-batch")]
     Task<ApiResponse<QueryBatchResponse>> GetBatch([AliasAs("driveId:guid")] Guid driveId, [Body] QueryBatchRequest request);
 
-    [Post(RootQueryEndpoint + "/query-batch-collection")]
-    Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([AliasAs("driveId:guid")] Guid driveId,
-        [Body] QueryBatchCollectionRequest request);
+    [Post(UnifiedApiRouteConstants.DrivesRoot + "/query-batch-collection")]
+    Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] QueryBatchCollectionRequestV2 request);
 
     [Post(RootQueryEndpoint + "/query-smart-batch")]
     Task<ApiResponse<QueryBatchResponse>> GetSmartBatch([AliasAs("driveId:guid")] Guid driveId, [Body] QueryBatchRequest request);

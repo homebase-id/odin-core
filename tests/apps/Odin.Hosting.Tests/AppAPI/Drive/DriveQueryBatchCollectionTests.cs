@@ -123,7 +123,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 new()
                 {
                     Name = section1Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = appDrive1.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -132,7 +132,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 new()
                 {
                     Name = section2Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = appDrive2.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -141,7 +141,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 new()
                 {
                     Name = section3Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = appDrive3.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header3.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -245,7 +245,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 new()
                 {
                     Name = section1Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = appDrive1.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -254,7 +254,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 new()
                 {
                     Name = section2Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = appDrive2.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -263,7 +263,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 new()
                 {
                     Name = section3Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = appDrive3.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header3.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }

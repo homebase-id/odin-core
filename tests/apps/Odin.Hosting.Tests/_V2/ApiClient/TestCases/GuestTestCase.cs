@@ -20,6 +20,7 @@ public class GuestTestCase(TargetDrive targetDrive, DrivePermission drivePermiss
     private readonly TestPermissionKeyList _keys = keys;
     private ApiClientFactoryV2 _factory;
 
+    public Guid DriveId { get; } = targetDrive.Alias;
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = drivePermission;
 
@@ -78,6 +79,7 @@ public class GuestTestCase(TargetDrive targetDrive, DrivePermission drivePermiss
 
     public override string ToString()
     {
-        return MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var name= System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        return $"{name} with drive:{DrivePermission}";
     }
 }

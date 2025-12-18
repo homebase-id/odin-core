@@ -7,7 +7,7 @@ public class QueryParamSection
 {
     public string Name { get; set; }
 
-    public FileQueryParams QueryParams { get; set; }
+    public FileQueryParamsV1 QueryParams { get; set; }
 
     public SectionResultOptions ResultOptions { get; set; }
 

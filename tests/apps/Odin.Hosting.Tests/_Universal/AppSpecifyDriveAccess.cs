@@ -18,7 +18,7 @@ public class AppSpecifyDriveAccess(TargetDrive targetDrive, DrivePermission perm
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = permission;
-
+    public Guid DriveId => TargetDrive.Alias;
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         // Prepare the app

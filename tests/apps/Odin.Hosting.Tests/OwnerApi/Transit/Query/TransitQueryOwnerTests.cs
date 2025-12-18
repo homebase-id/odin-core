@@ -188,7 +188,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             ExternalFileIdentifier uploadedFile;
-            var fileTagQueryParams = new FileQueryParams()
+            var fileTagQueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = recipientContext.TargetDrive,
                 TagsMatchAll = new List<Guid>() { fileTag }
@@ -468,7 +468,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             ExternalFileIdentifier uploadedFile;
-            var fileTagQueryParams = new FileQueryParams()
+            var fileTagQueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = recipientContext.TargetDrive,
                 TagsMatchAll = new List<Guid>() { fileTag }
@@ -967,7 +967,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             ExternalFileIdentifier uploadedFile;
-            var fileTagQueryParams = new FileQueryParams()
+            var fileTagQueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = recipientContext.TargetDrive,
                 TagsMatchAll = new List<Guid>() { fileTag }
@@ -1237,7 +1237,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.WaitForEmptyOutbox(sender.OdinId, targetDrive);
 
             ExternalFileIdentifier uploadedFile;
-            var fileTagQueryParams = new FileQueryParams()
+            var fileTagQueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = recipientContext.TargetDrive,
                 TagsMatchAll = new List<Guid>() { fileTag }

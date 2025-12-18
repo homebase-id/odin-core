@@ -56,7 +56,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options,
+        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParamsV1 qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
@@ -120,7 +120,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TagsMatchAll = [tag]
             };
@@ -149,10 +149,10 @@ namespace Odin.Services.Drives.FileSystem.Base
                 IncludeHeaderContent = true,
                 ExcludePreviewThumbnail = true
             };
-            
+
             return await GetFileByClientUniqueIdInternal(driveId, clientUniqueId, options, odinContext);
         }
-        
+
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId,
             ResultOptions options,
             IOdinContext odinContext)
@@ -161,16 +161,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetFileByClientUniqueIdInternal(driveId, clientUniqueId, options, odinContext);
         }
 
-        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request, IOdinContext odinContext,
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection(List<CollectionQueryParamSection> queries,
+            IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            foreach (var query in request.Queries)
+            foreach (var query in queries)
             {
-                var targetDrive = query.QueryParams.TargetDrive;
-                await AssertDriveIsNotArchived(targetDrive.Alias, odinContext);
+                var driveId = query.QueryParams.DriveId;
+                await AssertDriveIsNotArchived(driveId, odinContext);
             }
 
-            if (request.Queries.DistinctBy(q => q.Name).Count() != request.Queries.Count())
+            if (queries.DistinctBy(q => q.Name).Count() != queries.Count())
             {
                 throw new OdinClientException("The Names of Queries must be unique", OdinClientErrorCode.InvalidQuery);
             }
@@ -178,10 +179,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             var permissionContext = odinContext.PermissionsContext;
 
             var collection = new QueryBatchCollectionResponse();
-            foreach (var query in request.Queries)
+            foreach (var query in queries)
             {
-                var targetDrive = query.QueryParams.TargetDrive;
-                var driveId = targetDrive.Alias;
+                var driveId = query.QueryParams.DriveId;
                 var canReadDrive = permissionContext.HasDrivePermission(driveId, DrivePermission.Read);
                 if (canReadDrive)
                 {
@@ -204,86 +204,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             return collection;
-        }
-
-        public async Task<QueryBatchCollectionResponse> DumpGlobalTransitId(List<StorageDrive> drives, Guid uniqueId,
-            IOdinContext odinContext)
-        {
-            var request = new QueryBatchCollectionRequest
-            {
-                Queries = drives.Select(drive => new CollectionQueryParamSection()
-                {
-                    Name = $"DriveName-{drive.Name}-x'{Convert.ToHexString(drive.Id.ToByteArray())}'",
-                    QueryParams = new FileQueryParams
-                    {
-                        TargetDrive = drive.TargetDriveInfo,
-                        GlobalTransitId = [uniqueId],
-                        FileState = [FileState.Active, FileState.Deleted]
-                    }
-                }).ToList()
-            };
-
-            var collection = new QueryBatchCollectionResponse();
-            foreach (var query in request.Queries)
-            {
-                var drive = drives.SingleOrDefault(d => d.TargetDriveInfo == query.QueryParams.TargetDrive);
-                var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
-                {
-                    IncludeHeaderContent = true,
-                    ExcludePreviewThumbnail = false
-                };
-
-                var result = await this.GetBatchInternal(drive!.Id, query.QueryParams, options, odinContext, true);
-
-                var response = QueryBatchResponse.FromResult(result);
-                response.Name = query.Name;
-                collection.Results.Add(response);
-            }
-
-            return collection;
-        }
-
-        public async Task<UniqueIdDump> DumpUniqueId(List<StorageDrive> drives, Guid uniqueId, IOdinContext odinContext)
-        {
-            var request = new QueryBatchCollectionRequest
-            {
-                Queries = drives.Select(drive => new CollectionQueryParamSection()
-                {
-                    Name = $"DriveName-{drive.Name}-x'{Convert.ToHexString(drive.Id.ToByteArray())}'",
-                    QueryParams = new FileQueryParams
-                    {
-                        TargetDrive = drive.TargetDriveInfo,
-                        ClientUniqueIdAtLeastOne = [uniqueId],
-                        FileState = [FileState.Active, FileState.Deleted]
-                    }
-                }).ToList()
-            };
-
-            var d = new UniqueIdDump();
-            foreach (var query in request.Queries)
-            {
-                var drive = drives.SingleOrDefault(storageDrive => storageDrive.TargetDriveInfo == query.QueryParams.TargetDrive);
-                var options = query.ResultOptionsRequest?.ToQueryBatchResultOptions() ?? new QueryBatchResultOptions()
-                {
-                    IncludeHeaderContent = true,
-                    ExcludePreviewThumbnail = false
-                };
-
-                var (_, records, _) = await _driveQuery.GetBatchCoreAsync(
-                    drive,
-                    odinContext,
-                    GetFileSystemType(),
-                    query.QueryParams,
-                    options);
-
-                d.Results.Add(new DumpResult()
-                {
-                    Name = query.Name,
-                    RecordList = records
-                });
-            }
-
-            return d;
         }
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId,
@@ -546,16 +466,5 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             return theSingleLonelyResult;
         }
-    }
-
-    public class UniqueIdDump
-    {
-        public List<DumpResult> Results { get; set; } = new List<DumpResult>();
-    }
-
-    public class DumpResult
-    {
-        public List<DriveMainIndexRecord> RecordList { get; set; }
-        public string Name { get; set; }
     }
 }

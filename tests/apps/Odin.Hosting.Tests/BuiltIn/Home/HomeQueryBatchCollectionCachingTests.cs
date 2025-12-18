@@ -84,7 +84,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
                 new()
                 {
                     Name = section1Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = channelDrive1.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -93,7 +93,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
                 new()
                 {
                     Name = section2Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = channelDrive2.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -102,7 +102,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
                 new()
                 {
                     Name = section3Name,
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = channelDrive3.TargetDriveInfo,
                         ClientUniqueIdAtLeastOne = new List<Guid>() { header3.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -263,7 +263,7 @@ namespace Odin.Hosting.Tests.BuiltIn.Home
             var sections = drives.Select(d => new CollectionQueryParamSection()
             {
                 Name = d.ToKey().ToBase64(),
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = d,
                     FileType = new[] { HomeCachingService.PostFileType }

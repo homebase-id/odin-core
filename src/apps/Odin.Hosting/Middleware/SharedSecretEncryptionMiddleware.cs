@@ -128,7 +128,7 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstantsV1.DriveV1}/files/thumb",
                 $"{GuestApiPathConstantsV1.DriveV1}/files/payload",
-                
+
                 $"{UnifiedApiRouteConstants.Auth}/verify-shared-secret-encryption",
             ];
 
@@ -296,9 +296,17 @@ namespace Odin.Hosting.Middleware
                 return false;
             }
 
-            if (context.Request.Method.ToUpper() == "POST" && context.Request.Headers.ContentLength == 0)
+            if (IsUnifiedFilesPath(context.Request))
             {
                 return false;
+            }
+            
+            if (context.Request.Method.ToUpper() == "POST")
+            {
+                if (context.Request.Headers.ContentLength == 0)
+                {
+                    return false;
+                }
             }
 
             if (context.Request.Method.ToUpper() == "GET" && context.Request.QueryString.HasValue == false)
@@ -325,10 +333,15 @@ namespace Odin.Hosting.Middleware
             {
                 return false;
             }
-            
+
             if (context.Request.Path.StartsWithSegments(UnifiedApiRouteConstants.BasePath, StringComparison.OrdinalIgnoreCase))
             {
                 if (IsPayloadOrThumbnail(context.Request.Path.Value))
+                {
+                    return false;
+                }
+
+                if (IsUnifiedFilesPath(context.Request))
                 {
                     return false;
                 }
@@ -342,7 +355,23 @@ namespace Odin.Hosting.Middleware
             var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
             return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }
-        
+
+        private static bool IsUnifiedFilesPath(HttpRequest request)
+        {
+            // if we are creating or updating files
+            if (request.Method.ToUpper() == "POST" || request.Method.ToUpper() == "PATCH")
+            {
+                var path = request.Path;
+                if (path.StartsWithSegments($"{UnifiedApiRouteConstants.DrivesRoot}/files"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
         private bool HasThumbnailExtension(string path, string suffix)
         {
             // Handles /thumb.png /thumb.jpeg /thumb.webp etc.

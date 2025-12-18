@@ -578,7 +578,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
                 var expectedClientUniqueId = fileMetadata.AppData.UniqueId.GetValueOrDefault();
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = uploadResult.File.TargetDrive,
                     ClientUniqueIdAtLeastOne = new List<Guid>() { expectedClientUniqueId }
@@ -732,7 +732,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             // Get file by ClientUniqueId
             //
 
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = uploadResult.File.TargetDrive,
                 ClientUniqueIdAtLeastOne = new List<Guid>() { uniqueId.GetValueOrDefault() }
