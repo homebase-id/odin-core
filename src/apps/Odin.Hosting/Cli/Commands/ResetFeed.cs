@@ -68,7 +68,7 @@ public static class ResetFeed
 
         async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> GetHeadersInFeedDrive(IdentityDatabase db)
         {
-            var results = await db.MainIndexMetaCached.QueryBatchAsync(feedDriveId,
+            var results = await db.QueryBatchCached.QueryBatchAsync(feedDriveId,
                 Int32.MaxValue,
                 null,
                 QueryBatchSortOrder.Default,

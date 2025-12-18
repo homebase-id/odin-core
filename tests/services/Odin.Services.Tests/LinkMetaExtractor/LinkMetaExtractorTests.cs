@@ -174,6 +174,7 @@ public class LinkMetaExtractorTests
 
 #if !CI_GITHUB
     [Test]
+    [Explicit]
     public async Task TestYoutubeUrl()
     {
         var logStore = new LogEventMemoryStore();

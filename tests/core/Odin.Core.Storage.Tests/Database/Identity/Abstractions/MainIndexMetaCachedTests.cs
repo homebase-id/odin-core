@@ -18,6 +18,7 @@ public class MainIndexMetaCachedTests : IocTestBase
         await using var scope = Services.BeginLifetimeScope();
         var tableDriveMainIndexCached = scope.Resolve<TableDriveMainIndexCached>();
         var mainIndexMetaCached = scope.Resolve<MainIndexMetaCached>();
+        var queryBatchCached = scope.Resolve<QueryBatchCached>();
 
         //
         // Get only
@@ -73,17 +74,17 @@ public class MainIndexMetaCachedTests : IocTestBase
         var cursor = new QueryBatchCursor(UnixTimeUtc.Now());
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(1));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(0));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(1));
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(1));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(1));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(1));
         }
 
         //
@@ -92,42 +93,42 @@ public class MainIndexMetaCachedTests : IocTestBase
         await tableDriveMainIndexCached.InsertAsync(item1);
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(2));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(1));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(2));
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(2));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(2));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(2));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(2));
         }
 
         await tableDriveMainIndexCached.InsertAsync(item2);
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(3));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(2));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(3));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(2));
         }
 
         await tableDriveMainIndexCached.DeleteAsync(item1.driveId, item1.fileId);
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(3));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(3));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(3));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(3));
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(4));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(3));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(4));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(3));
         }
 
         await tableDriveMainIndexCached.InsertAsync(item1);
@@ -165,10 +166,10 @@ public class MainIndexMetaCachedTests : IocTestBase
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(4));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(4));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(4));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(4));
         }
 
         await tableDriveMainIndexCached.InsertAsync(item1);
@@ -183,24 +184,24 @@ public class MainIndexMetaCachedTests : IocTestBase
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(4));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(5));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(4));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(5));
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(4));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(6));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(4));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(6));
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(5));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(6));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(5));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(6));
         }
 
         // SEB:NOTE QueryModifiedAsync has issues with time resolution of selecting modified records too close to
@@ -208,26 +209,26 @@ public class MainIndexMetaCachedTests : IocTestBase
         await Task.Delay(100);
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(5));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(7));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(5));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(7));
         }
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(6));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(7));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(6));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(7));
         }
 
         await tableDriveMainIndexCached.UpdateReactionSummaryAsync(item1.driveId, item1.fileId, "hopla");
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(6));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(8));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(6));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(8));
         }
 
         // SEB:NOTE QueryModifiedAsync has issues with time resolution of selecting modified records too close to
@@ -235,10 +236,10 @@ public class MainIndexMetaCachedTests : IocTestBase
         await Task.Delay(100);
 
         {
-            var (records, _, _) = await mainIndexMetaCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
+            var (records, _, _) = await queryBatchCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
-            Assert.That(mainIndexMetaCached.Hits, Is.EqualTo(6));
-            Assert.That(mainIndexMetaCached.Misses, Is.EqualTo(9));
+            Assert.That(queryBatchCached.Hits, Is.EqualTo(6));
+            Assert.That(queryBatchCached.Misses, Is.EqualTo(9));
         }
 
     }

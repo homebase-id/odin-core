@@ -64,6 +64,9 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
     private Lazy<MainIndexMetaCached>? _mainIndexMetaCached;
     public MainIndexMetaCached MainIndexMetaCached => LazyResolve(ref _mainIndexMetaCached);
 
+    private Lazy<QueryBatchCached>? _queryBatchCached;
+    public QueryBatchCached QueryBatchCached => LazyResolve(ref _queryBatchCached);
+
     private Lazy<TableDrivesCached>? _tableDrivesCached;
     public TableDrivesCached DrivesCached => LazyResolve(ref _tableDrivesCached);
 

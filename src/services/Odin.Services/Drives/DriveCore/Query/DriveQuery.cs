@@ -23,6 +23,7 @@ namespace Odin.Services.Drives.DriveCore.Query;
 public class DriveQuery(
     ILogger<DriveQuery> logger,
     MainIndexMetaCached metaIndex,
+    QueryBatchCached queryBatch,
     TableDriveMainIndexCached tblDriveMainIndex,
     TableDriveReactions tblDriveReactions,
     IdentityDatabase db,
@@ -42,7 +43,7 @@ public class DriveQuery(
         var aclList = GetAcl(odinContext);
 
         // TODO TODD - use moreRows
-        (var results, var moreRows, var nextCursor) = await metaIndex.QueryModifiedAsync(
+        (var results, var moreRows, var nextCursor) = await queryBatch.QueryModifiedAsync(
             drive.Id,
             noOfItems: options.MaxRecords,
             options.Cursor,
@@ -80,7 +81,7 @@ public class DriveQuery(
 
         //if (options.Ordering == QueryBatchSortOrder.Default)
         //{
-        (var results, var moreRows, cursor) = await metaIndex.QueryBatchSmartCursorAsync(
+        (var results, var moreRows, cursor) = await queryBatch.QueryBatchSmartCursorAsync(
             drive.Id,
             noOfItems: options.MaxRecords,
             cursor,
@@ -121,7 +122,7 @@ public class DriveQuery(
         var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 
-        (var results, var moreRows, cursor) = await metaIndex.QueryBatchAsync(
+        (var results, var moreRows, cursor) = await queryBatch.QueryBatchAsync(
             drive.Id,
             noOfItems: options.MaxRecords,
             cursor,
