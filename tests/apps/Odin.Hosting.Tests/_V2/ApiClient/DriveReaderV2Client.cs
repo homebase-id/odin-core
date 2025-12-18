@@ -36,7 +36,13 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveReaderHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetPayload(driveId, fileId, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
+        if (chunk == null)
+        {
+            return await svc.GetPayload(driveId, fileId, key, fileSystemType);
+
+        }
+        
+        return await svc.GetPayload(driveId, fileId, key, chunk.Start, chunk.Length , fileSystemType);
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnailAsync(Guid driveId, Guid fileId, int width, int height, string payloadKey,
@@ -54,7 +60,7 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveFileByUidHttpClientApiV2>(client, sharedSecret);
-        var apiResponse = await svc.GetFileHeader(driveId, uid, fileSystemType);
+        var apiResponse = await svc.GetFileHeaderByUniqueId(driveId, uid, fileSystemType);
         return apiResponse;
     }
 
@@ -63,7 +69,11 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveFileByUidHttpClientApiV2>(client, sharedSecret);
-        return await svc.GetPayload(driveId, uid, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
+        if(chunk == null)
+        {
+            return await svc.GetPayloadByUniqueId(driveId, uid, key, fileSystemType);
+        }
+        return await svc.GetPayloadByUniqueId(driveId, uid, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
     }
 
     public async Task<ApiResponse<HttpContent>> GetThumbnailUniqueIdAsync(Guid uid, Guid driveId, int width, int height, string payloadKey,
@@ -71,7 +81,7 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveFileByUidHttpClientApiV2>(client, sharedSecret);
-        var thumbnailResponse = await svc.GetThumbnail(driveId, uid, payloadKey, width, height, directMatchOnly,
+        var thumbnailResponse = await svc.GetThumbnailByUniqueId(driveId, uid, payloadKey, width, height, directMatchOnly,
             fileSystemType);
         return thumbnailResponse;
     }

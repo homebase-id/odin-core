@@ -43,36 +43,32 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return new JsonResult(result);
         }
 
-        [HttpGet(ByUniqueId + "/payload/{key}")]
+        [HttpGet(ByUniqueId + "/payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetPayloadByUniqueId(
             [FromRoute] Guid driveId,
             [FromRoute] Guid uid,
-            [FromRoute] string key,
-            [FromQuery] int? start,
-            [FromQuery] int? length)
+            [FromRoute] string payloadKey)
+        {
+            return await this.GetPayloadByUniqueIdInternal(driveId, uid, payloadKey);
+        }
+
+        [HttpGet(ByUniqueId + "/payload/{payloadKey}/{start:int}/{length:int}")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        public async Task<IActionResult> GetPayloadByUniqueId(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid uid,
+            [FromRoute] string payloadKey,
+            [FromRoute] int start,
+            [FromRoute] int length)
         {
             FileChunk chunk = this.GetChunk(start == 0 ? null : start, length == 0 ? null : length);
 
-            var header = await this.GetFileHeaderByUniqueIdInternal(uid, driveId);
-            if (null == header)
-            {
-                return NotFound();
-            }
-
-            var file = new InternalDriveFileId(driveId, header.FileId);
-            var payload = await GetPayloadStream(file, key, chunk);
-
-            if (WebOdinContext.Caller.IsAnonymous)
-            {
-                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
-            }
-
-            return payload;
+            return await GetPayloadByUniqueIdInternal(driveId, uid, payloadKey, chunk);
         }
 
-        [HttpGet(ByUniqueId + "/{payloadKey}/thumb")]
-        [HttpGet(ByUniqueId + "/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
+        [HttpGet(ByUniqueId + "/payload/{payloadKey}/thumb")]
+        [HttpGet(ByUniqueId + "/payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetThumbnailByUniqueId(
             [FromRoute] Guid driveId,
@@ -105,6 +101,25 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             };
             var result = await queryService.GetFileByClientUniqueId(driveId, clientUniqueId, options, WebOdinContext);
             return result;
+        }
+
+        private async Task<IActionResult> GetPayloadByUniqueIdInternal(Guid driveId, Guid uid, string payloadKey, FileChunk chunk = null)
+        {
+            var header = await this.GetFileHeaderByUniqueIdInternal(uid, driveId);
+            if (null == header)
+            {
+                return NotFound();
+            }
+
+            var file = new InternalDriveFileId(driveId, header.FileId);
+            var payload = await GetPayloadStream(file, payloadKey, chunk);
+
+            if (WebOdinContext.Caller.IsAnonymous)
+            {
+                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
+            }
+
+            return payload;
         }
     }
 }

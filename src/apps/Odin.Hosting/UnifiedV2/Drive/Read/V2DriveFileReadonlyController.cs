@@ -4,7 +4,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
@@ -51,52 +50,49 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         }
 
         // Full payload (optional query range)
-        [HttpGet("payload/{key}")]
+        [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetPayload(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
-            [FromRoute] string key,
-            [FromQuery] int? start,
-            [FromQuery] int? length)
+            [FromRoute] string payloadKey)
         {
             logger.LogDebug("V2 call to get file payload");
 
             return await GetPayloadInternal(
                 driveId,
                 fileId,
-                key,
-                start,
-                length);
+                payloadKey);
         }
-        
+
         // Ranged payload (route-based)
-        [HttpGet("payload/{key}/{start:int}/{length:int}")]
+        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public Task<IActionResult> GetPayload(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
-            [FromRoute] string key,
+            [FromRoute] string payloadKey,
             [FromRoute] int start,
             [FromRoute] int length)
         {
+            FileChunk chunk = GetChunk(start, length);
+
             return GetPayloadInternal(
                 driveId,
                 fileId,
-                key,
-                start,
-                length);
+                payloadKey,
+                chunk);
         }
 
-        [HttpGet("thumb")]
-        [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
+        [HttpGet("payload/{payloadKey}/thumb")]
+        [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetThumbnail(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
+            [FromRoute] string payloadKey,
             [FromQuery] int width,
             [FromQuery] int height,
-            [FromQuery] string payloadKey,
             [FromQuery] bool directMatchOnly)
         {
             logger.LogDebug("V2 call to get file thumb");
@@ -138,21 +134,19 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 History = history
             };
         }
-        
+
         private async Task<IActionResult> GetPayloadInternal(
             Guid driveId,
             Guid fileId,
             string key,
-            int? start,
-            int? length)
+            FileChunk chunk = null)
         {
             var file = new InternalDriveFileId
             {
                 DriveId = driveId,
                 FileId = fileId
             };
-            
-            FileChunk chunk = GetChunk(start, length);
+
 
             var payload = await GetPayloadStream(
                 file,
@@ -166,6 +160,5 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
 
             return payload;
         }
-
     }
 }
