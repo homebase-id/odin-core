@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -437,7 +438,7 @@ namespace JsonLd.Normalization
                 // handle @version
                 if (ctxObj.TryGetValue("@version", out var versionProp))
                 {
-                    if (versionProp.ToString() != "1.1")
+                    if ((versionProp.ToString() != "1.1") &&(versionProp.ToString() != "1,1"))
                         throw new JsonLdParseException($"Unsupported JSON-LD version: {versionProp}");
 
                     //if (activeCtx.processingMode && activeCtx.processingMode === 'json-ld-1.0')
