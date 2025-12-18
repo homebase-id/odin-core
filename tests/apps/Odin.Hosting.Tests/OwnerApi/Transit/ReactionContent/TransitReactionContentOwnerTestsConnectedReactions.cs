@@ -199,21 +199,21 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             await samOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
         }
 
-        [Test]
+        [Test, Explicit("TODO")]
         public Task ConnectedIdentity_CanSendAndDeleteAllReactionsOnFile_ReactionsOverTransit_ForPublicChannel_WithNoCircles()
         {
             Assert.Inconclusive("TODO DeleteAllReactionsOnFile");
             return Task.CompletedTask;
         }
 
-        [Test]
+        [Test, Explicit("TODO")]
         public Task ConnectedIdentity_CanSendAndGetReactionCountsByFile_ReactionsOverTransit_ForPublicChannel_WithNoCircles()
         {
             Assert.Inconclusive("TODO GetReactionCountsByFile");
             return Task.CompletedTask;
         }
 
-        [Test]
+        [Test, Explicit("TODO")]
         public Task ConnectedIdentity_CanSendAnd_GetReactionsByIdentity_ReactionsOverTransit_ForPublicChannel_WithNoCircles()
         {
             Assert.Inconclusive("TODO GetReactionsByIdentity");
