@@ -101,14 +101,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
             var fst = this.GetHttpFileSystemResolver().GetFileSystemType();
-            return await GetPayloadStream(MapToInternalFile(request.File), request.Key, request.Chunk, fst);
+            return await GetPayloadStream(MapToInternalFile(request.File), request.Key, request.Chunk);
         }
 
-        protected async Task<IActionResult> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk, FileSystemType fst)
+        protected async Task<IActionResult> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
         {
             TenantPathManager.AssertValidPayloadKey(key);
 
-            var fs = GetHttpFileSystemResolver().ResolveFileSystem(fst);
+            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, key, WebOdinContext);
@@ -180,16 +180,15 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 request.Width,
                 request.Height,
                 request.PayloadKey,
-                request.DirectMatchOnly,
-                fst);
+                request.DirectMatchOnly);
         }
 
         protected async Task<IActionResult> GetThumbnail(InternalDriveFileId file, int width, int height, string payloadKey,
-            bool directMatchOnly, FileSystemType fst)
+            bool directMatchOnly)
         {
             TenantPathManager.AssertValidPayloadKey(payloadKey);
 
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem(fst);
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, payloadKey, WebOdinContext);

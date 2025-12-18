@@ -258,6 +258,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
         {
+            if (section == null)
+            {
+                throw new OdinClientException($"Missing {expectedPart.ToString()} section");
+            }
+            
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
                 part != expectedPart)
             {
