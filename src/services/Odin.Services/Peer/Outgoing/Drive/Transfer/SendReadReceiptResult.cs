@@ -1,8 +1,21 @@
+using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
 using Odin.Services.Drives;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer;
+
+public class SendReadReceiptResultV2
+{
+    public List<SendReadReceiptResultFileItemV2> Results { get; set; }
+}
+
+public class SendReadReceiptResultFileItemV2
+{
+    public Guid FileId { get; set; }
+    public List<SendReadReceiptResultRecipientStatusItem> Status { get; set; }
+}
+
 
 public class SendReadReceiptResult
 {

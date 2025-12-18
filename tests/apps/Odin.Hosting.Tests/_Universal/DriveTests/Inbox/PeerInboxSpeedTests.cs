@@ -126,7 +126,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 //
                 var qp = new QueryBatchRequest()
                 {
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = fileResponse.UploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
                         GlobalTransitId = new List<Guid>() { fileResponse.UploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }
@@ -154,7 +154,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                 //
                 var qp = new QueryBatchRequest()
                 {
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = fileResponse.UploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
                         GlobalTransitId = new List<Guid>() { fileResponse.UploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }

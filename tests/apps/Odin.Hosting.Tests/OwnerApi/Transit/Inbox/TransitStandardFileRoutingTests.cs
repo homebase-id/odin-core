@@ -92,7 +92,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = uploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
                 GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }
@@ -147,7 +147,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
             //  Assert recipient does not have the file when it is first sent
             //
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = uploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
                 GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }
@@ -221,7 +221,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
             //
 
             // File should be on recipient server and accessible by global transit id
-            var qp = new FileQueryParams()
+            var qp = new FileQueryParamsV1()
             {
                 TargetDrive = uploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
                 GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }

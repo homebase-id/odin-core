@@ -386,7 +386,7 @@ namespace Odin.Services.DataSubscription.Follower
                 request.Queries.Add(new()
                     {
                         Name = targetDrive.Alias.ToString(),
-                        QueryParams = new FileQueryParams()
+                        QueryParams = new FileQueryParamsV1()
                         {
                             TargetDrive = targetDrive,
                             FileState = new List<FileState>() { FileState.Active }

@@ -86,7 +86,7 @@ public class HomebaseChannelContentService(
     {
         var targetDrive = await GetChannelDrive(channelKey, odinContext);
 
-        var qp = new FileQueryParams
+        var qp = new FileQueryParamsV1
         {
             TargetDrive = targetDrive,
             FileType = [PostFileType]
@@ -125,7 +125,7 @@ public class HomebaseChannelContentService(
     {
         var targetDrive = await GetChannelDrive(channelKey, odinContext);
 
-        var qp = new FileQueryParams
+        var qp = new FileQueryParamsV1
         {
             TargetDrive = targetDrive,
             FileType = [PostFileType]
@@ -179,7 +179,7 @@ public class HomebaseChannelContentService(
     private async Task<SharedSecretEncryptedFileHeader> QueryBatchFirstFile(TargetDrive targetDrive, IOdinContext odinContext,
         Guid? postIdAsTag = null, int? fileType = null)
     {
-        var qp = new FileQueryParams
+        var qp = new FileQueryParamsV1
         {
             TargetDrive = targetDrive,
             TagsMatchAtLeastOne = postIdAsTag == null ? default : [postIdAsTag.GetValueOrDefault()],

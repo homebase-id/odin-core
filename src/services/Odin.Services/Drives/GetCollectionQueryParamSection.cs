@@ -61,7 +61,7 @@ public class GetCollectionQueryParamSection {
     public CollectionQueryParamSection ToCollectionQueryParamSection () {
         return new CollectionQueryParamSection() {
             Name = this.Name,
-            QueryParams = new FileQueryParams() {
+            QueryParams = new FileQueryParamsV1() {
                 TargetDrive = new TargetDrive() {
                     Alias = this.Alias,
                     Type = this.Type,

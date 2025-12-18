@@ -15,6 +15,9 @@ public class AppPermissionKeysOnly(TestPermissionKeyList keys) : IApiClientConte
     private AppApiClientFactory _factory;
 
     public TargetDrive TargetDrive { get; }
+    
+    public Guid DriveId => TargetDrive.Alias;
+    
     public DrivePermission DrivePermission { get; } = DrivePermission.None;
 
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)

@@ -29,10 +29,7 @@ namespace Odin.Services.Peer.Outgoing.Drive
 
         public AppNotificationOptions AppNotificationOptions { get; set; }
 
-        /// <summary>
-        /// Specifies which parts of the file to send
-        /// </summary>
-        public SendContents SendContents { get; set; }
+        // public SendContents SendContents { get; set; }
 
         /// <summary>
         /// If set, the target drive will be this one instead of that from the file

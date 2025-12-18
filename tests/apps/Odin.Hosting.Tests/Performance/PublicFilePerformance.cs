@@ -172,7 +172,7 @@ TaskPerformanceTest
             publishRequest.Sections.Add(new QueryParamSection()
             {
                 Name = $"Section matching filetype ({section_1_filetype})",
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = testContext.TargetDrive,
                     FileType = new List<int>() { section_1_filetype },
@@ -189,7 +189,7 @@ TaskPerformanceTest
             publishRequest.Sections.Add(new QueryParamSection()
             {
                 Name = $"Files matching datatype {section_2_datatype}",
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = testContext.TargetDrive,
                     DataType = new List<int>() { section_2_datatype },

@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
@@ -14,6 +15,7 @@ public class OwnerTestCase(TargetDrive targetDrive) : IApiClientContext
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission => DrivePermission.All;
+    public Guid DriveId { get; } = targetDrive.Alias;
 
     public Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
@@ -35,6 +37,7 @@ public class OwnerTestCase(TargetDrive targetDrive) : IApiClientContext
 
     public override string ToString()
     {
-        return System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        var name= System.Reflection.MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        return $"{name} with drive:{DrivePermission}";
     }
 }

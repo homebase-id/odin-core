@@ -166,7 +166,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
             // 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = targetFile.TargetDrive,
                     DataType = [updatedFileMetadata.AppData.DataType]
@@ -291,7 +291,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
             // 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = targetFile.TargetDrive,
                     DataType = [updatedFileMetadata.AppData.DataType]
@@ -429,7 +429,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertTests
             // 
             var searchResponse = await ownerApiClient.DriveRedux.QueryBatch(new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = targetFile.TargetDrive,
                     DataType = [updatedFileMetadata.AppData.DataType]

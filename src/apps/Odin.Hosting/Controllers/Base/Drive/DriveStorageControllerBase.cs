@@ -274,7 +274,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 var groupIdToBeDeleted = request.GroupId;
 
-                var qp = new FileQueryParams()
+                var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = request.TargetDrive,
                     GroupId = new List<Guid>() { groupIdToBeDeleted }

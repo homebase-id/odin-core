@@ -8,6 +8,7 @@ using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Drive;
 
@@ -23,6 +24,7 @@ public class V2DriveStatusController(
     : DriveStorageControllerBase(peerOutgoingTransferService)
 {
     [HttpGet("status")]
+    [SwaggerOperation(Tags = [SwaggerInfo.DriveStatus])]
     public async Task<IActionResult> GetStatus(Guid driveId)
     {
         WebOdinContext.Caller.AssertCallerIsOwner();

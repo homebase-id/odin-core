@@ -41,6 +41,10 @@
     <ProjectReference Include="../../../src/apps/Odin.Hosting/Odin.Hosting.csproj" />
     <ProjectReference Include="../../helpers/Odin.Test.Helpers/Odin.Test.Helpers.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="_V2\Tests\" />
+  </ItemGroup>
   
 
 </Project>

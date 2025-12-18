@@ -16,7 +16,7 @@ public class AppReadWriteAccessToDrive(TargetDrive targetDrive, TestPermissionKe
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = DrivePermission.ReadWrite;
-
+    public Guid DriveId => TargetDrive.Alias;
     public async Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         // Prepare the app

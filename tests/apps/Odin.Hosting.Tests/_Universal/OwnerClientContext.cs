@@ -12,7 +12,7 @@ public class OwnerClientContext(TargetDrive targetDrive) : IApiClientContext
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission => DrivePermission.All;
-
+    public Guid DriveId => TargetDrive.Alias;
     public Task Initialize(OwnerApiClientRedux ownerApiClient)
     {
         var t = ownerApiClient.GetTokenContext();

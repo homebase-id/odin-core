@@ -77,5 +77,14 @@ namespace Odin.Services.Drives
                 TargetDrive = this.TargetDrive
             };
         }
+
+        public FileIdentifier ToV2FileIdentifier()
+        {
+            return new FileIdentifier()
+            {
+                FileId = this.FileId,
+                DriveId = this.TargetDrive.Alias
+            };
+        }
     }
 }

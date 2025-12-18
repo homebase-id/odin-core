@@ -27,6 +27,5 @@ namespace Odin.Services.Base
         public const string OdinVersionTag = "X-Odin-Version";
         public const string OdinCdnPayload = "X-Odin-Cdn-Payload";
 
-        public const string OdinCdnAuth = "X-Odin-Cdn-Auth";
     }
 }

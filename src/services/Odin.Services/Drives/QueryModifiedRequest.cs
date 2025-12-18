@@ -6,7 +6,7 @@ namespace Odin.Services.Drives;
 
 public class QueryModifiedRequest
 {
-    public FileQueryParams QueryParams { get; set; }
+    public FileQueryParamsV1 QueryParams { get; set; }
     public QueryModifiedResultOptions ResultOptions { get; set; }
 }
 
@@ -57,7 +57,7 @@ public class GetQueryModifiedRequest
     {
         return new QueryModifiedRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = new TargetDrive()
                 {

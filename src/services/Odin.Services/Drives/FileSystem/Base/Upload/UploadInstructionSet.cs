@@ -41,10 +41,11 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
                     OdinClientErrorCode.InvalidInstructionSet);
             }
 
-            if (!StorageOptions?.Drive?.IsValid() ?? false)
-            {
-                throw new OdinClientException("Target drive is invalid", OdinClientErrorCode.InvalidTargetDrive);
-            }
+            // removed validation check here to allow v2 to send in the driveId via http path
+            // if (!StorageOptions?.Drive?.IsValid() ?? false)
+            // {
+            //     throw new OdinClientException("Target drive is invalid", OdinClientErrorCode.InvalidTargetDrive);
+            // }
 
             Manifest?.AssertIsValid();
         }

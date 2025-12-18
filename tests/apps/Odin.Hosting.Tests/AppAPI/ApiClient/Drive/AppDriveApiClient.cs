@@ -41,7 +41,7 @@ public class AppDriveApiClient : AppApiClientBase
 
     public async Task<SharedSecretEncryptedFileHeader> QueryByGlobalTransitFileId(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier file)
     {
-        var batch = await this.QueryBatch(fileSystemType, new FileQueryParams()
+        var batch = await this.QueryBatch(fileSystemType, new FileQueryParamsV1()
         {
             TargetDrive = file.TargetDrive,
             GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
@@ -54,7 +54,7 @@ public class AppDriveApiClient : AppApiClientBase
         return batch.SearchResults.SingleOrDefault();
     }
 
-    public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
+    public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParamsV1 qp, QueryBatchResultOptionsRequest resultOptions = null)
     {
         var client = CreateAppApiHttpClient(_token, fileSystemType);
         {

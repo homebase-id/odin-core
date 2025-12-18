@@ -145,7 +145,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     new()
                     {
                         Name = testResult1,
-                        QueryParams = new FileQueryParams()
+                        QueryParams = new FileQueryParamsV1()
                         {
                             TargetDrive = randomFile1.uploadResult.File.TargetDrive,
                             ClientUniqueIdAtLeastOne = new[] { randomFile1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -159,7 +159,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     new()
                     {
                         Name = testResult2,
-                        QueryParams = new FileQueryParams()
+                        QueryParams = new FileQueryParamsV1()
                         {
                             TargetDrive = randomFile2.uploadResult.File.TargetDrive,
                             ClientUniqueIdAtLeastOne = new[] { randomFile2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }

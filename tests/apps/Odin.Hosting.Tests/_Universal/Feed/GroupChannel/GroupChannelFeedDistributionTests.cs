@@ -86,7 +86,7 @@ public class GroupChannelFeedDistributionTests
         var samOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var queryFeedResponse = await samOwnerClient.DriveRedux.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 GlobalTransitId = [uploadResult.GlobalTransitId.GetValueOrDefault()]

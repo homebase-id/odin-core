@@ -118,7 +118,7 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests
     {
         var samQueryFeedResponse = await ownerSam.DriveRedux.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }
@@ -151,7 +151,7 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests
     {
         var frodoQueryFeedResponse = await ownerFrodo.DriveRedux.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }
@@ -188,7 +188,7 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests
 
         var samQueryFeedResponse = await ownerSam.DriveRedux.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }
@@ -219,7 +219,7 @@ public class FeedBackPopulationTests_PrepopulatedFeedTests
         ClassicAssert.IsTrue(followResponse.IsSuccessStatusCode);
         var frodoQueryFeedResponse = await ownerFrodo.DriveRedux.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }

@@ -235,7 +235,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 //validate the file is in the index
                 var fileIsInIndexResponse = await svc.GetBatch(new QueryBatchRequest()
                 {
-                    QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive, SomeFileType),
+                    QueryParams = FileQueryParamsV1.FromFileType(appContext.TargetDrive, SomeFileType),
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 10
@@ -255,7 +255,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 //
                 var qbResponse = await svc.GetBatch(new QueryBatchRequest()
                 {
-                    QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive),
+                    QueryParams = FileQueryParamsV1.FromFileType(appContext.TargetDrive),
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 10
@@ -272,7 +272,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 // crucial - it should return in query modified so apps can sync locally
                 var queryModifiedResponse = await svc.GetModified(new QueryModifiedRequest()
                 {
-                    QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive, SomeFileType),
+                    QueryParams = FileQueryParamsV1.FromFileType(appContext.TargetDrive, SomeFileType),
                     ResultOptions = new QueryModifiedResultOptions()
                     {
                         MaxRecords = 10

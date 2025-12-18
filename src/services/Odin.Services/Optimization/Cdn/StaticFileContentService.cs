@@ -85,7 +85,7 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = qp.TargetDrive.Alias;
+            var driveId = qp.DriveId;
 
             var options = new QueryBatchResultOptions()
             {

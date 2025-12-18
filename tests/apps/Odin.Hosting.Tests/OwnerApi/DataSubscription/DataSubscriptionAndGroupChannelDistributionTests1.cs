@@ -109,7 +109,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         // Sam should have the same content on his feed drive since it was distributed by the backend
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             FileType = new List<int>() { fileType }
@@ -187,7 +187,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
         await frodoOwnerClient.Transit.WaitForEmptyOutbox(frodoChannelDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             // FileType = new List<int>() { fileType }
@@ -240,7 +240,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         // Sam should have the same content on his feed drive
         // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
@@ -293,7 +293,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             // FileType = new List<int>() { fileType }
@@ -346,7 +346,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             // FileType = new List<int>() { fileType }
@@ -405,7 +405,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             // FileType = new List<int>() { fileType }
@@ -470,7 +470,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
         await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             // FileType = new List<int>() { fileType }
@@ -558,7 +558,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
         await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             // FileType = new List<int>() { fileType }
@@ -581,7 +581,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
 
     private async Task AssertFeedDrive_HasDeletedFile(OwnerApiClient client, UploadResult uploadResult)
     {
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
@@ -591,7 +591,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
         ClassicAssert.IsNotNull(batch.SearchResults.SingleOrDefault(c => c.FileState == FileState.Deleted));
     }
 
-    private async Task AssertFeedDriveHasFile(OwnerApiClient client, FileQueryParams queryParams, string expectedContent, UploadResult expectedUploadResult)
+    private async Task AssertFeedDriveHasFile(OwnerApiClient client, FileQueryParamsV1 queryParams, string expectedContent, UploadResult expectedUploadResult)
     {
         var batch = await client.Drive.QueryBatch(FileSystemType.Standard, queryParams);
         ClassicAssert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");

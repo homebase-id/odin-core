@@ -219,7 +219,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             // On recipient identity - see that file was transferred
             // 
             var getFileByTypeResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext,
-                FileQueryParams.FromFileType(recipientAppContext.TargetDrive, someFiletype),
+                FileQueryParamsV1.FromFileType(recipientAppContext.TargetDrive, someFiletype),
                 QueryBatchResultOptionsRequest.Default);
 
             ClassicAssert.IsTrue(getFileByTypeResponse.IsSuccessStatusCode);
@@ -307,7 +307,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             // 
             // On recipient identity - see that file was transferred
             // 
-            var filesByGlobalTransitId = new FileQueryParams()
+            var filesByGlobalTransitId = new FileQueryParamsV1()
             {
                 TargetDrive = recipientAppContext.TargetDrive,
                 GlobalTransitId = new List<Guid>() { sendFileResult.GlobalTransitId.GetValueOrDefault() }
@@ -330,7 +330,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
             //
             // sender server: Should still be in index and marked as deleted
             //
-            var qbResponse = await _scaffold.AppApi.QueryBatch(senderAppContext, FileQueryParams.FromFileType(senderAppContext.TargetDrive),
+            var qbResponse = await _scaffold.AppApi.QueryBatch(senderAppContext, FileQueryParamsV1.FromFileType(senderAppContext.TargetDrive),
                 QueryBatchResultOptionsRequest.Default);
             ClassicAssert.IsTrue(qbResponse.IsSuccessStatusCode);
             ClassicAssert.IsNotNull(qbResponse.Content);
@@ -340,7 +340,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
             // recipient server: Should still be in index and marked as deleted
 
-            var recipientQbResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParams.FromFileType(recipientAppContext.TargetDrive),
+            var recipientQbResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParamsV1.FromFileType(recipientAppContext.TargetDrive),
                 QueryBatchResultOptionsRequest.Default);
             ClassicAssert.IsTrue(recipientQbResponse.IsSuccessStatusCode);
             ClassicAssert.IsNotNull(recipientQbResponse.Content);
@@ -533,7 +533,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = recipientContext.TargetDrive,
                         TagsMatchAll = new List<Guid>() { fileTag }
@@ -852,7 +852,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit
 
                 var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
-                    QueryParams = new FileQueryParams()
+                    QueryParams = new FileQueryParamsV1()
                     {
                         TargetDrive = recipientContext.TargetDrive,
                         TagsMatchAll = new List<Guid>() { fileTag }

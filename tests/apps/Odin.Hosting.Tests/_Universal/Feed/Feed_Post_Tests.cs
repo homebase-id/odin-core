@@ -139,7 +139,7 @@ public class Feed_Post_Tests
         //
         var frodoQueryFeedResponse = await ownerFrodo.DriveRedux.QueryBatch(new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.FeedDrive,
                 FileType = new List<int>() { fileType }
@@ -253,7 +253,7 @@ public class Feed_Post_Tests
 
         var fileOnPublicDriveBatchRequest = new QueryBatchRequest()
         {
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = SystemDriveConstants.PublicPostsChannelDrive,
                 FileType = new List<int>() { fileType }

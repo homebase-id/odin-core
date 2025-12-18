@@ -182,7 +182,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox
 
             var request = new QueryBatchRequest
             {
-                QueryParams = new FileQueryParams()
+                QueryParams = new FileQueryParamsV1()
                 {
                     TargetDrive = targetDrive,
                     FileType = [fileType]

@@ -116,7 +116,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     new()
                     {
                         Name = testResult1,
-                        QueryParams = new FileQueryParams()
+                        QueryParams = new FileQueryParamsV1()
                         {
                             TargetDrive = randomFile1.uploadResult.File.TargetDrive,
                             ClientUniqueIdAtLeastOne = new[] { randomFile1.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -130,7 +130,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
                     new()
                     {
                         Name = testResult2,
-                        QueryParams = new FileQueryParams()
+                        QueryParams = new FileQueryParamsV1()
                         {
                             TargetDrive = randomFile2.uploadResult.File.TargetDrive,
                             ClientUniqueIdAtLeastOne = new[] { randomFile2.uploadedMetadata.AppData.UniqueId.GetValueOrDefault() }
@@ -186,7 +186,7 @@ namespace Odin.Hosting.Tests.AppAPI.Transit.Query
             var request = new PeerQueryModifiedRequest()
             {
                 OdinId = pippinOwnerClient.Identity.OdinId,
-                QueryParams = FileQueryParams.FromFileType(randomFile.uploadResult.File.TargetDrive, randomFile.uploadedMetadata.AppData.FileType),
+                QueryParams = FileQueryParamsV1.FromFileType(randomFile.uploadResult.File.TargetDrive, randomFile.uploadedMetadata.AppData.FileType),
                 ResultOptions = new QueryModifiedResultOptions()
                 {
                     IncludeHeaderContent = true,

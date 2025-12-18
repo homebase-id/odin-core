@@ -230,7 +230,7 @@ public class App_DataSubscriptionAndDistributionTests2
 
     private async Task AssertFeedDriveHasHeader(OwnerApiClient client, UploadResult uploadResult, string encryptedJsonContent64)
     {
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
@@ -262,7 +262,7 @@ public class App_DataSubscriptionAndDistributionTests2
 
     private async Task AssertFeedDrive_Does_Not_HaveHeader(OwnerApiClient client, UploadResult uploadResult, string encryptedJsonContent64)
     {
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
@@ -286,7 +286,7 @@ public class App_DataSubscriptionAndDistributionTests2
 
     private async Task AssertFeedDrive_HasDeletedFile(OwnerApiClient client, UploadResult uploadResult)
     {
-        var qp = new FileQueryParams()
+        var qp = new FileQueryParamsV1()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }

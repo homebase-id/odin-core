@@ -13,7 +13,9 @@ public class FileIdentifier
     /// <summary>
     /// The drive to access
     /// </summary>
-    public TargetDrive TargetDrive { get; init; }
+    public TargetDrive TargetDrive { get; set; }
+    
+    public Guid DriveId { get; init; }
 
     public void AssertIsValid()
     {

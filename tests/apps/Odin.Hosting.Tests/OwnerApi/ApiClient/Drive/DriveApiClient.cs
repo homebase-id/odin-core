@@ -81,7 +81,7 @@ public class DriveApiClient
 
     public async Task<SharedSecretEncryptedFileHeader> QueryByGlobalTransitFileId(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier file)
     {
-        var batch = await this.QueryBatch(fileSystemType, new FileQueryParams()
+        var batch = await this.QueryBatch(fileSystemType, new FileQueryParamsV1()
         {
             TargetDrive = file.TargetDrive,
             GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
@@ -96,7 +96,7 @@ public class DriveApiClient
 
     public async Task<SharedSecretEncryptedFileHeader> QueryByUniqueId(FileSystemType fileSystemType, TargetDrive targetDrive, Guid uniqueId)
     {
-        var batch = await this.QueryBatch(fileSystemType, new FileQueryParams()
+        var batch = await this.QueryBatch(fileSystemType, new FileQueryParamsV1()
         {
             TargetDrive = targetDrive,
             ClientUniqueIdAtLeastOne = new List<Guid>() { uniqueId }
@@ -109,7 +109,7 @@ public class DriveApiClient
         return batch.SearchResults.SingleOrDefault();
     }
 
-    public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
+    public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParamsV1 qp, QueryBatchResultOptionsRequest resultOptions = null)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {

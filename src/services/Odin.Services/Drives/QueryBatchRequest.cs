@@ -10,7 +10,7 @@ namespace Odin.Services.Drives;
 
 public class QueryBatchRequest
 {
-    public FileQueryParams QueryParams { get; set; }
+    public FileQueryParamsV1 QueryParams { get; set; }
 
     public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
     
@@ -76,7 +76,7 @@ public class GetQueryBatchRequest
         return new QueryBatchRequest()
         {
             FileSystemType = this.FileSystemType,
-            QueryParams = new FileQueryParams()
+            QueryParams = new FileQueryParamsV1()
             {
                 TargetDrive = new TargetDrive()
                 {

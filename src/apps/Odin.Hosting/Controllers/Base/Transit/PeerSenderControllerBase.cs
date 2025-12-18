@@ -13,6 +13,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.Controllers.Base.Transit
@@ -25,8 +26,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// </remarks>
     public abstract class PeerSenderControllerBase(
         ILogger<PeerSenderControllerBase> logger,
-        PeerOutgoingTransferService peerOutgoingTransferService)
-        : DriveUploadControllerBase(logger)
+        PeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager)
+        : V1DriveUploadControllerBase(logger, driveManager)
     {
         /// <summary>
         /// Uploads a file using multi-part form data
@@ -106,7 +107,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
             OdinValidationUtils.AssertValidRecipientList(uploadInstructionSet.TransitOptions.Recipients, false);
 
-            await fileSystemWriter.StartUpload(uploadInstructionSet, WebOdinContext);
+            var driveId = uploadInstructionSet.StorageOptions.Drive.Alias;
+            await fileSystemWriter.StartUpload(driveId, uploadInstructionSet, WebOdinContext);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
