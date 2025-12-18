@@ -437,7 +437,7 @@ namespace JsonLd.Normalization
                 // handle @version
                 if (ctxObj.TryGetValue("@version", out var versionProp))
                 {
-                    if ((versionProp.ToString() != "1.1") && (versionProp.ToString() != "1,1")) // Regional
+                    if (versionProp.ToString() != "1.1")
                         throw new JsonLdParseException($"Unsupported JSON-LD version: {versionProp}");
 
                     //if (activeCtx.processingMode && activeCtx.processingMode === 'json-ld-1.0')
