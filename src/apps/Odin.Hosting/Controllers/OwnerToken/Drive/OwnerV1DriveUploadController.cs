@@ -5,6 +5,7 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -15,15 +16,17 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
     [ApiExplorerSettings(GroupName = "owner-v1")]
-    public class OwnerV1DriveUploadController(ILogger<OwnerV1DriveUploadController> logger, DriveManager driveManager) :
-        V1DriveUploadControllerBase(logger,driveManager)
+    public class OwnerV1DriveUploadController(
+        ILogger<OwnerV1DriveUploadController> logger,
+        DriveManager driveManager,
+        FileSystemResolver fileSystemResolver) : V1DriveUploadControllerBase(logger, driveManager, fileSystemResolver)
     {
         /// <summary/>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
         public async Task<UploadResult> Upload()
         {
-            return await base.ReceiveNewFileStream( );
+            return await base.ReceiveNewFileStream();
         }
 
         /// <summary>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -13,8 +14,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
     [Route(UnifiedApiRouteConstants.DrivesRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveUploadController(ILogger<V2DriveUploadController> logger, DriveManager driveManager)
-        : V1DriveUploadControllerBase(logger, driveManager)
+    public class V2DriveUploadController(ILogger<V2DriveUploadController> logger, DriveManager driveManager, FileSystemResolver fileSystemResolver)
+        : V1DriveUploadControllerBase(logger, driveManager, fileSystemResolver)
     {
         /// <summary>
         /// Uploads a new file to the drive using multipart form data

@@ -215,9 +215,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
-            var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId, GetFileSystemType());
+            var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId);
 
             if (null == record)
+            {
+                return null;
+            }
+            
+            if (record.fileSystemType != (int)GetFileSystemType())
             {
                 return null;
             }
@@ -252,9 +257,14 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
-            var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId, GetFileSystemType());
+            var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId);
 
             if (null == record)
+            {
+                return null;
+            }
+            
+            if (record.fileSystemType != (int)GetFileSystemType())
             {
                 return null;
             }
@@ -445,9 +455,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(driveId, odinContext);
 
-            var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId, GetFileSystemType());
+            var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId);
 
             if (null == record)
+            {
+                return null;
+            }
+            
+            if (record.fileSystemType != (int)GetFileSystemType())
             {
                 return null;
             }

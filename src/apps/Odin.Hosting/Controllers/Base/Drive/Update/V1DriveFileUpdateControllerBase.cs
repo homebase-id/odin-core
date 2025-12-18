@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.Management;
@@ -15,7 +16,8 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 {
     /// <summary />
     [ApiController]
-    public abstract class V1DriveFileUpdateControllerBase(ILogger logger, DriveManager driveManager) : V1DriveUploadControllerBase(logger, driveManager)
+    public abstract class V1DriveFileUpdateControllerBase(ILogger logger, DriveManager driveManager, FileSystemResolver fileSystemResolver)
+        : V1DriveUploadControllerBase(logger, driveManager, fileSystemResolver)
     {
         private readonly ILogger _logger = logger;
 
