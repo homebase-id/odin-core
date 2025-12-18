@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -39,6 +40,9 @@ namespace Odin.Hosting
     {
         public static int Main(string[] args)
         {
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
             var (didHandle, exitCode) = CommandLine.HandleCommandLineArgs(args);
             if (didHandle)
             {
