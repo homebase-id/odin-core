@@ -774,14 +774,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get3Command = cn.CreateCommand();
             {
-                // get3Command.CommandText = "SELECT rowId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
-                //                              "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1 "+
-                //                              ";";
-                
                 get3Command.CommandText = "SELECT rowId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
-                                          "WHERE identityId = @identityId AND driveId = @driveId LIMIT 1 "+
-                                          ";";
-
+                                             "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1 "+
+                                             ";";
+                
                 get3Command.AddParameter("@identityId", DbType.Binary, identityId);
                 get3Command.AddParameter("@driveId", DbType.Binary, driveId);
                 get3Command.AddParameter("@globalTransitId", DbType.Binary, globalTransitId);
