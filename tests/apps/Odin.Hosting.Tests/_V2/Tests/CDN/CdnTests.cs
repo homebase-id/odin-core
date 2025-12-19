@@ -12,7 +12,6 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -127,16 +126,16 @@ public class CdnTests
             // payload is not encrypted
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted,
                 out var isEncryptedValues));
-            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues!.Single()));
 
             // payload key is in http header
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            ClassicAssert.IsTrue(payloadKeyValues.Single() == payload.Key);
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == payload.Key);
 
             // content type is given
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType,
                 out var contentTypeValues));
-            ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == payload.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
             getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var values);
@@ -200,13 +199,13 @@ public class CdnTests
 
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
-            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            ClassicAssert.IsTrue(payloadKeyValues.Single() == payload.Key);
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == payload.Key);
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == payload.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
             getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var values);
@@ -311,13 +310,13 @@ public class CdnTests
 
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
-            ClassicAssert.IsTrue(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsTrue(bool.Parse(isEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            ClassicAssert.IsTrue(payloadKeyValues.Single() == payload.Key);
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == payload.Key);
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == payload.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
             getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, out var values);
@@ -352,9 +351,8 @@ public class CdnTests
             //
 
             var thumbnail = payload.Thumbnails.Single();
-            var getThumbnailResponse = await client.GetThumbnailAsync(uploadResult.DriveId, uploadResult.FileId, thumbnail.PixelWidth,
-                thumbnail.PixelHeight, payload.Key,
-                directMatchOnly: true);
+            var getThumbnailResponse = await client.GetThumbnailAsync(uploadResult.DriveId, uploadResult.FileId,payload.Key,
+                thumbnail.PixelWidth, thumbnail.PixelHeight, directMatchOnly: true);
 
             ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.OK,
                 $"get thumbnail failed - code was {getThumbnailResponse.StatusCode}");
@@ -370,11 +368,11 @@ public class CdnTests
 
             ClassicAssert.IsTrue(
                 getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var thumbnailIsEncryptedValues));
-            ClassicAssert.IsTrue(bool.Parse(thumbnailIsEncryptedValues.Single()));
+            ClassicAssert.IsTrue(bool.Parse(thumbnailIsEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType,
                 out var thumbnailContentTypeValues));
-            ClassicAssert.IsTrue(thumbnailContentTypeValues.Single() == thumbnail.ContentType);
+            ClassicAssert.IsTrue(thumbnailContentTypeValues!.Single() == thumbnail.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
             getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,

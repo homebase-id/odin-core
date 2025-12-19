@@ -4,7 +4,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
@@ -30,11 +29,10 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeader(
             [FromRoute] Guid driveId,
-            [FromRoute] Guid fileId,
-            [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
+            [FromRoute] Guid fileId)
         {
             logger.LogDebug("V2 call to get file header");
-            var storage = this.GetHttpFileSystemResolver().ResolveFileSystem(fileSystemType).Storage;
+            var storage = this.GetHttpFileSystemResolver().ResolveFileSystem().Storage;
             var file = new InternalDriveFileId()
             {
                 FileId = fileId,
@@ -51,46 +49,50 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return new JsonResult(result);
         }
 
-        [HttpGet("payload")]
+        // Full payload (optional query range)
+        [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetPayload(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
-            [FromQuery] string key,
-            [FromQuery] int? start,
-            [FromQuery] int? length,
-            [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
+            [FromRoute] string payloadKey)
         {
             logger.LogDebug("V2 call to get file payload");
 
-            var file = new InternalDriveFileId()
-            {
-                FileId = fileId,
-                DriveId = driveId
-            };
-
-            FileChunk chunk = this.GetChunk(start == 0 ? null : start, length == 0 ? null : length);
-            var payload = await GetPayloadStream(file, key, chunk, fileSystemType);
-
-            if (WebOdinContext.Caller.IsAnonymous)
-            {
-                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
-            }
-
-            return payload;
+            return await GetPayloadInternal(
+                driveId,
+                fileId,
+                payloadKey);
         }
 
-        [HttpGet("thumb")]
-        [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
+        // Ranged payload (route-based)
+        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        public Task<IActionResult> GetPayload(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId,
+            [FromRoute] string payloadKey,
+            [FromRoute] int start,
+            [FromRoute] int length)
+        {
+            FileChunk chunk = GetChunk(start, length);
+
+            return GetPayloadInternal(
+                driveId,
+                fileId,
+                payloadKey,
+                chunk);
+        }
+
+        [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetThumbnail(
-            [FromRoute]Guid driveId,
-            [FromRoute]Guid fileId,
-            [FromQuery] int width,
-            [FromQuery] int height,
-            [FromQuery] string payloadKey,
-            [FromQuery] bool directMatchOnly,
-            [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId,
+            [FromRoute] string payloadKey,
+            [FromRoute] int width,
+            [FromRoute] int height,
+            [FromQuery] bool directMatchOnly)
         {
             logger.LogDebug("V2 call to get file thumb");
 
@@ -100,15 +102,37 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 DriveId = driveId
             };
 
-            return await GetThumbnail(file, width, height, payloadKey, directMatchOnly, fileSystemType);
+            return await GetThumbnailInternal(file, width, height, payloadKey, directMatchOnly);
+        }
+        
+        [HttpGet("payload/{payloadKey}/thumb")]
+        [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        public async Task<IActionResult> GetThumbnail(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId,
+            [FromRoute] string payloadKey,
+            [FromQuery] int? width,
+            [FromQuery] int? height,
+            [FromQuery] bool? directMatchOnly)
+        {
+            logger.LogDebug("V2 call to get file thumb");
+
+            var file = new InternalDriveFileId()
+            {
+                FileId = fileId,
+                DriveId = driveId
+            };
+
+            return await GetThumbnailInternal(file, width.GetValueOrDefault(), height.GetValueOrDefault(), payloadKey, 
+                directMatchOnly.GetValueOrDefault());
         }
 
         [HttpGet("transfer-history")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<FileTransferHistoryResponse> GetFileTransferHistory(
-            [FromRoute]Guid driveId,
-            [FromRoute]Guid fileId,
-            [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId)
         {
             WebOdinContext.Caller.AssertCallerIsOwner();
 
@@ -118,7 +142,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 DriveId = driveId
             };
 
-            var storage = GetHttpFileSystemResolver().ResolveFileSystem(fileSystemType).Storage;
+            var storage = GetHttpFileSystemResolver().ResolveFileSystem().Storage;
             var (count, history) = await storage.GetTransferHistory(file, WebOdinContext);
             if (history == null)
             {
@@ -131,6 +155,32 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 OriginalRecipientCount = count,
                 History = history
             };
+        }
+
+        private async Task<IActionResult> GetPayloadInternal(
+            Guid driveId,
+            Guid fileId,
+            string key,
+            FileChunk chunk = null)
+        {
+            var file = new InternalDriveFileId
+            {
+                DriveId = driveId,
+                FileId = fileId
+            };
+
+
+            var payload = await GetPayloadStream(
+                file,
+                key,
+                chunk);
+
+            if (WebOdinContext.Caller.IsAnonymous)
+            {
+                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
+            }
+
+            return payload;
         }
     }
 }

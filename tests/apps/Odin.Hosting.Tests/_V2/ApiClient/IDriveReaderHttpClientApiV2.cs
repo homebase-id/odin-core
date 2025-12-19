@@ -17,13 +17,34 @@ public interface IDriveReaderHttpClientApiV2
     Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("fileId:guid")] Guid fileId, FileSystemType fileSystemType);
 
-    [Get(Endpoint + "/payload")]
-    Task<ApiResponse<HttpContent>> GetPayload([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId, string key,
-        int start, int length, FileSystemType fileSystemType);
+    [Get(Endpoint + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    Task<ApiResponse<HttpContent>> GetPayload([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey,
+        [AliasAs("start:int")] int start,
+        [AliasAs("length:int")] int length,
+        FileSystemType fileSystemType);
 
-    [Get(Endpoint + "/thumb")]
-    Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId,
-        string payloadKey, int width, int height, bool directMatchOnly, FileSystemType fileSystemType);
+
+    [Get(Endpoint + "/payload/{payloadKey}")]
+    Task<ApiResponse<HttpContent>> GetPayload([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey,
+        FileSystemType fileSystemType);
+
+    [Get(Endpoint + "/payload/{payloadKey}/thumb")]
+    Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey,
+        int? width,
+        int? height,
+        bool? directMatchOnly,
+        FileSystemType fileSystemType);
+
+    [Get(Endpoint + "/payload/{payloadKey}/thumb/{width}/{height}")]
+    Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey,
+        [AliasAs("width")] int width,
+        [AliasAs("height")] int height,
+        bool directMatchOnly,
+        FileSystemType fileSystemType);
 
     [Get(Endpoint + "/transfer-history")]
     Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory([AliasAs("driveId:guid")] Guid driveId,

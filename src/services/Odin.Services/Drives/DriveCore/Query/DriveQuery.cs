@@ -466,37 +466,16 @@ public class DriveQuery(
         return (count, size);
     }
 
-    public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType)
+    public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId)
     {
         var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
-        if (null == record)
-        {
-            return null;
-        }
-
-        if (record.fileSystemType == (int)fileSystemType)
-        {
-            return record;
-        }
-
-        return null;
+        return record;
     }
 
-    public async Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId, FileSystemType fileSystemType)
+    public async Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId)
     {
         var record = await tblDriveMainIndex.GetByUniqueIdAsync(driveId, uniqueId);
-
-        if (null == record)
-        {
-            return null;
-        }
-
-        if (record.fileSystemType == (int)fileSystemType)
-        {
-            return record;
-        }
-
-        return null;
+        return record;
     }
 
 /*

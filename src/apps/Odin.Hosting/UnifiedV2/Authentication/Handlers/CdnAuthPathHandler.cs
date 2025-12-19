@@ -24,38 +24,30 @@ public class CdnAuthPathHandler : IAuthPathHandler
         UnifiedApiRouteConstants.DrivesRoot
     ];
 
-    static readonly List<string> AllowedSuffixes =
-    [
-        "/payload",
-        "/thumb"
-    ];
-
     private static bool IsValidPath(HttpContext context)
     {
         var path = context.Request.Path.Value ?? string.Empty;
 
-        bool prefixAllowed = false;
         foreach (var prefix in AllowedPrefixes)
         {
-            if (path.StartsWith(prefix))
-            {
-                prefixAllowed = true;
-                break;
-            }
-        }
+            if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
 
-        if (!prefixAllowed)
-        {
-            return false;
-        }
-
-        foreach (var suffix in AllowedSuffixes)
-        {
-            if (path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ||
-                path.Contains($"{suffix}.", StringComparison.OrdinalIgnoreCase))
+            // payload segment (covers ranged + thumb variants)
+            if (path.Contains("/payload/", StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith("/payload", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
+
+            // explicit thumbnail handling
+            if (path.EndsWith("/thumb", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("/thumb.", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         return false;

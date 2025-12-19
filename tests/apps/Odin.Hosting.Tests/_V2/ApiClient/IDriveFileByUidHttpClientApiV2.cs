@@ -2,9 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Storage;
-using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Read;
 using Odin.Services.Apps;
 using Refit;
@@ -16,13 +14,27 @@ public interface IDriveFileByUidHttpClientApiV2
     private const string Endpoint = $"{UnifiedApiRouteConstants.FilesRoot}/{V2DriveFileReadonlyByUidController.ByUniqueId}";
 
     [Get(Endpoint + "/header")]
-    Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
+    Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueId([AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("uid:guid")] Guid uid,
         FileSystemType fileSystemType);
 
-    [Get(Endpoint + "/payload")]
-    Task<ApiResponse<HttpContent>> GetPayload([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid, string key, int start, int length, FileSystemType fileSystemType);
+    [Get(Endpoint + "/payload/{payloadKey}/{start:int}/{length:int}")]
+    Task<ApiResponse<HttpContent>> GetPayloadByUniqueId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey,
+        [AliasAs("start:int")] int start,
+        [AliasAs("length:int")] int length, 
+        FileSystemType fileSystemType);
+    
+    [Get(Endpoint + "/payload/{payloadKey}")]
+    Task<ApiResponse<HttpContent>> GetPayloadByUniqueId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey,
+        FileSystemType fileSystemType);
 
-    [Get(Endpoint + "/thumb")]
-    Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid, string payloadKey, int width, int height, bool directMatchOnly,
+    [Get(Endpoint + "/payload/{payloadKey}/thumb")]
+    Task<ApiResponse<HttpContent>> GetThumbnailByUniqueId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey, 
+        int width, 
+        int height, 
+        bool directMatchOnly,
         FileSystemType fileSystemType);
 }

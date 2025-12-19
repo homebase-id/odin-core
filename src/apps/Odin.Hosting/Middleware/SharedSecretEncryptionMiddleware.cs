@@ -218,8 +218,8 @@ namespace Odin.Hosting.Middleware
                 }
                 else
                 {
-                    var decryptedBytes =
-                        await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context), context.RequestAborted);
+                    var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context),
+                        context.RequestAborted);
 
                     //update the body with the decrypted json file so it can be read down stream as expected
                     request.Body = new MemoryStream(decryptedBytes);
@@ -300,7 +300,7 @@ namespace Odin.Hosting.Middleware
             {
                 return false;
             }
-            
+
             if (context.Request.Method.ToUpper() == "POST")
             {
                 if (context.Request.Headers.ContentLength == 0)
@@ -371,27 +371,21 @@ namespace Odin.Hosting.Middleware
             return false;
         }
 
-
-        private bool HasThumbnailExtension(string path, string suffix)
-        {
-            // Handles /thumb.png /thumb.jpeg /thumb.webp etc.
-            if (!path.Contains(suffix + ".", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            // e.g. "/thumb.png" length = 5 extra
-            return true;
-        }
-
         private static bool IsPayloadOrThumbnail(string path)
         {
-            foreach (var suffix in IgnoredSuffixes)
-            {
-                if (path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                    return true;
+            if (string.IsNullOrEmpty(path))
+                return false;
 
-                if (path.Contains(suffix + ".", StringComparison.OrdinalIgnoreCase)) // thumb.png, thumb.webp, etc.
-                    return true;
-            }
+            // Normalize once
+            path = path.ToLowerInvariant();
+
+            // Any payload route (covers all variants, by-id, by-uid, ranged, etc.)
+            if (path.Contains("/payload/") || path.EndsWith("/payload"))
+                return true;
+
+            // Explicit thumbnail routes
+            if (path.EndsWith("/thumb") || path.Contains("/thumb."))
+                return true;
 
             return false;
         }

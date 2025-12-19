@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Core.Storage;
+using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Update;
@@ -21,7 +23,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
     /// <summary>
     /// Base API Controller for uploading multipart streams
     /// </summary>
-    public abstract class V1DriveUploadControllerBase(ILogger logger, DriveManager driveManager) : OdinControllerBase
+    public abstract class V1DriveUploadControllerBase(ILogger logger, DriveManager driveManager, FileSystemResolver fileSystemResolver)
+        : OdinControllerBase
     {
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
@@ -57,8 +60,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         protected async Task<FileUpdateResult> ReceiveFileUpdate()
         {
-            var fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
-            var updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
+            FileSystemType fileSystemType;
+            FileSystemUpdateWriterBase updateWriter = null;
 
             try
             {
@@ -82,9 +85,19 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     OdinValidationUtils.AssertNotEmptyGuid(instructionSet.File.DriveId, "Version 2 requires DriveId to be set");
                     var theDrive = await driveManager.GetDriveAsync(instructionSet.File.DriveId);
                     instructionSet.File.TargetDrive = theDrive!.TargetDriveInfo;
+
+                    var fileIdentifier = instructionSet.File;
+                    var fs = await fileSystemResolver.ResolveFileSystem(fileIdentifier, WebOdinContext);
+                    updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
+                    fileSystemType = fs.Storage.GetFileSystemType();
+                }
+                else
+                {
+                    // old way
+                    fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
+                    updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
                 }
                 
-               
                 await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
                 //
@@ -258,6 +271,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
         {
+            if (section == null)
+            {
+                throw new OdinClientException($"Missing {expectedPart.ToString()} section");
+            }
+
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) ||
                 part != expectedPart)
             {

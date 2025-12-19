@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Hosting.Controllers.Base.Transit;
+using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 
 namespace Odin.Hosting.Controllers.OwnerToken.Transit
@@ -16,8 +17,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
     {
         public OwnerPeerSenderController(
             ILogger<OwnerPeerSenderController> logger,
-            PeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager) : base(logger, peerOutgoingTransferService,
-            driveManager)
+            PeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager, FileSystemResolver fileSystemResolver) 
+            : base(logger, peerOutgoingTransferService, driveManager, fileSystemResolver)
         {
         }
     }

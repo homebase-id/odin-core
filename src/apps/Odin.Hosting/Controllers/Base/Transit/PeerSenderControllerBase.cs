@@ -13,6 +13,7 @@ using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Odin.Hosting.Controllers.Base.Drive;
+using Odin.Services.Base;
 using Odin.Services.Drives.Management;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -26,8 +27,8 @@ namespace Odin.Hosting.Controllers.Base.Transit
     /// </remarks>
     public abstract class PeerSenderControllerBase(
         ILogger<PeerSenderControllerBase> logger,
-        PeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager)
-        : V1DriveUploadControllerBase(logger, driveManager)
+        PeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager, FileSystemResolver fileSystemResolver)
+        : V1DriveUploadControllerBase(logger, driveManager, fileSystemResolver)
     {
         /// <summary>
         /// Uploads a file using multi-part form data

@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
 using Odin.Services.Drives;
@@ -100,15 +99,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
-            var fst = this.GetHttpFileSystemResolver().GetFileSystemType();
-            return await GetPayloadStream(MapToInternalFile(request.File), request.Key, request.Chunk, fst);
+            return await GetPayloadStream(MapToInternalFile(request.File), request.Key, request.Chunk);
         }
 
-        protected async Task<IActionResult> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk, FileSystemType fst)
+        protected async Task<IActionResult> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
         {
             TenantPathManager.AssertValidPayloadKey(key);
 
-            var fs = GetHttpFileSystemResolver().ResolveFileSystem(fst);
+            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeader, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, key, WebOdinContext);
@@ -145,22 +143,35 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader?.ToBase64());
             }
 
-            if (null != chunk)
+            if (chunk != null)
             {
-                var payloadSize = header.FileMetadata.Payloads.SingleOrDefault(p => p.KeyEquals(key))?.BytesWritten ??
-                                  throw new OdinSystemException("Invalid payload key");
+                var payloadSize =
+                    header.FileMetadata.Payloads
+                        .SingleOrDefault(p => p.KeyEquals(key))
+                        ?.BytesWritten
+                    ?? throw new OdinClientException("Invalid payload key");
 
-                var to = chunk.Length == int.MaxValue ? payloadSize - 1 : chunk.Start + chunk.Length - 1;
+                var to = chunk.Length == int.MaxValue
+                    ? payloadSize - 1
+                    : chunk.Start + chunk.Length - 1;
 
                 // Sanity
-                if (to >= payloadSize)
+                if (to < chunk.Start)
                 {
-                    throw new RequestedRangeNotSatisfiableException($"{to} >= {payloadSize}");
+                    throw new OdinClientException(
+                        $"Invalid byte range: start={chunk.Start}, length={chunk.Length}");
                 }
 
-                HttpContext.Response.Headers.Append("Content-Range",
-                    new ContentRangeHeaderValue(chunk.Start, to, payloadSize)
-                        .ToString());
+                if (to >= payloadSize)
+                {
+                    throw new RequestedRangeNotSatisfiableException(
+                        $"{to} >= {payloadSize}");
+                }
+
+                HttpContext.Response.Headers.Append(
+                    "Content-Range",
+                    new ContentRangeHeaderValue(chunk.Start, to, payloadSize).ToString()
+                );
             }
 
             AddGuestApiCacheHeader();
@@ -175,21 +186,19 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
-            var fst = this.GetHttpFileSystemResolver().GetFileSystemType();
-            return await GetThumbnail(MapToInternalFile(request.File),
+            return await GetThumbnailInternal(MapToInternalFile(request.File),
                 request.Width,
                 request.Height,
                 request.PayloadKey,
-                request.DirectMatchOnly,
-                fst);
+                request.DirectMatchOnly);
         }
 
-        protected async Task<IActionResult> GetThumbnail(InternalDriveFileId file, int width, int height, string payloadKey,
-            bool directMatchOnly, FileSystemType fst)
+        protected async Task<IActionResult> GetThumbnailInternal(InternalDriveFileId file, int width, int height, string payloadKey,
+            bool directMatchOnly)
         {
             TenantPathManager.AssertValidPayloadKey(payloadKey);
 
-            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem(fst);
+            var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
             var (header, payloadDescriptor, encryptedKeyHeaderForPayload, fileExists) =
                 await fs.Storage.GetPayloadSharedSecretEncryptedKeyHeaderAsync(file, payloadKey, WebOdinContext);
