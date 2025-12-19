@@ -165,6 +165,8 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             AddGuestApiCacheHeader();
 
+            Console.WriteLine($"XXXXXXXXXXXXXXXXXXXXXXXX payload size {payloadStream.Stream.Length}");
+
             var result = new FileStreamResult(payloadStream.Stream, payloadStream.ContentType);
 
             return result;

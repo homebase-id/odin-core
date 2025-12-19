@@ -258,6 +258,8 @@ namespace Odin.Hosting.Middleware
 
             var key = this.GetSharedSecret(context);
             var responseBytes = context.Response.Body.ToByteArray();
+            _logger.LogDebug("XXXXXXXXXXXXXX plain size {ResponseBytesLength}", responseBytes.Length);
+
             var finalBytes = JsonSerializer.SerializeToUtf8Bytes(
                 SharedSecretEncryptedPayload.Encrypt(responseBytes, key),
                 typeof(SharedSecretEncryptedPayload),
@@ -267,6 +269,8 @@ namespace Odin.Hosting.Middleware
             context.Response.Headers.ContentType = "application/json";
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
+
+            _logger.LogDebug("XXXXXXXXXXXXX cipher size {FinalBytesLength}", finalBytes.Length);
 
             context.Response.Body = originalBody;
         }

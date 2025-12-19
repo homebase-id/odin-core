@@ -134,6 +134,66 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
                 });
         }
 
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpGet("files/payload/{alias:guid}/{type:guid}/{fileId:guid}/{key}")]
+        public async Task<IActionResult> GetPayloadAsGetRequestX(
+            [FromRoute] Guid alias,
+            [FromRoute] Guid type,
+            [FromRoute] Guid fileId,
+            [FromRoute] string key,
+            [FromQuery] int? chunkStart,
+            [FromQuery] int? chunkLength)
+        {
+            FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
+
+            return await base.GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Key = key,
+                    Chunk = chunk
+                });
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpGet("files/payload/{alias:guid}/{type:guid}/{fileId:guid}/{key}/{chunkStart:int}/{chunkLength:int}")]
+        public async Task<IActionResult> GetPayloadAsGetRequestY(
+            [FromRoute] Guid alias,
+            [FromRoute] Guid type,
+            [FromRoute] Guid fileId,
+            [FromRoute] string key,
+            [FromRoute] int chunkStart,
+            [FromRoute] int chunkLength)
+        {
+            FileChunk chunk = this.GetChunk(chunkStart, chunkLength);
+
+            return await base.GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Key = key,
+                    Chunk = chunk
+                });
+        }
+
+
         /// <summary>
         /// Returns the thumbnail matching the width and height.  Note: you should get the content type from the file header
         /// </summary>

@@ -74,8 +74,39 @@ namespace Odin.Hosting.UnifiedV2.Drive
                 HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
             }
 
+
+
             return payload;
         }
+
+        [HttpGet(UnifiedApiRouteConstants.ByFileId + "/payloads/{payloadKey}")]
+        public async Task<IActionResult> GetPayload2(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId,
+            [FromRoute] string payloadKey,
+            [FromQuery] int? start,
+            [FromQuery] int? length,
+            [FromQuery] FileSystemType fileSystemType = FileSystemType.Standard)
+        {
+            logger.LogDebug("V2 call to get file payload");
+
+            var file = new InternalDriveFileId()
+            {
+                FileId = fileId,
+                DriveId = driveId
+            };
+
+            FileChunk chunk = this.GetChunk(start == 0 ? null : start, length == 0 ? null : length);
+            var payload = await GetPayloadStream(file, payloadKey, chunk, fileSystemType);
+
+            if (WebOdinContext.Caller.IsAnonymous)
+            {
+                HttpContext.Response.Headers.TryAdd("Access-Control-Allow-Origin", "*");
+            }
+
+            return payload;
+        }
+
 
         [HttpGet("thumb")]
         [HttpGet("thumb.{extension}")] // for link-preview support in signal/whatsapp
