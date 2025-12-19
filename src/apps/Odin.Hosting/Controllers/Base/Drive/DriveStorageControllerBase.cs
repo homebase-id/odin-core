@@ -186,14 +186,14 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
-            return await GetThumbnail(MapToInternalFile(request.File),
+            return await GetThumbnailInternal(MapToInternalFile(request.File),
                 request.Width,
                 request.Height,
                 request.PayloadKey,
                 request.DirectMatchOnly);
         }
 
-        protected async Task<IActionResult> GetThumbnail(InternalDriveFileId file, int width, int height, string payloadKey,
+        protected async Task<IActionResult> GetThumbnailInternal(InternalDriveFileId file, int width, int height, string payloadKey,
             bool directMatchOnly)
         {
             TenantPathManager.AssertValidPayloadKey(payloadKey);

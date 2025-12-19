@@ -12,7 +12,6 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -138,13 +137,13 @@ public class GetFileTests
 
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var isEncryptedValues));
-            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues.Single()));
+            ClassicAssert.IsFalse(bool.Parse(isEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.PayloadKey, out var payloadKeyValues));
-            ClassicAssert.IsTrue(payloadKeyValues.Single() == payload.Key);
+            ClassicAssert.IsTrue(payloadKeyValues!.Single() == payload.Key);
             ClassicAssert.IsTrue(
                 getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType, out var contentTypeValues));
-            ClassicAssert.IsTrue(contentTypeValues.Single() == payload.ContentType);
+            ClassicAssert.IsTrue(contentTypeValues!.Single() == payload.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
             getPayloadKey1Response.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
@@ -166,8 +165,8 @@ public class GetFileTests
             //
 
             var thumbnail = payload.Thumbnails.Single();
-            var getThumbnailResponse = await client.GetThumbnailAsync(file.DriveId, file.FileId, thumbnail.PixelWidth, thumbnail.PixelHeight, payload.Key,
-                directMatchOnly: true);
+            var getThumbnailResponse = await client.GetThumbnailAsync(file.DriveId, file.FileId, payload.Key, 
+                thumbnail.PixelWidth, thumbnail.PixelHeight, directMatchOnly: true);
 
             ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.OK,
                 $"get thumbnail failed - code was {getThumbnailResponse.StatusCode}");
@@ -183,11 +182,11 @@ public class GetFileTests
 
             ClassicAssert.IsTrue(
                 getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.PayloadEncrypted, out var thumbnailIsEncryptedValues));
-            ClassicAssert.IsFalse(bool.Parse(thumbnailIsEncryptedValues.Single()));
+            ClassicAssert.IsFalse(bool.Parse(thumbnailIsEncryptedValues!.Single()));
 
             ClassicAssert.IsTrue(getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.DecryptedContentType,
                 out var thumbnailContentTypeValues));
-            ClassicAssert.IsTrue(thumbnailContentTypeValues.Single() == thumbnail.ContentType);
+            ClassicAssert.IsTrue(thumbnailContentTypeValues!.Single() == thumbnail.ContentType);
 
             // Assert: header must not exist, or if it does, must be empty/null
             getThumbnailResponse.Headers.TryGetValues(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
@@ -200,6 +199,13 @@ public class GetFileTests
             ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getThumbnailResponse.ContentHeaders,
                 out var thumbnailLastModifiedHeaderValue));
 
+            
+            // get the thumbnail w/o width and height
+            var getThumbnailResponse2 = await client.GetThumbnailAsync(file.DriveId, file.FileId, payload.Key);
+            ClassicAssert.IsTrue(getThumbnailResponse2.StatusCode == HttpStatusCode.OK,
+                $"get thumbnail failed - code was {getThumbnailResponse2.StatusCode}");
+
+            
             //Note commented as I'm having some conversion issues i think
             ClassicAssert.IsTrue(thumbnailLastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
         }
@@ -462,7 +468,7 @@ public class GetFileTests
         var unencryptedThumbnail = unencryptedPayload.Thumbnails.Single();
 
         var keyHeader = KeyHeader.NewRandom16();
-        var (uploadResult, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) =
+        var (uploadResult, encryptedJsonContent64, _, _) =
             await UploadEncryptedFile(identity, metadata, unencryptedPayload, keyHeader, callerContext);
 
         await callerContext.Initialize(ownerApiClient);

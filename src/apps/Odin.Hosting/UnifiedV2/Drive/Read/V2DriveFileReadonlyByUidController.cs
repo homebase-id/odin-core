@@ -87,7 +87,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             }
 
             var file = new InternalDriveFileId(driveId, header.FileId);
-            return await GetThumbnail(file, width, height, payloadKey, directMatchOnly);
+            return await GetThumbnailInternal(file, width, height, payloadKey, directMatchOnly);
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileHeaderByUniqueIdInternal(Guid clientUniqueId, Guid driveId)

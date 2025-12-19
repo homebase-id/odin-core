@@ -84,15 +84,14 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 chunk);
         }
 
-        [HttpGet("payload/{payloadKey}/thumb")]
-        [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
+        [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetThumbnail(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
             [FromRoute] string payloadKey,
-            [FromQuery] int width,
-            [FromQuery] int height,
+            [FromRoute] int width,
+            [FromRoute] int height,
             [FromQuery] bool directMatchOnly)
         {
             logger.LogDebug("V2 call to get file thumb");
@@ -103,7 +102,30 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 DriveId = driveId
             };
 
-            return await GetThumbnail(file, width, height, payloadKey, directMatchOnly);
+            return await GetThumbnailInternal(file, width, height, payloadKey, directMatchOnly);
+        }
+        
+        [HttpGet("payload/{payloadKey}/thumb")]
+        [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
+        [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        public async Task<IActionResult> GetThumbnail(
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid fileId,
+            [FromRoute] string payloadKey,
+            [FromQuery] int? width,
+            [FromQuery] int? height,
+            [FromQuery] bool? directMatchOnly)
+        {
+            logger.LogDebug("V2 call to get file thumb");
+
+            var file = new InternalDriveFileId()
+            {
+                FileId = fileId,
+                DriveId = driveId
+            };
+
+            return await GetThumbnailInternal(file, width.GetValueOrDefault(), height.GetValueOrDefault(), payloadKey, 
+                directMatchOnly.GetValueOrDefault());
         }
 
         [HttpGet("transfer-history")]

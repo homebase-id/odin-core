@@ -162,7 +162,7 @@ public class DirectDriveGeneralFileTestsV2
                 foreach (var thumbnail in definition.Thumbnails)
                 {
                     var getThumbnailResponse = await v2Owner.DriveReader.GetThumbnailAsync(uploadResult.DriveId, uploadResult.FileId,
-                        thumbnail.PixelWidth, thumbnail.PixelHeight, definition.Key);
+                        definition.Key, thumbnail.PixelWidth, thumbnail.PixelHeight);
 
                     ClassicAssert.IsTrue(getThumbnailResponse.IsSuccessStatusCode);
                     ClassicAssert.IsTrue(getThumbnailResponse.ContentHeaders!.LastModified.HasValue);

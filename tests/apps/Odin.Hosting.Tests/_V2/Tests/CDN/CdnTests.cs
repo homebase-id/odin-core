@@ -351,9 +351,8 @@ public class CdnTests
             //
 
             var thumbnail = payload.Thumbnails.Single();
-            var getThumbnailResponse = await client.GetThumbnailAsync(uploadResult.DriveId, uploadResult.FileId, thumbnail.PixelWidth,
-                thumbnail.PixelHeight, payload.Key,
-                directMatchOnly: true);
+            var getThumbnailResponse = await client.GetThumbnailAsync(uploadResult.DriveId, uploadResult.FileId,payload.Key,
+                thumbnail.PixelWidth, thumbnail.PixelHeight, directMatchOnly: true);
 
             ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.OK,
                 $"get thumbnail failed - code was {getThumbnailResponse.StatusCode}");

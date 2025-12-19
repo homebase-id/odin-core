@@ -33,8 +33,16 @@ public interface IDriveReaderHttpClientApiV2
     [Get(Endpoint + "/payload/{payloadKey}/thumb")]
     Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,
         [AliasAs("payloadKey")] string payloadKey,
-        int width,
-        int height,
+        int? width,
+        int? height,
+        bool? directMatchOnly,
+        FileSystemType fileSystemType);
+
+    [Get(Endpoint + "/payload/{payloadKey}/thumb/{width}/{height}")]
+    Task<ApiResponse<HttpContent>> GetThumbnail([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid uid,
+        [AliasAs("payloadKey")] string payloadKey,
+        [AliasAs("width")] int width,
+        [AliasAs("height")] int height,
         bool directMatchOnly,
         FileSystemType fileSystemType);
 
