@@ -7,7 +7,7 @@ public class FileQueryParamsV1 : FileQueryParams
 {
     public TargetDrive TargetDrive { get; set; }
 
-    public Guid DriveId => TargetDrive.Alias;
+    public Guid DriveId => TargetDrive?.Alias ?? Guid.Empty;
 
     public void AssertIsValid()
     {
