@@ -105,7 +105,7 @@ namespace Odin.Services.Base
             };
         }
 
-        private string DebugDisplay => $"{Caller.OdinId} is calling {Tenant} with security {Caller.SecurityLevel}";
+        private string DebugDisplay => $"{Caller.OdinId} is calling {Tenant} with security {Caller.SecurityLevel} with client token Type: {Caller.ClientTokenType}";
     }
 
     public class RedactedOdinContext
