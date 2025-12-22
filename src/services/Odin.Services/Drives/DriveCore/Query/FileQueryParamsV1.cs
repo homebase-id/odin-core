@@ -27,13 +27,3 @@ public class FileQueryParamsV1 : FileQueryParams
         };
     }
 }
-
-public class FileQueryParamsV2 : FileQueryParams
-{
-    public Guid DriveId { get; init; }
-
-    public void AssertIsValid()
-    {
-        OdinValidationUtils.AssertNotEmptyGuid(DriveId, "driveId");
-    }
-}

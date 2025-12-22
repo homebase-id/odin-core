@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
@@ -27,7 +28,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             foreach (var section in request.Queries)
             {
                 section.AssertIsValid();
-                var theDrive = await driveManager.GetDriveAsync(section.QueryParams.DriveId);
+                var theDrive = await driveManager.GetDriveAsync(section.DriveId);
                 var qp = section.QueryParams;
                 var newSection = new CollectionQueryParamSection
                 {
@@ -70,14 +71,16 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     {
         public string Name { get; set; }
 
-        public FileQueryParamsV2 QueryParams { get; set; }
+        public Guid DriveId { get; init; }
+        
+        public FileQueryParams QueryParams { get; set; }
 
         public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
 
         public void AssertIsValid()
         {
             OdinValidationUtils.AssertNotNullOrEmpty(this.Name, nameof(this.Name));
-            QueryParams.AssertIsValid();
+            OdinValidationUtils.AssertNotEmptyGuid(DriveId, "driveId");
         }
     }
 }
