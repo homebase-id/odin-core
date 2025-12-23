@@ -14,6 +14,8 @@ namespace Odin.Services.Apps
 
         public TargetDrive TargetDrive { get; set; }
 
+        public Guid DriveId => this.TargetDrive.Alias;
+
         public FileState FileState { get; set; }
 
         public FileSystemType FileSystemType { get; set; }
