@@ -5,6 +5,8 @@ public static class SwaggerInfo
     // Authentication
     public const string Auth = "Auth";
 
+    public const string Health = "Health";
+
     // Drive-level status
     public const string DriveStatus = "Drive Status";
 

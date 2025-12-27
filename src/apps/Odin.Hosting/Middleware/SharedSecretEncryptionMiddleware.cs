@@ -92,7 +92,8 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstantsV1.AuthV1}/logout",
                 $"{AppApiPathConstantsV1.NotificationsV1}/preauth",
                 $"{AppApiPathConstantsV1.PeerNotificationsV1}/preauth",
-                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth"
+                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth",
+                $"{UnifiedApiRouteConstants.Health}/ping",
             ];
 
 

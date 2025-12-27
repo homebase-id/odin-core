@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
@@ -35,6 +36,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         : AuthenticationHandler<UnifiedAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
         private readonly OdinConfiguration _config;
+        private readonly ILogger<UnifiedAuthenticationHandler> _logger;
 
         private static readonly IAuthPathHandler OwnerHandler = new OwnerAuthPathHandler();
         private static readonly IAuthPathHandler GuestHandler = new GuestAuthPathHandler();
@@ -43,11 +45,12 @@ namespace Odin.Hosting.UnifiedV2.Authentication
         private static readonly IAuthPathHandler CdnHandler = new CdnAuthPathHandler();
 
         /// <summary/>
-        public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory logger,
-            UrlEncoder encoder, OdinConfiguration config)
-            : base(options, logger, encoder)
+        public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory loggerFactory,
+            UrlEncoder encoder, OdinConfiguration config,ILogger<UnifiedAuthenticationHandler> logger )
+            : base(options, loggerFactory, encoder)
         {
             _config = config;
+            _logger = logger;
         }
 
         /// <summary/>
@@ -149,9 +152,9 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             {
                 return AuthenticateResult.Fail("null claims");
             }
-            
+
             claims.Add(new Claim(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()));
-            
+
             claims.Add(new Claim(UnifiedClaimTypes.ClientTokenType,
                 UnifiedPolicies.AsClaimValue(token.ClientTokenType),
                 ClaimValueTypes.Integer32,
@@ -175,7 +178,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             return AuthenticateResult.Success(ticket);
         }
-        
+
         private bool TryFindClientAuthToken(out ClientAuthenticationToken clientAuthToken)
         {
             if (_config.Cdn.Enabled)
@@ -186,18 +189,18 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                     return true;
                 }
             }
-            
+
             if (TryGetClientAuthTokenFromCookie(this.Context, OwnerAuthConstants.CookieName, out clientAuthToken))
             {
                 return true;
             }
-            
+
             // app header preferred
             if (TryGetClientAuthTokenFromHeader(this.Context, out clientAuthToken))
             {
                 return true;
             }
-            
+
             if (TryGetClientAuthTokenFromCookie(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken))
             {
                 return true;
@@ -205,7 +208,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
             return TryGetClientAuthTokenFromCookie(this.Context, YouAuthDefaults.XTokenCookieName, out clientAuthToken);
         }
-        
+
         private static bool TryGetClientAuthTokenFromHeader(HttpContext context, out ClientAuthenticationToken clientAuthToken)
         {
             clientAuthToken = default!;
@@ -227,27 +230,25 @@ namespace Odin.Hosting.UnifiedV2.Authentication
             return ClientAuthenticationToken.TryParse(token, out clientAuthToken);
         }
 
-        private static bool TryGetClientAuthTokenFromCookie(HttpContext context, string cookieName, out ClientAuthenticationToken clientAuthToken)
+        private static bool TryGetClientAuthTokenFromCookie(HttpContext context, string cookieName,
+            out ClientAuthenticationToken clientAuthToken)
         {
-            var clientAccessTokenValue64 = string.Empty;
-            if (string.IsNullOrWhiteSpace(clientAccessTokenValue64))
-            {
-                clientAccessTokenValue64 = context.Request.Cookies[cookieName];
-            }
-
+            var clientAccessTokenValue64 = context.Request.Cookies[cookieName];
             return ClientAuthenticationToken.TryParse(clientAccessTokenValue64, out clientAuthToken);
         }
 
-        private static async Task<AuthenticateResult> CreateAnonResult(HttpContext httpContext, IOdinContext odinContext)
+        private async Task<AuthenticateResult> CreateAnonResult(HttpContext httpContext, IOdinContext odinContext)
         {
             var driveManager = httpContext.RequestServices.GetRequiredService<IDriveManager>();
             var anonymousDrives = await driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new OdinClientException(
-                    "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
-                    OdinClientErrorCode.NotInitialized);
+                _logger.LogWarning("No anonymous drives configured.  There should be at least one; be sure you " +
+                                   "accessed /owner to initialize them.");
+                // throw new OdinClientException(
+                //     "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                //     OdinClientErrorCode.NotInitialized);
             }
 
             var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
