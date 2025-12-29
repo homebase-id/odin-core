@@ -203,9 +203,9 @@ public class QueryBatchTests_Secured
         var q1 = new CollectionQueryParamSectionV2
         {
             Name = "q1",
-            QueryParams = new FileQueryParamsV2
+            DriveId = callerContext.TargetDrive.Alias,
+            QueryParams = new FileQueryParams
             {
-                DriveId = callerContext.TargetDrive.Alias,
                 FileType = [fileType1],
                 FileState = null,
                 DataType = null,
@@ -226,9 +226,9 @@ public class QueryBatchTests_Secured
         var q2 = new CollectionQueryParamSectionV2
         {
             Name = "q2",
-            QueryParams = new FileQueryParamsV2
+            DriveId = callerContext.TargetDrive.Alias,
+            QueryParams = new FileQueryParams
             {
-                DriveId = callerContext.TargetDrive.Alias,
                 FileType = [fileType2],
                 FileState = null,
                 DataType = null,

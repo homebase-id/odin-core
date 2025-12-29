@@ -7,7 +7,7 @@ public class FileQueryParamsV1 : FileQueryParams
 {
     public TargetDrive TargetDrive { get; set; }
 
-    public Guid DriveId => TargetDrive.Alias;
+    public Guid DriveId => TargetDrive?.Alias ?? Guid.Empty;
 
     public void AssertIsValid()
     {
@@ -25,15 +25,5 @@ public class FileQueryParamsV1 : FileQueryParams
             TargetDrive = drive,
             FileType = fileType
         };
-    }
-}
-
-public class FileQueryParamsV2 : FileQueryParams
-{
-    public Guid DriveId { get; init; }
-
-    public void AssertIsValid()
-    {
-        OdinValidationUtils.AssertNotEmptyGuid(DriveId, "driveId");
     }
 }
