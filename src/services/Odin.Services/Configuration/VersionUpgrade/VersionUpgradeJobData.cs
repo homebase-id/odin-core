@@ -11,4 +11,6 @@ public class VersionUpgradeJobData
     public byte[]? Iv { get; init; }
 
     public byte[]? EncryptedToken { get; init; }
+    
+    public bool TestMode { get; init; }
 }

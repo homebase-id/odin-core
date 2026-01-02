@@ -31,8 +31,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.DataConversion
         [HttpPost("force-version-number")]
         public async Task<IActionResult> ForceVersionReset([FromQuery] int version)
         {
-            await configService.ForceVersionNumberAsync(version);
-            return Ok();
+            var result = await configService.ForceVersionNumberAsync(version);
+            return Ok(result);
         }
 
         [HttpPost("force-version-upgrade")]
