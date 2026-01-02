@@ -58,23 +58,22 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!identity.AccessGrant.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out var circleGrant))
+                // Only validate the identities who are confirmed connected
+                if (identity.AccessGrant.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out var circleGrant))
                 {
-                    throw new OdinSystemException("Identity not granted access to ConfirmedConnectionsCircleId");
-                }
+                    var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
+                        .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive);
 
-                var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
-                    .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive);
+                    if (driveGrant == null)
+                    {
+                        throw new OdinSystemException("Drive grant for ShardRecoveryDrive not found");
+                    }
 
-                if (driveGrant == null)
-                {
-                    throw new OdinSystemException("Drive grant for ShardRecoveryDrive not found");
-                }
-
-                var hasWrite = driveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Write);
-                if (!hasWrite)
-                {
-                    throw new OdinSystemException("ShardRecoveryDrive not granted write permission");
+                    var hasWrite = driveGrant.PermissionedDrive.Permission.HasFlag(DrivePermission.Write);
+                    if (!hasWrite)
+                    {
+                        throw new OdinSystemException("ShardRecoveryDrive not granted write permission");
+                    }
                 }
             }
         }

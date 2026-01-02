@@ -111,6 +111,11 @@ public class LinkPreviewService(
             await WriteAsync(content);
             return true;
         }
+        catch (OdinClientException oce)
+        {
+            logger.LogDebug(oce, "Failed to parse channel definition: {code}", oce.ErrorCode.ToString());
+            return false;
+        }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to parse channel definition");

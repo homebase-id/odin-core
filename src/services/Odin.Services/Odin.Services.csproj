@@ -29,8 +29,4 @@
     <ProjectReference Include="../../core/Odin.Core/Odin.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Configuration\VersionUpgrade\Version6tov7\" />
-  </ItemGroup>
-
 </Project>

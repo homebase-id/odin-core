@@ -43,7 +43,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<DriveSizeInfo> GetDriveSize(Guid driveId, IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
@@ -59,7 +59,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParamsV1 qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
 
             var o = options ?? QueryModifiedResultOptions.Default();
@@ -84,7 +84,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
             return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
         }
@@ -93,7 +93,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadDriveAsync(driveId, odinContext);
             var drive = await DriveManager.GetDriveAsync(driveId);
             var (cursor, fileIdList, hasMoreRows) = await _driveQuery.GetSmartBatchCoreAsync(
@@ -117,7 +117,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
         public async Task<SharedSecretEncryptedFileHeader> GetSingleFileByTag(Guid driveId, Guid tag, IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var qp = new FileQueryParamsV1()
@@ -168,7 +168,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             foreach (var query in queries)
             {
                 var driveId = query.QueryParams.DriveId;
-                await AssertDriveIsNotArchived(driveId, odinContext);
+                await AssertDriveIsValidAndActive(driveId, odinContext);
             }
 
             if (queries.DistinctBy(q => q.Name).Count() != queries.Count())
@@ -212,7 +212,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             bool excludePreviewThumbnail = true,
             bool includeTransferHistory = true)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId);
@@ -221,7 +221,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 return null;
             }
-            
+
             if (record.fileSystemType != (int)GetFileSystemType())
             {
                 return null;
@@ -254,7 +254,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file, IOdinContext odinContext)
         {
             var driveId = file.TargetDrive.Alias;
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
             await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
 
             var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, file.GlobalTransitId);
@@ -263,7 +263,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 return null;
             }
-            
+
             if (record.fileSystemType != (int)GetFileSystemType())
             {
                 return null;
@@ -438,9 +438,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        private async Task AssertDriveIsNotArchived(Guid driveId, IOdinContext odinContext)
+        private async Task AssertDriveIsValidAndActive(Guid driveId, IOdinContext odinContext)
         {
-            var theDrive = await DriveManager.GetDriveAsync(driveId);
+            var theDrive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
             if (theDrive.IsArchived)
             {
                 if (!odinContext.Caller.HasMasterKey)
@@ -453,7 +453,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueIdInternal(Guid driveId, Guid clientUniqueId,
             ResultOptions options, IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
 
             var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId);
 
@@ -461,7 +461,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 return null;
             }
-            
+
             if (record.fileSystemType != (int)GetFileSystemType())
             {
                 return null;

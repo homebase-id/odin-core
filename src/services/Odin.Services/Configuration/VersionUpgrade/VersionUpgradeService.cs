@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -24,10 +25,11 @@ public class VersionUpgradeService(
     V3ToV4VersionMigrationService v4,
     V4ToV5VersionMigrationService v5,
     V5ToV6VersionMigrationService v6,
+    IdentityDatabase db,
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
 {
-    private bool _isRunning = false;
+    private bool _isRunning;
 
     public async Task UpgradeAsync(VersionUpgradeJobData data, CancellationToken cancellationToken)
     {
@@ -59,6 +61,8 @@ public class VersionUpgradeService(
         {
             if (currentVersion == 0)
             {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
                 _isRunning = true;
                 logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
@@ -68,6 +72,7 @@ public class VersionUpgradeService(
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
+                tx.Commit();
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
 
@@ -79,6 +84,8 @@ public class VersionUpgradeService(
 
             if (currentVersion == 1)
             {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
                 _isRunning = true;
                 logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
@@ -87,10 +94,11 @@ public class VersionUpgradeService(
                 await v2.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
-                
+
+                tx.Commit();
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
-            
+
             // do this after each version upgrade
             if (cancellationToken.IsCancellationRequested)
             {
@@ -99,6 +107,8 @@ public class VersionUpgradeService(
 
             if (currentVersion == 2)
             {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
                 _isRunning = true;
                 logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
 
@@ -108,58 +118,74 @@ public class VersionUpgradeService(
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
+                tx.Commit();
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
-            
+
             // do this after each version upgrade
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
-            
+
             if (currentVersion == 3)
             {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
                 _isRunning = true;
                 logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
-                
+
                 await v4.UpgradeAsync(odinContext, cancellationToken);
 
                 await v4.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
-
+             
+                tx.Commit();
+                
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
-            
-            
+
+            if (data.TestMode)
+            {
+                // this is used for unit testing. code smell but I cannot think of another wa 
+                throw new Exception("Forced VersionUpgrade Failure for automated tests");
+            }
+
             if (currentVersion == 4)
             {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
                 _isRunning = true;
                 logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
-                
+
                 await v5.UpgradeAsync(odinContext, cancellationToken);
-            
+
                 await v5.ValidateUpgradeAsync(odinContext, cancellationToken);
-            
+
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
-            
+
+                tx.Commit();
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
-            
+
             if (currentVersion == 5)
             {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
                 _isRunning = true;
                 logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
-                
+
                 await v6.UpgradeAsync(odinContext, cancellationToken);
-            
+
                 await v6.ValidateUpgradeAsync(odinContext, cancellationToken);
-            
+
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
-            
+
+                tx.Commit();
                 logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
             }
-            
+
             // do this after each version upgrade
             if (cancellationToken.IsCancellationRequested)
             {

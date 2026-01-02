@@ -145,10 +145,12 @@ public class OdinConfiguration
         {
             PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", new List<string>());
             SslSourcePath = config.Required<string>("Development:SslSourcePath");
+            VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
         }
 
         public List<string> PreconfiguredDomains { get; init; }
         public string SslSourcePath { get; init; }
+        public bool VersionUpgradeTestModeEnabled { get; init; }
     }
 
     public class RegistrySection

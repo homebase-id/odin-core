@@ -15,7 +15,9 @@ using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Direct;
 using Odin.Hosting.Tests._Universal.ApiClient.Peer.Query;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Version;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using Odin.Services.Configuration.VersionUpgrade;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
 {
@@ -61,6 +63,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             AccountManagement = new OwnerAccountManagementApiClient(ownerApi, identity);
 
             DataConversion = new UniversalDataConversionApiClient(identity.OdinId, factory);
+            
+            VersionClient = new VersionApiClient(ownerApi, identity);
         }
 
         public OwnerAuthTokenContext GetTokenContext()
@@ -104,5 +108,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public YouAuthDomainApiClient YouAuth { get; }
 
         public UniversalDataConversionApiClient DataConversion { get; }
+        
+        public VersionApiClient VersionClient { get; }
     }
 }

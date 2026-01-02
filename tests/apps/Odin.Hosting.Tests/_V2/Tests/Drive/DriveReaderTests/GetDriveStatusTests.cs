@@ -62,6 +62,12 @@ public class GetDriveStatusTests
 
         yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
+    
+    public static IEnumerable TestCasesOwner()
+    {
+        yield return new object[] { new AppTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.BadRequest };
+        yield return new object[] { new OwnerTestCase(TargetDrive.NewTargetDrive()), HttpStatusCode.BadRequest };
+    }
 
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
@@ -94,6 +100,29 @@ public class GetDriveStatusTests
         }
     }
 
+    [Test]
+    [TestCaseSource(nameof(TestCasesOwner))]
+    public async Task ReceiveBadRequestWhenInvalidDriveSent(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.AccessControlList = AccessControlList.Anonymous;
+        metadata.AllowDistribution = true;
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+
+        List<TestIdentity> recipients = [TestIdentities.Frodo];
+        await TransferFile(identity, metadata, payload, recipients, callerContext);
+
+        await callerContext.Initialize(ownerApiClient);
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
+
+        Guid badDriveId = Guid.NewGuid();
+        var getStatusResponse = await client.GetDriveStatusAsync(badDriveId);
+        ClassicAssert.IsTrue(getStatusResponse.StatusCode == HttpStatusCode.BadRequest, $"status was {getStatusResponse.StatusCode}");
+    }
+    
     private async Task<UploadResult> TransferFile(TestIdentity identity, UploadFileMetadata uploadedFileMetadata,
         TestPayloadDefinition payloadDefinition,
         List<TestIdentity> recipients,
