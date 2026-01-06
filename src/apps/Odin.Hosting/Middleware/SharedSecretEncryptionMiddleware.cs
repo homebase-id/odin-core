@@ -359,6 +359,12 @@ namespace Odin.Hosting.Middleware
 
         private static bool IsUnifiedFilesPath(HttpRequest request)
         {
+            // Any multipart upload should be treated as unified files
+            if (request.HasFormContentType)
+            {
+                return true;
+            }
+
             // if we are creating or updating files
             if (request.Method.ToUpper() == "POST" || request.Method.ToUpper() == "PATCH")
             {
