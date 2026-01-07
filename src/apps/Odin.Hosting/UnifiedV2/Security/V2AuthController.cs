@@ -1,6 +1,9 @@
 ﻿#nullable enable
+using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authorization;
@@ -28,6 +31,14 @@ namespace Odin.Hosting.UnifiedV2.Security
         [HttpGet("verify-shared-secret-encryption")]
         [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
         public ActionResult VerifySharedSecret([FromQuery] string checkValue64)
+        {
+            var decryptedBytes = Convert.FromBase64String(checkValue64);
+            return Ok(SHA256.Create().ComputeHash(decryptedBytes).ToBase64());
+        }
+
+        [HttpGet("echo-shared-secret-encrypted-param")]
+        [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
+        public ActionResult EchoSharedSecret([FromQuery] string checkValue64)
         {
             return Ok(checkValue64);
         }
