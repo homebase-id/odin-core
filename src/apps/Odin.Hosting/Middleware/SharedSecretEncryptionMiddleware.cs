@@ -129,6 +129,8 @@ namespace Odin.Hosting.Middleware
 
                 $"{GuestApiPathConstantsV1.DriveV1}/files/thumb",
                 $"{GuestApiPathConstantsV1.DriveV1}/files/payload",
+
+                $"{UnifiedApiRouteConstants.Auth}/verify-shared-secret-encryption",
             ];
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
