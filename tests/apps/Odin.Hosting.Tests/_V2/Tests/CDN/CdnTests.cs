@@ -87,6 +87,9 @@ public class CdnTests
         // fail to get header since it's not an allowed path
         var getHeaderResponse = await client.GetFileHeaderAsync(file.DriveId, file.FileId);
         ClassicAssert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Unauthorized, $"code was {getHeaderResponse.StatusCode}");
+
+        var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
+        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
     }
 
     [Test]
@@ -99,6 +102,7 @@ public class CdnTests
 
         var metadata = SampleMetadataData.Create(fileType: 100);
         metadata.AccessControlList = AccessControlList.Anonymous;
+
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
         var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
