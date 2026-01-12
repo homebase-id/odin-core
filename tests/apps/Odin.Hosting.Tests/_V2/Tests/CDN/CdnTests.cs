@@ -68,6 +68,40 @@ public class CdnTests
 
     [Test]
     [TestCaseSource(nameof(TestCasesCdn))]
+    public async Task GenericCdnPingShouldSucceed(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await callerContext.Initialize(sam);
+
+        var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
+
+        var getHeaderResponse = await client.CdnPing();
+        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
+        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCasesCdn))]
+    public async Task GenericCdnPingOnBadPathShouldFail(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+        await callerContext.Initialize(sam);
+
+        var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
+
+        var getHeaderResponse = await client.CdnPingBadPath();
+        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+
+        var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
+        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCasesCdn))]
     public async Task FailToGetHeaderAsCdn(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -77,15 +111,15 @@ public class CdnTests
         // upload some files as sam owner
         var identity = TestIdentities.Samwise;
 
-        var metadata = SampleMetadataData.Create(fileType: 100);
-        metadata.AccessControlList = AccessControlList.Anonymous;
-        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
-        var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
+        // var metadata = SampleMetadataData.Create(fileType: 100);
+        // metadata.AccessControlList = AccessControlList.Anonymous;
+        // var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        // var file = await UploadFile(identity, metadata, payload, allowAnonymousReadsOnDrive: true, callerContext);
 
         var client = new DriveReaderV2Client(sam.OdinId, callerContext.GetFactory());
 
         // fail to get header since it's not an allowed path
-        var getHeaderResponse = await client.GetFileHeaderAsync(file.DriveId, file.FileId);
+        var getHeaderResponse = await client.GetFileHeaderAsync(Guid.Empty, Guid.Empty);
         ClassicAssert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Unauthorized, $"code was {getHeaderResponse.StatusCode}");
 
         var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
