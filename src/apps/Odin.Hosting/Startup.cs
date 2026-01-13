@@ -80,6 +80,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseMiddleware<RedirectIfNotApexMiddleware>();
         app.UseMiddleware<CertesAcmeMiddleware>();
+        app.UseMiddleware<CdnMiddleware>();
 
         app.UseHttpsPortRedirection(config.Host.DefaultHttpsPort);
         app.UseResponseCompression();
@@ -157,7 +158,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseApiCors();
         app.UseMiddleware<SharedSecretEncryptionMiddleware>();
         app.UseMiddleware<StaticFileCachingMiddleware>();
-        app.UseMiddleware<CdnMiddleware>();
 
         app.UseEndpoints(endpoints =>
         {
