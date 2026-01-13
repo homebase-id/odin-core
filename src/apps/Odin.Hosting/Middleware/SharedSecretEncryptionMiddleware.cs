@@ -219,6 +219,7 @@ namespace Odin.Hosting.Middleware
                 }
                 else
                 {
+                    //TODO: add try/catch to ensure we have a valid shared secret payload
                     var decryptedBytes = await SharedSecretEncryptedPayload.Decrypt(request.Body, this.GetSharedSecret(context),
                         context.RequestAborted);
 
@@ -264,7 +265,7 @@ namespace Odin.Hosting.Middleware
                 typeof(SharedSecretEncryptedPayload),
                 OdinSystemSerializer.JsonSerializerOptions);
 
-            // context.Response.Headers.Append("X-SSE", "1");
+            context.Response.Headers.Append("X-SSE", "1");
             context.Response.Headers.ContentType = "application/json";
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
