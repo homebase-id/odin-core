@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Authorization;
+using Odin.Services.Base;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Security
@@ -52,6 +53,16 @@ namespace Odin.Hosting.UnifiedV2.Security
         {
             var tokenId = WebOdinContext.Caller.OdinClientContext.AccessRegistrationId;
             await storage.DeleteAsync(tokenId);
+        }
+        
+        /// <summary>
+        /// Returns redacted security information for the currently logged in user
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("context")]
+        public RedactedOdinContext GetSecurityContext()
+        {
+            return WebOdinContext.Redacted();
         }
     }
 }
