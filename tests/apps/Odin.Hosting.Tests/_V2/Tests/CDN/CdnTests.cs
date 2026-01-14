@@ -77,11 +77,11 @@ public class CdnTests
         var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
 
         // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/payload/cdn-ping
-        var getHeaderResponse = await client.CdnPing();
+        var getHeaderResponse = await client.CdnPing(10);
         Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(getHeaderResponse.Content?.Headers.ContentType?.MediaType, Is.EqualTo("application/octet-stream"));
         var body = await getHeaderResponse.Content.ReadAsByteArrayAsync();
-        Assert.That(body, Is.EqualTo("pong"u8.ToArray()));
+        Assert.That(body, Is.EqualTo(new byte[10].Select(_ => (byte)'X').ToArray()));
 
         var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
         Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
