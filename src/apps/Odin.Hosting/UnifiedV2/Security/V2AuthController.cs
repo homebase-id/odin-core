@@ -31,6 +31,7 @@ namespace Odin.Hosting.UnifiedV2.Security
 
         [HttpGet("verify-shared-secret-encryption")]
         [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
+        [NoSharedSecretOnResponse]
         public ActionResult VerifySharedSecret([FromQuery] string checkValue64)
         {
             var decryptedBytes = Convert.FromBase64String(checkValue64);

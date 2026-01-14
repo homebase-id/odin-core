@@ -41,13 +41,6 @@ namespace Odin.Hosting.Middleware
         /// Paths that should not have their responses encrypted
         /// </summary>
         private readonly List<string> _ignoredPathsForResponses;
-        //
-
-        private static readonly HashSet<string> IgnoredSuffixes =
-        [
-            "/payload",
-            "/thumb"
-        ];
 
         /// <summary />
         public SharedSecretEncryptionMiddleware(
@@ -56,7 +49,6 @@ namespace Odin.Hosting.Middleware
         {
             _next = next;
             _logger = logger;
-
 
             _ignoredPathsForRequests =
             [
@@ -92,8 +84,7 @@ namespace Odin.Hosting.Middleware
                 $"{AppApiPathConstantsV1.AuthV1}/logout",
                 $"{AppApiPathConstantsV1.NotificationsV1}/preauth",
                 $"{AppApiPathConstantsV1.PeerNotificationsV1}/preauth",
-                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth",
-                $"{UnifiedApiRouteConstants.Health}/ping",
+                $"{GuestApiPathConstantsV1.PeerNotificationsV1}/preauth"
             ];
 
 
@@ -128,9 +119,7 @@ namespace Odin.Hosting.Middleware
                 $"{GuestApiPathConstantsV1.DriveQuerySpecializedClientUniqueId}/thumb",
 
                 $"{GuestApiPathConstantsV1.DriveV1}/files/thumb",
-                $"{GuestApiPathConstantsV1.DriveV1}/files/payload",
-
-                $"{UnifiedApiRouteConstants.Auth}/verify-shared-secret-encryption",
+                $"{GuestApiPathConstantsV1.DriveV1}/files/payload"
             ];
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
@@ -282,7 +271,7 @@ namespace Odin.Hosting.Middleware
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
-            if (!EndpointRequiresSharedSecret(context))
+            if (!EndpointRequiresSharedSecretOnRequest(context))
             {
                 return false;
             }
@@ -299,11 +288,6 @@ namespace Odin.Hosting.Middleware
             }
 
             if (!context.Request.Path.StartsWithSegments("/api") || !CallerMustHaveSharedSecret(context))
-            {
-                return false;
-            }
-
-            if (IsUnifiedFilesPath(context.Request))
             {
                 return false;
             }
@@ -331,6 +315,11 @@ namespace Odin.Hosting.Middleware
 
         private bool ShouldEncryptResponse(HttpContext context)
         {
+            if (!EndpointRequiresSharedSecretOnResponse(context))
+            {
+                return false;
+            }
+            
             if (context.WebSockets.IsWebSocketRequest)
             {
                 return false;
@@ -341,19 +330,6 @@ namespace Odin.Hosting.Middleware
                 return false;
             }
 
-            if (context.Request.Path.StartsWithSegments(UnifiedApiRouteConstants.BasePath, StringComparison.OrdinalIgnoreCase))
-            {
-                if (IsPayloadOrThumbnail(context.Request.Path.Value))
-                {
-                    return false;
-                }
-
-                if (IsUnifiedFilesPath(context.Request))
-                {
-                    return false;
-                }
-            }
-
             return !_ignoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
         }
 
@@ -362,42 +338,8 @@ namespace Odin.Hosting.Middleware
             var dotYouContext = context.RequestServices.GetRequiredService<IOdinContext>();
             return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }
-
-        private static bool IsUnifiedFilesPath(HttpRequest request)
-        {
-            // if we are creating or updating files
-            if (request.Method.ToUpper() == "POST" || request.Method.ToUpper() == "PATCH")
-            {
-                var path = request.Path;
-                if (path.StartsWithSegments($"{UnifiedApiRouteConstants.DrivesRoot}/files"))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static bool IsPayloadOrThumbnail(string path)
-        {
-            if (string.IsNullOrEmpty(path))
-                return false;
-
-            // Normalize once
-            path = path.ToLowerInvariant();
-
-            // Any payload route (covers all variants, by-id, by-uid, ranged, etc.)
-            if (path.Contains("/payload/") || path.EndsWith("/payload"))
-                return true;
-
-            // Explicit thumbnail routes
-            if (path.EndsWith("/thumb") || path.Contains("/thumb."))
-                return true;
-
-            return false;
-        }
         
-        private static bool EndpointRequiresSharedSecret(HttpContext context)
+        private static bool EndpointRequiresSharedSecretOnRequest(HttpContext context)
         {
             var endpoint = context.GetEndpoint();
             if (endpoint == null)
@@ -406,8 +348,19 @@ namespace Odin.Hosting.Middleware
             }
 
             // Opt-out model: shared secret is REQUIRED unless explicitly disabled
-            return endpoint.Metadata.GetMetadata<NoSharedSecretAttribute>() == null;
+            return endpoint.Metadata.GetMetadata<NoSharedSecretOnRequestAttribute>() == null;
         }
 
+        private static bool EndpointRequiresSharedSecretOnResponse(HttpContext context)
+        {
+            var endpoint = context.GetEndpoint();
+            if (endpoint == null)
+            {
+                return false;
+            }
+
+            return endpoint.Metadata.GetMetadata<NoSharedSecretOnResponseAttribute>() == null;
+        }
+        
     }
 }

@@ -32,7 +32,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         [Consumes("multipart/form-data")]
         [DisableFormValueModelBinding]
         [HttpPost]
-        [NoSharedSecret]
+        [NoSharedSecretOnRequest]
         public async Task<CreateFileResult> CreateNewFile()
         {
             var driveId = Guid.Parse(RouteData.Values["driveId"]!.ToString()!);

@@ -52,6 +52,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         // Full payload (optional query range)
         [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [NoSharedSecretOnResponse]
         public async Task<IActionResult> GetPayload(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
@@ -68,6 +69,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         // Ranged payload (route-based)
         [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [NoSharedSecretOnResponse]
         public Task<IActionResult> GetPayload(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
@@ -86,6 +88,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
 
         [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [NoSharedSecretOnResponse]
         public async Task<IActionResult> GetThumbnail(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
@@ -108,6 +111,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [HttpGet("payload/{payloadKey}/thumb")]
         [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
+        [NoSharedSecretOnResponse]
         public async Task<IActionResult> GetThumbnail(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId,
