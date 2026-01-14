@@ -15,30 +15,34 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
     [Route(UnifiedApiRouteConstants.DrivesRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveUploadController(
-        ILogger<V2DriveUploadController> logger,
+    public class V2DriveUpdateController(
+        ILogger<V2DriveUpdateController> logger,
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver)
         : V1DriveUploadControllerBase(logger, driveManager, fileSystemResolver)
     {
         /// <summary>
-        /// Uploads a new file to the drive using multipart form data
+        /// Updates a file using multipart form data
         /// </summary>
-        [HttpPost("files")]
+        /// <returns></returns>
+        [HttpPatch("files")]
         [SwaggerOperation(
-            Summary = "Create a new file",
-            Description = "Uploads a new file using multipart/form-data.",
+            Summary = "Updates an existing file",
+            Description = "",
             Tags = [SwaggerInfo.FileWrite]
         )]
         [Consumes("multipart/form-data")]
         [DisableFormValueModelBinding]
-        public async Task<CreateFileResult> CreateNewFile()
+        public async Task<UpdateFileResult> UpdateByFileId()
         {
             var driveId = Guid.Parse(RouteData.Values["driveId"]!.ToString()!);
             OdinValidationUtils.AssertNotEmptyGuid(driveId, "missing drive id");
-
-            var v1Result = await ReceiveNewFileStreamV2(driveId);
-            return new CreateFileResult
+            
+            var fileId = Guid.Parse(RouteData.Values["fileId"]!.ToString()!);
+            OdinValidationUtils.AssertNotEmptyGuid(driveId, "missing file id");
+            
+            var v1Result = await ReceiveFileUpdateV2(driveId, fileId);
+            return new UpdateFileResult
             {
                 FileId = v1Result.File.FileId,
                 DriveId = v1Result.File.TargetDrive.Alias.Value,

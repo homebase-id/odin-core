@@ -29,21 +29,36 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// <summary>
         /// Receives a stream for a new file being uploaded or existing file being overwritten
         /// </summary>
-        protected async Task<UploadResult> ReceiveNewFileStream()
+        protected Task<UploadResult> ReceiveNewFileStream()
+        {
+            return ReceiveNewFileStreamInternal(null);
+        }
+
+        /// <summary>
+        /// Version for v2 where the driveId is passed in
+        /// </summary>
+        protected Task<UploadResult> ReceiveNewFileStreamV2(Guid driveId)
+        {
+            return ReceiveNewFileStreamInternal(driveId);
+        }
+
+        private async Task<UploadResult> ReceiveNewFileStreamInternal(Guid? driveId)
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
+                throw new OdinClientException(
+                    "Data is not multi-part content",
+                    OdinClientErrorCode.MissingUploadData);
             }
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var driveUploadService = this.GetHttpFileSystemResolver().ResolveFileSystemWriter();
+            var driveUploadService = GetHttpFileSystemResolver().ResolveFileSystemWriter();
 
             try
             {
-                return await ProcessUpload(reader, driveUploadService);
+                return await ProcessNewFileUpload(reader, driveUploadService, driveId);
             }
             finally
             {
@@ -58,7 +73,17 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
         }
 
-        protected async Task<FileUpdateResult> ReceiveFileUpdate()
+        protected Task<FileUpdateResult> ReceiveFileUpdate()
+        {
+            return ReceiveFileUpdateInternal(driveId: null, fileId: null);
+        }
+
+        protected Task<FileUpdateResult> ReceiveFileUpdateV2(Guid driveId, Guid fileId)
+        {
+            return ReceiveFileUpdateInternal(driveId, fileId);
+        }
+
+        protected async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId)
         {
             FileSystemType fileSystemType;
             FileSystemUpdateWriterBase updateWriter = null;
@@ -79,15 +104,20 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 string json = await new StreamReader(section!.Body).ReadToEndAsync();
                 var instructionSet = OdinSystemSerializer.Deserialize<FileUpdateInstructionSet>(json);
 
-                //v2 reads from the driveId field, so we overwrite it. this stops callers from being bound to the target drive
+                //v2 reads from the driveId and fileId params, so we overwrite it. this stops callers
+                //from being bound to the TargetDrive type
                 if (WebOdinContext.ApiVersion == 2)
                 {
-                    OdinValidationUtils.AssertNotEmptyGuid(instructionSet.File.DriveId, "Version 2 requires DriveId to be set");
-                    var theDrive = await driveManager.GetDriveAsync(instructionSet.File.DriveId);
-                    instructionSet.File.TargetDrive = theDrive!.TargetDriveInfo;
+                    OdinValidationUtils.AssertNotEmptyGuid(driveId.GetValueOrDefault(), "Version 2 requires DriveId to be set");
+                    var theDrive = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
 
-                    var fileIdentifier = instructionSet.File;
-                    var fs = await fileSystemResolver.ResolveFileSystem(fileIdentifier, WebOdinContext);
+                    instructionSet.File = new FileIdentifier
+                    {
+                        FileId = fileId.GetValueOrDefault(),
+                        TargetDrive = theDrive!.TargetDriveInfo,
+                    };
+                    
+                    var fs = await fileSystemResolver.ResolveFileSystem(instructionSet.File, WebOdinContext);
                     updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
                     fileSystemType = fs.Storage.GetFileSystemType();
                 }
@@ -97,7 +127,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     fileSystemType = this.GetHttpFileSystemResolver().GetFileSystemType();
                     updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
                 }
-                
+
                 await updateWriter.StartFileUpdateAsync(instructionSet, fileSystemType, WebOdinContext);
 
                 //
@@ -144,7 +174,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
             }
         }
 
-        private async Task<UploadResult> ProcessUpload(MultipartReader reader, FileSystemStreamWriterBase driveUploadService)
+        private async Task<UploadResult> ProcessNewFileUpload(MultipartReader reader,
+            FileSystemStreamWriterBase driveUploadService,
+            Guid? driveIdForV2 = null)
         {
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
@@ -158,7 +190,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 // v2 reads from driveId.  we will remove .Drive when we remove v1
                 if (WebOdinContext.ApiVersion == 2)
                 {
-                    driveId = instructionSet.StorageOptions.DriveId;
+                    driveId = driveIdForV2.GetValueOrDefault();
                     if (instructionSet.StorageOptions.OverwriteFileId.HasValue)
                     {
                         throw new OdinClientException("Cannot use OverwriteFileId in version 2; use PATCH method instead");

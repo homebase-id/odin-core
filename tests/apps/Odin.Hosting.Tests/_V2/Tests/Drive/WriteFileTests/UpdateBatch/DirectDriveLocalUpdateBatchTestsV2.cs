@@ -98,7 +98,7 @@ public class DirectDriveLocalUpdateBatchTestsV2
             Locale = UpdateLocale.Local,
 
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = targetFile.ToV2FileIdentifier(),
+            // File = targetFile.ToV2FileIdentifier(),
             
             
             Recipients = default,
@@ -193,7 +193,7 @@ public class DirectDriveLocalUpdateBatchTestsV2
             Locale = UpdateLocale.Local,
 
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = targetFile.ToV2FileIdentifier(),
+            // File = targetFile.ToV2FileIdentifier(),
             Recipients = default,
             Manifest = new UploadManifest
             {
@@ -358,7 +358,7 @@ public class DirectDriveLocalUpdateBatchTestsV2
             Locale = UpdateLocale.Local,
 
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = targetFile.ToV2FileIdentifier(),
+            // File = targetFile.ToV2FileIdentifier(),
             Recipients = default,
             Manifest = new UploadManifest
             {

@@ -20,7 +20,7 @@ public class FileUpdateInstructionSet
     /// <summary>
     /// The File being updated
     /// </summary>
-    public FileIdentifier File { get; init; }
+    public FileIdentifier File { get; set; }
 
     /// <summary>
     /// Indicates where the update should take place
