@@ -1,8 +1,9 @@
 ﻿#nullable enable
+using System;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
-using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Cdn;
 
@@ -14,18 +15,26 @@ namespace Odin.Hosting.UnifiedV2.Cdn;
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2CdnController : OdinControllerBase
 {
-    [HttpGet("cdn-ping/payload/cdn-ping")]
-    [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
-    public ActionResult CdnPing()
+    [HttpGet("cdn-ping/payload/{size:int}")]
+    public ActionResult<string> CdnPing(int size)
     {
-        return Ok();
+        if (size < 1)
+        {
+            size = 1;
+        }
+        else if (size > 20 * Constants.OneMiB)
+        {
+            size = (int)(20 * Constants.OneMiB);
+        }
+        var bytes = new byte[size];
+        bytes.AsSpan().Fill((byte)'X');
+        return new FileStreamResult(bytes.ToMemoryStream(), "application/octet-stream"); // simulate payload response
     }
 
-    [HttpGet("cdn-ping/bad-cdn-path/cdn-ping")]
-    [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
-    public ActionResult CdnPingBadPath()
+    [HttpGet("cdn-ping/bad-cdn-path")]
+    public ActionResult<string> CdnPingBadPath()
     {
         // SEB:NOTE this will never happen since CdnAuthPathHandler will reject the path before it reaches here
-        return Ok();
+        return Ok("pong");
     }
 }

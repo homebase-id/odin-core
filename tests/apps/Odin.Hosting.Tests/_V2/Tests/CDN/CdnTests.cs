@@ -32,7 +32,7 @@ public class CdnTests
     {
         var folder = GetType().Name;
         Environment.SetEnvironmentVariable("Cdn__Enabled", "true");
-        Environment.SetEnvironmentVariable("Cdn__PayloadBaseUrl", "https://somecdn.com/");
+        Environment.SetEnvironmentVariable("Cdn__PayloadBaseUrl", "https://cdn.ravenhosting.cloud");
         Environment.SetEnvironmentVariable("Cdn__RequiredAuthToken", CdnTestCase.GetAuthToken64());
 
         _scaffold = new WebScaffold(folder);
@@ -76,11 +76,15 @@ public class CdnTests
 
         var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
 
-        var getHeaderResponse = await client.CdnPing();
+        // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/payload/cdn-ping
+        var getHeaderResponse = await client.CdnPing(10);
         Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(getHeaderResponse.Content?.Headers.ContentType?.MediaType, Is.EqualTo("application/octet-stream"));
+        var body = await getHeaderResponse.Content.ReadAsByteArrayAsync();
+        Assert.That(body, Is.EqualTo(new byte[10].Select(_ => (byte)'X').ToArray()));
 
         var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
-        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
+        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://cdn.ravenhosting.cloud"));
     }
 
     [Test]
@@ -93,11 +97,12 @@ public class CdnTests
 
         var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
 
+        // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/bad-cdn-path/cdn-ping
         var getHeaderResponse = await client.CdnPingBadPath();
         Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
 
         var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
-        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
+        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://cdn.ravenhosting.cloud"));
     }
 
     [Test]
@@ -123,7 +128,7 @@ public class CdnTests
         ClassicAssert.IsTrue(getHeaderResponse.StatusCode == HttpStatusCode.Unauthorized, $"code was {getHeaderResponse.StatusCode}");
 
         var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
-        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
+        Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://cdn.ravenhosting.cloud"));
     }
 
     [Test]

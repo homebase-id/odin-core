@@ -7,9 +7,9 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public interface ICdnHttpClientApiV2
 {
-    [Get(UnifiedApiRouteConstants.DrivesRoot + "/cdn-ping/payload/cdn-ping")]
-    Task<ApiResponse<HttpContent>> CdnPing();
+    [Get(UnifiedApiRouteConstants.DrivesRoot + "/cdn-ping/payload/{size:int}")]
+    Task<ApiResponse<HttpContent>> CdnPing([AliasAs("size:int")]int size);
 
-    [Get(UnifiedApiRouteConstants.DrivesRoot + "/cdn-ping/bad-cdn-path/cdn-ping")]
+    [Get(UnifiedApiRouteConstants.DrivesRoot + "/cdn-ping/bad-cdn-path")]
     Task<ApiResponse<HttpContent>> CdnPingBadPath();
 }
