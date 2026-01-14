@@ -76,8 +76,12 @@ public class CdnTests
 
         var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
 
+        // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/payload/cdn-ping
         var getHeaderResponse = await client.CdnPing();
         Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(getHeaderResponse.Content?.Headers.ContentType?.MediaType, Is.EqualTo("application/octet-stream"));
+        var body = await getHeaderResponse.Content.ReadAsByteArrayAsync();
+        Assert.That(body, Is.EqualTo("pong"u8.ToArray()));
 
         var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
         Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://somecdn.com/"));
@@ -93,6 +97,7 @@ public class CdnTests
 
         var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
 
+        // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/bad-cdn-path/cdn-ping
         var getHeaderResponse = await client.CdnPingBadPath();
         Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
 

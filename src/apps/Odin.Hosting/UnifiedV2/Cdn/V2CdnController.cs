@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Swashbuckle.AspNetCore.Annotations;
@@ -15,17 +16,17 @@ namespace Odin.Hosting.UnifiedV2.Cdn;
 public class V2CdnController : OdinControllerBase
 {
     [HttpGet("cdn-ping/payload/cdn-ping")]
-    [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
-    public ActionResult CdnPing()
+    public ActionResult<string> CdnPing()
     {
-        return Ok();
+        var bytes = "pong"u8.ToArray().ToMemoryStream();
+        return new FileStreamResult(bytes, "application/octet-stream");
     }
 
+
     [HttpGet("cdn-ping/bad-cdn-path/cdn-ping")]
-    [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
-    public ActionResult CdnPingBadPath()
+    public ActionResult<string> CdnPingBadPath()
     {
         // SEB:NOTE this will never happen since CdnAuthPathHandler will reject the path before it reaches here
-        return Ok();
+        return Ok("pong");
     }
 }
