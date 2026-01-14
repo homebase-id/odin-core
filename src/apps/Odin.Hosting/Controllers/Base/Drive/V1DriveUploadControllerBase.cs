@@ -89,7 +89,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return ReceiveFileUpdateInternal(driveId, null, uniqueId);
         }
 
-        protected async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null)
+        private async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null)
         {
             FileSystemType fileSystemType;
             FileSystemUpdateWriterBase updateWriter = null;
