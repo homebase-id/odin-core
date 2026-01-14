@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography;
@@ -13,7 +12,6 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -201,6 +199,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             }
         }
 
+        var driveId = storageOptions.DriveId;
         var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
         var response = await driveSvc.Upload(parts.ToArray());
 
@@ -216,6 +215,164 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         return (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
     }
     
+        public async Task<(
+        ApiResponse<CreateFileResult> response,
+        string encryptedJsonContent64,
+        List<EncryptedAttachmentUploadResult> uploadedThumbnails,
+        List<EncryptedAttachmentUploadResult> uploadedPayloads
+        )> CreateEncryptedFileUsingDriveIdInPath(
+        UploadFileMetadata fileMetadata,
+        StorageOptions storageOptions,
+        TransitOptions transitOptions,
+        UploadManifest uploadManifest = null,
+        List<TestPayloadDefinition> payloads = null,
+        AppNotificationOptions notificationOptions = null,
+        KeyHeader keyHeader = null)
+    {
+
+        if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
+        {
+            throw new Exception("You set recipients but did not allow file distribution; tsk tsk");
+        }
+        
+        var uploadedThumbnails = new List<EncryptedAttachmentUploadResult>();
+        var uploadedPayloads = new List<EncryptedAttachmentUploadResult>();
+
+        var wipeKeyHeader = false;
+        if (keyHeader == null)
+        {
+            keyHeader = KeyHeader.NewRandom16();
+            wipeKeyHeader = true;
+        }
+
+        var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+        var instructionSet = new UploadInstructionSet
+        {
+            TransferIv = transferIv,
+            StorageOptions = storageOptions,
+            TransitOptions = transitOptions ?? new TransitOptions(),
+            Manifest = uploadManifest
+        };
+
+        if (notificationOptions != null)
+        {
+            instructionSet.TransitOptions.UseAppNotification = true;
+            instructionSet.TransitOptions.AppNotificationOptions = notificationOptions;
+        }
+
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+
+        var instructionStream =
+            new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+        // Encrypt metadata content
+        var encryptedJsonContent64 =
+            keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+
+        fileMetadata.AppData.Content = encryptedJsonContent64;
+        fileMetadata.IsEncrypted = true;
+
+        var descriptor = new UploadFileDescriptor
+        {
+            EncryptedKeyHeader =
+                EncryptedKeyHeader.EncryptKeyHeaderAes(
+                    keyHeader,
+                    instructionSet.TransferIv,
+                    ref sharedSecret),
+            FileMetadata = fileMetadata
+        };
+
+        var fileDescriptorCipher =
+            TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+
+        List<StreamPart> parts =
+        [
+            new StreamPart(
+                instructionStream,
+                "instructionSet.encrypted",
+                "application/json",
+                Enum.GetName(MultipartUploadParts.Instructions)),
+
+            new StreamPart(
+                fileDescriptorCipher,
+                "fileDescriptor.encrypted",
+                "application/json",
+                Enum.GetName(MultipartUploadParts.Metadata))
+        ];
+
+        // Optional encrypted payloads + thumbnails
+        if (payloads != null && payloads.Count > 0)
+        {
+            foreach (var payload in payloads)
+            {
+                var payloadKeyHeader = new KeyHeader
+                {
+                    Iv = payload.Iv,
+                    AesKey = new SensitiveByteArray(keyHeader.AesKey.GetKey())
+                };
+
+                var payloadCipher =
+                    payloadKeyHeader.EncryptDataAesAsStream(payload.Content);
+
+                parts.Add(new StreamPart(
+                    payloadCipher,
+                    payload.Key,
+                    payload.ContentType,
+                    Enum.GetName(MultipartUploadParts.Payload)));
+
+                uploadedPayloads.Add(new EncryptedAttachmentUploadResult
+                {
+                    Key = payload.Key,
+                    ContentType = payload.ContentType,
+                    EncryptedContent64 = payloadCipher.ToByteArray().ToBase64()
+                });
+
+                payloadCipher.Position = 0;
+
+                foreach (var thumb in payload.Thumbnails)
+                {
+                    var thumbCipher =
+                        payloadKeyHeader.EncryptDataAesAsStream(thumb.Content);
+
+                    var thumbKey =
+                        $"{payload.Key}{thumb.PixelWidth}{thumb.PixelHeight}";
+
+                    parts.Add(new StreamPart(
+                        thumbCipher,
+                        thumbKey,
+                        thumb.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
+
+                    uploadedThumbnails.Add(new EncryptedAttachmentUploadResult
+                    {
+                        Key = thumbKey,
+                        ContentType = thumb.ContentType,
+                        EncryptedContent64 = thumbCipher.ToByteArray().ToBase64()
+                    });
+
+                    thumbCipher.Position = 0;
+                }
+            }
+        }
+
+        var driveId = storageOptions.DriveId;
+        var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
+        var response = await driveSvc.UploadUsingDriveIdInPath(driveId, parts.ToArray());
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            var code = WebScaffold.GetErrorCode(response.Error);
+            throw new Exception($"BadRequest returned. OdinClientErrorCode was {code}");
+        }
+
+        if (wipeKeyHeader)
+            keyHeader.AesKey.Wipe();
+
+        return (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
+    }
+    
+        
     public async Task<ApiResponse<CreateFileResult>> CreateNewUnencryptedFile(
         Guid driveId,
         UploadFileMetadata fileMetadata,

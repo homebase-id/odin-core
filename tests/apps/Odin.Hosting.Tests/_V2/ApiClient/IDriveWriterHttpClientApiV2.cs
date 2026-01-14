@@ -34,6 +34,10 @@ public interface IDriveWriterHttpClientApiV2
     [Multipart]
     [Post(UnifiedApiRouteConstants.DrivesRoot + "/files")]
     Task<ApiResponse<CreateFileResult>> Upload(StreamPart[] streamdata);
+    
+    [Multipart]
+    [Post(UnifiedApiRouteConstants.ByDriveId + "/files")]
+    Task<ApiResponse<CreateFileResult>> UploadUsingDriveIdInPath([AliasAs("driveId:guid")] Guid driveId, StreamPart[] streamdata);
 
     [Multipart]
     [Patch(UnifiedApiRouteConstants.DrivesRoot + "/files")]

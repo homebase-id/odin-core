@@ -620,7 +620,7 @@ public class GetFileTests
         
         var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
         var (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) =
-            await v2Owner.DriveWriter.CreateEncryptedFile(
+            await v2Owner.DriveWriter.CreateEncryptedFileUsingDriveIdInPath(
                 fileMetadata: uploadedFileMetadata,
                 storageOptions: new StorageOptions
                 {
