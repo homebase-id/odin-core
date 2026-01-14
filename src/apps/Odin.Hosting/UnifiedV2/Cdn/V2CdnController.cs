@@ -18,6 +18,14 @@ public class V2CdnController : OdinControllerBase
     [HttpGet("cdn-ping/payload/{size:int}")]
     public ActionResult<string> CdnPing(int size)
     {
+        if (size < 1)
+        {
+            size = 1;
+        }
+        else if (size > 20 * Constants.OneMiB)
+        {
+            size = (int)(20 * Constants.OneMiB);
+        }
         var bytes = new byte[size];
         bytes.AsSpan().Fill((byte)'X');
         return new FileStreamResult(bytes.ToMemoryStream(), "application/octet-stream"); // simulate payload response
