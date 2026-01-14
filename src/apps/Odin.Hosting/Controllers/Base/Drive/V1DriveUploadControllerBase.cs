@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
@@ -78,12 +79,17 @@ namespace Odin.Hosting.Controllers.Base.Drive
             return ReceiveFileUpdateInternal(driveId: null, fileId: null);
         }
 
-        protected Task<FileUpdateResult> ReceiveFileUpdateV2(Guid driveId, Guid fileId)
+        protected Task<FileUpdateResult> ReceiveFileUpdateV2(Guid driveId, Guid? fileId)
         {
-            return ReceiveFileUpdateInternal(driveId, fileId);
+            return ReceiveFileUpdateInternal(driveId, fileId, null);
         }
 
-        protected async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId)
+        protected Task<FileUpdateResult> ReceiveFileUpdateByUniqueIdV2(Guid driveId, Guid uniqueId)
+        {
+            return ReceiveFileUpdateInternal(driveId, null, uniqueId);
+        }
+
+        protected async Task<FileUpdateResult> ReceiveFileUpdateInternal(Guid? driveId, Guid? fileId, Guid? uniqueId = null)
         {
             FileSystemType fileSystemType;
             FileSystemUpdateWriterBase updateWriter = null;
@@ -111,12 +117,32 @@ namespace Odin.Hosting.Controllers.Base.Drive
                     OdinValidationUtils.AssertNotEmptyGuid(driveId.GetValueOrDefault(), "Version 2 requires DriveId to be set");
                     var theDrive = await driveManager.GetDriveAsync(driveId.GetValueOrDefault());
 
-                    instructionSet.File = new FileIdentifier
+                    //we might be coming in via fileId or uniqueid so handle that here for v2
+                    //TODO: clean up target drive when we remove v1 from the system
+                    if (fileId.HasValue)
                     {
-                        FileId = fileId.GetValueOrDefault(),
-                        TargetDrive = theDrive!.TargetDriveInfo,
-                    };
-                    
+                        instructionSet.File = new FileIdentifier
+                        {
+                            FileId = fileId.GetValueOrDefault(),
+                            TargetDrive = theDrive!.TargetDriveInfo,
+                            DriveId = driveId.GetValueOrDefault()
+                        };
+                        
+                    }
+                    else if (uniqueId.HasValue)
+                    {
+                        instructionSet.File = new FileIdentifier
+                        {
+                            UniqueId = uniqueId.GetValueOrDefault(),
+                            TargetDrive = theDrive!.TargetDriveInfo,
+                            DriveId = driveId.GetValueOrDefault()
+                        };
+                    }
+                    else
+                    {
+                        throw new OdinClientException("Must provide either FileId or UniqueId to identify the file to update", OdinClientErrorCode.MissingUploadData);
+                    }
+
                     var fs = await fileSystemResolver.ResolveFileSystem(instructionSet.File, WebOdinContext);
                     updateWriter = this.GetHttpFileSystemResolver().ResolveFileSystemUpdateWriter();
                     fileSystemType = fs.Storage.GetFileSystemType();

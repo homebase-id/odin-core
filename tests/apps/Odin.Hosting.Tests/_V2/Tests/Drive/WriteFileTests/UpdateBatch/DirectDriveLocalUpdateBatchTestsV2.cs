@@ -12,7 +12,7 @@ using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
-using Odin.Services.Base;
+using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -51,7 +51,7 @@ public class DirectDriveLocalUpdateBatchTestsV2
     {
         _scaffold.AssertLogEvents();
     }
-    
+
     public static IEnumerable TestCasesSecuredDrive()
     {
         // yield return new object[] { new GuestTestCase(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK };
@@ -66,7 +66,8 @@ public class DirectDriveLocalUpdateBatchTestsV2
 
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
-    public async Task CanUpdateBatchWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanUpdateBatch_ByIdentifyingFileWithFileId_WithoutPayloads(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -83,6 +84,8 @@ public class DirectDriveLocalUpdateBatchTestsV2
         var uploadResult = uploadNewFileResponse.Content;
         var targetFile = uploadResult.File;
 
+        var driveId = targetFile.TargetDrive.Alias;
+        var fileId = targetFile.FileId;
         //
         // Act - call update batch with UpdateLocale = Local
         //
@@ -93,15 +96,11 @@ public class DirectDriveLocalUpdateBatchTestsV2
         updatedFileMetadata.AppData.DataType = 991;
         updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
 
-        var updateInstructionSet = new FileUpdateInstructionSet
+        var updateInstructionSet = new FileUpdateInstructionSetV2
         {
             Locale = UpdateLocale.Local,
-
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            // File = targetFile.ToV2FileIdentifier(),
-            
-            
-            Recipients = default,
+            Recipients = null,
             Manifest = new UploadManifest
             {
                 PayloadDescriptors = []
@@ -111,7 +110,7 @@ public class DirectDriveLocalUpdateBatchTestsV2
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
+        var updateFileResponse = await callerDriveClient.UpdateFileByFileId(driveId, fileId, updateInstructionSet, updatedFileMetadata, []);
         ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
@@ -144,13 +143,14 @@ public class DirectDriveLocalUpdateBatchTestsV2
             ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
             ClassicAssert.IsNotNull(theFileSearchResult);
-            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsTrue(theFileSearchResult!.FileId == targetFile.FileId);
         }
     }
 
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
-    public async Task CanUpdateBatchWith1PayloadsAnd1Thumbnails(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanUpdateBatch_ByIdentifyingFileWithFileId_With1PayloadsAnd1Thumbnails(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -182,19 +182,20 @@ public class DirectDriveLocalUpdateBatchTestsV2
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 777;
-        updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
+        updatedFileMetadata.VersionTag = uploadResult!.NewVersionTag;
 
         var targetFile = uploadNewFileResponse.Content!.File;
+        var driveId = targetFile.TargetDrive.Alias;
+        var fileId = targetFile.FileId;
+
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition2();
 
         // create instruction set
-        var updateInstructionSet = new FileUpdateInstructionSet
+        var updateInstructionSet = new FileUpdateInstructionSetV2
         {
             Locale = UpdateLocale.Local,
-
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            // File = targetFile.ToV2FileIdentifier(),
-            Recipients = default,
+            Recipients = null,
             Manifest = new UploadManifest
             {
                 PayloadDescriptors =
@@ -206,7 +207,7 @@ public class DirectDriveLocalUpdateBatchTestsV2
                         PayloadKey = payloadToAdd.Key,
                         DescriptorContent = null,
                         ContentType = payloadToAdd.ContentType,
-                        PreviewThumbnail = default,
+                        PreviewThumbnail = null,
                         Thumbnails = new List<UploadedManifestThumbnailDescriptor>(),
                     },
                     new UploadManifestPayloadDescriptor()
@@ -221,7 +222,8 @@ public class DirectDriveLocalUpdateBatchTestsV2
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, [payloadToAdd]);
+        var updateFileResponse = await callerDriveClient.UpdateFileByFileId(driveId, fileId, updateInstructionSet, updatedFileMetadata,
+            [payloadToAdd]);
         ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
@@ -293,13 +295,14 @@ public class DirectDriveLocalUpdateBatchTestsV2
             ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
             ClassicAssert.IsNotNull(theFileSearchResult);
-            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsTrue(theFileSearchResult!.FileId == targetFile.FileId);
         }
     }
 
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
-    public async Task CanUpdateBatchWith1PayloadsAnd1ThumbnailsHandleOrphanThumbnails(IApiClientContext callerContext,
+    public async Task CanUpdateBatch_ByIdentifyingFileWithFileId_With1PayloadsAnd1ThumbnailsHandleOrphanThumbnails(
+        IApiClientContext callerContext,
         HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
@@ -342,24 +345,23 @@ public class DirectDriveLocalUpdateBatchTestsV2
         var updatedFileMetadata = uploadedFileMetadata;
         updatedFileMetadata.AppData.Content = "some new content here";
         updatedFileMetadata.AppData.DataType = 777;
-        updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
+        updatedFileMetadata.VersionTag = uploadResult!.NewVersionTag;
 
         var targetFile = uploadNewFileResponse.Content!.File;
         var payloadToAdd = SamplePayloadDefinitions.GetPayloadDefinition2();
 
+        var driveId = targetFile.TargetDrive.Alias;
+        var fileId = targetFile.FileId;
 
-        payloadThatWillLoseAThumbnail.Thumbnails.RemoveAll(t =>
-            t.PixelHeight == thumbnailToBeDeleted.PixelHeight &&
-            t.PixelWidth == thumbnailToBeDeleted.PixelWidth);
+        payloadThatWillLoseAThumbnail.Thumbnails.RemoveAll(t => t.PixelHeight == thumbnailToBeDeleted.PixelHeight &&
+                                                                t.PixelWidth == thumbnailToBeDeleted.PixelWidth);
 
         // create instruction set
-        var updateInstructionSet = new FileUpdateInstructionSet
+        var updateInstructionSet = new FileUpdateInstructionSetV2()
         {
             Locale = UpdateLocale.Local,
-
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            // File = targetFile.ToV2FileIdentifier(),
-            Recipients = default,
+            Recipients = null,
             Manifest = new UploadManifest
             {
                 PayloadDescriptors =
@@ -399,11 +401,15 @@ public class DirectDriveLocalUpdateBatchTestsV2
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata,
-        [
-            payloadToAdd,
-            payloadThatWillLoseAThumbnail
-        ]);
+        var updateFileResponse = await callerDriveClient.UpdateFileByFileId(
+            driveId,
+            fileId,
+            updateInstructionSet,
+            updatedFileMetadata,
+            [
+                payloadToAdd,
+                payloadThatWillLoseAThumbnail
+            ]);
         ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
@@ -462,8 +468,8 @@ public class DirectDriveLocalUpdateBatchTestsV2
             ClassicAssert.IsTrue(getPayloadThatWillLoseAThumbnailResponse.ContentHeaders.LastModified.GetValueOrDefault() <
                                  DateTimeOffset.Now.AddSeconds(10));
 
-            var payloadThatWillLoseAThumbnailContent =
-                (await getPayloadThatWillLoseAThumbnailResponse.Content.ReadAsStreamAsync()).ToByteArray();
+            var payloadThatWillLoseAThumbnailContent = (await getPayloadThatWillLoseAThumbnailResponse.Content.ReadAsStreamAsync())
+                .ToByteArray();
             CollectionAssert.AreEqual(payloadThatWillLoseAThumbnailContent, payloadThatWillLoseAThumbnail.Content);
 
             // Check all the thumbnails
@@ -505,14 +511,15 @@ public class DirectDriveLocalUpdateBatchTestsV2
             ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
             ClassicAssert.IsNotNull(theFileSearchResult);
-            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsTrue(theFileSearchResult!.FileId == targetFile.FileId);
         }
     }
-    
-    
+
+
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
-    public async Task CanUpdateBatchByIdentifyingFileWithUniqueIdWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    public async Task CanUpdateBatchByIdentifyingFileWithUniqueIdWithoutPayloads(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -540,17 +547,11 @@ public class DirectDriveLocalUpdateBatchTestsV2
         updatedFileMetadata.AppData.DataType = 991;
         updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
 
-        var updateInstructionSet = new FileUpdateInstructionSet
+        var updateInstructionSet = new FileUpdateInstructionSetV2
         {
             Locale = UpdateLocale.Local,
-
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = new FileIdentifier()
-            {
-                UniqueId = uploadedFileMetadata.AppData.UniqueId,
-                DriveId = callerContext.DriveId
-            },
-            Recipients = default,
+            Recipients = null,
             Manifest = new UploadManifest
             {
                 PayloadDescriptors = []
@@ -559,8 +560,12 @@ public class DirectDriveLocalUpdateBatchTestsV2
 
         await callerContext.Initialize(ownerApiClient);
 
+        var driveId = targetFile.TargetDrive.Alias;
+        var uniqueId = uploadedFileMetadata.AppData.UniqueId.GetValueOrDefault();
+
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
+        var updateFileResponse = await callerDriveClient.UpdateFileByUniqueId(driveId, uniqueId, updateInstructionSet, updatedFileMetadata,
+            []);
         ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
@@ -593,14 +598,16 @@ public class DirectDriveLocalUpdateBatchTestsV2
             ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
             ClassicAssert.IsNotNull(theFileSearchResult);
-            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsTrue(theFileSearchResult!.FileId == targetFile.FileId);
         }
     }
-    
-    
+
+
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
-    public async Task CanUpdateBatchByIdentifyingFileWithGlobalTransitIdWithoutPayloads(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    [Ignore("Removed support for updating by global transit id.")]
+    public async Task CanUpdateBatchByIdentifyingFileWithGlobalTransitIdWithoutPayloads(IApiClientContext callerContext,
+        HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -628,16 +635,14 @@ public class DirectDriveLocalUpdateBatchTestsV2
         updatedFileMetadata.AppData.DataType = 991;
         updatedFileMetadata.VersionTag = uploadResult.NewVersionTag;
 
-        var updateInstructionSet = new FileUpdateInstructionSet
+        var driveId = targetFile.TargetDrive.Alias;
+        var globalTransitId = uploadResult.GlobalTransitId.GetValueOrDefault();
+
+        var updateInstructionSet = new FileUpdateInstructionSetV2
         {
             Locale = UpdateLocale.Local,
 
             TransferIv = ByteArrayUtil.GetRndByteArray(16),
-            File = new FileIdentifier()
-            {
-                GlobalTransitId = uploadResult.GlobalTransitId,
-                DriveId = callerContext.DriveId
-            },
             Recipients = default,
             Manifest = new UploadManifest
             {
@@ -648,7 +653,8 @@ public class DirectDriveLocalUpdateBatchTestsV2
         await callerContext.Initialize(ownerApiClient);
 
         var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
-        var updateFileResponse = await callerDriveClient.UpdateFile(updateInstructionSet, updatedFileMetadata, []);
+        var updateFileResponse = await callerDriveClient.UpdateFileByGlobalTransitId(driveId, globalTransitId, updateInstructionSet,
+            updatedFileMetadata, []);
         ClassicAssert.IsTrue(updateFileResponse.StatusCode == expectedStatusCode,
             $"Expected {expectedStatusCode} but actual was {updateFileResponse.StatusCode}");
 
@@ -681,7 +687,7 @@ public class DirectDriveLocalUpdateBatchTestsV2
             ClassicAssert.IsTrue(searchResponse.IsSuccessStatusCode);
             var theFileSearchResult = searchResponse.Content.SearchResults.SingleOrDefault();
             ClassicAssert.IsNotNull(theFileSearchResult);
-            ClassicAssert.IsTrue(theFileSearchResult.FileId == targetFile.FileId);
+            ClassicAssert.IsTrue(theFileSearchResult!.FileId == targetFile.FileId);
         }
     }
 }

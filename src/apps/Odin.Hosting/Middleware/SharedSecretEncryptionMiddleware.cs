@@ -282,6 +282,11 @@ namespace Odin.Hosting.Middleware
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
+            if (!EndpointRequiresSharedSecret(context))
+            {
+                return false;
+            }
+            
             // No query string
             if (context.Request.Method.ToUpper() == "GET" && !context.Request.Query.Any())
             {
@@ -391,5 +396,18 @@ namespace Odin.Hosting.Middleware
 
             return false;
         }
+        
+        private static bool EndpointRequiresSharedSecret(HttpContext context)
+        {
+            var endpoint = context.GetEndpoint();
+            if (endpoint == null)
+            {
+                return false;
+            }
+
+            // Opt-out model: shared secret is REQUIRED unless explicitly disabled
+            return endpoint.Metadata.GetMetadata<NoSharedSecretAttribute>() == null;
+        }
+
     }
 }

@@ -12,11 +12,11 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.UnifiedV2.Drive.Write
 {
     [ApiController]
-    [Route(UnifiedApiRouteConstants.DrivesRoot)]
+    [Route(UnifiedApiRouteConstants.FilesRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveUploadController(
-        ILogger<V2DriveUploadController> logger,
+    public class V2DriveCreateFileController(
+        ILogger<V2DriveCreateFileController> logger,
         DriveManager driveManager,
         FileSystemResolver fileSystemResolver)
         : V1DriveUploadControllerBase(logger, driveManager, fileSystemResolver)
@@ -24,7 +24,6 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         /// <summary>
         /// Uploads a new file to the drive using multipart form data
         /// </summary>
-        [HttpPost("files")]
         [SwaggerOperation(
             Summary = "Create a new file",
             Description = "Uploads a new file using multipart/form-data.",
@@ -32,6 +31,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         )]
         [Consumes("multipart/form-data")]
         [DisableFormValueModelBinding]
+        [HttpPost]
+        [NoSharedSecret]
         public async Task<CreateFileResult> CreateNewFile()
         {
             var driveId = Guid.Parse(RouteData.Values["driveId"]!.ToString()!);

@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -32,12 +30,22 @@ public interface IDriveWriterHttpClientApiV2
         [AliasAs("fileId:guid")] Guid fileId, [Body] DeletePayloadRequestV2 request);
 
     [Multipart]
-    [Post(UnifiedApiRouteConstants.DrivesRoot + "/files")]
+    [Post(UnifiedApiRouteConstants.FilesRoot)]
     Task<ApiResponse<CreateFileResult>> CreateNewFile([AliasAs("driveId:guid")] Guid driveId, StreamPart[] streamdata);
 
     [Multipart]
-    [Patch(UnifiedApiRouteConstants.DrivesRoot + "/files")]
-    Task<ApiResponse<UpdateFileResult>> UpdateFileByFileId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("fileId:guid")] Guid fileId, StreamPart[] streamdata);
+    [Patch(FileIdEndpoint)]
+    Task<ApiResponse<UpdateFileResult>> UpdateFileByFileId(
+        [AliasAs("driveId:guid")] Guid driveId, 
+        [AliasAs("fileId:guid")] Guid fileId,
+        StreamPart[] streamdata);
+
+    [Multipart]
+    [Patch(UnifiedApiRouteConstants.ByUniqueId)]
+    Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("uid:guid")] Guid uniqueId,
+        StreamPart[] streamdata);
 
     [Post(UnifiedApiRouteConstants.FilesRoot + "/send-read-receipt-batch")]
     Task<ApiResponse<SendReadReceiptResultV2>> SendReadReceiptBatch([AliasAs("driveId:guid")] Guid driveId,

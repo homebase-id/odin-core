@@ -11,7 +11,7 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public interface IDriveFileByUidHttpClientApiV2
 {
-    private const string Endpoint = $"{UnifiedApiRouteConstants.FilesRoot}/{V2DriveFileReadonlyByUidController.ByUniqueId}";
+    private const string Endpoint = UnifiedApiRouteConstants.ByUniqueId;
 
     [Get(Endpoint + "/header")]
     Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueId([AliasAs("driveId:guid")] Guid driveId,
@@ -22,9 +22,9 @@ public interface IDriveFileByUidHttpClientApiV2
     Task<ApiResponse<HttpContent>> GetPayloadByUniqueId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
         [AliasAs("payloadKey")] string payloadKey,
         [AliasAs("start:int")] int start,
-        [AliasAs("length:int")] int length, 
+        [AliasAs("length:int")] int length,
         FileSystemType fileSystemType);
-    
+
     [Get(Endpoint + "/payload/{payloadKey}")]
     Task<ApiResponse<HttpContent>> GetPayloadByUniqueId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
         [AliasAs("payloadKey")] string payloadKey,
@@ -32,9 +32,9 @@ public interface IDriveFileByUidHttpClientApiV2
 
     [Get(Endpoint + "/payload/{payloadKey}/thumb")]
     Task<ApiResponse<HttpContent>> GetThumbnailByUniqueId([AliasAs("driveId:guid")] Guid driveId, [AliasAs("uid:guid")] Guid uid,
-        [AliasAs("payloadKey")] string payloadKey, 
-        int width, 
-        int height, 
+        [AliasAs("payloadKey")] string payloadKey,
+        int width,
+        int height,
         bool directMatchOnly,
         FileSystemType fileSystemType);
 }

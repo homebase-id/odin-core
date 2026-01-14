@@ -18,7 +18,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     /// Api endpoints for reading drives
     /// </summary>
     [ApiController]
-    [Route(UnifiedApiRouteConstants.FilesRoot)]
+    [Route(UnifiedApiRouteConstants.ByUniqueId)]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveFileReadonlyByUidController(
@@ -28,7 +28,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     {
         public const string ByUniqueId = "by-uid/{uid:guid}";
 
-        [HttpGet($"{ByUniqueId}/header")]
+        [HttpGet("header")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetFileHeaderByUid(
             [FromRoute] Guid driveId,
@@ -43,7 +43,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return new JsonResult(result);
         }
 
-        [HttpGet(ByUniqueId + "/payload/{payloadKey}")]
+        [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetPayloadByUniqueId(
             [FromRoute] Guid driveId,
@@ -53,7 +53,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await this.GetPayloadByUniqueIdInternal(driveId, uid, payloadKey);
         }
 
-        [HttpGet(ByUniqueId + "/payload/{payloadKey}/{start:int}/{length:int}")]
+        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetPayloadByUniqueId(
             [FromRoute] Guid driveId,
@@ -67,8 +67,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await GetPayloadByUniqueIdInternal(driveId, uid, payloadKey, chunk);
         }
 
-        [HttpGet(ByUniqueId + "/payload/{payloadKey}/thumb")]
-        [HttpGet(ByUniqueId + "/payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
+        [HttpGet("payload/{payloadKey}/thumb")]
+        [HttpGet("payload/{payloadKey}/thumb.{extension}")] // for link-preview support in signal/whatsapp
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> GetThumbnailByUniqueId(
             [FromRoute] Guid driveId,
