@@ -34,6 +34,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         [DisableFormValueModelBinding]
         [HttpPatch]
         [NoSharedSecretOnRequest]
+        [NoSharedSecretOnResponse]
         [Route(UnifiedApiRouteConstants.ByFileId)]
         public async Task<UpdateFileResult> UpdateByFileId()
         {
@@ -67,6 +68,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         [DisableFormValueModelBinding]
         [HttpPatch]
         [NoSharedSecretOnRequest]
+        [NoSharedSecretOnResponse]
         [Route(UnifiedApiRouteConstants.ByUniqueId)]
         public async Task<UpdateFileResult> UpdateByUniqueId()
         {

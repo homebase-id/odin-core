@@ -33,19 +33,20 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         [DisableFormValueModelBinding]
         [HttpPost]
         [NoSharedSecretOnRequest]
+        [NoSharedSecretOnResponse]
         public async Task<CreateFileResult> CreateNewFile()
         {
             var driveId = Guid.Parse(RouteData.Values["driveId"]!.ToString()!);
             OdinValidationUtils.AssertNotEmptyGuid(driveId, "missing drive id");
 
-            var v1Result = await ReceiveNewFileStreamV2(driveId);
+            var v2Result = await ReceiveNewFileStreamV2(driveId);
             return new CreateFileResult
             {
-                FileId = v1Result.File.FileId,
-                DriveId = v1Result.File.TargetDrive.Alias.Value,
-                GlobalTransitId = v1Result.GlobalTransitId,
-                RecipientStatus = v1Result.RecipientStatus,
-                NewVersionTag = v1Result.NewVersionTag
+                FileId = v2Result.File.FileId,
+                DriveId = v2Result.File.TargetDrive.Alias.Value,
+                GlobalTransitId = v2Result.GlobalTransitId,
+                RecipientStatus = v2Result.RecipientStatus,
+                NewVersionTag = v2Result.NewVersionTag
             };
         }
     }

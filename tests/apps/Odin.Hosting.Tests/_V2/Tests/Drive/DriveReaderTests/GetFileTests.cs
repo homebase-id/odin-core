@@ -165,7 +165,7 @@ public class GetFileTests
             //
 
             var thumbnail = payload.Thumbnails.Single();
-            var getThumbnailResponse = await client.GetThumbnailAsync(file.DriveId, file.FileId, payload.Key, 
+            var getThumbnailResponse = await client.GetThumbnailAsync(file.DriveId, file.FileId, payload.Key,
                 thumbnail.PixelWidth, thumbnail.PixelHeight, directMatchOnly: true);
 
             ClassicAssert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.OK,
@@ -199,13 +199,13 @@ public class GetFileTests
             ClassicAssert.IsTrue(DriveFileUtility.TryParseLastModifiedHeader(getThumbnailResponse.ContentHeaders,
                 out var thumbnailLastModifiedHeaderValue));
 
-            
+
             // get the thumbnail w/o width and height
             var getThumbnailResponse2 = await client.GetThumbnailAsync(file.DriveId, file.FileId, payload.Key);
             ClassicAssert.IsTrue(getThumbnailResponse2.StatusCode == HttpStatusCode.OK,
                 $"get thumbnail failed - code was {getThumbnailResponse2.StatusCode}");
 
-            
+
             //Note commented as I'm having some conversion issues i think
             ClassicAssert.IsTrue(thumbnailLastModifiedHeaderValue.GetValueOrDefault().seconds == payloadFromHeader.LastModified.seconds);
         }
@@ -468,8 +468,8 @@ public class GetFileTests
         var unencryptedThumbnail = unencryptedPayload.Thumbnails.Single();
 
         var keyHeader = KeyHeader.NewRandom16();
-        var (uploadResult, encryptedJsonContent64, _, _) =
-            await UploadEncryptedFile(identity, metadata, unencryptedPayload, keyHeader, callerContext);
+        var (uploadResult, encryptedJsonContent64, _, _) = await UploadEncryptedFile(identity, metadata, unencryptedPayload, keyHeader,
+            callerContext);
 
         await callerContext.Initialize(ownerApiClient);
         var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
@@ -587,7 +587,8 @@ public class GetFileTests
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
 
-        var response = await v2Owner.DriveWriter.CreateNewUnencryptedFile(callerContext.DriveId, uploadedFileMetadata, uploadManifest, testPayloads);
+        var response = await v2Owner.DriveWriter.CreateNewUnencryptedFile(callerContext.DriveId, uploadedFileMetadata, uploadManifest,
+            testPayloads);
 
         // send back details - fileid
         ClassicAssert.IsTrue(response.IsSuccessStatusCode);
@@ -617,21 +618,17 @@ public class GetFileTests
         {
             PayloadDescriptors = testPayloads.ToPayloadDescriptorList().ToList()
         };
-        
+
         var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
-        var (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) =
-            await v2Owner.DriveWriter.CreateEncryptedFile(
-                fileMetadata: uploadedFileMetadata,
-                storageOptions: new StorageOptions
-                {
-                    DriveId = callerContext.DriveId
-                },
-                transitOptions: new TransitOptions(),
-                uploadManifest: uploadManifest,
-                payloads: testPayloads,
-                notificationOptions: null,
-                keyHeader: keyHeader
-            );
+        var (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads) = await v2Owner.DriveWriter.CreateEncryptedFile(
+            callerContext.DriveId,
+            fileMetadata: uploadedFileMetadata,
+            transitOptions: new TransitOptions(),
+            uploadManifest: uploadManifest,
+            payloads: testPayloads,
+            notificationOptions: null,
+            keyHeader: keyHeader
+        );
 
         // send back details - fileid
         ClassicAssert.IsTrue(response.IsSuccessStatusCode);

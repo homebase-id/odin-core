@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography;
@@ -13,7 +12,6 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -66,8 +64,8 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         List<EncryptedAttachmentUploadResult> uploadedThumbnails,
         List<EncryptedAttachmentUploadResult> uploadedPayloads
         )> CreateEncryptedFile(
+        Guid driveId,
         UploadFileMetadata fileMetadata,
-        StorageOptions storageOptions,
         TransitOptions transitOptions,
         UploadManifest uploadManifest = null,
         List<TestPayloadDefinition> payloads = null,
@@ -94,7 +92,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         var instructionSet = new UploadInstructionSet
         {
             TransferIv = transferIv,
-            StorageOptions = storageOptions,
+            StorageOptions = new StorageOptions(),
             TransitOptions = transitOptions ?? new TransitOptions(),
             Manifest = uploadManifest
         };
@@ -193,7 +191,6 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             }
         }
 
-        var driveId = storageOptions.DriveId;
         var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
         var response = await driveSvc.CreateNewFile(driveId, parts.ToArray());
 
@@ -227,10 +224,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                DriveId = driveId,
-            },
+            StorageOptions = new StorageOptions(),
             TransitOptions = transitOptions ?? new TransitOptions(),
             Manifest = uploadManifest
         };
@@ -315,7 +309,6 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads)
     {
-
         throw new NotSupportedException("Updates by Global transit id is not supported.");
         // return UpdateFileInternal(
         //     (svc, parts) => svc.UpdateFileByGlobalTransitId(driveId, globalTransitId, parts),
@@ -330,8 +323,6 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads)
     {
-        var keyHeader = KeyHeader.NewRandom16();
-
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
 
         var instructionStream = new MemoryStream(
@@ -383,8 +374,6 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
 
         var response = await invoke(driveSvc, parts.ToArray());
-
-        keyHeader.AesKey.Wipe();
 
         return response;
     }
