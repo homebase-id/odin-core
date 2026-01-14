@@ -582,7 +582,7 @@ public class OdinConfiguration
             Enabled = config.GetOrDefault("Cdn:Enabled", false);
             if (Enabled)
             {
-                PayloadBaseUrl = config.Required<string>("Cdn:PayloadBaseUrl");
+                PayloadBaseUrl = config.Required<string>("Cdn:PayloadBaseUrl").Trim();
                 if (PayloadBaseUrl != null)
                 {
                     if (!PayloadBaseUrl.StartsWith("http://") && !PayloadBaseUrl.StartsWith("https://"))
@@ -590,9 +590,9 @@ public class OdinConfiguration
                         throw new OdinConfigException("Cdn:PayloadBaseUrl must begin with http:// or https://");
                     }
 
-                    if (!PayloadBaseUrl.EndsWith('/'))
+                    if (PayloadBaseUrl.EndsWith('/'))
                     {
-                        PayloadBaseUrl += '/';
+                        throw new OdinConfigException("Cdn:PayloadBaseUrl must not end with a trailing slash '/'");
                     }
                 }
                 
