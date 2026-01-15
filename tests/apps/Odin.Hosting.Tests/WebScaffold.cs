@@ -343,7 +343,7 @@ namespace Odin.Hosting.Tests
         /// <returns></returns>
         public HttpClient CreateAnonymousApiHttpClient(OdinId identity, FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            var client = HttpClientFactory.CreateClient("AnonymousApiHttpClient");
+            var client = HttpClientFactory.CreateClient($"AnonymousApiHttpClient_{identity}");
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.BaseAddress = new Uri($"https://{identity}:{HttpsPort}");
