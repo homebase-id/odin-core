@@ -249,7 +249,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         [AllowAnonymous]
         [HttpPost(OwnerApiPathConstants.YouAuthV1Token)] // "token"
         [Produces("application/json")]
-        [EnableCors(CorsPolicies.AllowAllOriginsWithCredentialsPolicy)]
         public async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)
         {
             tokenRequest.Validate();

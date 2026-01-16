@@ -336,7 +336,7 @@ public class PushNotificationService(
             var baseUri = new Uri(configuration.PushNotification.BaseUrl);
             var httpClient = httpClientFactory.CreateClient(baseUri.Host);
             httpClient.BaseAddress = baseUri;
-            httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, correlationContext.Id);
+            httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.CorrelationId, correlationContext.Id);
             var push = RestService.For<IDevicePushNotificationApi>(httpClient);
 
             await TryRetry.Create()

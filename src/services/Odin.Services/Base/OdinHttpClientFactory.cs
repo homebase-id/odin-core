@@ -79,7 +79,7 @@ namespace Odin.Services.Base
                 Port = _config.Host.DefaultHttpsPort
             }.Uri;
 
-            httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, _correlationContext.Id);
+            httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.CorrelationId, _correlationContext.Id);
 
             if (fileSystemType.HasValue)
             {
