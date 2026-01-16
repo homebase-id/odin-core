@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
@@ -76,14 +77,14 @@ public class CdnTests
 
         var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
 
-        // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/payload/cdn-ping
-        var getHeaderResponse = await client.CdnPing(10);
-        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(getHeaderResponse.Content?.Headers.ContentType?.MediaType, Is.EqualTo("application/octet-stream"));
-        var body = await getHeaderResponse.Content.ReadAsByteArrayAsync();
+        // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/payload/cdn-ping/123
+        var response = await client.CdnPing(10);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content?.Headers.ContentType?.MediaType, Is.EqualTo("application/octet-stream"));
+        var body = await response.Content.ReadAsByteArrayAsync();
         Assert.That(body, Is.EqualTo(new byte[10].Select(_ => (byte)'X').ToArray()));
 
-        var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
+        var cdnHttpHeaderValue = response.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
         Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://cdn.ravenhosting.cloud"));
     }
 
@@ -98,11 +99,31 @@ public class CdnTests
         var client = new CdnV2Client(sam.OdinId, callerContext.GetFactory());
 
         // https://sam.dotyou.cloud/api/v2/drives/cdn-ping/bad-cdn-path/cdn-ping
-        var getHeaderResponse = await client.CdnPingBadPath();
-        Assert.That(getHeaderResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        var response = await client.CdnPingBadPath();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
 
-        var cdnHttpHeaderValue = getHeaderResponse.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
+        var cdnHttpHeaderValue = response.Headers.GetValues(OdinHeaderNames.OdinCdnPayload).FirstOrDefault();
         Assert.That(cdnHttpHeaderValue, Is.EqualTo("https://cdn.ravenhosting.cloud"));
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCasesCdn))]
+    public async Task GenericCdnPingWithoutCdnTokenShouldFail(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
+        var url = $"https://{TestIdentities.Samwise.OdinId}:{WebScaffold.HttpsPort}/api/v2/drives/cdn-ping/payload/10";
+        var response = await client.GetAsync(url);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.That(body, Is.EqualTo("Missing or invalid Authorization header"));
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "invalid-token");
+        response = await client.GetAsync(url);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        body = await response.Content.ReadAsStringAsync();
+        Assert.That(body, Is.EqualTo("Incorrect bearer token"));
     }
 
     [Test]
