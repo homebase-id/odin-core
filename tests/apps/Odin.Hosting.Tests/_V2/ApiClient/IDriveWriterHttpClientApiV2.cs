@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
@@ -30,21 +28,34 @@ public interface IDriveWriterHttpClientApiV2
     [Post(FileIdEndpoint + "/delete-payload")]
     Task<ApiResponse<DeletePayloadResult>> DeletePayload([AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("fileId:guid")] Guid fileId, [Body] DeletePayloadRequestV2 request);
-    
-    [Multipart]
-    [Post(UnifiedApiRouteConstants.DrivesRoot + "/files")]
-    Task<ApiResponse<CreateFileResult>> Upload(StreamPart[] streamdata);
 
     [Multipart]
-    [Patch(UnifiedApiRouteConstants.DrivesRoot + "/files")]
-    Task<ApiResponse<UpdateFileResult>> Update(StreamPart[] streamdata);
-    
+    [Post(UnifiedApiRouteConstants.FilesRoot)]
+    Task<ApiResponse<CreateFileResult>> CreateNewFile([AliasAs("driveId:guid")] Guid driveId, StreamPart[] streamdata);
+
+    [Multipart]
+    [Patch(FileIdEndpoint)]
+    Task<ApiResponse<UpdateFileResult>> UpdateFileByFileId(
+        [AliasAs("driveId:guid")] Guid driveId, 
+        [AliasAs("fileId:guid")] Guid fileId,
+        StreamPart[] streamdata);
+
+    [Multipart]
+    [Patch(UnifiedApiRouteConstants.ByUniqueId)]
+    Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("uid:guid")] Guid uniqueId,
+        StreamPart[] streamdata);
+
     [Post(UnifiedApiRouteConstants.FilesRoot + "/send-read-receipt-batch")]
-    Task<ApiResponse<SendReadReceiptResultV2>> SendReadReceiptBatch([AliasAs("driveId:guid")] Guid driveId, [Body] SendReadReceiptRequestV2 request);
-    
+    Task<ApiResponse<SendReadReceiptResultV2>> SendReadReceiptBatch([AliasAs("driveId:guid")] Guid driveId,
+        [Body] SendReadReceiptRequestV2 request);
+
     [Post(UnifiedApiRouteConstants.FilesRoot + "/delete-batch/by-group-id")]
-    Task<ApiResponse<DeleteFilesByGroupIdBatchResultV2>> DeleteFilesByGroupIdBatch([AliasAs("driveId:guid")] Guid driveId, [Body] DeleteFilesByGroupIdBatchRequestV2 request);
-    
+    Task<ApiResponse<DeleteFilesByGroupIdBatchResultV2>> DeleteFilesByGroupIdBatch([AliasAs("driveId:guid")] Guid driveId,
+        [Body] DeleteFilesByGroupIdBatchRequestV2 request);
+
     [Post(UnifiedApiRouteConstants.FilesRoot + "/delete-batch/by-file-id")]
-    Task<ApiResponse<DeleteFileIdBatchResultV2>> DeleteFileIdBatch([AliasAs("driveId:guid")] Guid driveId, [Body] DeleteFileIdBatchRequestV2 request);
+    Task<ApiResponse<DeleteFileIdBatchResultV2>> DeleteFileIdBatch([AliasAs("driveId:guid")] Guid driveId,
+        [Body] DeleteFileIdBatchRequestV2 request);
 }

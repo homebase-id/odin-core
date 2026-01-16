@@ -336,11 +336,8 @@ public class CdnTests
        
         var (response, _, uploadedThumbnails, uploadedPayloads) =
             await v2Owner.DriveWriter.CreateEncryptedFile(
+                callerContext.DriveId,
                 fileMetadata: uploadedFileMetadata,
-                storageOptions: new StorageOptions
-                {
-                    DriveId = callerContext.DriveId
-                },
                 transitOptions: new TransitOptions(),
                 uploadManifest: uploadManifest,
                 payloads: testPayloads,

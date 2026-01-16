@@ -1,13 +1,16 @@
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 
 namespace Odin.Services.Drives;
 
+[DebuggerDisplay("{DebuggerData}")]
 public class QueryBatchResult
 {
+    private string DebuggerData => $"Time: {QueryTime} | Count: {SearchResults.Count()}";
     public QueryBatchCursor Cursor { get; set; }
 
     /// <summary>
@@ -20,7 +23,6 @@ public class QueryBatchResult
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
     
-   
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
     public bool HasMoreRows { get; set; }
