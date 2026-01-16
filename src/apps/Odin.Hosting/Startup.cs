@@ -14,6 +14,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Http;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
@@ -439,6 +440,19 @@ public static class HostExtensions
                 config.S3PayloadStorage.BucketName, config.S3PayloadStorage.ServiceUrl);
             var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
             payloadBucket.CreateBucketAsync().BlockingWait();
+        }
+
+        // Sanity ping CDN
+        if (config.Cdn.Enabled)
+        {
+            var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
+            var client = factory.CreateClient("CdnPingClient");
+            var url = $"{config.Cdn.PayloadBaseUrl}/ping";
+            var response = client.GetAsync(url).Result;
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Cdn enabled, but not responding to ping at {url}", url);
+            }
         }
 
         // Start system background services
