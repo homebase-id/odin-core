@@ -4,10 +4,12 @@ namespace Odin.Services.Base
 {
     public static class OdinHeaderNames
     {
-        
-        public static string EstablishConnectionAuthToken = "X-DI-EC-ClientAuthToken";
-        
-        public static string ClientAuthToken = "X-DI-ClientAuthToken";
+        //
+        // 🚩️ When adding a new header, make sure to update the CorsAllowAndExposeHeaders 🚩
+        //
+
+        public const string EstablishConnectionAuthToken = "X-DI-EC-ClientAuthToken";
+        public const string ClientAuthToken = "X-DI-ClientAuthToken";
         
         /// <summary>
         /// Describes the type of file being uploaded or requested. Values must be A name from <see cref="FileSystemType"/>
@@ -27,5 +29,26 @@ namespace Odin.Services.Base
         public const string OdinVersionTag = "X-Odin-Version";
         public const string OdinCdnPayload = "X-Odin-Cdn-Payload";
 
+        public const string CorrelationId = "Odin-Correlation-Id";
+
+        //
+
+        public static readonly string[] CorsAllowedAndExposedHeaders =
+        [
+            ClientAuthToken,
+            CorrelationId,
+            EstablishConnectionAuthToken,
+            FileSystemTypeHeader,
+            OdinVersionTag,
+            OdinCdnPayload,
+            RequiresInitialConfiguration,
+            RequiresUpgrade,
+            UpgradeIsRunning,
+        ];
+
+        //
+        // 🚩️ When adding a new header, make sure to update the CorsAllowAndExposeHeaders 🚩
+        //
     }
+
 }
