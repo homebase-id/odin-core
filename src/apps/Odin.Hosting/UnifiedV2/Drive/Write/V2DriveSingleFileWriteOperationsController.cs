@@ -111,13 +111,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
             Tags = [SwaggerInfo.FileWrite]
         )]
         [HttpPost("hard-delete")]
-        public async Task<IActionResult> HardDeleteFile(Guid driveId, Guid fileId, [FromBody] DeleteFileOptionsV2 options)
+        public async Task<IActionResult> HardDeleteFile(Guid driveId, Guid fileId)
         {
-            if (options.Recipients?.Any() ?? false)
-            {
-                throw new OdinClientException("Cannot specify recipients when hard-deleting a file", OdinClientErrorCode.InvalidRecipient);
-            }
-
             var file = new InternalDriveFileId()
             {
                 DriveId = driveId,

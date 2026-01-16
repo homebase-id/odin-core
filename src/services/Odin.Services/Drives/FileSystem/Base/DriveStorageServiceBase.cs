@@ -1129,9 +1129,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 if (!ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.AesKey.GetKey(), existingKeyHeader.AesKey.GetKey()))
                 {
-                    throw new OdinClientException("When updating a file, you cannot change the AesKey as it might " +
-                                                  "invalidate one or more payloads.  Re-upload the entire file if you wish " +
-                                                  "to rotate keys", OdinClientErrorCode.InvalidKeyHeader);
+                    throw new OdinClientException("When updating an encrypted file, the AES key must match the existing key. " +
+                                                  "Changing the AES key can invalidate existing encrypted payloads.  " +
+                                                  "If you need to rotate keys, re-upload the file instead.",
+                        OdinClientErrorCode.InvalidKeyHeader);
                 }
 
                 if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
