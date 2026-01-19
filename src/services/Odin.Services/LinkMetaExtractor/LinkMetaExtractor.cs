@@ -322,6 +322,9 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
 
         if (url.Length > 512)
         {
+            // URL too long (or it won't fit in the descriptorContent)
+            // If we want to make longer URLs work, the client app needs to load
+            // it on-demand from the payload when the user needs it.
             return null;
         }
 
