@@ -76,7 +76,7 @@ public class NotificationsTest
         ClientWebSocket socket = new ClientWebSocket();
         socket.Options.Cookies = new CookieContainer();
 
-        var cookie = new Cookie(YouAuthConstants.AppCookieName, deviceClientAuthToken.ToString());
+        var cookie = new Cookie(OdinHeaderNames.AppCookie, deviceClientAuthToken.ToString());
         cookie.Domain = identity.OdinId;
         socket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
@@ -159,7 +159,7 @@ public class NotificationsTest
         ClientWebSocket socket = new ClientWebSocket();
         socket.Options.Cookies = new CookieContainer();
 
-        var cookie = new Cookie(YouAuthConstants.AppCookieName, deviceClientAuthToken.ToString());
+        var cookie = new Cookie(OdinHeaderNames.AppCookie, deviceClientAuthToken.ToString());
         cookie.Domain = identity.OdinId;
         socket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();

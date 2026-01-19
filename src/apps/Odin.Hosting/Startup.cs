@@ -145,7 +145,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseStaticFiles();
 
         app.UseRouting();
-        app.UseCors(CorsPolicies.OdinUnifiedCorsPolicy); // Must be after routing and before authentication
+        // app.UseCors(CorsPolicies.OdinUnifiedCorsPolicy); // SEB:TODO clean up
         app.UseAuthentication();
 #pragma warning disable ASP0001
         app.UseAuthorization();
@@ -157,8 +157,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseMiddleware<OdinContextMiddleware>();
         app.UseMiddleware<LastSeenMiddleware>();
 
-        app.UseCors();
-        app.UseApiCors();
+        app.UseApiCors(); // SEB:TODO should be after routing and before authentication
         app.UseMiddleware<SharedSecretEncryptionMiddleware>();
         app.UseMiddleware<StaticFileCachingMiddleware>();
 

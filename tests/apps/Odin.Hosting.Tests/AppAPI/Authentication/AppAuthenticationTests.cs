@@ -112,7 +112,7 @@ namespace Odin.Hosting.Tests.AppAPI.Authentication
             var response = await appApiClient.PreAuth();
             
             ClassicAssert.IsTrue(response.Headers.TryGetValues("Set-Cookie", out var values));
-            ClassicAssert.IsTrue(values.Any(v=>v.StartsWith(YouAuthConstants.AppCookieName)));
+            ClassicAssert.IsTrue(values.Any(v=>v.StartsWith(OdinHeaderNames.AppCookie)));
         }
     }
 }

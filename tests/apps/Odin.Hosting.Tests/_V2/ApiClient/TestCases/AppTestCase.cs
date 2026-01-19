@@ -46,7 +46,7 @@ public class AppTestCase(TargetDrive targetDrive, DrivePermission drivePermissio
         await ownerApiClient.AppManager.RegisterApp(appId, permissions, circles, circlePermissions);
 
         var (appToken, appSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
-        _factory = new ApiClientFactoryV2(YouAuthConstants.AppCookieName, appToken, appSharedSecret);
+        _factory = new ApiClientFactoryV2(OdinHeaderNames.AppCookie, appToken, appSharedSecret);
     }
 
     public IApiClientFactory GetFactory()

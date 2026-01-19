@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests.AppAPI.ApiClient.Base
             // DO NOT do this in production code!
             //
             {
-                var cookieValue = $"{YouAuthConstants.AppCookieName}={token}";
+                var cookieValue = $"{OdinHeaderNames.AppCookie}={token}";
                 client.DefaultRequestHeaders.Add("Cookie", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret));

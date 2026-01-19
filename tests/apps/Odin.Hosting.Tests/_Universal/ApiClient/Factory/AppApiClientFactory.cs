@@ -29,7 +29,7 @@ public class AppApiClientFactory(ClientAuthenticationToken token, byte[] secret)
         // DO NOT do this in production code!
         //
         {
-            var cookieValue = $"{YouAuthConstants.AppCookieName}={token1}";
+            var cookieValue = $"{OdinHeaderNames.AppCookie}={token1}";
             client.DefaultRequestHeaders.Add("Cookie", cookieValue);
             client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
             client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(secret));

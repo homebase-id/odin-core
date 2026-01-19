@@ -31,10 +31,14 @@ namespace Odin.Services.Base
 
         public const string CorrelationId = "Odin-Correlation-Id";
 
+        public const string AppCookie = "BX0900";       // used as header in frontend
+        public const string SubscriberCookie = "SUB32"; // used as header in frontend
+
         //
 
         public static readonly string[] CorsAllowedAndExposedHeaders =
         [
+            AppCookie,
             ClientAuthToken,
             CorrelationId,
             EstablishConnectionAuthToken,
@@ -43,6 +47,7 @@ namespace Odin.Services.Base
             OdinCdnPayload,
             RequiresInitialConfiguration,
             RequiresUpgrade,
+            SubscriberCookie,
             UpgradeIsRunning,
         ];
 

@@ -15,10 +15,25 @@ namespace Odin.Hosting.Middleware
 
         public Task Invoke(HttpContext context, IOdinContext odinContext)
         {
+            // SEB:TODO the below CORS handling deals differently with OPTIONS requests vs other requests.
+            // This is wrong and must be fixed to handle all requests the same way.
             if (context.Request.Method == "OPTIONS")
             {
-                //handled by a controller
-                return next.Invoke(context);
+                context.Response.Headers.Append("Access-Control-Allow-Origin", context.Request.Headers["Origin"]);
+                context.Response.Headers.Append("Access-Control-Allow-Headers",
+                    new[]
+                    {
+                        "Content-Type", "Accept", "Authorization",
+                        OdinHeaderNames.FileSystemTypeHeader
+                        // add your other custom headers
+                    });
+                context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PATCH, PUT, DELETE");
+                context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
+                context.Response.Headers.Append("Access-Control-Expose-Headers", OdinHeaderNames.CorsAllowedAndExposedHeaders);
+                context.Response.Headers.Append("Access-Control-Max-Age", "86400");
+
+                context.Response.StatusCode = 204;
+                return Task.CompletedTask;
             }
 
             bool shouldSetHeaders = false;
@@ -37,7 +52,7 @@ namespace Odin.Hosting.Middleware
                     shouldSetHeaders = true;
                     context.Response.Headers.Append(
                         "Access-Control-Allow-Origin", $"https://{appHostName}");
-                    allowHeaders.Add(YouAuthConstants.AppCookieName);
+                    allowHeaders.Add(OdinHeaderNames.AppCookie);
                     allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                     allowHeaders.Add(OdinHeaderNames.RequiresUpgrade);
                     allowHeaders.Add(OdinHeaderNames.UpgradeIsRunning);

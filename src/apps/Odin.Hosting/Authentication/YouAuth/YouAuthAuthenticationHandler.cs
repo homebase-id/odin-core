@@ -80,7 +80,7 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleAppAuth(IOdinContext odinContext)
         {
-            if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
+            if (!TryGetClientAuthToken(OdinHeaderNames.AppCookie, out var authToken, true))
             {
                 return AuthenticateResult.Fail("Invalid App Token");
             }
@@ -109,7 +109,7 @@ namespace Odin.Hosting.Authentication.YouAuth
             // Steal this path from the http controller because here we have the client auth token
             if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstantsV1.NotificationsV1}/preauth"))
             {
-                AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.AppCookieName, authToken);
+                AuthenticationCookieUtil.SetCookie(Response, OdinHeaderNames.AppCookie, authToken);
             }
 
             return CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName);

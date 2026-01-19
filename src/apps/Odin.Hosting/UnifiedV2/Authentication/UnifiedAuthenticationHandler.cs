@@ -201,7 +201,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                 return true;
             }
 
-            if (TryGetClientAuthTokenFromCookie(this.Context, YouAuthConstants.AppCookieName, out clientAuthToken))
+            if (TryGetClientAuthTokenFromCookie(this.Context, OdinHeaderNames.AppCookie, out clientAuthToken))
             {
                 return true;
             }
