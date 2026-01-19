@@ -320,6 +320,11 @@ public class LinkMetaExtractor(IDynamicHttpClientFactory clientFactory, ILogger<
             throw new OdinClientException($"Invalid or unsafe URL: {url}");
         }
 
+        if (url.Length > 512)
+        {
+            return null;
+        }
+
         var htmlContent = await FetchHtmlContentAsync(url);
 
         return await ProcessHtmlAsync(htmlContent, url);
