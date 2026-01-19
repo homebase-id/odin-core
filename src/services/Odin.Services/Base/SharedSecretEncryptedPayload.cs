@@ -8,6 +8,7 @@ using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
+using Odin.Services.Util;
 
 namespace Odin.Services.Base;
 
@@ -39,6 +40,8 @@ public class SharedSecretEncryptedPayload
     public static async Task<byte[]> Decrypt(Stream stream, SensitiveByteArray key, CancellationToken token = default)
     {
         var ssp = await OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(stream, token);
+        OdinValidationUtils.AssertNotNull(ssp, "invalid shared secret payload");
+        OdinValidationUtils.AssertNotEmptyByteArray(ssp!.Iv, "missing initialization vector");
         return DecryptInternal(ssp, key);
     }
 

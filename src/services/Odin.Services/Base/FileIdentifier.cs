@@ -15,6 +15,7 @@ public class FileIdentifier
     /// </summary>
     public TargetDrive TargetDrive { get; set; }
     
+    // Need to drop this asap
     public Guid DriveId { get; init; }
 
     public void AssertIsValid()

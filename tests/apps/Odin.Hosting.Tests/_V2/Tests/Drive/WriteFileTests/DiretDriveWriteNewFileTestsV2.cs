@@ -13,18 +13,17 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
-namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteNewFileTests;
+namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests;
 
 // Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
 // Does not test security but rather drive features
-public class DirectDriveGeneralFileTestsV2
+public class DiretDriveWriteNewFileTestsV2
 {
     private WebScaffold _scaffold;
 

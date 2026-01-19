@@ -1,26 +1,21 @@
 using System.Collections.Generic;
 using Odin.Core.Identity;
-using Odin.Services.Base;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Util;
 
-namespace Odin.Services.Drives.FileSystem.Base.Update;
+namespace Odin.Hosting.UnifiedV2.Drive.Write;
 
 /// <summary>
-///  Instructions for updating a file over peer
+///  Instructions for updating a file
 /// </summary>
-public class FileUpdateInstructionSet
+public class FileUpdateInstructionSetV2
 {
     /// <summary>
     /// The transfer initialization vector used to encrypt the KeyHeader
     /// </summary>
     public byte[] TransferIv { get; init; }
-
-    /// <summary>
-    /// The File being updated
-    /// </summary>
-    public FileIdentifier File { get; set; }
 
     /// <summary>
     /// Indicates where the update should take place
@@ -45,7 +40,6 @@ public class FileUpdateInstructionSet
     {
         OdinValidationUtils.AssertNotNull(Manifest, "UploadManifest");
         OdinValidationUtils.AssertNotEmptyByteArray(TransferIv, nameof(TransferIv));
-        File.AssertIsValid();
 
         foreach (var descriptor in this.Manifest.PayloadDescriptors ?? [])
         {

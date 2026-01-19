@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography;
@@ -13,7 +12,6 @@ using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
-using Odin.Hosting.UnifiedV2.Drive;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -66,20 +64,19 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         List<EncryptedAttachmentUploadResult> uploadedThumbnails,
         List<EncryptedAttachmentUploadResult> uploadedPayloads
         )> CreateEncryptedFile(
+        Guid driveId,
         UploadFileMetadata fileMetadata,
-        StorageOptions storageOptions,
         TransitOptions transitOptions,
         UploadManifest uploadManifest = null,
         List<TestPayloadDefinition> payloads = null,
         AppNotificationOptions notificationOptions = null,
         KeyHeader keyHeader = null)
     {
-
         if ((transitOptions?.Recipients?.Any() ?? false) && fileMetadata.AllowDistribution == false)
         {
             throw new Exception("You set recipients but did not allow file distribution; tsk tsk");
         }
-        
+
         var uploadedThumbnails = new List<EncryptedAttachmentUploadResult>();
         var uploadedPayloads = new List<EncryptedAttachmentUploadResult>();
 
@@ -95,7 +92,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         var instructionSet = new UploadInstructionSet
         {
             TransferIv = transferIv,
-            StorageOptions = storageOptions,
+            StorageOptions = new StorageOptions(),
             TransitOptions = transitOptions ?? new TransitOptions(),
             Manifest = uploadManifest
         };
@@ -108,28 +105,24 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
 
-        var instructionStream =
-            new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+        var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
         // Encrypt metadata content
-        var encryptedJsonContent64 =
-            keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
+        var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.Content.ToUtf8ByteArray()).ToBase64();
 
         fileMetadata.AppData.Content = encryptedJsonContent64;
         fileMetadata.IsEncrypted = true;
 
         var descriptor = new UploadFileDescriptor
         {
-            EncryptedKeyHeader =
-                EncryptedKeyHeader.EncryptKeyHeaderAes(
-                    keyHeader,
-                    instructionSet.TransferIv,
-                    ref sharedSecret),
+            EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(
+                keyHeader,
+                instructionSet.TransferIv,
+                ref sharedSecret),
             FileMetadata = fileMetadata
         };
 
-        var fileDescriptorCipher =
-            TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+        var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
         List<StreamPart> parts =
         [
@@ -157,8 +150,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
                     AesKey = new SensitiveByteArray(keyHeader.AesKey.GetKey())
                 };
 
-                var payloadCipher =
-                    payloadKeyHeader.EncryptDataAesAsStream(payload.Content);
+                var payloadCipher = payloadKeyHeader.EncryptDataAesAsStream(payload.Content);
 
                 parts.Add(new StreamPart(
                     payloadCipher,
@@ -177,11 +169,9 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
                 foreach (var thumb in payload.Thumbnails)
                 {
-                    var thumbCipher =
-                        payloadKeyHeader.EncryptDataAesAsStream(thumb.Content);
+                    var thumbCipher = payloadKeyHeader.EncryptDataAesAsStream(thumb.Content);
 
-                    var thumbKey =
-                        $"{payload.Key}{thumb.PixelWidth}{thumb.PixelHeight}";
+                    var thumbKey = $"{payload.Key}{thumb.PixelWidth}{thumb.PixelHeight}";
 
                     parts.Add(new StreamPart(
                         thumbCipher,
@@ -202,7 +192,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         }
 
         var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-        var response = await driveSvc.Upload(parts.ToArray());
+        var response = await driveSvc.CreateNewFile(driveId, parts.ToArray());
 
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
@@ -215,7 +205,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         return (response, encryptedJsonContent64, uploadedThumbnails, uploadedPayloads);
     }
-    
+
     public async Task<ApiResponse<CreateFileResult>> CreateNewUnencryptedFile(
         Guid driveId,
         UploadFileMetadata fileMetadata,
@@ -234,10 +224,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         UploadInstructionSet instructionSet = new UploadInstructionSet()
         {
             TransferIv = transferIv,
-            StorageOptions = new()
-            {
-                DriveId = driveId,
-            },
+            StorageOptions = new StorageOptions(),
             TransitOptions = transitOptions ?? new TransitOptions(),
             Manifest = uploadManifest
         };
@@ -277,7 +264,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
             }
 
             var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-            ApiResponse<CreateFileResult> response = await driveSvc.Upload(parts.ToArray());
+            ApiResponse<CreateFileResult> response = await driveSvc.CreateNewFile(driveId, parts.ToArray());
 
             keyHeader.AesKey.Wipe();
 
@@ -285,56 +272,111 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
         }
     }
 
-    public async Task<ApiResponse<UpdateFileResult>> UpdateFile(
-        FileUpdateInstructionSet uploadInstructionSet,
+
+    public Task<ApiResponse<UpdateFileResult>> UpdateFileByFileId(
+        Guid driveId,
+        Guid fileId,
+        FileUpdateInstructionSetV2 uploadInstructionSet,
         UploadFileMetadata fileMetadata,
         List<TestPayloadDefinition> payloads)
     {
-        var keyHeader = KeyHeader.NewRandom16();
-
-        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
-        {
-            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(uploadInstructionSet).ToUtf8ByteArray());
-
-            var descriptor = new UpdateFileDescriptor()
-            {
-                EncryptedKeyHeader = null,
-                FileMetadata = fileMetadata
-            };
-
-            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, uploadInstructionSet.TransferIv, ref sharedSecret);
-
-            List<StreamPart> parts =
-            [
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
-                    Enum.GetName(MultipartUploadParts.Metadata))
-            ];
-
-            foreach (var payloadDefinition in payloads)
-            {
-                parts.Add(new StreamPart(new MemoryStream(payloadDefinition.Content), payloadDefinition.Key, payloadDefinition.ContentType,
-                    Enum.GetName(MultipartUploadParts.Payload)));
-
-                foreach (var thumbnail in payloadDefinition.Thumbnails ?? new List<ThumbnailContent>())
-                {
-                    var thumbnailKey =
-                        $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}"; //hulk smash (it all together)
-                    parts.Add(new StreamPart(new MemoryStream(thumbnail.Content), thumbnailKey, thumbnail.ContentType,
-                        Enum.GetName(MultipartUploadParts.Thumbnail)));
-                }
-            }
-
-            var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
-            ApiResponse<UpdateFileResult> response = await driveSvc.Update(parts.ToArray());
-
-            keyHeader.AesKey.Wipe();
-
-            return response;
-        }
+        return UpdateFileInternal(
+            (svc, parts) => svc.UpdateFileByFileId(driveId, fileId, parts),
+            uploadInstructionSet,
+            fileMetadata,
+            payloads);
     }
 
+    public Task<ApiResponse<UpdateFileResult>> UpdateFileByUniqueId(
+        Guid driveId,
+        Guid uniqueId,
+        FileUpdateInstructionSetV2 uploadInstructionSet,
+        UploadFileMetadata fileMetadata,
+        List<TestPayloadDefinition> payloads)
+    {
+        return UpdateFileInternal(
+            (svc, parts) => svc.UpdateFileByUniqueId(driveId, uniqueId, parts),
+            uploadInstructionSet,
+            fileMetadata,
+            payloads);
+    }
+
+
+    public Task<ApiResponse<UpdateFileResult>> UpdateFileByGlobalTransitId(
+        Guid driveId,
+        Guid globalTransitId,
+        FileUpdateInstructionSetV2 uploadInstructionSet,
+        UploadFileMetadata fileMetadata,
+        List<TestPayloadDefinition> payloads)
+    {
+        throw new NotSupportedException("Updates by Global transit id is not supported.");
+        // return UpdateFileInternal(
+        //     (svc, parts) => svc.UpdateFileByGlobalTransitId(driveId, globalTransitId, parts),
+        //     uploadInstructionSet,
+        //     fileMetadata,
+        //     payloads);
+    }
+
+    private async Task<ApiResponse<UpdateFileResult>> UpdateFileInternal(
+        Func<IDriveWriterHttpClientApiV2, StreamPart[], Task<ApiResponse<UpdateFileResult>>> invoke,
+        FileUpdateInstructionSetV2 uploadInstructionSet,
+        UploadFileMetadata fileMetadata,
+        List<TestPayloadDefinition> payloads)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+
+        var instructionStream = new MemoryStream(
+            OdinSystemSerializer.Serialize(uploadInstructionSet).ToUtf8ByteArray());
+
+        var descriptor = new UpdateFileDescriptor
+        {
+            EncryptedKeyHeader = null,
+            FileMetadata = fileMetadata
+        };
+
+        var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, uploadInstructionSet.TransferIv, ref sharedSecret);
+
+        List<StreamPart> parts =
+        [
+            new StreamPart(
+                instructionStream,
+                "instructionSet.encrypted",
+                "application/json",
+                Enum.GetName(MultipartUploadParts.Instructions)),
+
+            new StreamPart(
+                fileDescriptorCipher,
+                "fileDescriptor.encrypted",
+                "application/json",
+                Enum.GetName(MultipartUploadParts.Metadata))
+        ];
+
+        foreach (var payloadDefinition in payloads)
+        {
+            parts.Add(new StreamPart(
+                new MemoryStream(payloadDefinition.Content),
+                payloadDefinition.Key,
+                payloadDefinition.ContentType,
+                Enum.GetName(MultipartUploadParts.Payload)));
+
+            foreach (var thumbnail in payloadDefinition.Thumbnails ?? [])
+            {
+                var thumbnailKey = $"{payloadDefinition.Key}{thumbnail.PixelWidth}{thumbnail.PixelHeight}";
+
+                parts.Add(new StreamPart(
+                    new MemoryStream(thumbnail.Content),
+                    thumbnailKey,
+                    thumbnail.ContentType,
+                    Enum.GetName(MultipartUploadParts.Thumbnail)));
+            }
+        }
+
+        var driveSvc = RestService.For<IDriveWriterHttpClientApiV2>(client);
+
+        var response = await invoke(driveSvc, parts.ToArray());
+
+        return response;
+    }
 
     public async Task<ApiResponse<UpdateLocalMetadataResult>> UpdateLocalAppMetadataTags(Guid driveId, Guid fileId,
         UpdateLocalMetadataTagsRequestV2 request)
@@ -414,7 +456,7 @@ public class DriveWriterV2Client(OdinId identity, IApiClientFactory factory, Fil
 
         return apiResponse;
     }
-    
+
     public async Task<ApiResponse<SendReadReceiptResultV2>> SendReadReceipt(Guid driveId, List<Guid> files)
     {
         var request = new SendReadReceiptRequestV2
