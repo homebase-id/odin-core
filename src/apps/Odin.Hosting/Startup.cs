@@ -216,7 +216,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
-            app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/v") ?? true,
+            app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
                     homeApp.UseSpa(
@@ -315,7 +315,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     });
                 });
 
-            app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/v") ?? true,
+            app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
                     var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
