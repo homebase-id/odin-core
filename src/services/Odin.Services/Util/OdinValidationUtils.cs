@@ -132,11 +132,11 @@ public static class OdinValidationUtils
         }
     }
 
-    public static void AssertNotNullOrEmpty(string o, string name)
+    public static void AssertNotNullOrEmpty(string o, string name, string additionalMessage = "")
     {
         if (string.IsNullOrEmpty(o) || string.IsNullOrWhiteSpace(o))
         {
-            throw new OdinClientException($"{name} is null", OdinClientErrorCode.ArgumentError);
+            throw new OdinClientException($"{name} is null. Additional info: {additionalMessage}", OdinClientErrorCode.ArgumentError);
         }
     }
 

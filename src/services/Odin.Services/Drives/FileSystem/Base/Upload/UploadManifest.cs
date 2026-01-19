@@ -115,7 +115,7 @@ public class UploadManifestPayloadDescriptor
             }
             
             TenantPathManager.AssertValidPayloadKey(this.PayloadKey);
-            OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType));
+            OdinValidationUtils.AssertNotNullOrEmpty(ContentType, nameof(ContentType), $"Payload key {PayloadKey}");
 
             foreach (var thumb in this.Thumbnails ?? [])
             {

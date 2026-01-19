@@ -14,6 +14,8 @@ namespace Odin.Hosting.UnifiedV2.Ping
     {
         [HttpGet("ping")]
         [SwaggerOperation(Tags = [SwaggerInfo.Health])]
+        [NoSharedSecretOnRequest]
+        [NoSharedSecretOnResponse]
         public JsonResult PingReply()
         {
             var reply = new JsonResult(new
