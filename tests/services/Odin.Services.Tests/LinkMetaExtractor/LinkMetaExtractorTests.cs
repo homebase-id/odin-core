@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.Statistics.Serilog;
@@ -269,6 +269,24 @@ public class LinkMetaExtractorTests
         var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
         Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync(""));
         Assert.ThrowsAsync<OdinClientException>(async () => await  linkMetaExtractor.ExtractAsync("https://www.go2ogle.com"));
+    }
+
+    [Test]
+    public async Task TestUrlLengthValidation_ReturnsNullForLongUrls()
+    {
+        // Arrange
+        var logStore = new LogEventMemoryStore();
+        var logger = TestLogFactory.CreateConsoleLogger<Services.LinkMetaExtractor.LinkMetaExtractor>(logStore);
+        var linkMetaExtractor = new Services.LinkMetaExtractor.LinkMetaExtractor(_httpClientFactory, logger);
+        
+        // Create a URL longer than 512 characters
+        var longUrl = "https://example.com/" + new string('a', 500); // Total length > 512
+        
+        // Act
+        var result = await linkMetaExtractor.ExtractAsync(longUrl);
+        
+        // Assert
+        ClassicAssert.IsNull(result, "ExtractAsync should return null for URLs longer than 512 characters");
     }
 
     [Test]
