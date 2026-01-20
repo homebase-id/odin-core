@@ -94,7 +94,14 @@ public static class CorsPolicies
                 // This header lists additional response headers that JavaScript is allowed to read.
                 // The * wildcard is supposed to mean "all headers," but per the spec, wildcard is ignored when credentials are enabled.
                 // If you have custom response headers your client JS needs to read, enumerate them here.
-                policy.WithExposedHeaders(OdinHeaderNames.CorsAllowedAndExposedHeaders);
+                policy.WithExposedHeaders(
+                    [
+                        HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+                        HttpHeaderConstants.PayloadEncrypted,
+                        HttpHeaderConstants.DecryptedContentType,
+                        ..OdinHeaderNames.CorsAllowedAndExposedHeaders
+                    ]
+                );
 
                 // SetPreflightMaxAge:
                 // Access-Control-Max-Age

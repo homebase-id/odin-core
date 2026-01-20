@@ -9,7 +9,7 @@ using Odin.Services.Configuration;
 
 namespace Odin.Hosting.Middleware
 {
-    public class ApiCorsMiddleware(RequestDelegate next, OdinConfiguration config)
+    public class ApiCorsMiddlewareXX(RequestDelegate next, OdinConfiguration config)
     {
         private readonly OdinConfiguration _config = config;
 
@@ -76,9 +76,9 @@ namespace Odin.Hosting.Middleware
 
     public static class ApiCorsMiddlewareExtensions
     {
-        public static IApplicationBuilder UseApiCors(this IApplicationBuilder builder)
+        public static IApplicationBuilder UseApiCorsXX(this IApplicationBuilder builder)
         {
-            return builder.UseMiddleware<ApiCorsMiddleware>();
+            return builder.UseMiddleware<ApiCorsMiddlewareXX>();
         }
     }
 }
