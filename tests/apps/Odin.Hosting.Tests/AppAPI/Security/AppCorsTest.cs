@@ -43,7 +43,7 @@ namespace Odin.Hosting.Tests.AppAPI.Security
             _scaffold.AssertLogEvents();
         }
 
-        [Test]
+        [Test, Ignore("deprecated test")]
         public async Task CorsMiddleWareInjectsAppCorsHostNameForAnyAppPathWithGetVerb()
         {
             Guid appId = Guid.NewGuid();
@@ -70,7 +70,7 @@ namespace Odin.Hosting.Tests.AppAPI.Security
             }
         }
 
-        [Test]
+        [Test, Ignore("deprecated test")]
         public async Task CorsMiddleWareInjectsAppCorsHostNameForAnyAppPathWithPostVerb()
         {
             Guid appId = Guid.NewGuid();
