@@ -96,7 +96,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             finally
             {
                 await _notificationSubscription.UnsubscribeAsync(CancellationToken.None);
-                _deviceSocketCollection.RemoveSocket(webSocketKey);
+                await _deviceSocketCollection.RemoveSocket(webSocketKey);
                 if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
                 {
                     try
@@ -364,7 +364,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             if (deviceSocket.DeviceOdinContext == null)
             {
-                _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 _logger.LogInformation("Invalid/Stale Device found; removing from list");
                 if (sendEvenIfNoDeviceOdinContext)
                 {

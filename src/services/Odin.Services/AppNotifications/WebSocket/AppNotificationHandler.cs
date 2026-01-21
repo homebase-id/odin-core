@@ -32,9 +32,9 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 namespace Odin.Services.AppNotifications.WebSocket
 {
     public class AppNotificationHandler :
-            INotificationHandler<IClientNotification>,
-            INotificationHandler<IDriveNotification>,
-            INotificationHandler<InboxItemReceivedNotification>
+        INotificationHandler<IClientNotification>,
+        INotificationHandler<IDriveNotification>,
+        INotificationHandler<InboxItemReceivedNotification>
     {
         private const string NotificationChannel = nameof(AppNotificationHandler);
 
@@ -102,19 +102,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             finally
             {
                 await _notificationSubscription.UnsubscribeAsync(CancellationToken.None);
-                _deviceSocketCollection.RemoveSocket(webSocketKey);
-                if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
-                {
-                    try
-                    {
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
-                    }
-                    catch (Exception)
-                    {
-                        // End of the line - nothing we can do here
-                    }
-                }
-
+                await _deviceSocketCollection.RemoveSocket(webSocketKey);
                 _logger.LogTrace("WebSocket closed");
             }
         }
@@ -177,7 +165,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                         {
                             await ProcessCommand(deviceSocket, command, cancellationToken, odinContext);
                         }
-                        catch (OperationCanceledException)
+                        catch (OperationCanceledException) // also CloseWebSocketException
                         {
                             return;
                         }
@@ -274,7 +262,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             var message = new DriveNotificationMessage
             {
-                NotificationType  = notification.NotificationType,
+                NotificationType = notification.NotificationType,
                 File = notification.File,
                 IsDeleteNotification = notification is DriveFileDeletedNotification,
                 ServerFileHeader = notification.ServerFileHeader,
@@ -387,12 +375,17 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         private async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken)
         {
-            await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
-                {
-                    NotificationType = ClientNotificationType.Error,
-                    Data = errorText,
-                }), cancellationToken,
+            await SendMessageAsync(deviceSocket, CreateErrorJson(ClientNotificationType.Error, errorText), cancellationToken,
                 deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
+        }
+
+        private static string CreateErrorJson(ClientNotificationType type, string errorText)
+        {
+            return OdinSystemSerializer.Serialize(new
+            {
+                NotificationType = type,
+                Data = errorText,
+            });
         }
 
         //
@@ -407,17 +400,17 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            if (deviceSocket.DeviceOdinContext == null)
-            {
-                _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
-                _logger.LogInformation("Invalid/Stale Device found; removing from list");
-                return;
-            }
-
             try
             {
                 if (encrypt)
                 {
+                    if (deviceSocket.DeviceOdinContext == null)
+                    {
+                        await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                        _logger.LogInformation("Invalid/Stale Device found; removing from list; closing socket");
+                        throw new WebSocketException("Missing device odin context");
+                    }
+
                     if (deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey == null)
                     {
                         throw new OdinSystemException("Cannot encrypt message without shared secret key");
@@ -482,8 +475,15 @@ namespace Odin.Services.AppNotifications.WebSocket
                     }
                     catch (OdinSecurityException e)
                     {
-                        var error = $"[Command:{command.Command}] {e.Message}";
-                        await SendErrorMessageAsync(deviceSocket, error, cancellationToken);
+                        // var error = $"[Command:{command.Command}] {e.Message}";
+                        // await SendErrorMessageAsync(deviceSocket, error, cancellationToken);
+
+                        await SendMessageAsync(
+                            deviceSocket,
+                            CreateErrorJson(ClientNotificationType.AuthenticationError, e.Message),
+                            cancellationToken,
+                            encrypt: false);
+
                         throw new CloseWebSocketException();
                     }
 
@@ -543,12 +543,10 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         private class InboxItemReceivedNotificationMessage
         {
-            public required ClientNotificationType NotificationType  { get; init; }
+            public required ClientNotificationType NotificationType { get; init; }
             public required TargetDrive TargetDrive { get; init; }
             public required FileSystemType FileSystemType { get; init; }
             public required TransferFileType TransferFileType { get; init; }
         }
-
     }
 }
-
