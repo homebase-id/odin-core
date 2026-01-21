@@ -1,59 +1,37 @@
 using Odin.Core.Storage;
 
-namespace Odin.Services.Base
+namespace Odin.Services.Base;
+
+public static class OdinHeaderNames
 {
-    public static class OdinHeaderNames
-    {
-        //
-        // 🚩️ When adding a new header, make sure to update the CorsAllowAndExposeHeaders 🚩
-        //
+    //
+    // 🚩️ When adding a new header, make sure to update the CorsPolicies.CorsAllowAndExposeHeaders if needed 🚩
+    //
 
-        public const string EstablishConnectionAuthToken = "X-DI-EC-ClientAuthToken";
-        public const string ClientAuthToken = "X-DI-ClientAuthToken";
+    public const string EstablishConnectionAuthToken = "X-DI-EC-ClientAuthToken";
+    public const string ClientAuthToken = "X-DI-ClientAuthToken";
         
-        /// <summary>
-        /// Describes the type of file being uploaded or requested. Values must be A name from <see cref="FileSystemType"/>
-        /// </summary>
-        public const string FileSystemTypeHeader = "X-ODIN-FILE-SYSTEM-TYPE";
+    /// <summary>
+    /// Describes the type of file being uploaded or requested. Values must be A name from <see cref="FileSystemType"/>
+    /// </summary>
+    public const string FileSystemTypeHeader = "X-ODIN-FILE-SYSTEM-TYPE";
 
-        /// <summary>
-        /// Describes the type of file being uploaded or requested. Values must be a name from <see cref="FileSystemType"/>
-        /// </summary>
-        public const string FileSystemTypeRequestQueryStringName = "xfst";
+    /// <summary>
+    /// Describes the type of file being uploaded or requested. Values must be a name from <see cref="FileSystemType"/>
+    /// </summary>
+    public const string FileSystemTypeRequestQueryStringName = "xfst";
 
-        public const string RequiresUpgrade = "X-REQUIRES-UPGRADE";
-        public const string UpgradeIsRunning = "X-UPGRADE-RUNNING";
+    public const string RequiresUpgrade = "X-REQUIRES-UPGRADE";
+    public const string UpgradeIsRunning = "X-UPGRADE-RUNNING";
         
-        public const string RequiresInitialConfiguration = "X-REQUIRES-INITIAL-CONFIGURATION";
+    public const string RequiresInitialConfiguration = "X-REQUIRES-INITIAL-CONFIGURATION";
 
-        public const string OdinVersionTag = "X-Odin-Version";
-        public const string OdinCdnPayload = "X-Odin-Cdn-Payload";
+    public const string OdinVersionTag = "X-Odin-Version";
+    public const string OdinCdnPayload = "X-Odin-Cdn-Payload";
 
-        public const string CorrelationId = "Odin-Correlation-Id";
+    public const string CorrelationId = "Odin-Correlation-Id";
 
-        public const string AppCookie = "BX0900";       // used as header in frontend
-        public const string SubscriberCookie = "SUB32"; // used as header in frontend
-
-        //
-
-        public static readonly string[] CorsAllowedAndExposedHeaders =
-        [
-            AppCookie,
-            ClientAuthToken,
-            CorrelationId,
-            EstablishConnectionAuthToken,
-            FileSystemTypeHeader,
-            OdinVersionTag,
-            OdinCdnPayload,
-            RequiresInitialConfiguration,
-            RequiresUpgrade,
-            SubscriberCookie,
-            UpgradeIsRunning,
-        ];
-
-        //
-        // 🚩️ When adding a new header, make sure to update the CorsAllowAndExposeHeaders 🚩
-        //
-    }
-
+    //
+    // 🚩️ When adding a new header, make sure to update the CorsPolicies.CorsAllowAndExposeHeaders if needed 🚩
+    //
 }

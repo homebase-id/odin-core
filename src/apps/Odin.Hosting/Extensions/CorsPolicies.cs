@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Hosting.Authentication.YouAuth;
 using Odin.Services.Base;
 
 namespace Odin.Hosting.Extensions;
@@ -7,6 +8,24 @@ namespace Odin.Hosting.Extensions;
 public static class CorsPolicies
 {
     public const string OdinUnifiedCorsPolicy = "OdinUnifiedCorsPolicy";
+
+    private static readonly string[] CorsAllowedAndExposedHeaders =
+    [
+        HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
+        HttpHeaderConstants.PayloadEncrypted,
+        HttpHeaderConstants.DecryptedContentType,
+        OdinHeaderNames.ClientAuthToken,
+        OdinHeaderNames.CorrelationId,
+        OdinHeaderNames.EstablishConnectionAuthToken,
+        OdinHeaderNames.FileSystemTypeHeader,
+        OdinHeaderNames.OdinVersionTag,
+        OdinHeaderNames.OdinCdnPayload,
+        OdinHeaderNames.RequiresInitialConfiguration,
+        OdinHeaderNames.RequiresUpgrade,
+        OdinHeaderNames.UpgradeIsRunning,
+        YouAuthConstants.AppCookieName,
+        YouAuthConstants.SubscriberCookieName,
+    ];
 
     public static IServiceCollection AddCorsPolicies(this IServiceCollection services)
     {
@@ -74,7 +93,7 @@ public static class CorsPolicies
                     [
                         "Authorization",
                         "Content-Type",
-                        ..OdinHeaderNames.CorsAllowedAndExposedHeaders
+                        ..CorsAllowedAndExposedHeaders
                     ]
                 );
 
@@ -94,14 +113,7 @@ public static class CorsPolicies
                 // This header lists additional response headers that JavaScript is allowed to read.
                 // The * wildcard is supposed to mean "all headers," but per the spec, wildcard is ignored when credentials are enabled.
                 // If you have custom response headers your client JS needs to read, enumerate them here.
-                policy.WithExposedHeaders(
-                    [
-                        HttpHeaderConstants.SharedSecretEncryptedKeyHeader64,
-                        HttpHeaderConstants.PayloadEncrypted,
-                        HttpHeaderConstants.DecryptedContentType,
-                        ..OdinHeaderNames.CorsAllowedAndExposedHeaders
-                    ]
-                );
+                policy.WithExposedHeaders(CorsAllowedAndExposedHeaders);
 
                 // SetPreflightMaxAge:
                 // Access-Control-Max-Age

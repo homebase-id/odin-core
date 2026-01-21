@@ -30,7 +30,7 @@ public class AppAuthPathHandler : IAuthPathHandler
         // Steal this path from the http controller because here we have the client auth token
         if (context.Request.Path.StartsWithSegments($"{AppApiPathConstantsV1.NotificationsV1}/preauth"))
         {
-            AuthenticationCookieUtil.SetCookie(context.Response, OdinHeaderNames.AppCookie, token);
+            AuthenticationCookieUtil.SetCookie(context.Response, YouAuthConstants.AppCookieName, token);
         }
 
         return AuthHandlerResult.Success();
