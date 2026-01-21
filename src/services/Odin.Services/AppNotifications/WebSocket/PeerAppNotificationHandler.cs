@@ -97,18 +97,6 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 await _notificationSubscription.UnsubscribeAsync(CancellationToken.None);
                 await _deviceSocketCollection.RemoveSocket(webSocketKey);
-                if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
-                {
-                    try
-                    {
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
-                    }
-                    catch (Exception)
-                    {
-                        // End of the line - nothing we can do here
-                    }
-                }
-
                 _logger.LogTrace("WebSocket closed");
             }
         }
