@@ -72,20 +72,20 @@ public class ReactionTestsDistributeToOthers
         };
     }
 
-    public static IEnumerable GuestMethodNotAllowed()
+    public static IEnumerable GuestDriveNotFound()
     {
         yield return new object[]
         {
             new GuestSpecifyAccessToDrive(TargetDrive.NewTargetDrive(), DrivePermission.React | DrivePermission.Write,
                 new TestPermissionKeyList(PermissionKeys.UseTransitWrite)),
-            HttpStatusCode.MethodNotAllowed
+            HttpStatusCode.NotFound
         };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowedDriveReactOnlyAndUseTransitWrite))]
-    [TestCaseSource(nameof(GuestMethodNotAllowed))]
+    [TestCaseSource(nameof(GuestDriveNotFound))]
     public async Task CanAddAndDistributeReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -163,7 +163,7 @@ public class ReactionTestsDistributeToOthers
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowedDriveReactOnlyAndUseTransitWrite))]
-    [TestCaseSource(nameof(GuestMethodNotAllowed))]
+    [TestCaseSource(nameof(GuestDriveNotFound))]
     public async Task CanDistributeDeleteReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         //

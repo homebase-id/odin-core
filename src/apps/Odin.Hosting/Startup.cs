@@ -31,6 +31,7 @@ using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
 using Odin.Services.LinkPreview;
 using Odin.Core.Storage.Database.System;
+using Odin.Hosting.Extensions;
 using StackExchange.Redis;
 
 namespace Odin.Hosting;
@@ -144,6 +145,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseStaticFiles();
 
         app.UseRouting();
+        app.UseCors(CorsPolicies.OdinUnifiedCorsPolicy); // must be after routing and before authentication
         app.UseAuthentication();
 #pragma warning disable ASP0001
         app.UseAuthorization();
@@ -155,8 +157,6 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         app.UseMiddleware<OdinContextMiddleware>();
         app.UseMiddleware<LastSeenMiddleware>();
 
-        app.UseCors();
-        app.UseApiCors();
         app.UseMiddleware<SharedSecretEncryptionMiddleware>();
         app.UseMiddleware<StaticFileCachingMiddleware>();
 
@@ -215,8 +215,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
-            // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
-            app.MapWhen(ctx => true,
+            app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
                     homeApp.UseSpa(
@@ -315,7 +314,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     });
                 });
 
-            app.MapWhen(ctx => true,
+            app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
                     var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");

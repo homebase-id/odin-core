@@ -50,4 +50,20 @@ public class PingTests
         var response = await client.GetAsync(uri);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }
+
+    [Test]
+    public async Task ItShould404OOnUnknownApiRoute()
+    {
+        using var factory = new DynamicHttpClientFactory(NullLogger<DynamicHttpClientFactory>.Instance);
+        var client = factory.CreateClient(TestIdentities.Samwise.OdinId);
+
+        var uri = $"https://{TestIdentities.Samwise.OdinId}:{WebScaffold.HttpsPort}/api/404";
+        var response = await client.GetAsync(uri);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        uri = $"https://{TestIdentities.Samwise.OdinId}:{WebScaffold.HttpsPort}/api/v2/404";
+        response = await client.GetAsync(uri);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
 }
