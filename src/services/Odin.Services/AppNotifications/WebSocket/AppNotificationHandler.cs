@@ -351,7 +351,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         private async Task SerializeSendToAllDevicesForDrive(
             Guid targetDriveId,
             IClientNotification notification,
-            bool encrypt = true,
+            bool encrypt,
             CancellationToken cancellationToken = default)
         {
             var json = OdinSystemSerializer.Serialize(new
