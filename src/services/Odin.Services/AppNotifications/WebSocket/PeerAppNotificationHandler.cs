@@ -460,7 +460,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await SendMessageAsync(
                         deviceSocket,
                         OdinSystemSerializer.Serialize(response),
-                        encrypt: false,
+                        encrypt: true,
                         sendEvenIfNoDeviceOdinContext: false,
                         cancellationToken);
                     break;
