@@ -469,7 +469,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await SendMessageAsync(
                         deviceSocket,
                         OdinSystemSerializer.Serialize(new { NotificationType = ClientNotificationType.Pong }),
-                        encrypt: false,
+                        encrypt: true,
                         sendEvenIfNoDeviceOdinContext: false,
                         cancellationToken);
                     break;

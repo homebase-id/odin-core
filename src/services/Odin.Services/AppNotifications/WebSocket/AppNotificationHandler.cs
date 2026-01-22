@@ -524,7 +524,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 case SocketCommandType.Ping:
                     var pong = OdinSystemSerializer.Serialize(new { NotificationType = ClientNotificationType.Pong });
-                    await SendMessageAsync(deviceSocket, pong, encrypt: false, cancellationToken);
+                    await SendMessageAsync(deviceSocket, pong, encrypt: true, cancellationToken);
                     break;
 
                 default:
