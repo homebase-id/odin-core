@@ -373,19 +373,22 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken)
-        {
-            await SendMessageAsync(deviceSocket, CreateErrorJson(ClientNotificationType.Error, errorText), cancellationToken,
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
-        }
-
-        private static string CreateErrorJson(ClientNotificationType type, string errorText)
+        private static string JsonMessage(ClientNotificationType notificationType, string message)
         {
             return OdinSystemSerializer.Serialize(new
             {
-                NotificationType = type,
-                Data = errorText,
+                NotificationType = notificationType,
+                Data = message,
             });
+        }
+
+        //
+
+        private async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken)
+        {
+            var json = JsonMessage(ClientNotificationType.Error, errorText);
+            await SendMessageAsync(deviceSocket, json, cancellationToken,
+                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
         }
 
         //
@@ -475,12 +478,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                     }
                     catch (OdinSecurityException e)
                     {
-                        // var error = $"[Command:{command.Command}] {e.Message}";
-                        // await SendErrorMessageAsync(deviceSocket, error, cancellationToken);
-
+                        var json = JsonMessage(ClientNotificationType.AuthenticationError, e.Message);
                         await SendMessageAsync(
                             deviceSocket,
-                            CreateErrorJson(ClientNotificationType.AuthenticationError, e.Message),
+                            json,
                             cancellationToken,
                             encrypt: false);
 
