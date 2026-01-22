@@ -52,7 +52,7 @@ public class NotificationListTests
     public static IEnumerable TestCases()
     {
         yield return new object[] { new OwnerClientContext(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
         yield return new object[]
             { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive(), new TestPermissionKeyList(PermissionKeys.SendPushNotifications)), HttpStatusCode.OK };
     }

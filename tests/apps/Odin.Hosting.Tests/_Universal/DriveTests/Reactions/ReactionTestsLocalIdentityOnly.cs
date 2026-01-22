@@ -58,15 +58,15 @@ public class ReactionTestsLocalIdentityOnly
         yield return new object[] { new AppSpecifyDriveAccess(TargetDrive.NewTargetDrive(), DrivePermission.React), HttpStatusCode.OK };
     }
 
-    public static IEnumerable GuestMethodNotAllowed()
+    public static IEnumerable GuestNotFound()
     {
-        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.MethodNotAllowed };
+        yield return new object[] { new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.NotFound };
     }
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestMethodNotAllowed))]
+    [TestCaseSource(nameof(GuestNotFound))]
     public async Task CanAddReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -104,7 +104,7 @@ public class ReactionTestsLocalIdentityOnly
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestMethodNotAllowed))]
+    [TestCaseSource(nameof(GuestNotFound))]
     public async Task CanDeleteReaction(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -151,7 +151,7 @@ public class ReactionTestsLocalIdentityOnly
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestMethodNotAllowed))]
+    [TestCaseSource(nameof(GuestNotFound))]
     public async Task GetReactionCountsByFile(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -208,7 +208,7 @@ public class ReactionTestsLocalIdentityOnly
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestMethodNotAllowed))]
+    [TestCaseSource(nameof(GuestNotFound))]
     public async Task CanGetReactionsByIdentity(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup
@@ -264,7 +264,7 @@ public class ReactionTestsLocalIdentityOnly
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
     [TestCaseSource(nameof(AppAllowedReactOnly))]
-    [TestCaseSource(nameof(GuestMethodNotAllowed))]
+    [TestCaseSource(nameof(GuestNotFound))]
     public async Task CanGetAllReactionsOnFile(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         // Setup

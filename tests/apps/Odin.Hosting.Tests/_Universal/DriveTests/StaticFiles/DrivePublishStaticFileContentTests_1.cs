@@ -57,7 +57,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.StaticFiles
             yield return new object[]
             {
                 new GuestWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), 
-                HttpStatusCode.MethodNotAllowed
+                HttpStatusCode.NotFound
             };
             
             yield return new object[]
