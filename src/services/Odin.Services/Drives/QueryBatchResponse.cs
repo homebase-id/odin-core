@@ -24,6 +24,7 @@ public class QueryBatchResponse
 
     public bool IncludeMetadataHeader { get; set; }
     public string CursorState { get; set; }
+    public bool HasMoreRows { get; set; }
 
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
@@ -34,11 +35,13 @@ public class QueryBatchResponse
             QueryTime = batch.QueryTime,
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
             CursorState = batch.Cursor.ToJson(),
-            SearchResults = batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>()
+            SearchResults = batch.SearchResults ?? new List<SharedSecretEncryptedFileHeader>(),
+            HasMoreRows = batch.HasMoreRows
         };
 
         return response;
     }
+
 
     public static QueryBatchResponse FromInvalidDrive(string name)
     {

@@ -44,15 +44,7 @@ namespace Odin.Hosting.Tests._Universal.Outbox.Performance
             var fixedSubPath = "logme";
             _scaffold = new WebScaffold(folder, fixedSubPath);
 
-            var env = new Dictionary<string, string>
-            {
-                { "Job__BackgroundJobStartDelaySeconds", "0" },
-                { "Job__CronProcessingInterval", "1" },
-                { "Job__EnableJobBackgroundService", "true" },
-                { "Job__Enabled", "true" },
-            };
-
-            _scaffold.RunBeforeAnyTests(envOverrides: env);
+            _scaffold.RunBeforeAnyTests();
         }
 
         [OneTimeTearDown]

@@ -40,15 +40,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Query.Performance
             var fixedSubPath = "logme";
             _scaffold = new WebScaffold(folder, fixedSubPath);
 
-            var env = new Dictionary<string, string>
-            {
-                { "Job__BackgroundJobStartDelaySeconds", "0" },
-                { "Job__CronProcessingInterval", "1" },
-                { "Job__EnableJobBackgroundService", "true" },
-                { "Job__Enabled", "true" },
-            };
-
-            _scaffold.RunBeforeAnyTests(envOverrides: env, testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise });
+            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise });
         }
 
         [OneTimeTearDown]

@@ -247,16 +247,20 @@ namespace Odin.Hosting.Tests
 
             if (setupOwnerAccounts)
             {
-                // foreach (var odinId in TestIdentities.All.Keys)
-                // {
-                //     _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
-                // }
-
                 Parallel.ForEach(TestIdentities.InitializedIdentities.Values.Select(i => i.OdinId),
-                    odinId => { _oldOwnerApi.SetupOwnerAccount(odinId, initializeIdentity).GetAwaiter().GetResult(); });
-
-                //Parallel.ForEach(TestIdentities.All.Keys,
-                //    odinId => { _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult(); });
+                    odinId =>
+                    {
+                        try
+                        {
+                            _oldOwnerApi.SetupOwnerAccount(odinId, initializeIdentity).GetAwaiter().GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            // SEB:NOTE we have a race condition somewhere. Hopefully this will help us identify it.
+                            Logger.LogError(ex, "Parallel.ForEach: {error}", ex.Message);
+                            throw;
+                        }
+                    });
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);
