@@ -14,31 +14,32 @@ using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Configuration;
 
+#nullable enable
+
 public class OdinConfiguration
 {
-    public HostSection Host { get; init; }
+    public HostSection Host { get; init; } = new();
 
-    public RegistrySection Registry { get; init; }
+    public RegistrySection Registry { get; init; } = new();
 
-    public AccountRecoverySection AccountRecovery { get; init; }
+    public AccountRecoverySection AccountRecovery { get; init; } = new();
 
-    public DevelopmentSection Development { get; init; }
+    public DevelopmentSection Development { get; init; } = new();
 
-    public LoggingSection Logging { get; init; }
-    public BackgroundServicesSection BackgroundServices { get; init; }
-    public CertificateRenewalSection CertificateRenewal { get; init; }
+    public LoggingSection Logging { get; init; } = new();
+    public BackgroundServicesSection BackgroundServices { get; init; } = new();
+    public CertificateRenewalSection CertificateRenewal { get; init; } = new();
 
-    public MailgunSection Mailgun { get; init; }
-    public AdminSection Admin { get; init; }
+    public MailgunSection Mailgun { get; init; } = new();
+    public AdminSection Admin { get; init; } = new();
 
-    public FeedSection Feed { get; init; }
-    public TransitSection Transit { get; init; }
+    public FeedSection Feed { get; init; } = new();
 
-    public PushNotificationSection PushNotification { get; init; }
-    public DatabaseSection Database { get; init; }
+    public PushNotificationSection PushNotification { get; init; } = new();
+    public DatabaseSection Database { get; init; } = new();
 
-    public RedisSection Redis { get; init; }
-    public CacheSection Cache { get; init; }
+    public RedisSection Redis { get; init; } = new();
+    public CacheSection Cache { get; init; } = new();
 
     public S3PayloadStorageSection S3PayloadStorage { get; init; } = new();
     public CdnSection Cdn { get; init; } = new();
@@ -47,6 +48,8 @@ public class OdinConfiguration
     {
         // Mockable support
     }
+
+    //
 
     public OdinConfiguration(IConfiguration config)
     {
@@ -57,15 +60,8 @@ public class OdinConfiguration
         Mailgun = new MailgunSection(config);
         Admin = new AdminSection(config);
         AccountRecovery = new AccountRecoverySection(config);
-
+        Development = new DevelopmentSection(config);
         Feed = new FeedSection(config);
-        Transit = new TransitSection(config);
-
-        if (config.SectionExists("Development"))
-        {
-            Development = new DevelopmentSection(config);
-        }
-
         CertificateRenewal = new CertificateRenewalSection(config);
         PushNotification = new PushNotificationSection(config);
         Database = new DatabaseSection(config);
@@ -77,20 +73,10 @@ public class OdinConfiguration
 
     //
 
-    public class TransitSection
-    {
-        public TransitSection()
-        {
-            // Mockable support
-        }
-
-        public TransitSection(IConfiguration config)
-        {
-        }
-    }
-
     public class FeedSection
     {
+        public int MaxCommentsInPreview { get; init; }
+
         public FeedSection()
         {
             // Mockable support
@@ -100,9 +86,9 @@ public class OdinConfiguration
         {
             MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);
         }
-
-        public int MaxCommentsInPreview { get; init; }
     }
+    
+    //
 
     public class AccountRecoverySection
     {
@@ -112,7 +98,7 @@ public class OdinConfiguration
         /// <summary>
         /// The identities to use when users enable automated password recovery
         /// </summary>
-        public List<string> AutomatedPasswordRecoveryIdentities { get; init; } = new();
+        public List<string> AutomatedPasswordRecoveryIdentities { get; init; } = [];
 
         public AccountRecoverySection()
         {
@@ -122,7 +108,6 @@ public class OdinConfiguration
         public AccountRecoverySection(IConfiguration config)
         {
             Enabled = config.GetOrDefault("AccountRecovery:Enabled", false);
-
             if (Enabled)
             {
                 AutomatedIdentityKey = config.Required<Guid>("AccountRecovery:AutomatedIdentityKey");
@@ -136,6 +121,11 @@ public class OdinConfiguration
     /// </summary>
     public class DevelopmentSection
     {
+        public bool Enabled { get; }
+        public List<string> PreconfiguredDomains { get; init; } = [];
+        public string SslSourcePath { get; init; } = "";
+        public bool VersionUpgradeTestModeEnabled { get; init; }
+
         public DevelopmentSection()
         {
             // Mockable support
@@ -143,31 +133,33 @@ public class OdinConfiguration
 
         public DevelopmentSection(IConfiguration config)
         {
-            PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", new List<string>());
-            SslSourcePath = config.Required<string>("Development:SslSourcePath");
-            VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
+            Enabled = config.SectionExists("Development");
+            if (Enabled)
+            {
+                PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains);
+                SslSourcePath = config.Required<string>("Development:SslSourcePath");
+                VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
+            }
         }
-
-        public List<string> PreconfiguredDomains { get; init; }
-        public string SslSourcePath { get; init; }
-        public bool VersionUpgradeTestModeEnabled { get; init; }
     }
+    
+    //
 
     public class RegistrySection
     {
-        public List<string> InvitationCodes { get; init; }
+        public List<string> InvitationCodes { get; init; } = [];
 
-        public string PowerDnsHostAddress { get; init; }
-        public string PowerDnsApiKey { get; init; }
+        public string PowerDnsHostAddress { get; init; } = "";
+        public string PowerDnsApiKey { get; init; } = "";
 
-        public string ProvisioningDomain { get; init; }
+        public string ProvisioningDomain { get; init; } = "";
         public bool ProvisioningEnabled { get; init; }
 
-        public List<ManagedDomainApex> ManagedDomainApexes { get; init; }
+        public List<ManagedDomainApex> ManagedDomainApexes { get; init; } = [];
 
-        public DnsConfigurationSet DnsConfigurationSet { get; init; }
-        public List<string> DnsResolvers { get; init; }
-        public long DaysUntilAccountDeletion { get; init; }
+        public DnsConfigurationSet DnsConfigurationSet { get; init; } = new("127.0.0.1", "example.com");
+        public List<string> DnsResolvers { get; init; } = [];
+        public long DaysUntilAccountDeletion { get; init; } = long.MaxValue;
 
         public RegistrySection()
         {
@@ -181,31 +173,31 @@ public class OdinConfiguration
             ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
             ProvisioningEnabled = config.GetOrDefault("Registry:ProvisioningEnabled", true);
             AsciiDomainNameValidator.AssertValidDomain(ProvisioningDomain);
-            ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", new List<ManagedDomainApex>());
+            ManagedDomainApexes = config.GetOrDefault("Registry:ManagedDomainApexes", ManagedDomainApexes);
             DnsResolvers = config.GetOrDefault("Registry:DnsResolvers",
                 new List<string> { "1.1.1.1", "8.8.8.8", "9.9.9.9", "208.67.222.222" });
             DnsConfigurationSet = new DnsConfigurationSet(
                 config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords")
                     .First(), // SEB:NOTE we currently only allow one A record
                 config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
-
-            InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", new List<string>());
-
+            InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
         }
 
         public class ManagedDomainApex
         {
             public string Apex { get; init; } = "";
-            public List<string> PrefixLabels { get; init; } = new();
+            public List<string> PrefixLabels { get; init; } = [];
         }
     }
+    
+    //
 
     public class HostSection
     {
-        public string TenantDataRootPath { get; init; }
-        public string SystemDataRootPath { get; init; }
-        public string DataProtectionKeyPath { get; init; }
+        public string TenantDataRootPath { get; init; } = "";
+        public string SystemDataRootPath { get; init; } = "";
+        public string DataProtectionKeyPath { get; init; } = "";
         public bool Http1Only { get; init; }
 
         public int ClientRegistrationThreshold { get; init; }
@@ -214,14 +206,45 @@ public class OdinConfiguration
         /// <summary>
         /// List of IPv4 or IPv6 IP address on which to listen
         /// </summary>
-        public List<ListenEntry> IPAddressListenList { get; init; }
-
-        public int CacheSlidingExpirationSeconds { get; init; }
+        public List<ListenEntry> IpAddressListenList { get; } = [];
 
         public int ShutdownTimeoutSeconds { get; init; }
         public Guid SystemProcessApiKey { get; set; }
 
         public int IpRateLimitRequestsPerSecond { get; init; }
+
+        public string ReportContentUrl { get; set; } = "";
+
+        public int DefaultHttpPort => IpAddressListenList.FirstOrDefault()?.HttpPort ?? 80;
+        public int DefaultHttpsPort => IpAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
+        public int HomePageCachingExpirationSeconds { get; set; }
+        public string PushNotificationSubject { get; set; } = "";
+
+        /// <summary>
+        /// Number of times to retry a file.move operation
+        /// </summary>
+        public int FileOperationRetryAttempts { get; init; }
+
+        /// <summary>
+        /// Number of milliseconds to delay between file.move attempts
+        /// </summary>
+        public TimeSpan FileOperationRetryDelayMs { get; init; }
+
+        /// <summary>
+        /// Specifies the number of bytes to write when writing a stream to disk in chunks
+        /// </summary>
+        public int FileWriteChunkSizeInBytes { get; set; }
+        public int PeerOperationMaxAttempts { get; init; }
+        public int OutboxOperationMaxAttempts { get; init; }
+
+        public TimeSpan PeerOperationDelayMs { get; init; }
+
+        /// <summary>
+        /// The age in seconds of items that should be recovered which have been
+        /// popped (checked out) of the inbox/outbox queue w/o having been marked complete or failed
+        /// </summary>
+        public int InboxOutboxRecoveryAgeSeconds { get; init; }
+        
 
         public HostSection()
         {
@@ -238,19 +261,14 @@ public class OdinConfiguration
 
             Http1Only = config.GetOrDefault("Host:Http1Only", false);
 
-            IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
-
-            CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
+            IpAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
 
             HomePageCachingExpirationSeconds = config.GetOrDefault("Host:HomePageCachingExpirationSeconds", 5 * 60);
 
             ShutdownTimeoutSeconds = config.GetOrDefault("Host:ShutdownTimeoutSeconds", 120);
             SystemProcessApiKey = config.GetOrDefault("Host:SystemProcessApiKey", Guid.NewGuid());
 
-            //TODO: changed to required when Seb and I can coordinate config changes
             PushNotificationSubject = config.GetOrDefault("Host:PushNotificationSubject", "mailto:info@homebase.id");
-            PushNotificationBatchSize = config.GetOrDefault("Host:PushNotificationBatchSize", 100);
-
             FileOperationRetryAttempts = config.GetOrDefault("Host:FileOperationRetryAttempts", 8);
             FileOperationRetryDelayMs = TimeSpan.FromMilliseconds(config.GetOrDefault("Host:FileOperationRetryDelayMs", 100));
 
@@ -271,40 +289,6 @@ public class OdinConfiguration
             ClientRegistrationThreshold = config.GetOrDefault("Host:ClientRegistrationThreshold", 10);
             ClientRegistrationWindowThreshold = config.GetOrDefault("Host:ClientRegistrationWindowThreshold", 3);
         }
-
-        public string ReportContentUrl { get; set; }
-
-        public int DefaultHttpPort => IPAddressListenList.FirstOrDefault()?.HttpPort ?? 80;
-        public int DefaultHttpsPort => IPAddressListenList.FirstOrDefault()?.HttpsPort ?? 443;
-        public int HomePageCachingExpirationSeconds { get; set; }
-        public string PushNotificationSubject { get; set; }
-
-        /// <summary>
-        /// Number of times to retry a file.move operation
-        /// </summary>
-        public int FileOperationRetryAttempts { get; init; }
-
-        /// <summary>
-        /// Number of milliseconds to delay between file.move attempts
-        /// </summary>
-        public TimeSpan FileOperationRetryDelayMs { get; init; }
-
-        /// <summary>
-        /// Specifies the number of bytes to write when writing a stream to disk in chunks
-        /// </summary>
-        public int FileWriteChunkSizeInBytes { get; set; }
-
-        public int PushNotificationBatchSize { get; set; }
-        public int PeerOperationMaxAttempts { get; init; }
-        public int OutboxOperationMaxAttempts { get; init; }
-
-        public TimeSpan PeerOperationDelayMs { get; init; }
-
-        /// <summary>
-        /// The age in seconds of items that should be recovered which have been
-        /// popped (checked out) of the inbox/outbox queue w/o having been marked complete or failed
-        /// </summary>
-        public int InboxOutboxRecoveryAgeSeconds { get; init; }
     }
 
     public class ListenEntry
@@ -350,7 +334,7 @@ public class OdinConfiguration
 
     public class LoggingSection
     {
-        public string LogFilePath { get; init; }
+        public string LogFilePath { get; init; } = "";
         public bool EnableStatistics { get; init; }
 
         public LoggingSection()
@@ -370,8 +354,8 @@ public class OdinConfiguration
     public class CertificateRenewalSection
     {
         public bool UseCertificateAuthorityProductionServers { get; init; }
-        public string CertificateAuthorityAssociatedEmail { get; init; }
-        public byte[] StorageKey { get; init; }
+        public string CertificateAuthorityAssociatedEmail { get; init; } = "";
+        public byte[] StorageKey { get; init; } = [];
 
         public CertificateRenewalSection()
         {
@@ -395,9 +379,9 @@ public class OdinConfiguration
 
     public class MailgunSection
     {
-        public string ApiKey { get; init; }
-        public NameAndEmailAddress DefaultFrom { get; init; }
-        public string EmailDomain { get; init; }
+        public string ApiKey { get; init; } = "";
+        public NameAndEmailAddress DefaultFrom { get; init; } = new();
+        public string EmailDomain { get; init; } = "";
         public bool Enabled { get; init; }
 
         public MailgunSection()
@@ -426,11 +410,11 @@ public class OdinConfiguration
     public class AdminSection
     {
         public bool ApiEnabled { get; init; }
-        public string ApiKey { get; init; }
-        public string ApiKeyHttpHeaderName { get; init; }
+        public string ApiKey { get; init; } = "";
+        public string ApiKeyHttpHeaderName { get; init; } = "";
         public int ApiPort { get; init; }
-        public string Domain { get; init; }
-        public string ExportTargetPath { get; init; }
+        public string Domain { get; init; } = "";
+        public string ExportTargetPath { get; init; } = "";
 
         public AdminSection()
         {
@@ -455,7 +439,7 @@ public class OdinConfiguration
 
     public class PushNotificationSection
     {
-        public string BaseUrl { get; init; }
+        public string BaseUrl { get; init; } = "";
 
         public PushNotificationSection()
         {
@@ -538,7 +522,7 @@ public class OdinConfiguration
         public string SecretAccessKey { get; init; } = "";
         public string ServiceUrl { get; init; } = "";
         public string Region { get; init; } = "";
-        public bool ForcePathStyle { get; init; } = false;
+        public bool ForcePathStyle { get; init; }
         public string BucketName { get; init; } = "";
         public string RootPath { get; init; } = "";
 
@@ -568,9 +552,9 @@ public class OdinConfiguration
     public class CdnSection
     {
         public bool Enabled { get; init; }
-        public string PayloadBaseUrl { get; init; } = null;
+        public string PayloadBaseUrl { get; init; } = "";
 
-        public ClientAuthenticationToken ExpectedAuthToken { get; init; }
+        public ClientAuthenticationToken ExpectedAuthToken { get; init; } = new();
         
         public CdnSection()
         {
@@ -583,21 +567,17 @@ public class OdinConfiguration
             if (Enabled)
             {
                 PayloadBaseUrl = config.Required<string>("Cdn:PayloadBaseUrl").Trim();
-                if (PayloadBaseUrl != null)
+                if (!PayloadBaseUrl.StartsWith("http://") && !PayloadBaseUrl.StartsWith("https://"))
                 {
-                    if (!PayloadBaseUrl.StartsWith("http://") && !PayloadBaseUrl.StartsWith("https://"))
-                    {
-                        throw new OdinConfigException("Cdn:PayloadBaseUrl must begin with http:// or https://");
-                    }
-
-                    if (PayloadBaseUrl.EndsWith('/'))
-                    {
-                        throw new OdinConfigException("Cdn:PayloadBaseUrl must not end with a trailing slash '/'");
-                    }
+                    throw new OdinConfigException("Cdn:PayloadBaseUrl must begin with http:// or https://");
                 }
-                
-                var value = config.Required<string>("Cdn:RequiredAuthToken");
 
+                if (PayloadBaseUrl.EndsWith('/'))
+                {
+                    throw new OdinConfigException("Cdn:PayloadBaseUrl must not end with a trailing slash '/'");
+                }
+
+                var value = config.Required<string>("Cdn:RequiredAuthToken");
                 if (!ClientAuthenticationToken.TryParse(value, out var requiredAuthToken))
                 {
                     throw new OdinConfigException("Missing required auth token config.");

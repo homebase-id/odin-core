@@ -36,11 +36,11 @@ public class TenantPathManagerTests
 
         {
             var badConfig = new OdinConfiguration();
-            var exception = Assert.Throws<NullReferenceException>(() =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
                 _ = new TenantPathManager(badConfig, tenantId);
             });
-            Assert.That(exception?.Message, Is.EqualTo("Object reference not set to an instance of an object."));
+            Assert.That(exception?.Message, Is.EqualTo("The value cannot be an empty string or composed entirely of whitespace. (Parameter 'TenantDataRootPath')"));
         }
 
         {
@@ -48,11 +48,11 @@ public class TenantPathManagerTests
             {
                 Host = new OdinConfiguration.HostSection()
             };
-            var exception = Assert.Throws<ArgumentNullException>(() =>
+            var exception = Assert.Throws<ArgumentException>(() =>
             {
                 _ = new TenantPathManager(badConfig, tenantId);
             });
-            Assert.That(exception?.Message, Is.EqualTo("Value cannot be null. (Parameter 'TenantDataRootPath')"));
+            Assert.That(exception?.Message, Is.EqualTo("The value cannot be an empty string or composed entirely of whitespace. (Parameter 'TenantDataRootPath')"));
         }
     }
 
