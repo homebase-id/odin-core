@@ -25,9 +25,25 @@ public class DeviceSocketCollection
         _sockets.TryAdd(socket.Key, socket);
     }
 
-    public void RemoveSocket(Guid key)
+    public async Task RemoveSocket(Guid key, WebSocketCloseStatus status = WebSocketCloseStatus.NormalClosure, string message = "")
     {
-        _sockets.TryRemove(key, out _);
+        if (_sockets.TryRemove(key, out var entry))
+        {
+            if (entry.Socket != null)
+            {
+                if (entry.Socket.State != WebSocketState.Closed && entry.Socket.State != WebSocketState.Aborted)
+                {
+                    try
+                    {
+                        await entry.Socket.CloseAsync(status, message, CancellationToken.None);
+                    }
+                    catch (Exception)
+                    {
+                        // End of the line - nothing we can do here
+                    }
+                }
+            }
+        }
     }
 }
 

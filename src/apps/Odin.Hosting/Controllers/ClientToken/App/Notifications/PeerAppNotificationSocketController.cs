@@ -44,7 +44,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 
             try
             {
-                await notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, WebOdinContext);
+                await notificationHandler.EstablishConnection(webSocket,  WebOdinContext, cancellationTokenSources.Token);
             }
             catch (OperationCanceledException)
             {

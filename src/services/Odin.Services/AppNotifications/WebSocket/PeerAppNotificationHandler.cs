@@ -27,7 +27,6 @@ using Odin.Services.Util;
 #nullable enable
 
 // SEB:TODO cleanup SendMessageAsync params
-// SEB:TODO move cancellationtoken to the end everywhere
 
 namespace Odin.Services.AppNotifications.WebSocket
 {
@@ -64,8 +63,10 @@ namespace Odin.Services.AppNotifications.WebSocket
         /// <summary>
         /// Awaits the configuration when establishing a new web socket connection
         /// </summary>
-        public async Task EstablishConnection(System.Net.WebSockets.WebSocket webSocket, CancellationToken cancellationToken,
-            IOdinContext odinContext)
+        public async Task EstablishConnection(
+            System.Net.WebSockets.WebSocket webSocket,
+            IOdinContext odinContext,
+            CancellationToken cancellationToken = default)
         {
             var webSocketKey = Guid.NewGuid();
             try
@@ -78,7 +79,7 @@ namespace Odin.Services.AppNotifications.WebSocket
                 _deviceSocketCollection.AddSocket(deviceSocket);
 
                 await _notificationSubscription.SubscribeAsync(cancellationToken);
-                await AwaitCommands(deviceSocket, cancellationToken, odinContext);
+                await AwaitCommands(deviceSocket, odinContext, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -96,26 +97,17 @@ namespace Odin.Services.AppNotifications.WebSocket
             finally
             {
                 await _notificationSubscription.UnsubscribeAsync(CancellationToken.None);
-                _deviceSocketCollection.RemoveSocket(webSocketKey);
-                if (webSocket.State != WebSocketState.Closed && webSocket.State != WebSocketState.Aborted)
-                {
-                    try
-                    {
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
-                    }
-                    catch (Exception)
-                    {
-                        // End of the line - nothing we can do here
-                    }
-                }
-
+                await _deviceSocketCollection.RemoveSocket(webSocketKey);
                 _logger.LogTrace("WebSocket closed");
             }
         }
 
         //
 
-        private async Task AwaitCommands(DeviceSocket deviceSocket, CancellationToken cancellationToken, IOdinContext currentOdinContext)
+        private async Task AwaitCommands(
+            DeviceSocket deviceSocket,
+            IOdinContext currentOdinContext,
+            CancellationToken cancellationToken = default)
         {
             var webSocket = deviceSocket.Socket;
             while (!cancellationToken.IsCancellationRequested && webSocket?.State == WebSocketState.Open)
@@ -166,9 +158,10 @@ namespace Odin.Services.AppNotifications.WebSocket
                             {
                                 NotificationType = ClientNotificationType.AuthenticationError,
                                 Data = "Invalid Token",
-                            }), cancellationToken,
+                            }),
                             deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
-                            sendEvenIfNoDeviceOdinContext: true);
+                            sendEvenIfNoDeviceOdinContext: true,
+                            cancellationToken);
                         continue;
                     }
                     catch (Exception)
@@ -272,7 +265,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             var sockets = _deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {
-                await SendMessageAsync(deviceSocket, notification.Json, CancellationToken.None);
+                await SendMessageAsync(deviceSocket, notification.Json, true);
             }
         }
 
@@ -332,28 +325,32 @@ namespace Odin.Services.AppNotifications.WebSocket
                 await SendMessageAsync(
                     deviceSocket,
                     json,
-                    CancellationToken.None,
-                    encrypt: true,
-                    groupId: notification.File.FileId);
+                    encrypt: true);
             }
         }
 
         //
 
-        private async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken)
+        private async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken = default)
         {
             await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
                 {
                     NotificationType = ClientNotificationType.Error,
                     Data = errorText,
-                }), cancellationToken,
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null);
+                }),
+                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                sendEvenIfNoDeviceOdinContext: false,
+                cancellationToken);
         }
 
         //
 
-        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, CancellationToken cancellationToken,
-            bool encrypt = true, Guid? groupId = null, bool sendEvenIfNoDeviceOdinContext = false)
+        private async Task SendMessageAsync(
+            DeviceSocket deviceSocket,
+            string message,
+            bool encrypt,
+            bool sendEvenIfNoDeviceOdinContext = false,
+            CancellationToken cancellationToken = default)
         {
             var socket = deviceSocket.Socket;
 
@@ -364,7 +361,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             if (deviceSocket.DeviceOdinContext == null)
             {
-                _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 _logger.LogInformation("Invalid/Stale Device found; removing from list");
                 if (sendEvenIfNoDeviceOdinContext)
                 {
@@ -421,7 +418,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         //
 
-        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken)
+        private async Task ProcessCommand(DeviceSocket deviceSocket, SocketCommand command, CancellationToken cancellationToken = default)
         {
             if (null == deviceSocket.DeviceOdinContext)
             {
@@ -460,14 +457,21 @@ namespace Odin.Services.AppNotifications.WebSocket
                     }
 
                     var response = new EstablishConnectionResponse();
-                    await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(response), cancellationToken);
+                    await SendMessageAsync(
+                        deviceSocket,
+                        OdinSystemSerializer.Serialize(response),
+                        encrypt: true,
+                        sendEvenIfNoDeviceOdinContext: false,
+                        cancellationToken);
                     break;
 
                 case SocketCommandType.Ping:
-                    await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
-                    {
-                        NotificationType = ClientNotificationType.Pong,
-                    }), cancellationToken);
+                    await SendMessageAsync(
+                        deviceSocket,
+                        OdinSystemSerializer.Serialize(new { NotificationType = ClientNotificationType.Pong }),
+                        encrypt: true,
+                        sendEvenIfNoDeviceOdinContext: false,
+                        cancellationToken);
                     break;
 
                 default:

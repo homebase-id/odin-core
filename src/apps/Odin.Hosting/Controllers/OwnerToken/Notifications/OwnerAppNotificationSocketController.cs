@@ -54,7 +54,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Notifications
                     DangerousEnableCompression = true
                 });
 
-                await _notificationHandler.EstablishConnection(webSocket, cancellationTokenSources.Token, WebOdinContext);
+                await _notificationHandler.EstablishConnection(webSocket, WebOdinContext, cancellationTokenSources.Token);
             }
             catch (OperationCanceledException)
             {
