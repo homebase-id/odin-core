@@ -164,7 +164,7 @@ namespace Odin.Hosting
                         {
                             kestrelOptions.Limits.MaxRequestBodySize = null;
 
-                            foreach (var address in odinConfig.Host.IPAddressListenList)
+                            foreach (var address in odinConfig.Host.IpAddressListenList)
                             {
                                 var ip = address.GetIp();
                                 kestrelOptions.Listen(ip, address.HttpPort);
@@ -173,7 +173,7 @@ namespace Odin.Hosting
                             }
 
                             // Admin API
-                            var reservedHttpsPorts = odinConfig.Host.IPAddressListenList.Select(x => x.HttpsPort);
+                            var reservedHttpsPorts = odinConfig.Host.IpAddressListenList.Select(x => x.HttpsPort);
                             if (odinConfig.Admin.ApiEnabled && !reservedHttpsPorts.Contains(odinConfig.Admin.ApiPort))
                             {
                                 kestrelOptions.Listen(IPAddress.Any, odinConfig.Admin.ApiPort,
