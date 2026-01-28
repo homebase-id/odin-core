@@ -113,8 +113,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public TenantContext CreateTenantContext(IdentityRegistration idReg, bool updateFileSystem = false)
     {
-        var isPreconfigured = _config.Development?.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
-            StringComparison.InvariantCultureIgnoreCase)) ?? false;
+        var isPreconfigured = _config.Development.PreconfiguredDomains.Any(d => d.Equals(idReg.PrimaryDomainName,
+            StringComparison.InvariantCultureIgnoreCase));
 
         var tenantPathManager = new TenantPathManager(_config, idReg.Id);
 
