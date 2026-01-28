@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Tasks;
@@ -17,7 +16,7 @@ public static class DevEnvironmentSetup
         IIdentityRegistry identityRegistry)
     {
         Dictionary<Guid, string> certificates = new();
-        if (odinConfiguration.Development?.PreconfiguredDomains.Any() ?? false)
+        if (odinConfiguration.Development.PreconfiguredDomains.Count != 0)
         {
             var idx = 0UL;
             foreach (var domain in odinConfiguration.Development.PreconfiguredDomains)
@@ -74,7 +73,7 @@ public static class DevEnvironmentSetup
     public static void ConfigureIfPresent(ILogger logger, OdinConfiguration odinConfiguration, IIdentityRegistry registry,
         ICertificateStore certificateStore)
     {
-        if (odinConfiguration.Development != null)
+        if (odinConfiguration.Development.Enabled)
         {
             ConfigureSystemSsl(odinConfiguration, certificateStore);
             RegisterPreconfiguredDomainsAsync(logger, odinConfiguration, registry);
@@ -127,7 +126,7 @@ public static class DevEnvironmentSetup
 
     private static (string publicKey, string privateKey) GetSourceDomainPath(string domain, OdinConfiguration odinConfiguration)
     {
-        var root = Path.Combine(odinConfiguration.Development!.SslSourcePath, domain);
+        var root = Path.Combine(odinConfiguration.Development.SslSourcePath, domain);
 
         var sourcePublicKeyPath = Path.Combine(root, "certificate.crt");
         if (!File.Exists(sourcePublicKeyPath))
