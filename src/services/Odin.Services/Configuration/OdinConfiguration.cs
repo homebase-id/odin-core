@@ -121,6 +121,7 @@ public class OdinConfiguration
     /// </summary>
     public class DevelopmentSection
     {
+        public bool Enabled { get; }
         public List<string> PreconfiguredDomains { get; init; } = [];
         public string SslSourcePath { get; init; } = "";
         public bool VersionUpgradeTestModeEnabled { get; init; }
@@ -132,12 +133,13 @@ public class OdinConfiguration
 
         public DevelopmentSection(IConfiguration config)
         {
-            PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains);
-            SslSourcePath = config.GetOrDefault("Development:SslSourcePath", SslSourcePath);
-            VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
-
-            // IMPORTANT:
-            // 'Development' won't be present in production configs, so none of the settings here can be 'required'.
+            Enabled = config.SectionExists("Development");
+            if (Enabled)
+            {
+                PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains);
+                SslSourcePath = config.Required<string>("Development:SslSourcePath");
+                VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
+            }
         }
     }
     
