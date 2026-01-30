@@ -443,8 +443,8 @@ public class BackgroundServiceManagerTest
          ClassicAssert.False(service.Notified);
 
          var otherService = _container.Resolve<NotifyTestBackgroundService>();
-         var trigger = _container.Resolve<IBackgroundServiceNotifier<NotifyTestBackgroundService>>();
-         await trigger.NotifyWorkAvailableAsync();
+         var notifier = _container.Resolve<IBackgroundServiceNotifier<NotifyTestBackgroundService>>();
+         await notifier.NotifyWorkAvailableAsync();
          await Task.Delay(100);
          ClassicAssert.True(service.Notified);
          ClassicAssert.False(otherService.Notified);
