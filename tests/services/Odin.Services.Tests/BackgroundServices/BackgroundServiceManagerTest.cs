@@ -57,9 +57,9 @@ public class BackgroundServiceManagerTest
         builder.RegisterType<ScopedTestValue>().InstancePerLifetimeScope();
         builder.RegisterType<ScopeTestBackgroundService>().InstancePerDependency();
 
-        builder.RegisterType<PulseTestBackgroundService>().InstancePerDependency();
-        builder.RegisterType<BackgroundServiceTrigger<PulseTestBackgroundService>>()
-            .As<IBackgroundServiceTrigger<PulseTestBackgroundService>>()
+        builder.RegisterType<NotifyTestBackgroundService>().InstancePerDependency();
+        builder.RegisterType<BackgroundServiceNotifier<NotifyTestBackgroundService>>()
+            .As<IBackgroundServiceNotifier<NotifyTestBackgroundService>>()
             .SingleInstance();
 
         _container = builder.Build();
@@ -217,12 +217,12 @@ public class BackgroundServiceManagerTest
 
             await Task.WhenAll(services);
 
-            // PulseBackgroundProcessor 3 times
+            // NotifyWorkAvailableAsync 3 times
             for (var idx = 0; idx < 3; idx++)
             {
                 for (var i = 0; i < serviceCount; i++)
                 {
-                    await manager.PulseBackgroundProcessorAsync($"instance{i*(iteration+1)}");
+                    await manager.NotifyWorkAvailableAsync($"instance{i*(iteration+1)}");
                 }
                 await Task.Delay(200);
             }
@@ -274,7 +274,7 @@ public class BackgroundServiceManagerTest
         await Task.Delay(200);
         ClassicAssert.AreEqual(1, service.Counter);
         
-        await manager.PulseBackgroundProcessorAsync("foo");
+        await manager.NotifyWorkAvailableAsync("foo");
         await Task.Delay(200);
         
         ClassicAssert.AreEqual(2, service.Counter);
@@ -432,7 +432,7 @@ public class BackgroundServiceManagerTest
      {
          var manager = _container.Resolve<IBackgroundServiceManager>();
 
-         var service = await manager.StartAsync<PulseTestBackgroundService>();
+         var service = await manager.StartAsync<NotifyTestBackgroundService>();
          await Task.Delay(1);
 
          ClassicAssert.True(service.DidInitialize);
@@ -440,16 +440,16 @@ public class BackgroundServiceManagerTest
          ClassicAssert.False(service.DidShutdown);
          ClassicAssert.False(service.DidDispose);
 
-         ClassicAssert.False(service.Pulsed);
+         ClassicAssert.False(service.Notified);
 
-         var otherService = _container.Resolve<PulseTestBackgroundService>();
-         var trigger = _container.Resolve<IBackgroundServiceTrigger<PulseTestBackgroundService>>();
-         await trigger.PulseBackgroundProcessorAsync();
+         var otherService = _container.Resolve<NotifyTestBackgroundService>();
+         var trigger = _container.Resolve<IBackgroundServiceNotifier<NotifyTestBackgroundService>>();
+         await trigger.NotifyWorkAvailableAsync();
          await Task.Delay(100);
-         ClassicAssert.True(service.Pulsed);
-         ClassicAssert.False(otherService.Pulsed);
+         ClassicAssert.True(service.Notified);
+         ClassicAssert.False(otherService.Notified);
 
-         await manager.StopAsync<PulseTestBackgroundService>();
+         await manager.StopAsync<NotifyTestBackgroundService>();
          ClassicAssert.True(service.DidInitialize);
          ClassicAssert.True(service.DidFinish);
          ClassicAssert.True(service.DidShutdown);
@@ -612,10 +612,10 @@ public class ScopeTestBackgroundService(ILogger logger, ScopedTestValue scopedTe
     }
 }
 
-public class PulseTestBackgroundService(ILogger logger) : BaseBackgroundService(logger)
+public class NotifyTestBackgroundService(ILogger logger) : BaseBackgroundService(logger)
 {
-    private volatile bool _pulsed;
-    public bool Pulsed => _pulsed;
+    private volatile bool _notified;
+    public bool Notified => _notified;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -624,7 +624,7 @@ public class PulseTestBackgroundService(ILogger logger) : BaseBackgroundService(
             await SleepAsync(TimeSpan.FromHours(1), stoppingToken);
             if (!stoppingToken.IsCancellationRequested)
             {
-                _pulsed = true;
+                _notified = true;
             }
         }
         DidFinish = true;

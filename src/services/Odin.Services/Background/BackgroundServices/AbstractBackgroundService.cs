@@ -42,7 +42,7 @@ public abstract class AbstractBackgroundService(ILogger logger)
     //
 
     // Call me in your ExecuteAsync method to sleep for duration.
-    // Call InternalPulseBackgroundProcessor() to wake up.
+    // Call InternalNotifyWorkAvailable() to wake up.
     protected Task SleepAsync(TimeSpan duration, CancellationToken stoppingToken)
     {
         return SleepAsync(duration, duration, stoppingToken);
@@ -51,7 +51,7 @@ public abstract class AbstractBackgroundService(ILogger logger)
     //
 
     // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2 (max 7 days)
-    // Call InternalPulseBackgroundProcessor() to wake up.
+    // Call InternalNotifyWorkAvailable() to wake up.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
         if (duration1 == TimeSpan.Zero && duration2 == TimeSpan.Zero)
@@ -90,12 +90,12 @@ public abstract class AbstractBackgroundService(ILogger logger)
             var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
             var delay = Task.Delay(duration, stoppingToken);
 
-            // Sleep for duration or until InternalPulseBackgroundProcessor is signalled
+            // Sleep for duration or until InternalNotifyWorkAvailable is called
             await Task.WhenAny(wakeUp, delay);
         }
         catch (OperationCanceledException)
         {
-            // ignore - this is expected and will happen when stoppingToken is cancelled
+            // ignore - this is expected and will happen when stoppingToken is canceled
         }
         finally
         {
@@ -106,7 +106,7 @@ public abstract class AbstractBackgroundService(ILogger logger)
     //
 
     // Call me through BackgroundServiceManager to wake up the service from SleepAsync
-    internal void InternalPulseBackgroundProcessor()
+    internal void InternalNotifyWorkAvailable()
     {
         _wakeUpEvent.Set();
     }

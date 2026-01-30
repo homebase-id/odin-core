@@ -5,17 +5,17 @@ namespace Odin.Services.Background;
 
 #nullable enable
 
-public interface IBackgroundServiceTrigger<T> where T : AbstractBackgroundService
+public interface IBackgroundServiceNotifier<T> where T : AbstractBackgroundService
 {
-    Task PulseBackgroundProcessorAsync(string? serviceIdentifier = null);
+    Task NotifyWorkAvailableAsync(string? serviceIdentifier = null);
 }
 
-public class BackgroundServiceTrigger<T>(IBackgroundServiceManager  backgroundServiceManager):
-    IBackgroundServiceTrigger<T> where T : AbstractBackgroundService
+public class BackgroundServiceNotifier<T>(IBackgroundServiceManager  backgroundServiceManager):
+    IBackgroundServiceNotifier<T> where T : AbstractBackgroundService
 {
-    public async Task PulseBackgroundProcessorAsync(string? serviceIdentifier = null)
+    public async Task NotifyWorkAvailableAsync(string? serviceIdentifier = null)
     {
         serviceIdentifier ??= typeof(T).Name;
-        await backgroundServiceManager.PulseBackgroundProcessorAsync(serviceIdentifier);
+        await backgroundServiceManager.NotifyWorkAvailableAsync(serviceIdentifier);
     }
 }

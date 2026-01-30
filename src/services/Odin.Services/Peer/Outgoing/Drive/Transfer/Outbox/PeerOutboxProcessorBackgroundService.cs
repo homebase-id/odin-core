@@ -197,7 +197,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             }
 
             await peerOutbox.MarkFailureAsync(fileItem.Marker, nextRun);
-            InternalPulseBackgroundProcessor();
+            InternalNotifyWorkAvailable();
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> ProcessItemUsingWorker(

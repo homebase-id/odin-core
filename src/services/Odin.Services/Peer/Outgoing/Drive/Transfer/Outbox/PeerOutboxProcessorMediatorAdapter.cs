@@ -6,11 +6,11 @@ using Odin.Services.Mediator;
 
 namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-public class PeerOutboxProcessorMediatorAdapter(IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger)
+public class PeerOutboxProcessorMediatorAdapter(IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService> backgroundServiceNotifier)
     : INotificationHandler<OutboxItemAddedNotification>
 {
     public async Task Handle(OutboxItemAddedNotification notification, CancellationToken cancellationToken)
     {
-        await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+        await backgroundServiceNotifier.NotifyWorkAvailableAsync();
     }
 }
