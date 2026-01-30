@@ -117,8 +117,8 @@ public class JobManagerTests
 
         builder.RegisterType<JobCleanUpBackgroundService>().InstancePerDependency();
         builder.RegisterType<JobRunnerBackgroundService>().InstancePerDependency();
-        builder.RegisterType<BackgroundServiceTrigger<JobRunnerBackgroundService>>()
-            .As<IBackgroundServiceTrigger<JobRunnerBackgroundService>>()
+        builder.RegisterType<BackgroundServiceNotifier<JobRunnerBackgroundService>>()
+            .As<IBackgroundServiceNotifier<JobRunnerBackgroundService>>()
             .SingleInstance();
 
         builder.RegisterType<JobManager>().As<IJobManager>().InstancePerDependency();
@@ -1005,7 +1005,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.NotifyWorkAvailableAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
@@ -1137,7 +1137,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.NotifyWorkAvailableAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);

@@ -36,7 +36,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         IDriveManager driveManager,
         FileSystemResolver fileSystemResolver,
         ILogger<PeerOutgoingTransferService> logger,
-        IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
+        IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService> backgroundServiceNotifier,
         PushNotificationService pushNotificationService,
         OdinConfiguration odinConfiguration)
         : PeerServiceBase(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
@@ -90,7 +90,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task ProcessOutboxNow()
         {
             logger.LogDebug("Processing outbox now called");
-            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+            await backgroundServiceNotifier.NotifyWorkAvailableAsync();
         }
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
             }
 
-            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+            await backgroundServiceNotifier.NotifyWorkAvailableAsync();
 
             return outboxStatus;
         }
@@ -211,7 +211,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 intermediateResults.Add((externalFile, statusItem));
             }
 
-            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+            await backgroundServiceNotifier.NotifyWorkAvailableAsync();
 
             // This, too, is all ugly mapping code but 🤷
             var results = new List<SendReadReceiptResultFileItem>();
@@ -432,7 +432,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
             }
 
-            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+            await backgroundServiceNotifier.NotifyWorkAvailableAsync();
 
             return results;
         }
