@@ -1,5 +1,7 @@
 # Scalability Issues: Multi-Instance Deployment Analysis
 
+(Claude Sonnet analysis)
+
 ## SQL Transactions: Mostly Safe
 
 The transaction architecture is well-designed for multi-instance:
@@ -19,7 +21,7 @@ No cross-table deadlock risks were identified. The SQL layer should handle multi
 
 Every instance will independently run all background services with no leader election or distributed coordination:
 
-- **`JobRunnerBackgroundService`** — calls `GetNextScheduledJobAsync()` which does use DB-level locking, so it is *probably* safe, but multiple instances polling adds contention
+- **`JobRunnerBackgroundService`** — calls `GetNextScheduledJobAsync()` which does use DB-level locking, so it is _probably_ safe, but multiple instances polling adds contention
 - **`PeerOutboxProcessorBackgroundService`** — uses `popstamp` DB mechanism, likely safe but wasteful
 - **`InboxOutboxReconciliationBackgroundService`** — `RecoverDeadAsync()` on all instances simultaneously could cause duplicate recovery
 - **`UpdateCertificatesBackgroundService`** — all instances renewing certs could hit ACME rate limits
@@ -70,14 +72,14 @@ Add a Redis pub/sub backplane so notifications published on one instance reach W
 
 ## Summary
 
-| Category | Severity | Status |
-|---|---|---|
-| Request-scoped SQL transactions | Safe | No changes needed |
-| Job claiming (`FOR UPDATE`) | Safe | No changes needed |
-| Inbox pop (`popstamp`) | Safe | No changes needed |
-| Drive index upserts (version tag) | Safe | No changes needed |
-| Background services (duplicate execution) | Critical | Needs leader election or idempotency |
-| Process-local locks on shared resources | Critical | Needs distributed locks |
-| In-memory caches (no cross-instance invalidation) | High | Needs distributed cache or invalidation |
-| WebSocket notifications (per-instance only) | High | Needs Redis pub/sub backplane |
-| In-proc pub/sub broker | High | Needs Redis-backed alternative |
+| Category                                          | Severity | Status                                  |
+| ------------------------------------------------- | -------- | --------------------------------------- |
+| Request-scoped SQL transactions                   | Safe     | No changes needed                       |
+| Job claiming (`FOR UPDATE`)                       | Safe     | No changes needed                       |
+| Inbox pop (`popstamp`)                            | Safe     | No changes needed                       |
+| Drive index upserts (version tag)                 | Safe     | No changes needed                       |
+| Background services (duplicate execution)         | Critical | Needs leader election or idempotency    |
+| Process-local locks on shared resources           | Critical | Needs distributed locks                 |
+| In-memory caches (no cross-instance invalidation) | High     | Needs distributed cache or invalidation |
+| WebSocket notifications (per-instance only)       | High     | Needs Redis pub/sub backplane           |
+| In-proc pub/sub broker                            | High     | Needs Redis-backed alternative          |
