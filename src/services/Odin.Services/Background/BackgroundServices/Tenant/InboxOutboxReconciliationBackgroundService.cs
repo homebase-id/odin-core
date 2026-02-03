@@ -14,7 +14,7 @@ public class InboxOutboxReconciliationBackgroundService(
     OdinConfiguration config,
     TransitInboxBoxStorage inbox,
     PeerOutbox outbox,
-    IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger)
+    IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService> backgroundServiceNotifier)
     : AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,7 +35,7 @@ public class InboxOutboxReconciliationBackgroundService(
             if (recoveredOutboxItems > 0)
             {
                 logger.LogInformation("Recovered {count} outbox items", recoveredOutboxItems);
-                await backgroundServiceTrigger.PulseBackgroundProcessorAsync(); // signal outbox processor to get to work
+                await backgroundServiceNotifier.NotifyWorkAvailableAsync(); // signal outbox processor to get to work
             }
 
             if (recoveredInboxItems > 0)

@@ -117,8 +117,8 @@ public static class BackgroundServiceExtensions
             .AsSelf()
             .InstancePerDependency(); // Important!
 
-        cb.RegisterType<BackgroundServiceTrigger<TService>>()
-            .As<IBackgroundServiceTrigger<TService>>()
+        cb.RegisterType<BackgroundServiceNotifier<TService>>()
+            .As<IBackgroundServiceNotifier<TService>>()
             .SingleInstance(); // Important!
 
         return cb;

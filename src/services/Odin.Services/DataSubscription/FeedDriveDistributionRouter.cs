@@ -40,7 +40,7 @@ namespace Odin.Services.DataSubscription
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ILogger<FeedDriveDistributionRouter> _logger;
         private readonly PublicPrivateKeyService _pkService;
-        private readonly IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> _backgroundServiceTrigger;
+        private readonly IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService> _backgroundServiceNotifier;
         private readonly PeerOutbox _peerOutbox;
 
         private readonly IDriveAclAuthorizationService _driveAcl;
@@ -57,7 +57,7 @@ namespace Odin.Services.DataSubscription
             IDriveAclAuthorizationService driveAcl,
             ILogger<FeedDriveDistributionRouter> logger,
             PublicPrivateKeyService pkService,
-            IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
+            IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService> backgroundServiceNotifier,
             PeerOutbox peerOutbox)
         {
             _followerService = followerService;
@@ -68,7 +68,7 @@ namespace Odin.Services.DataSubscription
             _driveAcl = driveAcl;
             _logger = logger;
             _pkService = pkService;
-            _backgroundServiceTrigger = backgroundServiceTrigger;
+            _backgroundServiceNotifier = backgroundServiceNotifier;
             _peerOutbox = peerOutbox;
         }
 
@@ -108,7 +108,7 @@ namespace Odin.Services.DataSubscription
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, rpi);
                     }
 
-                    await _backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+                    await _backgroundServiceNotifier.NotifyWorkAvailableAsync();
                 }
                 else
                 {
@@ -117,7 +117,7 @@ namespace Odin.Services.DataSubscription
                         if (isCollaborationChannel)
                         {
                             await DistributeToCollaborativeChannelMembers(notification, rpi);
-                            await _backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+                            await _backgroundServiceNotifier.NotifyWorkAvailableAsync();
                             return;
                         }
                     }
@@ -135,7 +135,7 @@ namespace Odin.Services.DataSubscription
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
                         await this.EnqueueFileMetadataNotificationForDistributionUsingFeedEndpoint(notification, rpi);
-                        await _backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+                        await _backgroundServiceNotifier.NotifyWorkAvailableAsync();
                     }
                 }
             }

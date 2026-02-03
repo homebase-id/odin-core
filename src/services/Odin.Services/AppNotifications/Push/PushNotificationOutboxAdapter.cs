@@ -10,12 +10,12 @@ namespace Odin.Services.AppNotifications.Push;
 
 public class PushNotificationOutboxAdapter(
     ILogger<PushNotificationOutboxAdapter> logger,
-    IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger)
+    IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService> backgroundServiceNotifier)
     : INotificationHandler<PushNotificationEnqueuedNotification>
 {
     public async Task Handle(PushNotificationEnqueuedNotification notificationEnqueuedNotification, CancellationToken cancellationToken)
     {
         logger.LogDebug("PushNotificationOutboxAdapter starting outbox processing");
-        await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+        await backgroundServiceNotifier.NotifyWorkAvailableAsync();
     }
 }
