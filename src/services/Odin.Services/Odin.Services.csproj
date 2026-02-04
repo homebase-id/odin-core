@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Certes" Version="3.0.4" />
     <PackageReference Include="HtmlAgilityPack" Version="1.11.72" />
-    <PackageReference Include="HtmlSanitizer" Version="9.0.876" />
+    <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
     <PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
