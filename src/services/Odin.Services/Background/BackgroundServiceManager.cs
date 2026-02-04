@@ -25,8 +25,8 @@ public interface IBackgroundServiceManager
     Task StopAsync<T>();
     Task StopAllAsync();
     Task ShutdownAsync();
-    Task PulseBackgroundProcessorAsync(string serviceIdentifier);
-    Task PulseBackgroundProcessorAsync<T>();
+    Task NotifyWorkAvailableAsync(string serviceIdentifier);
+    Task NotifyWorkAvailableAsync<T>();
 }
 
 //
@@ -172,7 +172,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     //
 
-    public async Task PulseBackgroundProcessorAsync(string serviceIdentifier)
+    public async Task NotifyWorkAvailableAsync(string serviceIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(serviceIdentifier);
 
@@ -182,9 +182,9 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
         }
 
-        // This fixes a race condition during startup where one background service can pulse
+        // This fixes a race condition during startup where one background service can notify
         // another background service that hasn't started yet.
-        // It has to be async or we risk serializing the startup of all background services.
+        // It has to be async, or we risk serializing the startup of all background services.
         if (backgroundService == null)
         {
             try
@@ -213,15 +213,15 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
         if (!_stoppingCts.IsCancellationRequested)
         {
-            backgroundService?.BackgroundService.InternalPulseBackgroundProcessor();
+            backgroundService?.BackgroundService.InternalNotifyWorkAvailable();
         }
     }
 
     //
 
-    public Task PulseBackgroundProcessorAsync<T>()
+    public Task NotifyWorkAvailableAsync<T>()
     {
-        return PulseBackgroundProcessorAsync(typeof(T).Name);
+        return NotifyWorkAvailableAsync(typeof(T).Name);
     }
 
     //

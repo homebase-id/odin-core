@@ -77,15 +77,16 @@ public class CertificateService : ICertificateService
         string[] sans,
         CancellationToken cancellationToken = default)
     {
-        await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken);
-
-        var x509 = await GetCertificateAsync(domain);
-        if (x509 != null)
+        await using (await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken))
         {
-            _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
-            return x509;
+            var x509 = await GetCertificateAsync(domain);
+            if (x509 != null)
+            {
+                _logger.LogDebug("Create certificate: {domain} completed on another thread", domain);
+                return x509;
+            }
+            return await InternalCreateCertificateAsync(domain, sans, cancellationToken);
         }
-        return await InternalCreateCertificateAsync(domain, sans, cancellationToken);
     }
 
     //
@@ -106,26 +107,27 @@ public class CertificateService : ICertificateService
             return false;
         }
 
-        await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken);
-
-        x509 = await GetCertificateAsync(domain);
-
-        if (x509 != null && !AboutToExpire(x509))
+        await using (await _nodeLock.LockAsync(LockKey(domain), cancellationToken: cancellationToken))
         {
-            _logger.LogDebug("Background renew of certificate {domain} completed on another thread", domain);
+            x509 = await GetCertificateAsync(domain);
+
+            if (x509 != null && !AboutToExpire(x509))
+            {
+                _logger.LogDebug("Background renew of certificate {domain} completed on another thread", domain);
+                return false;
+            }
+
+            _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
+            x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
+            if (x509 != null)
+            {
+                _logger.LogDebug("Completed background renew of {domain} certificate", domain);
+                return true;
+            }
+
+            _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
             return false;
         }
-
-        _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
-        x509 = await InternalCreateCertificateAsync(domain, sans, cancellationToken);
-        if (x509 != null)
-        {
-            _logger.LogDebug("Completed background renew of {domain} certificate", domain);
-            return true;
-        }
-
-        _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
-        return false;
     }
 
     //

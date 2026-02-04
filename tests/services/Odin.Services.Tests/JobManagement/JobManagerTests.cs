@@ -18,7 +18,6 @@ using Odin.Core.Storage.Database.System;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Tasks;
-using Odin.Core.Time;
 using Odin.Services.Background;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
@@ -78,7 +77,7 @@ public class JobManagerTests
         {
             Host = new OdinConfiguration.HostSection
             {
-                SystemDataRootPath = _tempPath
+                SystemDataRootPath = _tempPath!
             },
             BackgroundServices = new OdinConfiguration.BackgroundServicesSection
             {
@@ -118,8 +117,8 @@ public class JobManagerTests
 
         builder.RegisterType<JobCleanUpBackgroundService>().InstancePerDependency();
         builder.RegisterType<JobRunnerBackgroundService>().InstancePerDependency();
-        builder.RegisterType<BackgroundServiceTrigger<JobRunnerBackgroundService>>()
-            .As<IBackgroundServiceTrigger<JobRunnerBackgroundService>>()
+        builder.RegisterType<BackgroundServiceNotifier<JobRunnerBackgroundService>>()
+            .As<IBackgroundServiceNotifier<JobRunnerBackgroundService>>()
             .SingleInstance();
 
         builder.RegisterType<JobManager>().As<IJobManager>().InstancePerDependency();
@@ -1006,7 +1005,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.NotifyWorkAvailableAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);
@@ -1138,7 +1137,7 @@ public class JobManagerTests
         await Task.Delay(200);
         
         // Act
-        await backgroundServiceManager.PulseBackgroundProcessorAsync(nameof(JobCleanUpBackgroundService));
+        await backgroundServiceManager.NotifyWorkAvailableAsync(nameof(JobCleanUpBackgroundService));
 
         // Wait a bit so JobCleanUpBackgroundService has time to do its thing
         await Task.Delay(200);

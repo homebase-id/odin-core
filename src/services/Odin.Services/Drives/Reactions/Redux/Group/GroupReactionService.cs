@@ -23,7 +23,7 @@ public class GroupReactionService(
     TenantContext tenantContext,
     ReactionContentService reactionContentService,
     PeerOutbox peerOutbox,
-    IBackgroundServiceTrigger<PeerOutboxProcessorBackgroundService> backgroundServiceTrigger,
+    IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService> backgroundServiceNotifier,
     IOdinHttpClientFactory odinHttpClientFactory,
     CircleNetworkService circleNetworkService,
     FileSystemResolver fileSystemResolver,
@@ -57,7 +57,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+            await backgroundServiceNotifier.NotifyWorkAvailableAsync();
         }
 
         return result;
@@ -86,7 +86,7 @@ public class GroupReactionService(
                 result.RecipientStatus.Add(recipient, status);
             }
 
-            await backgroundServiceTrigger.PulseBackgroundProcessorAsync();
+            await backgroundServiceNotifier.NotifyWorkAvailableAsync();
         }
 
         return result;
