@@ -1,0 +1,102 @@
+# =============================================================================
+# REDIS CACHE (Memory-Only)
+# =============================================================================
+# This file defines a memory-only Redis cache:
+#   1. Deployment - The Redis container (no persistent storage)
+#   2. Service - Network endpoint for other pods to connect
+#
+# WARNING: All data is lost when the pod restarts!
+# This is intentional for a true cache - if you need persistence, add a PVC.
+# =============================================================================
+
+
+# =============================================================================
+# DEPLOYMENT
+# =============================================================================
+# Using Deployment (not StatefulSet) because:
+#   - No persistent state (memory-only cache)
+#   - Pod name doesn't matter
+#   - Simpler than StatefulSet
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: odin
+spec:
+  replicas: 1                     # Single instance
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+
+          ports:
+            - containerPort: 6379
+              name: redis
+
+          # Memory-only configuration (no persistence)
+          command:
+            - redis-server
+            - --save                  # Disable RDB snapshots
+            - ""
+            - --appendonly            # Disable AOF persistence
+            - "no"
+            - --maxmemory             # Limit memory usage
+            - "256mb"
+            - --maxmemory-policy      # Evict least recently used keys when full
+            - "allkeys-lru"
+
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"         # Must be >= maxmemory setting
+              cpu: "500m"
+
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+# =============================================================================
+# SERVICE (Headless)
+# =============================================================================
+# Other pods connect to "redis:6379" to reach this Redis instance.
+#
+# clusterIP: None makes this a "headless" service:
+#   - No virtual IP assigned
+#   - DNS returns pod IP directly
+#   - Explicit that this is a single-instance service, not load-balanced
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: odin
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+  clusterIP: None             # Headless - direct pod connection

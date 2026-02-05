@@ -1,0 +1,201 @@
+# =============================================================================
+# ODIN HOSTING APPLICATION
+# =============================================================================
+# This file defines everything needed to run the Odin Hosting .NET app:
+#   1. ConfigMap - Non-sensitive configuration (environment variables)
+#   2. Secret - Sensitive configuration (connection strings, passwords)
+#   3. Deployment - The application containers (2 replicas for zero-downtime)
+#   4. Service - External load balancer to expose the app
+# =============================================================================
+
+
+# =============================================================================
+# CONFIGMAP
+# =============================================================================
+# ConfigMaps store non-sensitive configuration. Values become environment
+# variables in the container.
+#
+# Use ConfigMap for: feature flags, log levels, environment names
+# Use Secret for: passwords, API keys, connection strings
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: odin-hosting-config
+  namespace: odin
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  # Add more configuration here, e.g.:
+  # LOG_LEVEL: "Information"
+  # FEATURE_FLAG_XYZ: "true"
+
+---
+# =============================================================================
+# SECRET
+# =============================================================================
+# Secrets store sensitive configuration. Same as ConfigMap but for passwords,
+# keys, and connection strings.
+#
+# IMPORTANT: Change these values for production!
+# For real production, use a secret manager (sealed-secrets, external-secrets).
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: odin-hosting-secret
+  namespace: odin
+type: Opaque
+stringData:
+  # Connection string to PostgreSQL (matches postgres-secret credentials)
+  ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=odin;Username=odin;Password=changeme"
+  # Connection string to Redis
+  ConnectionStrings__Redis: "redis:6379"
+
+---
+# =============================================================================
+# DEPLOYMENT
+# =============================================================================
+# Deployment manages stateless application pods. It handles:
+#   - Running multiple replicas
+#   - Rolling updates (zero-downtime deployments)
+#   - Automatic restart of failed pods
+#
+# Key difference from StatefulSet:
+#   - Pods are interchangeable (no stable identity)
+#   - All replicas are equal, can be scaled freely
+#   - Good for stateless web apps, APIs
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odin-hosting
+  namespace: odin
+spec:
+  replicas: 2                     # Run 2 instances for high availability
+
+  # Rolling update strategy for zero-downtime deployments
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0           # Never have fewer than 2 pods running
+      maxSurge: 1                 # Can temporarily have 3 pods during update
+      # Update process:
+      #   1. Start with 2 pods (old version)
+      #   2. Create 1 new pod (now 3 total: 2 old + 1 new)
+      #   3. Wait for new pod to be ready
+      #   4. Terminate 1 old pod (now 2 total: 1 old + 1 new)
+      #   5. Create 1 new pod (now 3 total: 1 old + 2 new)
+      #   6. Wait for new pod to be ready
+      #   7. Terminate last old pod (now 2 total: 2 new)
+
+  selector:
+    matchLabels:
+      app: odin-hosting
+
+  template:
+    metadata:
+      labels:
+        app: odin-hosting
+    spec:
+      containers:
+        - name: odin-hosting
+          image: dotyou:local           # Local Docker image name
+          imagePullPolicy: IfNotPresent # Don't try to pull from registry
+
+          ports:
+            - containerPort: 80
+              name: http
+            - containerPort: 443
+              name: https
+
+          # Load configuration from ConfigMap and Secret as env vars
+          envFrom:
+            - configMapRef:
+                name: odin-hosting-config
+            - secretRef:
+                name: odin-hosting-secret
+
+          resources:
+            requests:                   # Minimum guaranteed
+              memory: "256Mi"
+              cpu: "250m"
+            limits:                     # Maximum allowed
+              memory: "1Gi"
+              cpu: "1000m"
+
+          # Readiness probe: "Is this pod ready for traffic?"
+          # Until ready, pod won't receive traffic from the Service
+          # This is CRITICAL for zero-downtime deployments!
+          readinessProbe:
+            tcpSocket:
+              port: 80                  # Check if port 80 is accepting connections
+            initialDelaySeconds: 10     # Wait 10s for app to start
+            periodSeconds: 5            # Check every 5s
+            failureThreshold: 3         # Mark unready after 3 failures
+
+          # Liveness probe: "Is this pod still alive?"
+          # Failed = Kubernetes restarts the pod
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 30     # Wait 30s before checking
+            periodSeconds: 10           # Check every 10s
+            failureThreshold: 3         # Restart after 3 failures
+
+          # Mount a volume for app data (ephemeral - lost on pod restart)
+          # For persistent data, use a PVC like postgres/redis do
+          volumeMounts:
+            - name: odin-data
+              mountPath: /app/data
+
+      # Define volumes
+      volumes:
+        - name: odin-data
+          emptyDir: {}                  # Ephemeral storage, cleared on pod restart
+
+      # Pod anti-affinity: prefer to schedule pods on DIFFERENT nodes
+      # This way if one node dies, the other pod keeps serving traffic
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100               # Strong preference (not required)
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - odin-hosting
+                topologyKey: kubernetes.io/hostname   # Spread across nodes
+
+---
+# =============================================================================
+# SERVICE (LoadBalancer)
+# =============================================================================
+# The Service exposes the application to the network.
+#
+# type: LoadBalancer tells k3s to:
+#   1. Create a ClusterIP (internal) service
+#   2. Use ServiceLB to bind host ports 80/443
+#   3. Forward external traffic to the pods
+#
+# This is like Docker's "ports: ['80:80', '443:443']"
+#
+# ServiceLB (built into k3s) handles load balancing across the 2 pods.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: odin-hosting
+  namespace: odin
+spec:
+  type: LoadBalancer              # Expose externally via ServiceLB
+  selector:
+    app: odin-hosting             # Route to pods with this label
+  ports:
+    - name: http
+      port: 80                    # External port
+      targetPort: 80              # Container port
+    - name: https
+      port: 443
+      targetPort: 443

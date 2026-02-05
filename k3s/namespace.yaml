@@ -1,0 +1,17 @@
+# =============================================================================
+# NAMESPACE
+# =============================================================================
+# A namespace is like a folder that isolates resources. All our pods, services,
+# secrets, etc. live in the "odin" namespace so they don't conflict with other
+# apps in the cluster.
+#
+# View resources in this namespace:
+#   kubectl -n odin get all
+#
+# Without -n flag, kubectl shows the "default" namespace.
+# =============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: odin
