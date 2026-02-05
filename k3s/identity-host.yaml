@@ -1,0 +1,163 @@
+# =============================================================================
+# IDENTITY HOST - Simple Single-Instance Setup
+# =============================================================================
+# This mirrors the docker-compose.yml setup exactly:
+#   - Single instance (no replicas)
+#   - Host path volumes (same paths as docker-compose)
+#   - Same ports exposed (80, 443, 4444)
+#
+# Usage:
+#   kubectl apply -f identity-host.yaml
+#   kubectl delete -f identity-host.yaml
+# =============================================================================
+
+
+# =============================================================================
+# NAMESPACE
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: odin
+
+---
+# =============================================================================
+# SECRET (replaces env_file: host-env-override.env)
+# =============================================================================
+# Add your environment variables from host-env-override.env here.
+# Ansible should template this file with the actual values.
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: identity-host-env
+  namespace: odin
+type: Opaque
+stringData:
+  # Add contents of host-env-override.env here, e.g.:
+  # SOME_SECRET_KEY: "value"
+  # ANOTHER_SECRET: "value"
+  PLACEHOLDER: "replace-with-actual-env-vars"
+
+---
+# =============================================================================
+# DEPLOYMENT
+# =============================================================================
+# Single replica to match current docker-compose setup.
+# Uses hostPath volumes to mount the same directories as docker-compose.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-host
+  namespace: odin
+spec:
+  replicas: 1                           # Single instance (same as docker-compose)
+  selector:
+    matchLabels:
+      app: identity-host
+  template:
+    metadata:
+      labels:
+        app: identity-host
+    spec:
+      containers:
+        - name: identity-host
+          image: ghcr.io/homebase-id/odin-core:v0.1.756
+
+          # Same as entrypoint in docker-compose
+          command: ["dotnet", "Odin.Hosting.dll"]
+
+          ports:
+            - containerPort: 80
+              name: http
+            - containerPort: 443
+              name: https
+            - containerPort: 4444
+              name: admin
+
+          # Environment variables
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "production"
+
+          # Load additional env vars from Secret (replaces env_file)
+          envFrom:
+            - secretRef:
+                name: identity-host-env
+
+          # Volume mounts (same paths as docker-compose)
+          volumeMounts:
+            # Config file (read-only)
+            - name: config
+              mountPath: /app/web/appsettings.production.json
+              subPath: appsettings.production.json
+              readOnly: true
+            # Data directories
+            - name: data-system
+              mountPath: /identity-host/data/system
+            - name: data-tenants
+              mountPath: /identity-host/data/tenants
+            # Log directory
+            - name: log
+              mountPath: /identity-host/log
+            # Tmp directory
+            - name: tmp
+              mountPath: /identity-host/tmp
+
+          # Restart policy is handled by Kubernetes automatically
+          # (pods are always restarted on failure)
+
+      # Volumes using hostPath (same directories as docker-compose)
+      volumes:
+        # Config file from host
+        - name: config
+          hostPath:
+            path: /identity-host/config
+            type: Directory
+        # Data directories
+        - name: data-system
+          hostPath:
+            path: /identity-host/data/system
+            type: DirectoryOrCreate
+        - name: data-tenants
+          hostPath:
+            path: /identity-host/data/tenants
+            type: DirectoryOrCreate
+        # Log directory
+        - name: log
+          hostPath:
+            path: /identity-host/log
+            type: DirectoryOrCreate
+        # Tmp directory
+        - name: tmp
+          hostPath:
+            path: /identity-host/tmp
+            type: DirectoryOrCreate
+
+---
+# =============================================================================
+# SERVICE (LoadBalancer)
+# =============================================================================
+# Exposes ports 80, 443, 4444 on the host (same as docker-compose ports)
+# ServiceLB (built into k3s) binds these ports on the host.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-host
+  namespace: odin
+spec:
+  type: LoadBalancer
+  selector:
+    app: identity-host
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: admin
+      port: 4444
+      targetPort: 4444

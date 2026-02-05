@@ -1,0 +1,169 @@
+# =============================================================================
+# POSTGRESQL DATABASE
+# =============================================================================
+# This file defines everything needed to run PostgreSQL:
+#   1. PersistentVolumeClaim - Storage for the database files
+#   2. Secret - Database credentials
+#   3. StatefulSet - The PostgreSQL container(s)
+#   4. Service - Network endpoint for other pods to connect
+# =============================================================================
+
+
+# =============================================================================
+# PERSISTENT VOLUME CLAIM (PVC)
+# =============================================================================
+# A PVC is a request for storage. Kubernetes will find or create a volume
+# to satisfy this request. The data persists even if the pod is deleted.
+#
+# This is like a Docker named volume (e.g., "postgres_data:/var/lib/postgresql/data")
+# =============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: odin
+spec:
+  accessModes:
+    - ReadWriteOnce       # Only one node can mount this volume at a time
+  resources:
+    requests:
+      storage: 10Gi       # Request 10 GB of storage
+
+---
+# =============================================================================
+# SECRET
+# =============================================================================
+# Secrets store sensitive data like passwords. They're base64 encoded (not
+# encrypted!) but kept separate from your config for security practices.
+#
+# These values become environment variables in the container.
+# In production, use a secret manager (e.g., sealed-secrets, external-secrets).
+#
+# View secrets (base64 encoded):
+#   kubectl -n odin get secret postgres-secret -o yaml
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: odin
+type: Opaque
+stringData:                       # stringData auto-encodes to base64
+  POSTGRES_USER: odin             # Database username
+  POSTGRES_PASSWORD: changeme     # Database password - CHANGE THIS!
+  POSTGRES_DB: odin               # Database name to create
+
+---
+# =============================================================================
+# STATEFULSET
+# =============================================================================
+# StatefulSet is like Deployment but for stateful apps (databases, caches).
+# Key differences from Deployment:
+#   - Pods get stable names: postgres-0, postgres-1, etc. (not random suffixes)
+#   - Pods are created/deleted in order (0 first, then 1, etc.)
+#   - Each pod can have its own persistent storage
+#
+# Use StatefulSet for: databases, caches, anything with persistent state
+# Use Deployment for: stateless web apps, APIs, workers
+# =============================================================================
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: odin
+spec:
+  serviceName: postgres           # Must match the Service name below
+  replicas: 1                     # Number of pods (1 for single-instance DB)
+
+  # Selector tells the StatefulSet which pods it manages (must match template labels)
+  selector:
+    matchLabels:
+      app: postgres
+
+  # Template defines what each pod looks like
+  template:
+    metadata:
+      labels:
+        app: postgres             # Labels for selecting this pod
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine    # Official PostgreSQL image (Alpine = smaller)
+
+          ports:
+            - containerPort: 5432      # PostgreSQL default port
+              name: postgres
+
+          # Load all secrets as environment variables
+          envFrom:
+            - secretRef:
+                name: postgres-secret  # Reference to Secret above
+
+          # Mount the persistent volume for database files
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+
+          # Resource requests and limits
+          resources:
+            requests:              # Minimum guaranteed resources
+              memory: "256Mi"      # 256 MB RAM
+              cpu: "250m"          # 0.25 CPU cores (250 millicores)
+            limits:                # Maximum allowed resources
+              memory: "1Gi"        # 1 GB RAM
+              cpu: "1000m"         # 1 CPU core
+
+          # Readiness probe: "Is this pod ready to receive traffic?"
+          # Failed = pod removed from service load balancer
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready       # PostgreSQL's built-in readiness check
+                - -U
+                - odin
+            initialDelaySeconds: 5   # Wait 5s before first check
+            periodSeconds: 5         # Check every 5s
+
+          # Liveness probe: "Is this pod still alive?"
+          # Failed = pod gets restarted
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - odin
+            initialDelaySeconds: 30  # Wait 30s before first check (give DB time to start)
+            periodSeconds: 10        # Check every 10s
+
+      # Define volumes available to containers
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc  # Reference to PVC above
+
+---
+# =============================================================================
+# SERVICE (Headless)
+# =============================================================================
+# A Service provides a stable network endpoint (DNS name) for pods.
+# Other pods connect to "postgres:5432" - Kubernetes routes to the right pod.
+#
+# clusterIP: None makes this a "headless" service:
+#   - No virtual IP, DNS returns pod IPs directly
+#   - Good for databases where you want direct connections
+#   - Pod is reachable at: postgres-0.postgres.odin.svc.cluster.local
+#
+# Without clusterIP: None, it would be a normal service with load balancing.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: odin
+spec:
+  selector:
+    app: postgres           # Route traffic to pods with this label
+  ports:
+    - port: 5432            # Port the service listens on
+      targetPort: 5432      # Port on the container to forward to
+  clusterIP: None           # Headless service (no load balancing)
