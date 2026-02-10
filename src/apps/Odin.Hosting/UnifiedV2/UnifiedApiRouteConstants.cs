@@ -11,4 +11,7 @@ public static class UnifiedApiRouteConstants
     public const string ByFileId = FilesRoot + "/{fileId:guid}";
     public const string ReactionsByFileId = FilesRoot + "/{fileId:guid}/reactions";
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
+
+    public const string Notify = BasePath + "/notify/push";
+
 }
