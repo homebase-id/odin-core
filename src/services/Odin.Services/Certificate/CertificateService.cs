@@ -150,7 +150,7 @@ public class CertificateService : ICertificateService
                 var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
                 if (!areDnsRecordsOk)
                 {
-                    var error = $"Cannot create certificate for {domain}. One or more DNS records are no longer correct.";
+                    var error = $"Cannot create certificate for {domain}. One or more DNS records are incorrect.";
                     _logger.LogWarning("{error}", error);
                     await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
                     return null;
