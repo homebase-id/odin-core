@@ -8,17 +8,22 @@
 #
 # Usage:
 #   kubectl apply -f identity-host.yaml
+#   kubectl delete -f identity-host.yaml && kubectl apply -f identity-host.yaml
+#   kubectl get pods -n odin
+#   kubectl describe pod -l app=identity-host -n odin
+#   kubectl get events -n odin --sort-by='.lastTimestamp'
+#   kubectl logs -l app=identity-host -n odin -f --tail=-1 --prefix
 #   kubectl delete -f identity-host.yaml
+#   kubectl delete pod identity-host-65bfb456b6-bgwt6 -n odin --force --grace-period=0
 # =============================================================================
-
 
 # =============================================================================
 # NAMESPACE
 # =============================================================================
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: odin
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: odin
 
 ---
 # =============================================================================
@@ -52,7 +57,7 @@ metadata:
   name: identity-host
   namespace: odin
 spec:
-  replicas: 1                           # Single instance (same as docker-compose)
+  replicas: 1 # Single instance (same as docker-compose)
   selector:
     matchLabels:
       app: identity-host
@@ -61,11 +66,39 @@ spec:
       labels:
         app: identity-host
     spec:
+      # Init containers run before the main container starts
+      # They ensure postgres and redis are ready before the app starts
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for postgres:5432..."
+              until nc -z postgres 5432; do
+                echo "Postgres not ready yet, waiting..."
+                sleep 2
+              done
+              echo "Postgres is ready!"
+        - name: wait-for-redis
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for redis:6379..."
+              until nc -z redis 6379; do
+                echo "Redis not ready yet, waiting..."
+                sleep 2
+              done
+              echo "Redis is ready!"
       containers:
         - name: identity-host
-          image: ghcr.io/homebase-id/odin-core:v0.1.756
+          image: ghcr.io/homebase-id/odin-core:latest
 
           # Same as entrypoint in docker-compose
+          # command: ["dotnet", "Odin.Hosting.dll", "export-shell-env"]
           command: ["dotnet", "Odin.Hosting.dll"]
 
           ports:
@@ -87,6 +120,7 @@ spec:
                 name: identity-host-env
 
           # Volume mounts (same paths as docker-compose)
+          # These mount the physical host directories into the container
           volumeMounts:
             # Config file (read-only)
             - name: config
@@ -109,6 +143,7 @@ spec:
           # (pods are always restarted on failure)
 
       # Volumes using hostPath (same directories as docker-compose)
+      # These are on the physical host, not inside the container, so they persist across pod restarts.
       volumes:
         # Config file from host
         - name: config

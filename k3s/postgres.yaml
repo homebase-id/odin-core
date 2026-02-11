@@ -8,6 +8,27 @@
 #   4. Service - Network endpoint for other pods to connect
 # =============================================================================
 
+# =============================================================================
+# TEST
+# =============================================================================
+# Get the pod name first:
+#   $ kubectl get pods -n odin -l app=postgres
+#
+# Query a table directly (one-liner)
+#   $ kubectl exec -it postgres-0 -n odin -- psql -U odin -d odin -c "SELECT * FROM Registrations;"
+#
+# =============================================================================
+
+# =============================================================================
+# DELETE retained resources
+# =============================================================================
+# Delete database data:
+#   $ kubectl delete pvc postgres-pvc -n odin
+#
+# Delete secrets:
+#   $ kubectl delete secret postgres-secret -n odin
+#
+# =============================================================================
 
 # =============================================================================
 # PERSISTENT VOLUME CLAIM (PVC)
@@ -22,12 +43,14 @@ kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
   namespace: odin
+  annotations:
+    kustomize.config.k8s.io/resource-policy: keep # Prevent accidental deletion
 spec:
   accessModes:
-    - ReadWriteOnce       # Only one node can mount this volume at a time
+    - ReadWriteOnce # Only one node can mount this volume at a time
   resources:
     requests:
-      storage: 10Gi       # Request 10 GB of storage
+      storage: 10Gi # Request 10 GB of storage
 
 ---
 # =============================================================================
@@ -47,11 +70,13 @@ kind: Secret
 metadata:
   name: postgres-secret
   namespace: odin
+  annotations:
+    kustomize.config.k8s.io/resource-policy: keep # Prevent accidental deletion
 type: Opaque
-stringData:                       # stringData auto-encodes to base64
-  POSTGRES_USER: odin             # Database username
-  POSTGRES_PASSWORD: changeme     # Database password - CHANGE THIS!
-  POSTGRES_DB: odin               # Database name to create
+stringData: # stringData auto-encodes to base64
+  POSTGRES_USER: odin # Database username
+  POSTGRES_PASSWORD: changeme # Database password - CHANGE THIS!
+  POSTGRES_DB: odin # Database name to create
 
 ---
 # =============================================================================
@@ -72,8 +97,8 @@ metadata:
   name: postgres
   namespace: odin
 spec:
-  serviceName: postgres           # Must match the Service name below
-  replicas: 1                     # Number of pods (1 for single-instance DB)
+  serviceName: postgres # Must match the Service name below
+  replicas: 1 # Number of pods (1 for single-instance DB)
 
   # Selector tells the StatefulSet which pods it manages (must match template labels)
   selector:
@@ -84,20 +109,20 @@ spec:
   template:
     metadata:
       labels:
-        app: postgres             # Labels for selecting this pod
+        app: postgres # Labels for selecting this pod
     spec:
       containers:
         - name: postgres
-          image: postgres:16-alpine    # Official PostgreSQL image (Alpine = smaller)
+          image: postgres:16-alpine # Official PostgreSQL image (Alpine = smaller)
 
           ports:
-            - containerPort: 5432      # PostgreSQL default port
+            - containerPort: 5432 # PostgreSQL default port
               name: postgres
 
           # Load all secrets as environment variables
           envFrom:
             - secretRef:
-                name: postgres-secret  # Reference to Secret above
+                name: postgres-secret # Reference to Secret above
 
           # Mount the persistent volume for database files
           volumeMounts:
@@ -106,23 +131,23 @@ spec:
 
           # Resource requests and limits
           resources:
-            requests:              # Minimum guaranteed resources
-              memory: "256Mi"      # 256 MB RAM
-              cpu: "250m"          # 0.25 CPU cores (250 millicores)
-            limits:                # Maximum allowed resources
-              memory: "1Gi"        # 1 GB RAM
-              cpu: "1000m"         # 1 CPU core
+            requests: # Minimum guaranteed resources
+              memory: "256Mi" # 256 MB RAM
+              cpu: "250m" # 0.25 CPU cores (250 millicores)
+            limits: # Maximum allowed resources
+              memory: "1Gi" # 1 GB RAM
+              cpu: "1000m" # 1 CPU core
 
           # Readiness probe: "Is this pod ready to receive traffic?"
           # Failed = pod removed from service load balancer
           readinessProbe:
             exec:
               command:
-                - pg_isready       # PostgreSQL's built-in readiness check
+                - pg_isready # PostgreSQL's built-in readiness check
                 - -U
                 - odin
-            initialDelaySeconds: 5   # Wait 5s before first check
-            periodSeconds: 5         # Check every 5s
+            initialDelaySeconds: 5 # Wait 5s before first check
+            periodSeconds: 5 # Check every 5s
 
           # Liveness probe: "Is this pod still alive?"
           # Failed = pod gets restarted
@@ -132,14 +157,14 @@ spec:
                 - pg_isready
                 - -U
                 - odin
-            initialDelaySeconds: 30  # Wait 30s before first check (give DB time to start)
-            periodSeconds: 10        # Check every 10s
+            initialDelaySeconds: 30 # Wait 30s before first check (give DB time to start)
+            periodSeconds: 10 # Check every 10s
 
       # Define volumes available to containers
       volumes:
         - name: postgres-data
           persistentVolumeClaim:
-            claimName: postgres-pvc  # Reference to PVC above
+            claimName: postgres-pvc # Reference to PVC above
 
 ---
 # =============================================================================
@@ -162,8 +187,8 @@ metadata:
   namespace: odin
 spec:
   selector:
-    app: postgres           # Route traffic to pods with this label
+    app: postgres # Route traffic to pods with this label
   ports:
-    - port: 5432            # Port the service listens on
-      targetPort: 5432      # Port on the container to forward to
-  clusterIP: None           # Headless service (no load balancing)
+    - port: 5432 # Port the service listens on
+      targetPort: 5432 # Port on the container to forward to
+  clusterIP: None # Headless service (no load balancing)

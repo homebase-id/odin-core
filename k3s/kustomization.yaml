@@ -1,17 +1,14 @@
 # =============================================================================
-# KUSTOMIZATION
+# KUSTOMIZATION - Base (includes everything)
 # =============================================================================
-# Kustomize bundles multiple YAML files so you can apply them with one command:
+# Apply everything (including database):
+#   kubectl apply -k .
 #
-#   kubectl apply -k .     # Apply everything in this directory
-#   kubectl delete -k .    # Delete everything
+# Restart all deployments to pick up changes in configmaps/secrets:
+#   kubectl rollout restart deployment identity-host redis -n odin && kubectl rollout restart statefulset postgres -n odin
 #
-# This is like having a docker-compose.yml that references multiple services.
-#
-# Benefits:
-#   - Single command to deploy/delete everything
-#   - Can override values for different environments (dev/staging/prod)
-#   - Can add common labels, annotations to all resources
+# Delete everything (INCLUDING database files!!!!!!):
+#   kubectl delete -k .
 # =============================================================================
 
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -22,7 +19,7 @@ namespace: odin
 
 # List of YAML files to include (order matters for dependencies)
 resources:
-  - namespace.yaml          # Create namespace first
-  - postgres.yaml           # Database (odin-hosting depends on this)
-  - redis.yaml              # Cache (odin-hosting depends on this)
-  - odin-hosting.yaml       # Application (depends on postgres and redis)
+  - namespace.yaml
+  - postgres.yaml
+  - redis.yaml
+  - identity-host.yaml
