@@ -57,7 +57,12 @@ metadata:
   name: identity-host
   namespace: odin
 spec:
-  replicas: 1 # Single instance (same as docker-compose)
+  replicas: 2 # Two instances for redundancy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: identity-host
@@ -66,6 +71,17 @@ spec:
       labels:
         app: identity-host
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values: [identity-host]
+                topologyKey: kubernetes.io/hostname
       # Init containers run before the main container starts
       # They ensure postgres and redis are ready before the app starts
       initContainers:
@@ -113,11 +129,29 @@ spec:
           env:
             - name: ASPNETCORE_ENVIRONMENT
               value: "production"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
 
           # Load additional env vars from Secret (replaces env_file)
           envFrom:
             - secretRef:
                 name: identity-host-env
+
+          # Health probes for zero-downtime deployments
+          readinessProbe:
+            httpGet:
+              path: /.well-known/acme-challenge/ping
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /.well-known/acme-challenge/ping
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
 
           # Volume mounts (same paths as docker-compose)
           # These mount the physical host directories into the container
@@ -132,9 +166,10 @@ spec:
               mountPath: /identity-host/data/system
             - name: data-tenants
               mountPath: /identity-host/data/tenants
-            # Log directory
+            # Log directory (per-pod subdirectory)
             - name: log
               mountPath: /identity-host/log
+              subPathExpr: $(POD_NAME)
             # Tmp directory
             - name: tmp
               mountPath: /identity-host/tmp
