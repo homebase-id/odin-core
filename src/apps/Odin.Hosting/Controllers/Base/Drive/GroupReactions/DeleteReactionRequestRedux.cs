@@ -1,5 +1,5 @@
 using Odin.Services.Base;
-using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Drives.Reactions.Redux.Group;
 
 namespace Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 
