@@ -86,7 +86,12 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         app.UseHttpsPortRedirection(config.Host.DefaultHttpsPort);
         app.UseResponseCompression();
-        app.UseHsts();
+
+        if (config.CertificateRenewal.UseCertificateAuthorityProductionServers)
+        {
+            // Only use HSTS if we're using production certs. Browsers will block self-signed certs with HSTS enabled.
+            app.UseHsts();
+        }
 
         // Provisioning mapping
         string[] excludedPaths = ["/sitemap.xml", "/robots.txt"];

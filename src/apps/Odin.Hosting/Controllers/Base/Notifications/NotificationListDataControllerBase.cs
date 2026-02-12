@@ -3,8 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Services.AppNotifications.Data;
-using Odin.Core.Time;
-using Odin.Services.Base;
 
 namespace Odin.Hosting.Controllers.Base.Notifications
 {
