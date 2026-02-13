@@ -61,7 +61,8 @@ namespace Odin.Hosting.UnifiedV2.Security
         /// </summary>
         /// <returns></returns>
         [HttpGet("context")]
-        public RedactedOdinContext GetSecurityContext()
+        [SwaggerOperation(Tags = [SwaggerInfo.Auth])]
+            public RedactedOdinContext GetSecurityContext()
         {
             return WebOdinContext.Redacted();
         }

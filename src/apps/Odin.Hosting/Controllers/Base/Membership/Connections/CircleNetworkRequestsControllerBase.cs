@@ -152,6 +152,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return true;
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("introductions/send-introductions")]
         public async Task<IActionResult> SendIntroductions([FromBody] IntroductionGroup group)
         {
@@ -163,6 +164,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return new JsonResult(result);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("introductions/process-incoming-introductions")]
         public async Task<IActionResult> ProcessIncomingIntroductions()
         {
@@ -170,14 +172,15 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return new OkResult();
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("introductions/auto-accept-eligible-introductions")]
         public async Task<IActionResult> AutoAcceptEligibleIntroductions()
         {
             await introductionService.ForceAutoAcceptEligibleConnectionRequestsAsync(WebOdinContext, HttpContext.RequestAborted);
             return new OkResult();
         }
-
-
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpGet("introductions/received")]
         public async Task<IActionResult> GetReceivedIntroductions()
         {
@@ -186,6 +189,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return new JsonResult(list);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpDelete("introductions")]
         public async Task<IActionResult> DeleteAllIntroductions()
         {
