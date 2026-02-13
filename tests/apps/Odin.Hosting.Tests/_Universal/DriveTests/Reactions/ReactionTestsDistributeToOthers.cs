@@ -17,7 +17,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.Reactions.Group;
+using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 
