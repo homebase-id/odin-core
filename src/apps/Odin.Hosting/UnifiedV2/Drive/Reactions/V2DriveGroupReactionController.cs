@@ -6,6 +6,7 @@ using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Util;
@@ -23,11 +24,7 @@ public class V2DriveGroupReactionController(GroupReactionService groupReactionSe
     [HttpPost]
     public async Task<AddReactionResult> AddReactionContent(Guid driveId, Guid fileId, [FromBody] AddReactionRequestRedux request)
     {
-        var file = new FileIdentifier()
-        {
-            FileId = fileId,
-            TargetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId)
-        };
+        var file = await ResolveGlobalTransitId(driveId, fileId);
         return await groupReactionService.AddReactionAsync(file, request.Reaction, request.TransitOptions, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
@@ -36,11 +33,7 @@ public class V2DriveGroupReactionController(GroupReactionService groupReactionSe
     [HttpDelete]
     public async Task<DeleteReactionResult> DeleteReactionContent(Guid driveId, Guid fileId, [FromBody] DeleteReactionRequestRedux request)
     {
-        var file = new FileIdentifier()
-        {
-            FileId = fileId,
-            TargetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId)
-        };
+        var file = await ResolveGlobalTransitId(driveId, fileId);
         return await groupReactionService.DeleteReactionAsync(file, request.Reaction, request.TransitOptions, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
@@ -51,11 +44,7 @@ public class V2DriveGroupReactionController(GroupReactionService groupReactionSe
     {
         int.TryParse(request.Cursor, out var c);
 
-        var file = new FileIdentifier()
-        {
-            FileId = fileId,
-            TargetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId)
-        };
+        var file = await ResolveGlobalTransitId(driveId, fileId);
         return await groupReactionService.GetReactionsAsync(file, c, request.MaxRecords, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
@@ -70,11 +59,7 @@ public class V2DriveGroupReactionController(GroupReactionService groupReactionSe
     {
         OdinValidationUtils.AssertIsValidOdinId(request.Identity, out var identity);
 
-        var file = new FileIdentifier()
-        {
-            FileId = fileId,
-            TargetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId)
-        };
+        var file = await ResolveGlobalTransitId(driveId, fileId);
         return await groupReactionService.GetReactionsByIdentityAndFileAsync(identity, file, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
@@ -87,13 +72,25 @@ public class V2DriveGroupReactionController(GroupReactionService groupReactionSe
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(Guid driveId, Guid fileId,
         [FromQuery] GetReactionsRequestRedux request)
     {
-        var file = new FileIdentifier()
-        {
-            FileId = fileId,
-            TargetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId)
-        };
+        var file = await ResolveGlobalTransitId(driveId, fileId);
 
         return await groupReactionService.GetReactionCountsByFileAsync(file, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
+    }
+    
+    private async Task<FileIdentifier> ResolveGlobalTransitId(Guid driveId, Guid fileId)
+    {
+        var header = await this.GetHttpFileSystemResolver().ResolveFileSystem().Storage.GetServerFileHeader(
+            new InternalDriveFileId(driveId, fileId),
+            WebOdinContext);
+
+        OdinValidationUtils.AssertNotNull(header, "invalid file");
+
+        var file = new FileIdentifier()
+        {
+            GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+            TargetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId)
+        };
+        return file;
     }
 }
