@@ -127,6 +127,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> IsManagedDomainAvailable(string prefix, string apex, CancellationToken cancellationToken = default)
     {
+        if (_configuration.Registry.ManagedDomainApexes.Count == 0)
+        {
+            return false;
+        }
+
         var domain = prefix + "." + apex;
 
         if (!AsciiDomainNameValidator.TryValidateDomain(domain))
