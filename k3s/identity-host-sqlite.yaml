@@ -1,0 +1,122 @@
+# =============================================================================
+# IDENTITY HOST - Simple k3s single-instance setup
+# =============================================================================
+#
+# Prerequisites:
+# kubectl delete configmap identity-host-env -n odin --ignore-not-found
+# kubectl create configmap identity-host-env --from-env-file=host-env-override.env -n odin
+#
+# Usage:
+#   kubectl apply -f identity-host.yaml
+#   kubectl get pods -n odin
+#   kubectl describe pod -l app=identity-host -n odin
+#   kubectl get events -n odin --sort-by='.lastTimestamp'
+#   kubectl logs -l app=identity-host -n odin -f --tail=-1 --prefix
+#   kubectl delete -f identity-host.yaml
+# =============================================================================
+
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: odin
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-host
+  namespace: odin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: identity-host
+  template:
+    metadata:
+      labels:
+        app: identity-host
+    spec:
+      containers:
+        - name: identity-host
+          image: ghcr.io/homebase-id/odin-core:latest
+          # imagePullPolicy: Always
+          # command: "--your-command-line-params-here" or like this: ["firstparam", "secondparam"]
+          command: ["dotnet", "Odin.Hosting.dll"]
+          ports:
+            - containerPort: 80
+              name: http
+            - containerPort: 443
+              name: https
+            - containerPort: 4444
+              name: admin
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "production"
+          envFrom:
+            - configMapRef:
+                name: identity-host-env
+          livenessProbe:
+            httpGet:
+              path: /.well-known/acme-challenge/ping
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /app/web/appsettings.production.json
+              subPath: appsettings.production.json
+              readOnly: true
+            - name: data-system
+              mountPath: /identity-host/data/system
+            - name: data-tenants
+              mountPath: /identity-host/data/tenants
+            - name: log
+              mountPath: /identity-host/log
+            - name: tmp
+              mountPath: /identity-host/tmp
+      volumes:
+        - name: config
+          hostPath:
+            path: /identity-host/config
+            type: Directory
+        - name: data-system
+          hostPath:
+            path: /identity-host/data/system
+            type: DirectoryOrCreate
+        - name: data-tenants
+          hostPath:
+            path: /identity-host/data/tenants
+            type: DirectoryOrCreate
+        - name: log
+          hostPath:
+            path: /identity-host/log
+            type: DirectoryOrCreate
+        - name: tmp
+          hostPath:
+            path: /identity-host/tmp
+            type: DirectoryOrCreate
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-host
+  namespace: odin
+spec:
+  type: LoadBalancer
+  selector:
+    app: identity-host
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: admin
+      port: 4444
+      targetPort: 4444
