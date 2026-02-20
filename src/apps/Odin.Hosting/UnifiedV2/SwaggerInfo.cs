@@ -22,4 +22,6 @@ public static class SwaggerInfo
 
     // Read receipts & peer-transfer interactions
     public const string FileTransfer = "File Transfer";
+    
+    public const string Connections = "Connection Operations";
 }
