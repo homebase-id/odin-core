@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Odin.Core.Util;
+using Odin.Services.Authorization;
 using Odin.Services.Configuration;
 
 namespace Odin.Hosting.Authentication.Peer
@@ -55,7 +57,39 @@ namespace Odin.Hosting.Authentication.Peer
             return base.InitializeHandlerAsync();
         }
 
-        protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var header = Request.Headers["X-Odin-Cert"];
+
+            if (string.IsNullOrEmpty(header))
+                return Task.FromResult(AuthenticateResult.NoResult());
+
+            var certBytes = Convert.FromBase64String(header);
+            var cert = X509CertificateLoader.LoadCertificate(certBytes);
+
+            string domain = CertificateUtils.GetDomainFromCommonName(cert.Subject);
+
+            if (string.IsNullOrWhiteSpace(domain))
+                return Task.FromResult(AuthenticateResult.Fail("invalid certificate"));
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, Options.ClaimsIssuer),
+                new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, Options.ClaimsIssuer),
+                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+            };
+
+            var principal = new ClaimsPrincipal(
+                new ClaimsIdentity(claims, Scheme.Name)
+            );
+
+            var ticket = new AuthenticationTicket(principal, Scheme.Name);
+
+            return Task.FromResult(AuthenticateResult.Success(ticket));
+        }
+        
+        protected async Task<AuthenticateResult> HandleAuthenticateAsync_Old()
         {
             // You only get client certificates over HTTPS
             if (!Context.Request.IsHttps)

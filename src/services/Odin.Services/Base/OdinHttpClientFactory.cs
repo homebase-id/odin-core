@@ -40,7 +40,8 @@ namespace Odin.Services.Base
 
         //
 
-        public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null)
+        public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken,
+            FileSystemType? fileSystemType = null)
         {
             return CreateClientInternal<T>(odinId, clientAuthenticationToken, fileSystemType);
         }
@@ -54,24 +55,29 @@ namespace Odin.Services.Base
 
         //
 
-        private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType,
+        private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken,
+            FileSystemType? fileSystemType,
             Dictionary<string, string> headers = null)
         {
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;
             var httpClient = _httpClientFactory.CreateClient($"{nameof(OdinHttpClientFactory)}:{remoteHost}", cfg =>
             {
-                cfg.AllowUntrustedServerCertificate =
-                    _config.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
+                cfg.AllowUntrustedServerCertificate = _config.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
 
-                cfg.ClientCertificate = _certificateStore.GetCertificateAsync(_odinIdentity.PrimaryDomain).Result;
+                // cfg.ClientCertificate = _certificateStore.GetCertificateAsync(_odinIdentity.PrimaryDomain).Result;
+
 
                 // Sanity
-                if (cfg.ClientCertificate == null)
-                {
-                    throw new OdinSystemException($"No client certificate found for domain {_odinIdentity.PrimaryDomain}");
-                }
+                // if (cfg.ClientCertificate == null)
+                // {
+                //     throw new OdinSystemException($"No client certificate found for domain {_odinIdentity.PrimaryDomain}");
+                // }
             });
 
+            var cert = _certificateStore.GetCertificateAsync(_odinIdentity.PrimaryDomain).Result;
+            var base64 = Convert.ToBase64String(cert.RawData);
+            httpClient.DefaultRequestHeaders.Add("X-Odin-Cert", base64);
+            
             httpClient.BaseAddress = new UriBuilder
             {
                 Scheme = "https",

@@ -25,6 +25,7 @@ namespace Odin.Hosting.Authentication.Peer
             return builder.AddScheme<CertificateAuthenticationOptions, PeerCertificateAuthenticationHandler>(schemeName, options =>
                 {
                     options.AllowedCertificateTypes = CertificateTypes.Chained;
+                    //options.AllowedCertificateTypes = CertificateTypes.All;
                     options.ValidateCertificateUse = false; //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
 
                     options.RevocationMode = X509RevocationMode.NoCheck; //HACK: need to revisit how revocation works.  it seems some certs are randomly revoked.
