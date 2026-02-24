@@ -32,8 +32,8 @@ public class RedirectIfNotApexMiddleware
         {
             return _next(context);
         }
-
-        if (context.Connection.ClientCertificate != null)
+        
+        if (context.Connection.ClientCertificate != null || context.Request.Headers.ContainsKey("X-Odin-Cert"))
         {
             return _next(context);
         }
