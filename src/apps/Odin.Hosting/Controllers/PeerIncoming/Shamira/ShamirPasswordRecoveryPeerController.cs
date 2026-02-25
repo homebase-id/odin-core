@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Shamira
     /// </summary>
     [ApiController]
     [Route(PeerApiPathConstants.PasswordRecoveryV1)]
-    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
+    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
     [ApiExplorerSettings(GroupName = "peer-v1")]
     public class ShamirPasswordRecoveryPeerController(
         ShamirReadinessCheckerService readinessCheckerService,

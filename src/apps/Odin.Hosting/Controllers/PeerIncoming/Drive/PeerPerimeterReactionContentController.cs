@@ -18,7 +18,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     /// </summary>
     [ApiController]
     [Route(PeerApiPathConstants.ReactionsV1)]
-    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
+    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
     [ApiExplorerSettings(GroupName = "peer-v1")]
     public class PeerPerimeterReactionContentController(PeerIncomingReactionService incomingReactionService) : OdinControllerBase
     {

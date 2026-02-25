@@ -156,7 +156,7 @@ public static class SystemServices
         services.AddAuthentication(options => { })
             .AddOwnerAuthentication()
             .AddYouAuthAuthentication()
-            .AddPeerCapiAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
+            .AddPeerCapiAuthentication(PeerAuthConstants.TransitCapiAuthScheme)
             .AddPeerCapiAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
             .AddPeerCapiAuthentication(PeerAuthConstants.FeedAuthScheme)
             .AddSystemAuthentication()
@@ -167,7 +167,7 @@ public static class SystemServices
             OwnerPolicies.AddPolicies(policy);
             SystemPolicies.AddPolicies(policy);
             YouAuthPolicies.AddPolicies(policy);
-            PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCertificateAuthScheme);
+            PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCapiAuthScheme);
             PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             UnifiedPolicies.AddPolicies(policy);
         });
