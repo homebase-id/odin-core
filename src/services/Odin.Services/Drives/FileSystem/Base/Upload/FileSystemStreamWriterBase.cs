@@ -115,7 +115,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -163,7 +163,7 @@ public abstract class FileSystemStreamWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -397,7 +397,7 @@ public abstract class FileSystemStreamWriterBase
         {
             // use the descriptors from the package as they would have been uploaded to the upload folder
             var descriptors = Package.GetFinalPayloadDescriptors();
-            await FileSystem.Storage.CleanupUploadTemporaryFiles(Package.InternalFile.AsTempFileUpload(), descriptors, odinContext);
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(new UploadFile(Package.InternalFile), descriptors, odinContext);
         }
     }
 

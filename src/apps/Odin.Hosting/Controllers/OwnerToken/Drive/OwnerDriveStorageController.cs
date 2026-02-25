@@ -36,27 +36,34 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public async Task<bool> TempFileExists([FromQuery] Guid fileId,
             [FromQuery] Guid alias,
             [FromQuery] Guid type,
-            [FromQuery] TempStorageType storageType,
+            [FromQuery] string storageType,
             [FromQuery] string extension)
         {
-            var tempFile = new TempFile()
+            var internalFileId = MapToInternalFile(new ExternalFileIdentifier()
             {
-                File = MapToInternalFile(new ExternalFileIdentifier()
+                FileId = fileId,
+                TargetDrive = new TargetDrive()
                 {
-                    FileId = fileId,
-                    TargetDrive = new TargetDrive()
-                    {
-                        Alias = alias,
-                        Type = type
-                    }
-                }),
-                StorageType = storageType
-            };
+                    Alias = alias,
+                    Type = type
+                }
+            });
 
-            var result = await this.GetHttpFileSystemResolver()
-                .ResolveFileSystem()
-                .Storage
-                .TempFileExists(tempFile, extension, WebOdinContext);
+            bool result;
+            if (string.Equals(storageType, "Upload", StringComparison.OrdinalIgnoreCase))
+            {
+                result = await this.GetHttpFileSystemResolver()
+                    .ResolveFileSystem()
+                    .Storage
+                    .TempFileExists(new UploadFile(internalFileId), extension, WebOdinContext);
+            }
+            else
+            {
+                result = await this.GetHttpFileSystemResolver()
+                    .ResolveFileSystem()
+                    .Storage
+                    .TempFileExists(new InboxFile(internalFileId), extension, WebOdinContext);
+            }
 
             return result;
         }

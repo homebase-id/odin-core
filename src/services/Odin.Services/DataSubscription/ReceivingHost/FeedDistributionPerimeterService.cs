@@ -220,11 +220,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 logger.LogDebug("Found feed drive id {id}", feedDriveId);
 
                 // Write to temp file
-                var tempFile = new TempFile()
-                {
-                    File = await fileSystem.Storage.CreateInternalFileId(feedDriveId, odinContext),
-                    StorageType = TempStorageType.Inbox
-                };
+                var tempFile = new InboxFile(await fileSystem.Storage.CreateInternalFileId(feedDriveId, odinContext));
 
                 var stream = OdinSystemSerializer.Serialize(request.FileMetadata).ToUtf8ByteArray().ToMemoryStream();
                 await fileSystem.Storage.WriteTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream,
@@ -239,8 +235,8 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     Sender = odinContext.GetCallerOdinIdOrFail(),
                     InstructionType = TransferInstructionType.SaveFile,
 
-                    FileId = tempFile.File.FileId,
-                    DriveId = tempFile.File.DriveId,
+                    FileId = tempFile.FileId.FileId,
+                    DriveId = tempFile.FileId.DriveId,
                     GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     FileSystemType = FileSystemType.Standard, //comments are never distributed
 

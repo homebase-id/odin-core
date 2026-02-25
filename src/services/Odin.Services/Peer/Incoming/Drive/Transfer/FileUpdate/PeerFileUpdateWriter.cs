@@ -25,7 +25,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// </summary>
     public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, IDriveManager driveManager)
     {
-        public async Task<(bool success, List<PayloadDescriptor> payloads)> UpsertFileAsync(TempFile tempFile,
+        public async Task<(bool success, List<PayloadDescriptor> payloads)> UpsertFileAsync(InboxFile tempFile,
+            KeyHeader decryptedKeyHeader,
+            OdinId sender,
+            EncryptedRecipientFileUpdateInstructionSet instructionSet,
+            IOdinContext odinContext,
+            WriteSecondDatabaseRowBase markComplete)
+        {
+            var uploadFile = new UploadFile(tempFile.FileId);
+            return await UpsertFileAsync(uploadFile, decryptedKeyHeader, sender, instructionSet, odinContext, markComplete);
+        }
+
+        public async Task<(bool success, List<PayloadDescriptor> payloads)> UpsertFileAsync(UploadFile tempFile,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
@@ -132,7 +143,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         }
 
         private async Task<FileMetadata> LoadMetadataFromTemp(
-            TempFile tempFile,
+            UploadFile tempFile,
             IDriveFileSystem fs,
             IOdinContext odinContext)
         {
@@ -144,9 +155,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
                 if (bytes == null)
                 {
-                    // this is bad error.
-                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.File.FileId,
-                        tempFile.File.DriveId);
+                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.FileId.FileId,
+                        tempFile.FileId.DriveId);
                     throw new OdinFileWriteException("Missing temp file while processing inbox");
                 }
 
@@ -155,8 +165,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 incomingMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
                 if (null == incomingMetadata)
                 {
-                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.File.FileId,
-                        tempFile.File.DriveId);
+                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.FileId.FileId,
+                        tempFile.FileId.DriveId);
                     throw new OdinFileWriteException("Metadata could not be deserialized");
                 }
             });
@@ -171,7 +181,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return incomingMetadata;
         }
 
-        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(TempFile tempFile,
+        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(UploadFile tempFile,
+            EncryptedRecipientFileUpdateInstructionSet instructionSet,
+            FileSystemType fileSystemType,
+            FileMetadata metadata,
+            IOdinContext odinContext)
+        {
+            var inboxFile = new InboxFile(tempFile.FileId);
+            return await DetermineAclAsync(inboxFile, instructionSet, fileSystemType, metadata, odinContext);
+        }
+
+        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(InboxFile tempFile,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             FileSystemType fileSystemType,
             FileMetadata metadata,
@@ -184,7 +204,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
+            var drive = await driveManager.GetDriveAsync(tempFile.FileId.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage

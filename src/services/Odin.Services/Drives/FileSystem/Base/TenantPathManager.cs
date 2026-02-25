@@ -60,6 +60,9 @@ public class TenantPathManager
     public readonly string TempPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
     public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
 
+    public readonly string DrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/drives
+    public readonly string DrivesPathByDriveId;  // e.g. /data/tenants/registrations/<tenant-id>/drives/<drive-id>
+
     public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
     public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
 
@@ -89,6 +92,9 @@ public class TenantPathManager
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
         TempPath = Path.Combine(RegistrationPath, TempFolder);
         TempDrivesPath = Path.Combine(TempPath, DrivesFolder);
+
+        DrivesPath = Path.Combine(RegistrationPath, DrivesFolder);
+        DrivesPathByDriveId = Path.Combine(DrivesPath, "{driveId}");
 
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
         PayloadsDrivesPath = Path.Combine(PayloadsPath, DrivesFolder);
@@ -127,6 +133,22 @@ public class TenantPathManager
     public string GetDrivePayloadPath(Guid driveId)
     {
         return Path.Combine(PayloadsDrivesPath, GuidToPathSafeString(driveId), FilesFolder);
+    }
+
+    // ----------------------
+    // New inbox storage paths (not in temp)
+    // ----------------------
+
+    // e.g. /data/tenants/registrations/<tenant-id>/drives/<drive-id>/inbox
+    public string GetDriveInboxStoragePath(Guid driveId)
+    {
+        return Path.Combine(DrivesPath, GuidToPathSafeString(driveId), InboxFolder);
+    }
+
+    // e.g. /data/tenants/registrations/<tenant-id>/drives/<drive-id>/files
+    public string GetDriveFilesStoragePath(Guid driveId)
+    {
+        return Path.Combine(DrivesPath, GuidToPathSafeString(driveId), FilesFolder);
     }
 
     // ----------------------

@@ -799,7 +799,7 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     }
 
 
-    public async Task<ApiResponse<bool>> TempFileExists(ExternalFileIdentifier file, TempStorageType storageType, string extension,
+    public async Task<ApiResponse<bool>> TempFileExists(ExternalFileIdentifier file, string storageType, string extension,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
