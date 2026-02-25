@@ -42,19 +42,19 @@ namespace Odin.Hosting.Authentication.Peer
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             var capiSession = Context.Request.Headers[ICapiCallbackSession.SessionHttpHeaderName].ToString();
-            var capiDomainAndSessionId = capiSession.Split(':');
-            if (capiDomainAndSessionId.Length != 2)
+            var capiRemoteDomainAndSessionId = capiSession.Split(':');
+            if (capiRemoteDomainAndSessionId.Length != 2)
             {
                 return AuthenticateResult.Fail($"Invalid or missing {ICapiCallbackSession.SessionHttpHeaderName}");
             }
 
-            var domain = capiDomainAndSessionId[0];
-            if (string.IsNullOrWhiteSpace(domain))
+            var remoteDomain = capiRemoteDomainAndSessionId[0];
+            if (string.IsNullOrWhiteSpace(remoteDomain))
             {
                 return AuthenticateResult.Fail($"Invalid sender domain in {ICapiCallbackSession.SessionHttpHeaderName}");
             }
 
-            var sessionId = capiDomainAndSessionId[1];
+            var sessionId = capiRemoteDomainAndSessionId[1];
             if (string.IsNullOrWhiteSpace(sessionId))
             {
                 return AuthenticateResult.Fail($"Invalid session id in {ICapiCallbackSession.SessionHttpHeaderName}");
@@ -64,8 +64,8 @@ namespace Odin.Hosting.Authentication.Peer
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, Options.ClaimsIssuer),
-                new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, Options.ClaimsIssuer),
+                new Claim(ClaimTypes.NameIdentifier, remoteDomain, ClaimValueTypes.String, Options.ClaimsIssuer),
+                new Claim(ClaimTypes.Name, remoteDomain, ClaimValueTypes.String, Options.ClaimsIssuer),
                 new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
                 new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
             };

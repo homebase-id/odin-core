@@ -20,7 +20,8 @@ namespace Odin.Services.Base
         IDynamicHttpClientFactory httpClientFactory,
         ICorrelationContext correlationContext,
         OdinConfiguration config,
-        ICapiCallbackSession capiCallbackSession)
+        ICapiCallbackSession capiCallbackSession,
+        OdinIdentity odinIdentity)
         : IOdinHttpClientFactory
     {
         //
@@ -58,8 +59,8 @@ namespace Odin.Services.Base
             });
 
             var capiSessionId = await capiCallbackSession.EstablishSessionAsync(remoteHost, config.Host.CapiSessionLifetime);
-            var remoteDomainAndSessionId = $"{odinId}:{capiSessionId}";
-            httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, remoteDomainAndSessionId);
+            var localDomainAndSessionId = $"{odinIdentity.PrimaryDomain}:{capiSessionId}";
+            httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, localDomainAndSessionId);
             
             httpClient.BaseAddress = new UriBuilder
             {
