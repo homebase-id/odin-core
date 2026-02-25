@@ -223,7 +223,7 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 var tempFile = new InboxFile(await fileSystem.Storage.CreateInternalFileId(feedDriveId, odinContext));
 
                 var stream = OdinSystemSerializer.Serialize(request.FileMetadata).ToUtf8ByteArray().ToMemoryStream();
-                await fileSystem.Storage.WriteTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream,
+                await fileSystem.Storage.WriteInboxStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream,
                     odinContext);
                 await stream.DisposeAsync();
 

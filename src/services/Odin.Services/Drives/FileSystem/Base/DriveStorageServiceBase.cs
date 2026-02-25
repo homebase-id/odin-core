@@ -215,7 +215,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<uint> WriteTempStream(UploadFile file, string extension, Stream stream, IOdinContext odinContext)
+        public async Task<uint> WriteUploadTempStream(UploadFile file, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
 
@@ -223,7 +223,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await _uploadTempStorage.WriteStream(file, extension, stream);
         }
 
-        public async Task<uint> WriteTempStream(InboxFile file, string extension, Stream stream, IOdinContext odinContext)
+        public async Task<uint> WriteInboxStream(InboxFile file, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
 

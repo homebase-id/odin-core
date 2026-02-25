@@ -78,7 +78,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
-            await fileSystem.Storage.WriteTempStream(_transferState.UploadFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_transferState.UploadFile, fileExtension, data, odinContext);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
@@ -93,7 +93,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
 
-            await fileSystem.Storage.WriteTempStream(_transferState.UploadFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_transferState.UploadFile, fileExtension, data, odinContext);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
@@ -338,11 +338,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             logger.LogDebug("Writing metadata as {tempFile}", tempFile);
 
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
+            await fileSystem.Storage.WriteInboxStream(tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
                 odinContext);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
-            await fileSystem.Storage.WriteTempStream(tempFile, TenantPathManager.MetadataExtension, metadataStream,
+            await fileSystem.Storage.WriteInboxStream(tempFile, TenantPathManager.MetadataExtension, metadataStream,
                 odinContext);
         }
 

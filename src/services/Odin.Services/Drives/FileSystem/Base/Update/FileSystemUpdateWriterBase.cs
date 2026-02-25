@@ -159,7 +159,7 @@ public abstract class FileSystemUpdateWriterBase
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -208,7 +208,7 @@ public abstract class FileSystemUpdateWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {

@@ -68,7 +68,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
-            await fileSystem.Storage.WriteTempStream(_uploadFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, fileExtension, data, odinContext);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
@@ -83,7 +83,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
 
-            await fileSystem.Storage.WriteTempStream(_uploadFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, fileExtension, data, odinContext);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
@@ -171,11 +171,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(_uploadFile, TenantPathManager.TransferInstructionSetExtension, stream,
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, TenantPathManager.TransferInstructionSetExtension, stream,
                 odinContext);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
-            await fileSystem.Storage.WriteTempStream(_uploadFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
         }
 
         private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
