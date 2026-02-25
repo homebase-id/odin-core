@@ -15,23 +15,34 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     [Route(PeerApiPathConstants.EncryptionV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.PublicTransitAuthScheme)]
     [ApiExplorerSettings(GroupName = "peer-v1")]
-    public class EncryptionPublicKeyController(
-        PublicPrivateKeyService publicPrivateKeyService,
-        ILogger<EncryptionPublicKeyController> logger) : ControllerBase
+    public class EncryptionPublicKeyController : ControllerBase
     {
+        private readonly PublicPrivateKeyService _publicPrivateKeyService;
+        private readonly ILogger<EncryptionPublicKeyController> _logger;
+
+        /// <summary>
+        /// Receives incoming data transfers from other hosts
+        /// </summary>
+        public EncryptionPublicKeyController(PublicPrivateKeyService publicPrivateKeyService,
+            ILogger<EncryptionPublicKeyController> logger)
+        {
+            _publicPrivateKeyService = publicPrivateKeyService;
+            _logger = logger;
+        }
+
         [HttpGet("ecc_public_key")]
         public async Task<IActionResult> GetEccKey(PublicPrivateKeyType keyType)
         {
-            logger.LogDebug("Returning ecc_public_key type: {keyType}", keyType);
-            var key = await publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
+            _logger.LogDebug("Returning ecc_public_key type: {keyType}", keyType);
+            var key = await _publicPrivateKeyService.GetPublicEccKeyAsync(keyType);
 
             if (null == key)
             {
-                logger.LogDebug("no ecc_public_key found");
+                _logger.LogDebug("no ecc_public_key found");
                 return NotFound();
             }
 
-            logger.LogDebug("Returning ecc public key: {key}", key);
+            _logger.LogDebug("Returning ecc public key: {key}", key);
 
             var result = new GetEccPublicKeyResponse()
             {
