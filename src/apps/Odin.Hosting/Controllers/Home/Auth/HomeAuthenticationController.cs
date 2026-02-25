@@ -191,9 +191,8 @@ namespace Odin.Hosting.Controllers.Home.Auth
                 SecretDigest = digest
             };
 
-            var response = await _odinHttpClientFactory
-                .CreateClient<IHomePerimeterHttpClient>(odinId)
-                .ExchangeCodeForToken(tokenRequest);
+            var client = await _odinHttpClientFactory.CreateClientAsync<IHomePerimeterHttpClient>(odinId);
+            var response = await client.ExchangeCodeForToken(tokenRequest);
 
             if (response.IsSuccessStatusCode && response.Content != null)
             {

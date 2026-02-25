@@ -458,14 +458,14 @@ public class PeerDriveQueryService(
         if(odinContext.AuthContext == "youauth-token")
         {
             //Youauth cannot 
-            var authHttpClient = odinHttpClientFactory.CreateClient<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
+            var authHttpClient = await odinHttpClientFactory.CreateClientAsync<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
             return (null, authHttpClient);
         }
 
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
         var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
-        var httpClient = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
+        var httpClient = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
         return (icr, httpClient);
     }
 

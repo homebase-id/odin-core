@@ -46,7 +46,7 @@ public class SendIntroductionOutboxWorker(
                 {
                     var json = OdinSystemSerializer.Serialize(introduction);
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-                    var client = odinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
+                    var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<ICircleNetworkPeerConnectionsClient>(recipient,
                         clientAuthToken.ToAuthenticationToken());
 
                     response = await client.MakeIntroduction(encryptedPayload);
