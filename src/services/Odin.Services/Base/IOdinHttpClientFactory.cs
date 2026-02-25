@@ -8,8 +8,8 @@ namespace Odin.Services.Base
 {
     public interface IOdinHttpClientFactory
     {
-        Task<T> CreateClientUsingAccessTokenAsync<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null);
+        Task<T> CreateClientUsingAccessTokenAsync<T>(OdinId remoteOdinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null);
 
-        Task<T> CreateClientAsync<T>(OdinId odinId, FileSystemType? fileSystemType = null, Dictionary<string, string> headers = null);
+        Task<T> CreateClientAsync<T>(OdinId remoteOdinId, FileSystemType? fileSystemType = null, Dictionary<string, string> headers = null);
     }
 }

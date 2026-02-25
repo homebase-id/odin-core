@@ -27,38 +27,38 @@ namespace Odin.Services.Base
         //
 
         public Task<T> CreateClientUsingAccessTokenAsync<T>(
-            OdinId odinId,
+            OdinId remoteOdinId,
             ClientAuthenticationToken clientAuthenticationToken,
             FileSystemType? fileSystemType = null)
         {
-            return CreateClientInternalAsync<T>(odinId, clientAuthenticationToken, fileSystemType);
+            return CreateClientInternalAsync<T>(remoteOdinId, clientAuthenticationToken, fileSystemType);
         }
 
         //
 
         public Task<T> CreateClientAsync<T>(
-            OdinId odinId,
+            OdinId remoteOdinId,
             FileSystemType? fileSystemType = null,
             Dictionary<string, string> headers = null)
         {
-            return CreateClientInternalAsync<T>(odinId, null, fileSystemType, headers);
+            return CreateClientInternalAsync<T>(remoteOdinId, null, fileSystemType, headers);
         }
 
         //
 
         private async Task<T> CreateClientInternalAsync<T>(
-            OdinId odinId,
+            OdinId remoteOdinId,
             ClientAuthenticationToken clientAuthenticationToken,
             FileSystemType? fileSystemType,
             Dictionary<string, string> headers = null)
         {
-            var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;
+            var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + remoteOdinId;
             var httpClient = httpClientFactory.CreateClient($"{nameof(OdinHttpClientFactory)}:{remoteHost}", cfg =>
             {
                 cfg.AllowUntrustedServerCertificate = config.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
             });
 
-            var sessionId = await capiCallbackSession.EstablishSessionAsync(odinId.DomainName, config.Host.CapiSessionLifetime);
+            var sessionId = await capiCallbackSession.EstablishSessionAsync(remoteOdinId.DomainName, config.Host.CapiSessionLifetime);
             var localDomainAndSessionId = $"{odinIdentity.PrimaryDomain}~{sessionId}";
             httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, localDomainAndSessionId);
             
