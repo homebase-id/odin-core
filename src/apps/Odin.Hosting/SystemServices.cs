@@ -156,9 +156,9 @@ public static class SystemServices
         services.AddAuthentication(options => { })
             .AddOwnerAuthentication()
             .AddYouAuthAuthentication()
-            .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
-            .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
-            .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
+            .AddPeerCapiAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
+            .AddPeerCapiAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
+            .AddPeerCapiAuthentication(PeerAuthConstants.FeedAuthScheme)
             .AddSystemAuthentication()
             .AddUnifiedAuthentication();
 
