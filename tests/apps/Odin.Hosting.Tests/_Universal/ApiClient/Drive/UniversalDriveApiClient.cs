@@ -799,17 +799,30 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
     }
 
 
-    public async Task<ApiResponse<bool>> TempFileExists(ExternalFileIdentifier file, string storageType, string extension,
+    public async Task<ApiResponse<bool>> UploadTempFileExists(ExternalFileIdentifier file, string extension,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
         var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
 
-        return await svc.TempFileExists(
+        return await svc.UploadTempFileExists(
             file.FileId,
             file.TargetDrive.Alias,
             file.TargetDrive.Type,
-            storageType,
+            extension
+        );
+    }
+
+    public async Task<ApiResponse<bool>> InboxFileExists(ExternalFileIdentifier file, string extension,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
+
+        return await svc.InboxFileExists(
+            file.FileId,
+            file.TargetDrive.Alias,
+            file.TargetDrive.Type,
             extension
         );
     }

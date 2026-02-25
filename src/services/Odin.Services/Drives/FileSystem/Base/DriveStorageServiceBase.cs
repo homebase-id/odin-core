@@ -33,11 +33,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
-        FileStorageManager fileStorageManager,
+        UploadTempStorage uploadTempStorage,
+        InboxStorage inboxStorage,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
-        private readonly FileStorageManager _fileStorageManager = fileStorageManager;
+        private readonly UploadTempStorage _uploadTempStorage = uploadTempStorage;
+        private readonly InboxStorage _inboxStorage = inboxStorage;
 
         protected override IDriveManager DriveManager { get; } = driveManager;
 
@@ -218,7 +220,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
 
             await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
-            return await _fileStorageManager.WriteStream(file, extension, stream);
+            return await _uploadTempStorage.WriteStream(file, extension, stream);
         }
 
         public async Task<uint> WriteTempStream(InboxFile file, string extension, Stream stream, IOdinContext odinContext)
@@ -226,7 +228,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
 
             await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
-            return await _fileStorageManager.WriteStream(file, extension, stream);
+            return await _inboxStorage.WriteStream(file, extension, stream);
         }
 
         /// <summary>
@@ -237,7 +239,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.FileId.DriveId, odinContext);
-            var bytes = await _fileStorageManager.GetAllFileBytes(file, extension);
+            var bytes = await _uploadTempStorage.GetAllFileBytes(file, extension);
             return bytes;
         }
 
@@ -245,7 +247,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.FileId.DriveId, odinContext);
-            var bytes = await _fileStorageManager.GetAllFileBytes(file, extension);
+            var bytes = await _inboxStorage.GetAllFileBytes(file, extension);
             return bytes;
         }
 
@@ -253,14 +255,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             odinContext.Caller.AssertCallerIsOwner();
-            return await _fileStorageManager.FileExists(file, extension);
+            return await _uploadTempStorage.FileExists(file, extension);
         }
 
         public async Task<bool> TempFileExists(InboxFile file, string extension, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             odinContext.Caller.AssertCallerIsOwner();
-            return await _fileStorageManager.FileExists(file, extension);
+            return await _inboxStorage.FileExists(file, extension);
         }
 
         /// <summary>
@@ -280,7 +282,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
-            return await _fileStorageManager.GetAllFileBytes(file, extension);
+            return await _uploadTempStorage.GetAllFileBytes(file, extension);
         }
 
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(InboxFile file, string extension,
@@ -288,7 +290,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
-            return await _fileStorageManager.GetAllFileBytes(file, extension);
+            return await _inboxStorage.GetAllFileBytes(file, extension);
         }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
@@ -1332,7 +1334,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             if (await CanWriteToDrive(file.FileId.DriveId, odinContext))
             {
-                await _fileStorageManager.CleanupUploadedFiles(file, descriptors);
+                await _uploadTempStorage.CleanupUploadedFiles(file, descriptors);
             }
         }
 
@@ -1343,7 +1345,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             if (await CanWriteToDrive(file.FileId.DriveId, odinContext))
             {
-                await _fileStorageManager.CleanupInboxFiles(file, descriptors);
+                await _inboxStorage.CleanupInboxFiles(file, descriptors);
             }
         }
 
@@ -1623,7 +1625,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             PayloadDescriptor descriptor)
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-            var sourceFilePath = await _fileStorageManager.GetPath(originFile, payloadExtension);
+            var sourceFilePath = await _uploadTempStorage.GetPath(originFile, payloadExtension);
             await longTermStorageManager.CopyPayloadToLongTermAsync(
                 drive,
                 targetFile.FileId,
@@ -1636,7 +1638,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var thumbExt = TenantPathManager.GetThumbnailFileNameAndExtension(
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
-                var sourceThumbnail = await _fileStorageManager.GetPath(originFile, thumbExt);
+                var sourceThumbnail = await _uploadTempStorage.GetPath(originFile, thumbExt);
                 await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
                     thumb);
             }

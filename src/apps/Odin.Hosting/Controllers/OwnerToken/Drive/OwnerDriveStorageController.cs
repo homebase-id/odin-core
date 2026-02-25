@@ -29,14 +29,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         private readonly ILogger<OwnerDriveStorageController> _logger = logger;
 
         /// <summary>
-        /// Indicates if the specified TempFile exists.  This is used for testing only
+        /// Indicates if the specified upload temp file exists. This is used for testing only
         /// </summary>
         [SwaggerOperation(Tags = [ControllerConstants.OwnerDrive])]
-        [HttpGet("temp-file-exists")]
-        public async Task<bool> TempFileExists([FromQuery] Guid fileId,
+        [HttpGet("upload-temp-file-exists")]
+        public async Task<bool> UploadTempFileExists([FromQuery] Guid fileId,
             [FromQuery] Guid alias,
             [FromQuery] Guid type,
-            [FromQuery] string storageType,
             [FromQuery] string extension)
         {
             var internalFileId = MapToInternalFile(new ExternalFileIdentifier()
@@ -49,23 +48,36 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                 }
             });
 
-            bool result;
-            if (string.Equals(storageType, "Upload", StringComparison.OrdinalIgnoreCase))
-            {
-                result = await this.GetHttpFileSystemResolver()
-                    .ResolveFileSystem()
-                    .Storage
-                    .TempFileExists(new UploadFile(internalFileId), extension, WebOdinContext);
-            }
-            else
-            {
-                result = await this.GetHttpFileSystemResolver()
-                    .ResolveFileSystem()
-                    .Storage
-                    .TempFileExists(new InboxFile(internalFileId), extension, WebOdinContext);
-            }
+            return await this.GetHttpFileSystemResolver()
+                .ResolveFileSystem()
+                .Storage
+                .TempFileExists(new UploadFile(internalFileId), extension, WebOdinContext);
+        }
 
-            return result;
+        /// <summary>
+        /// Indicates if the specified inbox file exists. This is used for testing only
+        /// </summary>
+        [SwaggerOperation(Tags = [ControllerConstants.OwnerDrive])]
+        [HttpGet("inbox-file-exists")]
+        public async Task<bool> InboxFileExists([FromQuery] Guid fileId,
+            [FromQuery] Guid alias,
+            [FromQuery] Guid type,
+            [FromQuery] string extension)
+        {
+            var internalFileId = MapToInternalFile(new ExternalFileIdentifier()
+            {
+                FileId = fileId,
+                TargetDrive = new TargetDrive()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            });
+
+            return await this.GetHttpFileSystemResolver()
+                .ResolveFileSystem()
+                .Storage
+                .TempFileExists(new InboxFile(internalFileId), extension, WebOdinContext);
         }
 
         /// <summary>

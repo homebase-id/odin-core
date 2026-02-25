@@ -19,7 +19,8 @@ namespace Odin.Services.Drives.FileSystem.Standard
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
-        FileStorageManager fileStorageManager,
+        UploadTempStorage uploadTempStorage,
+        InboxStorage inboxStorage,
         //OrphanTestUtil orphanTestUtil,
         IdentityDatabase db)
         : DriveStorageServiceBase(
@@ -28,7 +29,8 @@ namespace Odin.Services.Drives.FileSystem.Standard
             driveAclAuthorizationService,
             driveManager,
             longTermStorageManager,
-            fileStorageManager,
+            uploadTempStorage,
+            inboxStorage,
             // orphanTestUtil,
             db)
     {
