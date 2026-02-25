@@ -22,15 +22,16 @@ namespace Odin.Hosting.Authentication.Peer;
 #nullable enable
 
 public class PeerCapiAuthenticationHandler(
+    ILogger<PeerCapiAuthenticationHandler> logger,
     IOptionsMonitor<PeerCapiAuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
+    ILoggerFactory loggerFactory,
     OdinConfiguration config,
     UrlEncoder encoder,
     ICorrelationContext correlationContext,
     ITenantLevel2Cache<PeerCapiAuthenticationHandler> cache,
     IDynamicHttpClientFactory httpClientFactory,
     OdinIdentity odinIdentity)
-    : AuthenticationHandler<PeerCapiAuthenticationSchemeOptions>(options, logger, encoder)
+    : AuthenticationHandler<PeerCapiAuthenticationSchemeOptions>(options, loggerFactory, encoder)
 {
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -38,24 +39,29 @@ public class PeerCapiAuthenticationHandler(
         var capiRemoteDomainAndSessionId = capiSession.Split('~');
         if (capiRemoteDomainAndSessionId.Length != 2)
         {
+            logger.LogError($"CAPICAPICAPI PeerCapiAuthenticationHandler Invalid or missing {ICapiCallbackSession.SessionHttpHeaderName}"); // SEB:TODO delete me
             return AuthenticateResult.Fail($"Invalid or missing {ICapiCallbackSession.SessionHttpHeaderName}");
         }
 
         var remoteDomain = capiRemoteDomainAndSessionId[0];
         if (string.IsNullOrWhiteSpace(remoteDomain))
         {
+            logger.LogError($"CAPICAPICAPI PeerCapiAuthenticationHandler Invalid sender domain in {ICapiCallbackSession.SessionHttpHeaderName}"); // SEB:TODO delete me
             return AuthenticateResult.Fail($"Invalid sender domain in {ICapiCallbackSession.SessionHttpHeaderName}");
         }
 
         var sessionId = capiRemoteDomainAndSessionId[1];
         if (string.IsNullOrWhiteSpace(sessionId))
         {
+            logger.LogError($"CAPICAPICAPI PeerCapiAuthenticationHandler Invalid session id in {ICapiCallbackSession.SessionHttpHeaderName}"); // SEB:TODO delete me
             return AuthenticateResult.Fail($"Invalid session id in {ICapiCallbackSession.SessionHttpHeaderName}");
         }
 
         var sessionLookup = await cache.TryGetAsync<bool>(sessionId);
         if (!sessionLookup.HasValue)
         {
+            logger.LogDebug("CAPICAPICAPI PeerCapiAuthenticationHandler MISS {sessionId}", sessionId); // SEB:TODO delete me
+
             var localDomainAndSessionId = $"{DnsConfigurationSet.PrefixCertApi}.{odinIdentity.PrimaryDomain}~{sessionId}";
             var url = $"https://{remoteDomain}:{config.Host.DefaultHttpsPort}{UnifiedApiRouteConstants.Capi}/validate/{localDomainAndSessionId}";
             var httpClient = httpClientFactory.CreateClient($"capi-session-validate:{remoteDomain}", cfg =>
@@ -65,15 +71,24 @@ public class PeerCapiAuthenticationHandler(
             httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, "here-comes-the-callback");
             httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.CorrelationId, correlationContext.Id);
 
+            logger.LogDebug("CAPICAPICAPI PeerCapiAuthenticationHandler request {url}", url); // SEB:TODO delete me
+
             var response = await httpClient.GetAsync(url);
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
+                logger.LogWarning("CAPICAPICAPI PeerCapiAuthenticationHandler response {responseContent}", responseContent); // SEB:TODO delete me
                 return AuthenticateResult.Fail(responseContent);
             }
 
             await cache.SetAsync(sessionId, true, config.Host.CapiSessionLifetime * 2);
         }
+        else
+        {
+            logger.LogDebug("CAPICAPICAPI PeerCapiAuthenticationHandler HIT {sessionId}", sessionId); // SEB:TODO delete me
+        }
+
+        logger.LogDebug("CAPICAPICAPI Claim {name}", remoteDomain); // SEB:TODO delete me
 
         var claims = new List<Claim>
         {

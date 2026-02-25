@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
@@ -17,6 +18,7 @@ namespace Odin.Services.Base
     /// Creates clients for http requests to other digital identity servers
     /// </summary>
     public class OdinHttpClientFactory(
+        ILogger<OdinHttpClientFactory> logger,
         IDynamicHttpClientFactory httpClientFactory,
         ICorrelationContext correlationContext,
         OdinConfiguration config,
@@ -61,6 +63,8 @@ namespace Odin.Services.Base
             var sessionId = await capiCallbackSession.EstablishSessionAsync(remoteHost, config.Host.CapiSessionLifetime);
             var localDomainAndSessionId = $"{odinIdentity.PrimaryDomain}~{sessionId}";
             httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, localDomainAndSessionId);
+
+            logger.LogDebug("CAPICAPICAPI CreateClientInternalAsync {header}", localDomainAndSessionId); // SEB:TODO delete me
             
             httpClient.BaseAddress = new UriBuilder
             {
