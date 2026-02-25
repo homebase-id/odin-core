@@ -174,7 +174,7 @@ public class CircleNetworkVerificationService(
 
         async Task<ApiResponse<VerifyConnectionResponse>> VerifyPeerConnection(ClientAccessToken clientAuthToken)
         {
-            var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
+            var client = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<ICircleNetworkPeerConnectionsClient>(recipient,
                 clientAuthToken.ToAuthenticationToken());
 
             ApiResponse<VerifyConnectionResponse> response = await client.VerifyConnection();
@@ -310,7 +310,7 @@ public class CircleNetworkVerificationService(
             });
 
             var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), clientAuthToken.SharedSecret);
-            var client = OdinHttpClientFactory.CreateClientUsingAccessToken<ICircleNetworkPeerConnectionsClient>(recipient,
+            var client = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<ICircleNetworkPeerConnectionsClient>(recipient,
                 clientAuthToken.ToAuthenticationToken());
 
             return await client.UpdateRemoteVerificationHash(encryptedPayload);

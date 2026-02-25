@@ -90,12 +90,12 @@ namespace Odin.Services.Peer
 
             if (token == null)
             {
-                var httpClient = OdinHttpClientFactory.CreateClient<IPeerReactionHttpClient>(odinId, fileSystemType);
+                var httpClient = await OdinHttpClientFactory.CreateClientAsync<IPeerReactionHttpClient>(odinId, fileSystemType);
                 return (null, httpClient);
             }
             else
             {
-                var httpClient = OdinHttpClientFactory.CreateClientUsingAccessToken<IPeerReactionHttpClient>(
+                var httpClient = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerReactionHttpClient>(
                     odinId,
                     token.ToAuthenticationToken(),
                     fileSystemType);
@@ -109,7 +109,7 @@ namespace Odin.Services.Peer
         {
             var token = await ResolveClientAccessTokenAsync(odinId, odinContext);
 
-            var httpClient = OdinHttpClientFactory.CreateClientUsingAccessToken<T>(
+            var httpClient = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<T>(
                 odinId,
                 token.ToAuthenticationToken());
 

@@ -415,7 +415,7 @@ namespace Odin.Services.Membership.Connections.Requests
                         {
                             { OdinHeaderNames.EstablishConnectionAuthToken, authenticationToken64 }
                         };
-                        var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(senderOdinId, headers: d);
+                        var client = await _odinHttpClientFactory.CreateClientAsync<ICircleNetworkRequestHttpClient>(senderOdinId, headers: d);
 
                         httpResponse = await client.EstablishConnection(encryptedPayload);
                     });
@@ -917,7 +917,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     return (false, null);
                 }
 
-                var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>(recipient);
+                var client = await _odinHttpClientFactory.CreateClientAsync<ICircleNetworkRequestHttpClient>(recipient);
 
                 eccEncryptedPayload.TimestampId = timestamp;
 

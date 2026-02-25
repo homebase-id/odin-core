@@ -62,7 +62,7 @@ public class SendPeerPushNotificationOutboxWorker(
 
         async Task<ApiResponse<PeerTransferResponse>> TryEnqueueNotification()
         {
-            var client = odinHttpClientFactory.CreateClient<IPeerAppNotificationHttpClient>(FileItem.Recipient);
+            var client = await odinHttpClientFactory.CreateClientAsync<IPeerAppNotificationHttpClient>(FileItem.Recipient);
             var response = await client.EnqueuePushNotification(record);
             return response;
         }
