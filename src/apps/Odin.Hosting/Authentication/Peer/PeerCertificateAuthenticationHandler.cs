@@ -76,7 +76,7 @@ namespace Odin.Hosting.Authentication.Peer
             var sessionLookup = await cache.TryGetAsync<bool>(sessionId);
             if (!sessionLookup.HasValue)
             {
-                var localDomainAndSessionId = $"{odinIdentity.PrimaryDomain}~{sessionId}";
+                var localDomainAndSessionId = $"{DnsConfigurationSet.PrefixCertApi}.{odinIdentity.PrimaryDomain}~{sessionId}";
                 var url = $"https://{remoteDomain}:{config.Host.DefaultHttpsPort}{UnifiedApiRouteConstants.Capi}/validate/{localDomainAndSessionId}";
                 var httpClient = httpClientFactory.CreateClient($"capi-session-validate:{remoteDomain}", cfg =>
                 {
