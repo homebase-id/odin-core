@@ -60,19 +60,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var internalFileId = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
             UploadFile uploadFile = null;
-            InboxFile inboxFile = null;
-            
+            InboxFile inboxFile = new InboxFile(internalFileId);
+
             if (canDirectWrite)
             {
                 uploadFile = new UploadFile(internalFileId);
             }
-            else
-            {
-                inboxFile = new InboxFile(internalFileId);
-            }
 
             _transferState = new IncomingTransferStateItem(uploadFile, inboxFile, transferInstructionSet);
-            await WriteInstructionsAndMetadataToInbox(inboxFile ?? new InboxFile(internalFileId), metadata, transferInstructionSet, odinContext);
+            await WriteInstructionsAndMetadataToInbox(inboxFile, metadata, transferInstructionSet, odinContext);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
@@ -314,7 +310,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
                 stateItem.InboxFile);
 
-            var tempFile = _transferState.InboxFile ?? new InboxFile(_transferState.FileId.Value);
+            var tempFile = _transferState.InboxFile;
             var instructionSet = _transferState.TransferInstructionSet;
 
             try
