@@ -58,8 +58,8 @@ namespace Odin.Services.Base
                 cfg.AllowUntrustedServerCertificate = config.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
             });
 
-            var capiSessionId = await capiCallbackSession.EstablishSessionAsync(remoteHost, config.Host.CapiSessionLifetime);
-            var localDomainAndSessionId = $"{odinIdentity.PrimaryDomain}:{capiSessionId}";
+            var sessionId = await capiCallbackSession.EstablishSessionAsync(odinId.DomainName, config.Host.CapiSessionLifetime);
+            var localDomainAndSessionId = $"{odinIdentity.PrimaryDomain}~{sessionId}";
             httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, localDomainAndSessionId);
             
             httpClient.BaseAddress = new UriBuilder

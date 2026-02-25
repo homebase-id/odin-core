@@ -291,6 +291,10 @@ public class OdinConfiguration
             ClientRegistrationWindowThreshold = config.GetOrDefault("Host:ClientRegistrationWindowThreshold", 3);
 
             CapiSessionLifetime = TimeSpan.FromMinutes(config.GetOrDefault("Host:CapiSessionLifetimeMinutes", 10));
+            if (CapiSessionLifetime < TimeSpan.FromMinutes(1))
+            {
+                throw new OdinConfigException("Invalid CapiSessionLifetime");
+            }
         }
     }
 

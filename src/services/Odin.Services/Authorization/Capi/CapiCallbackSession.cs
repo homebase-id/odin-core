@@ -8,27 +8,30 @@ namespace Odin.Services.Authorization.Capi;
 public interface ICapiCallbackSession
 {
     const string SessionHttpHeaderName = "X-CAPI-Session-Id";
-    Task<Guid> EstablishSessionAsync(string remoteDomain, TimeSpan sessionLifetime);
-    Task<bool> ValidateSessionAsync(string remoteDomain, Guid sessionId);
+    Task<string> EstablishSessionAsync(string remoteDomain, TimeSpan sessionLifetime);
+    Task<bool> ValidateSessionAsync(string remoteDomain, string sessionId);
 }
 
 //
 
 public class CapiCallbackSession(ITenantLevel2Cache<CapiCallbackSession> cache) : ICapiCallbackSession
 {
-    public async Task<Guid> EstablishSessionAsync(string remoteDomain, TimeSpan sessionLifetime)
+    public async Task<string> EstablishSessionAsync(string remoteDomain, TimeSpan sessionLifetime)
     {
         var cacheKey = GetCacheKey(remoteDomain);
-        var session = await cache.GetOrSetAsync(cacheKey, _ => Task.FromResult(Guid.NewGuid()), sessionLifetime);
+        var session = await cache.GetOrSetAsync(
+            cacheKey,
+            _ => Task.FromResult(Guid.NewGuid().ToString("N")),
+            sessionLifetime);
         return session;
     }
 
     //
 
-    public async Task<bool> ValidateSessionAsync(string remoteDomain, Guid sessionId)
+    public async Task<bool> ValidateSessionAsync(string remoteDomain, string sessionId)
     {
         var cacheKey = GetCacheKey(remoteDomain);
-        var sessionLookUp = await cache.TryGetAsync<Guid>(cacheKey);
+        var sessionLookUp = await cache.TryGetAsync<string>(cacheKey);
         return sessionLookUp.HasValue && sessionLookUp.Value == sessionId;
     }
 
