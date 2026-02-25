@@ -165,6 +165,7 @@ public static class TenantServices
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
         cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
+        cb.RegisterType<CapiCallbackSession>().As<ICapiCallbackSession>().SingleInstance();
 
         cb.RegisterType<HomeCachingService>()
             .AsSelf()
@@ -356,9 +357,6 @@ public static class TenantServices
         {
             cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
         }
-
-        // Tenant CAPI callback session service
-        cb.RegisterType<CapiCallbackSession>().As<ICapiCallbackSession>().InstancePerDependency();
 
         return cb;
     }
