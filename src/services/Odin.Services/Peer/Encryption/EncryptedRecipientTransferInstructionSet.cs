@@ -1,3 +1,5 @@
+using System;
+using System.Text.Json.Serialization;
 using Odin.Core.Storage;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
@@ -12,6 +14,8 @@ namespace Odin.Services.Peer.Encryption
     public class EncryptedRecipientTransferInstructionSet
     {
         public TargetDrive TargetDrive { get; set; }
+
+        public Guid DriveId => this.TargetDrive?.Alias ?? Guid.Empty;
 
         public TransferFileType TransferFileType { get; set; }
 
@@ -30,7 +34,7 @@ namespace Odin.Services.Peer.Encryption
         public AppNotificationOptions AppNotificationOptions { get; set; }
 
         public AccessControlList OriginalAcl { get; set; }
-        
+
         public bool IsValid()
         {
             if (null == this.SharedSecretEncryptedKeyHeader)
@@ -38,7 +42,7 @@ namespace Odin.Services.Peer.Encryption
                 return false;
             }
 
-            var isValid = this.TargetDrive.IsValid() &&
+            var isValid = this.DriveId != Guid.Empty &&
                           this.SharedSecretEncryptedKeyHeader.Iv?.Length > 0 &&
                           this.SharedSecretEncryptedKeyHeader.EncryptedAesKey?.Length > 0;
 

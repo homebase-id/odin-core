@@ -31,17 +31,7 @@ namespace Odin.Hosting.Controllers.Base.Follow
             var result = await _followerService.GetIdentitiesIFollowAsync(max, cursor, WebOdinContext);
             return result;
         }
-
-
-        /// <summary>
-        /// Gets a list of identities I follow
-        /// </summary>
-        protected async Task<CursoredResult<string>> GetWhoIFollowByDrive(Guid driveAlias, int max, string cursor)
-        {
-            var result = await _followerService.GetIdentitiesIFollowAsync(driveAlias, max, cursor, WebOdinContext);
-            return result;
-        }
-
+        
         /// <summary>
         /// Gets a list of identities following me
         /// </summary>

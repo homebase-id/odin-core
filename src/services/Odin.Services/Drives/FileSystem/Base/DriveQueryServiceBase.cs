@@ -393,15 +393,14 @@ namespace Odin.Services.Drives.FileSystem.Base
                             _logger.LogDebug("Caller with OdinId [{odinid}] received the file from the drive search " +
                                              "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
                                              "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
-                                             "[alias={driveAlias}, type={driveType}]",
+                                             "[driveId={driveId}]",
                                 odinContext.Caller.OdinId,
                                 serverFileHeader.FileMetadata.IsEncrypted,
                                 odinContext.AuthContext,
                                 file.FileId,
                                 drive.Name,
                                 drive.AllowAnonymousReads,
-                                drive.TargetDriveInfo.Alias.Value.ToString(),
-                                drive.TargetDriveInfo.Type.Value.ToString());
+                                drive.TargetDriveInfo.Alias.Value.ToString());
                         }
                     }
                 }

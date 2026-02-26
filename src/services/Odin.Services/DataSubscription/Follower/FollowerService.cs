@@ -112,13 +112,9 @@ namespace Odin.Services.DataSubscription.Follower
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
                 {
-                    if (request.Channels.Any(c => c.Type != SystemDriveConstants.ChannelDriveType))
-                    {
-                        throw new OdinClientException("Only drives of type channel can be followed",
-                            OdinClientErrorCode.InvalidTargetDrive);
-                    }
 
-                    //use the alias because we don't most likely will not have the channel on the callers identity
+                    // Note I do not validate these are channel drive types because the driveId is coming from the remote identity
+                    
                     foreach (var channel in request.Channels)
                     {
                         await db.ImFollowingCached.InsertAsync(new ImFollowingRecord
@@ -197,11 +193,8 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadMyFollowers);
 
-            if (targetDrive.Type != SystemDriveConstants.ChannelDriveType)
-            {
-                throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
-            }
-
+            var driveId = targetDrive.Alias;
+            await driveManager.AssertIsDriveType(driveId, SystemDriveConstants.ChannelDriveType);
             var (dbResults, nextCursor) = await db.FollowsMeCached.GetFollowersAsync(DefaultMax(max), targetDrive.Alias, cursor);
             var result = new CursoredResult<OdinId>
             {
@@ -244,25 +237,6 @@ namespace Odin.Services.DataSubscription.Follower
                 Results = dbResults
             };
             return result;
-        }
-
-        public async Task<CursoredResult<string>> GetIdentitiesIFollowAsync(Guid driveAlias, int max, string cursor,
-            IOdinContext odinContext)
-        {
-            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ReadWhoIFollow);
-
-            var drive = await driveManager.GetDriveAsync(driveAlias, true);
-            if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
-            {
-                throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
-            }
-
-            var (dbResults, nextCursor) = await db.ImFollowingCached.GetFollowersAsync(DefaultMax(max), driveAlias, cursor);
-            return new CursoredResult<string>()
-            {
-                Cursor = nextCursor,
-                Results = dbResults
-            };
         }
 
         /// <summary>

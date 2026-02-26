@@ -46,12 +46,12 @@ namespace Odin.Services.DataSubscription
                     var odinContext = notification.OdinContext;
                     var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                     await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                    {
-                        AppId = SystemAppConstants.FeedAppId,
-                        TypeId = notification.NotificationTypeId,
-                        TagId = notification.Reaction.FileId.FileId,
-                        Silent = false,
-                    },
+                        {
+                            AppId = SystemAppConstants.FeedAppId,
+                            TypeId = notification.NotificationTypeId,
+                            TagId = notification.Reaction.FileId.FileId,
+                            Silent = false,
+                        },
                         newContext);
                 }
             }
@@ -64,12 +64,12 @@ namespace Odin.Services.DataSubscription
             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
 
             await pushNotificationService.EnqueueNotification(notification.Sender, new AppNotificationOptions()
-            {
-                AppId = SystemAppConstants.FeedAppId,
-                TypeId = typeId,
-                TagId = notification.GlobalTransitId,
-                Silent = false,
-            },
+                {
+                    AppId = SystemAppConstants.FeedAppId,
+                    TypeId = typeId,
+                    TagId = notification.GlobalTransitId,
+                    Silent = false,
+                },
                 newContext);
         }
 
@@ -81,22 +81,25 @@ namespace Odin.Services.DataSubscription
                 //no need to send a notification to myself
                 return;
             }
-            
-            
+
+
             var sender = (OdinId)notification.ServerFileHeader.FileMetadata.SenderOdinId;
 
             if (notification.ServerFileHeader.ServerMetadata.FileSystemType == FileSystemType.Comment
-                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Alias == SystemDriveConstants.ChannelDriveType && sender != tenantContext.HostOdinId)
+                && notification.ServerFileHeader.FileMetadata.ReferencedFile.TargetDrive.Alias == SystemDriveConstants.ChannelDriveType &&
+                sender != tenantContext.HostOdinId)
             {
                 var odinContext = notification.OdinContext;
                 var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                 await pushNotificationService.EnqueueNotification(sender, new AppNotificationOptions()
-                {
-                    AppId = SystemAppConstants.FeedAppId,
-                    TypeId = CommentNotificationTypeId,
-                    TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId : notification.ServerFileHeader.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    Silent = false,
-                },
+                    {
+                        AppId = SystemAppConstants.FeedAppId,
+                        TypeId = CommentNotificationTypeId,
+                        TagId = notification.ServerFileHeader.FileMetadata.ReferencedFile != null
+                            ? notification.ServerFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
+                            : notification.ServerFileHeader.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                        Silent = false,
+                    },
                     newContext);
             }
         }
@@ -124,8 +127,8 @@ namespace Odin.Services.DataSubscription
                 return false;
             }
 
-            return drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType ||
-                   drive.TargetDriveInfo == SystemDriveConstants.FeedDrive;
+            return drive.Type == SystemDriveConstants.ChannelDriveType ||
+                   drive.Id == SystemDriveConstants.FeedDrive.Alias;
         }
     }
 }

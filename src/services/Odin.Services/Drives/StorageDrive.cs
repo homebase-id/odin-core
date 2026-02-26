@@ -49,6 +49,8 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         set => Data.IsArchived = value;
     }
 
+    public Guid Type => Data.TargetDriveInfo.Type;
+    
     public SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey => Data.MasterKeyEncryptedStorageKey;
     public byte[] EncryptedIdIv => Data.EncryptedIdIv;
     public byte[] EncryptedIdValue => Data.EncryptedIdValue;
@@ -212,4 +214,6 @@ public sealed class StorageDriveData
     public Dictionary<string, string> Attributes { get; set; }
 
     public bool IsArchived { get; set; }
+
+    public Guid Type => TargetDriveInfo.Type;
 }

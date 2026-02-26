@@ -122,17 +122,14 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
 
                 //S1000, S2000 - can the sender write the content to the target drive?
-                var driveId = transferInstructionSet.TargetDrive.Alias;
-
+                var driveId = transferInstructionSet.DriveId;
                 await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
-
-                var drive = await _driveManager.GetDriveAsync(transferInstructionSet.TargetDrive.Alias);
+                var drive = await _driveManager.GetDriveAsync(driveId);
                 if ((transferInstructionSet.AppNotificationOptions?.Recipients?.Any() ?? false) && !drive.AllowSubscriptions)
                 {
                     throw new OdinSecurityException("Attempt to distribute app notifications to drive which does not allow subscriptions");
                 }
 
-                // await _fileSystem.Storage.AssertCanWriteToDrive(driveId, WebOdinContext);
                 //End Optimizations
 
                 var metadata = await Initialize(transferInstructionSet, reader);
