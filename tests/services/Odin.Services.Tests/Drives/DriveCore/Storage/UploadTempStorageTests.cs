@@ -21,7 +21,6 @@ public class UploadTempStorageTests
     private OdinConfiguration _config = null!;
     private Mock<IDriveManager> _driveManagerMock = null!;
     private Mock<ILogger<UploadTempStorage>> _loggerMock = null!;
-    private Mock<TenantContext> _tenantContextMock = null!;
     private TenantPathManager _tenantPathManager = null!;
     private UploadTempStorage _uploadTempStorage = null!;
 

@@ -22,7 +22,6 @@ public class InboxStorageTests
     private FileReaderWriter _fileReaderWriter = null!;
     private Mock<IDriveManager> _driveManagerMock = null!;
     private Mock<ILogger<InboxStorage>> _loggerMock = null!;
-    private Mock<TenantContext> _tenantContextMock = null!;
     private TenantPathManager _tenantPathManager = null!;
     private InboxStorage _inboxStorage = null!;
 
