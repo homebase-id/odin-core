@@ -88,17 +88,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-            // if there are payloads in the descriptor, be sure we got it all
+            // Validate that all expected payloads and their thumbnails have been received during the update transfer
             if (fileMetadata.Payloads?.Any() ?? false)
             {
                 foreach (var expectedPayload in fileMetadata.Payloads)
                 {
+                    // Check if the payload key was uploaded
                     var hasPayload = _uploadedKeys.TryGetValue(expectedPayload.Key, out var thumbnailKeys);
                     if (!hasPayload)
                     {
                         throw new OdinClientException("Not all payloads received");
                     }
 
+                    // For each expected thumbnail, verify it was uploaded under this payload
                     foreach (var expectedThumbnail in expectedPayload.Thumbnails)
                     {
                         var thumbnailKey = expectedThumbnail.CreateTransitKey(expectedPayload.Key);
@@ -137,9 +139,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         private async Task<PeerResponseCode> FinalizeTransferInternal(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-            //S0001, S1000, S2000 - can the sender write the content to the target drive?
+            // Assert that the sender has write permissions to the target drive
             await fileSystem.Storage.AssertCanWriteToDrive(_uploadFile.FileId.DriveId, odinContext);
 
+            // Attempt to write the file directly to the drive
             var directWriteSuccess = await TryDirectWriteFileAsync(fileMetadata, odinContext);
 
             if (directWriteSuccess)
@@ -147,6 +150,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return PeerResponseCode.AcceptedDirectWrite;
             }
 
+            // If direct write failed, fall back to inbox: create inbox file and write metadata/instructions
             logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
                 _uploadFile);
 
@@ -158,10 +162,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             catch (Exception e)
             {
                 logger.LogError(e, "After TryDirectWriteFailed, we also failed to ensure " +
-                                   "metadata and instructions are available to the inbox.  file: {tempFile}", _uploadFile.FileId);
+                                    "metadata and instructions are available to the inbox.  file: {tempFile}", _uploadFile.FileId);
             }
 
-            //S1220
+            // Route the file to the inbox for later processing
             return await RouteToInboxAsync(odinContext);
         }
 

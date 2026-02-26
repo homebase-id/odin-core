@@ -96,17 +96,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var shouldExpectPayload = !fileMetadata.PayloadsAreRemote;
 
-            // if there are payloads in the descriptor, and they should have been sent
+            // Validate that all expected payloads and their thumbnails have been received during the transfer
             if ((fileMetadata.Payloads?.Any() ?? false) && shouldExpectPayload)
             {
                 foreach (var expectedPayload in fileMetadata.Payloads)
                 {
+                    // Check if the payload key was uploaded
                     var hasPayload = _uploadedKeys.TryGetValue(expectedPayload.Key, out var thumbnailKeys);
                     if (!hasPayload)
                     {
                         throw new OdinClientException("Not all payloads received");
                     }
 
+                    // For each expected thumbnail, verify it was uploaded under this payload
                     foreach (var expectedThumbnail in expectedPayload.Thumbnails)
                     {
                         var thumbnailKey = expectedThumbnail.CreateTransitKey(expectedPayload.Key);
@@ -122,12 +124,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (responseCode == PeerResponseCode.AcceptedDirectWrite || responseCode == PeerResponseCode.AcceptedIntoInbox)
             {
-                //Feed hack (again)
+                // Handle notifications for successful transfers
+                // Special handling for feed and channel drives: publish new feed item event
                 if (_transferState.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
                     _transferState.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
                 {
-                    //Note: we say new feed item here because comments are never pushed into the feed drive; so any
-                    //item going into the feed is new content (i.e. post/image, etc.)
+                    // Publish event for new feed item; comments are not pushed to feed, so this is always new content
                     await mediator.Publish(new NewFeedItemReceived
                     {
                         FileSystemType = _transferState.TransferInstructionSet.FileSystemType,
@@ -140,6 +142,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
                 else
                 {
+                    // Handle app notifications if specified in transfer instructions
                     var notificationOptions = _transferState.TransferInstructionSet.AppNotificationOptions;
                     if (null != notificationOptions)
                     {
@@ -147,7 +150,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         {
                             var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive.Alias);
 
-                            // allow the shard recovery drive to use subscriptions
+                            // Ensure the drive allows subscriptions for notifications (except shard recovery drive)
                             if (drive.Id != SystemDriveConstants.ShardRecoveryDrive.Alias && !drive.AllowSubscriptions)
                             {
                                 logger.LogDebug("Drive ({drive}) does not allow subscriptions", drive.Id);
@@ -155,6 +158,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                     "Attempt to distribute app notifications to drive which does not allow subscriptions");
                             }
 
+                            // Enqueue notifications to peer recipients (excluding self)
                             foreach (var recipient in notificationOptions.Recipients.Without(odinContext.Tenant))
                             {
                                 try
@@ -163,11 +167,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                                 }
                                 catch (Exception e)
                                 {
-                                    logger.LogInformation(e, "Failed why enqueueing peer push notification for recipient ({r})", recipient);
+                                    logger.LogInformation(e, "Failed while enqueueing peer push notification for recipient ({r})", recipient);
                                 }
                             }
 
-                            // also send to me
+                            // Also send notification to self if included in recipients
                             if (notificationOptions.Recipients.Any(r => r == odinContext.Tenant))
                             {
                                 var senderId = odinContext.GetCallerOdinIdOrFail();
@@ -177,6 +181,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         }
                         else
                         {
+                            // No specific recipients, send to sender
                             var senderId = odinContext.GetCallerOdinIdOrFail();
                             var newContext = OdinContextUpgrades.UpgradeToPeerTransferContext(odinContext);
                             await pushNotificationService.EnqueueNotification(senderId, notificationOptions, newContext);

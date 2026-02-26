@@ -8,10 +8,12 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
-    /// <summary>
-    /// Handles storage operations for inbox files
-    /// </summary>
-    public class InboxStorage(
+/// <summary>
+/// Handles storage operations for inbox files.
+/// Inbox files are stored under the drive's storage path (local or S3 depending on configuration, e.g., drives/{drive-id}/inbox or S3 equivalent)
+/// rather than the temporary path, as they represent staged incoming transfers awaiting processing.
+/// </summary>
+public class InboxStorage(
         FileReaderWriter fileReaderWriter,
         IDriveManager driveManager,
         ILogger<InboxStorage> logger,
@@ -48,6 +50,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 (drive, fileId, extension) => TempFileOperations.GetPathFromDrive(drive, fileId, extension, d => d.GetDriveInboxStoragePath()),
                 "inbox files");
 
+            // Additionally, clean up metadata and transfer instruction set files that are specific to inbox storage
             string[] additionalFiles =
             [
                 await GetPathInternal(file, TenantPathManager.MetadataExtension),

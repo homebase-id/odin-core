@@ -108,19 +108,23 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 }
                 finally
                 {
+                    // Handle post-processing based on the outcome of inbox item processing
                     if (success == InboxReturnTypes.TryAgainLater)
                     {
+                        // Mark as failed to retry later
                         int n = await transitInboxBoxStorage.MarkFailureAsync(tempFile.FileId, inboxItem.Marker);
                         if (n != 1)
                             logger.LogError("Inbox: Unable to MarkFailureAsync for TryAgainLater.");
                     }
                     else if (success == InboxReturnTypes.DeleteFromInbox)
                     {
+                        // Mark as complete and remove from inbox
                         int n = await transitInboxBoxStorage.MarkCompleteAsync(tempFile.FileId,
                             inboxItem.Marker); // markComplete removes in from the Inbox
 
                         if (n == 1)
                         {
+                            // Successfully marked complete, now clean up temporary files
                             var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
                             await fs.Storage.CleanupInboxTemporaryFiles(tempFile, payloads, odinContext);
                         }
@@ -131,6 +135,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     else if (success == InboxReturnTypes.HasBeenMarkedComplete)
                     {
+                        // Item was already marked complete during processing, just clean up temp files
                         var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
                         await fs.Storage.CleanupInboxTemporaryFiles(tempFile, payloads, odinContext);
                     }

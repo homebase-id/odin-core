@@ -8,10 +8,13 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
-    /// <summary>
-    /// Handles storage operations for temporary upload files
-    /// </summary>
-    public class UploadTempStorage(
+/// <summary>
+/// Handles storage operations for temporary upload files.
+/// Upload files are stored locally under the temporary storage path (e.g., temp/drives/{drive-id}/uploads)
+/// for staging during direct-write transfers before moving to long-term storage.
+/// These files are kept on the local server until processed, at which point their contents are moved to long-term storage (S3 if enabled).
+/// </summary>
+public class UploadTempStorage(
         FileReaderWriter fileReaderWriter,
         IDriveManager driveManager,
         ILogger<UploadTempStorage> logger,

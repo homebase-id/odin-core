@@ -19,6 +19,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             logger.LogDebug("Writing file: {filePath}", path);
             var bytesWritten = await fileReaderWriter.WriteStreamAsync(path, stream);
+            // Sanity check: ensure that if bytes were written, the file actually exists on disk
             if (bytesWritten == 0)
             {
                 logger.LogDebug("I didn't write anything to {filePath}", path);
@@ -38,31 +39,40 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             try
             {
+                // If no payload descriptors provided, nothing to clean up
                 if (!descriptors?.Any() ?? false)
                 {
                     return;
                 }
 
+                // Retrieve the drive associated with this file
                 var drive = await driveManager.GetDriveAsync(fileId.DriveId);
                 var targetFiles = new List<string>();
 
+                // Iterate over each payload descriptor to collect file paths for deletion
                 descriptors!.ForEach(descriptor =>
                 {
+                    // Generate the file extension for the base payload
                     var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
+                    // Resolve the full file path for the payload using the provided path resolver
                     string payloadDirectoryAndFilename = pathResolver(drive, fileId, payloadExtension);
                     targetFiles.Add(payloadDirectoryAndFilename);
 
+                    // For each thumbnail associated with this payload, collect its file path
                     descriptor.Thumbnails?.ForEach(thumb =>
                     {
+                        // Generate the file extension for the thumbnail
                         var thumbnailExtension = TenantPathManager.GetThumbnailFileNameAndExtension(descriptor.Key,
                             descriptor.Uid,
                             thumb.PixelWidth,
                             thumb.PixelHeight);
+                        // Resolve the full file path for the thumbnail
                         string thumbnailDirectoryAndFilename = pathResolver(drive, fileId, thumbnailExtension);
                         targetFiles.Add(thumbnailDirectoryAndFilename);
                     });
                 });
 
+                // Delete all collected file paths
                 fileReaderWriter.DeleteFiles(targetFiles);
             }
             catch (Exception e)

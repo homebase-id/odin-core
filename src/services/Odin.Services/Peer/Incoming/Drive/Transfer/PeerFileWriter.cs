@@ -72,8 +72,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             logger.LogDebug("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
 
-            // Files coming from other systems are only accessible to the owner so
-            // the owner can use the UI to pass the file along
+            // Determine the access control list for the file
+            // By default, files from external transfers are restricted to owner access for security
             var targetAcl = new AccessControlList()
             {
                 RequiredSecurityGroup = SecurityGroupType.Owner
@@ -82,16 +82,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var drive = await driveManager.GetDriveAsync(tempFile.FileId.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
-            //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
+            // For comment files, reset ACL based on comment-specific logic
             if (fileSystemType == FileSystemType.Comment)
             {
                 targetAcl = await ResetAclForComment(metadata, odinContext);
             }
             else
             {
-                //
-                // Collab channel hack
-                //
+                // For collaboration channels, preserve the original ACL from the transfer instructions if available
                 if (isCollaborationChannel)
                 {
                     targetAcl = encryptedRecipientTransferInstructionSet.OriginalAcl ?? new AccessControlList()
@@ -108,15 +106,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 AccessControlList = targetAcl,
             };
 
-            metadata!.SenderOdinId = sender; //in a collab channel this is not the right sender;
+            metadata!.SenderOdinId = sender; // Note: in collab channels, this may not reflect the actual sender
+            // Route to appropriate storage method based on transfer file type
             switch (transferFileType)
             {
                 case TransferFileType.Normal:
+                    // Store as a standard file in long-term storage
                     return await StoreNormalFileLongTermAsync(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata,
                         encryptedRecipientTransferInstructionSet, odinContext, markComplete);
 
                 case TransferFileType.EncryptedFileForFeed:
                 case TransferFileType.EncryptedFileForFeedViaTransit:
+                    // Store encrypted feed file
                     return await StoreEncryptedFeedFile(fs, tempFile, decryptedKeyHeader, metadata,
                         driveOriginWasCollaborative,
                         odinContext, markComplete);

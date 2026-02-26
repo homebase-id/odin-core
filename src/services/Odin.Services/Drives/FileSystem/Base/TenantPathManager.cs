@@ -139,10 +139,11 @@ public class TenantPathManager
     // New inbox storage paths (not in temp)
     // ----------------------
 
-    // e.g. /data/tenants/registrations/<tenant-id>/drives/<drive-id>/inbox
+    // e.g. /data/tenants/registrations/<tenant-id>/drives/<drive-id>/inbox (local) or <tenant-id>/drives/<drive-id>/inbox (S3)
     public string GetDriveInboxStoragePath(Guid driveId)
     {
-        return Path.Combine(DrivesPath, GuidToPathSafeString(driveId), InboxFolder);
+        var basePath = S3PayloadsEnabled ? PayloadsDrivesPath : DrivesPath;
+        return Path.Combine(basePath, GuidToPathSafeString(driveId), InboxFolder);
     }
 
     // e.g. /data/tenants/registrations/<tenant-id>/drives/<drive-id>/files
