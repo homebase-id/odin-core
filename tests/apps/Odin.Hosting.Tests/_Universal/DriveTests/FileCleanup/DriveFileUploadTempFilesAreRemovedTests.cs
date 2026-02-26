@@ -59,6 +59,12 @@ public class DriveFileUploadTempFilesAreRemovedTests
         yield return new object[] { new AppWriteOnlyAccessToDrive(TargetDrive.NewTargetDrive()), HttpStatusCode.OK };
     }
 
+    public static IEnumerable StorageTypes()
+    {
+        yield return new object[] { "Upload" };
+        yield return new object[] { "Inbox" };
+    }
+
 
     [Test]
     [TestCaseSource(nameof(OwnerAllowed))]
