@@ -35,7 +35,7 @@ public class TableMySubscribers(
         return await base.GetAllAsync(odinIdentity);
     }
 
-    public async Task<int> DeleteBySubscriberOdinIdAsync(Guid identityId, OdinId subscriberOdinId)
+    public async new Task<int> DeleteBySubscriberOdinIdAsync(Guid identityId, OdinId subscriberOdinId)
     {
         return await base.DeleteBySubscriberOdinIdAsync(identityId, subscriberOdinId);
     }
