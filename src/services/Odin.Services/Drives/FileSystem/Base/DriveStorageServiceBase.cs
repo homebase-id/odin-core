@@ -33,10 +33,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         IDriveAclAuthorizationService driveAclAuthorizationService,
         IDriveManager driveManager,
         LongTermStorageManager longTermStorageManager,
-        UploadStorageManager uploadStorageManager,
+        UploadTempStorage uploadTempStorage,
+        InboxStorage inboxStorage,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
+        private readonly UploadTempStorage _uploadTempStorage = uploadTempStorage;
+        private readonly InboxStorage _inboxStorage = inboxStorage;
 
         protected override IDriveManager DriveManager { get; } = driveManager;
 
@@ -212,31 +215,54 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<uint> WriteTempStream(TempFile tempFile, string extension, Stream stream, IOdinContext odinContext)
+        public async Task<uint> WriteUploadTempStream(UploadFile file, string extension, Stream stream, IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
 
-            await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
-            return await uploadStorageManager.WriteStream(tempFile, extension, stream);
+            await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
+            return await _uploadTempStorage.WriteStream(file, extension, stream);
+        }
+
+        public async Task<uint> WriteInboxStream(InboxFile file, string extension, Stream stream, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+
+            await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
+            return await _inboxStorage.WriteStream(file, extension, stream);
         }
 
         /// <summary>
         /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
         /// </summary>
         /// <returns></returns>
-        public async Task<byte[]> GetAllFileBytesFromTempFile(TempFile tempFile, string extension, IOdinContext odinContext)
+        public async Task<byte[]> GetAllFileBytesFromTempFile(UploadFile file, string extension, IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
-            await AssertCanReadDriveAsync(tempFile.File.DriveId, odinContext);
-            var bytes = await uploadStorageManager.GetAllFileBytes(tempFile, extension);
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+            await AssertCanReadDriveAsync(file.FileId.DriveId, odinContext);
+            var bytes = await _uploadTempStorage.GetAllFileBytes(file, extension);
             return bytes;
         }
 
-        public async Task<bool> TempFileExists(TempFile tempFile, string extension, IOdinContext odinContext)
+        public async Task<byte[]> GetAllFileBytesFromTempFile(InboxFile file, string extension, IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+            await AssertCanReadDriveAsync(file.FileId.DriveId, odinContext);
+            var bytes = await _inboxStorage.GetAllFileBytes(file, extension);
+            return bytes;
+        }
+
+        public async Task<bool> TempFileExists(UploadFile file, string extension, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             odinContext.Caller.AssertCallerIsOwner();
-            return await uploadStorageManager.TempFileExists(tempFile, extension);
+            return await _uploadTempStorage.FileExists(file, extension);
+        }
+
+        public async Task<bool> TempFileExists(InboxFile file, string extension, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+            odinContext.Caller.AssertCallerIsOwner();
+            return await _inboxStorage.FileExists(file, extension);
         }
 
         /// <summary>
@@ -251,12 +277,20 @@ namespace Odin.Services.Drives.FileSystem.Base
             return false;
         }
 
-        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(TempFile tempFile, string extension,
+        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(UploadFile file, string extension,
             IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
-            await AssertCanWriteToDrive(tempFile.File.DriveId, odinContext);
-            return await uploadStorageManager.GetAllFileBytes(tempFile, extension);
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
+            return await _uploadTempStorage.GetAllFileBytes(file, extension);
+        }
+
+        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(InboxFile file, string extension,
+            IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.FileId.DriveId, odinContext);
+            return await _inboxStorage.GetAllFileBytes(file, extension);
         }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
@@ -518,17 +552,17 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<(bool success, List<PayloadDescriptor> payloads)> CommitNewFile(
-            TempFile originFile, KeyHeader keyHeader,
+            UploadFile originFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata,
             bool? ignorePayload, IOdinContext odinContext, Guid? useThisVersionTag = null, WriteSecondDatabaseRowBase markComplete = null)
         {
-            await AssertDriveIsNotArchived(originFile.File.DriveId, odinContext);
-            await AssertCanWriteToDrive(originFile.File.DriveId, odinContext);
-            var drive = await DriveManager.GetDriveAsync(originFile.File.DriveId);
+            await AssertDriveIsNotArchived(originFile.FileId.DriveId, odinContext);
+            await AssertCanWriteToDrive(originFile.FileId.DriveId, odinContext);
+            var drive = await DriveManager.GetDriveAsync(originFile.FileId.DriveId);
 
             ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
 
-            var targetFile = originFile.File;
+            var targetFile = originFile.FileId;
             newMetadata.File = targetFile; // this is a new file so we can use the same fileId from the temp file
             serverMetadata.FileSystemType = GetFileSystemType();
 
@@ -573,7 +607,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     await TryPublishAsync(new DriveFileAddedNotification
                     {
-                        File = originFile.File,
+                        File = originFile.FileId,
                         ServerFileHeader = serverHeader,
                         OdinContext = odinContext,
                     });
@@ -591,8 +625,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (success, newMetadata.Payloads);
         }
 
+        public async Task<(bool success, List<PayloadDescriptor> payloads)> CommitNewFile(
+            InboxFile originFile, KeyHeader keyHeader,
+            FileMetadata newMetadata, ServerMetadata serverMetadata,
+            bool? ignorePayload, IOdinContext odinContext, Guid? useThisVersionTag = null, WriteSecondDatabaseRowBase markComplete = null)
+        {
+            var uploadFile = new UploadFile(originFile.FileId);
+            return await CommitNewFile(uploadFile, keyHeader, newMetadata, serverMetadata, ignorePayload, odinContext, useThisVersionTag, markComplete);
+        }
+
         public async Task<(bool success, List<PayloadDescriptor> payloads)> OverwriteFile(
-            TempFile originFile, InternalDriveFileId targetFile,
+            UploadFile originFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
@@ -644,7 +687,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var serverHeader = new ServerFileHeader()
             {
-                EncryptedKeyHeader = await EncryptKeyHeader(originFile.File.DriveId, keyHeader, odinContext),
+                EncryptedKeyHeader = await EncryptKeyHeader(originFile.FileId.DriveId, keyHeader, odinContext),
                 FileMetadata = newMetadata,
                 ServerMetadata = serverMetadata
             };
@@ -704,8 +747,17 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (success, payloads);
         }
 
+        public async Task<(bool success, List<PayloadDescriptor> payloads)> OverwriteFile(
+            InboxFile originFile, InternalDriveFileId targetFile,
+            KeyHeader keyHeader, FileMetadata newMetadata,
+            ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
+        {
+            var uploadFile = new UploadFile(originFile.FileId);
+            return await OverwriteFile(uploadFile, targetFile, keyHeader, newMetadata, serverMetadata, ignorePayload, odinContext, markComplete);
+        }
+
         public async Task<Guid> UpdatePayloads(
-            TempFile originFile,
+            UploadFile originFile,
             InternalDriveFileId targetFile,
             List<PayloadDescriptor> incomingPayloads,
             IOdinContext odinContext,
@@ -946,7 +998,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
 
-        public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(TempFile originFile,
+        public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(UploadFile originFile,
             InternalDriveFileId targetFile,
             BatchUpdateManifest manifest,
             IOdinContext odinContext,
@@ -1027,6 +1079,16 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (success, copiedPayloads);
         }
 
+        public async Task<(bool success, List<PayloadDescriptor> uploadedPayloads)> UpdateBatchAsync(InboxFile originFile,
+            InternalDriveFileId targetFile,
+            BatchUpdateManifest manifest,
+            IOdinContext odinContext,
+            WriteSecondDatabaseRowBase markComplete)
+        {
+            var uploadFile = new UploadFile(originFile.FileId);
+            return await UpdateBatchAsync(uploadFile, targetFile, manifest, odinContext, markComplete);
+        }
+
 
         private async Task TryPublishAsync<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
             where TNotification : INotification
@@ -1043,7 +1105,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
 
         private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)>
-            UpdateBatchCopyFilesAsync(TempFile originFile,
+            UpdateBatchCopyFilesAsync(UploadFile originFile,
                 InternalDriveFileId targetFile, BatchUpdateManifest manifest,
                 IOdinContext odinContext)
         {
@@ -1266,24 +1328,24 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         // TODO I think this should be in the upload manager
-        public async Task CleanupUploadTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors,
+        public async Task CleanupUploadTemporaryFiles(UploadFile file, List<PayloadDescriptor> descriptors,
             IOdinContext odinContext)
         {
-            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
-            if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+            if (await CanWriteToDrive(file.FileId.DriveId, odinContext))
             {
-                await uploadStorageManager.CleanupUploadedTempFiles(tempFile, descriptors);
+                await _uploadTempStorage.CleanupUploadedFiles(file, descriptors);
             }
         }
 
         // TODO I think this should be in the inbox manager
-        public async Task CleanupInboxTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors, IOdinContext odinContext,
+        public async Task CleanupInboxTemporaryFiles(InboxFile file, List<PayloadDescriptor> descriptors, IOdinContext odinContext,
             string[] additionalFiles = null)
         {
-            await AssertDriveIsNotArchived(tempFile.File.DriveId, odinContext);
-            if (await CanWriteToDrive(tempFile.File.DriveId, odinContext))
+            await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
+            if (await CanWriteToDrive(file.FileId.DriveId, odinContext))
             {
-                await uploadStorageManager.CleanupInboxFiles(tempFile, descriptors);
+                await _inboxStorage.CleanupInboxFiles(file, descriptors);
             }
         }
 
@@ -1537,7 +1599,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Copies payloads and thumbs to long term storage
         /// </summary>
         /// <returns>List of all files copied (directory and filename)</returns>
-        private async Task CopyPayloadsAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
+        private async Task CopyPayloadsAndThumbnailsToLongTermStorage(UploadFile originFile, InternalDriveFileId targetFile,
             List<PayloadDescriptor> descriptors, StorageDrive drive)
         {
             try
@@ -1558,12 +1620,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Copies payload and thumbs to long term storage
         /// </summary>
         /// <returns>List of all files copied (directory and filename)</returns>
-        private async Task CopyPayloadAndThumbnailsToLongTermStorage(TempFile originFile, InternalDriveFileId targetFile,
+        private async Task CopyPayloadAndThumbnailsToLongTermStorage(UploadFile originFile, InternalDriveFileId targetFile,
             StorageDrive drive,
             PayloadDescriptor descriptor)
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-            var sourceFilePath = await uploadStorageManager.GetPath(originFile, payloadExtension);
+            var sourceFilePath = await _uploadTempStorage.GetPath(originFile, payloadExtension);
             await longTermStorageManager.CopyPayloadToLongTermAsync(
                 drive,
                 targetFile.FileId,
@@ -1576,7 +1638,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var thumbExt = TenantPathManager.GetThumbnailFileNameAndExtension(
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
-                var sourceThumbnail = await uploadStorageManager.GetPath(originFile, thumbExt);
+                var sourceThumbnail = await _uploadTempStorage.GetPath(originFile, thumbExt);
                 await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
                     thumb);
             }

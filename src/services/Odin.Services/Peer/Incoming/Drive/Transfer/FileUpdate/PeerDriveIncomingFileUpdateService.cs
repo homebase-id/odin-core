@@ -35,7 +35,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         TransitInboxBoxStorage transitInboxBoxStorage)
     {
         private EncryptedRecipientFileUpdateInstructionSet _updateInstructionSet;
-        private TempFile _tempFile;
+        private UploadFile _uploadFile;
+        private InboxFile _inboxFile;
+
+        private InternalDriveFileId? CurrentFileId => _uploadFile?.FileId ?? _inboxFile?.FileId;
+        private Guid CurrentDriveId => CurrentFileId?.DriveId ?? Guid.Empty;
+        private bool IsUpload => _uploadFile != null;
 
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
@@ -46,12 +51,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             var driveId = transferInstructionSet.Request.File.TargetDrive.Alias;
             var canDirectWrite = await CanDirectWriteFile(driveId, fileMetadata, transferInstructionSet.FileSystemType, odinContext);
 
-            // Notice here: we always create a new fileId when receiving a new file.
-            _tempFile = new TempFile()
+            var internalFileId = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
+            if (canDirectWrite)
             {
-                File = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext),
-                StorageType = canDirectWrite ? TempStorageType.Upload : TempStorageType.Inbox
-            };
+                _uploadFile = new UploadFile(internalFileId);
+            }
+            else
+            {
+                _inboxFile = new InboxFile(internalFileId);
+            }
 
             _updateInstructionSet = transferInstructionSet;
             await WriteInstructionsAndMetadataToDisk(fileMetadata, odinContext);
@@ -60,7 +68,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
-            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, fileExtension, data, odinContext);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
@@ -75,22 +83,24 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
 
-            await fileSystem.Storage.WriteTempStream(_tempFile, fileExtension, data, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, fileExtension, data, odinContext);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-            // if there are payloads in the descriptor, be sure we got it all
+            // Validate that all expected payloads and their thumbnails have been received during the update transfer
             if (fileMetadata.Payloads?.Any() ?? false)
             {
                 foreach (var expectedPayload in fileMetadata.Payloads)
                 {
+                    // Check if the payload key was uploaded
                     var hasPayload = _uploadedKeys.TryGetValue(expectedPayload.Key, out var thumbnailKeys);
                     if (!hasPayload)
                     {
                         throw new OdinClientException("Not all payloads received");
                     }
 
+                    // For each expected thumbnail, verify it was uploaded under this payload
                     foreach (var expectedThumbnail in expectedPayload.Thumbnails)
                     {
                         var thumbnailKey = expectedThumbnail.CreateTransitKey(expectedPayload.Key);
@@ -122,16 +132,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
         public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
         {
-            await fileSystem.Storage.CleanupUploadTemporaryFiles(this._tempFile, descriptors, odinContext);
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(this._uploadFile, descriptors, odinContext);
         }
 
         //
 
         private async Task<PeerResponseCode> FinalizeTransferInternal(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-            //S0001, S1000, S2000 - can the sender write the content to the target drive?
-            await fileSystem.Storage.AssertCanWriteToDrive(_tempFile.File.DriveId, odinContext);
+            // Assert that the sender has write permissions to the target drive
+            await fileSystem.Storage.AssertCanWriteToDrive(_uploadFile.FileId.DriveId, odinContext);
 
+            // Attempt to write the file directly to the drive
             var directWriteSuccess = await TryDirectWriteFileAsync(fileMetadata, odinContext);
 
             if (directWriteSuccess)
@@ -139,40 +150,41 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return PeerResponseCode.AcceptedDirectWrite;
             }
 
+            // If direct write failed, fall back to inbox: create inbox file and write metadata/instructions
             logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
-                _tempFile);
+                _uploadFile);
 
             try
             {
-                _tempFile.StorageType = TempStorageType.Inbox;
+                _inboxFile = new InboxFile(_uploadFile.FileId);
                 await WriteInstructionsAndMetadataToDisk(fileMetadata, odinContext);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "After TryDirectWriteFailed, we also failed to ensure " +
-                                   "metadata and instructions are available to the inbox.  file: {tempFile}", _tempFile.File);
+                                    "metadata and instructions are available to the inbox.  file: {tempFile}", _uploadFile.FileId);
             }
 
-            //S1220
+            // Route the file to the inbox for later processing
             return await RouteToInboxAsync(odinContext);
         }
 
         private async Task WriteInstructionsAndMetadataToDisk(FileMetadata fileMetadata, IOdinContext odinContext)
         {
-            logger.LogDebug("Writing metadata as {tempFile}", _tempFile);
+            logger.LogDebug("Writing metadata as {tempFile}", _uploadFile);
 
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, TenantPathManager.TransferInstructionSetExtension, stream,
                 odinContext);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
-            await fileSystem.Storage.WriteTempStream(_tempFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
+            await fileSystem.Storage.WriteUploadTempStream(_uploadFile, TenantPathManager.MetadataExtension, metadataStream, odinContext);
         }
 
         private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(_tempFile.File.DriveId, metadata, _updateInstructionSet.FileSystemType, odinContext))
+            if (!await CanDirectWriteFile(_uploadFile.FileId.DriveId, metadata, _updateInstructionSet.FileSystemType, odinContext))
             {
                 return false;
             }
@@ -184,7 +196,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null);
+                await updateWriter.UpsertFileAsync(_uploadFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null);
                 return true;
             }
 
@@ -192,13 +204,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             if (metadata.IsEncrypted)
             {
                 // Next determine if we can direct write the file
-                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(_tempFile.File.DriveId, out _);
+                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(_uploadFile.FileId.DriveId, out _);
 
                 //S1200
                 if (hasStorageKey)
                 {
                     //S1205
-                    await updateWriter.UpsertFileAsync(_tempFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null);
+                    await updateWriter.UpsertFileAsync(_uploadFile, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null);
                     return true;
                 }
 
@@ -232,8 +244,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 Priority = 500,
 
                 InstructionType = TransferInstructionType.UpdateFile,
-                DriveId = _tempFile.File.DriveId,
-                FileId = _tempFile.File.FileId,
+                DriveId = _uploadFile.FileId.DriveId,
+                FileId = _uploadFile.FileId.FileId,
                 FileSystemType = _updateInstructionSet.FileSystemType,
                 Data = OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray(),
 

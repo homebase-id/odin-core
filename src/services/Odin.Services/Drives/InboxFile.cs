@@ -1,0 +1,18 @@
+#nullable enable
+namespace Odin.Services.Drives;
+
+public class InboxFile
+{
+    public InternalDriveFileId FileId { get; }
+
+    public InboxFile(InternalDriveFileId fileId)
+    {
+        fileId.Validate();
+        FileId = fileId;
+    }
+
+    public override string ToString()
+    {
+        return $"InboxFile: {FileId}";
+    }
+}
