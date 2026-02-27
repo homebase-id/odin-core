@@ -70,6 +70,12 @@ public partial class IdentityDatabase(ILifetimeScope lifetimeScope) : AbstractDa
     private Lazy<TableDrivesCached>? _tableDrivesCached;
     public TableDrivesCached DrivesCached => LazyResolve(ref _tableDrivesCached);
 
+    private Lazy<TableMySubscribersCached>? _mySubscribersCached;
+    public TableMySubscribersCached MySubscribersCached => LazyResolve(ref _mySubscribersCached);
+
+    private Lazy<TableMySubscriptionsCached>? _mySubscriptionsCached;
+    public TableMySubscriptionsCached MySubscriptionsCached => LazyResolve(ref _mySubscriptionsCached);
+
     
     //
     // Connection
