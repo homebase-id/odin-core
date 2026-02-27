@@ -617,7 +617,16 @@ public class PeerDriveQueryService(
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            return (null, default, null);
+            logger.LogWarning(
+                "Remote 404 in GetPayloadByGlobalTransitIdAsync. " +
+                "OdinId: {odinId}, Key: {key}, RequestUri: {uri}, Status: {status}",
+                odinId,
+                key,
+                response?.RequestMessage?.RequestUri?.ToString(),
+                response.StatusCode
+            );
+            
+            return (null, false, null);
         }
 
         await HandleInvalidResponseAsync(odinId, response, odinContext);
