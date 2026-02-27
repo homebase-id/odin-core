@@ -239,7 +239,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
 
             var (headers, aclFailures) = await CreateClientFileHeadersAsync(driveId, [record], options, odinContext,
-                forceIncludeServerMetadata, logAclFailuresAsErrors: false);
+                forceIncludeServerMetadata, logAclFailuresAsErrors: true);
 
             var theSingleLonelyResult = headers.SingleOrDefault();
             if (theSingleLonelyResult == null)
@@ -317,8 +317,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                     aclFailures.Add(serverFileHeader);
                     if (logAclFailuresAsErrors)
                     {
-                        _logger.LogError($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
-                                         $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
+                        _logger.LogWarning($"Caller with OdinId [{odinContext.Caller.OdinId}] received the file from the drive" +
+                                           $" search index but does not have read access to the file:{file.FileId} on drive:{file.DriveId}");
                     }
                 }
                 else
@@ -337,6 +337,10 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                     //Note: it is possible that an app can have read access to a drive that allows anonymous but not have the storage key   
                     var shouldReceiveFile = (isEncrypted && hasStorageKey) || !isEncrypted;
+
+                    _logger.LogDebug($"hasStorageKey: {hasStorageKey} | shouldReceiveFile: " +
+                                     $"{shouldReceiveFile} | is encrypted: {isEncrypted}");
+
                     if (shouldReceiveFile)
                     {
                         var header = DriveFileUtility.CreateClientFileHeader(
@@ -350,7 +354,6 @@ namespace Odin.Services.Drives.FileSystem.Base
                             {
                                 header.FileMetadata.AppData.Content = string.Empty;
                             }
-
 
                             if (options.ExcludePreviewThumbnail)
                             {
@@ -391,21 +394,18 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                         // Allow anon will let the user get the file so only log
                         // if this is not the case as it means we have a problem
-                        if (!drive.AllowAnonymousReads)
-                        {
-                            _logger.LogDebug("Caller with OdinId [{odinid}] received the file from the drive search " +
-                                             "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
-                                             "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
-                                             "[alias={driveAlias}, type={driveType}]",
-                                odinContext.Caller.OdinId,
-                                serverFileHeader.FileMetadata.IsEncrypted,
-                                odinContext.AuthContext,
-                                file.FileId,
-                                drive.Name,
-                                drive.AllowAnonymousReads,
-                                drive.TargetDriveInfo.Alias.Value.ToString(),
-                                drive.TargetDriveInfo.Type.Value.ToString());
-                        }
+                        _logger.LogDebug("Caller with OdinId [{odinid}] received the file from the drive search " +
+                                         "index with (isPayloadEncrypted: {isencrypted} and auth context[{authContext}]) but does not have the " +
+                                         "storage key to decrypt the file {file} on drive ({driveName}, allow anonymous: {driveAllowAnon}) " +
+                                         "[alias={driveAlias}, type={driveType}]",
+                            odinContext.Caller.OdinId,
+                            serverFileHeader.FileMetadata.IsEncrypted,
+                            odinContext.AuthContext,
+                            file.FileId,
+                            drive.Name,
+                            drive.AllowAnonymousReads,
+                            drive.TargetDriveInfo.Alias.Value.ToString(),
+                            drive.TargetDriveInfo.Type.Value.ToString());
                     }
                 }
             }
