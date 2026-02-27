@@ -251,6 +251,14 @@ namespace Odin.Hosting.Controllers.Base.Transit
             [FromQuery] string key,
             [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
+            Response.Headers["x-debug-odinId"] = odinId ?? "null";
+            Response.Headers["x-debug-globalTransitId"] = globalTransitId.ToString();
+            Response.Headers["x-debug-alias"] = alias.ToString();
+            Response.Headers["x-debug-type"] = type.ToString();
+            Response.Headers["x-debug-key"] = key ?? "null";
+            Response.Headers["x-debug-chunkStart"] = chunkStart?.ToString() ?? "null";
+            Response.Headers["x-debug-chunkLength"] = chunkLength?.ToString() ?? "null";
+            
             AssertIsValidOdinId(odinId, out var id);
             var fst = GetHttpFileSystemResolver().GetFileSystemType();
             var file = new GlobalTransitIdFileIdentifier()
@@ -283,6 +291,15 @@ namespace Odin.Hosting.Controllers.Base.Transit
             [FromQuery] bool directMatchOnly,
             [FromQuery] string payloadKey)
         {
+            Response.Headers["x-debug-odinId"] = odinId ?? "null";
+            Response.Headers["x-debug-globalTransitId"] = globalTransitId.ToString();
+            Response.Headers["x-debug-alias"] = alias.ToString();
+            Response.Headers["x-debug-type"] = type.ToString();
+            Response.Headers["x-debug-width"] = width.ToString();
+            Response.Headers["x-debug-height"] = height.ToString();
+            Response.Headers["x-debug-directMatchOnly"] = directMatchOnly.ToString();
+            Response.Headers["x-debug-payloadKey"] = payloadKey ?? "null";
+            
             AssertIsValidOdinId(odinId, out var id);
 
             var fst = GetHttpFileSystemResolver().GetFileSystemType();
@@ -295,7 +312,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     Type = type
                 }
             };
-
             
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
                 await peerDriveQueryService.GetThumbnailByGlobalTransitIdAsync(id, file, payloadKey, width, height, directMatchOnly, fst, WebOdinContext);
@@ -337,6 +353,11 @@ namespace Odin.Hosting.Controllers.Base.Transit
         private IActionResult HandleThumbnailResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted, string decryptedContentType,
             UnixTimeUtc? lastModified, Stream thumb)
         {
+            HttpContext.Response.Headers.Append("x-debug-thumb-null", (thumb == Stream.Null).ToString());
+            HttpContext.Response.Headers.Append("x-debug-isEncrypted", isEncrypted.ToString());
+            HttpContext.Response.Headers.Append("x-debug-decryptedContentType", decryptedContentType ?? "null");
+            HttpContext.Response.Headers.Append("x-debug-lastModified", lastModified?.ToString() ?? "null");
+            
             if (thumb == Stream.Null)
             {
                 return NotFound();
@@ -353,6 +374,12 @@ namespace Odin.Hosting.Controllers.Base.Transit
 
         private IActionResult HandlePayloadResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted, PayloadStream payloadStream)
         {
+            HttpContext.Response.Headers.Append("x-debug-payload-null", (payloadStream == null).ToString());
+            HttpContext.Response.Headers.Append("x-debug-isEncrypted", isEncrypted.ToString());
+            HttpContext.Response.Headers.Append("x-debug-key", payloadStream?.Key ?? "null");
+            HttpContext.Response.Headers.Append("x-debug-contentType", payloadStream?.ContentType ?? "null");
+            HttpContext.Response.Headers.Append("x-debug-contentLength", payloadStream?.ContentLength.ToString() ?? "null");
+            
             if (payloadStream == null)
             {
                 return NotFound();
