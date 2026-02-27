@@ -25,6 +25,11 @@ public class TableMySubscribers(
         return await base.UpsertAsync(item);
     }
 
+    public async Task<int> DeleteAsync(OdinId subscriberOdinId, Guid sourceDriveId, Guid sourceDriveTypeId, Guid targetDriveId)
+    {
+        return await base.DeleteAsync(odinIdentity, subscriberOdinId, sourceDriveId, sourceDriveTypeId, targetDriveId);
+    }
+
     public async Task<List<MySubscribersRecord>> GetAllAsync()
     {
         return await base.GetAllAsync(odinIdentity);

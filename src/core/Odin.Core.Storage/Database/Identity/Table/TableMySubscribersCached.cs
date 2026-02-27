@@ -51,6 +51,15 @@ public class TableMySubscribersCached(TableMySubscribers table, IIdentityTransac
 
     //
 
+    public async Task<int> DeleteAsync(OdinId subscriberOdinId, Guid sourceDriveId, Guid sourceDriveTypeId, Guid targetDriveId)
+    {
+        var result = await table.DeleteAsync(subscriberOdinId, sourceDriveId, sourceDriveTypeId, targetDriveId);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    //
+
     public async Task<int> UpsertAsync(MySubscribersRecord item)
     {
         var result = await table.UpsertAsync(item);
