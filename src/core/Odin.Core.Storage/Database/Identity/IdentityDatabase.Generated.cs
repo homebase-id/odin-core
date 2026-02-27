@@ -23,6 +23,8 @@ public partial class IdentityDatabase
             typeof(TableCircleMember),
             typeof(TableConnections),
             typeof(TableAppGrants),
+            typeof(TableMySubscriptions),
+            typeof(TableMySubscribers),
             typeof(TableImFollowing),
             typeof(TableFollowsMe),
             typeof(TableInbox),
@@ -72,6 +74,12 @@ public partial class IdentityDatabase
 
     private Lazy<TableAppGrants> _appGrants;
     public TableAppGrants AppGrants => LazyResolve(ref _appGrants);
+
+    private Lazy<TableMySubscriptions> _mySubscriptions;
+    public TableMySubscriptions MySubscriptions => LazyResolve(ref _mySubscriptions);
+
+    private Lazy<TableMySubscribers> _mySubscribers;
+    public TableMySubscribers MySubscribers => LazyResolve(ref _mySubscribers);
 
     private Lazy<TableImFollowing> _imFollowing;
     public TableImFollowing ImFollowing => LazyResolve(ref _imFollowing);

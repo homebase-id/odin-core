@@ -7,6 +7,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -15,8 +16,10 @@ using Odin.Services.Util;
 namespace Odin.Services.DataSubscription.Follower
 {
     /// <summary/>
-    public class FollowerPerimeterService(IMediator mediator, IdentityDatabase db)
+    public class FollowerPerimeterService(IMediator mediator, IdentityDatabase db, TenantContext tenantContext)
     {
+        private readonly TenantContext _tenantContext = tenantContext;
+
         /// <summary>
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
@@ -70,6 +73,43 @@ namespace Odin.Services.DataSubscription.Follower
                 await db.FollowsMeCached.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);
             }
 
+            // Add to subscription tables on the source side to track subscribers for push notifications
+            var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+            var now = UnixTimeUtc.Now();
+
+            // Record subscription to all channel drives if all notifications requested
+            if (request.NotificationType == FollowerNotificationType.AllNotifications)
+            {
+                var record = new MySubscribersRecord
+                {
+                    identityId = _tenantContext.DotYouRegistryId,
+                    subscriberOdinId = new OdinId(request.OdinId),
+                    sourceDriveTypeId = SystemDriveConstants.ChannelDriveType,
+                    targetDriveId = feedDriveId,
+                    created = now,
+                    modified = now
+                };
+                await db.MySubscribersCached.UpsertAsync(record);
+            }
+
+            // Record subscription to each selected channel drive
+            if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+            {
+                foreach (var channel in request.Channels)
+                {
+                    var record = new MySubscribersRecord
+                    {
+                        identityId = _tenantContext.DotYouRegistryId,
+                        subscriberOdinId = new OdinId(request.OdinId),
+                        sourceDriveId = channel.Alias,
+                        targetDriveId = feedDriveId,
+                        created = now,
+                        modified = now
+                    };
+                    await db.MySubscribersCached.UpsertAsync(record);
+                }
+            }
+
             await mediator.Publish(new NewFollowerNotification
             {
                 Sender = (OdinId)request.OdinId,
@@ -86,6 +126,9 @@ namespace Odin.Services.DataSubscription.Follower
             var follower = odinContext.Caller.OdinId;
 
             await db.FollowsMeCached.DeleteByIdentityAsync(new OdinId(follower));
+
+            // Remove from subscription tables to stop tracking the subscriber for push notifications
+            await db.MySubscribersCached.DeleteBySubscriberAsync(_tenantContext.DotYouRegistryId, new OdinId(follower));
         }
     }
 }

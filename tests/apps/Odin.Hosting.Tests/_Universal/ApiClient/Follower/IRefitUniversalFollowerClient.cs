@@ -1,7 +1,9 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Services.DataSubscription.Follower;
+using Odin.Core.Storage.Database.Identity.Table;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Follower
@@ -30,5 +32,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Follower
         
         [Post(RootPath + "/sync-feed-history")]
         Task<ApiResponse<HttpContent>> SynchronizeFeedHistory([Body] SynchronizeFeedHistoryRequest request);
+
+        [Get(RootPath + "/my-subscriptions")]
+        Task<ApiResponse<List<MySubscriptionsRecord>>> GetMySubscriptions();
+
+        [Get(RootPath + "/my-subscribers")]
+        Task<ApiResponse<List<MySubscribersRecord>>> GetMySubscribers();
     }
 }

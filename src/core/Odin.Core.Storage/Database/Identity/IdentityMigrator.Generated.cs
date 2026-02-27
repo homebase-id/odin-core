@@ -26,6 +26,8 @@ public partial class IdentityMigrator
                 new TableCircleMemberMigrationList(),
                 new TableConnectionsMigrationList(),
                 new TableAppGrantsMigrationList(),
+                new TableMySubscriptionsMigrationList(),
+                new TableMySubscribersMigrationList(),
                 new TableImFollowingMigrationList(),
                 new TableFollowsMeMigrationList(),
                 new TableInboxMigrationList(),

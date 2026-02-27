@@ -12,6 +12,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -129,6 +130,49 @@ namespace Odin.Services.DataSubscription.Follower
                 tx.Commit();
             }
 
+            // Add to subscription tables to enable generic data subscriptions alongside follow relationships
+            await using (var tx = await db.BeginStackedTransactionAsync())
+            {
+                var subscriberIdentityId = tenantContext.DotYouRegistryId;
+                var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
+                var now = UnixTimeUtc.Now();
+
+                // For all notifications, subscribe to all channel drives from the followed identity
+                if (request.NotificationType == FollowerNotificationType.AllNotifications)
+                {
+                    var record = new MySubscriptionsRecord
+                    {
+                        identityId = subscriberIdentityId,
+                        sourceOwnerOdinId = identityToFollow,
+                        sourceDriveTypeId = SystemDriveConstants.ChannelDriveType,
+                        targetDriveId = feedDriveId,
+                        created = now,
+                        modified = now
+                    };
+                    await db.MySubscriptionsCached.UpsertAsync(record);
+                }
+
+                // For selected channels, subscribe to each specific channel drive
+                if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+                {
+                    foreach (var channel in request.Channels)
+                    {
+                        var record = new MySubscriptionsRecord
+                        {
+                            identityId = subscriberIdentityId,
+                            sourceOwnerOdinId = identityToFollow,
+                            sourceDriveId = channel.Alias,
+                            targetDriveId = feedDriveId,
+                            created = now,
+                            modified = now
+                        };
+                        await db.MySubscriptionsCached.UpsertAsync(record);
+                    }
+                }
+
+                tx.Commit();
+            }
+
             if (request.SynchronizeFeedHistoryNow)
             {
                 await SynchronizeChannelFilesAsync(identityToFollow, odinContext);
@@ -152,6 +196,9 @@ namespace Odin.Services.DataSubscription.Follower
             }
 
             await db.ImFollowingCached.DeleteByIdentityAsync(recipient);
+
+            // Remove from subscription tables to clean up generic data subscriptions
+            await db.MySubscriptionsCached.DeleteBySourceOwnerAsync(recipient);
         }
 
         public async Task<FollowerDefinition> GetFollowerAsync(OdinId odinId, IOdinContext odinContext)

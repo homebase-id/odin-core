@@ -6,6 +6,7 @@ using Odin.Hosting.Tests._Universal.ApiClient.DataConversion;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.Tests._Universal.ApiClient.Follower;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
 using Odin.Hosting.Tests._Universal.ApiClient.Notifications;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AccountManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.AppManagement;
@@ -54,6 +55,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
             StaticFilePublisher = new UniversalStaticFileApiClient(identity.OdinId, factory);
 
             Follower = new UniversalFollowerApiClient(identity.OdinId, factory);
+            OwnerFollower = new OwnerFollowerApiClient(_ownerApi, identity);
             Reactions = new UniversalDriveReactionClient(identity.OdinId, factory);
 
             AppNotifications = new AppNotificationsApiClient(identity.OdinId, factory);
@@ -80,6 +82,8 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Owner
         public SecurityApiClient Security { get; }
 
         public UniversalFollowerApiClient Follower { get; }
+
+        public OwnerFollowerApiClient OwnerFollower { get; }
 
         public UniversalDriveReactionClient Reactions { get; }
 
