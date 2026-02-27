@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,12 @@ namespace Odin.Hosting.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
+        private static readonly PathString[] RedirectPaths =
+        [
+            OwnerApiPathConstants.YouAuthV1Authorize,
+            new PathString("/api/owner/v1/security/recovery/verify-email")
+        ];
+        
         private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
         private readonly ShamirConfigurationService _shamirConfigurationService;
         private readonly ITenantProvider _tenantProvider;
@@ -49,19 +56,32 @@ namespace Odin.Hosting.Authentication.Owner
         /// <summary/>
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            // SEB:TODO we should split up these two into different handlers
-            if (Request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1Authorize))
+            if (ShouldRedirect(Request.Path))
             {
                 var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
-                var loginUrl = $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Login}?returnUrl={returnUrl}";
+                var loginUrl =
+                    $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Login}?returnUrl={returnUrl}";
+
+                Response.StatusCode = StatusCodes.Status302Found;
                 Response.Redirect(loginUrl);
             }
             else
             {
-                Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                Response.StatusCode = StatusCodes.Status401Unauthorized;
             }
 
             return Task.CompletedTask;
+        }
+        
+        private static bool ShouldRedirect(PathString path)
+        {
+            foreach (var allowed in RedirectPaths)
+            {
+                if (path.StartsWithSegments(allowed))
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary/>
