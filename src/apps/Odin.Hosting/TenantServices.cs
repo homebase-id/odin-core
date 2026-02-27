@@ -68,6 +68,7 @@ using Odin.Services.LinkPreview.Profile;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization;
 using Odin.Core.Storage.PubSub;
+using Odin.Services.Authorization.Capi;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
@@ -164,6 +165,7 @@ public static class TenantServices
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
         cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
+        cb.RegisterType<CapiCallbackSession>().As<ICapiCallbackSession>().SingleInstance();
 
         cb.RegisterType<HomeCachingService>()
             .AsSelf()

@@ -60,7 +60,7 @@ public class ShamirReadinessCheckerService(
 
         try
         {
-            var client = CreateClientAsync(odinId, odinContext);
+            var client = await CreateClientAsync(odinId, odinContext);
             var response = await client.VerifyReadiness();
 
             if (response.IsSuccessStatusCode)
@@ -116,7 +116,7 @@ public class ShamirReadinessCheckerService(
         //todo: change to generic file system call
         try
         {
-            var client = CreateClientAsync(player, odinContext);
+            var client = await CreateClientAsync(player, odinContext);
             var response = await client.VerifyShard(new VerifyShardRequest()
             {
                 ShardId = shardId
@@ -235,7 +235,7 @@ public class ShamirReadinessCheckerService(
         }
     }
 
-    private IPeerPasswordRecoveryHttpClient CreateClientAsync(OdinId odinId, IOdinContext odinContext)
+    private async Task<IPeerPasswordRecoveryHttpClient> CreateClientAsync(OdinId odinId, IOdinContext odinContext)
     {
         // var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext);
         // var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
@@ -243,7 +243,7 @@ public class ShamirReadinessCheckerService(
         //     odinId, authToken, FileSystemType.Standard);
         // return (icr, httpClient);
 
-        var httpClient = odinHttpClientFactory.CreateClient<IPeerPasswordRecoveryHttpClient>(odinId, FileSystemType.Standard);
+        var httpClient = await odinHttpClientFactory.CreateClientAsync<IPeerPasswordRecoveryHttpClient>(odinId, FileSystemType.Standard);
         return httpClient;
     }
 }

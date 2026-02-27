@@ -6,7 +6,7 @@
         /// <summary>
         /// Scheme for authenticating external Digital Identity hosts when using Transit. 
         /// </summary>
-        public const string TransitCertificateAuthScheme = "TransitCertificate";
+        public const string TransitCapiAuthScheme = "TransitCapiAuthScheme";
         
         /// <summary>
         /// Requests from identities for Connection Requests, Follower subscriptions, etc.  Anything that requires anonymous access to establish

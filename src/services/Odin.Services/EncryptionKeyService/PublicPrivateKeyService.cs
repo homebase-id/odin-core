@@ -78,7 +78,7 @@ namespace Odin.Services.EncryptionKeyService
                 var cacheItem = await _storage.GetAsync<EccPublicKeyData>(_tblKeyValue, cacheKey);
                 if (cacheItem == null || cacheItem.IsExpired())
                 {
-                    var svc = _odinHttpClientFactory.CreateClient<IPeerEncryptionKeyServiceHttpClient>(recipient);
+                    var svc = await _odinHttpClientFactory.CreateClientAsync<IPeerEncryptionKeyServiceHttpClient>(recipient);
                     var getPkResponse = await svc.GetEccPublicKey(keyType);
 
                     if (getPkResponse.Content == null || !getPkResponse.IsSuccessStatusCode)
