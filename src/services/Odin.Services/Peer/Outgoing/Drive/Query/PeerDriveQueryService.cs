@@ -374,6 +374,7 @@ public class PeerDriveQueryService(
                     });
                 });
 
+            logger.LogDebug($"Peer.GetPayloadByGlobalTransitIdAsync -> {file.GlobalTransitId}");
             return await HandlePayloadResponseAsync(odinId, icr, key, response, odinContext);
         }
         catch (TryRetryException t)
@@ -455,7 +456,7 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead);
 
-        if(odinContext.AuthContext == "youauth-token")
+        if (odinContext.AuthContext == "youauth-token")
         {
             //Youauth cannot 
             var authHttpClient = odinHttpClientFactory.CreateClient<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
@@ -487,7 +488,7 @@ public class PeerDriveQueryService(
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
-        if(odinContext.AuthContext == "youauth-token")
+        if (odinContext.AuthContext == "youauth-token")
         {
             sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
             return sharedSecretEncryptedFileHeader;
@@ -521,10 +522,35 @@ public class PeerDriveQueryService(
         return newEncryptedKeyHeader;
     }
 
-    private async Task HandleInvalidResponseAsync<T>(OdinId odinId, ApiResponse<T> response, IOdinContext odinContext)
+    private async Task HandleInvalidResponseAsync<T>(
+        OdinId odinId,
+        ApiResponse<T> response,
+        IOdinContext odinContext)
     {
+        var requestUri = response?.RequestMessage?.RequestUri?.ToString() ?? "null";
+        var method = response?.RequestMessage?.Method?.Method ?? "null";
+
+        string headersDump = string.Join(" | ",
+            response.Headers.Select(h => $"{h.Key}:{string.Join(",", h.Value)}"));
+
+        string contentHeadersDump = response.ContentHeaders != null
+            ? string.Join(" | ",
+                response.ContentHeaders.Select(h => $"{h.Key}:{string.Join(",", h.Value)}"))
+            : "none";
+
+        logger.LogDebug(
+            "Peer response received. OdinId: {odinId}, Method: {method}, Uri: {uri}, Status: {status}",
+            odinId,
+            method,
+            requestUri,
+            response.StatusCode);
+
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
+            logger.LogWarning(
+                "Remote 403. Headers: {headers}",
+                headersDump);
+
             if (response.Headers.TryGetValues(HttpHeaderConstants.RemoteServerIcrIssue, out var values))
             {
                 var icrIssueHeaderExists = bool.TryParse(values.SingleOrDefault() ?? bool.FalseString, out var isIcrIssue);
@@ -539,29 +565,58 @@ public class PeerDriveQueryService(
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)
         {
-            throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
+            logger.LogError(
+                "Remote 500. Uri: {uri}, Headers: {headers}",
+                requestUri,
+                headersDump);
+
+            throw new OdinClientException(
+                "Remote server returned 500",
+                OdinClientErrorCode.RemoteServerReturnedInternalServerError);
         }
 
         if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
         {
-            throw new OdinClientException("Remote server returned 503", OdinClientErrorCode.RemoteServerReturnedUnavailable);
+            logger.LogError(
+                "Remote 503. Uri: {uri}, Headers: {headers}",
+                requestUri,
+                headersDump);
+
+            throw new OdinClientException(
+                "Remote server returned 503",
+                OdinClientErrorCode.RemoteServerReturnedUnavailable);
         }
 
         if (response.IsSuccessStatusCode)
         {
-            //the server might not be an odin server
             var isOdinServer = response.Headers.TryGetValues(OdinHeaderNames.OdinVersionTag, out _);
             if (!isOdinServer)
             {
-                throw new OdinClientException("Peer server is not an ODIN server", OdinClientErrorCode.RemoteServerIsNotAnOdinServer);
+                logger.LogError(
+                    "Peer server is not an ODIN server. Uri: {uri}, Headers: {headers}",
+                    requestUri,
+                    headersDump);
+
+                throw new OdinClientException(
+                    "Peer server is not an ODIN server",
+                    OdinClientErrorCode.RemoteServerIsNotAnOdinServer);
             }
+
+            return;
         }
 
-        if (!response.IsSuccessStatusCode || response.Content == null)
-        {
-            logger.LogWarning("Unhandled peer error response from [{odinId}]: {response.StatusCode}", odinId, response.StatusCode);
-            throw new OdinClientException($"Unhandled peer error response from [{odinId}]: {response.StatusCode}");
-        }
+        // 🔥 This is the important branch for your 404
+        logger.LogWarning(
+            "Unhandled peer response. OdinId: {odinId}, Method: {method}, Uri: {uri}, Status: {status}, Headers: {headers}, ContentHeaders: {contentHeaders}",
+            odinId,
+            method,
+            requestUri,
+            response.StatusCode,
+            headersDump,
+            contentHeadersDump);
+
+        throw new OdinClientException(
+            $"Unhandled peer error response from [{odinId}]: {response.StatusCode}");
     }
 
 
@@ -625,7 +680,7 @@ public class PeerDriveQueryService(
                 response?.RequestMessage?.RequestUri?.ToString(),
                 response.StatusCode
             );
-            
+
             return (null, false, null);
         }
 

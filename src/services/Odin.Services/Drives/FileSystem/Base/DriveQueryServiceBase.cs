@@ -219,11 +219,14 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (null == record)
             {
+                _logger.LogWarning($"DriveQueryServiceBase.GetFileByGlobalTransitId returned " +
+                                   $"null driveId:{driveId} gtid:{globalTransitId}");
                 return null;
             }
 
             if (record.fileSystemType != (int)GetFileSystemType())
             {
+                _logger.LogWarning("Mismatching file system type");
                 return null;
             }
 
