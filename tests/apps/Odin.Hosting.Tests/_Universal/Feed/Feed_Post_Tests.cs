@@ -108,6 +108,12 @@ public class Feed_Post_Tests
 
         ClassicAssert.IsTrue(followSamResponse.IsSuccessStatusCode, $"actual status code was {followSamResponse.StatusCode}");
 
+        // Verify subscription tables are populated
+        var frodoSubs = await ownerFrodo.OwnerFollower.GetMySubscriptions();
+        ClassicAssert.IsTrue(frodoSubs.Any(s => s.sourceOwnerOdinId == TestIdentities.Samwise.OdinId && s.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType), "MySubscriptions should contain subscription to Sam's channels");
+        var samSubs = await ownerSam.OwnerFollower.GetMySubscribers();
+        ClassicAssert.IsTrue(samSubs.Any(s => s.subscriberOdinId == TestIdentities.Frodo.OdinId && s.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType), "MySubscribers should contain Frodo's subscription");
+
         //
         // Using the feed app, Sam posts to public channel with encrypted file having ACL of friends circle
         //

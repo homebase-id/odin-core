@@ -1,8 +1,10 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.DataSubscription.Follower;
+using Odin.Core.Storage.Database.Identity.Table;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Follower
@@ -28,5 +30,11 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Follower
 
         [Post(RootPath + "/unfollow")]
         Task<ApiResponse<HttpContent>> Unfollow([Body] UnfollowRequest request);
+
+        [Get(RootPath + "/my-subscriptions")]
+        Task<ApiResponse<List<MySubscriptionsRecord>>> GetMySubscriptions();
+
+        [Get(RootPath + "/my-subscribers")]
+        Task<ApiResponse<List<MySubscribersRecord>>> GetMySubscribers();
     }
 }

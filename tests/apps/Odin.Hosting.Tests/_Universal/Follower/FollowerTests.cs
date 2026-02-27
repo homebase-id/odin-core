@@ -188,6 +188,15 @@ public class FollowerTests
         //
         await frodoOwnerClient.OwnerFollower.UnfollowIdentity(samOwnerClient.Identity);
 
+        // Verify subscription tables are cleaned up after unfollow
+        // TODO: Add DB assertions for MySubscriptions and MySubscribers cleanup
+        // var frodoDb = _scaffold.GetIdentityDatabase(TestIdentities.Frodo);
+        // var samDb = _scaffold.GetIdentityDatabase(TestIdentities.Samwise);
+        // var frodoSubs = await frodoDb.MySubscriptionsCached.GetAllAsync();
+        // ClassicAssert.IsFalse(frodoSubs.Any(s => s.sourceOwnerOdinId == samOwnerClient.Identity.OdinId), "MySubscriptions should not contain records for unfollowed identity");
+        // var samSubs = await samDb.MySubscribersCached.GetAllAsync();
+        // ClassicAssert.IsFalse(samSubs.Any(s => s.subscriberOdinId == frodoOwnerClient.Identity.OdinId), "MySubscribers should not contain records for unfollowed subscriber");
+
         //Frodo should follow no one
         var updatedFrodoFollows = await frodoAppApiClient.Follower.GetIdentitiesIFollow(string.Empty);
         ClassicAssert.IsTrue(updatedFrodoFollows.Results.All(f => ((OdinId)f) == samOwnerClient.Identity.OdinId), "Frodo should not follow Sam");
