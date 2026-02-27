@@ -257,20 +257,35 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId sourceOwnerOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid targetDriveId)
+        protected virtual async Task<int> DeleteBySourceOwnerOdinIdAsync(Guid identityId,OdinId sourceOwnerOdinId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();
             {
                 delete0Command.CommandText = "DELETE FROM MySubscriptions " +
-                                             "WHERE identityId = @identityId AND sourceOwnerOdinId = @sourceOwnerOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND targetDriveId = @targetDriveId";
+                                             "WHERE identityId = @identityId AND sourceOwnerOdinId = @sourceOwnerOdinId";
 
                 delete0Command.AddParameter("@identityId", DbType.Binary, identityId);
                 delete0Command.AddParameter("@sourceOwnerOdinId", DbType.String, sourceOwnerOdinId.DomainName);
-                delete0Command.AddParameter("@sourceDriveId", DbType.Binary, sourceDriveId);
-                delete0Command.AddParameter("@sourceDriveTypeId", DbType.Binary, sourceDriveTypeId);
-                delete0Command.AddParameter("@targetDriveId", DbType.Binary, targetDriveId);
                 var count = await delete0Command.ExecuteNonQueryAsync();
+                return count;
+            }
+        }
+
+        protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId sourceOwnerOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid targetDriveId)
+        {
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var delete1Command = cn.CreateCommand();
+            {
+                delete1Command.CommandText = "DELETE FROM MySubscriptions " +
+                                             "WHERE identityId = @identityId AND sourceOwnerOdinId = @sourceOwnerOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND targetDriveId = @targetDriveId";
+
+                delete1Command.AddParameter("@identityId", DbType.Binary, identityId);
+                delete1Command.AddParameter("@sourceOwnerOdinId", DbType.String, sourceOwnerOdinId.DomainName);
+                delete1Command.AddParameter("@sourceDriveId", DbType.Binary, sourceDriveId);
+                delete1Command.AddParameter("@sourceDriveTypeId", DbType.Binary, sourceDriveTypeId);
+                delete1Command.AddParameter("@targetDriveId", DbType.Binary, targetDriveId);
+                var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
         }

@@ -34,4 +34,9 @@ public class TableMySubscriptions(
     {
         return await base.GetAllAsync(odinIdentity);
     }
+
+    public async Task<int> DeleteBySourceOwnerOdinIdAsync(OdinId sourceOwnerOdinId)
+    {
+        return await base.DeleteBySourceOwnerOdinIdAsync(odinIdentity, sourceOwnerOdinId);
+    }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Time;
@@ -63,6 +64,13 @@ public class TableMySubscriptionsCached(TableMySubscriptions table, IIdentityTra
     public async Task<int> UpsertAsync(MySubscriptionsRecord item)
     {
         var result = await table.UpsertAsync(item);
+        await Cache.InvalidateAllAsync();
+        return result;
+    }
+
+    public async Task<int> DeleteBySourceOwnerAsync(OdinId sourceOwnerOdinId)
+    {
+        var result = await table.DeleteBySourceOwnerOdinIdAsync(sourceOwnerOdinId);
         await Cache.InvalidateAllAsync();
         return result;
     }
