@@ -28,7 +28,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public OdinId subscriberOdinId { get; set; }
         public Guid? sourceDriveId { get; set; }
         public Guid? sourceDriveTypeId { get; set; }
-        public Guid? targetDriveId { get; set; }
+        public Guid? subscriberTargetDriveId { get; set; }
         public UnixTimeUtc created { get; set; }
         public UnixTimeUtc modified { get; set; }
         public void Validate()
@@ -36,7 +36,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
             sourceDriveId.AssertGuidNotEmpty("Guid parameter sourceDriveId cannot be set to Empty GUID.");
             sourceDriveTypeId.AssertGuidNotEmpty("Guid parameter sourceDriveTypeId cannot be set to Empty GUID.");
-            targetDriveId.AssertGuidNotEmpty("Guid parameter targetDriveId cannot be set to Empty GUID.");
+            subscriberTargetDriveId.AssertGuidNotEmpty("Guid parameter subscriberTargetDriveId cannot be set to Empty GUID.");
         }
     } // End of record MySubscribersRecord
 
@@ -77,10 +77,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"subscriberOdinId TEXT NOT NULL, "
                    +"sourceDriveId BYTEA , "
                    +"sourceDriveTypeId BYTEA , "
-                   +"targetDriveId BYTEA , "
+                   +"subscriberTargetDriveId BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
-                   +", UNIQUE(identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId)"
+                   +", UNIQUE(identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0MySubscribers ON MySubscribers(identityId,subscriberOdinId);"
                    ;
@@ -95,14 +95,14 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO MySubscribers (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId,created,modified) " +
-                                           $"VALUES (@identityId,@subscriberOdinId,@sourceDriveId,@sourceDriveTypeId,@targetDriveId,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO MySubscribers (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId,created,modified) " +
+                                           $"VALUES (@identityId,@subscriberOdinId,@sourceDriveId,@sourceDriveTypeId,@subscriberTargetDriveId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@subscriberOdinId", DbType.String, item.subscriberOdinId.DomainName);
                 insertCommand.AddParameter("@sourceDriveId", DbType.Binary, item.sourceDriveId);
                 insertCommand.AddParameter("@sourceDriveTypeId", DbType.Binary, item.sourceDriveTypeId);
-                insertCommand.AddParameter("@targetDriveId", DbType.Binary, item.targetDriveId);
+                insertCommand.AddParameter("@subscriberTargetDriveId", DbType.Binary, item.subscriberTargetDriveId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -124,15 +124,15 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO MySubscribers (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId,created,modified) " +
-                                            $"VALUES (@identityId,@subscriberOdinId,@sourceDriveId,@sourceDriveTypeId,@targetDriveId,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO MySubscribers (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId,created,modified) " +
+                                            $"VALUES (@identityId,@subscriberOdinId,@sourceDriveId,@sourceDriveTypeId,@subscriberTargetDriveId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@subscriberOdinId", DbType.String, item.subscriberOdinId.DomainName);
                 insertCommand.AddParameter("@sourceDriveId", DbType.Binary, item.sourceDriveId);
                 insertCommand.AddParameter("@sourceDriveTypeId", DbType.Binary, item.sourceDriveTypeId);
-                insertCommand.AddParameter("@targetDriveId", DbType.Binary, item.targetDriveId);
+                insertCommand.AddParameter("@subscriberTargetDriveId", DbType.Binary, item.subscriberTargetDriveId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -154,16 +154,16 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO MySubscribers (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId,created,modified) " +
-                                            $"VALUES (@identityId,@subscriberOdinId,@sourceDriveId,@sourceDriveTypeId,@targetDriveId,{sqlNowStr},{sqlNowStr})"+
-                                            "ON CONFLICT (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId) DO UPDATE "+
+                upsertCommand.CommandText = "INSERT INTO MySubscribers (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId,created,modified) " +
+                                            $"VALUES (@identityId,@subscriberOdinId,@sourceDriveId,@sourceDriveTypeId,@subscriberTargetDriveId,{sqlNowStr},{sqlNowStr})"+
+                                            "ON CONFLICT (identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId) DO UPDATE "+
                                             $"SET modified = {upsertCommand.SqlMax()}(MySubscribers.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@subscriberOdinId", DbType.String, item.subscriberOdinId.DomainName);
                 upsertCommand.AddParameter("@sourceDriveId", DbType.Binary, item.sourceDriveId);
                 upsertCommand.AddParameter("@sourceDriveTypeId", DbType.Binary, item.sourceDriveTypeId);
-                upsertCommand.AddParameter("@targetDriveId", DbType.Binary, item.targetDriveId);
+                upsertCommand.AddParameter("@subscriberTargetDriveId", DbType.Binary, item.subscriberTargetDriveId);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -187,13 +187,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE MySubscribers " +
                                             $"SET modified = {updateCommand.SqlMax()}(MySubscribers.modified+1,{sqlNowStr}) "+
-                                            "WHERE (identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND targetDriveId = @targetDriveId) "+
+                                            "WHERE (identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND subscriberTargetDriveId = @subscriberTargetDriveId) "+
                                             "RETURNING created,modified,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 updateCommand.AddParameter("@subscriberOdinId", DbType.String, item.subscriberOdinId.DomainName);
                 updateCommand.AddParameter("@sourceDriveId", DbType.Binary, item.sourceDriveId);
                 updateCommand.AddParameter("@sourceDriveTypeId", DbType.Binary, item.sourceDriveTypeId);
-                updateCommand.AddParameter("@targetDriveId", DbType.Binary, item.targetDriveId);
+                updateCommand.AddParameter("@subscriberTargetDriveId", DbType.Binary, item.subscriberTargetDriveId);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -231,13 +231,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("subscriberOdinId");
             sl.Add("sourceDriveId");
             sl.Add("sourceDriveTypeId");
-            sl.Add("targetDriveId");
+            sl.Add("subscriberTargetDriveId");
             sl.Add("created");
             sl.Add("modified");
             return sl;
         }
 
-        // SELECT rowId,identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId,created,modified
+        // SELECT rowId,identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId,created,modified
         protected MySubscribersRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<MySubscribersRecord>();
@@ -251,7 +251,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.subscriberOdinId = (rdr[2] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[2]);
             item.sourceDriveId = (rdr[3] == DBNull.Value) ? null : new Guid((byte[])rdr[3]);
             item.sourceDriveTypeId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
-            item.targetDriveId = (rdr[5] == DBNull.Value) ? null : new Guid((byte[])rdr[5]);
+            item.subscriberTargetDriveId = (rdr[5] == DBNull.Value) ? null : new Guid((byte[])rdr[5]);
             item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
             item.modified = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
             return item;
@@ -272,43 +272,43 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId subscriberOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid targetDriveId)
+        protected virtual async Task<int> DeleteAsync(Guid identityId,OdinId subscriberOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid subscriberTargetDriveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete1Command = cn.CreateCommand();
             {
                 delete1Command.CommandText = "DELETE FROM MySubscribers " +
-                                             "WHERE identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND targetDriveId = @targetDriveId";
+                                             "WHERE identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND subscriberTargetDriveId = @subscriberTargetDriveId";
 
                 delete1Command.AddParameter("@identityId", DbType.Binary, identityId);
                 delete1Command.AddParameter("@subscriberOdinId", DbType.String, subscriberOdinId.DomainName);
                 delete1Command.AddParameter("@sourceDriveId", DbType.Binary, sourceDriveId);
                 delete1Command.AddParameter("@sourceDriveTypeId", DbType.Binary, sourceDriveTypeId);
-                delete1Command.AddParameter("@targetDriveId", DbType.Binary, targetDriveId);
+                delete1Command.AddParameter("@subscriberTargetDriveId", DbType.Binary, subscriberTargetDriveId);
                 var count = await delete1Command.ExecuteNonQueryAsync();
                 return count;
             }
         }
 
-        protected virtual async Task<MySubscribersRecord> PopAsync(Guid identityId,OdinId subscriberOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid targetDriveId)
+        protected virtual async Task<MySubscribersRecord> PopAsync(Guid identityId,OdinId subscriberOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid subscriberTargetDriveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var deleteCommand = cn.CreateCommand();
             {
                 deleteCommand.CommandText = "DELETE FROM MySubscribers " +
-                                             "WHERE identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND targetDriveId = @targetDriveId " + 
+                                             "WHERE identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND subscriberTargetDriveId = @subscriberTargetDriveId " + 
                                              "RETURNING rowId,created,modified";
 
                 deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 deleteCommand.AddParameter("@subscriberOdinId", DbType.String, subscriberOdinId.DomainName);
                 deleteCommand.AddParameter("@sourceDriveId", DbType.Binary, sourceDriveId);
                 deleteCommand.AddParameter("@sourceDriveTypeId", DbType.Binary, sourceDriveTypeId);
-                deleteCommand.AddParameter("@targetDriveId", DbType.Binary, targetDriveId);
+                deleteCommand.AddParameter("@subscriberTargetDriveId", DbType.Binary, subscriberTargetDriveId);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
                 {
                     if (await rdr.ReadAsync())
                     {
-                       return ReadRecordFromReader0(rdr,identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId);
+                       return ReadRecordFromReader0(rdr,identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId);
                     }
                     else
                     {
@@ -318,7 +318,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             }
         }
 
-        protected MySubscribersRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId subscriberOdinId,Guid? sourceDriveId,Guid? sourceDriveTypeId,Guid? targetDriveId)
+        protected MySubscribersRecord ReadRecordFromReader0(DbDataReader rdr,Guid identityId,OdinId subscriberOdinId,Guid? sourceDriveId,Guid? sourceDriveTypeId,Guid? subscriberTargetDriveId)
         {
             var result = new List<MySubscribersRecord>();
 #pragma warning disable CS0168
@@ -330,27 +330,27 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.subscriberOdinId = subscriberOdinId;
             item.sourceDriveId = sourceDriveId;
             item.sourceDriveTypeId = sourceDriveTypeId;
-            item.targetDriveId = targetDriveId;
+            item.subscriberTargetDriveId = subscriberTargetDriveId;
             item.rowId = (rdr[0] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (long)rdr[0];
             item.created = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[1]);
             item.modified = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[2]);
             return item;
        }
 
-        protected virtual async Task<MySubscribersRecord> GetAsync(Guid identityId,OdinId subscriberOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid targetDriveId)
+        protected virtual async Task<MySubscribersRecord> GetAsync(Guid identityId,OdinId subscriberOdinId,Guid sourceDriveId,Guid sourceDriveTypeId,Guid subscriberTargetDriveId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
                 get0Command.CommandText = "SELECT rowId,created,modified FROM MySubscribers " +
-                                             "WHERE identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND targetDriveId = @targetDriveId LIMIT 1 "+
+                                             "WHERE identityId = @identityId AND subscriberOdinId = @subscriberOdinId AND sourceDriveId = @sourceDriveId AND sourceDriveTypeId = @sourceDriveTypeId AND subscriberTargetDriveId = @subscriberTargetDriveId LIMIT 1 "+
                                              ";";
 
                 get0Command.AddParameter("@identityId", DbType.Binary, identityId);
                 get0Command.AddParameter("@subscriberOdinId", DbType.String, subscriberOdinId.DomainName);
                 get0Command.AddParameter("@sourceDriveId", DbType.Binary, sourceDriveId);
                 get0Command.AddParameter("@sourceDriveTypeId", DbType.Binary, sourceDriveTypeId);
-                get0Command.AddParameter("@targetDriveId", DbType.Binary, targetDriveId);
+                get0Command.AddParameter("@subscriberTargetDriveId", DbType.Binary, subscriberTargetDriveId);
                 {
                     using (var rdr = await get0Command.ExecuteReaderAsync(CommandBehavior.SingleRow))
                     {
@@ -358,7 +358,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                         {
                             return null;
                         }
-                        var r = ReadRecordFromReader0(rdr,identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId);
+                        var r = ReadRecordFromReader0(rdr,identityId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId);
                         return r;
                     } // using
                 } //
@@ -378,7 +378,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.subscriberOdinId = (rdr[1] == DBNull.Value) ?                 throw new Exception("item is NULL, but set as NOT NULL") : new OdinId((string)rdr[1]);
             item.sourceDriveId = (rdr[2] == DBNull.Value) ? null : new Guid((byte[])rdr[2]);
             item.sourceDriveTypeId = (rdr[3] == DBNull.Value) ? null : new Guid((byte[])rdr[3]);
-            item.targetDriveId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
+            item.subscriberTargetDriveId = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
             item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
             item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
             return item;
@@ -389,7 +389,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,targetDriveId,created,modified FROM MySubscribers " +
+                get1Command.CommandText = "SELECT rowId,subscriberOdinId,sourceDriveId,sourceDriveTypeId,subscriberTargetDriveId,created,modified FROM MySubscribers " +
                                              "WHERE identityId = @identityId "+
                                              ";";
 
