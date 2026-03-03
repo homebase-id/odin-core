@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Core.Storage.Database.Identity.Table;
 using Refit;
 
 namespace Odin.Hosting.Tests._Universal.ApiClient.Follower;
@@ -93,6 +94,26 @@ public class UniversalFollowerApiClient(OdinId targetIdentity, IApiClientFactory
             {
                 OdinId = odinId
             });
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<List<MySubscriptionsRecord>>> GetMySubscriptions()
+    {
+        var client = factory.CreateHttpClient(targetIdentity, out var sharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalFollowerClient>(client, sharedSecret);
+            var apiResponse = await svc.GetMySubscriptions();
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<List<MySubscribersRecord>>> GetMySubscribers()
+    {
+        var client = factory.CreateHttpClient(targetIdentity, out var sharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalFollowerClient>(client, sharedSecret);
+            var apiResponse = await svc.GetMySubscribers();
             return apiResponse;
         }
     }

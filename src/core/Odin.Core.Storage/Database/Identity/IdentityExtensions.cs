@@ -97,6 +97,8 @@ public static class IdentityExtensions
         cb.RegisterType<TableConnectionsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableDriveMainIndexCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableDrivesCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableMySubscribersCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableMySubscriptionsCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableFollowsMeCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableImFollowingCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyThreeValueCached>().InstancePerLifetimeScope();
