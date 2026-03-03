@@ -75,7 +75,7 @@ public class SendReadReceiptOutboxWorker(
 
         async Task<ApiResponse<PeerTransferResponse>> TrySendFile()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
+            var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
                 recipient,
                 clientAuthToken,
                 request.FileSystemType);
