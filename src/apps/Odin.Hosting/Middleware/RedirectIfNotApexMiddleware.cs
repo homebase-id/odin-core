@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Odin.Services.Authorization.Capi;
 using Odin.Services.Tenant;
 
 namespace Odin.Hosting.Middleware;
@@ -33,7 +34,7 @@ public class RedirectIfNotApexMiddleware
             return _next(context);
         }
         
-        if (context.Connection.ClientCertificate != null || context.Request.Headers.ContainsKey("X-Odin-Cert"))
+        if (context.Request.Headers.ContainsKey(ICapiCallbackSession.SessionHttpHeaderName))
         {
             return _next(context);
         }

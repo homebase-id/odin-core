@@ -84,7 +84,7 @@ namespace Odin.Services.DataSubscription.Follower
             {
                 var eccEncryptedPayload = await publicPrivatePublicKeyService.EccEncryptPayloadForRecipientAsync(
                     keyType, identityToFollow, json.ToUtf8ByteArray());
-                var client = CreateClient(identityToFollow);
+                var client = await CreateClientAsync(identityToFollow);
                 var response = await client.Follow(eccEncryptedPayload);
                 return response;
             }
@@ -143,7 +143,7 @@ namespace Odin.Services.DataSubscription.Follower
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageFeed);
 
-            var client = CreateClient(recipient);
+            var client = await CreateClientAsync(recipient);
             var response = await client.Unfollow();
 
             if (!response.IsSuccessStatusCode)
@@ -551,9 +551,9 @@ namespace Odin.Services.DataSubscription.Follower
             return Math.Max(max, 10);
         }
 
-        private IFollowerHttpClient CreateClient(OdinId odinId)
+        private async Task<IFollowerHttpClient> CreateClientAsync(OdinId odinId)
         {
-            var httpClient = httpClientFactory.CreateClient<IFollowerHttpClient>(odinId);
+            var httpClient = await httpClientFactory.CreateClientAsync<IFollowerHttpClient>(odinId);
             return httpClient;
         }
 

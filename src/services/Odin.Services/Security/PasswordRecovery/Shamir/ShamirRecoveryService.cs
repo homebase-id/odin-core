@@ -474,10 +474,10 @@ public class ShamirRecoveryService
         await Storage.UpsertAsync(_keyValueTable, ShamirStatusStorageId, statusRecord);
     }
 
-    private Task<IPeerPasswordRecoveryHttpClient> CreateClientAsync(OdinId odinId)
+    private async Task<IPeerPasswordRecoveryHttpClient> CreateClientAsync(OdinId odinId)
     {
-        var httpClient = _odinHttpClientFactory.CreateClient<IPeerPasswordRecoveryHttpClient>(odinId);
-        return Task.FromResult(httpClient);
+        var httpClient = await _odinHttpClientFactory.CreateClientAsync<IPeerPasswordRecoveryHttpClient>(odinId);
+        return httpClient;
     }
 
     private async Task<IPeerPasswordRecoveryHttpClient> CreateClientAsyncWithToken(OdinId odinId,
@@ -488,7 +488,7 @@ public class ShamirRecoveryService
         var icr = await _circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
         var httpClient =
-            _odinHttpClientFactory.CreateClientUsingAccessToken<IPeerPasswordRecoveryHttpClient>(odinId, authToken, fileSystemType);
+            await _odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerPasswordRecoveryHttpClient>(odinId, authToken, fileSystemType);
         return httpClient;
     }
 

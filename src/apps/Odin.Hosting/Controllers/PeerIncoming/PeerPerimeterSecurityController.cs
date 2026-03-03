@@ -13,7 +13,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming
     /// </summary>
     [ApiController]
     [Route(PeerApiPathConstants.SecurityV1)]
-    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
+    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
     [ApiExplorerSettings(GroupName = "peer-v1")]
     public class PeerPerimeterSecurityController() : OdinControllerBase
     {

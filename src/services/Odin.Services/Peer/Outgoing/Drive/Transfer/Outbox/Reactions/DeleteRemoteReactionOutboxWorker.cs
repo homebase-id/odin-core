@@ -75,7 +75,7 @@ public class DeleteRemoteReactionOutboxWorker(
 
         async Task<ApiResponse<PeerResponseCode>> TrySendRequest()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerGroupReactionHttpClient>(
+            var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerGroupReactionHttpClient>(
                 recipient,
                 clientAuthToken,
                 item.FileSystemType);

@@ -182,7 +182,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             EncryptedPayload = distroItem.EncryptedPayload
         };
 
-        var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);
+        var client = await odinHttpClientFactory.CreateClientAsync<IFeedDistributorHttpClient>(recipient, fileSystemType: distroItem.FileSystemType);
         ApiResponse<PeerTransferResponse> httpResponse = null;
 
         await TryRetry.Create()
@@ -208,7 +208,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             UniqueId = header.FileMetadata.AppData.UniqueId,
         };
 
-        var client = odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+        var client = await odinHttpClientFactory.CreateClientAsync<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
         ApiResponse<PeerTransferResponse> httpResponse = null;
 
         await TryRetry.Create()
