@@ -1137,7 +1137,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
                 {
-                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
+                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
                 }
             }
 
@@ -1371,27 +1371,9 @@ namespace Odin.Services.Drives.FileSystem.Base
                 FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
                 {
                     FileState = FileState.Deleted,
-                    Created = existingHeader.FileMetadata.Created,
                     Updated = UnixTimeUtc.Now().milliseconds,
                     GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
-                    VersionTag = existingHeader.FileMetadata.VersionTag,
-                    OriginalAuthor = existingHeader.FileMetadata.OriginalAuthor,
-                    TransitCreated = existingHeader.FileMetadata.TransitCreated,
-                    TransitUpdated = existingHeader.FileMetadata.TransitUpdated,
-                    SenderOdinId = existingHeader.FileMetadata.SenderOdinId,
-                    AppData = new AppFileMetaData()
-                    {
-                        UniqueId = existingHeader.FileMetadata.AppData.UniqueId,
-                        FileType = existingHeader.FileMetadata.AppData.FileType,
-                        GroupId = existingHeader.FileMetadata.AppData.GroupId
-                    },
-
-                    ReferencedFile = null,
-                    ReactionPreview = null,
-                    IsEncrypted = false,
-                    DataSource = null,
-                    LocalAppData = null,
-                    Payloads = null,
+                    VersionTag = existingHeader.FileMetadata.VersionTag
                 },
                 ServerMetadata = existingHeader.ServerMetadata
             };
