@@ -143,7 +143,7 @@ namespace Odin.Services.DataSubscription.Follower
                     var record = new MySubscriptionsRecord
                     {
                         identityId = subscriberIdentityId,
-                        sourceOwnerOdinId = identityToFollow,
+                        sourceOdinId = identityToFollow,
                         sourceDriveTypeId = SystemDriveConstants.ChannelDriveType,
                         targetDriveId = feedDriveId,
                         created = now,
@@ -160,7 +160,7 @@ namespace Odin.Services.DataSubscription.Follower
                         var record = new MySubscriptionsRecord
                         {
                             identityId = subscriberIdentityId,
-                            sourceOwnerOdinId = identityToFollow,
+                            sourceOdinId = identityToFollow,
                             sourceDriveId = channel.Alias,
                             targetDriveId = feedDriveId,
                             created = now,

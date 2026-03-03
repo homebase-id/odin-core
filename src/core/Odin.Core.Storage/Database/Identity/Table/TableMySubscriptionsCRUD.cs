@@ -257,7 +257,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             return item;
        }
 
-        protected virtual async Task<int> DeleteBysourceOdinIdAsync(Guid identityId,OdinId sourceOdinId)
+        protected virtual async Task<int> DeleteBySourceOdinIdAsync(Guid identityId,OdinId sourceOdinId)
         {
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var delete0Command = cn.CreateCommand();

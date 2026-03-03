@@ -85,7 +85,7 @@ namespace Odin.Services.DataSubscription.Follower
                     identityId = _tenantContext.DotYouRegistryId,
                     subscriberOdinId = new OdinId(request.OdinId),
                     sourceDriveTypeId = SystemDriveConstants.ChannelDriveType,
-                    targetDriveId = feedDriveId,
+                    subscriberTargetDriveId = feedDriveId,
                     created = now,
                     modified = now
                 };
@@ -102,7 +102,7 @@ namespace Odin.Services.DataSubscription.Follower
                         identityId = _tenantContext.DotYouRegistryId,
                         subscriberOdinId = new OdinId(request.OdinId),
                         sourceDriveId = channel.Alias,
-                        targetDriveId = feedDriveId,
+                        subscriberTargetDriveId = feedDriveId,
                         created = now,
                         modified = now
                     };

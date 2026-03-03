@@ -110,7 +110,7 @@ public class Feed_Post_Tests
 
         // Verify subscription tables are populated
         var frodoSubs = await ownerFrodo.OwnerFollower.GetMySubscriptions();
-        ClassicAssert.IsTrue(frodoSubs.Any(s => s.sourceOwnerOdinId == TestIdentities.Samwise.OdinId && s.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType), "MySubscriptions should contain subscription to Sam's channels");
+        ClassicAssert.IsTrue(frodoSubs.Any(s => s.sourceOdinId == TestIdentities.Samwise.OdinId && s.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType), "MySubscriptions should contain subscription to Sam's channels");
         var samSubs = await ownerSam.OwnerFollower.GetMySubscribers();
         ClassicAssert.IsTrue(samSubs.Any(s => s.subscriberOdinId == TestIdentities.Frodo.OdinId && s.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType), "MySubscribers should contain Frodo's subscription");
 
