@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -73,7 +72,8 @@ public class GroupReactionService(
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new DeleteReactionResult();
-        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, markComplete: null);
+        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext,
+            markComplete: null);
 
         if (options?.Recipients?.Any() ?? false)
         {
@@ -101,7 +101,9 @@ public class GroupReactionService(
         return await reactionContentService.GetReactionCountsByFileAsync(file, odinContext);
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId identity, FileIdentifier fileId, IOdinContext odinContext,
+    public async Task<List<string>> GetReactionsByIdentityAndFileAsync(OdinId identity,
+        FileIdentifier fileId,
+        IOdinContext odinContext,
         FileSystemType fileSystemType)
     {
         OdinValidationUtils.AssertIsValidOdinId(identity, out _);
@@ -123,9 +125,38 @@ public class GroupReactionService(
         return await reactionContentService.GetReactionsAsync(file, cursor, maxCount, odinContext);
     }
 
+    public async Task<ToggleReactionResult> ToggleReaction(FileIdentifier fileId, string reaction,
+        ReactionTransitOptions options,
+        IOdinContext odinContext,
+        FileSystemType fileSystemType)
+    {
+        var file = await GetLocalFileIdAsync(fileId, odinContext, fileSystemType);
+        odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
+
+        var caller = odinContext.Caller.OdinId.GetValueOrDefault();
+        var reactions = await reactionContentService.GetReactionsByIdentityAndFileAsync(caller, file, odinContext);
+        var hasReaction = reactions.Any(r => r == reaction);
+        if (hasReaction)
+        {
+            await DeleteReactionAsync(fileId, reaction, options, odinContext, fileSystemType);
+            return new ToggleReactionResult()
+            {
+                ResultType = ToggleReactionResultType.Deleted
+            };
+        }
+        else
+        {
+            await AddReactionAsync(fileId, reaction, options, odinContext, fileSystemType);
+            return new ToggleReactionResult()
+            {
+                ResultType = ToggleReactionResultType.Added
+            };
+        }
+    }
     //
 
-    private async Task<InternalDriveFileId> GetLocalFileIdAsync(FileIdentifier fileId, IOdinContext odinContext, FileSystemType fileSystemType)
+    private async Task<InternalDriveFileId> GetLocalFileIdAsync(FileIdentifier fileId, IOdinContext odinContext,
+        FileSystemType fileSystemType)
     {
         var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
         var localFileId = (await fs.Query.ResolveFileId(fileId.ToGlobalTransitIdFileIdentifier(), odinContext)).GetValueOrDefault();

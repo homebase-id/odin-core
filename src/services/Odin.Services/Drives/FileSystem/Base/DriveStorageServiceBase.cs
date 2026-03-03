@@ -1383,7 +1383,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                     AppData = new AppFileMetaData
                     {
-                        UniqueId = appData.UniqueId,
+                        UniqueId = null,
                         Tags = appData.Tags,
                         FileType = appData.FileType,
                         DataType = appData.DataType,

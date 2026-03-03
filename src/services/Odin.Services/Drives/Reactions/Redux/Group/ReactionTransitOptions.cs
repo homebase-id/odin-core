@@ -1,8 +1,9 @@
 using System.Collections.Generic;
+using Odin.Core.Identity;
 
 namespace Odin.Services.Drives.Reactions.Redux.Group;
 
 public class ReactionTransitOptions
 {
-    public List<string> Recipients { get; init; }
+    public List<OdinId> Recipients { get; init; }
 }

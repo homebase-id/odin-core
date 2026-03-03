@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -17,7 +16,6 @@ namespace Odin.Services.Drives.Reactions;
 
 //TODO: include checks to ensure the file exists
 
-
 /// <summary>
 /// Manages reactions to files
 /// </summary>
@@ -28,7 +26,8 @@ public class ReactionContentService(
     DriveQuery driveQuery,
     IMediator mediator)
 {
-    public async Task<bool> AddReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
+    public async Task<bool> AddReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext,
+        WriteSecondDatabaseRowBase markComplete)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
@@ -59,7 +58,8 @@ public class ReactionContentService(
         return true;
     }
 
-    public async Task<bool> DeleteReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
+    public async Task<bool> DeleteReactionAsync(InternalDriveFileId file, string reactionContent, OdinId senderId, IOdinContext odinContext,
+        WriteSecondDatabaseRowBase markComplete)
     {
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.React);
 
@@ -70,10 +70,10 @@ public class ReactionContentService(
             await driveQuery.DeleteReactionAsync(drive, senderId, file.FileId, reactionContent);
             // We could check here if 1 row was deleted ...
 
-            logger.LogDebug("{method} -> markComplete {message}", 
+            logger.LogDebug("{method} -> markComplete {message}",
                 nameof(DeleteReactionAsync),
                 markComplete == null ? "is not configured" : "will be called");
-            
+
             if (markComplete != null)
             {
                 var n = await markComplete.ExecuteAsync();
@@ -81,6 +81,7 @@ public class ReactionContentService(
                 if (n != 1)
                     throw new OdinSystemException("Hum, unable to mark the inbox record as completed, aborting");
             }
+
             tx.Commit();
         }
 
@@ -100,7 +101,7 @@ public class ReactionContentService(
                 OdinContext = odinContext,
             });
         }
-        catch (Exception ex) 
+        catch (Exception ex)
         {
             logger.LogError(ex, "mediator.Publish threw an error");
         }
@@ -127,7 +128,7 @@ public class ReactionContentService(
         odinContext.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
         var drive = await driveManager.GetDriveAsync(file.DriveId, failIfInvalid: true);
-        return await driveQuery.GetReactionsByIdentityAndFileAsync(drive, identity, file.FileId);
+        return await driveQuery.GetReactionsByIdentityAndFileAsync(drive.Id, identity, file.FileId);
     }
 
     public async Task DeleteAllReactionsAsync(InternalDriveFileId file, IOdinContext odinContext)

@@ -64,7 +64,7 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         Task<(List<ReactionCount> reactions, int total)> GetReactionSummaryByFileAsync(StorageDrive drive, Guid fileId);
 
-        Task<List<string>> GetReactionsByIdentityAndFileAsync(StorageDrive drive, OdinId identity, Guid fileId);
+        Task<List<string>> GetReactionsByIdentityAndFileAsync(Guid driveId, OdinId identity, Guid fileId);
 
         Task<int> GetReactionCountByIdentityAsync(StorageDrive drive, OdinId odinId, Guid fileId);
 

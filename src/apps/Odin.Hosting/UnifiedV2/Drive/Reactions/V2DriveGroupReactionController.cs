@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Base;
@@ -77,7 +78,22 @@ public class V2DriveGroupReactionController(GroupReactionService groupReactionSe
         return await groupReactionService.GetReactionCountsByFileAsync(file, WebOdinContext,
             this.GetHttpFileSystemResolver().GetFileSystemType());
     }
-    
+
+    [SwaggerOperation(Tags = [SwaggerInfo.FileReaction])]
+    [HttpPost("toggle")]
+    public async Task<ToggleReactionResult> ToggleReaction(
+        Guid driveId,
+        Guid fileId,
+        [FromBody] ToggleReactionRequest request
+    )
+    {
+        var file = await ResolveGlobalTransitId(driveId, fileId);
+        var result = await groupReactionService.ToggleReaction(file, request.Reaction,
+            request.TransitOptions, WebOdinContext, this.GetHttpFileSystemResolver().GetFileSystemType());
+
+        return result;
+    }
+
     private async Task<FileIdentifier> ResolveGlobalTransitId(Guid driveId, Guid fileId)
     {
         var header = await this.GetHttpFileSystemResolver().ResolveFileSystem().Storage.GetServerFileHeader(
