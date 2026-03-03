@@ -1137,7 +1137,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
                 {
-                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.InvalidKeyHeader);
+                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
                 }
             }
 
