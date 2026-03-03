@@ -31,6 +31,7 @@ public static class BackgroundServiceExtensions
         cb.RegisterBackgroundService<UpdateCertificatesBackgroundService>();
         cb.RegisterBackgroundService<LastSeenBackgroundService>();
         cb.RegisterBackgroundService<LogTransactionalCacheStatsBackgroundService>();
+        cb.RegisterBackgroundService<LogMemoryDiagnosticsBackgroundService>();
 
         // Add more system background services here
         // ...
@@ -49,6 +50,7 @@ public static class BackgroundServiceExtensions
         await bsm.StartAsync<UpdateCertificatesBackgroundService>();
         await bsm.StartAsync<LastSeenBackgroundService>();
         await bsm.StartAsync<LogTransactionalCacheStatsBackgroundService>();
+        await bsm.StartAsync<LogMemoryDiagnosticsBackgroundService>();
     }
 
     //
