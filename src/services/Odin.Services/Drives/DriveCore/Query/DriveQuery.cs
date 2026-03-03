@@ -67,7 +67,7 @@ public class DriveQuery(
 
         return (nextCursor, results, moreRows);
     }
-    
+
     public async Task<(QueryBatchCursor, List<DriveMainIndexRecord>, bool hasMoreRows)> GetSmartBatchCoreAsync(
         StorageDrive drive,
         IOdinContext odinContext,
@@ -374,10 +374,10 @@ public class DriveQuery(
                 singleReaction = reaction
             });
 
-            logger.LogDebug("{method} -> markComplete {message}", 
+            logger.LogDebug("{method} -> markComplete {message}",
                 nameof(AddReactionAsync),
                 markComplete == null ? "is not configured" : "will be called");
-            
+
             if (markComplete != null)
             {
                 int n = await markComplete.ExecuteAsync();
@@ -430,9 +430,9 @@ public class DriveQuery(
         return (results, total);
     }
 
-    public async Task<List<string>> GetReactionsByIdentityAndFileAsync(StorageDrive drive, OdinId identity, Guid fileId)
+    public async Task<List<string>> GetReactionsByIdentityAndFileAsync(Guid driveId, OdinId identity, Guid fileId)
     {
-        return await tblDriveReactions.GetIdentityPostReactionDetailsAsync(identity, drive.Id, fileId);
+        return await tblDriveReactions.GetIdentityPostReactionDetailsAsync(identity, driveId, fileId);
     }
 
     public async Task<int> GetReactionCountByIdentityAsync(StorageDrive drive, OdinId odinId, Guid fileId)

@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
@@ -35,7 +34,8 @@ public class ReactionTestsDistributeToOthers
     {
         var folder = GetType().Name;
         _scaffold = new WebScaffold(folder);
-        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Pippin, TestIdentities.Merry, TestIdentities.Samwise });
+        _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>()
+            { TestIdentities.Pippin, TestIdentities.Merry, TestIdentities.Samwise });
     }
 
     [OneTimeTearDown]
@@ -92,9 +92,10 @@ public class ReactionTestsDistributeToOthers
         var localIdentity = TestIdentities.Pippin;
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(localIdentity);
         var targetDrive = callerContext.TargetDrive;
-        var createDriveResponse = await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+        var createDriveResponse = await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive 001", "",
+            allowAnonymousReads: true);
         ClassicAssert.IsTrue(createDriveResponse.IsSuccessStatusCode);
-        
+
         List<TestIdentity> recipients = [TestIdentities.Merry, TestIdentities.Samwise];
 
         //create the drive on recipients
@@ -129,12 +130,13 @@ public class ReactionTestsDistributeToOthers
             Reaction = reactionContent1,
             TransitOptions = new ReactionTransitOptions
             {
-                Recipients = recipients.ToStringList()
+                Recipients = recipients.ToOdinIdList()
             }
         });
 
         // Assert
-        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
@@ -215,7 +217,7 @@ public class ReactionTestsDistributeToOthers
             Reaction = reactionContent1,
             TransitOptions = new ReactionTransitOptions()
             {
-                Recipients = recipients.ToStringList()
+                Recipients = recipients.ToOdinIdList()
             }
         });
 
@@ -248,12 +250,13 @@ public class ReactionTestsDistributeToOthers
             Reaction = reactionContent1,
             TransitOptions = new ReactionTransitOptions()
             {
-                Recipients = recipients.ToStringList()
+                Recipients = recipients.ToOdinIdList()
             }
         });
 
         // Assert
-        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode,
+            $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
 
         if (expectedStatusCode == HttpStatusCode.OK)
         {
@@ -265,13 +268,17 @@ public class ReactionTestsDistributeToOthers
             await ownerApiClient.DriveRedux.WaitForEmptyOutbox(targetDrive);
             await WaitForEmptyInboxes(recipients, targetDrive);
 
-            await AssertIdentityDoesNotHaveReactionInPreview(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
-            await AssertIdentityDoesNotHaveReaction(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1, localIdentity.OdinId);
+            await AssertIdentityDoesNotHaveReactionInPreview(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
+                reactionContent1);
+            await AssertIdentityDoesNotHaveReaction(localIdentity, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
+                reactionContent1, localIdentity.OdinId);
 
             foreach (var recipient in recipients)
             {
-                await AssertIdentityDoesNotHaveReactionInPreview(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1);
-                await AssertIdentityDoesNotHaveReaction(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(), reactionContent1, localIdentity.OdinId);
+                await AssertIdentityDoesNotHaveReactionInPreview(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
+                    reactionContent1);
+                await AssertIdentityDoesNotHaveReaction(recipient, uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
+                    reactionContent1, localIdentity.OdinId);
             }
         }
 
@@ -284,7 +291,8 @@ public class ReactionTestsDistributeToOthers
         var getHeaderResponse1 = await client.DriveRedux.QueryByGlobalTransitId(fileId.ToGlobalTransitIdFileIdentifier());
 
         var file = getHeaderResponse1.Content.SearchResults.First();
-        var noMatchingInReactionPreview = file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
+        var noMatchingInReactionPreview =
+            file.FileMetadata.ReactionPreview.Reactions.All(pair => pair.Value.ReactionContent != reactionContent);
         ClassicAssert.IsTrue(noMatchingInReactionPreview);
     }
 
@@ -298,7 +306,8 @@ public class ReactionTestsDistributeToOthers
         ClassicAssert.IsTrue(hasReactionInPreview);
     }
 
-    private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent, OdinId sender,
+    private async Task AssertIdentityHasReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
+        OdinId sender,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -311,7 +320,8 @@ public class ReactionTestsDistributeToOthers
         ClassicAssert.IsTrue(hasReactionInDb);
     }
 
-    private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent, OdinId sender,
+    private async Task AssertIdentityDoesNotHaveReaction(TestIdentity identity, FileIdentifier globalTransitFileId, string reactionContent,
+        OdinId sender,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = _scaffold.CreateOwnerApiClientRedux(identity);
@@ -320,7 +330,8 @@ public class ReactionTestsDistributeToOthers
                 File = globalTransitFileId,
             },
             fileSystemType);
-        var reactionNotInDb = getReactionsResponse.Content.Reactions.All(r => !(r.OdinId == sender && r.ReactionContent == reactionContent));
+        var reactionNotInDb =
+            getReactionsResponse.Content.Reactions.All(r => !(r.OdinId == sender && r.ReactionContent == reactionContent));
         ClassicAssert.IsTrue(reactionNotInDb);
     }
 
@@ -353,16 +364,17 @@ public class ReactionTestsDistributeToOthers
         };
 
         var circleId = Guid.NewGuid();
-        var createCircleResponse = await recipientClient.Network.CreateCircle(circleId, "Circle with drive access", new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
+        var createCircleResponse = await recipientClient.Network.CreateCircle(circleId, "Circle with drive access",
+            new PermissionSetGrantRequest()
             {
-                new()
+                Drives = new List<DriveGrantRequest>()
                 {
-                    PermissionedDrive = expectedPermissionedDrive
+                    new()
+                    {
+                        PermissionedDrive = expectedPermissionedDrive
+                    }
                 }
-            }
-        });
+            });
 
         ClassicAssert.IsTrue(createCircleResponse.IsSuccessStatusCode);
 
