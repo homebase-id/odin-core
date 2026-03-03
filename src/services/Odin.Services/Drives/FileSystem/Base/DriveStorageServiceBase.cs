@@ -1137,7 +1137,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 if (ByteArrayUtil.EquiByteArrayCompare(manifest.KeyHeader.Iv, existingKeyHeader.Iv))
                 {
-                    throw new OdinClientException("When updating a file, you must change the Iv", OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
+                    throw new OdinClientException("When updating a file, you must change the Iv",
+                        OdinClientErrorCode.MustRotateKeyHeaderIvWhenUpdating);
                 }
             }
 
@@ -1310,7 +1311,6 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (payloadDiskUsage, thumbnailDiskUsage);
         }
 
-
         private async Task WriteFileHeaderInternal(ServerFileHeader header, IOdinContext odinContext, Guid? useThisVersionTag = null)
         {
             // Note: these validations here are just-in-case checks; however at this point many
@@ -1318,7 +1318,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             _logger.LogDebug("Calling header.validate on gtid: {file}", header.FileMetadata.GlobalTransitId);
             header.Validate(odinContext);
-
 
             var drive = await DriveManager.GetDriveAsync(header.FileMetadata.File.DriveId);
 
@@ -1365,15 +1364,43 @@ namespace Odin.Services.Drives.FileSystem.Base
             var file = existingHeader.FileMetadata.File;
             var payloadsToDelete = existingHeader.FileMetadata.Payloads ?? [];
 
+            var metadata = existingHeader.FileMetadata;
+            var appData = existingHeader.FileMetadata.AppData;
             var deletedServerFileHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = existingHeader.EncryptedKeyHeader,
                 FileMetadata = new FileMetadata(existingHeader.FileMetadata.File)
                 {
                     FileState = FileState.Deleted,
+                    Created = metadata.Created,
                     Updated = UnixTimeUtc.Now().milliseconds,
-                    GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId,
-                    VersionTag = existingHeader.FileMetadata.VersionTag
+                    TransitCreated = metadata.TransitCreated,
+                    TransitUpdated = metadata.TransitUpdated,
+                    SenderOdinId = metadata.SenderOdinId,
+                    OriginalAuthor = metadata.OriginalAuthor,
+                    GlobalTransitId = metadata.GlobalTransitId,
+                    VersionTag = metadata.VersionTag,
+
+                    AppData = new AppFileMetaData
+                    {
+                        UniqueId = appData.UniqueId,
+                        Tags = appData.Tags,
+                        FileType = appData.FileType,
+                        DataType = appData.DataType,
+                        GroupId = appData.GroupId,
+                        UserDate = appData.UserDate,
+                        ArchivalStatus = appData.ArchivalStatus,
+                        
+                        Content = "",
+                        PreviewThumbnail = null,
+                    },
+                    
+                    ReferencedFile = null,
+                    ReactionPreview = null,
+                    IsEncrypted = false,
+                    LocalAppData = null,
+                    Payloads = null,
+                    DataSource = null,
                 },
                 ServerMetadata = existingHeader.ServerMetadata
             };
