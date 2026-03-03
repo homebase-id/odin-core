@@ -15,6 +15,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
+using Odin.Core.Logging.Memory;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
@@ -397,6 +398,7 @@ public static class HostExtensions
         var config = services.GetRequiredService<OdinConfiguration>();
 
         logger.LogDebug("Starting initialization in {method}", nameof(BeforeApplicationStarting));
+        MemoryDiagnostics.LogMemoryBreakdown(logger);
 
         // Create system database
         logger.LogInformation("Migrating database for {database}", "system");
@@ -503,6 +505,8 @@ public static class HostExtensions
         // Wait for any registered fire-and-forget tasks to complete
         //
         services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
+
+        MemoryDiagnostics.LogMemoryBreakdown(logger);
 
         // DON'T PUT ANY CLEANUP BELOW THIS LINE
         logger.LogDebug("Finished clean up in {method}", nameof(BeforeApplicationStopping));
