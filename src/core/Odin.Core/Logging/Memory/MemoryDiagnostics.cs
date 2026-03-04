@@ -5,10 +5,14 @@ namespace Odin.Core.Logging.Memory;
 
 using System.Diagnostics;
 
-public static class MemoryDiagnostics
+public class MemoryDiagnostics(ILogger<MemoryDiagnostics> logger)
 {
-    public static void LogMemoryBreakdown(ILogger logger)
+    private readonly DateTimeOffset _startTime = DateTimeOffset.UtcNow;
+
+    public void LogMemoryBreakdown()
     {
+        var uptime = DateTimeOffset.UtcNow - _startTime;
+
         var info = GC.GetGCMemoryInfo();
         var process = Process.GetCurrentProcess();
 
@@ -20,10 +24,11 @@ public static class MemoryDiagnostics
         var nativeMemory = rss - gcCommitted;
 
         logger.LogInformation(
-            "Memory breakdown — RSS: {Rss} MB | GC committed: {GcCommitted} MB | " +
+            "Memory breakdown uptime={uptime}m - RSS: {Rss} MB | GC committed: {GcCommitted} MB | " +
             "Live heap: {LiveHeap} MB | Dead (awaiting GC): {Dead} MB | " +
             "Fragmentation: {Frag} MB | Native: {Native} MB | " +
             "Gen0: {Gen0} | Gen1: {Gen1} | Gen2: {Gen2} | Pinned: {Pinned}",
+            (int)uptime.TotalMinutes,
             rss / 1_048_576,
             gcCommitted / 1_048_576,
             heapSize / 1_048_576,
