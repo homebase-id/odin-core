@@ -396,9 +396,10 @@ public static class HostExtensions
         var services = host.Services;
         var logger = services.GetRequiredService<ILogger<Startup>>();
         var config = services.GetRequiredService<OdinConfiguration>();
+        var memoryDiagnostics = services.GetRequiredService<MemoryDiagnostics>();
 
         logger.LogDebug("Starting initialization in {method}", nameof(BeforeApplicationStarting));
-        MemoryDiagnostics.LogMemoryBreakdown(logger);
+        memoryDiagnostics.LogMemoryBreakdown();
 
         // Create system database
         logger.LogInformation("Migrating database for {database}", "system");
@@ -488,6 +489,7 @@ public static class HostExtensions
 
         var services = host.Services;
         var logger = services.GetRequiredService<ILogger<Startup>>();
+        var memoryDiagnostics = services.GetRequiredService<MemoryDiagnostics>();
 
         logger.LogDebug("Starting clean up in {method}", nameof(BeforeApplicationStopping));
 
@@ -506,7 +508,7 @@ public static class HostExtensions
         //
         services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
 
-        MemoryDiagnostics.LogMemoryBreakdown(logger);
+        memoryDiagnostics.LogMemoryBreakdown();
 
         // DON'T PUT ANY CLEANUP BELOW THIS LINE
         logger.LogDebug("Finished clean up in {method}", nameof(BeforeApplicationStopping));

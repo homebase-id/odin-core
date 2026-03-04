@@ -6,7 +6,9 @@ using Odin.Core.Logging.Memory;
 
 namespace Odin.Services.Background.BackgroundServices.System;
 
-public sealed class LogMemoryDiagnosticsBackgroundService(ILogger<LogMemoryDiagnosticsBackgroundService> logger):
+public sealed class LogMemoryDiagnosticsBackgroundService(
+    ILogger<LogMemoryDiagnosticsBackgroundService> logger,
+    MemoryDiagnostics memoryDiagnostics):
     AbstractBackgroundService(logger)
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -16,7 +18,7 @@ public sealed class LogMemoryDiagnosticsBackgroundService(ILogger<LogMemoryDiagn
             await SleepAsync(TimeSpan.FromMinutes(10), stoppingToken);
             if (!stoppingToken.IsCancellationRequested)
             {
-                MemoryDiagnostics.LogMemoryBreakdown(logger);
+                memoryDiagnostics.LogMemoryBreakdown();
             }
         }
     }
