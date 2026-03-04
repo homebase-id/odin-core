@@ -53,9 +53,11 @@ RUN apt-get update -q && \
     curl \
     less \
     netcat-openbsd \
+    libjemalloc2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+    
 WORKDIR /app/cli
 COPY --from=build /build/out/cli .
 
@@ -69,5 +71,7 @@ ENV PATH="/app/cli:${PATH}"
 
 # Unset ASPNETCORE_HTTP_PORTS to avoid warnings in logs
 ENV ASPNETCORE_HTTP_PORTS=
+
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
 
 ENTRYPOINT ["dotnet", "Odin.Hosting.dll"]
