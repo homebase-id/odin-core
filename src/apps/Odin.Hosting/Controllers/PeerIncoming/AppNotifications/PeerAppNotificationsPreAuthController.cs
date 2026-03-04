@@ -15,7 +15,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.AppNotifications
     /// </summary>
     [ApiController]
     [Route(PeerApiPathConstants.AppNotificationsV1)]
-    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCertificateAuthScheme)]
+    [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
     [ApiExplorerSettings(GroupName = "peer-v1")]
     public class PeerAppNotificationsPreAuthController(PeerAppNotificationService peerAppNotificationService) : OdinControllerBase
     {
