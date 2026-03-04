@@ -65,6 +65,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
         var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
 
+        app.UseMiddleware<HealthzMiddleware>();
+
         // Note 1: see NotificationSocketController
         // Note 2: UseWebSockets must be before UseLoggingMiddleware
         app.UseWebSockets(new WebSocketOptions
