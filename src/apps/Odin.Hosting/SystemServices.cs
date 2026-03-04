@@ -14,6 +14,7 @@ using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Core.Logging;
+using Odin.Core.Logging.Memory;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Concurrency;
@@ -68,6 +69,7 @@ public static class SystemServices
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
         services.AddSingleton<ISystemDomains, SystemDomains>();
         services.AddSingleton<ILastSeenService, LastSeenService>();
+        services.AddSingleton<MemoryDiagnostics>();
 
         services.AddControllers()
             .AddJsonOptions(options =>

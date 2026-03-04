@@ -45,5 +45,16 @@ public class SwaggerTest
         var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
         var result = await client.GetAsync("/swagger/v1/swagger.json");
         ClassicAssert.AreEqual(HttpStatusCode.OK, result.StatusCode);
-    }    
+    }
+
+    [Test]
+    public async Task TestHealthzEndpoint()
+    {
+        var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
+        var result = await client.GetAsync("/healthz");
+        ClassicAssert.AreEqual(HttpStatusCode.OK, result.StatusCode);
+        var content = await result.Content.ReadAsStringAsync();
+        ClassicAssert.AreEqual("Healthy", content);
+    }
+
 }
