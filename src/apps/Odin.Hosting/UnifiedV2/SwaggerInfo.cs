@@ -24,4 +24,6 @@ public static class SwaggerInfo
     public const string FileTransfer = "File Transfer";
     
     public const string Connections = "Connection Operations";
+    
+    public const string Links = "Links";
 }
