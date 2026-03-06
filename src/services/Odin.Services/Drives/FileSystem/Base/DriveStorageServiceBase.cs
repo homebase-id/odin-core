@@ -258,7 +258,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await _uploadTempStorage.FileExists(file, extension);
         }
 
-        public async Task<bool> TempFileExists(InboxFile file, string extension, IOdinContext odinContext)
+        public async Task<bool> InboxFileExists(InboxFile file, string extension, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.FileId.DriveId, odinContext);
             odinContext.Caller.AssertCallerIsOwner();

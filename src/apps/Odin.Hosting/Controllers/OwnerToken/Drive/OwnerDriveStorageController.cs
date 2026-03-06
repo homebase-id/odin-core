@@ -77,7 +77,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return await this.GetHttpFileSystemResolver()
                 .ResolveFileSystem()
                 .Storage
-                .TempFileExists(new InboxFile(internalFileId), extension, WebOdinContext);
+                .InboxFileExists(new InboxFile(internalFileId), extension, WebOdinContext);
         }
 
         /// <summary>
