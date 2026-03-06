@@ -274,7 +274,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             IOdinContext odinContext)
         {
             //HACK: if it's not a connected token
-            if (odinContext.AuthContext.ToLower() != "TransitCertificate".ToLower())
+            if (odinContext.AuthContext.ToLower() != "TransitCapiAuthScheme".ToLower())
             {
                 return false;
             }

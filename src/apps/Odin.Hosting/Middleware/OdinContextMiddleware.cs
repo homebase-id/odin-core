@@ -68,7 +68,7 @@ namespace Odin.Hosting.Middleware
                 return;
             }
 
-            if (authType == PeerAuthConstants.TransitCertificateAuthScheme)
+            if (authType == PeerAuthConstants.TransitCapiAuthScheme)
             {
                 await LoadTransitContextAsync(httpContext, odinContext);
                 callerLogContext.Caller = odinContext?.Caller?.OdinId;
@@ -135,7 +135,7 @@ namespace Odin.Hosting.Middleware
                     {
                         odinContext.Caller = ctx.Caller;
                         odinContext.SetPermissionContext(ctx.PermissionsContext);
-                        odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
+                        odinContext.SetAuthContext(PeerAuthConstants.TransitCapiAuthScheme);
                         return;
                     }
                 }
@@ -282,7 +282,7 @@ namespace Odin.Hosting.Middleware
             {
                 odinContext.Caller = context.Caller;
                 odinContext.SetPermissionContext(context.PermissionsContext);
-                odinContext.SetAuthContext(PeerAuthConstants.TransitCertificateAuthScheme);
+                odinContext.SetAuthContext(PeerAuthConstants.TransitCapiAuthScheme);
             }
         }
     }

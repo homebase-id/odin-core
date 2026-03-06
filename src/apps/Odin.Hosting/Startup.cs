@@ -15,6 +15,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
+using Odin.Core.Logging.Memory;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Tasks;
@@ -63,6 +64,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         logger.LogInformation("Environment: {Environment}", env.EnvironmentName);
 
         var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
+
+        app.UseMiddleware<HealthzMiddleware>();
 
         // Note 1: see NotificationSocketController
         // Note 2: UseWebSockets must be before UseLoggingMiddleware
@@ -395,8 +398,10 @@ public static class HostExtensions
         var services = host.Services;
         var logger = services.GetRequiredService<ILogger<Startup>>();
         var config = services.GetRequiredService<OdinConfiguration>();
+        var memoryDiagnostics = services.GetRequiredService<MemoryDiagnostics>();
 
         logger.LogDebug("Starting initialization in {method}", nameof(BeforeApplicationStarting));
+        memoryDiagnostics.LogMemoryBreakdown();
 
         // Create system database
         logger.LogInformation("Migrating database for {database}", "system");
@@ -486,6 +491,7 @@ public static class HostExtensions
 
         var services = host.Services;
         var logger = services.GetRequiredService<ILogger<Startup>>();
+        var memoryDiagnostics = services.GetRequiredService<MemoryDiagnostics>();
 
         logger.LogDebug("Starting clean up in {method}", nameof(BeforeApplicationStopping));
 
@@ -503,6 +509,8 @@ public static class HostExtensions
         // Wait for any registered fire-and-forget tasks to complete
         //
         services.GetRequiredService<IForgottenTasks>().WhenAll().BlockingWait();
+
+        memoryDiagnostics.LogMemoryBreakdown();
 
         // DON'T PUT ANY CLEANUP BELOW THIS LINE
         logger.LogDebug("Finished clean up in {method}", nameof(BeforeApplicationStopping));

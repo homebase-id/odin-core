@@ -75,7 +75,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
 
         async Task<ApiResponse<PeerTransferResponse>> TrySendDeleteFileRequest()
         {
-            var client = odinHttpClientFactory.CreateClientUsingAccessToken<IPeerTransferHttpClient>(
+            var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerTransferHttpClient>(
                 recipient,
                 clientAuthToken,
                 request.FileSystemType);

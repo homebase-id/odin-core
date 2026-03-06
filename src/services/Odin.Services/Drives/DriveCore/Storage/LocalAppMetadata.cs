@@ -17,9 +17,9 @@ public class LocalAppMetadata
     /// <summary>
     /// Initialization vector used when the target file is encrypted.  Note the AesKey will be that of the file's KeyHeader
     /// </summary>
-    public byte[] Iv { get; init; }
+    public byte[] Iv { get; set; }
 
-    public string Content { get; init; }
+    public string Content { get; set; }
 
     public List<Guid> Tags { get; init; }
 

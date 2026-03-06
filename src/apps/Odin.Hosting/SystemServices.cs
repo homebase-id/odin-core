@@ -14,6 +14,7 @@ using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Http;
 using Odin.Core.Logging;
+using Odin.Core.Logging.Memory;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Concurrency;
@@ -68,6 +69,7 @@ public static class SystemServices
         services.AddSingleton<IForgottenTasks, ForgottenTasks>();
         services.AddSingleton<ISystemDomains, SystemDomains>();
         services.AddSingleton<ILastSeenService, LastSeenService>();
+        services.AddSingleton<MemoryDiagnostics>();
 
         services.AddControllers()
             .AddJsonOptions(options =>
@@ -156,9 +158,9 @@ public static class SystemServices
         services.AddAuthentication(options => { })
             .AddOwnerAuthentication()
             .AddYouAuthAuthentication()
-            .AddPeerCertificateAuthentication(PeerAuthConstants.TransitCertificateAuthScheme)
-            .AddPeerCertificateAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
-            .AddPeerCertificateAuthentication(PeerAuthConstants.FeedAuthScheme)
+            .AddPeerCapiAuthentication(PeerAuthConstants.TransitCapiAuthScheme)
+            .AddPeerCapiAuthentication(PeerAuthConstants.PublicTransitAuthScheme)
+            .AddPeerCapiAuthentication(PeerAuthConstants.FeedAuthScheme)
             .AddSystemAuthentication()
             .AddUnifiedAuthentication();
 
@@ -167,7 +169,7 @@ public static class SystemServices
             OwnerPolicies.AddPolicies(policy);
             SystemPolicies.AddPolicies(policy);
             YouAuthPolicies.AddPolicies(policy);
-            PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCertificateAuthScheme);
+            PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.TransitCapiAuthScheme);
             PeerPerimeterPolicies.AddPolicies(policy, PeerAuthConstants.PublicTransitAuthScheme);
             UnifiedPolicies.AddPolicies(policy);
         });

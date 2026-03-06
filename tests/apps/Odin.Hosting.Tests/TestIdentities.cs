@@ -14,6 +14,10 @@ namespace Odin.Hosting.Tests
     }
     public static class TestIdentities
     {
+        public static List<OdinId> ToOdinIdList(this IEnumerable<TestIdentity> list)
+        {
+            return list.Select(d => d.OdinId).ToList();
+        }
         public static List<string> ToStringList(this IEnumerable<TestIdentity> list)
         {
             return list.Select(d => (string)d.OdinId).ToList();

@@ -244,7 +244,8 @@ public class OdinConfiguration
         /// popped (checked out) of the inbox/outbox queue w/o having been marked complete or failed
         /// </summary>
         public int InboxOutboxRecoveryAgeSeconds { get; init; }
-        
+
+        public TimeSpan CapiSessionLifetime { get; init; }
 
         public HostSection()
         {
@@ -288,6 +289,12 @@ public class OdinConfiguration
 
             ClientRegistrationThreshold = config.GetOrDefault("Host:ClientRegistrationThreshold", 10);
             ClientRegistrationWindowThreshold = config.GetOrDefault("Host:ClientRegistrationWindowThreshold", 3);
+
+            CapiSessionLifetime = TimeSpan.FromMinutes(config.GetOrDefault("Host:CapiSessionLifetimeMinutes", 10));
+            if (CapiSessionLifetime < TimeSpan.FromMinutes(1))
+            {
+                throw new OdinConfigException("Invalid CapiSessionLifetime");
+            }
         }
     }
 
