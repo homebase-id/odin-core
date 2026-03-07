@@ -38,9 +38,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private UploadFile _uploadFile;
         private InboxFile _inboxFile;
 
-        private InternalDriveFileId? CurrentFileId => _uploadFile?.FileId ?? _inboxFile?.FileId;
-        private Guid CurrentDriveId => CurrentFileId?.DriveId ?? Guid.Empty;
-        private bool IsUpload => _uploadFile != null;
+        // private InternalDriveFileId? CurrentFileId => _uploadFile?.FileId ?? _inboxFile?.FileId;
+        // private Guid CurrentDriveId => CurrentFileId?.DriveId ?? Guid.Empty;
+        // private bool IsUpload => _uploadFile != null;
 
         private readonly Dictionary<string, List<string>> _uploadedKeys = new(StringComparer.InvariantCultureIgnoreCase);
 
