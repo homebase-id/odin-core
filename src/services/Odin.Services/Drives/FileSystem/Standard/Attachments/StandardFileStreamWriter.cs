@@ -23,7 +23,7 @@ public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
     {
         return await FileSystem.Storage.UpdatePayloads(
             // package.InternalFile,
-            package.TempFile.AsTempFileUpload(),
+            new UploadFile(package.TempFile),
             targetFile: package.InternalFile,
             incomingPayloads: package.GetFinalPayloadDescriptors(),
             odinContext,

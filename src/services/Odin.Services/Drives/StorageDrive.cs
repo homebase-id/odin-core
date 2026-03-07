@@ -83,6 +83,16 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         return tenantPathManager.GetDriveInboxPath(Id);
     }
 
+    public string GetDriveInboxStoragePath()
+    {
+        return tenantPathManager.GetDriveInboxStoragePath(Id);
+    }
+
+    public string GetDriveFilesStoragePath()
+    {
+        return tenantPathManager.GetDriveFilesStoragePath(Id);
+    }
+
     public void CreateDirectories()
     {
         string payloadDirectory = GetDrivePayloadPath();
@@ -95,6 +105,7 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
 
         Directory.CreateDirectory(GetDriveUploadPath());
         Directory.CreateDirectory(GetDriveInboxPath());
+        Directory.CreateDirectory(GetDriveInboxStoragePath());
 
         if (!tenantPathManager.S3PayloadsEnabled && !string.IsNullOrEmpty(payloadDirectory))
         {

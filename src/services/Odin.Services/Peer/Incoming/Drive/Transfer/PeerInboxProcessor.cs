@@ -91,18 +91,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 logger.LogDebug("Processing Inbox -> Getting Pending Items returned: {itemCount}", items.Count);
                 logger.LogDebug("Processing Inbox (no call to CUOWA) item with marker/popStamp [{marker}]", inboxItem.Marker);
 
-                var tempFile = new TempFile()
-                {
-                    File = new InternalDriveFileId()
-                    {
-                        DriveId = inboxItem.DriveId,
-                        FileId = inboxItem.FileId
-                    },
-                    StorageType = TempStorageType.Inbox
-                };
+                var tempFile = new InboxFile(new InternalDriveFileId(inboxItem.DriveId, inboxItem.FileId));
 
                 PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager, feedWriter);
-                var markComplete = new MarkInboxComplete(transitInboxBoxStorage, tempFile.File, inboxItem.Marker);
+                var markComplete = new MarkInboxComplete(transitInboxBoxStorage, tempFile.FileId, inboxItem.Marker);
                 var payloads = new List<PayloadDescriptor>();
                 var success = InboxReturnTypes.DeleteFromInbox;
 
@@ -112,23 +104,27 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     // Otherwise if it returns false, it's a failure
                     (success, payloads) = await ProcessInboxItemAsync(tempFile, inboxItem, writer, odinContext, markComplete);
 
-                    logger.LogDebug("Item with tempFile ({file}) Processed.  success: {s}", tempFile.File.FileId, success);
+                    logger.LogDebug("Item with tempFile ({file}) Processed.  success: {s}", tempFile.FileId.FileId, success);
                 }
                 finally
                 {
+                    // Handle post-processing based on the outcome of inbox item processing
                     if (success == InboxReturnTypes.TryAgainLater)
                     {
-                        int n = await transitInboxBoxStorage.MarkFailureAsync(tempFile.File, inboxItem.Marker);
+                        // Mark as failed to retry later
+                        int n = await transitInboxBoxStorage.MarkFailureAsync(tempFile.FileId, inboxItem.Marker);
                         if (n != 1)
                             logger.LogError("Inbox: Unable to MarkFailureAsync for TryAgainLater.");
                     }
                     else if (success == InboxReturnTypes.DeleteFromInbox)
                     {
-                        int n = await transitInboxBoxStorage.MarkCompleteAsync(tempFile.File,
+                        // Mark as complete and remove from inbox
+                        int n = await transitInboxBoxStorage.MarkCompleteAsync(tempFile.FileId,
                             inboxItem.Marker); // markComplete removes in from the Inbox
 
                         if (n == 1)
                         {
+                            // Successfully marked complete, now clean up temporary files
                             var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
                             await fs.Storage.CleanupInboxTemporaryFiles(tempFile, payloads, odinContext);
                         }
@@ -139,6 +135,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     }
                     else if (success == InboxReturnTypes.HasBeenMarkedComplete)
                     {
+                        // Item was already marked complete during processing, just clean up temp files
                         var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
                         await fs.Storage.CleanupInboxTemporaryFiles(tempFile, payloads, odinContext);
                     }
@@ -156,7 +153,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         /// success return false: the item is failed and we should retry later
         /// This function should never throw an exception, only return true / false
         /// </summary>
-        private async Task<(InboxReturnTypes, List<PayloadDescriptor> payloads)> ProcessInboxItemAsync(TempFile tempFile,
+        private async Task<(InboxReturnTypes, List<PayloadDescriptor> payloads)> ProcessInboxItemAsync(InboxFile tempFile,
             TransferInboxItem inboxItem, PeerFileWriter writer,
             IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
@@ -329,7 +326,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         private async Task<(bool success, List<PayloadDescriptor> payloads)> ProcessNormalFileSaveOperation(TransferInboxItem inboxItem,
             IOdinContext odinContext,
             PeerFileWriter writer,
-            TempFile tempFile, IDriveFileSystem fs, WriteSecondDatabaseRowBase markComplete)
+            InboxFile tempFile, IDriveFileSystem fs, WriteSecondDatabaseRowBase markComplete)
         {
             logger.LogDebug("Processing Inbox -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
             var success = false;
@@ -349,7 +346,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<(bool success, List<PayloadDescriptor> payloads)> ProcessFeedItemViaTransit(TransferInboxItem inboxItem,
             IOdinContext odinContext, PeerFileWriter writer,
-            TempFile tempFile, IDriveFileSystem fs, WriteSecondDatabaseRowBase markComplete)
+            InboxFile tempFile, IDriveFileSystem fs, WriteSecondDatabaseRowBase markComplete)
         {
             logger.LogDebug("ProcessFeedItemViaTransit -> HandleFile with gtid: {gtid}", inboxItem.GlobalTransitId);
 
@@ -368,7 +365,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return (success, payloads);
         }
 
-        private async Task<(bool success, List<PayloadDescriptor> payloadDescriptors)> HandleUpdateFileAsync(TempFile tempFile,
+        private async Task<(bool success, List<PayloadDescriptor> payloads)> HandleUpdateFileAsync(InboxFile tempFile,
             TransferInboxItem inboxItem, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete)
         {
             var writer = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
@@ -430,7 +427,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
         private async Task<(bool success, List<PayloadDescriptor> payloads)> ProcessEccEncryptedFeedInboxItem(TransferInboxItem inboxItem,
             PeerFileWriter writer,
-            TempFile tempFile,
+            InboxFile tempFile,
             IDriveFileSystem fs,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)

@@ -76,9 +76,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Drive
         [Get(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
-        [Get(RootStorageEndpoint + "/temp-file-exists")]
-        Task<ApiResponse<bool>> TempFileExists(Guid fileId, Guid alias, Guid type, TempStorageType storageType,
-            string extension);
+        [Get(RootStorageEndpoint + "/upload-temp-file-exists")]
+        Task<ApiResponse<bool>> UploadTempFileExists(Guid fileId, Guid alias, Guid type, string extension);
+
+        [Get(RootStorageEndpoint + "/inbox-file-exists")]
+        Task<ApiResponse<bool>> InboxFileExists(Guid fileId, Guid alias, Guid type, string extension);
 
         [Get(RootStorageEndpoint + "/has-orphan-payloads")]
         Task<ApiResponse<bool>> HasOrphanPayloads(Guid fileId, Guid alias, Guid type);

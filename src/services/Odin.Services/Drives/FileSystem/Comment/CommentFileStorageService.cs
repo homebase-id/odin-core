@@ -19,7 +19,8 @@ public class CommentFileStorageService(
     IDriveAclAuthorizationService driveAclAuthorizationService,
     IDriveManager driveManager,
     LongTermStorageManager longTermStorageManager,
-    UploadStorageManager uploadStorageManager,
+    UploadTempStorage uploadTempStorage,
+    InboxStorage inboxStorage,
     // OrphanTestUtil orphanTestUtil,
     IdentityDatabase db
 )
@@ -29,7 +30,8 @@ public class CommentFileStorageService(
         driveAclAuthorizationService,
         driveManager,
         longTermStorageManager,
-        uploadStorageManager,
+        uploadTempStorage,
+        inboxStorage,
         // orphanTestUtil,
         db)
 {
