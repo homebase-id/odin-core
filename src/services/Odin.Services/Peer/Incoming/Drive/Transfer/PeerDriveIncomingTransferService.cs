@@ -55,7 +55,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             FileMetadata metadata,
             IOdinContext odinContext)
         {
-            var driveId = transferInstructionSet.TargetDrive.Alias;
+            var driveId = transferInstructionSet.DriveId;
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
@@ -120,9 +120,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (responseCode == PeerResponseCode.AcceptedDirectWrite || responseCode == PeerResponseCode.AcceptedIntoInbox)
             {
+                var driveId = _transferState.TransferInstructionSet.DriveId;
+                var drive = await driveManager.GetDriveAsync(driveId, failIfInvalid: false);
+
                 //Feed hack (again)
-                if (_transferState.TransferInstructionSet.TargetDrive == SystemDriveConstants.FeedDrive ||
-                    _transferState.TransferInstructionSet.TargetDrive.Type == SystemDriveConstants.ChannelDriveType)
+                if (driveId == SystemDriveConstants.FeedDrive.Alias || drive.Type == SystemDriveConstants.ChannelDriveType)
                 {
                     //Note: we say new feed item here because comments are never pushed into the feed drive; so any
                     //item going into the feed is new content (i.e. post/image, etc.)
@@ -143,8 +145,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     {
                         if (notificationOptions.Recipients?.Any() ?? false)
                         {
-                            var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive.Alias);
-
                             // allow the shard recovery drive to use subscriptions
                             if (drive.Id != SystemDriveConstants.ShardRecoveryDrive.Alias && !drive.AllowSubscriptions)
                             {

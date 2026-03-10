@@ -80,12 +80,6 @@ public class DriveManager : IDriveManager
                 OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
-        var existingDriveByTargetDriveAsync = await _tableDrives.GetByTargetDriveAsync(request.TargetDrive.Alias, request.TargetDrive.Type);
-        if (null != existingDriveByTargetDriveAsync)
-        {
-            throw new OdinClientException("Drive by alias and type already exists", OdinClientErrorCode.InvalidDrive);
-        }
-
         var mk = odinContext.Caller.GetMasterKey();
 
         var driveKey = new SymmetricKeyEncryptedAes(mk);
@@ -109,7 +103,7 @@ public class DriveManager : IDriveManager
         {
             DriveId = id,
             DriveName = request.Name,
-            DriveType = request.TargetDrive.Type.Value,
+            DriveType = request.Type,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(driveKey),
             EncryptedIdIv64 = encryptedIdIv.ToBase64(),
             EncryptedIdValue64 = encryptedIdValue.ToBase64(),
@@ -327,11 +321,11 @@ public class DriveManager : IDriveManager
 
     public async Task<PagedResult<StorageDrive>> GetDrivesAsync(GuidId type, PageOptions pageOptions, IOdinContext odinContext)
     {
-        Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
+        Func<StorageDrive, bool> predicate = drive => drive.Type == type;
 
         if (odinContext.Caller.IsAnonymous)
         {
-            predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads && drive.OwnerOnly == false;
+            predicate = drive => drive.Type == type && drive.AllowAnonymousReads && drive.OwnerOnly == false;
         }
 
         var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
@@ -347,15 +341,25 @@ public class DriveManager : IDriveManager
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
-    
+
     public async Task<PagedResult<StorageDrive>> GetCdnEnabledDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
     {
         var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
-        var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads || drive.AttributeHasFalseValue(StorageDrive.BlockCdnAttributeName)).ToList();
+        var storageDrives = page.Results
+            .Where(drive => drive.AllowAnonymousReads || drive.AttributeHasFalseValue(StorageDrive.BlockCdnAttributeName)).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
 
+    public async Task AssertIsDriveType(GuidId driveId, Guid expectedDriveType)
+    {
+        var theDrive = await this.GetDriveAsync(driveId);
+
+        if (theDrive?.Type != expectedDriveType)
+        {
+            throw new OdinClientException("Invalid drive type", OdinClientErrorCode.InvalidTargetDrive);
+        }
+    }
 
     private async Task<StorageDriveData?> GetDriveInternal(Guid driveId)
     {
@@ -387,7 +391,7 @@ public class DriveManager : IDriveManager
         {
             DriveId = storageDrive.Id,
             DriveName = storageDrive.Name,
-            DriveType = storageDrive.TargetDriveInfo.Type.Value,
+            DriveType = storageDrive.Type,
             MasterKeyEncryptedStorageKeyJson = OdinSystemSerializer.Serialize(storageDrive.MasterKeyEncryptedStorageKey),
             EncryptedIdIv64 = storageDrive.EncryptedIdIv.ToBase64(),
             EncryptedIdValue64 = storageDrive.EncryptedIdValue.ToBase64(),
@@ -461,7 +465,7 @@ public class DriveManager : IDriveManager
                 Alias = driveDetails?.TargetDriveInfo.Alias ?? throw new OdinSystemException("driveDetails is null"),
                 Type = record.DriveType
             },
-
+            
             MasterKeyEncryptedStorageKey = OdinSystemSerializer.Deserialize<SymmetricKeyEncryptedAes>(
                 record.MasterKeyEncryptedStorageKeyJson),
 

@@ -10,12 +10,13 @@ using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.Management;
 using Odin.Services.Util;
 
 namespace Odin.Services.DataSubscription.Follower
 {
     /// <summary/>
-    public class FollowerPerimeterService(IMediator mediator, IdentityDatabase db)
+    public class FollowerPerimeterService(IMediator mediator, IdentityDatabase db, DriveManager driveManager)
     {
         /// <summary>
         /// Accepts the new or exiting follower by upserting a record to ensure
@@ -39,9 +40,12 @@ namespace Odin.Services.DataSubscription.Follower
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
             {
                 OdinValidationUtils.AssertNotNull(request.Channels, nameof(request.Channels));
-                OdinValidationUtils.AssertIsTrue(request.Channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType),
-                    $"All drives must be of type channel [{SystemDriveConstants.ChannelDriveType}]");
-
+                foreach (var channel in request.Channels)
+                {
+                    var driveId = channel.Alias;
+                    await driveManager.AssertIsDriveType(driveId, SystemDriveConstants.ChannelDriveType);
+                }
+                
                 //Valid the caller has access to the requested channels
                 try
                 {

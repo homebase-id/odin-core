@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
         public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
         {
-            if (notification.Drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType)
+            if (notification.Drive.Type == SystemDriveConstants.ChannelDriveType)
             {
                 await InvalidateAsync();
             }
@@ -84,7 +84,7 @@ namespace Odin.Hosting.Controllers.Home.Service
                 return;
             }
 
-            if (drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType)
+            if (drive.Type == SystemDriveConstants.ChannelDriveType)
             {
                 var header = notification.ServerFileHeader;
                 if (header.ServerMetadata.FileSystemType == FileSystemType.Standard)
