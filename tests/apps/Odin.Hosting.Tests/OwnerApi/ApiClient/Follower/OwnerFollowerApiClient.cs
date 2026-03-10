@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using Odin.Core.Storage.Database.Identity.Table;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Follower;
@@ -109,6 +110,34 @@ public class OwnerFollowerApiClient
             var apiResponse = await svc.GetIdentityIFollow(identity.OdinId);
 
             ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode);
+            return apiResponse.Content;
+        }
+    }
+
+    public async Task<List<MySubscriptionsRecord>> GetMySubscriptions()
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.GetMySubscriptions();
+
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(apiResponse.Content);
+
+            return apiResponse.Content;
+        }
+    }
+
+    public async Task<List<MySubscribersRecord>> GetMySubscribers()
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.GetMySubscribers();
+
+            ClassicAssert.IsTrue(apiResponse.IsSuccessStatusCode);
+            ClassicAssert.IsNotNull(apiResponse.Content);
+
             return apiResponse.Content;
         }
     }
