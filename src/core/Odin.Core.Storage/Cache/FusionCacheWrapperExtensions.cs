@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Autofac;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
@@ -32,9 +33,16 @@ public static class FusionCacheWrapperExtensions
                 // options.FactorySyntheticTimeoutsLogLevel = LogLevel.Debug;
                 // options.FactoryErrorsLogLevel = LogLevel.Error;
             })
+            .WithMemoryCache(new MemoryCache(new MemoryCacheOptions
+             {
+                 SizeLimit = cacheConfiguration.MemoryCacheSizeLimit,
+                 CompactionPercentage = cacheConfiguration.MemoryCacheCompactionPercentage,
+             }))
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
                 Duration = TimeSpan.FromMinutes(1),
+                // SEB:NOTE this is required to make the size-based eviction work, can be overriden on a per-entry basis
+                Size = 1,
 
                 // SEB:NOTE be careful setting this to true, since it can result in factories
                 // being called in the background, which need to be handled carefully when the

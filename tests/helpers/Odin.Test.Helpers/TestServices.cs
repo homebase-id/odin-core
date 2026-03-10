@@ -81,6 +81,8 @@ public class TestServices : IDisposable
 
         serviceCollection.AddCoreCacheServices(new CacheConfiguration
         {
+            MemoryCacheSizeLimit = long.MaxValue,
+            MemoryCacheCompactionPercentage = 0.25,
             Level2CacheType = level2CacheType
         });
 
