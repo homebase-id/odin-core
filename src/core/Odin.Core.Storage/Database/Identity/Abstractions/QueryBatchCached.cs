@@ -51,7 +51,7 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
-        var cacheKey = "QueryBatchAsync:" + HashParameters.Calculate(
+        var cacheKey = "QueryBatchAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
             noOfItems,
             cursor,
@@ -133,7 +133,7 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
-        var cacheKey = "QueryBatchSmartCursorAsync:" + HashParameters.Calculate(
+        var cacheKey = "QueryBatchSmartCursorAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
             noOfItems,
             cursor,
@@ -213,7 +213,7 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
-        var cacheKey = "QueryModifiedAsync:" + HashParameters.Calculate(
+        var cacheKey = "QueryModifiedAsync:" + driveId + ":" +  HashParameters.Calculate(
             driveId,
             noOfItems,
             cursorString,
