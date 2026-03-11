@@ -94,6 +94,7 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
             "PagingByIdentity" + ":" + count + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, inCursor),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             PagingByTags);
         return result;
     }
@@ -110,6 +111,7 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
             "PagingByIdentity" + ":" + count + ":" + status + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, status, inCursor),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             PagingByTags);
         return result;
     }
@@ -126,6 +128,7 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
             "PagingByCreated" + ":" + count + ":" + status + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, status, cursorString),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             PagingByTags);
         return result;
     }
@@ -141,6 +144,7 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
             "PagingByCreated" + ":" + count + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, cursorString),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             PagingByTags);
         return result;
     }

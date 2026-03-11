@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Storage.Cache;
@@ -507,6 +508,8 @@ public class OdinConfiguration
 
     public class CacheSection
     {
+        public long MemoryCacheSizeLimit { get; init; }
+        public double MemoryCacheCompactionPercentage { get; init; }
         public Level2CacheType Level2CacheType { get; init; }
 
         public CacheSection()
@@ -516,6 +519,9 @@ public class OdinConfiguration
 
         public CacheSection(IConfiguration config)
         {
+            var guesstimatedMemoryCacheSizeLimit = EntrySize.GuesstimateMemoryCacheSizeLimit();
+            MemoryCacheSizeLimit = config.GetOrDefault("Cache:MemoryCacheSizeLimit", guesstimatedMemoryCacheSizeLimit);
+            MemoryCacheCompactionPercentage = config.GetOrDefault("Cache:MemoryCacheSizeLimit", 0.25);
             Level2CacheType = config.GetOrDefault("Cache:Level2CacheType", Level2CacheType.None);
         }
     }

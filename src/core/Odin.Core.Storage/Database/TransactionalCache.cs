@@ -31,6 +31,8 @@ public abstract class AbstractTransactionalCacheFactory(
 
 public sealed class TransactionalCache
 {
+    public const long DefaultEntrySize = EntrySize.Medium;
+
     private long _hits;
     public long Hits => Interlocked.Read(ref _hits);
 
@@ -124,10 +126,12 @@ public sealed class TransactionalCache
 
     //
 
+    // SEB:TODO if the factory is returning a list of records, we should use number of records to calculate entry size instead of using a fixed entry size
     public async Task<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
+        long entrySize = DefaultEntrySize,
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
@@ -152,6 +156,7 @@ public sealed class TransactionalCache
                 return factory(cancellationToken);
             },
             ttl,
+            entrySize,
             CombineAllTagsWithRoot(tags),
             cancellationToken);
 
@@ -175,10 +180,17 @@ public sealed class TransactionalCache
         byte[] key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
+        long entrySize = DefaultEntrySize,
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        return GetOrSetAsync(key.ToHexString(), factory, ttl, CombineAllTagsWithRoot(tags), cancellationToken);
+        return GetOrSetAsync(
+            key.ToHexString(),
+            factory,
+            ttl,
+            entrySize,
+            CombineAllTagsWithRoot(tags),
+            cancellationToken);
     }
 
     //

@@ -254,6 +254,8 @@ public static class SystemServices
 
         services.AddCoreCacheServices(new CacheConfiguration
         {
+            MemoryCacheSizeLimit = config.Cache.MemoryCacheSizeLimit,
+            MemoryCacheCompactionPercentage = config.Cache.MemoryCacheCompactionPercentage,
             Level2CacheType = config.Cache.Level2CacheType,
         });
 

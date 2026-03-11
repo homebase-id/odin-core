@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
@@ -50,7 +51,7 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
-        var cacheKey = "QueryBatchAsync:" + HashParameters.Calculate(
+        var cacheKey = "QueryBatchAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
             noOfItems,
             cursor,
@@ -100,6 +101,7 @@ public class QueryBatchCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
+            EntrySize.Large,
             GetDriveIdInvalidationTags(driveId));
 
         return result;
@@ -131,7 +133,7 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
-        var cacheKey = "QueryBatchSmartCursorAsync:" + HashParameters.Calculate(
+        var cacheKey = "QueryBatchSmartCursorAsync:" + driveId + ":" + HashParameters.Calculate(
             driveId,
             noOfItems,
             cursor,
@@ -181,6 +183,7 @@ public class QueryBatchCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
+            EntrySize.Large,
             GetDriveIdInvalidationTags(driveId));
 
         return result;
@@ -210,7 +213,7 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
-        var cacheKey = "QueryModifiedAsync:" + HashParameters.Calculate(
+        var cacheKey = "QueryModifiedAsync:" + driveId + ":" +  HashParameters.Calculate(
             driveId,
             noOfItems,
             cursorString,
@@ -256,6 +259,7 @@ public class QueryBatchCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
+            EntrySize.Large,
             GetDriveIdInvalidationTags(driveId));
 
         return result;
