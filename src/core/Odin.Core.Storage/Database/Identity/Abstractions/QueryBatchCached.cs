@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
@@ -100,6 +101,7 @@ public class QueryBatchCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
+            EntrySize.Large,
             GetDriveIdInvalidationTags(driveId));
 
         return result;
@@ -181,6 +183,7 @@ public class QueryBatchCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
+            EntrySize.Large,
             GetDriveIdInvalidationTags(driveId));
 
         return result;
@@ -256,6 +259,7 @@ public class QueryBatchCached : AbstractTableCaching
             cacheKey,
             _ => query(),
             cacheTtl ?? DefaultTtl,
+            EntrySize.Large,
             GetDriveIdInvalidationTags(driveId));
 
         return result;

@@ -418,7 +418,7 @@ public class LevelXCacheTests
         var tags = new[] { "foo", "bar" };
 
         // Set the value with a short expiration
-        await cache.SetAsync(key, expectedRecord, TimeSpan.FromSeconds(500), tags);
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromSeconds(500), EntrySize.Small, tags);
 
         // Ensure it's retrievable
         var record1 = cache.GetOrDefault<PocoA?>(key);

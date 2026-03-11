@@ -82,6 +82,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
             GetCacheKey(driveId),
             _ => _table.GetAllByDriveIdAsync(driveId),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             GetDriveIdTags(driveId));
         return result;
     }
@@ -94,6 +95,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
             GetUniqueIdCacheKey(driveId, uniqueId),
             _ => _table.GetByUniqueIdAsync(driveId, uniqueId),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             GetDriveIdTags(driveId));
         return result;
     }
@@ -106,6 +108,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
             GetGlobalTransitIdCacheKey(driveId, globalTransitId),
             _ => _table.GetByGlobalTransitIdAsync(driveId, globalTransitId),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             GetDriveIdTags(driveId));
         return result;
     }
@@ -118,6 +121,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
             GetFileIdCacheKey(driveId, fileId),
             _ => _table.GetAsync(driveId, fileId),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             GetDriveIdTags(driveId));
         return result;
     }
@@ -177,6 +181,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
             GetDriveSizeCacheKey(driveId),
             _ => _table.GetDriveSizeAsync(driveId),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             GetDriveIdTags(driveId));
         return result;
     }

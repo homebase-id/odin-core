@@ -519,7 +519,8 @@ public class OdinConfiguration
 
         public CacheSection(IConfiguration config)
         {
-            MemoryCacheSizeLimit = config.GetOrDefault("Cache:MemoryCacheSizeLimit", long.MaxValue);
+            var guesstimatedMemoryCacheSizeLimit = EntrySize.GuesstimateMemoryCacheSizeLimit();
+            MemoryCacheSizeLimit = config.GetOrDefault("Cache:MemoryCacheSizeLimit", guesstimatedMemoryCacheSizeLimit);
             MemoryCacheCompactionPercentage = config.GetOrDefault("Cache:MemoryCacheSizeLimit", 0.25);
             Level2CacheType = config.GetOrDefault("Cache:Level2CacheType", Level2CacheType.None);
         }
