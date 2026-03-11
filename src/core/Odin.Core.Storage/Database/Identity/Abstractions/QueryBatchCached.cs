@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 
@@ -10,12 +11,14 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions;
 
 public class QueryBatchCached : AbstractTableCaching
 {
+    private readonly ILogger<QueryBatchCached> _logger;
     private readonly QueryBatch _meta;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
-    public QueryBatchCached(QueryBatch meta, IIdentityTransactionalCacheFactory cacheFactory)
+    public QueryBatchCached(ILogger<QueryBatchCached> logger, QueryBatch meta, IIdentityTransactionalCacheFactory cacheFactory)
         : base(cacheFactory, meta.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
     {
+        _logger = logger;
         _meta = meta;
         _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);
     }
@@ -50,6 +53,12 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
+        _logger.LogWarning("QueryBatchAsync called with \ndriveId: {DriveId}\n, noOfItems: {NoOfItems}\n, cursor: {Cursor}\n, sortOrder: {SortOrder}\n, sortField: {SortField}\n, fileSystemType: {FileSystemType}\n, fileStateAnyOf: {FileStateAnyOf}\n, requiredSecurityGroup: {RequiredSecurityGroup}\n, globalTransitIdAnyOf: {GlobalTransitIdAnyOf}\n, filetypesAnyOf: {FiletypesAnyOf}\n, datatypesAnyOf: {DatatypesAnyOf}\n, senderidAnyOf: {SenderidAnyOf}\n, groupIdAnyOf: {GroupIdAnyOf}\n, uniqueIdAnyOf: {UniqueIdAnyOf}\n, archivalStatusAnyOf: {ArchivalStatusAnyOf}\n, userdateSpan: {UserdateSpan}\n, aclAnyOf: {AclAnyOf}\n, tagsAnyOf: {TagsAnyOf}\n, tagsAllOf: {TagsAllOf}\n, localTagsAnyOf: {LocalTagsAnyOf}\n, localTagsAllOf: {LocalTagsAllOf}\n",
+            driveId, noOfItems,
+            //cursor?.ToJson(),
+            cursor?.ToString(),
+            sortOrder, sortField, fileSystemType, fileStateAnyOf, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, archivalStatusAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf, localTagsAnyOf, localTagsAllOf);
+
         var cacheKey = "QueryBatchAsync:" + HashParameters.Calculate(
             driveId,
             noOfItems,
@@ -72,6 +81,8 @@ public class QueryBatchCached : AbstractTableCaching
             tagsAllOf,
             localTagsAnyOf,
             localTagsAllOf);
+
+        _logger.LogWarning("QueryBatchAsync cacheKey {key}",    cacheKey);
 
         var query = () => _meta.QueryBatchAsync(
             driveId,
@@ -102,6 +113,8 @@ public class QueryBatchCached : AbstractTableCaching
             cacheTtl ?? DefaultTtl,
             GetDriveIdInvalidationTags(driveId));
 
+        _logger.LogWarning("QueryBatchAsync returning {cursor} : {rows} rows", result.cursor.ToJson(), result.Item1.Count);
+
         return result;
     }
 
@@ -131,6 +144,11 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? localTagsAllOf = null,
         TimeSpan? cacheTtl = null)
     {
+        _logger.LogWarning("XXXXXXXXXXXXXXX QueryBatchSmartCursorAsync called with \ndriveId: {DriveId}\n, noOfItems: {NoOfItems}\n, cursor: {Cursor}\n, sortOrder: {SortOrder}\n, sortField: {SortField}\n, fileSystemType: {FileSystemType}\n, fileStateAnyOf: {FileStateAnyOf}\n, requiredSecurityGroup: {RequiredSecurityGroup}\n, globalTransitIdAnyOf: {GlobalTransitIdAnyOf}\n, filetypesAnyOf: {FiletypesAnyOf}\n, datatypesAnyOf: {DatatypesAnyOf}\n, senderidAnyOf: {SenderidAnyOf}\n, groupIdAnyOf: {GroupIdAnyOf}\n, uniqueIdAnyOf: {UniqueIdAnyOf}\n, archivalStatusAnyOf: {ArchivalStatusAnyOf}\n, userdateSpan: {UserdateSpan}\n, aclAnyOf: {AclAnyOf}\n, tagsAnyOf: {TagsAnyOf}\n, tagsAllOf: {TagsAllOf}\n, localTagsAnyOf: {LocalTagsAnyOf}\n, localTagsAllOf: {LocalTagsAllOf}\n",
+            driveId, noOfItems,
+            cursor.ToJson(),
+            sortOrder, sortField, fileSystemType, fileStateAnyOf, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, archivalStatusAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf, localTagsAnyOf, localTagsAllOf);
+
         var cacheKey = "QueryBatchSmartCursorAsync:" + HashParameters.Calculate(
             driveId,
             noOfItems,
@@ -153,6 +171,8 @@ public class QueryBatchCached : AbstractTableCaching
             tagsAllOf,
             localTagsAnyOf,
             localTagsAllOf);
+
+        _logger.LogWarning("QueryBatchSmartCursorAsync cacheKey {key}",    cacheKey);
 
         var query = () => _meta.QueryBatchSmartCursorAsync(
             driveId,
@@ -182,6 +202,8 @@ public class QueryBatchCached : AbstractTableCaching
             _ => query(),
             cacheTtl ?? DefaultTtl,
             GetDriveIdInvalidationTags(driveId));
+
+        _logger.LogWarning("QueryBatchSmartCursorAsync returning {cursor}", result.cursor.ToJson());
 
         return result;
     }

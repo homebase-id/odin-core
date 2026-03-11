@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Services.Drives;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Controllers.ClientToken.App;
@@ -13,7 +14,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
     [Route(AppApiPathConstantsV1.DriveQueryV1)]
     [Route(GuestApiPathConstantsV1.DriveQueryV1)]
     [AuthorizeValidGuestOrAppToken]
-    public class DriveQueryController : DriveQueryControllerBase
+    public class DriveQueryController(ILogger<DriveQueryController> logger) : DriveQueryControllerBase
     {
         /// <summary>
         /// Returns modified files (their last modified property must be set).
@@ -47,6 +48,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         [HttpPost("batch")]
         public new async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
+            logger.LogWarning("CursorState: {c}", request.ResultOptionsRequest.CursorState);
             return await base.QueryBatch(request);
         }
 
@@ -55,6 +57,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Shared.Drive
         public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
         {
             var queryBatchRequest = request.ToQueryBatchRequest();
+            logger.LogWarning("CursorState: {c}", queryBatchRequest.ResultOptionsRequest.CursorState);
             
             return await base.QueryBatch(queryBatchRequest);
         }

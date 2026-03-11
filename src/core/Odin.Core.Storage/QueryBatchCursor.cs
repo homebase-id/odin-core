@@ -25,7 +25,7 @@ namespace Odin.Core.Storage
 
         public override string ToString()
         {
-            return Time.ToString() + "," + rowId.ToString();
+            return Time.Iso9441() + "," + (rowId.HasValue ? rowId.Value.ToString() : "null");
         }
 
         public string ToJson()
@@ -153,5 +153,11 @@ namespace Odin.Core.Storage
         {
             return JsonSerializer.Serialize(this);
         }
+
+        public override string ToString()
+        {
+            return $"pagingCursor: {pagingCursor?.ToString()} --- stopAtBoundary: {stopAtBoundary?.ToString()} --- nextBoundaryCursor: {nextBoundaryCursor?.ToString()}";
+        }
+
     }
 }
