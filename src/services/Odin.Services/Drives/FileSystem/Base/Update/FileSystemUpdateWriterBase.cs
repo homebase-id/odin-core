@@ -159,8 +159,7 @@ public abstract class FileSystemUpdateWriterBase
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile
-            .AsTempFileUpload(), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -209,7 +208,7 @@ public abstract class FileSystemUpdateWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadTempStream(new UploadFile(Package.InternalFile), extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -282,7 +281,7 @@ public abstract class FileSystemUpdateWriterBase
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
 
-            await FileSystem.Storage.CommitNewFile(Package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false,
+            await FileSystem.Storage.CommitNewFile(new UploadFile(Package.InternalFile), keyHeader, metadata, serverMetadata, false,
                 odinContext);
 
             var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext);
@@ -337,7 +336,7 @@ public abstract class FileSystemUpdateWriterBase
         };
 
         // TODO what if success is false?
-        var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(package.InternalFile.AsTempFileUpload(), package.InternalFile,
+        var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(new UploadFile(package.InternalFile), package.InternalFile,
             manifest, odinContext, null);
 
         if (success == false)
@@ -492,7 +491,7 @@ public abstract class FileSystemUpdateWriterBase
         if (Package?.Payloads?.Any() ?? false)
         {
             await FileSystem.Storage.CleanupUploadTemporaryFiles(
-                Package.InternalFile.AsTempFileUpload(),
+                new UploadFile(Package.InternalFile),
                 Package.GetFinalPayloadDescriptors(),
                 odinContext);
         }

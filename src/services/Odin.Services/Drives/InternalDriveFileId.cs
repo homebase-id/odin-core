@@ -46,16 +46,6 @@ namespace Odin.Services.Drives
             }
         }
 
-
-        public TempFile AsTempFileUpload()
-        {
-            return new TempFile()
-            {
-                File = this,
-                StorageType = TempStorageType.Upload
-            };
-        }
-        
         public static bool operator ==(InternalDriveFileId d1, InternalDriveFileId d2)
         {
             return d1.DriveId == d2.DriveId && d1.FileId == d2.FileId;

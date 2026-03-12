@@ -59,7 +59,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         ServerMetadata serverMetadata,
         IOdinContext odinContext)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false,
+        await FileSystem.Storage.CommitNewFile(new UploadFile(package.InternalFile), keyHeader, metadata, serverMetadata, false,
             odinContext);
     }
 
@@ -81,7 +81,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
             await FileSystem.Storage.OverwriteFile(
-                originFile: package.InternalFile.AsTempFileUpload(),
+                originFile: new UploadFile(package.InternalFile),
                 targetFile: package.InternalFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
