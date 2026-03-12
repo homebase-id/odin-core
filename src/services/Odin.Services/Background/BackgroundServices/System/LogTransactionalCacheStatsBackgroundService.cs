@@ -22,7 +22,7 @@ public sealed class LogTransactionalCacheStatsBackgroundService(
                 break;
             }
 
-            var stats = cacheStats.GetAllStats().OrderBy(kvp => kvp.Key);
+            var stats = cacheStats.GetAllStatsAndClear().OrderBy(kvp => kvp.Key);
             foreach (var kvp in stats)
             {
                 var total = kvp.Value.Hits + kvp.Value.Misses;

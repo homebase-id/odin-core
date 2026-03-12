@@ -123,6 +123,8 @@ public class CertificateServiceTests
         var services = new ServiceCollection();
         services.AddCoreCacheServices(new CacheConfiguration
         {
+            MemoryCacheSizeLimit = long.MaxValue,
+            MemoryCacheCompactionPercentage = 0.25,
             Level2CacheType = useRedis ? Level2CacheType.Redis : Level2CacheType.None
         });
 

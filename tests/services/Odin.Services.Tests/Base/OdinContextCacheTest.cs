@@ -74,6 +74,8 @@ public class OdinContextCacheTest
 
         services.AddCoreCacheServices(new CacheConfiguration
         {
+            MemoryCacheSizeLimit = long.MaxValue,
+            MemoryCacheCompactionPercentage = 0.25,
             Level2CacheType = level2CacheType,
         });
 
