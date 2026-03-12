@@ -1,0 +1,109 @@
+using System;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Moq;
+using NUnit.Framework;
+using Odin.Services.Configuration;
+using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Drives.Management;
+
+namespace Odin.Services.Tests.Drives.DriveCore.Storage;
+
+// TODO: Update tests for UploadFileHandler and InboxFileHandler
+// public class UploadStorageManagerTests
+//{
+//    private string _testRootPath = string.Empty;
+//    private OdinConfiguration _config = null!;
+//    private Mock<IDriveManager> _driveManagerMock = null!;
+//    private Mock<ILogger<UploadStorageManager>> _loggerMock = null!;
+//    private TenantContext _tenantContext = null!;
+//    private UploadStorageManager _uploadStorageManager = null!;
+//    private Mock<StorageDrive> _storageDriveMock = null!;
+//
+//    [SetUp]
+//    public void Setup()
+//    {
+//        _testRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+//        Directory.CreateDirectory(_testRootPath);
+//
+//        _config = new OdinConfiguration
+//        {
+//            Host = new OdinConfiguration.HostSection
+//            {
+//                FileOperationRetryAttempts = 1,
+//                FileOperationRetryDelayMs = TimeSpan.FromMilliseconds(1),
+//            }
+//        };
+//
+//        _driveManagerMock = new Mock<IDriveManager>();
+//        _loggerMock = new Mock<ILogger<UploadStorageManager>>();
+//
+//        var tenantPathManagerMock = new Mock<TenantPathManager>();
+//        tenantPathManagerMock.Setup(t => t.GetFilename(It.IsAny<Guid>(), It.IsAny<string>())).Returns((Guid fileId, string extension) => fileId.ToString() + extension);
+//
+//        var tenantContextMock = new Mock<TenantContext>();
+//        tenantContextMock.Setup(t => t.TenantPathManager).Returns(tenantPathManagerMock.Object);
+//
+//        _tenantContext = tenantContextMock.Object;
+//
+//        _uploadStorageManager = new UploadStorageManager(
+//            new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object),
+//            _driveManagerMock.Object,
+//            _loggerMock.Object,
+//            _tenantContext);
+//
+//        _storageDriveMock = new Mock<StorageDrive>();
+//        _storageDriveMock.Setup(d => d.GetDriveUploadPath()).Returns(Path.Combine(_testRootPath, "uploads"));
+//        _storageDriveMock.Setup(d => d.GetDriveInboxPath()).Returns(Path.Combine(_testRootPath, "inbox"));
+//    }
+//
+//    [TearDown]
+//    public void TearDown()
+//    {
+//        if (Directory.Exists(_testRootPath))
+//        {
+//            Directory.Delete(_testRootPath, true);
+//        }
+//    }
+//
+//    [Test]
+//    public async Task GetPath_UploadType_ReturnsCorrectPath()
+//    {
+//        // Arrange
+//        var tempFile = new TempFile
+//        {
+//            File = new InternalDriveFileId { DriveId = Guid.NewGuid(), FileId = Guid.NewGuid() },
+//            StorageType = TempStorageType.Upload
+//        };
+//        _driveManagerMock.Setup(dm => dm.GetDriveAsync(tempFile.File.DriveId)).ReturnsAsync(_storageDriveMock.Object);
+//
+//        // Act
+//        var path = await _uploadStorageManager.GetPath(tempFile, ".payload");
+//
+//        // Assert
+//        var expectedPath = Path.Combine(_testRootPath, "uploads", tempFile.File.FileId.ToString() + ".payload");
+//        Assert.AreEqual(expectedPath, path);
+//    }
+//
+//    [Test]
+//    public async Task GetPath_InboxType_ReturnsCorrectPath()
+//    {
+//        // Arrange
+//        var tempFile = new TempFile
+//        {
+//            File = new InternalDriveFileId { DriveId = Guid.NewGuid(), FileId = Guid.NewGuid() },
+//            StorageType = TempStorageType.Inbox
+//        };
+//        _driveManagerMock.Setup(dm => dm.GetDriveAsync(tempFile.File.DriveId)).ReturnsAsync(_storageDriveMock.Object);
+//
+//        // Act
+//        var path = await _uploadStorageManager.GetPath(tempFile, ".metadata");
+//
+//        // Assert
+//        var expectedPath = Path.Combine(_testRootPath, "inbox", tempFile.File.FileId.ToString() + ".metadata");
+//        Assert.AreEqual(expectedPath, path);
+//    }
+}
