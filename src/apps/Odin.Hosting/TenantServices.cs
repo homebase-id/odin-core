@@ -204,6 +204,7 @@ public static class TenantServices
         cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
+        cb.RegisterType<FileHandlerShared>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
         // cb.RegisterType<OrphanTestUtil>().InstancePerLifetimeScope();
 
