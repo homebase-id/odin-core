@@ -10,7 +10,7 @@ using Odin.Services.Configuration;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
-public sealed class FileReaderWriter(
+public class FileReaderWriter(
     OdinConfiguration odinConfiguration,
     ILogger<FileReaderWriter> logger)
 {
@@ -72,7 +72,7 @@ public sealed class FileReaderWriter(
 
     //
 
-    public async Task<uint> WriteStreamAsync(string filePath, Stream stream)
+    public virtual async Task<uint> WriteStreamAsync(string filePath, Stream stream)
     {
         uint bytesWritten = 0;
 
@@ -110,7 +110,7 @@ public sealed class FileReaderWriter(
 
     //
     
-    public async Task<byte[]> GetAllFileBytesAsync(string filePath)
+    public virtual async Task<byte[]> GetAllFileBytesAsync(string filePath)
     {
         AssertFileExists(filePath);
         
@@ -418,7 +418,7 @@ public sealed class FileReaderWriter(
         }
     }
 
-    public void DeleteFiles(IEnumerable<string> paths)
+    public virtual void DeleteFiles(IEnumerable<string> paths)
     {
         foreach (var path in paths)
         {
@@ -426,7 +426,7 @@ public sealed class FileReaderWriter(
         }
     }
 
-    public bool FileExists(string filePath)
+    public virtual bool FileExists(string filePath)
     {
         return File.Exists(filePath);
     }

@@ -19,7 +19,8 @@ public class CommentFileStorageService(
     IDriveAclAuthorizationService driveAclAuthorizationService,
     IDriveManager driveManager,
     LongTermStorageManager longTermStorageManager,
-    UploadStorageManager uploadStorageManager,
+    UploadFileHandler uploadFileHandler,
+    InboxFileHandler inboxFileHandler,
     // OrphanTestUtil orphanTestUtil,
     IdentityDatabase db
 )
@@ -29,8 +30,8 @@ public class CommentFileStorageService(
         driveAclAuthorizationService,
         driveManager,
         longTermStorageManager,
-        uploadStorageManager,
-        // orphanTestUtil,
+        uploadFileHandler,
+        inboxFileHandler,
         db)
 {
     public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)

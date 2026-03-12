@@ -15,7 +15,7 @@ namespace Odin.Services.Drives;
 /// Information about a drive
 /// </summary>
 [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
-public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDriveData data)
+public class StorageDrive(TenantPathManager tenantPathManager, StorageDriveData data)
 {
     public const string BlockCdnAttributeName = "blockcdn";
     internal StorageDriveData Data { get; } = data;
@@ -73,12 +73,12 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         return tenantPathManager.GetDrivePayloadPath(Id);
     }
 
-    public string GetDriveUploadPath()
+    public virtual string GetDriveUploadPath()
     {
         return tenantPathManager.GetDriveUploadPath(Id);
     }
 
-    public string GetDriveInboxPath()
+    public virtual string GetDriveInboxPath()
     {
         return tenantPathManager.GetDriveInboxPath(Id);
     }
