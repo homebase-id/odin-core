@@ -144,21 +144,21 @@ public class DriveFileUploadTempFilesAreRemovedTests
         foreach (var descriptor in header.FileMetadata.Payloads)
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-            var payloadTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(
-                uploadResult.File, TempStorageType.Upload, payloadExtension);
+            var payloadStagingFileExistsResponse = await ownerApiClient.DriveRedux.UploadFileExists(
+                uploadResult.File, payloadExtension);
 
-            ClassicAssert.IsTrue(payloadTempFileExistsResponse.IsSuccessStatusCode);
-            ClassicAssert.IsFalse(payloadTempFileExistsResponse.Content);
+            ClassicAssert.IsTrue(payloadStagingFileExistsResponse.IsSuccessStatusCode);
+            ClassicAssert.IsFalse(payloadStagingFileExistsResponse.Content);
 
             foreach (var thumbnail in descriptor.Thumbnails)
             {
                 var thumbnailExtension =
                     TenantPathManager.GetThumbnailFileNameAndExtension(descriptor.Key, descriptor.Uid, thumbnail.PixelWidth, thumbnail.PixelHeight);
-                var thumbnailTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(
-                    uploadResult.File, TempStorageType.Upload, thumbnailExtension);
+                var thumbnailStagingFileExistsResponse = await ownerApiClient.DriveRedux.UploadFileExists(
+                    uploadResult.File, thumbnailExtension);
 
-                ClassicAssert.IsTrue(thumbnailTempFileExistsResponse.IsSuccessStatusCode);
-                ClassicAssert.IsFalse(thumbnailTempFileExistsResponse.Content);
+                ClassicAssert.IsTrue(thumbnailStagingFileExistsResponse.IsSuccessStatusCode);
+                ClassicAssert.IsFalse(thumbnailStagingFileExistsResponse.Content);
             }
         }
     }
@@ -280,22 +280,22 @@ public class DriveFileUploadTempFilesAreRemovedTests
         foreach (var descriptor in getUpdatedHeaderResponse.Content!.FileMetadata.Payloads)
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-            var payloadTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(
-                uploadResult.File, TempStorageType.Upload, payloadExtension);
+            var payloadStagingFileExistsResponse = await ownerApiClient.DriveRedux.UploadFileExists(
+                uploadResult.File, payloadExtension);
 
-            ClassicAssert.IsTrue(payloadTempFileExistsResponse.IsSuccessStatusCode);
-            ClassicAssert.IsFalse(payloadTempFileExistsResponse.Content);
+            ClassicAssert.IsTrue(payloadStagingFileExistsResponse.IsSuccessStatusCode);
+            ClassicAssert.IsFalse(payloadStagingFileExistsResponse.Content);
 
             foreach (var thumbnail in descriptor.Thumbnails)
             {
-                var thumbnailExtension = TenantPathManager.GetThumbnailFileNameAndExtension(descriptor.Key, 
+                var thumbnailExtension = TenantPathManager.GetThumbnailFileNameAndExtension(descriptor.Key,
                     descriptor.Uid, thumbnail.PixelWidth, thumbnail.PixelHeight);
-                
-                var thumbnailTempFileExistsResponse = await ownerApiClient.DriveRedux.TempFileExists(
-                    uploadResult.File, TempStorageType.Upload, thumbnailExtension);
 
-                ClassicAssert.IsTrue(thumbnailTempFileExistsResponse.IsSuccessStatusCode);
-                ClassicAssert.IsFalse(thumbnailTempFileExistsResponse.Content);
+                var thumbnailStagingFileExistsResponse = await ownerApiClient.DriveRedux.UploadFileExists(
+                    uploadResult.File, thumbnailExtension);
+
+                ClassicAssert.IsTrue(thumbnailStagingFileExistsResponse.IsSuccessStatusCode);
+                ClassicAssert.IsFalse(thumbnailStagingFileExistsResponse.Content);
             }
         }
 

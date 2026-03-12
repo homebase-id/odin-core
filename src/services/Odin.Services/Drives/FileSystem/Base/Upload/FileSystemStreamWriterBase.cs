@@ -391,7 +391,7 @@ public abstract class FileSystemStreamWriterBase
         return recipientStatus;
     }
 
-    public async Task CleanupTempFiles(IOdinContext odinContext)
+    public async Task CleanupStagingFiles(IOdinContext odinContext)
     {
         if (Package?.InternalFile != null)
         {

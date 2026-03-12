@@ -64,7 +64,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 try
                 {
-                    await driveUploadService.CleanupTempFiles(WebOdinContext);
+                    await driveUploadService.CleanupStagingFiles(WebOdinContext);
                 }
                 catch (Exception e)
                 {
@@ -190,7 +190,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 try
                 {
-                    await updateWriter.CleanupTempFiles(WebOdinContext);
+                    await updateWriter.CleanupStagingFiles(WebOdinContext);
                 }
                 catch (Exception e)
                 {
@@ -317,7 +317,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 try
                 {
-                    await writer.CleanupTempFiles(WebOdinContext);
+                    await writer.CleanupStagingFiles(WebOdinContext);
                 }
                 catch (Exception e)
                 {

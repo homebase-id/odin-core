@@ -22,7 +22,7 @@ public class StandardFilePayloadStreamWriter : PayloadStreamWriterBase
     protected override async Task<Guid> UpdatePayloads(PayloadOnlyPackage package, ServerFileHeader header,IOdinContext odinContext)
     {
         return await FileSystem.Storage.UpdatePayloads(
-            package.TempFile,
+            package.UploadFile,
             targetFile: package.InternalFile,
             incomingPayloads: package.GetFinalPayloadDescriptors(),
             odinContext,

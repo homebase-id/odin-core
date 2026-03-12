@@ -486,7 +486,7 @@ public abstract class FileSystemUpdateWriterBase
         metadata.Validate(odinContext.Tenant);
     }
 
-    public async Task CleanupTempFiles(IOdinContext odinContext)
+    public async Task CleanupStagingFiles(IOdinContext odinContext)
     {
         if (Package?.Payloads?.Any() ?? false)
         {

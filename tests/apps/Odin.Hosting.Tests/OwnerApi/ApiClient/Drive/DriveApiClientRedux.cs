@@ -510,6 +510,22 @@ public class DriveApiClientRedux
         }
     }
 
+    public async Task<ApiResponse<bool>> UploadFileExists(ExternalFileIdentifier file, string extension,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+        return await svc.UploadFileExists(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type, extension);
+    }
+
+    public async Task<ApiResponse<bool>> InboxFileExists(ExternalFileIdentifier file, string extension,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+        return await svc.InboxFileExists(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type, extension);
+    }
+
     public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, string key, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {

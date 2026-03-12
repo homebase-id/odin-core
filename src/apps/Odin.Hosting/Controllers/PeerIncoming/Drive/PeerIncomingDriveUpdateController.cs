@@ -130,7 +130,7 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
                 {
                     if (null != _fileUpdateService)
                     {
-                        await _fileUpdateService.CleanupTempFiles(uploadedPayloads, WebOdinContext);
+                        await _fileUpdateService.CleanupStagingFiles(uploadedPayloads, WebOdinContext);
                     }
                 }
                 catch (Exception e)

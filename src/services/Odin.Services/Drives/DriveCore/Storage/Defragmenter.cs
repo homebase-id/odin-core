@@ -232,7 +232,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public async Task VerifyDriveDirectoriesTemp(bool cleanup)
         {
-            var rootpath = _tenantPathManager.TempDrivesPath;
+            var rootpath = _tenantPathManager.UploadDrivesPath;
 
             if (Directory.Exists(rootpath))
             {

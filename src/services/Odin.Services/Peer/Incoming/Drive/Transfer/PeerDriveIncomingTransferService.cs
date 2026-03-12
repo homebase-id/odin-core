@@ -283,7 +283,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
+        public async Task CleanupStagingFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
         {
             if (_transferState?.File != null && _transferState.IsDirectWrite)
             {

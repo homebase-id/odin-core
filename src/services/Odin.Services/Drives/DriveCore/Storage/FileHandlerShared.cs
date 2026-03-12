@@ -49,7 +49,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             fileReaderWriter.DeleteFiles(paths);
         }
 
-        public string BuildTempFilePath(string dir, Guid fileId, string ext)
+        public string BuildStagingFilePath(string dir, Guid fileId, string ext)
         {
             return Path.Combine(dir, TenantPathManager.GetFilename(fileId, ext));
         }

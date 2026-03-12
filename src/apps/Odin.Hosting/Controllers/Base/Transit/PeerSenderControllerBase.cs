@@ -55,7 +55,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             {
                 try
                 {
-                    await fileSystemWriter.CleanupTempFiles(WebOdinContext);
+                    await fileSystemWriter.CleanupStagingFiles(WebOdinContext);
                 }
                 catch (Exception e)
                 {

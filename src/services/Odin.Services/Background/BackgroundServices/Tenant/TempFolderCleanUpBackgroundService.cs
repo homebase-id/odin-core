@@ -31,7 +31,7 @@ public sealed class TempFolderCleanUpBackgroundService(
             {
                 TempFolderCleanUp.Execute(
                     logger,
-                    tenantContext.TenantPathManager.TempPath,
+                    tenantContext.TenantPathManager.UploadPath,
                     uploadAgeThreshold,
                     inboxAgeThreshold,
                     stoppingToken);

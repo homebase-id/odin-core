@@ -114,7 +114,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 shared.EnsureDirectoryExists(dir);
             }
 
-            return shared.BuildTempFilePath(dir, file.FileId, extension);
+            return shared.BuildStagingFilePath(dir, file.FileId, extension);
         }
     }
 }
