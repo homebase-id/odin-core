@@ -20,6 +20,7 @@ public class CommentFileStorageService(
     IDriveManager driveManager,
     LongTermStorageManager longTermStorageManager,
     UploadStorageManager uploadStorageManager,
+    InboxStorageManager inboxStorageManager,
     // OrphanTestUtil orphanTestUtil,
     IdentityDatabase db
 )
@@ -30,6 +31,7 @@ public class CommentFileStorageService(
         driveManager,
         longTermStorageManager,
         uploadStorageManager,
+        inboxStorageManager,
         // orphanTestUtil,
         db)
 {

@@ -11,17 +11,17 @@ using Odin.Services.Drives.Management;
 namespace Odin.Services.Drives.DriveCore.Storage
 {
     /// <summary>
-    /// Temporary storage for a given drive. Used to stage incoming file parts from uploads.
+    /// Temporary storage for a given drive. Used to stage incoming file parts from peer transfers (inbox).
     /// </summary>
-    public class UploadStorageManager(
+    public class InboxStorageManager(
         FileHandlerShared shared,
         IDriveManager driveManager,
-        ILogger<UploadStorageManager> logger,
+        ILogger<InboxStorageManager> logger,
         TenantContext tenantContext)
     {
         private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
-        public async Task<bool> UploadFileExists(InternalDriveFileId file, string extension)
+        public async Task<bool> InboxFileExists(InternalDriveFileId file, string extension)
         {
             string path = await GetFilenameAndPathInternal(file, extension);
             return shared.FileExists(path);
@@ -45,12 +45,26 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return await shared.WriteStreamAsync(path, stream);
         }
 
-        /// <summary>
-        /// Deletes all files matching <param name="file"></param> regardless of extension
-        /// </summary>
-        public async Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
+        public async Task CleanupInboxFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
+            logger.LogDebug("CleanupInboxFiles called - file: {file}", file);
+
             await CleanupFilesInternal(file, descriptors);
+
+            //TODO: the extensions should be centralized
+            string[] additionalFiles =
+            [
+                await GetFilenameAndPathInternal(file, TenantPathManager.MetadataExtension),
+                await GetFilenameAndPathInternal(file, TenantPathManager.TransferInstructionSetExtension)
+            ];
+
+            foreach (var f in additionalFiles)
+            {
+                logger.LogDebug("CleanupInboxFiles Deleting additional File: {file}", f);
+            }
+
+            // clean up the transfer header and metadata since we keep those in the inbox
+            shared.DeleteFiles(additionalFiles);
         }
 
         /// <summary>
@@ -95,7 +109,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Failure while cleaning up upload files");
+                logger.LogError(e, "Failure while cleaning up inbox files");
             }
         }
 
@@ -107,7 +121,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private string GetFilenameAndPathInternal(StorageDrive drive, InternalDriveFileId file, string extension, bool ensureExists = false)
         {
-            string dir = drive.GetDriveUploadPath();
+            string dir = drive.GetDriveInboxPath();
 
             if (ensureExists)
             {
