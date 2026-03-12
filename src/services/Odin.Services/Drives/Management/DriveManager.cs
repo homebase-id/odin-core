@@ -296,6 +296,7 @@ public class DriveManager : IDriveManager
             CacheKeyDrive + driveId,
             _ => GetDriveInternal(driveId),
             CacheTtl,
+            EntrySize.Medium,
             RootInvalidationTag);
 
         if (driveData == null)
@@ -411,6 +412,7 @@ public class DriveManager : IDriveManager
                 return drives.Select(ToStorageDriveData);
             },
             CacheTtl,
+            EntrySize.Medium,
             RootInvalidationTag);
 
         var allDrives = allDrivesData.Select(ToStorageDrive).ToList();

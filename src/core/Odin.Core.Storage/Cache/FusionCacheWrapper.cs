@@ -78,10 +78,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultEntryOptions.Duplicate(duration);
+        options.Size = entrySize;
 
         return cache.GetOrSet(
             AddPrefix(key),
@@ -97,10 +99,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultEntryOptions.Duplicate(duration);
+        options.Size = entrySize;
 
         return cache.GetOrSetAsync(
             AddPrefix(key),
@@ -116,10 +120,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         string key,
         Func<CancellationToken, TValue> factory,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultEntryOptions.Duplicate(duration);
+        options.Size = entrySize;
 
         return cache.GetOrSet<TValue>(
             AddPrefix(key),
@@ -135,10 +141,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultEntryOptions.Duplicate(duration);
+        options.Size = entrySize;
 
         return cache.GetOrSetAsync<TValue>(
             AddPrefix(key),
@@ -154,10 +162,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         string key,
         TValue value,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultEntryOptions.Duplicate(duration);
+        options.Size = entrySize;
 
         cache.Set(
             AddPrefix(key),
@@ -173,10 +183,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         string key,
         TValue value,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
         var options = DefaultEntryOptions.Duplicate(duration);
+        options.Size = entrySize;
 
         return cache.SetAsync(
             AddPrefix(key),

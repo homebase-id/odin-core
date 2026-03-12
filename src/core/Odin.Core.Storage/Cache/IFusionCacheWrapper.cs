@@ -46,6 +46,7 @@ public interface IFusionCacheWrapper
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
@@ -53,6 +54,7 @@ public interface IFusionCacheWrapper
         string key,
         TValue defaultValue,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
@@ -60,6 +62,7 @@ public interface IFusionCacheWrapper
         string key,
         Func<CancellationToken, TValue> factory,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
@@ -67,6 +70,7 @@ public interface IFusionCacheWrapper
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
@@ -78,6 +82,7 @@ public interface IFusionCacheWrapper
         string key,
         TValue value,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
@@ -85,6 +90,7 @@ public interface IFusionCacheWrapper
         string key,
         TValue value,
         TimeSpan duration,
+        long entrySize = EntrySize.Small,
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 

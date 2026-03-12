@@ -87,6 +87,7 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
             "PagingByCreated" + ":" + count + ":" + inCursor,
             _ => table.PagingByCircleIdAsync(count, inCursor),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             PagingByCircleIdTags);
 
         return result;

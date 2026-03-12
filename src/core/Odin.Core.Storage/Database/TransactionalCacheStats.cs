@@ -15,6 +15,7 @@ public interface ITransactionalCacheStats
     double GetHitRatio(string key);
     double GetOverallHitRatio();
     IReadOnlyDictionary<string, (long Hits, long Misses)> GetAllStats();
+    IReadOnlyDictionary<string, (long Hits, long Misses)> GetAllStatsAndClear();
     void Clear();
 }
 
@@ -28,7 +29,7 @@ public sealed class TransactionalCacheStats : ITransactionalCacheStats
         public long MissCount;
     }
 
-    private readonly ConcurrentDictionary<string, Stats> _stats = new();
+    private ConcurrentDictionary<string, Stats> _stats = new();
 
     //
 
@@ -91,8 +92,18 @@ public sealed class TransactionalCacheStats : ITransactionalCacheStats
 
     //
 
+    public IReadOnlyDictionary<string, (long Hits, long Misses)> GetAllStatsAndClear()
+    {
+        var old = Interlocked.Exchange(ref _stats, new ConcurrentDictionary<string, Stats>());
+        return old.ToDictionary(
+            kvp => kvp.Key,
+            kvp => (kvp.Value.HitCount, kvp.Value.MissCount));
+    }
+
+    //
+
     public void Clear()
     {
-        _stats.Clear();
+        Interlocked.Exchange(ref _stats, new ConcurrentDictionary<string, Stats>());
     }
 }

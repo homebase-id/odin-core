@@ -68,6 +68,7 @@ public class OdinContextCache(
             key,
             _ => dotYouContextFactory(),
             duration,
+            EntrySize.Small,
             _cacheTags
         );
 

@@ -86,6 +86,7 @@ public class TableAppNotificationsCached(TableAppNotifications table, IIdentityT
             "PagingByCreated" + ":" + count + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, cursorString),
             ttl ?? DefaultTtl,
+            DefaultEntrySize,
             PagingByCreateTags);
 
         return result;
