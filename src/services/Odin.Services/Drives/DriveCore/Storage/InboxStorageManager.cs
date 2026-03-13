@@ -68,14 +68,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Gets the physical path of the specified file
-        /// </summary>
-        public Task<string> GetInboxPath(InternalDriveFileId file, string extension)
-        {
-            return Task.FromResult(_tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension));
-        }
-
         private void CleanupInboxFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
             try

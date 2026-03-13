@@ -53,14 +53,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Gets the physical path of the specified file
-        /// </summary>
-        public Task<string> GetUploadPath(InternalDriveFileId file, string extension)
-        {
-            return Task.FromResult(_tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension));
-        }
-
         private void CleanupUploadFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
             try
