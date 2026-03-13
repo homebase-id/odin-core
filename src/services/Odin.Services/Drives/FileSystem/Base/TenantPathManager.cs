@@ -127,6 +127,18 @@ public class TenantPathManager
         return Path.Combine(UploadDrivesPath, GuidToPathSafeString(driveId), UploadFolder);
     }
 
+    // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/inbox/<file-id>.<extension>
+    public string GetDriveInboxFilePath(Guid driveId, Guid fileId, string extension)
+    {
+        return Path.Combine(GetDriveInboxPath(driveId), GetFilename(fileId, extension));
+    }
+
+    // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/uploads/<file-id>.<extension>
+    public string GetDriveUploadFilePath(Guid driveId, Guid fileId, string extension)
+    {
+        return Path.Combine(GetDriveUploadPath(driveId), GetFilename(fileId, extension));
+    }
+
     // e.g. /data/tenants/payloads/<tenant-id>/drives/<drive-id>/files
     public string GetDrivePayloadPath(Guid driveId)
     {

@@ -1,9 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -47,11 +45,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public void DeleteFiles(IEnumerable<string> paths)
         {
             fileReaderWriter.DeleteFiles(paths);
-        }
-
-        public string BuildStagingFilePath(string dir, Guid fileId, string ext)
-        {
-            return Path.Combine(dir, TenantPathManager.GetFilename(fileId, ext));
         }
 
         public void EnsureDirectoryExists(string path)

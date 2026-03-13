@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
@@ -15,16 +14,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// </summary>
     public class UploadStorageManager(
         FileHandlerShared shared,
-        IDriveManager driveManager,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
     {
         private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
-        public async Task<bool> UploadFileExists(InternalDriveFileId file, string extension)
+        public Task<bool> UploadFileExists(InternalDriveFileId file, string extension)
         {
-            string path = await GetUploadFilenameAndPathInternal(file, extension);
-            return shared.FileExists(path);
+            string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
+            return Task.FromResult(shared.FileExists(path));
         }
 
         /// <summary>
@@ -32,7 +30,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<byte[]> GetAllUploadFileBytes(InternalDriveFileId file, string extension)
         {
-            string path = await GetUploadFilenameAndPathInternal(file, extension);
+            string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
             return await shared.GetAllFileBytesAsync(path);
         }
 
@@ -41,27 +39,29 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            string path = await GetUploadFilenameAndPathInternal(file, extension, true);
+            shared.EnsureDirectoryExists(_tenantPathManager.GetDriveUploadPath(file.DriveId));
+            string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
             return await shared.WriteStreamAsync(path, stream);
         }
 
         /// <summary>
         /// Deletes all files matching <param name="file"></param> regardless of extension
         /// </summary>
-        public async Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
+        public Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
-            await CleanupUploadFilesInternal(file, descriptors);
+            CleanupUploadFilesInternal(file, descriptors);
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Gets the physical path of the specified file
         /// </summary>
-        public async Task<string> GetUploadPath(InternalDriveFileId file, string extension)
+        public Task<string> GetUploadPath(InternalDriveFileId file, string extension)
         {
-            return await GetUploadFilenameAndPathInternal(file, extension);
+            return Task.FromResult(_tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension));
         }
 
-        private async Task CleanupUploadFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
+        private void CleanupUploadFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
             try
             {
@@ -70,14 +70,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     return;
                 }
 
-                var drive = await driveManager.GetDriveAsync(file.DriveId);
-
                 var targetFiles = new List<string>();
 
                 descriptors!.ForEach(descriptor =>
                 {
                     var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-                    string payloadDirectoryAndFilename = GetUploadFilenameAndPathInternal(drive, file, payloadExtension);
+                    string payloadDirectoryAndFilename = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, payloadExtension);
                     targetFiles.Add(payloadDirectoryAndFilename);
 
                     descriptor.Thumbnails?.ForEach(thumb =>
@@ -86,7 +84,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             descriptor.Uid,
                             thumb.PixelWidth,
                             thumb.PixelHeight);
-                        string thumbnailDirectoryAndFilename = GetUploadFilenameAndPathInternal(drive, file, thumbnailExtension);
+                        string thumbnailDirectoryAndFilename = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, thumbnailExtension);
                         targetFiles.Add(thumbnailDirectoryAndFilename);
                     });
                 });
@@ -97,24 +95,6 @@ namespace Odin.Services.Drives.DriveCore.Storage
             {
                 logger.LogError(e, "Failure while cleaning up upload files");
             }
-        }
-
-        private async Task<string> GetUploadFilenameAndPathInternal(InternalDriveFileId file, string extension, bool ensureExists = false)
-        {
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
-            return GetUploadFilenameAndPathInternal(drive, file, extension, ensureExists);
-        }
-
-        private string GetUploadFilenameAndPathInternal(StorageDrive drive, InternalDriveFileId file, string extension, bool ensureExists = false)
-        {
-            string dir = drive.GetDriveUploadPath();
-
-            if (ensureExists)
-            {
-                shared.EnsureDirectoryExists(dir);
-            }
-
-            return shared.BuildStagingFilePath(dir, file.FileId, extension);
         }
     }
 }
