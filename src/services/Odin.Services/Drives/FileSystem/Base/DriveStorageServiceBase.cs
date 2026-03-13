@@ -556,7 +556,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             // First copy and prepare everything we need
             if (!ignorePayload.GetValueOrDefault(false))
             {
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, newMetadata.Payloads ?? [], drive, isInbox);
+                var src = isInbox ? drive.GetDriveInboxPath() : drive.GetDriveUploadPath();
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, newMetadata.Payloads ?? [], drive, src);
             }
 
             // set the version tag null on a new file sine it will be handled by the
@@ -659,7 +660,8 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (!ignorePayload.GetValueOrDefault(false))
             {
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, isInbox);
+                var src = isInbox ? drive.GetDriveInboxPath() : drive.GetDriveUploadPath();
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, src);
             }
 
             bool success = false;
@@ -757,7 +759,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             try
             {
                 //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive, false);
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive, drive.GetDriveUploadPath());
 
                 // get all the existing payloads that are not in the incoming list, we'll keep these
                 var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
@@ -1127,7 +1129,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 // Copy all payload from the temp folder to the long term folder
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive, isInbox);
+                var src = isInbox ? storageDrive.GetDriveInboxPath() : storageDrive.GetDriveUploadPath();
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive, src);
 
                 return zombies;
             }
@@ -1586,13 +1589,13 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         /// <returns>List of all files copied (directory and filename)</returns>
         private async Task CopyPayloadsAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
-            List<PayloadDescriptor> descriptors, StorageDrive drive, bool isInbox = false)
+            List<PayloadDescriptor> descriptors, StorageDrive drive, string sourceFolderPath)
         {
             try
             {
                 foreach (var descriptor in descriptors)
                 {
-                    await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor, isInbox);
+                    await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor, sourceFolderPath);
                 }
             }
             catch
@@ -1606,12 +1609,10 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Copies payload and thumbs to long term storage
         /// </summary>
         private async Task CopyPayloadAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
-            StorageDrive drive, PayloadDescriptor descriptor, bool isInbox = false)
+            StorageDrive drive, PayloadDescriptor descriptor, string sourceFolderPath)
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-            var sourceFilePath = isInbox
-                ? await inboxStorageManager.GetPath(originFile, payloadExtension)
-                : await uploadStorageManager.GetPath(originFile, payloadExtension);
+            var sourceFilePath = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, payloadExtension));
             await longTermStorageManager.CopyPayloadToLongTermAsync(
                 drive,
                 targetFile.FileId,
@@ -1623,9 +1624,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var thumbExt = TenantPathManager.GetThumbnailFileNameAndExtension(
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
-                var sourceThumbnail = isInbox
-                    ? await inboxStorageManager.GetPath(originFile, thumbExt)
-                    : await uploadStorageManager.GetPath(originFile, thumbExt);
+                var sourceThumbnail = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, thumbExt));
                 await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
                     thumb);
             }
