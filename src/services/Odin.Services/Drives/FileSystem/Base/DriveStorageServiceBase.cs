@@ -218,14 +218,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            return await uploadStorageManager.WriteStream(file, extension, stream);
+            return await uploadStorageManager.WriteUploadStream(file, extension, stream);
         }
 
         public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            return await inboxStorageManager.WriteStream(file, extension, stream);
+            return await inboxStorageManager.WriteInboxStream(file, extension, stream);
         }
 
         /// <summary>
@@ -235,7 +235,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanReadDriveAsync(file.DriveId, odinContext);
-            return await inboxStorageManager.GetAllFileBytes(file, extension);
+            return await inboxStorageManager.GetAllInboxFileBytes(file, extension);
         }
 
         public async Task<bool> UploadFileExists(InternalDriveFileId file, string extension, IOdinContext odinContext)
@@ -535,7 +535,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             InternalDriveFileId originFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata,
             bool? ignorePayload, IOdinContext odinContext, Guid? useThisVersionTag = null, WriteSecondDatabaseRowBase markComplete = null,
-            bool isInbox = false)
+            string sourceFolderPath = null)
         {
             await AssertDriveIsNotArchived(originFile.DriveId, odinContext);
             await AssertCanWriteToDrive(originFile.DriveId, odinContext);
@@ -550,7 +550,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // First copy and prepare everything we need
             if (!ignorePayload.GetValueOrDefault(false))
             {
-                var src = isInbox ? drive.GetDriveInboxPath() : drive.GetDriveUploadPath();
+                var src = sourceFolderPath ?? drive.GetDriveUploadPath();
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, newMetadata.Payloads ?? [], drive, src);
             }
 
@@ -611,7 +611,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             InternalDriveFileId originFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete,
-            bool isInbox = false)
+            string sourceFolderPath = null)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
@@ -654,7 +654,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (!ignorePayload.GetValueOrDefault(false))
             {
-                var src = isInbox ? drive.GetDriveInboxPath() : drive.GetDriveUploadPath();
+                var src = sourceFolderPath ?? drive.GetDriveUploadPath();
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, src);
             }
 
@@ -969,7 +969,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             BatchUpdateManifest manifest,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete,
-            bool isInbox = false)
+            string sourceFolderPath = null)
         {
             bool success = false;
 
@@ -984,7 +984,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // First prepare by copying everything needed
-            var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext, isInbox);
+            var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext, sourceFolderPath);
             try
             {
                 await AssertPayloadsExistOnFileSystemAsync(header);
@@ -1064,7 +1064,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)>
             UpdateBatchCopyFilesAsync(InternalDriveFileId originFile,
                 InternalDriveFileId targetFile, BatchUpdateManifest manifest,
-                IOdinContext odinContext, bool isInbox = false)
+                IOdinContext odinContext, string sourceFolderPath = null)
         {
             List<PayloadDescriptor> copiedPayloads = new();
 
@@ -1123,7 +1123,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 // Copy all payload from the temp folder to the long term folder
-                var src = isInbox ? storageDrive.GetDriveInboxPath() : storageDrive.GetDriveUploadPath();
+                var src = sourceFolderPath ?? storageDrive.GetDriveUploadPath();
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive, src);
 
                 return zombies;

@@ -29,7 +29,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Update;
 /// </summary>
 public abstract class FileSystemUpdateWriterBase
 {
-    private readonly IDriveManager _driveManager;
+    protected readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
     private readonly ILogger _logger;
 
@@ -281,8 +281,9 @@ public abstract class FileSystemUpdateWriterBase
                 throw new OdinClientException("AllowDistribution must be true when UpdateLocale is Peer");
             }
 
+            var peerDrive = await _driveManager.GetDriveAsync(Package.InternalFile.DriveId);
             await FileSystem.Storage.CommitNewFile(Package.InternalFile, keyHeader, metadata, serverMetadata, false,
-                odinContext);
+                odinContext, sourceFolderPath: peerDrive.GetDriveUploadPath());
 
             var recipientStatus = await ProcessTransitInstructions(Package, Package.InstructionSet.File, keyHeader, odinContext);
 
@@ -335,9 +336,10 @@ public abstract class FileSystemUpdateWriterBase
             ServerMetadata = serverMetadata
         };
 
+        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId);
         // TODO what if success is false?
         var (success, payloads) = await FileSystem.Storage.UpdateBatchAsync(package.InternalFile, package.InternalFile,
-            manifest, odinContext, null);
+            manifest, odinContext, null, sourceFolderPath: drive.GetDriveUploadPath());
 
         if (success == false)
             throw new OdinClientException("No, I couldn't do it, success is false");

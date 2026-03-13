@@ -23,25 +23,25 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public async Task<bool> UploadFileExists(InternalDriveFileId file, string extension)
         {
-            string path = await GetFilenameAndPathInternal(file, extension);
+            string path = await GetUploadFilenameAndPathInternal(file, extension);
             return shared.FileExists(path);
         }
 
         /// <summary>
         /// Gets all bytes for the specified file
         /// </summary>
-        public async Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension)
+        public async Task<byte[]> GetAllUploadFileBytes(InternalDriveFileId file, string extension)
         {
-            string path = await GetFilenameAndPathInternal(file, extension);
+            string path = await GetUploadFilenameAndPathInternal(file, extension);
             return await shared.GetAllFileBytesAsync(path);
         }
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task<uint> WriteStream(InternalDriveFileId file, string extension, Stream stream)
+        public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            string path = await GetFilenameAndPathInternal(file, extension, true);
+            string path = await GetUploadFilenameAndPathInternal(file, extension, true);
             return await shared.WriteStreamAsync(path, stream);
         }
 
@@ -50,18 +50,18 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
-            await CleanupFilesInternal(file, descriptors);
+            await CleanupUploadFilesInternal(file, descriptors);
         }
 
         /// <summary>
         /// Gets the physical path of the specified file
         /// </summary>
-        public async Task<string> GetPath(InternalDriveFileId file, string extension)
+        public async Task<string> GetUploadPath(InternalDriveFileId file, string extension)
         {
-            return await GetFilenameAndPathInternal(file, extension);
+            return await GetUploadFilenameAndPathInternal(file, extension);
         }
 
-        private async Task CleanupFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
+        private async Task CleanupUploadFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
             try
             {
@@ -77,7 +77,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 descriptors!.ForEach(descriptor =>
                 {
                     var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-                    string payloadDirectoryAndFilename = GetFilenameAndPathInternal(drive, file, payloadExtension);
+                    string payloadDirectoryAndFilename = GetUploadFilenameAndPathInternal(drive, file, payloadExtension);
                     targetFiles.Add(payloadDirectoryAndFilename);
 
                     descriptor.Thumbnails?.ForEach(thumb =>
@@ -86,7 +86,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             descriptor.Uid,
                             thumb.PixelWidth,
                             thumb.PixelHeight);
-                        string thumbnailDirectoryAndFilename = GetFilenameAndPathInternal(drive, file, thumbnailExtension);
+                        string thumbnailDirectoryAndFilename = GetUploadFilenameAndPathInternal(drive, file, thumbnailExtension);
                         targetFiles.Add(thumbnailDirectoryAndFilename);
                     });
                 });
@@ -99,13 +99,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        private async Task<string> GetFilenameAndPathInternal(InternalDriveFileId file, string extension, bool ensureExists = false)
+        private async Task<string> GetUploadFilenameAndPathInternal(InternalDriveFileId file, string extension, bool ensureExists = false)
         {
             var drive = await driveManager.GetDriveAsync(file.DriveId);
-            return GetFilenameAndPathInternal(drive, file, extension, ensureExists);
+            return GetUploadFilenameAndPathInternal(drive, file, extension, ensureExists);
         }
 
-        private string GetFilenameAndPathInternal(StorageDrive drive, InternalDriveFileId file, string extension, bool ensureExists = false)
+        private string GetUploadFilenameAndPathInternal(StorageDrive drive, InternalDriveFileId file, string extension, bool ensureExists = false)
         {
             string dir = drive.GetDriveUploadPath();
 

@@ -23,25 +23,25 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public async Task<bool> InboxFileExists(InternalDriveFileId file, string extension)
         {
-            string path = await GetFilenameAndPathInternal(file, extension);
+            string path = await GetInboxFilenameAndPathInternal(file, extension);
             return shared.FileExists(path);
         }
 
         /// <summary>
         /// Gets all bytes for the specified file
         /// </summary>
-        public async Task<byte[]> GetAllFileBytes(InternalDriveFileId file, string extension)
+        public async Task<byte[]> GetAllInboxFileBytes(InternalDriveFileId file, string extension)
         {
-            string path = await GetFilenameAndPathInternal(file, extension);
+            string path = await GetInboxFilenameAndPathInternal(file, extension);
             return await shared.GetAllFileBytesAsync(path);
         }
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task<uint> WriteStream(InternalDriveFileId file, string extension, Stream stream)
+        public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            string path = await GetFilenameAndPathInternal(file, extension, true);
+            string path = await GetInboxFilenameAndPathInternal(file, extension, true);
             return await shared.WriteStreamAsync(path, stream);
         }
 
@@ -49,13 +49,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             logger.LogDebug("CleanupInboxFiles called - file: {file}", file);
 
-            await CleanupFilesInternal(file, descriptors);
+            await CleanupInboxFilesInternal(file, descriptors);
 
             //TODO: the extensions should be centralized
             string[] additionalFiles =
             [
-                await GetFilenameAndPathInternal(file, TenantPathManager.MetadataExtension),
-                await GetFilenameAndPathInternal(file, TenantPathManager.TransferInstructionSetExtension)
+                await GetInboxFilenameAndPathInternal(file, TenantPathManager.MetadataExtension),
+                await GetInboxFilenameAndPathInternal(file, TenantPathManager.TransferInstructionSetExtension)
             ];
 
             foreach (var f in additionalFiles)
@@ -70,12 +70,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// <summary>
         /// Gets the physical path of the specified file
         /// </summary>
-        public async Task<string> GetPath(InternalDriveFileId file, string extension)
+        public async Task<string> GetInboxPath(InternalDriveFileId file, string extension)
         {
-            return await GetFilenameAndPathInternal(file, extension);
+            return await GetInboxFilenameAndPathInternal(file, extension);
         }
 
-        private async Task CleanupFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
+        private async Task CleanupInboxFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
             try
             {
@@ -91,7 +91,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 descriptors!.ForEach(descriptor =>
                 {
                     var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-                    string payloadDirectoryAndFilename = GetFilenameAndPathInternal(drive, file, payloadExtension);
+                    string payloadDirectoryAndFilename = GetInboxFilenameAndPathInternal(drive, file, payloadExtension);
                     targetFiles.Add(payloadDirectoryAndFilename);
 
                     descriptor.Thumbnails?.ForEach(thumb =>
@@ -100,7 +100,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             descriptor.Uid,
                             thumb.PixelWidth,
                             thumb.PixelHeight);
-                        string thumbnailDirectoryAndFilename = GetFilenameAndPathInternal(drive, file, thumbnailExtension);
+                        string thumbnailDirectoryAndFilename = GetInboxFilenameAndPathInternal(drive, file, thumbnailExtension);
                         targetFiles.Add(thumbnailDirectoryAndFilename);
                     });
                 });
@@ -113,13 +113,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
         }
 
-        private async Task<string> GetFilenameAndPathInternal(InternalDriveFileId file, string extension, bool ensureExists = false)
+        private async Task<string> GetInboxFilenameAndPathInternal(InternalDriveFileId file, string extension, bool ensureExists = false)
         {
             var drive = await driveManager.GetDriveAsync(file.DriveId);
-            return GetFilenameAndPathInternal(drive, file, extension, ensureExists);
+            return GetInboxFilenameAndPathInternal(drive, file, extension, ensureExists);
         }
 
-        private string GetFilenameAndPathInternal(StorageDrive drive, InternalDriveFileId file, string extension, bool ensureExists = false)
+        private string GetInboxFilenameAndPathInternal(StorageDrive drive, InternalDriveFileId file, string extension, bool ensureExists = false)
         {
             string dir = drive.GetDriveInboxPath();
 

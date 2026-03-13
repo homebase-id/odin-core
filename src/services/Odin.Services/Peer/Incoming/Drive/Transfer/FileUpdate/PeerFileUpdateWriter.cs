@@ -31,7 +31,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete,
-            bool isInbox = false)
+            string sourceFolderPath)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
@@ -40,8 +40,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             logger.LogDebug("PeerFileUpdateWriter - UpsertFileAsync called file: {file}", file);
 
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
-            var sourceFolderPath = isInbox ? drive.GetDriveInboxPath() : drive.GetDriveUploadPath();
             var incomingMetadata = await LoadMetadataFromTemp(file, fs, sourceFolderPath, odinContext);
 
             // Validations
@@ -82,7 +80,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                             odinContext,
                             useThisVersionTag: instructionSet.Request.NewVersionTag,
                             markComplete,
-                            isInbox: isInbox);
+                            sourceFolderPath: sourceFolderPath);
                     });
 
                 logger.LogDebug("PeerFileUpdateWriter WriteNewFile - success: {success} committed payload count {pc}",
@@ -124,7 +122,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, targetFile.Value, manifest, odinContext, markComplete, isInbox: isInbox);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, targetFile.Value, manifest, odinContext, markComplete, sourceFolderPath: sourceFolderPath);
                 
                 logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - success: {success} committed payload count {pc}",
                     success,

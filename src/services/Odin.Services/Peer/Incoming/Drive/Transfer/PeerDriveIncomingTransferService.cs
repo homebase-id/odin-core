@@ -359,12 +359,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
                 odinContext);
+            var drive = await driveManager.GetDriveAsync(stateItem.File.DriveId);
 
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
                 await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                    odinContext, isInbox: !stateItem.IsDirectWrite);
+                    odinContext, sourceFolderPath: stateItem.IsDirectWrite ? drive.GetDriveUploadPath() : drive.GetDriveInboxPath());
 
                 return true;
             }
@@ -380,7 +381,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     //S1205
                     await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                        odinContext, isInbox: !stateItem.IsDirectWrite);
+                        odinContext, sourceFolderPath: stateItem.IsDirectWrite ? drive.GetDriveUploadPath() : drive.GetDriveInboxPath());
                     return true;
                 }
 

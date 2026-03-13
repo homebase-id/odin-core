@@ -189,12 +189,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             PeerFileUpdateWriter updateWriter = new PeerFileUpdateWriter(logger, fileSystemResolver, driveManager);
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(_updateInstructionSet.EncryptedKeyHeader, odinContext);
+            var drive = await driveManager.GetDriveAsync(_file.DriveId);
+            var sourceFolderPath = _isDirectWrite ? drive.GetDriveUploadPath() : drive.GetDriveInboxPath();
 
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
                 await updateWriter.UpsertFileAsync(_file, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null,
-                    isInbox: !_isDirectWrite);
+                    sourceFolderPath: sourceFolderPath);
                 return true;
             }
 
@@ -209,7 +211,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 {
                     //S1205
                     await updateWriter.UpsertFileAsync(_file, decryptedKeyHeader, sender, _updateInstructionSet, odinContext, null,
-                        isInbox: !_isDirectWrite);
+                        sourceFolderPath: sourceFolderPath);
                     return true;
                 }
 
