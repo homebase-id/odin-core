@@ -43,11 +43,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
 
+            var drive = await driveManager.GetDriveAsync(file.DriveId);
+
             FileMetadata metadata = null;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesFromInboxFileForWriting(file,
-                    MultipartHostTransferParts.Metadata.ToString().ToLower(), odinContext);
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file,
+                    MultipartHostTransferParts.Metadata.ToString().ToLower(), drive.GetDriveInboxPath(), odinContext);
 
                 if (bytes == null)
                 {
@@ -79,7 +81,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage

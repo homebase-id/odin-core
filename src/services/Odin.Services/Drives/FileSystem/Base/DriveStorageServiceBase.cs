@@ -35,6 +35,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
         InboxStorageManager inboxStorageManager,
+        FileHandlerShared shared,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -263,20 +264,13 @@ namespace Odin.Services.Drives.FileSystem.Base
             return false;
         }
 
-        public async Task<byte[]> GetAllFileBytesFromInboxFileForWriting(InternalDriveFileId file, string extension,
-            IOdinContext odinContext)
+        public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(InternalDriveFileId file, string extension,
+            string sourceFolderPath, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            return await inboxStorageManager.GetAllFileBytes(file, extension);
-        }
-
-        public async Task<byte[]> GetAllFileBytesFromUploadFileForWriting(InternalDriveFileId file, string extension,
-            IOdinContext odinContext)
-        {
-            await AssertDriveIsNotArchived(file.DriveId, odinContext);
-            await AssertCanWriteToDrive(file.DriveId, odinContext);
-            return await uploadStorageManager.GetAllFileBytes(file, extension);
+            var path = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(file.FileId, extension));
+            return await shared.GetAllFileBytesAsync(path);
         }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,

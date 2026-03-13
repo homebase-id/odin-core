@@ -21,6 +21,7 @@ public class CommentFileStorageService(
     LongTermStorageManager longTermStorageManager,
     UploadStorageManager uploadStorageManager,
     InboxStorageManager inboxStorageManager,
+    FileHandlerShared shared,
     // OrphanTestUtil orphanTestUtil,
     IdentityDatabase db
 )
@@ -32,6 +33,7 @@ public class CommentFileStorageService(
         longTermStorageManager,
         uploadStorageManager,
         inboxStorageManager,
+        shared,
         // orphanTestUtil,
         db)
 {

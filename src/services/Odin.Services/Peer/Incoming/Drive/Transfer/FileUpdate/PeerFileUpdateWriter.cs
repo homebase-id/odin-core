@@ -40,7 +40,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             logger.LogDebug("PeerFileUpdateWriter - UpsertFileAsync called file: {file}", file);
 
-            var incomingMetadata = await LoadMetadataFromTemp(file, fs, isInbox, odinContext);
+            var drive = await driveManager.GetDriveAsync(file.DriveId);
+            var sourceFolderPath = isInbox ? drive.GetDriveInboxPath() : drive.GetDriveUploadPath();
+            var incomingMetadata = await LoadMetadataFromTemp(file, fs, sourceFolderPath, odinContext);
 
             // Validations
             var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext);
@@ -136,16 +138,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private async Task<FileMetadata> LoadMetadataFromTemp(
             InternalDriveFileId file,
             IDriveFileSystem fs,
-            bool isInbox,
+            string sourceFolderPath,
             IOdinContext odinContext)
         {
             FileMetadata incomingMetadata = default;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
             {
                 var extension = MultipartHostTransferParts.Metadata.ToString().ToLower();
-                var bytes = isInbox
-                    ? await fs.Storage.GetAllFileBytesFromInboxFileForWriting(file, extension, odinContext)
-                    : await fs.Storage.GetAllFileBytesFromUploadFileForWriting(file, extension, odinContext);
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file, extension, sourceFolderPath, odinContext);
 
                 if (bytes == null)
                 {
