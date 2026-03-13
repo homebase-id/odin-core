@@ -13,7 +13,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// Temporary storage for a given drive. Used to stage incoming file parts from peer transfers (inbox).
     /// </summary>
     public class InboxStorageManager(
-        FileHandlerShared shared,
+        FileReaderWriter fileReaderWriter,
         ILogger<InboxStorageManager> logger,
         TenantContext tenantContext)
     {
@@ -22,7 +22,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public Task<bool> InboxFileExists(InternalDriveFileId file, string extension)
         {
             string path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
-            return Task.FromResult(shared.FileExists(path));
+            return Task.FromResult(fileReaderWriter.FileExists(path));
         }
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<byte[]> GetAllInboxFileBytes(InternalDriveFileId file, string extension)
         {
             string path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
-            return await shared.GetAllFileBytesAsync(path);
+            return await fileReaderWriter.GetAllFileBytesAsync(path);
         }
 
         /// <summary>
@@ -39,9 +39,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            shared.EnsureDirectoryExists(_tenantPathManager.GetDriveInboxPath(file.DriveId));
+            fileReaderWriter.CreateDirectory(_tenantPathManager.GetDriveInboxPath(file.DriveId));
             string path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
-            return await shared.WriteStreamAsync(path, stream);
+            return await fileReaderWriter.WriteStreamAsync(path, stream);
         }
 
         public Task CleanupInboxFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
@@ -63,7 +63,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
 
             // clean up the transfer header and metadata since we keep those in the inbox
-            shared.DeleteFiles(additionalFiles);
+            fileReaderWriter.DeleteFiles(additionalFiles);
 
             return Task.CompletedTask;
         }
@@ -96,7 +96,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     });
                 });
 
-                shared.DeleteFiles(targetFiles);
+                fileReaderWriter.DeleteFiles(targetFiles);
             }
             catch (Exception e)
             {

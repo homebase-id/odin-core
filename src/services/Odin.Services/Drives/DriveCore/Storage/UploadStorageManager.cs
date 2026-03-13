@@ -13,7 +13,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// Temporary storage for a given drive. Used to stage incoming file parts from uploads.
     /// </summary>
     public class UploadStorageManager(
-        FileHandlerShared shared,
+        FileReaderWriter fileReaderWriter,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
     {
@@ -22,7 +22,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public Task<bool> UploadFileExists(InternalDriveFileId file, string extension)
         {
             string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            return Task.FromResult(shared.FileExists(path));
+            return Task.FromResult(fileReaderWriter.FileExists(path));
         }
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<byte[]> GetAllUploadFileBytes(InternalDriveFileId file, string extension)
         {
             string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            return await shared.GetAllFileBytesAsync(path);
+            return await fileReaderWriter.GetAllFileBytesAsync(path);
         }
 
         /// <summary>
@@ -39,9 +39,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            shared.EnsureDirectoryExists(_tenantPathManager.GetDriveUploadPath(file.DriveId));
+            fileReaderWriter.CreateDirectory(_tenantPathManager.GetDriveUploadPath(file.DriveId));
             string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            return await shared.WriteStreamAsync(path, stream);
+            return await fileReaderWriter.WriteStreamAsync(path, stream);
         }
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     });
                 });
 
-                shared.DeleteFiles(targetFiles);
+                fileReaderWriter.DeleteFiles(targetFiles);
             }
             catch (Exception e)
             {

@@ -21,7 +21,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
         InboxStorageManager inboxStorageManager,
-        FileHandlerShared shared,
+        FileReaderWriter fileReaderWriter,
         //OrphanTestUtil orphanTestUtil,
         IdentityDatabase db)
         : DriveStorageServiceBase(
@@ -32,7 +32,7 @@ namespace Odin.Services.Drives.FileSystem.Standard
             longTermStorageManager,
             uploadStorageManager,
             inboxStorageManager,
-            shared,
+            fileReaderWriter,
             // orphanTestUtil,
             db)
     {

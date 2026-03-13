@@ -35,7 +35,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
         InboxStorageManager inboxStorageManager,
-        FileHandlerShared shared,
+        FileReaderWriter fileReaderWriter,
         IdentityDatabase db) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
@@ -270,7 +270,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
             var path = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(file.FileId, extension));
-            return await shared.GetAllFileBytesAsync(path);
+            return await fileReaderWriter.GetAllFileBytesAsync(path);
         }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
