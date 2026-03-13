@@ -14,7 +14,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments
         /// <summary />
         public PayloadOnlyPackage(InternalDriveFileId internalFile, UploadPayloadInstructionSet instructionSet)
         {
-            this.TempFile = internalFile with { FileId = Guid.NewGuid() };
+            this.UploadFile = internalFile with { FileId = Guid.NewGuid() };
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.Payloads = new List<PackagePayloadDescriptor>();
@@ -27,7 +27,7 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload.Attachments
         /// The temporary file to which incoming payloads are written.  This is
         /// not the same as the target file to which the payloads will be attach
         /// </summary>
-        public InternalDriveFileId TempFile { get; init; }
+        public InternalDriveFileId UploadFile { get; init; }
 
         /// <summary>
         /// The file to which the payloads will be attached

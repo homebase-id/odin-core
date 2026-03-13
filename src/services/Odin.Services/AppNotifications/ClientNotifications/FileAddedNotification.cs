@@ -13,7 +13,7 @@ namespace Odin.Services.AppNotifications.ClientNotifications
 
         public OdinId Sender { get; set; }
 
-        public ExternalFileIdentifier TempFile { get; set; }
+        public ExternalFileIdentifier File { get; set; }
 
         public string GetClientData()
         {

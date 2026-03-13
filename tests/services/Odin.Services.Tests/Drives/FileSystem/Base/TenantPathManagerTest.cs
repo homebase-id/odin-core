@@ -75,13 +75,26 @@ public class TenantPathManagerTests
             tenantId.ToString(),
             "headers")));
 
-        Assert.That(tenantPathManager.TempPath, Is.EqualTo(Path.Combine(
+        Assert.That(tenantPathManager.UploadPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "registrations",
             tenantId.ToString(),
             "temp")));
 
-        Assert.That(tenantPathManager.TempDrivesPath, Is.EqualTo(Path.Combine(
+        Assert.That(tenantPathManager.UploadDrivesPath, Is.EqualTo(Path.Combine(
+            _config.Host.TenantDataRootPath,
+            "registrations",
+            tenantId.ToString(),
+            "temp",
+            "drives")));
+
+        Assert.That(tenantPathManager.InboxPath, Is.EqualTo(Path.Combine(
+            _config.Host.TenantDataRootPath,
+            "registrations",
+            tenantId.ToString(),
+            "temp")));
+
+        Assert.That(tenantPathManager.InboxDrivesPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "registrations",
             tenantId.ToString(),

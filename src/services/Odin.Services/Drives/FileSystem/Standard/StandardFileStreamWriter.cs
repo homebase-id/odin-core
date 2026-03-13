@@ -59,8 +59,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         ServerMetadata serverMetadata,
         IOdinContext odinContext)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile.AsTempFileUpload(), keyHeader, metadata, serverMetadata, false,
-            odinContext);
+        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId);
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false,
+            odinContext, sourceFolderPath: drive.GetDriveUploadPath());
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
@@ -80,15 +81,17 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
+            var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId);
             await FileSystem.Storage.OverwriteFile(
-                originFile: package.InternalFile.AsTempFileUpload(),
+                originFile: package.InternalFile,
                 targetFile: package.InternalFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
                 serverMetadata: serverMetadata,
                 ignorePayload: false,
                 odinContext: odinContext,
-                markComplete: null);
+                markComplete: null,
+                sourceFolderPath: drive.GetDriveUploadPath());
 
             return;
         }
