@@ -1,6 +1,7 @@
 using Odin.Core.Exceptions;
 using System;
 using System.Collections.Generic;
+using Odin.Core.Time;
 
 namespace Odin.Services.Drives.DriveCore.Storage;
 
@@ -23,6 +24,11 @@ public class LocalAppMetadata
 
     public List<Guid> Tags { get; init; }
 
+    /// <summary>
+    /// Timestamp indicating when the file was read by the local identity.
+    /// Set when SendReadReceipt is called and not modified afterward.
+    /// </summary>
+    public UnixTimeUtc? ReadTime { get; init; }
 
     public bool TryValidate()
     {
@@ -43,7 +49,7 @@ public class LocalAppMetadata
             throw new OdinClientException($"Too many Tags count {Tags.Count} in LocalAppMetaData max {MaxTagCount}");
 
         if (Content?.Length > MaxLocalAppDataContentLength)
-            throw new OdinClientException($"Content length {Content.Length} in AppFileMetaData max {MaxLocalAppDataContentLength}", 
+            throw new OdinClientException($"Content length {Content.Length} in AppFileMetaData max {MaxLocalAppDataContentLength}",
                 OdinClientErrorCode.MaxContentLengthExceeded);
     }
 }

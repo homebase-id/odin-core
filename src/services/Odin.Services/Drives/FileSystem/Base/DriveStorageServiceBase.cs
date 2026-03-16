@@ -1266,6 +1266,51 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
+        public async Task UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
+            }
+            
+            var existingLocalAppData = header.FileMetadata.LocalAppData;
+
+            if (existingLocalAppData?.ReadTime != null)
+            {
+                return;
+            }
+
+            var newVersionTag = DriveFileUtility.CreateVersionTag();
+            var mergedMetadata = new LocalAppMetadata
+            {
+                VersionTag = existingLocalAppData?.VersionTag ?? Guid.Empty,
+                Iv = existingLocalAppData?.Iv,
+                Content = existingLocalAppData?.Content,
+                Tags = existingLocalAppData?.Tags ?? [],
+                ReadTime = UnixTimeUtc.Now()
+            };
+
+            mergedMetadata.Validate();
+
+            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
+
+            var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+            if (await TryShouldRaiseDriveEventAsync(file))
+            {
+                await TryPublishAsync(new DriveFileChangedNotification
+                {
+                    File = file,
+                    ServerFileHeader = updatedHeader,
+                    OdinContext = odinContext,
+                });
+            }
+        }
+
         // TODO I think this should be in the upload manager
         public async Task CleanupUploadTemporaryFiles(TempFile tempFile, List<PayloadDescriptor> descriptors,
             IOdinContext odinContext)
@@ -1390,11 +1435,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                         GroupId = appData.GroupId,
                         UserDate = appData.UserDate,
                         ArchivalStatus = appData.ArchivalStatus,
-                        
+
                         Content = "",
                         PreviewThumbnail = null,
                     },
-                    
+
                     ReferencedFile = null,
                     ReactionPreview = null,
                     IsEncrypted = false,
