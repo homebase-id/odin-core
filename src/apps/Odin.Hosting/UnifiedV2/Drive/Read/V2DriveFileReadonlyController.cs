@@ -4,6 +4,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
@@ -171,6 +172,22 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             string key,
             FileChunk chunk = null)
         {
+
+            if (chunk != null)
+            {
+                // Ensure AES block alignment
+                if (chunk.Start % 16 != 0)
+                {
+                    throw new OdinClientException("Chunk start must align to AES block boundary (16 bytes)");
+                }
+                
+                if (chunk.Length != int.MaxValue && chunk.Length % 16 != 0)
+                {
+                    throw new OdinClientException("Chunk length must align to AES block boundary (16 bytes)");
+                }
+                
+            }
+            
             var file = new InternalDriveFileId
             {
                 DriveId = driveId,
