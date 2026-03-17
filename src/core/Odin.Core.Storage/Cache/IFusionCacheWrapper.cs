@@ -74,6 +74,14 @@ public interface IFusionCacheWrapper
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default);
 
+    ValueTask<TValue> GetOrSetAsync<TValue>(
+        string key,
+        Func<CancellationToken, Task<TValue>> factory,
+        TimeSpan duration,
+        Func<TValue, long> entrySizeFactory,
+        IEnumerable<string>? tags = null,
+        CancellationToken cancellationToken = default);
+
     //
     // Setters
     //

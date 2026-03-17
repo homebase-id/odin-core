@@ -27,7 +27,7 @@ public class TableKeyTwoValueCached(TableKeyTwoValue table, IIdentityTransaction
 
     public async Task<List<KeyTwoValueRecord>> GetByKeyTwoAsync(byte[] key2, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(GetCacheKey2(key2), _ => table.GetByKeyTwoAsync(key2), ttl ?? DefaultTtl);
+        var result = await Cache.GetOrSetListAsync(GetCacheKey2(key2), _ => table.GetByKeyTwoAsync(key2), ttl ?? DefaultTtl);
         return result;
     }
 

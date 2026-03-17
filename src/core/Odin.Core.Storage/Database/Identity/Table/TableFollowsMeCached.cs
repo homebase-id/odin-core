@@ -72,7 +72,7 @@ public class TableFollowsMeCached(TableFollowsMe table, IIdentityTransactionalCa
 
     public async Task<List<FollowsMeRecord>> GetAsync(OdinId identity, TimeSpan? ttl = null)
     {
-        var result =  await Cache.GetOrSetAsync(
+        var result =  await Cache.GetOrSetListAsync(
             GetCacheKey(identity),
             _ => table.GetAsync(identity),
             ttl ?? DefaultTtl);

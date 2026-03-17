@@ -158,6 +158,31 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
+    public ValueTask<TValue> GetOrSetAsync<TValue>(
+        string key,
+        Func<CancellationToken, Task<TValue>> factory,
+        TimeSpan duration,
+        Func<TValue, long> entrySizeFactory,
+        IEnumerable<string>? tags = null,
+        CancellationToken cancellationToken = default)
+    {
+        var options = DefaultEntryOptions.Duplicate(duration);
+
+        return cache.GetOrSetAsync<TValue>(
+            AddPrefix(key),
+            async (ctx, ct) =>
+            {
+                var result = await factory(ct);
+                ctx.Options.Size = entrySizeFactory(result);
+                return result;
+            },
+            options,
+            tags: AddPrefix(tags),
+            cancellationToken);
+    }
+
+    //
+
     public void Set<TValue>(
         string key,
         TValue value,

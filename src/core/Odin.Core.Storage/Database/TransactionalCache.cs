@@ -73,61 +73,7 @@ public sealed class TransactionalCache
 
     //
 
-    private string BuildCacheKey(string key)
-    {
-        return _keyPrefix + ":" + key;
-    }
-
-    //
-
-    private List<string> BuildTags(List<string> tags)
-    {
-        if (tags.Count == 0)
-        {
-            return tags;
-        }
-
-        var result = new List<string>(tags.Count);
-        foreach (var tag in tags)
-        {
-            result.Add(RootTag + ":" + tag);
-        }
-        return result;
-    }
-
-    //
-
-    private List<string> CombineAllTagsWithRoot(List<string>? tags)
-    {
-        if (tags == null || tags.Count == 0)
-        {
-            return _rootTag;
-        }
-
-        var result = new List<string>(_rootTag.Count + tags.Count);
-        result.AddRange(_rootTag);
-        result.AddRange(BuildTags(tags));
-        return result;
-    }
-
-    //
-
-    private List<string> CombineAllTagsWithoutRoot(List<string> tags)
-    {
-        if (tags == null || tags.Count == 0)
-        {
-            throw new OdinSystemException("Tags cannot be null or empty.");
-        }
-
-        var result = new List<string>(tags.Count);
-        result.AddRange(BuildTags(tags));
-        return result;
-    }
-
-    //
-
-    // SEB:TODO if the factory is returning a list of records, we should use number of records to calculate entry size instead of using a fixed entry size
-    public async Task<TValue> GetOrSetAsync<TValue>(
+    public Task<TValue> GetOrSetAsync<TValue>(
         string key,
         Func<CancellationToken, Task<TValue>> factory,
         TimeSpan ttl,
@@ -135,9 +81,85 @@ public sealed class TransactionalCache
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        return InternalGetOrSetAsync(
+            key,
+            factory,
+            ttl,
+            value => value is null ? EntrySize.Small : entrySize,
+            tags,
+            cancellationToken);
+    }
+
+    //
+
+    public Task<TValue> GetOrSetAsync<TValue>(
+        byte[] key,
+        Func<CancellationToken, Task<TValue>> factory,
+        TimeSpan ttl,
+        long entrySize = DefaultEntrySize,
+        List<string>? tags = null,
+        CancellationToken cancellationToken = default)
+    {
+        return InternalGetOrSetAsync(
+            key.ToHexString(),
+            factory,
+            ttl,
+            value => value is null ? EntrySize.Small : entrySize,
+            tags,
+            cancellationToken);
+    }
+
+    //
+
+    public Task<List<TItem>> GetOrSetListAsync<TItem>(
+        string key,
+        Func<CancellationToken, Task<List<TItem>>> factory,
+        TimeSpan ttl,
+        long entrySize = DefaultEntrySize,
+        List<string>? tags = null,
+        CancellationToken cancellationToken = default)
+    {
+        return InternalGetOrSetAsync(
+            key,
+            factory,
+            ttl,
+            list => list.Count == 0 ? EntrySize.Small : entrySize * list.Count,
+            tags,
+            cancellationToken);
+    }
+
+    //
+
+    public Task<List<TItem>> GetOrSetListAsync<TItem>(
+        byte[] key,
+        Func<CancellationToken, Task<List<TItem>>> factory,
+        TimeSpan ttl,
+        long entrySize = DefaultEntrySize,
+        List<string>? tags = null,
+        CancellationToken cancellationToken = default)
+    {
+        return InternalGetOrSetAsync(
+            key.ToHexString(),
+            factory,
+            ttl,
+            list => list.Count == 0 ? EntrySize.Small : entrySize * list.Count,
+            tags,
+            cancellationToken);
+    }
+
+    //
+
+    private async Task<TValue> InternalGetOrSetAsync<TValue>(
+        string key,
+        Func<CancellationToken, Task<TValue>> factory,
+        TimeSpan ttl,
+        Func<TValue, long> entrySizeFactory,
+        List<string>? tags,
+        CancellationToken cancellationToken)
+    {
         if (ttl <= TimeSpan.Zero)
         {
-            throw new OdinSystemException("TTL must be positive.");            
+            throw new OdinSystemException("TTL must be positive.");
         }
 
         // Bypass cache if connection is in a transaction
@@ -156,7 +178,7 @@ public sealed class TransactionalCache
                 return factory(cancellationToken);
             },
             ttl,
-            entrySize,
+            entrySizeFactory,
             CombineAllTagsWithRoot(tags),
             cancellationToken);
 
@@ -176,22 +198,49 @@ public sealed class TransactionalCache
 
     //
 
-    public Task<TValue> GetOrSetAsync<TValue>(
-        byte[] key,
-        Func<CancellationToken, Task<TValue>> factory,
+    #region Poisoned pill overloads
+
+    //
+    // DO NOT REMOVE THESE OVERLOADS!
+    //
+    // They prevent callers from accidentally using GetOrSetAsync<TValue> with TValue = List<T>.
+    // Without them the compiler happily resolves List<T> against the generic GetOrSetAsync<TValue>
+    // overload, bypassing GetOrSetListAsync entirely. That matters because GetOrSetListAsync
+    // calculates entrySize based on the number of items in the list, which is critical for correct
+    // memory cache sizing. C# overload resolution cannot prefer List<TItem> over TValue automatically
+    // (both have one type parameter), so we use [Obsolete(error: true)] to force a compile error
+    // that guides callers to GetOrSetListAsync.
+    //
+
+    //
+
+    // DO NOT REMOVE THESE Obsolete OVERLOADS!
+    [Obsolete("Use GetOrSetListAsync for list types", error: true)]
+    public Task<List<TItem>> GetOrSetAsync<TItem>(
+        string key,
+        Func<CancellationToken, Task<List<TItem>>> factory,
         TimeSpan ttl,
         long entrySize = DefaultEntrySize,
         List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
-        return GetOrSetAsync(
-            key.ToHexString(),
-            factory,
-            ttl,
-            entrySize,
-            CombineAllTagsWithRoot(tags),
-            cancellationToken);
+        throw new NotSupportedException();
     }
+
+    // DO NOT REMOVE THESE Obsolete OVERLOADS!
+    [Obsolete("Use GetOrSetListAsync for list types", error: true)]
+    public Task<List<TItem>> GetOrSetAsync<TItem>(
+        byte[] key,
+        Func<CancellationToken, Task<List<TItem>>> factory,
+        TimeSpan ttl,
+        long entrySize = DefaultEntrySize,
+        List<string>? tags = null,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException();
+    }
+
+    #endregion
 
     //
 
@@ -253,5 +302,59 @@ public sealed class TransactionalCache
     }
 
     //
+
+    private string BuildCacheKey(string key)
+    {
+        return _keyPrefix + ":" + key;
+    }
+
+    //
+
+    private List<string> BuildTags(List<string> tags)
+    {
+        if (tags.Count == 0)
+        {
+            return tags;
+        }
+
+        var result = new List<string>(tags.Count);
+        foreach (var tag in tags)
+        {
+            result.Add(RootTag + ":" + tag);
+        }
+        return result;
+    }
+
+    //
+
+    private List<string> CombineAllTagsWithRoot(List<string>? tags)
+    {
+        if (tags == null || tags.Count == 0)
+        {
+            return _rootTag;
+        }
+
+        var result = new List<string>(_rootTag.Count + tags.Count);
+        result.AddRange(_rootTag);
+        result.AddRange(BuildTags(tags));
+        return result;
+    }
+
+    //
+
+    private List<string> CombineAllTagsWithoutRoot(List<string> tags)
+    {
+        if (tags == null || tags.Count == 0)
+        {
+            throw new OdinSystemException("Tags cannot be null or empty.");
+        }
+
+        var result = new List<string>(tags.Count);
+        result.AddRange(BuildTags(tags));
+        return result;
+    }
+
+    //
+
 
 }
