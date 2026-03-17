@@ -67,7 +67,7 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
 
     public async Task<List<DrivesRecord>> GetDrivesByTypeAsync(Guid driveType, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        var result = await Cache.GetOrSetListAsync(
             GetDriveTypeCacheKey(driveType),
             _ => table.GetDrivesByTypeAsync(driveType),
             ttl ?? DefaultTtl);

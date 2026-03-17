@@ -88,7 +88,7 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     public async Task<List<CircleMemberRecord>> GetCircleMembersAsync(Guid circleId, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        var result = await Cache.GetOrSetListAsync(
             GetCircleCacheKey(circleId),
             _ => table.GetCircleMembersAsync(circleId),
             ttl ?? DefaultTtl);
@@ -99,7 +99,7 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     public async Task<List<CircleMemberRecord>> GetMemberCirclesAndDataAsync(Guid memberId, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        var result = await Cache.GetOrSetListAsync(
             GetMemberCacheKey(memberId),
             _ => table.GetMemberCirclesAndDataAsync(memberId),
             ttl ?? DefaultTtl);
@@ -140,7 +140,7 @@ public class TableCircleMemberCached(TableCircleMember table, IIdentityTransacti
 
     public async Task<List<CircleMemberRecord>> GetAllCirclesAsync(TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        var result = await Cache.GetOrSetListAsync(
             CacheKeyAll,
             _ => table.GetAllCirclesAsync(),
             ttl ?? DefaultTtl);
