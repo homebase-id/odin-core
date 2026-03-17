@@ -197,6 +197,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
             FileSystemType fileSystemType)
         {
+            var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
+            foreach (var file in files)
+            {
+                await fs.Storage.AssertCanReadOrWriteToDriveAsync(file.DriveId, odinContext);
+            }
+
             // This is all ugly mapping code but 🤷
             var intermediateResults = new List<(ExternalFileIdentifier File, SendReadReceiptResultRecipientStatusItem StatusItem)>();
             foreach (var fileId in files)
@@ -222,6 +228,19 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                     File = item.Key,
                     Status = item.Select(i => i.StatusItem).ToList()
                 });
+            }
+
+            foreach (var file in files)
+            {
+                // Update localappdata for this file now that we've enqueued everything
+                try
+                {
+                    await fs.Storage.UpdateLocalReadTime(file, odinContext);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to update local read time for file: {file}", file);
+                }
             }
 
             return new SendReadReceiptResult()
@@ -461,7 +480,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             TransitOptions options,
             FileTransferOptions fileTransferOptions,
             IOdinContext odinContext,
-            int priority, 
+            int priority,
             DataSource overrideDataSource)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
