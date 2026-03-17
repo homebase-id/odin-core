@@ -1,16 +1,40 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 
 public class TableFollowsMeCachedTests : IocTestBase
 {
+    private static FollowsMeRecord MakeSelectedChannelsRecord(string identity, Guid sourceDriveId)
+        => new FollowsMeRecord
+        {
+            subscriberOdinId = new OdinId(identity),
+            sourceDriveId = sourceDriveId,
+            subscriberTargetDriveId = FollowsSubscriptionConstants.FeedDriveAlias,
+            subscriptionKind = 2, // SelectedChannels
+            lastNotification = new UnixTimeUtc(0),
+            lastQuery = new UnixTimeUtc(0)
+        };
+
+    private static FollowsMeRecord MakeAllNotificationsRecord(string identity)
+        => new FollowsMeRecord
+        {
+            subscriberOdinId = new OdinId(identity),
+            sourceDriveTypeId = FollowsSubscriptionConstants.ChannelDriveType,
+            subscriberTargetDriveId = FollowsSubscriptionConstants.FeedDriveAlias,
+            subscriptionKind = 1, // AllNotifications
+            lastNotification = new UnixTimeUtc(0),
+            lastQuery = new UnixTimeUtc(0)
+        };
+
     [Test]
     public async Task ItShouldTestCachingFromAtoZ()
     {
@@ -41,17 +65,17 @@ public class TableFollowsMeCachedTests : IocTestBase
         }
 
         // Odin follows d1
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i1, driveId = d1 });
+        await tableFollowsMeCached.InsertAsync(MakeSelectedChannelsRecord(i1, d1));
 
         // Thor follows d1
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i2, driveId = d1 });
+        await tableFollowsMeCached.InsertAsync(MakeSelectedChannelsRecord(i2, d1));
 
         // Freja follows d1 & d2
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i3, driveId = d1 });
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i3, driveId = d2 });
+        await tableFollowsMeCached.InsertAsync(MakeSelectedChannelsRecord(i3, d1));
+        await tableFollowsMeCached.InsertAsync(MakeSelectedChannelsRecord(i3, d2));
 
         // Heimdal follows d2
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i4, driveId = d2 });
+        await tableFollowsMeCached.InsertAsync(MakeSelectedChannelsRecord(i4, d2));
 
         {
             var records = await tableFollowsMeCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
@@ -67,8 +91,8 @@ public class TableFollowsMeCachedTests : IocTestBase
             Assert.That(tableFollowsMeCached.Misses, Is.EqualTo(2));
         }
 
-        // Loke follows everything
-        await tableFollowsMeCached.InsertAsync(new FollowsMeRecord { identity = i5, driveId = Guid.Empty });
+        // Loke follows everything (AllNotifications)
+        await tableFollowsMeCached.InsertAsync(MakeAllNotificationsRecord(i5));
 
         {
             var records = await tableFollowsMeCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
@@ -113,7 +137,8 @@ public class TableFollowsMeCachedTests : IocTestBase
             Assert.That(tableFollowsMeCached.Misses, Is.EqualTo(5));
         }
 
-        await tableFollowsMeCached.DeleteAsync(new OdinId(i1), d1);
+        // Delete all records for i1 (replaces the old per-record DeleteAsync)
+        await tableFollowsMeCached.DeleteByIdentityAsync(new OdinId(i1));
 
         {
             (followers, _) = await tableFollowsMeCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(100));

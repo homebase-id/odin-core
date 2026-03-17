@@ -1,12 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity;
 
 //
-// ImFollowing - this class stores all the people that follow me.
+// ImFollowing - this class stores all the people that I follow.
 // I.e. the people I need to notify when I update some content.
 //
 
@@ -25,11 +26,6 @@ public class TableImFollowing(
         return await base.InsertAsync(item);
     }
 
-    internal async Task<int> DeleteAsync(OdinId identity, Guid driveId)
-    {
-        return await base.DeleteAsync(odinIdentity, identity, driveId);
-    }
-
     /// <summary>
     /// For the given identity, return all drives being followed (and possibly Guid.Empty for everything)
     /// </summary>
@@ -44,26 +40,7 @@ public class TableImFollowing(
 
     internal async Task<int> DeleteByIdentityAsync(OdinId identity)
     {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-
-        var records = await base.GetAsync(odinIdentity, identity);
-
-        if (records == null)
-        {
-            return 0;
-        }
-
-        await using var tx = await cn.BeginStackedTransactionAsync();
-
-        var n = 0;
-        foreach (var record in records)
-        {
-            n += await DeleteAsync(odinIdentity, identity, record.driveId);
-        }
-
-        tx.Commit();
-
-        return n;
+        return await base.DeleteBySourceOdinIdAsync(odinIdentity, identity);
     }
 
 
@@ -89,7 +66,7 @@ public class TableImFollowing(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = @identityId AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
+            $"SELECT DISTINCT sourceOdinId FROM ImFollowing WHERE identityId = @identityId AND sourceOdinId > @cursor ORDER BY sourceOdinId ASC LIMIT @count;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
@@ -142,7 +119,8 @@ public class TableImFollowing(
     /// Optionally supply a cursor to indicate the last identity processed (sorted ascending)
     /// </summary>
     /// <param name="count">Maximum number of identities per page</param>
-    /// <param name="driveId">The drive they're following that you want to get a list for</param>
+    /// <param name="driveId">The drive they're following that you want to get a list for.
+    /// Use Guid.Empty to get followers who follow all notifications (sourceDriveTypeId = ChannelDriveType).</param>
     /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
     /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
     /// <exception cref="Exception"></exception>
@@ -162,25 +140,41 @@ public class TableImFollowing(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText =
-            $"SELECT DISTINCT identity FROM imfollowing WHERE identityId = @identityId AND (driveId=@driveId OR driveId = {Guid.Empty.BytesToSql(databaseType)}) AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
+        string driveCondition;
+        if (driveId == Guid.Empty)
+        {
+            // AllNotifications: match rows that follow by channel type
+            driveCondition = $"sourceDriveTypeId = {FollowsSubscriptionConstants.ChannelDriveType.BytesToSql(databaseType)}";
+        }
+        else
+        {
+            // SelectedChannels: match specific drive OR all-channel-type followers
+            driveCondition = $"(sourceDriveId = @driveId OR sourceDriveTypeId = {FollowsSubscriptionConstants.ChannelDriveType.BytesToSql(databaseType)})";
+        }
 
-        var param1 = cmd.CreateParameter();
+        cmd.CommandText =
+            $"SELECT DISTINCT sourceOdinId FROM ImFollowing WHERE identityId = @identityId AND {driveCondition} AND sourceOdinId > @cursor ORDER BY sourceOdinId ASC LIMIT @count;";
+
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
         var param4 = cmd.CreateParameter();
 
-        param1.ParameterName = "@driveId";
         param2.ParameterName = "@cursor";
         param3.ParameterName = "@count";
         param4.ParameterName = "@identityId";
 
-        cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
         cmd.Parameters.Add(param3);
         cmd.Parameters.Add(param4);
 
-        param1.Value = driveId.ToByteArray();
+        if (driveId != Guid.Empty)
+        {
+            var param1 = cmd.CreateParameter();
+            param1.ParameterName = "@driveId";
+            param1.Value = driveId.ToByteArray();
+            cmd.Parameters.Add(param1);
+        }
+
         param2.Value = inCursor;
         param3.Value = count + 1; // +1 to check for EOD on nextCursor
         param4.Value = odinIdentity.IdentityIdAsByteArray();

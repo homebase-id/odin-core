@@ -9,6 +9,7 @@ public class TableImFollowingMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableImFollowingMigrationV0(-1),
+            new TableImFollowingMigrationV202603141230(0),
             // AUTO-INSERT-MARKER
         };
     }
