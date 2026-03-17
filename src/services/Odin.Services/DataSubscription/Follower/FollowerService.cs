@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
@@ -107,7 +108,14 @@ namespace Odin.Services.DataSubscription.Follower
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
                     await db.ImFollowingCached.InsertAsync(new ImFollowingRecord()
-                        { identity = identityToFollow, driveId = Guid.Empty });
+                    {
+                        sourceOdinId = identityToFollow,
+                        sourceDriveTypeId = SystemDriveConstants.ChannelDriveType,
+                        targetDriveId = SystemDriveConstants.FeedDrive.Alias,
+                        subscriptionKind = (int)FollowerNotificationType.AllNotifications,
+                        lastNotification = new UnixTimeUtc(0),
+                        lastQuery = new UnixTimeUtc(0)
+                    });
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -122,7 +130,14 @@ namespace Odin.Services.DataSubscription.Follower
                     foreach (var channel in request.Channels)
                     {
                         await db.ImFollowingCached.InsertAsync(new ImFollowingRecord
-                            { identity = identityToFollow, driveId = channel.Alias });
+                        {
+                            sourceOdinId = identityToFollow,
+                            sourceDriveId = channel.Alias,
+                            targetDriveId = SystemDriveConstants.FeedDrive.Alias,
+                            subscriptionKind = (int)FollowerNotificationType.SelectedChannels,
+                            lastNotification = new UnixTimeUtc(0),
+                            lastQuery = new UnixTimeUtc(0)
+                        });
                     }
                 }
 
@@ -565,17 +580,17 @@ namespace Odin.Services.DataSubscription.Follower
                 return null;
             }
 
-            if (dbRecords!.Any(f => odinId != f.identity))
+            if (dbRecords!.Any(f => odinId != f.sourceOdinId))
             {
                 throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
-            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            if (dbRecords.Any(r => r.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType) && dbRecords.Count > 1)
             {
                 throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
-            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            if (dbRecords.All(r => r.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType))
             {
                 return new FollowerDefinition
                 {
@@ -590,7 +605,7 @@ namespace Odin.Services.DataSubscription.Follower
                 NotificationType = FollowerNotificationType.SelectedChannels,
                 Channels = dbRecords.Select(record => new TargetDrive()
                 {
-                    Alias = record.driveId,
+                    Alias = record.sourceDriveId.GetValueOrDefault(),
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
             };
@@ -604,17 +619,17 @@ namespace Odin.Services.DataSubscription.Follower
                 return null;
             }
 
-            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
+            if (dbRecords!.Any(f => odinId != f.subscriberOdinId))
             {
                 throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
-            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            if (dbRecords.Any(r => r.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType) && dbRecords.Count > 1)
             {
                 throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
-            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            if (dbRecords.All(r => r.sourceDriveTypeId == SystemDriveConstants.ChannelDriveType))
             {
                 return new FollowerDefinition()
                 {
@@ -629,7 +644,7 @@ namespace Odin.Services.DataSubscription.Follower
                 NotificationType = FollowerNotificationType.SelectedChannels,
                 Channels = dbRecords.Select(record => new TargetDrive()
                 {
-                    Alias = record.driveId, //Note: i really store the alias
+                    Alias = record.sourceDriveId.GetValueOrDefault(), //Note: i really store the alias
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
             };

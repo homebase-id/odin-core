@@ -7,6 +7,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
@@ -32,7 +33,15 @@ namespace Odin.Services.DataSubscription.Follower
                 // Created sample DeleteAndAddFollower() - take a look
                 await using var trx = await db.BeginStackedTransactionAsync();
                 await db.FollowsMeCached.DeleteByIdentityAsync(new OdinId(request.OdinId));
-                await db.FollowsMeCached.InsertAsync(new FollowsMeRecord() { identity = request.OdinId, driveId = Guid.Empty });
+                await db.FollowsMeCached.InsertAsync(new FollowsMeRecord()
+                {
+                    subscriberOdinId = new OdinId(request.OdinId),
+                    sourceDriveTypeId = SystemDriveConstants.ChannelDriveType,
+                    subscriberTargetDriveId = SystemDriveConstants.FeedDrive.Alias,
+                    subscriptionKind = (int)FollowerNotificationType.AllNotifications,
+                    lastNotification = new UnixTimeUtc(0),
+                    lastQuery = new UnixTimeUtc(0)
+                });
                 trx.Commit();
             }
 
@@ -64,7 +73,15 @@ namespace Odin.Services.DataSubscription.Follower
 
                 foreach (var channel in request.Channels)
                 {
-                    followsMeRecords.Add(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
+                    followsMeRecords.Add(new FollowsMeRecord()
+                    {
+                        subscriberOdinId = new OdinId(request.OdinId),
+                        sourceDriveId = channel.Alias,
+                        subscriberTargetDriveId = SystemDriveConstants.FeedDrive.Alias,
+                        subscriptionKind = (int)FollowerNotificationType.SelectedChannels,
+                        lastNotification = new UnixTimeUtc(0),
+                        lastQuery = new UnixTimeUtc(0)
+                    });
                 }
 
                 await db.FollowsMeCached.DeleteAndInsertManyAsync(new OdinId(request.OdinId), followsMeRecords);

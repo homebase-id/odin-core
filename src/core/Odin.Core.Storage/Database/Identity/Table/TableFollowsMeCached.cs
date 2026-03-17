@@ -22,15 +22,6 @@ public class TableFollowsMeCached(TableFollowsMe table, IIdentityTransactionalCa
 
     //
 
-    public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
-    {
-        var result = await table.DeleteAsync(identity, driveId);
-        await Cache.InvalidateAllAsync();
-        return result;
-    }
-
-    //
-
     public async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
     {
         var result = await table.DeleteAndInsertManyAsync(identity, items);

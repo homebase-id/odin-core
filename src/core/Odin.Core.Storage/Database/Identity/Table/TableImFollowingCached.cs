@@ -15,13 +15,6 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
 
     //
 
-    private static string GetCacheKey(string domainName, Guid driveId)
-    {
-        return domainName + ":" + driveId;
-    }
-
-    //
-
     private static string GetCacheKey(OdinId identity)
     {
         return identity.DomainName;
@@ -32,15 +25,6 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
     public async Task<int> InsertAsync(ImFollowingRecord item)
     {
         var result = await table.InsertAsync(item);
-        await Cache.InvalidateAllAsync();
-        return result;
-    }
-
-    //
-
-    public async Task<int> DeleteAsync(OdinId identity, Guid driveId)
-    {
-        var result = await table.DeleteAsync(identity, driveId);
         await Cache.InvalidateAllAsync();
         return result;
     }

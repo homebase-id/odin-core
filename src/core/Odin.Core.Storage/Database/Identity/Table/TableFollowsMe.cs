@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
@@ -20,10 +20,8 @@ public class TableFollowsMe(
     internal const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
 
-    internal async Task<int> DeleteAsync(OdinId identity, Guid driveId)
-    {
-        return await base.DeleteAsync(odinIdentity, identity.DomainName, driveId);
-    }
+    // ChannelDriveType = SystemDriveConstants.ChannelDriveType
+    private static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
 
     internal async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
     {
@@ -74,31 +72,13 @@ public class TableFollowsMe(
     /// <exception cref="Exception"></exception>
     internal async Task<List<FollowsMeRecord>> GetAsync(OdinId identity)
     {
-        var r = await base.GetAsync(odinIdentity, identity.DomainName) ?? [];
+        var r = await base.GetAsync(odinIdentity, identity) ?? [];
         return r;
     }
 
     internal async Task<int> DeleteByIdentityAsync(OdinId identity)
     {
-        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-
-        var records = await base.GetAsync(odinIdentity, identity.DomainName);
-        if (records == null)
-        {
-            return 0;
-        }
-
-        await using var tx = await cn.BeginStackedTransactionAsync();
-
-        var n = 0;
-        foreach (var record in records)
-        {
-            n += await base.DeleteAsync(odinIdentity, identity.DomainName, record.driveId);
-        }
-
-        tx.Commit();
-
-        return n;
+        return await base.DeleteBySubscriberOdinIdAsync(odinIdentity, identity);
     }
 
     // Returns # records inserted (1 or 0)
@@ -109,11 +89,7 @@ public class TableFollowsMe(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
 
-        var followerList = await base.GetAsync(odinIdentity, record.identity);
-        foreach (var follower in followerList)
-        {
-            await base.DeleteAsync(odinIdentity, follower.identity, follower.driveId);
-        }
+        await base.DeleteBySubscriberOdinIdAsync(odinIdentity, record.subscriberOdinId);
         var n = await base.InsertAsync(record);
 
         tx.Commit();
@@ -144,7 +120,7 @@ public class TableFollowsMe(
         await using var cmd = cn.CreateCommand();
 
         cmd.CommandText =
-            $"SELECT DISTINCT identity FROM followsme WHERE identityId = @identityId AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
+            $"SELECT DISTINCT subscriberOdinId FROM FollowsMe WHERE identityId = @identityId AND subscriberOdinId > @cursor ORDER BY subscriberOdinId ASC LIMIT @count;";
 
         var param1 = cmd.CreateParameter();
         var param2 = cmd.CreateParameter();
@@ -196,7 +172,8 @@ public class TableFollowsMe(
     /// Optionally supply a cursor to indicate the last identity processed (sorted ascending)
     /// </summary>
     /// <param name="count">Maximum number of identities per page</param>
-    /// <param name="driveId">The drive they're following that you want to get a list for</param>
+    /// <param name="driveId">The drive they're following that you want to get a list for.
+    /// Use Guid.Empty to get followers who follow all notifications (sourceDriveTypeId = ChannelDriveType).</param>
     /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
     /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
     /// <exception cref="Exception"></exception>
@@ -216,25 +193,41 @@ public class TableFollowsMe(
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var cmd = cn.CreateCommand();
 
-        cmd.CommandText =
-            $"SELECT DISTINCT identity FROM followsme WHERE identityId=@identityId AND (driveId=@driveId OR driveId = {Guid.Empty.BytesToSql(databaseType)}) AND identity > @cursor ORDER BY identity ASC LIMIT @count;";
+        string driveCondition;
+        if (driveId == Guid.Empty)
+        {
+            // AllNotifications: match rows that follow by channel type
+            driveCondition = $"sourceDriveTypeId = {ChannelDriveType.BytesToSql(databaseType)}";
+        }
+        else
+        {
+            // SelectedChannels: match specific drive OR all-channel-type followers
+            driveCondition = $"(sourceDriveId = @driveId OR sourceDriveTypeId = {ChannelDriveType.BytesToSql(databaseType)})";
+        }
 
-        var param1 = cmd.CreateParameter();
+        cmd.CommandText =
+            $"SELECT DISTINCT subscriberOdinId FROM FollowsMe WHERE identityId=@identityId AND {driveCondition} AND subscriberOdinId > @cursor ORDER BY subscriberOdinId ASC LIMIT @count;";
+
         var param2 = cmd.CreateParameter();
         var param3 = cmd.CreateParameter();
         var param4 = cmd.CreateParameter();
 
-        param1.ParameterName = "@driveId";
         param2.ParameterName = "@cursor";
         param3.ParameterName = "@count";
         param4.ParameterName = "@identityId";
 
-        cmd.Parameters.Add(param1);
         cmd.Parameters.Add(param2);
         cmd.Parameters.Add(param3);
         cmd.Parameters.Add(param4);
 
-        param1.Value = driveId.ToByteArray();
+        if (driveId != Guid.Empty)
+        {
+            var param1 = cmd.CreateParameter();
+            param1.ParameterName = "@driveId";
+            param1.Value = driveId.ToByteArray();
+            cmd.Parameters.Add(param1);
+        }
+
         param2.Value = inCursor;
         param3.Value = count + 1;
         param4.Value = odinIdentity.IdentityIdAsByteArray();
