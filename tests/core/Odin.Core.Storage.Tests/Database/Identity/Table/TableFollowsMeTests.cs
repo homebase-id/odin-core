@@ -4,6 +4,7 @@ using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -12,17 +13,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
     public class TableFollowsMeTests : IocTestBase
     {
-        // ChannelDriveType = SystemDriveConstants.ChannelDriveType
-        private static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
-        // FeedDrive.Alias = SystemDriveConstants.FeedDrive.Alias
-        private static readonly Guid FeedDriveAlias = Guid.Parse("4db49422ebad02e99ab96e9c477d1e08");
-
         private static FollowsMeRecord MakeSelectedChannelsRecord(string identity, Guid sourceDriveId)
             => new FollowsMeRecord
             {
                 subscriberOdinId = new OdinId(identity),
                 sourceDriveId = sourceDriveId,
-                subscriberTargetDriveId = FeedDriveAlias,
+                subscriberTargetDriveId = FollowsSubscriptionConstants.FeedDriveAlias,
                 subscriptionKind = 2, // SelectedChannels
                 lastNotification = new UnixTimeUtc(0),
                 lastQuery = new UnixTimeUtc(0)
@@ -32,8 +28,8 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             => new FollowsMeRecord
             {
                 subscriberOdinId = new OdinId(identity),
-                sourceDriveTypeId = ChannelDriveType,
-                subscriberTargetDriveId = FeedDriveAlias,
+                sourceDriveTypeId = FollowsSubscriptionConstants.ChannelDriveType,
+                subscriberTargetDriveId = FollowsSubscriptionConstants.FeedDriveAlias,
                 subscriptionKind = 1, // AllNotifications
                 lastNotification = new UnixTimeUtc(0),
                 lastQuery = new UnixTimeUtc(0)
@@ -74,7 +70,7 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             // Heimdal follows d2
             await tblFollowsMe.InsertAsync(MakeSelectedChannelsRecord(i4, d2));
 
-            // Loke follows everything (AllNotifications → sourceDriveTypeId = ChannelDriveType)
+            // Loke follows everything (AllNotifications → sourceDriveTypeId = FollowsSubscriptionConstants.ChannelDriveType)
             await tblFollowsMe.InsertAsync(MakeAllNotificationsRecord(i5));
 
             // Now Frodo makes a new post to d1, which means we should get
@@ -196,10 +192,10 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue((r[0].sourceDriveId == g1) || (r[0].sourceDriveId == g2));
             ClassicAssert.IsTrue((r[1].sourceDriveId == g1) || (r[1].sourceDriveId == g2));
 
-            // This is OK {odin.vahalla.com, sourceDriveTypeId=ChannelDriveType}
+            // This is OK {odin.vahalla.com, sourceDriveTypeId=FollowsSubscriptionConstants.ChannelDriveType}
             await tblFollowsMe.InsertAsync(MakeAllNotificationsRecord(i1));
             r = await tblFollowsMe.GetAsync(i1);
-            ClassicAssert.IsTrue(r.Exists(x => x.sourceDriveTypeId == ChannelDriveType));
+            ClassicAssert.IsTrue(r.Exists(x => x.sourceDriveTypeId == FollowsSubscriptionConstants.ChannelDriveType));
         }
 
 
@@ -313,13 +309,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             await tblFollowsMe.InsertAsync(MakeSelectedChannelsRecord(i2, d1));
             await tblFollowsMe.InsertAsync(MakeSelectedChannelsRecord(i2, d2));
 
-            // Get the followers of d3 — only i2 (via AllNotifications/ChannelDriveType)
+            // Get the followers of d3 — only i2 (via AllNotifications/FollowsSubscriptionConstants.ChannelDriveType)
             var (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(100, d3, null);
             ClassicAssert.IsTrue(r.Count == 1);
             ClassicAssert.IsTrue(r[0] == i2);
             ClassicAssert.IsTrue(nextCursor == null, message: "rdr.HasRows is the sinner");
 
-            // Get all d1 followers: i1 (sourceDriveId=d1) and i2 (ChannelDriveType or sourceDriveId=d1)
+            // Get all d1 followers: i1 (sourceDriveId=d1) and i2 (FollowsSubscriptionConstants.ChannelDriveType or sourceDriveId=d1)
             (r, nextCursor) = await tblFollowsMe.GetFollowersAsync(100, d1, "");
             ClassicAssert.IsTrue(r.Count == 2);
             ClassicAssert.IsTrue(nextCursor == null);

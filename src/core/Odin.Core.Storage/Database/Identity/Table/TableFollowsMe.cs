@@ -4,6 +4,7 @@ using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Storage.Database.Identity;
 
 //
 // FollowsMe - this class stores all the people that follow me.
@@ -19,9 +20,6 @@ public class TableFollowsMe(
 {
     internal const int GuidSize = 16; // Precisely 16 bytes for the ID key
     private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory = scopedConnectionFactory;
-
-    // ChannelDriveType = SystemDriveConstants.ChannelDriveType
-    private static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
 
     internal async Task<int> DeleteAndInsertManyAsync(OdinId identity, List<FollowsMeRecord> items)
     {
@@ -197,12 +195,12 @@ public class TableFollowsMe(
         if (driveId == Guid.Empty)
         {
             // AllNotifications: match rows that follow by channel type
-            driveCondition = $"sourceDriveTypeId = {ChannelDriveType.BytesToSql(databaseType)}";
+            driveCondition = $"sourceDriveTypeId = {FollowsSubscriptionConstants.ChannelDriveType.BytesToSql(databaseType)}";
         }
         else
         {
             // SelectedChannels: match specific drive OR all-channel-type followers
-            driveCondition = $"(sourceDriveId = @driveId OR sourceDriveTypeId = {ChannelDriveType.BytesToSql(databaseType)})";
+            driveCondition = $"(sourceDriveId = @driveId OR sourceDriveTypeId = {FollowsSubscriptionConstants.ChannelDriveType.BytesToSql(databaseType)})";
         }
 
         cmd.CommandText =

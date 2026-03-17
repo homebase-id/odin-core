@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
@@ -12,17 +13,12 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 
 public class TableFollowsMeCachedTests : IocTestBase
 {
-    // ChannelDriveType = SystemDriveConstants.ChannelDriveType
-    private static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
-    // FeedDrive.Alias = SystemDriveConstants.FeedDrive.Alias
-    private static readonly Guid FeedDriveAlias = Guid.Parse("4db49422ebad02e99ab96e9c477d1e08");
-
     private static FollowsMeRecord MakeSelectedChannelsRecord(string identity, Guid sourceDriveId)
         => new FollowsMeRecord
         {
             subscriberOdinId = new OdinId(identity),
             sourceDriveId = sourceDriveId,
-            subscriberTargetDriveId = FeedDriveAlias,
+            subscriberTargetDriveId = FollowsSubscriptionConstants.FeedDriveAlias,
             subscriptionKind = 2, // SelectedChannels
             lastNotification = new UnixTimeUtc(0),
             lastQuery = new UnixTimeUtc(0)
@@ -32,8 +28,8 @@ public class TableFollowsMeCachedTests : IocTestBase
         => new FollowsMeRecord
         {
             subscriberOdinId = new OdinId(identity),
-            sourceDriveTypeId = ChannelDriveType,
-            subscriberTargetDriveId = FeedDriveAlias,
+            sourceDriveTypeId = FollowsSubscriptionConstants.ChannelDriveType,
+            subscriberTargetDriveId = FollowsSubscriptionConstants.FeedDriveAlias,
             subscriptionKind = 1, // AllNotifications
             lastNotification = new UnixTimeUtc(0),
             lastQuery = new UnixTimeUtc(0)

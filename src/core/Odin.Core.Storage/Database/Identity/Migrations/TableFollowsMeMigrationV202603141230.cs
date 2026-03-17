@@ -12,6 +12,8 @@ using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
@@ -81,21 +83,9 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await CheckSqlTableVersion(cn, "FollowsMeMigrationsV202603141230", MigrationVersion);
             await CheckSqlTableVersion(cn, "FollowsMe", PreviousVersion);
 
-            // Hex literals for Guid.Empty, ChannelDriveType, and FeedDrive.Alias
-            // These use .NET Guid.ToByteArray() byte ordering (little-endian for first 3 components)
-            string emptyGuid, channelDriveType, feedDriveAlias;
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-                emptyGuid      = "'\\x00000000000000000000000000000000'";
-                channelDriveType = "'\\x1687448F4CE3F9ED014145E043CA6612'"; // 8f448716-e34c-edf9-0141-45e043ca6612
-                feedDriveAlias = "'\\x2294B44DADEBE9029AB96E9C477D1E08'"; // 4db49422-ebad-02e9-9ab9-6e9c477d1e08
-            }
-            else
-            {
-                emptyGuid      = "X'00000000000000000000000000000000'";
-                channelDriveType = "X'1687448F4CE3F9ED014145E043CA6612'"; // 8f448716-e34c-edf9-0141-45e043ca6612
-                feedDriveAlias = "X'2294B44DADEBE9029AB96E9C477D1E08'"; // 4db49422-ebad-02e9-9ab9-6e9c477d1e08
-            }
+            string emptyGuid        = Guid.Empty.BytesToSql(cn.DatabaseType);
+            string channelDriveType = FollowsSubscriptionConstants.ChannelDriveType.BytesToSql(cn.DatabaseType);
+            string feedDriveAlias   = FollowsSubscriptionConstants.FeedDriveAlias.BytesToSql(cn.DatabaseType);
 
             await using var copyCommand = cn.CreateCommand();
             {
