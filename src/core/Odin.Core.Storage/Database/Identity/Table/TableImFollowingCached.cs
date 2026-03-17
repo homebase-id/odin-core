@@ -49,7 +49,7 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
 
     public async Task<List<ImFollowingRecord>> GetAsync(OdinId identity, TimeSpan? ttl = null)
     {
-        var result =  await Cache.GetOrSetAsync(
+        var result =  await Cache.GetOrSetListAsync(
             GetCacheKey(identity),
             _ => table.GetAsync(identity),
             ttl ?? DefaultTtl);

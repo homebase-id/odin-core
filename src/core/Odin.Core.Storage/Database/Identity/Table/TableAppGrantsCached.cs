@@ -81,7 +81,7 @@ public class TableAppGrantsCached(TableAppGrants table, IIdentityTransactionalCa
 
     public async Task<List<AppGrantsRecord>> GetByOdinHashIdAsync(Guid odinHashId, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        var result = await Cache.GetOrSetListAsync(
             GetCacheKey(odinHashId, null, null),
             _ => table.GetByOdinHashIdAsync(odinHashId),
             ttl ?? DefaultTtl);
@@ -92,7 +92,7 @@ public class TableAppGrantsCached(TableAppGrants table, IIdentityTransactionalCa
 
     public async Task<List<AppGrantsRecord>> GetAllAsync(TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        var result = await Cache.GetOrSetListAsync(
             CacheKeyAll,
             _ => table.GetAllAsync(),
             ttl ?? DefaultTtl);
