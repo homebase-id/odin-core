@@ -121,9 +121,7 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
     public PushNotificationRequestValidator()
     {
         RuleFor(request => request.Version).Equal(1);
-        RuleFor(request => request.DevicePlatform)
-            .Must(platform => platform is "ios" or "android")
-            .WithMessage("DevicePlatform must be either 'ios' or 'android'.");
+        RuleFor(request => request.DevicePlatform).NotEmpty();
         RuleFor(request => request.OriginDomain).NotEmpty();
         RuleFor(request => request.Signature).NotEmpty();
         RuleFor(request => request.Id).NotEmpty();
