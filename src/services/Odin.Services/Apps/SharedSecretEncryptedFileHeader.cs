@@ -56,6 +56,11 @@ namespace Odin.Services.Apps
         {
             return new OdinId(this.FileMetadata.SenderOdinId) == odinId;
         }
+        
+        public bool IsOriginalAuthor(OdinId odinId)
+        {
+            return new OdinId(this.FileMetadata.OriginalAuthor) == odinId;
+        }
 
         public void AssertOriginalSender(OdinId odinId)
         {

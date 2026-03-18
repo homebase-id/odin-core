@@ -8,6 +8,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Core.Time;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -16,6 +17,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -192,6 +194,57 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         }
 
         /// <summary>
+        /// Sends a notification to the original sender indicating the file was read for all files created before asOfTimestamp
+        /// </summary>
+        public async Task<SendReadReceiptResult> SendReadReceipt(Guid driveId, FileQueryParams queryParams, UnixTimeUtc upToTimestamp,
+            IOdinContext odinContext,
+            FileSystemType fileSystemType)
+        {
+            var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
+
+            var qp = new FileQueryParams
+            {
+                FileType = queryParams?.FileType,
+                DataType = queryParams?.DataType,
+                ArchivalStatus = queryParams?.ArchivalStatus,
+                Sender = queryParams?.Sender,
+                GroupId = queryParams?.GroupId,
+                UserDate = queryParams?.UserDate,
+                ClientUniqueIdAtLeastOne = queryParams?.ClientUniqueIdAtLeastOne,
+                TagsMatchAtLeastOne = queryParams?.TagsMatchAtLeastOne,
+                TagsMatchAll = queryParams?.TagsMatchAll,
+                LocalTagsMatchAtLeastOne = queryParams?.LocalTagsMatchAtLeastOne,
+                LocalTagsMatchAll = queryParams?.LocalTagsMatchAll,
+                GlobalTransitId = queryParams?.GlobalTransitId,
+
+
+                FileState = [FileState.Active]
+            };
+
+            var options = new QueryBatchResultOptions
+            {
+                MaxRecords = 1000,
+                IncludeHeaderContent = false,
+                ExcludePreviewThumbnail = true,
+                ExcludeServerMetaData = true,
+                IncludeTransferHistory = false,
+                Cursor = new QueryBatchCursor(upToTimestamp), // files up to this point
+                Ordering = QueryBatchSortOrder.OldestFirst,
+                Sorting = QueryBatchSortField.CreatedDate
+            };
+
+            var results = await fs.Query.GetBatch(driveId, qp, options, odinContext);
+
+            var files = results.SearchResults
+                .Where(f => f.FileMetadata.LocalAppData?.ReadTime == null // not already set
+                            && !f.IsOriginalAuthor(odinContext.Caller.OdinId.GetValueOrDefault()))
+                .Select(f => new InternalDriveFileId(driveId, f.FileId))
+                .ToList();
+
+            return await SendReadReceipt(files, odinContext, fileSystemType);
+        }
+
+        /// <summary>
         /// Sends a notification to the original sender indicating the file was read
         /// </summary>
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
@@ -230,12 +283,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 });
             }
 
+            var successfulFiles = new List<InternalDriveFileId>();
             foreach (var file in files)
             {
                 // Update localappdata for this file now that we've enqueued everything
                 try
                 {
-                    await fs.Storage.UpdateLocalReadTime(file, odinContext);
+                    var success = await fs.Storage.UpdateLocalReadTime(file, odinContext);
+                    if (success)
+                    {
+                        successfulFiles.Add(file);
+                    }
                 }
                 catch (Exception e)
                 {
