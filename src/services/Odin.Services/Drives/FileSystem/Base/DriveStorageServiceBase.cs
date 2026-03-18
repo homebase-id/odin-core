@@ -1266,7 +1266,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext)
+        public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
@@ -1277,12 +1277,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
             }
-            
+
             var existingLocalAppData = header.FileMetadata.LocalAppData;
 
             if (existingLocalAppData?.ReadTime != null)
             {
-                return;
+                return false;
             }
 
             var newVersionTag = DriveFileUtility.CreateVersionTag();
@@ -1299,16 +1299,25 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
 
-            var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
-            if (await TryShouldRaiseDriveEventAsync(file))
+            try
             {
-                await TryPublishAsync(new DriveFileChangedNotification
+                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+                if (await TryShouldRaiseDriveEventAsync(file))
                 {
-                    File = file,
-                    ServerFileHeader = updatedHeader,
-                    OdinContext = odinContext,
-                });
+                    await TryPublishAsync(new DriveFileChangedNotification
+                    {
+                        File = file,
+                        ServerFileHeader = updatedHeader,
+                        OdinContext = odinContext,
+                    });
+                }
             }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Failed to send DriveFileChangedNotification");
+            }
+
+            return true;
         }
 
         // TODO I think this should be in the upload manager
