@@ -332,5 +332,55 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
+        protected virtual async Task<(List<NonceRecord>, UnixTimeUtc? nextCursor, long nextRowId)> PagingByCreatedAsync(int count, Guid identityId, UnixTimeUtc? inCursor, long? rowid)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = new UnixTimeUtc(long.MaxValue);
+            if (rowid == null)
+                rowid = long.MaxValue;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging5Command = cn.CreateCommand();
+            {
+                getPaging5Command.CommandText = "SELECT rowId,identityId,id,expiration,data,created,modified FROM Nonce " +
+                                            "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
+
+                getPaging5Command.AddParameter("@created", DbType.Int64, inCursor?.milliseconds);
+                getPaging5Command.AddParameter("@rowId", DbType.Int64, rowid);
+                getPaging5Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging5Command.AddParameter("@identityId", DbType.Binary, identityId);
+
+                {
+                    await using (var rdr = await getPaging5Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<NonceRecord>();
+                        UnixTimeUtc? nextCursor;
+                        long nextRowId;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].created;
+                                nextRowId = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                            nextRowId = 0;
+                        }
+                        return (result, nextCursor, nextRowId);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
+
     }
 }
