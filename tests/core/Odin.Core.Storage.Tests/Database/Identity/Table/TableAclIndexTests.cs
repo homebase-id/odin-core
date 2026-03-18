@@ -241,5 +241,39 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             if (ByteArrayUtil.muidcmp(md[0].ToByteArray(), v1.ToByteArray()) != 0)
                 Assert.Fail();
         }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        public async Task PagingByRowIdTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tbl = scope.Resolve<TableDriveAclIndex>();
+
+            var driveId = Guid.NewGuid();
+            var f1 = Guid.NewGuid();
+            var f2 = Guid.NewGuid();
+            var f3 = Guid.NewGuid();
+            var aclMember = Guid.NewGuid();
+
+            await tbl.InsertRowsAsync(driveId, f1, new List<Guid> { aclMember });
+            await tbl.InsertRowsAsync(driveId, f2, new List<Guid> { aclMember });
+            await tbl.InsertRowsAsync(driveId, f3, new List<Guid> { aclMember });
+
+            var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
+            Assert.That(page1.Count, Is.EqualTo(2));
+            Assert.That(cursor1, Is.Not.Null);
+
+            var (page2, cursor2) = await tbl.PagingByRowIdAsync(2, cursor1);
+            Assert.That(page2.Count, Is.EqualTo(1));
+            Assert.That(cursor2, Is.Null);
+
+            var (all, allCursor) = await tbl.PagingByRowIdAsync(100, null);
+            Assert.That(all.Count, Is.EqualTo(3));
+            Assert.That(allCursor, Is.Null);
+        }
     }
 }

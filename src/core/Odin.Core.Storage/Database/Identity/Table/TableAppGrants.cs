@@ -59,4 +59,9 @@ public class TableAppGrants(
 
         tx.Commit();
     }
+
+    public async Task<(List<AppGrantsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

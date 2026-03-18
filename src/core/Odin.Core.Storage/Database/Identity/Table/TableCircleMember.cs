@@ -122,4 +122,9 @@ public class TableCircleMember(
     {
         return base.GetAllCirclesAsync(odinIdentity.IdentityId);
     }
+
+    public async Task<(List<CircleMemberRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

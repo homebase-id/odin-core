@@ -213,4 +213,9 @@ public class TableImFollowing(
             return (result, nextCursor);
         }
     }
+
+    public async Task<(List<ImFollowingRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }
