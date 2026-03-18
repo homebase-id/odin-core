@@ -321,4 +321,9 @@ public class TableDriveReactions(
             return (result, nextCursor);
         } // using
     }
+
+    public async Task<(List<DriveReactionsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

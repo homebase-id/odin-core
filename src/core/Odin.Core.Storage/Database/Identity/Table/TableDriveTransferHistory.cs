@@ -133,4 +133,9 @@ public class TableDriveTransferHistory(
 
         return base.TryInsertAsync(item);
     }
+
+    public async Task<(List<DriveTransferHistoryRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

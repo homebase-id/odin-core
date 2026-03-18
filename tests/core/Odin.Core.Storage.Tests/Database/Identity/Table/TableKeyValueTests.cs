@@ -299,4 +299,36 @@ public class TableKeyValueTests : IocTestBase
         if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
             Assert.Fail();
     }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task PagingByRowIdTest(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var tbl = scope.Resolve<TableKeyValue>();
+
+        var k1 = SequentialGuid.CreateGuid().ToByteArray();
+        var k2 = SequentialGuid.CreateGuid().ToByteArray();
+        var k3 = SequentialGuid.CreateGuid().ToByteArray();
+
+        await tbl.InsertAsync(new KeyValueRecord() { key = k1, data = null });
+        await tbl.InsertAsync(new KeyValueRecord() { key = k2, data = null });
+        await tbl.InsertAsync(new KeyValueRecord() { key = k3, data = null });
+
+        var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
+        Assert.That(page1.Count, Is.EqualTo(2));
+        Assert.That(cursor1, Is.Not.Null);
+
+        var (page2, cursor2) = await tbl.PagingByRowIdAsync(2, cursor1);
+        Assert.That(page2.Count, Is.EqualTo(1));
+        Assert.That(cursor2, Is.Null);
+
+        var (all, allCursor) = await tbl.PagingByRowIdAsync(100, null);
+        Assert.That(all.Count, Is.EqualTo(3));
+        Assert.That(allCursor, Is.Null);
+    }
 }

@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
 
@@ -13,5 +15,10 @@ public class TableKeyUniqueThreeValue(
     {
         item.identityId = odinIdentity;
         return await base.InsertAsync(item);
+    }
+
+    public async Task<(List<KeyUniqueThreeValueRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
     }
 }
