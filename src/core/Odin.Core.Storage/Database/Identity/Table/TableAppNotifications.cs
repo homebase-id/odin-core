@@ -41,4 +41,9 @@ public class TableAppNotifications(
     {
         return await base.DeleteAsync(odinIdentity, notificationId);
     }
+
+    public async Task<(List<AppNotificationsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }
