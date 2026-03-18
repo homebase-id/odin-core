@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
@@ -16,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Logging.Caller;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.UnifiedV2.Authentication.Handlers;
@@ -37,6 +37,7 @@ namespace Odin.Hosting.UnifiedV2.Authentication
     {
         private readonly OdinConfiguration _config;
         private readonly ILogger<UnifiedAuthenticationHandler> _logger;
+        private readonly ICallerLogContext _callerLogContext;
 
         private static readonly IAuthPathHandler OwnerHandler = new OwnerAuthPathHandler();
         private static readonly IAuthPathHandler GuestHandler = new GuestAuthPathHandler();
@@ -46,11 +47,13 @@ namespace Odin.Hosting.UnifiedV2.Authentication
 
         /// <summary/>
         public UnifiedAuthenticationHandler(IOptionsMonitor<UnifiedAuthenticationSchemeOptions> options, ILoggerFactory loggerFactory,
-            UrlEncoder encoder, OdinConfiguration config,ILogger<UnifiedAuthenticationHandler> logger )
+            UrlEncoder encoder, OdinConfiguration config, ILogger<UnifiedAuthenticationHandler> logger,
+            ICallerLogContext callerLogContext)
             : base(options, loggerFactory, encoder)
         {
             _config = config;
             _logger = logger;
+            _callerLogContext = callerLogContext;
         }
 
         /// <summary/>
@@ -92,6 +95,8 @@ namespace Odin.Hosting.UnifiedV2.Authentication
                 var result = await handler.HandleAsync(Context, token, odinContext);
 
                 odinContext.SetApiVersion(2);
+
+                _callerLogContext.Caller = odinContext.Caller?.OdinId ?? "caller-not-found-v2";
 
                 switch (result.Status)
                 {

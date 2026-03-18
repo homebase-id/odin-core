@@ -386,4 +386,9 @@ public class TableOutbox(
         var utc = await NextScheduledItemAsync(driveId) ?? UnixTimeUtc.ZeroTime;
         return (totalCount, poppedCount, utc);
     }
+
+    public async Task<(List<OutboxRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

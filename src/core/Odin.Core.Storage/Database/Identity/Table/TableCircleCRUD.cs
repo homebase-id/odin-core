@@ -352,7 +352,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using 
         } // PagingGet
 
-        protected virtual async Task<(List<CircleRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        protected virtual async Task<(List<CircleRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Guid identityId, Int64? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -365,10 +365,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging0Command = cn.CreateCommand();
             {
                 getPaging0Command.CommandText = "SELECT rowId,identityId,circleId,circleName,data FROM Circle " +
-                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                                            "WHERE (identityId = @identityId) AND rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
                 getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging0Command.AddParameter("@identityId", DbType.Binary, identityId);
 
                 {
                     await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))

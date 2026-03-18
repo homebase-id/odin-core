@@ -46,5 +46,9 @@ public class TableClientRegistrations(
     {
         return await base.GetByTypeAndIssuedToAsync(odinIdentity, catType, issuedTo);
     }
-    
+
+    public async Task<(List<ClientRegistrationsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

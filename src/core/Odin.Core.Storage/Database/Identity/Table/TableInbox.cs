@@ -382,8 +382,8 @@ public class TableInbox(
     }
 
     // Change to internal
-    public new async Task<(List<InboxRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    public async Task<(List<InboxRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
     {
-        return await base.PagingByRowIdAsync(count, inCursor);
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
     }
 }

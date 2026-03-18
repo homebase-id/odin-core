@@ -777,7 +777,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 get3Command.CommandText = "SELECT rowId,fileId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
                                              "WHERE identityId = @identityId AND driveId = @driveId AND globalTransitId = @globalTransitId LIMIT 1 "+
                                              ";";
-                
+
                 get3Command.AddParameter("@identityId", DbType.Binary, identityId);
                 get3Command.AddParameter("@driveId", DbType.Binary, driveId);
                 get3Command.AddParameter("@globalTransitId", DbType.Binary, globalTransitId);
@@ -861,7 +861,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             } // using
         }
 
-        protected virtual async Task<(List<DriveMainIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        protected virtual async Task<(List<DriveMainIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Guid identityId, Int64? inCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -874,10 +874,11 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var getPaging0Command = cn.CreateCommand();
             {
                 getPaging0Command.CommandText = "SELECT rowId,identityId,driveId,fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,byteCount,hdrEncryptedKeyHeader,hdrVersionTag,hdrAppData,hdrLocalVersionTag,hdrLocalAppData,hdrReactionSummary,hdrServerData,hdrTransferHistory,hdrFileMetaData,hdrTmpDriveAlias,hdrTmpDriveType,created,modified FROM DriveMainIndex " +
-                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+                                            "WHERE (identityId = @identityId) AND rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
                 getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging0Command.AddParameter("@identityId", DbType.Binary, identityId);
 
                 {
                     await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))

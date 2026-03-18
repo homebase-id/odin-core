@@ -57,8 +57,14 @@ namespace Odin.Hosting
                 Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
                 try
                 {
+                    var host = CreateHostBuilder(args).Build();
+
                     Log.Information("Identity-host version: {Version}", Version.VersionText);
-                    var host = CreateHostBuilder(args).Build().BeforeApplicationStarting(args);
+                    Log.Information("System root path: {HostSystemDataRootPath}", odinConfig.Host.SystemDataRootPath);
+                    Log.Information("Tenant root path: {HostTenantDataRootPath}", odinConfig.Host.TenantDataRootPath);
+
+                    host.BeforeApplicationStarting(args);
+
                     Log.Information("Starting web host");
                     host.Run();
                     Log.Information("Stopped web host\n\n\n");
@@ -146,10 +152,7 @@ namespace Odin.Hosting
             }
 
             Directory.CreateDirectory(odinConfig.Host.SystemDataRootPath);
-            Log.Information("System root path: {HostSystemDataRootPath}", odinConfig.Host.SystemDataRootPath);
-
             Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
-            Log.Information("Tenant root path: {HostTenantDataRootPath}", odinConfig.Host.TenantDataRootPath);
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })

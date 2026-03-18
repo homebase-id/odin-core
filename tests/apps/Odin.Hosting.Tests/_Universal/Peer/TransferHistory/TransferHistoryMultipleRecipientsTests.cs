@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Authorization.Acl;
@@ -32,8 +33,11 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             var folder = GetType().Name;
             _scaffold = new WebScaffold(folder);
 
-            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>() { TestIdentities.Frodo, TestIdentities.Samwise, TestIdentities.Collab, TestIdentities.Pippin, TestIdentities.Merry,
-              TestIdentities.TomBombadil });
+            _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>()
+            {
+                TestIdentities.Frodo, TestIdentities.Samwise, TestIdentities.Collab, TestIdentities.Pippin, TestIdentities.Merry,
+                TestIdentities.TomBombadil
+            });
         }
 
         [OneTimeTearDown]
@@ -80,7 +84,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
         {
             Console.WriteLine("Scenario:" + callerContext.GetType());
             Console.WriteLine();
-            
+
             var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
             await senderOwnerClient.Configuration.DisableAutoAcceptIntroductions(true);
 
@@ -145,12 +149,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             ClassicAssert.IsNotNull(summary, "missing transfer summary");
             ClassicAssert.IsTrue(summary.TotalDelivered == 0);
             ClassicAssert.IsTrue(summary.TotalReadByRecipient == 0);
-            
+
             ClassicAssert.IsTrue(summary.TotalFailed == connectedRecipients.Count, $"total failed was :{summary.TotalFailed}; " +
-                                                                            $"expected: {connectedRecipients.Count} " +
-                                                                            $"(delivered:{summary.TotalDelivered}," +
-                                                                            $" in outbox: {summary.TotalInOutbox})");
-            
+                                                                                   $"expected: {connectedRecipients.Count} " +
+                                                                                   $"(delivered:{summary.TotalDelivered}," +
+                                                                                   $" in outbox: {summary.TotalInOutbox})");
+
             ClassicAssert.IsTrue(summary.TotalInOutbox == connectedRecipients.Count);
 
             await this.DeleteScenario(senderOwnerClient, connectedRecipients);
@@ -232,6 +236,13 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
                 var statusItem = item.Status.SingleOrDefault(i => i.Recipient == senderOwnerClient.Identity.OdinId);
                 ClassicAssert.IsNotNull(statusItem);
                 ClassicAssert.IsTrue(statusItem.Status == SendReadReceiptResultStatus.Enqueued);
+
+                //validate the local file's local app data was updated
+                var getFileHeaderResponse = await client.DriveRedux.GetFileHeader(fileForReadReceipt);
+                ClassicAssert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
+                var readTime = getFileHeaderResponse.Content.FileMetadata.LocalAppData.ReadTime;
+                ClassicAssert.IsNotNull(readTime);
+                ClassicAssert.IsTrue(readTime.GetValueOrDefault() > UnixTimeUtc.Now().AddSeconds(-60)); // greater than a minute ago
 
                 await client.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
             }

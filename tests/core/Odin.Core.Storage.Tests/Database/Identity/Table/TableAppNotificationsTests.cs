@@ -74,5 +74,37 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(results.Count == 1);
             ClassicAssert.IsTrue(cursor == null);
         }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        public async Task PagingByRowIdTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tbl = scope.Resolve<TableAppNotifications>();
+
+            var n1 = SequentialGuid.CreateGuid();
+            var n2 = SequentialGuid.CreateGuid();
+            var n3 = SequentialGuid.CreateGuid();
+
+            await tbl.InsertAsync(new AppNotificationsRecord() { notificationId = n1, unread = 1, senderId = "frodo.baggins.me", timestamp = new Odin.Core.Time.UnixTimeUtc(1000), data = null });
+            await tbl.InsertAsync(new AppNotificationsRecord() { notificationId = n2, unread = 1, senderId = "sam.gamgee.me", timestamp = new Odin.Core.Time.UnixTimeUtc(2000), data = null });
+            await tbl.InsertAsync(new AppNotificationsRecord() { notificationId = n3, unread = 0, senderId = "gandalf.white.me", timestamp = new Odin.Core.Time.UnixTimeUtc(3000), data = null });
+
+            var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
+            Assert.That(page1.Count, Is.EqualTo(2));
+            Assert.That(cursor1, Is.Not.Null);
+
+            var (page2, cursor2) = await tbl.PagingByRowIdAsync(2, cursor1);
+            Assert.That(page2.Count, Is.EqualTo(1));
+            Assert.That(cursor2, Is.Null);
+
+            var (all, allCursor) = await tbl.PagingByRowIdAsync(100, null);
+            Assert.That(all.Count, Is.EqualTo(3));
+            Assert.That(allCursor, Is.Null);
+        }
     }
 }

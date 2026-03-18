@@ -71,4 +71,9 @@ public class TableDriveAclIndex(
 
         tx.Commit();
     }
+
+    public async Task<(List<DriveAclIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

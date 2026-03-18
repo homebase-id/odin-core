@@ -474,4 +474,9 @@ public class TableDriveMainIndex(
             return 0;
         }
     }
+
+    public async Task<(List<DriveMainIndexRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

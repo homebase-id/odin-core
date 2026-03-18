@@ -267,4 +267,9 @@ public class TableFollowsMe(
             return (result, nextCursor);
         }
     }
+
+    public async Task<(List<FollowsMeRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

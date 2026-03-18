@@ -67,4 +67,9 @@ public class TableConnections(
 
         return (r, tsc == null ? null : new TimeRowCursor(tsc!.Value, ri).ToJson());
     }
+
+    public async Task<(List<ConnectionsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }
