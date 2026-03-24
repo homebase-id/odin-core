@@ -325,6 +325,22 @@ public class CommandLine
         }
 
         //
+        // Command line: Migrate identity data from SQLite to PostgreSQL
+        //
+        // The system must be configured for PostgreSQL (target).
+        // Takes the path to a per-identity SQLite database file and the identity domain name.
+        // Fails if the identity already exists in the registry.
+        //
+        // examples:
+        //   dotnet run -- sqlite2pg /path/to/identity.db example.com
+        //
+        if (args.Length > 2 && args[0] == "sqlite2pg")
+        {
+            Sqlite2Pg.ExecuteAsync(_serviceProvider, args[1], args[2]).BlockingWait();
+            return (true, 0);
+        }
+
+        //
         // Command line: Create CDN CAT
         //
         // examples:
