@@ -134,6 +134,7 @@ public static class SystemAppConstants
             PermissionKeys.SendPushNotifications,
             PermissionKeys.ReadConnectionRequests,
             PermissionKeys.SendIntroductions,
+            PermissionKeys.UseTransitRead,
             PermissionKeys.UseTransitWrite)
     };
 }
