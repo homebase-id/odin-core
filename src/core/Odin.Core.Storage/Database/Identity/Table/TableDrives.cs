@@ -57,4 +57,10 @@ public class TableDrives(
         return await base.GetCountAsync();
     }
 
+    public async Task<(List<DrivesRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
+
+
 }

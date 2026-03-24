@@ -2,6 +2,7 @@
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Time;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 
@@ -91,6 +92,11 @@ public class TableNonce(
             var count = await delete0Command.ExecuteNonQueryAsync();
             return count;
         }
+    }
+
+    public async Task<(List<NonceRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
     }
 
 }
