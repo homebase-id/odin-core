@@ -401,6 +401,7 @@ public static class HostExtensions
         var memoryDiagnostics = services.GetRequiredService<MemoryDiagnostics>();
 
         logger.LogDebug("Starting initialization in {method}", nameof(BeforeApplicationStarting));
+        logger.LogInformation("Database type: {dbtype}", config.Database.Type);
         logger.LogInformation("MemoryCacheSizeLimit (units): {sizeLimit}", config.Cache.MemoryCacheSizeLimit);
         memoryDiagnostics.LogMemoryBreakdown();
 
