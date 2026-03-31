@@ -39,7 +39,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
             var result = await fs.Storage.UpdateLocalMetadataTags(
-                MapToInternalFile(request.File),
+                await MapToInternalFileAsync(request.File),
                 request.LocalVersionTag,
                 request.Tags,
                 WebOdinContext);
@@ -55,7 +55,7 @@ namespace Odin.Hosting.Controllers.Base.Drive.Update
 
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
             var result = await fs.Storage.UpdateLocalMetadataContent(
-                MapToInternalFile(request.File),
+                await MapToInternalFileAsync(request.File),
                 request.LocalVersionTag,
                 request.Iv,
                 request.Content,
