@@ -66,7 +66,17 @@ public class OdinContextCache(
 
         var result = await level1Cache.GetOrSetAsync(
             key,
-            _ => dotYouContextFactory(),
+            async _ =>
+            {
+                try
+                {
+                    return await dotYouContextFactory();
+                }
+                catch (OdinSecurityException)
+                {
+                    return null;
+                }
+            },
             duration,
             EntrySize.Small,
             _cacheTags
