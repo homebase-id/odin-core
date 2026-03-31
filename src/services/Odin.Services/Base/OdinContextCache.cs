@@ -64,13 +64,17 @@ public class OdinContextCache(
 
         var key = token.AsKey().ToString().ToLower();
 
-        var result = await level1Cache.GetOrSetAsync(
-            key,
-            _ => dotYouContextFactory(),
-            duration,
-            EntrySize.Small,
-            _cacheTags
-        );
+        // SEB:NOTE deliberately not using GetOrSetAsync here to avoid dealing with exceptions thrown by the factory
+        // We accept the risk for a potential race condition since they should always produce the same result for the same token
+        var result = await level1Cache.GetOrDefaultAsync<IOdinContext?>(key);
+        if (result == null)
+        {
+            result = await dotYouContextFactory();
+            if (result != null)
+            {
+                await level1Cache.SetAsync(key, result, duration, EntrySize.Small, _cacheTags);
+            }
+        }
 
         return result;
     }
