@@ -53,12 +53,12 @@ public abstract class OdinControllerBase : ControllerBase
     }
     
     /// <summary />
-    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
+    protected async Task<InternalDriveFileId> MapToInternalFileAsync(ExternalFileIdentifier file)
     {
-        var driveManager = this.HttpContext.RequestServices.GetRequiredService<DriveManager>();
+        var driveManager = HttpContext.RequestServices.GetRequiredService<DriveManager>();
         
         // Validates the drive exists
-        _ = driveManager.GetDriveAsync(file.TargetDrive.Alias, failIfInvalid: true).GetAwaiter().GetType();
+        await driveManager.GetDriveAsync(file.TargetDrive.Alias, failIfInvalid: true);
 
         OdinValidationUtils.AssertNotEmptyGuid(file.TargetDrive.Alias, "Target drive alias is required");
         

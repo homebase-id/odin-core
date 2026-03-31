@@ -41,7 +41,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         {
             var tempFile = new TempFile()
             {
-                File = MapToInternalFile(new ExternalFileIdentifier()
+                File = await MapToInternalFileAsync(new ExternalFileIdentifier()
                 {
                     FileId = fileId,
                     TargetDrive = new TargetDrive()
@@ -70,7 +70,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
-            var file = MapToInternalFile(new ExternalFileIdentifier()
+            var file = await MapToInternalFileAsync(new ExternalFileIdentifier()
             {
                 FileId = fileId,
                 TargetDrive = new TargetDrive()
