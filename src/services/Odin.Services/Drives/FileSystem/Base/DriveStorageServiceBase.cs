@@ -1727,7 +1727,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (theDrive == null)
             {
-                _logger.LogError("DriveManager returned null for driveId: {drive} ", driveId);
                 return;
             }
 
