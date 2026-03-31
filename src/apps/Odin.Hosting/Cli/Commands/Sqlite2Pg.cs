@@ -78,7 +78,7 @@ public static class Sqlite2Pg
         // Ensure target schema is up to date
         await targetDb.MigrateDatabaseAsync();
 
-        await IdentityDataMigrator.MigrateAsync(sourceDb, targetDb, sourceMigrator, targetMigrator, logger);
+        await IdentityDataImporter.ImportAsync(sourceDb, targetDb, sourceMigrator, targetMigrator, logger);
 
         logger.LogInformation("Migration complete for {identity}", identityDomain);
     }
