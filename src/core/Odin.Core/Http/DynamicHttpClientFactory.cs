@@ -202,7 +202,7 @@ public sealed class DynamicHttpClientFactory : IDynamicHttpClientFactory
 
         if (handlerConfig.AllowUntrustedServerCertificate)
         {
-            _logger.LogWarning("Allowing untrusted server certificates for {remoteHostKey} handler {key}",
+            _logger.LogWarning("Config is allowing untrusted server certificates for {remoteHostKey} handler {key}",
                 remoteHostKey,
                 handlerConfig.GetHashedString());
             handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
