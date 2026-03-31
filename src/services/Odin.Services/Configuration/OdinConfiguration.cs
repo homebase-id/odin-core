@@ -88,7 +88,7 @@ public class OdinConfiguration
             MaxCommentsInPreview = config.GetOrDefault("Feed:MaxCommentsInPreview", 3);
         }
     }
-    
+
     //
 
     public class AccountRecoverySection
@@ -137,13 +137,13 @@ public class OdinConfiguration
             Enabled = config.SectionExists("Development");
             if (Enabled)
             {
-                PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains);
+                PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
             }
         }
     }
-    
+
     //
 
     public class RegistrySection
@@ -191,7 +191,7 @@ public class OdinConfiguration
             public List<string> PrefixLabels { get; init; } = [];
         }
     }
-    
+
     //
 
     public class HostSection
@@ -568,7 +568,7 @@ public class OdinConfiguration
         public string PayloadBaseUrl { get; init; } = "";
 
         public ClientAuthenticationToken ExpectedAuthToken { get; init; } = new();
-        
+
         public CdnSection()
         {
             // Mockable support
