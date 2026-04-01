@@ -7,7 +7,6 @@ using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.KeyChain;
 using Odin.KeyChain.Database;
 using Odin.KeyChain.Database.Table;
 using KeyChainDatabase = Odin.KeyChain.Database.KeyChainDatabase;

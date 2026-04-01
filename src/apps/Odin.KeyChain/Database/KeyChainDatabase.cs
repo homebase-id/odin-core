@@ -8,8 +8,6 @@ using Odin.KeyChain.Database.Connection;
 
 namespace Odin.KeyChain.Database;
 
-#nullable enable
-
 [SuppressMessage("ReSharper", "ExplicitCallerInfoArgument")]
 public partial class KeyChainDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IKeyChainDbConnectionFactory>(lifetimeScope)
 {

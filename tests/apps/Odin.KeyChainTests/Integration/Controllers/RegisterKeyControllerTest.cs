@@ -8,7 +8,6 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.Database.KeyChain;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.KeyChain;

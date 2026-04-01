@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Immutable;
+using Odin.KeyChain.Database;
 using Odin.KeyChain.Database.Table;
 
 namespace Odin.KeyChain.Database;

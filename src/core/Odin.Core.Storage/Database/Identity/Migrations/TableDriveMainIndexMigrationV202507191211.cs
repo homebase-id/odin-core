@@ -5,13 +5,12 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
-using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
-using Odin.Core.Util;
+using Odin.Core.Storage;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Util;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
@@ -30,7 +29,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE DriveMainIndexMigrationsV202507191211 IS '{ \"Version\": 202507191211 }';";
             }
             else
@@ -129,7 +128,6 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             }
         }
 
-        // DriveMainIndex is presumed to be the previous version
         // Will upgrade from the previous version to version 202507191211
         public override async Task UpAsync(IConnectionWrapper cn)
         {

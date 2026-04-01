@@ -5,13 +5,12 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
-using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
-using Odin.Core.Util;
+using Odin.Core.Storage;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Exceptions;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.SQLite;
+using Odin.Core.Util;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
@@ -82,7 +81,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await using var copyCommand = cn.CreateCommand();
             {
                 copyCommand.CommandText = "INSERT INTO DrivesMigrationsV202510311515 (rowId,identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
-               $"SELECT rowId,identityId,DriveId,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified "+
+               $"SELECT rowId,identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified "+
                $"FROM Drives;";
                return await copyCommand.ExecuteNonQueryAsync();
             }

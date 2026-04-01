@@ -1,5 +1,7 @@
 ﻿using Odin.KeyChain.Database.Connection;
 
+#nullable disable
+
 namespace Odin.KeyChain.Database.Table;
 
 public class TableKeyChain(

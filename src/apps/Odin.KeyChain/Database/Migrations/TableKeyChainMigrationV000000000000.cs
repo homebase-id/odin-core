@@ -1,6 +1,18 @@
+using System;
+using System.Data;
+using System.Data.Common;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using Odin.Core.Time;
+using Odin.Core.Util;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Storage.SQLite;
+using Odin.KeyChain.Database.Connection;
+
+#nullable disable
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
@@ -19,7 +31,7 @@ namespace Odin.KeyChain.Database.Migrations
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE KeyChainMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
@@ -68,7 +80,6 @@ namespace Odin.KeyChain.Database.Migrations
             }
         }
 
-        // DriveMainIndex is presumed to be the previous version
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
