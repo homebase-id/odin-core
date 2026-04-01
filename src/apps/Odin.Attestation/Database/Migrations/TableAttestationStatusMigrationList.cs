@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Storage.Database;
 
-namespace Odin.Core.Storage.Database.Attestation.Migrations;
+namespace Odin.Attestation.Database.Migrations;
 
 public class TableAttestationStatusMigrationList : MigrationListBase
 {

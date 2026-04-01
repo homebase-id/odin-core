@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
+using Odin.Attestation.Database.Connection;
 using Odin.Core.Storage.Concurrency;
-using Odin.Core.Storage.Database.Attestation.Connection;
+using Odin.Core.Storage.Database;
 
-namespace Odin.Core.Storage.Database.Attestation;
+namespace Odin.Attestation.Database;
 
 public partial class AttestationMigrator(
     ILogger<AttestationMigrator> logger,

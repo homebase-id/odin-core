@@ -1,8 +1,8 @@
 using Autofac;
-using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Database.Attestation.Connection;
+namespace Odin.Attestation.Database.Connection;
 
 #nullable enable
 

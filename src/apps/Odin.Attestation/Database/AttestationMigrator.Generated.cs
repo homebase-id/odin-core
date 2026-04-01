@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Attestation.Connection;
-using Odin.Core.Storage.Database.Attestation.Migrations;
+using Odin.Attestation.Database.Connection;
+using Odin.Attestation.Database.Migrations;
 
 #nullable disable
 
-namespace Odin.Core.Storage.Database.Attestation;
+namespace Odin.Attestation.Database;
 
 public partial class AttestationMigrator
 {

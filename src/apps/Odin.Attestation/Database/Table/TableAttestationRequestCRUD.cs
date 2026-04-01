@@ -11,13 +11,13 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.Database.Attestation.Connection;
+using Odin.Attestation.Database.Connection;
 
 #nullable disable
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Attestation.Table
+namespace Odin.Attestation.Database.Table
 {
     public record AttestationRequestRecord
     {

@@ -1,13 +1,12 @@
 ﻿using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Autofac;
-using Odin.Core.Storage.Database.Attestation.Connection;
+using Odin.Attestation.Database.Connection;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Database.Attestation;
+namespace Odin.Attestation.Database;
 
 #nullable enable
 

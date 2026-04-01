@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Immutable;
-using Odin.Core.Storage.Database.Attestation;
-using Odin.Core.Storage.Database.Attestation.Table;
+using Odin.Attestation.Database;
+using Odin.Attestation.Database.Table;
 
-namespace Odin.Core.Storage.Database.Attestation;
+namespace Odin.Attestation.Database;
 
 public partial class AttestationDatabase
 {

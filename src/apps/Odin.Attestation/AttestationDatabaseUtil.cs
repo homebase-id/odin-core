@@ -1,4 +1,4 @@
-﻿using Odin.Core.Storage.Database.Attestation;
+﻿using Odin.Attestation.Database;
 
 namespace Odin.Attestation
 {

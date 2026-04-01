@@ -1,6 +1,6 @@
-﻿using Odin.Core.Storage.Database.Attestation.Connection;
+﻿using Odin.Attestation.Database.Connection;
 
-namespace Odin.Core.Storage.Database.Attestation.Table;
+namespace Odin.Attestation.Database.Table;
 
 public class TableAttestationStatus(
     ScopedAttestationConnectionFactory scopedConnectionFactory)

@@ -5,22 +5,22 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
-using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
-using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Factory;
+using Odin.Attestation.Database.Connection;
+
+#nullable disable
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Attestation.Migrations
+namespace Odin.Attestation.Database.Migrations
 {
-    public class TableAttestationStatusMigrationV0 : MigrationBase
+    public class TableAttestationRequestMigrationV0 : MigrationBase
     {
         public override Int64 MigrationVersion => 0;
-        public TableAttestationStatusMigrationV0(Int64 previousVersion) : base(previousVersion)
+        public TableAttestationRequestMigrationV0(Int64 previousVersion) : base(previousVersion)
         {
         }
 
@@ -30,22 +30,21 @@ namespace Odin.Core.Storage.Database.Attestation.Migrations
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE AttestationStatusMigrationsV0 IS '{ \"Version\": 0 }';";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
+               commentSql = "COMMENT ON TABLE AttestationRequestMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS AttestationStatusMigrationsV0( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS AttestationRequestMigrationsV0( -- { \"Version\": 0 }\n"
                    +rowid
-                   +"attestationId BYTEA NOT NULL UNIQUE, "
-                   +"status BIGINT NOT NULL, "
-                   +"created BIGINT NOT NULL, "
-                   +"modified BIGINT NOT NULL "
+                   +"attestationId TEXT NOT NULL UNIQUE, "
+                   +"requestEnvelope TEXT NOT NULL UNIQUE, "
+                   +"timestamp BIGINT NOT NULL "
                    +$"){wori};"
                    ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "AttestationStatusMigrationsV0", createSql, commentSql);
+            await SqlHelper.CreateTableWithCommentAsync(cn, "AttestationRequestMigrationsV0", createSql, commentSql);
         }
 
         public new static List<string> GetColumnNames()
@@ -53,26 +52,24 @@ namespace Odin.Core.Storage.Database.Attestation.Migrations
             var sl = new List<string>();
             sl.Add("rowId");
             sl.Add("attestationId");
-            sl.Add("status");
-            sl.Add("created");
-            sl.Add("modified");
+            sl.Add("requestEnvelope");
+            sl.Add("timestamp");
             return sl;
         }
 
         public async Task<int> CopyDataAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "AttestationStatusMigrationsV0", MigrationVersion);
-            await CheckSqlTableVersion(cn, "AttestationStatus", PreviousVersion);
+            await CheckSqlTableVersion(cn, "AttestationRequestMigrationsV0", MigrationVersion);
+            await CheckSqlTableVersion(cn, "AttestationRequest", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO AttestationStatusMigrationsV0 (rowId,attestationId,status,created,modified) " +
-               $"SELECT rowId,attestationId,status,created,modified "+
-               $"FROM AttestationStatus;";
+                copyCommand.CommandText = "INSERT INTO AttestationRequestMigrationsV0 (rowId,attestationId,requestEnvelope,timestamp) " +
+               $"SELECT rowId,attestationId,requestEnvelope,timestamp "+
+               $"FROM AttestationRequest;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
         }
 
-        // DriveMainIndex is presumed to be the previous version
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {
@@ -82,7 +79,7 @@ namespace Odin.Core.Storage.Database.Attestation.Migrations
                 {
                     // Create the initial table
                     await CreateTableWithCommentAsync(cn);
-                    await SqlHelper.RenameAsync(cn, "AttestationStatusMigrationsV0", "AttestationStatus");
+                    await SqlHelper.RenameAsync(cn, "AttestationRequestMigrationsV0", "AttestationRequest");
                     trn.Commit();
                 }
             }
@@ -94,7 +91,7 @@ namespace Odin.Core.Storage.Database.Attestation.Migrations
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "AttestationStatus", MigrationVersion);
+            await CheckSqlTableVersion(cn, "AttestationRequest", MigrationVersion);
             throw new  Exception("You cannot move down from version 0");
         }
 

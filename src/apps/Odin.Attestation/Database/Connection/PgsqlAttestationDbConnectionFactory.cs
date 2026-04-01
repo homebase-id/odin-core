@@ -1,6 +1,6 @@
 using Odin.Core.Storage.Factory.Pgsql;
 
-namespace Odin.Core.Storage.Database.Attestation.Connection;
+namespace Odin.Attestation.Database.Connection;
 
 #nullable enable
 
