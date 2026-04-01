@@ -5,17 +5,17 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
-using Odin.Core.Identity;
-using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
-using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Factory;
+using Odin.Notarius.Database.Connection;
+
+#nullable disable
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Notary.Migrations
+namespace Odin.Notarius.Database.Migrations
 {
     public class TableNotaryChainMigrationV0 : MigrationBase
     {
@@ -30,7 +30,7 @@ namespace Odin.Core.Storage.Database.Notary.Migrations
             var commentSql = "";
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
-               rowid = "rowid BIGSERIAL PRIMARY KEY,";
+               rowid = "rowId BIGSERIAL PRIMARY KEY,";
                commentSql = "COMMENT ON TABLE NotaryChainMigrationsV0 IS '{ \"Version\": 0 }';";
             }
             else
@@ -80,7 +80,6 @@ namespace Odin.Core.Storage.Database.Notary.Migrations
             }
         }
 
-        // DriveMainIndex is presumed to be the previous version
         // Will upgrade from the previous version to version 0
         public override async Task UpAsync(IConnectionWrapper cn)
         {

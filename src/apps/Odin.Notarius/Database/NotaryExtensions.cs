@@ -1,11 +1,10 @@
-using System;
 using Autofac;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Logging;
-using Odin.Core.Storage.Database.Notary.Connection;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
+using Odin.Notarius.Database.Connection;
 
-namespace Odin.Core.Storage.Database.Notary;
+namespace Odin.Notarius.Database;
 
 public static class NotaryExtensions
 {
@@ -42,20 +41,20 @@ public static class NotaryExtensions
     public static ContainerBuilder AddPgsqlNotaryDatabaseServices(this ContainerBuilder cb, string connectionString)
     {
         cb.RegisterNotaryDatabase();
-        
+
         cb.Register(_ => new PgsqlNotaryDbConnectionFactory(connectionString))
             .As<INotaryDbConnectionFactory>()
             .SingleInstance();
 
         return cb;
     }
-    
+
     //
-    
+
     private static ContainerBuilder RegisterNotaryDatabase(this ContainerBuilder cb)
     {
         // Database
-        cb.RegisterType<NotaryDatabase>().InstancePerDependency();
+        cb.RegisterType<Notarius.Database.NotaryDatabase>().InstancePerDependency();
 
         // Migrator
         cb.RegisterType<NotaryMigrator>().InstancePerDependency();
@@ -69,7 +68,7 @@ public static class NotaryExtensions
             .InstancePerLifetimeScope(); // Important!
 
         // Tables
-        foreach (var tableType in NotaryDatabase.TableTypes)
+        foreach (var tableType in Notarius.Database.NotaryDatabase.TableTypes)
         {
             cb.RegisterType(tableType).InstancePerLifetimeScope();
         }

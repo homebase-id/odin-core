@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Notary.Connection;
-using Odin.Core.Storage.Database.Notary.Migrations;
+using Odin.Notarius.Database.Connection;
+using Odin.Notarius.Database.Migrations;
 
 #nullable disable
 
-namespace Odin.Core.Storage.Database.Notary;
+namespace Odin.Notarius.Database;
 
 public partial class NotaryMigrator
 {

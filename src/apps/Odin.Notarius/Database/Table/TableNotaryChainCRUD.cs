@@ -11,13 +11,13 @@ using Odin.Core.Storage;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.Database.Notary.Connection;
+using Odin.Notarius.Database.Connection;
 
 #nullable disable
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.Notary.Table
+namespace Odin.Notarius.Database.Table
 {
     public record NotaryChainRecord
     {

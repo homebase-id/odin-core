@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Odin.Core.Storage.Database.Notary.Connection;
+﻿using Odin.Notarius.Database.Connection;
 
-namespace Odin.Core.Storage.Database.Notary.Table;
+namespace Odin.Notarius.Database.Table;
+
+#nullable disable
 
 public class TableNotaryChain(
     ScopedNotaryConnectionFactory scopedConnectionFactory)

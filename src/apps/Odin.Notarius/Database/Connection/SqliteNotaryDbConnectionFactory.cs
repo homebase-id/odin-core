@@ -1,7 +1,7 @@
 using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Factory.Sqlite;
 
-namespace Odin.Core.Storage.Database.Notary.Connection;
+namespace Odin.Notarius.Database.Connection;
 
 #nullable enable
 

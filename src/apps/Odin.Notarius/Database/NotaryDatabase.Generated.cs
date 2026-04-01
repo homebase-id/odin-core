@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Immutable;
-using Odin.Core.Storage.Database.Notary;
-using Odin.Core.Storage.Database.Notary.Table;
+using Odin.Notarius.Database;
+using Odin.Notarius.Database.Table;
 
-namespace Odin.Core.Storage.Database.Notary;
+namespace Odin.Notarius.Database;
 
 public partial class NotaryDatabase
 {

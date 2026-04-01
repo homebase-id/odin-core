@@ -1,8 +1,8 @@
 using Autofac;
-using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Database.Notary.Connection;
+namespace Odin.Notarius.Database.Connection;
 
 #nullable enable
 

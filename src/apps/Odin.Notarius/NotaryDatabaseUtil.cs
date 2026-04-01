@@ -2,9 +2,9 @@
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Storage.Database.Notary;
-using Odin.Core.Storage.Database.Notary.Table;
 using Odin.Core.Time;
+using Odin.Notarius.Database;
+using Odin.Notarius.Database.Table;
 
 namespace Odin.Notarius
 {

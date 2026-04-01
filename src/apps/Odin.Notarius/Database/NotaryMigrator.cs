@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Concurrency;
-using Odin.Core.Storage.Database.Notary.Connection;
+using Odin.Core.Storage.Database;
+using Odin.Notarius.Database.Connection;
 
-namespace Odin.Core.Storage.Database.Notary;
+namespace Odin.Notarius.Database;
 
 public partial class NotaryMigrator(
     ILogger<NotaryMigrator> logger,
