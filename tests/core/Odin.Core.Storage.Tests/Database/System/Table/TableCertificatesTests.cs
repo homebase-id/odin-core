@@ -112,4 +112,46 @@ public class TableCertificatesTests : IocTestBase
         Assert.That(copy.correlationId, Is.EqualTo("correlation-context"));
         Assert.That(copy.lastError, Is.EqualTo("some error"));
     }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldPageByRowId(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        await using var scope = Services.BeginLifetimeScope();
+        var certificates = scope.Resolve<TableCertificates>();
+
+        for (int i = 0; i < 3; i++)
+        {
+            var record = new CertificatesRecord
+            {
+                domain = new OdinId($"domain{i}.test"),
+                privateKey = $"pk{i}",
+                certificate = $"cert{i}",
+                expiration = UnixTimeUtc.Now(),
+                lastAttempt = UnixTimeUtc.Now(),
+                correlationId = $"corr{i}",
+                lastError = null
+            };
+            await certificates.UpsertAsync(record);
+        }
+
+        var (page1, cursor1) = await certificates.PagingByRowIdAsync(2, null);
+        Assert.That(page1.Count, Is.EqualTo(2));
+        Assert.That(cursor1, Is.Not.Null);
+
+        var (page2, cursor2) = await certificates.PagingByRowIdAsync(2, cursor1);
+        Assert.That(page2.Count, Is.EqualTo(1));
+        Assert.That(cursor2, Is.Null);
+
+        var (all, allCursor) = await certificates.PagingByRowIdAsync(100, null);
+        Assert.That(all.Count, Is.EqualTo(3));
+        Assert.That(allCursor, Is.Null);
+    }
 }
