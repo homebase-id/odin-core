@@ -7,9 +7,9 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.Database.Notary;
-using Odin.Core.Storage.Database.Notary.Table;
 using Odin.Notarius;
+using Odin.Notarius.Database;
+using Odin.Notarius.Database.Table;
 using static Odin.Notarius.Controllers.NotarizeController;
 
 namespace Odin.NotariusTests.Integration.Controllers;

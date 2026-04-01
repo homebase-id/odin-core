@@ -4,11 +4,11 @@
 
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Attestation.Database;
+using Odin.Attestation.Database.Table;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.Database.Attestation;
-using Odin.Core.Storage.Database.Attestation.Table;
 using Odin.Core.Util;
 
 namespace Odin.Attestation.Controllers;

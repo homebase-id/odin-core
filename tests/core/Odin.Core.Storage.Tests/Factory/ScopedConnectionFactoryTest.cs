@@ -5,6 +5,7 @@ using Autofac;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 using Serilog.Events;
 

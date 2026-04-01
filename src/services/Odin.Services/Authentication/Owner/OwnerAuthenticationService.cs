@@ -14,6 +14,7 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.Caller;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Acl;

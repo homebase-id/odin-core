@@ -1,10 +1,10 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Odin.Attestation;
+using Odin.Attestation.Database;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.Attestation;
 
 var builder = WebApplication.CreateBuilder(args);
 

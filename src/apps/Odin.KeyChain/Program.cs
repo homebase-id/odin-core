@@ -4,7 +4,8 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Database.KeyChain;
+using Odin.KeyChain.Database;
+using KeyChainDatabase = Odin.KeyChain.Database.KeyChainDatabase;
 
 var builder = WebApplication.CreateBuilder(args);
 

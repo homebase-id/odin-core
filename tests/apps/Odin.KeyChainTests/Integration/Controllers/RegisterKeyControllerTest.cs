@@ -8,13 +8,13 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.Database.KeyChain;
-using Odin.Core.Storage.Database.KeyChain.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.KeyChain;
 using Odin.KeyChain.Controllers;
+using Odin.KeyChain.Database.Table;
 using static Odin.KeyChain.Controllers.RegisterKeyController;
+using KeyChainDatabase = Odin.KeyChain.Database.KeyChainDatabase;
 
 
 namespace Odin.KeyChainTests.Integration.Controllers;

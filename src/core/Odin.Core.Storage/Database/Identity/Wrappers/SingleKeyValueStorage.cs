@@ -1,0 +1,86 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity.Table;
+
+namespace Odin.Core.Storage.Database.Identity.Wrappers;
+
+public class SingleKeyValueStorage
+{
+    private readonly Guid _contextKey;
+
+    public SingleKeyValueStorage(Guid contextKey)
+    {
+        if (contextKey == Guid.Empty)
+        {
+            throw new OdinSystemException("Invalid context key for storage");
+        }
+
+        _contextKey = contextKey;
+    }
+
+    /// <summary>
+    /// Gets T by key.  
+    /// </summary>
+    /// <param name="tblKeyValue"></param>
+    /// <param name="key">The Id or key of the record to retrieve</param>
+    /// <typeparam name="T">The Type of the data</typeparam>
+    /// <returns></returns>
+    public async Task<T> GetAsync<T>(TableKeyValueCached tblKeyValue, Guid key) where T : class
+    {
+        var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
+
+        if (null == item)
+        {
+            return null;
+        }
+
+        if (null == item.data)
+        {
+            return null;
+        }
+
+        return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
+    }
+
+    public async Task<byte[]> GetBytesAsync(TableKeyValueCached tblKeyValue, Guid key)
+    {
+        var item = await tblKeyValue.GetAsync(MakeStorageKey(key));
+        return item?.data;
+    }
+
+    public async Task UpsertManyAsync<T>(TableKeyValueCached tblKeyValue, List<(Guid key, T value)> keyValuePairs)
+    {
+        var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
+        {
+            key = MakeStorageKey(pair.key),
+            data = OdinSystemSerializer.Serialize<T>(pair.value).ToUtf8ByteArray()
+        }).ToList();
+
+        await tblKeyValue.UpsertManyAsync(keyValueRecords);
+    }
+
+    public async Task<int> UpsertAsync<T>(TableKeyValueCached tblKeyValue, Guid key, T value)
+    {
+        var json = OdinSystemSerializer.Serialize(value);
+        return await tblKeyValue.UpsertAsync(new KeyValueRecord() { key = MakeStorageKey(key), data = json.ToUtf8ByteArray() });
+    }
+
+    public async Task<int> UpsertBytesAsync(TableKeyValueCached tblKeyValue, Guid key, byte[] value)
+    {
+        return await tblKeyValue.UpsertAsync(new KeyValueRecord { key = MakeStorageKey(key), data = value });
+    }
+
+    public async Task DeleteAsync(TableKeyValueCached tblKeyValue, Guid key)
+    {
+        await tblKeyValue.DeleteAsync(MakeStorageKey(key));
+    }
+
+    private byte[] MakeStorageKey(Guid key)
+    {
+        return ByteArrayUtil.Combine(key.ToByteArray(), _contextKey.ToByteArray());
+    }
+}

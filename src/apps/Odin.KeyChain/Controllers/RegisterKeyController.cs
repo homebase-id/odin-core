@@ -10,10 +10,10 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.Database.KeyChain;
-using Odin.Core.Storage.Database.KeyChain.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.KeyChain.Database.Table;
+using KeyChainDatabase = Odin.KeyChain.Database.KeyChainDatabase;
 
 namespace Odin.KeyChain.Controllers;
 
