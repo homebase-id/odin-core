@@ -74,11 +74,11 @@ public class PeerCapiAuthenticationHandler(
             {
                 response = await httpClient.GetAsync(url);
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex) when (ex.Message.Contains("SSL connection could not be established"))
             {
-                var log = _loggerFactory.CreateLogger<PeerCapiAuthenticationHandler>();
-                log.LogError(ex, "Peer CAPI handshake error: GET {url}", url);
-                throw;
+                // Silently catch SSL errors and return an authentication failure,
+                // as this likely indicates a missing or an untrusted certificate on the remote peer.
+                return AuthenticateResult.Fail(ex.Message);
             }
 
             if (response.StatusCode != HttpStatusCode.OK)
