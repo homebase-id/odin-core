@@ -6,6 +6,8 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity;
 
+// SEB:NOTE all this stuff in here is experimental and NOT production ready
+
 public static class IdentityDataImporter
 {
     private const int PageSize = 100;
