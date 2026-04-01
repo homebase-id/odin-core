@@ -6,13 +6,13 @@ using Odin.Core.Storage.Factory;
 
 namespace Odin.Core.Storage.Database.Identity.Migrations;
 
-public class TableDrivesMigrationV202510311515 : MigrationBase
+public class TableDrivesMigrationV202509220609 : MigrationBase
 {
-    public TableDrivesMigrationV202510311515(long previousVersion) : base(previousVersion)
+    public TableDrivesMigrationV202509220609(long previousVersion) : base(previousVersion)
     {
     }
 
-    public override long MigrationVersion => 202510311515;
+    public override long MigrationVersion => 202509220609;
 
     public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
     {
@@ -21,7 +21,7 @@ public class TableDrivesMigrationV202510311515 : MigrationBase
         if (cn.DatabaseType == DatabaseType.Postgres)
         {
             rowid = "rowId BIGSERIAL PRIMARY KEY,";
-            commentSql = "COMMENT ON TABLE DrivesMigrationsV202510311515 IS '{ \"Version\": 202510311515 }';";
+            commentSql = "COMMENT ON TABLE DrivesMigrationsV202509220609 IS '{ \"Version\": 202509220609 }';";
         }
         else
         {
@@ -30,11 +30,12 @@ public class TableDrivesMigrationV202510311515 : MigrationBase
 
         var wori = "";
         var createSql =
-                "CREATE TABLE IF NOT EXISTS DrivesMigrationsV202510311515( -- { \"Version\": 202510311515 }\n"
+                "CREATE TABLE IF NOT EXISTS DrivesMigrationsV202509220609( -- { \"Version\": 202509220609 }\n"
                 + rowid
                 + "identityId BYTEA NOT NULL, "
                 + "DriveId BYTEA NOT NULL, "
-                + "StorageKeyCheckValue BYTEA NOT NULL, "
+                + "DriveAlias BYTEA NOT NULL, "
+                + "TempOriginalDriveId BYTEA NOT NULL, "
                 + "DriveType BYTEA NOT NULL, "
                 + "DriveName TEXT NOT NULL, "
                 + "MasterKeyEncryptedStorageKeyJson TEXT NOT NULL, "
@@ -47,7 +48,7 @@ public class TableDrivesMigrationV202510311515 : MigrationBase
                 + ", UNIQUE(identityId,DriveId,DriveType)"
                 + $"){wori};"
             ;
-        await SqlHelper.CreateTableWithCommentAsync(cn, "DrivesMigrationsV202510311515", createSql, commentSql);
+        await SqlHelper.CreateTableWithCommentAsync(cn, "DrivesMigrationsV202509220609", createSql, commentSql);
     }
 
     public new static List<string> GetColumnNames()
@@ -56,7 +57,8 @@ public class TableDrivesMigrationV202510311515 : MigrationBase
         sl.Add("rowId");
         sl.Add("identityId");
         sl.Add("DriveId");
-        sl.Add("StorageKeyCheckValue");
+        sl.Add("DriveAlias");
+        sl.Add("TempOriginalDriveId");
         sl.Add("DriveType");
         sl.Add("DriveName");
         sl.Add("MasterKeyEncryptedStorageKeyJson");
@@ -70,32 +72,32 @@ public class TableDrivesMigrationV202510311515 : MigrationBase
 
     public async Task<int> CopyDataAsync(IConnectionWrapper cn)
     {
-        await CheckSqlTableVersion(cn, "DrivesMigrationsV202510311515", MigrationVersion);
+        await CheckSqlTableVersion(cn, "DrivesMigrationsV202509220609", MigrationVersion);
         await CheckSqlTableVersion(cn, "Drives", PreviousVersion);
         await using var copyCommand = cn.CreateCommand();
         {
             copyCommand.CommandText =
-                "INSERT INTO DrivesMigrationsV202510311515 (rowId,identityId,DriveId,StorageKeyCheckValue,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
-                "SELECT rowId,identityId,DriveId,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified " +
+                "INSERT INTO DrivesMigrationsV202509220609 (rowId,identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified) " +
+                "SELECT rowId,identityId,DriveId,DriveAlias,TempOriginalDriveId,DriveType,DriveName,MasterKeyEncryptedStorageKeyJson,EncryptedIdIv64,EncryptedIdValue64,detailsJson,created,modified " +
                 "FROM Drives;";
             return await copyCommand.ExecuteNonQueryAsync();
         }
     }
 
-    // Will upgrade from the previous version to version 202510311515
+    // Will upgrade from the previous version to version 202509220609
     public override async Task UpAsync(IConnectionWrapper cn)
     {
         await CheckSqlTableVersion(cn, "Drives", PreviousVersion);
         using (var trn = await cn.BeginStackedTransactionAsync())
         {
             await CreateTableWithCommentAsync(cn);
-            await CheckSqlTableVersion(cn, "DrivesMigrationsV202510311515", MigrationVersion);
+            await CheckSqlTableVersion(cn, "DrivesMigrationsV202509220609", MigrationVersion);
             if (await CopyDataAsync(cn) < 0)
                 throw new MigrationException("Unable to copy the data");
-            if (!await VerifyRowCount(cn, "Drives", "DrivesMigrationsV202510311515"))
+            if (!await VerifyRowCount(cn, "Drives", "DrivesMigrationsV202509220609"))
                 throw new MigrationException("Mismatching row counts");
             await SqlHelper.RenameAsync(cn, "Drives", $"DrivesMigrationsV{PreviousVersion}");
-            await SqlHelper.RenameAsync(cn, "DrivesMigrationsV202510311515", "Drives");
+            await SqlHelper.RenameAsync(cn, "DrivesMigrationsV202509220609", "Drives");
             await CheckSqlTableVersion(cn, "Drives", MigrationVersion);
             trn.Commit();
         }
@@ -108,7 +110,7 @@ public class TableDrivesMigrationV202510311515 : MigrationBase
         {
             if (!await VerifyRowCount(cn, $"DrivesMigrationsV{PreviousVersion}", "Drives"))
                 throw new MigrationException("Mismatching row counts - bad idea to downgrade");
-            await SqlHelper.RenameAsync(cn, "Drives", "DrivesMigrationsV202510311515");
+            await SqlHelper.RenameAsync(cn, "Drives", "DrivesMigrationsV202509220609");
             await SqlHelper.RenameAsync(cn, $"DrivesMigrationsV{PreviousVersion}", "Drives");
             await CheckSqlTableVersion(cn, "Drives", PreviousVersion);
             trn.Commit();

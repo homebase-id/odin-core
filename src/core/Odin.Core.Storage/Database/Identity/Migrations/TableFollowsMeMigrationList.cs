@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using Odin.Core.Storage.Database;
 
 namespace Odin.Core.Storage.Database.Identity.Migrations;
 
@@ -8,10 +6,10 @@ public class TableFollowsMeMigrationList : MigrationListBase
 {
     public TableFollowsMeMigrationList()
     {
-        Migrations = new List<MigrationBase>() {
-            new TableFollowsMeMigrationV0(-1),
+        Migrations = new List<MigrationBase>
+        {
+            new TableFollowsMeMigrationV0(-1)
             // AUTO-INSERT-MARKER
         };
     }
-
 }

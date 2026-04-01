@@ -1,101 +1,89 @@
 using System;
-using System.Data;
-using System.Data.Common;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Odin.Core.Time;
-using Odin.Core.Storage;
-using Odin.Core.Storage.Database;
-using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
-using Odin.Core.Storage.SQLite;
-using Odin.Core.Util;
 
 // THIS FILE WAS INITIALLY AUTO GENERATED
 
-namespace Odin.Core.Storage.Database.Identity.Migrations
+namespace Odin.Core.Storage.Database.Identity.Migrations;
+
+public class TableCircleMemberMigrationV0 : MigrationBase
 {
-    public class TableCircleMemberMigrationV0 : MigrationBase
+    public TableCircleMemberMigrationV0(long previousVersion) : base(previousVersion)
     {
-        public override Int64 MigrationVersion => 0;
-        public TableCircleMemberMigrationV0(Int64 previousVersion) : base(previousVersion)
+    }
+
+    public override long MigrationVersion => 0;
+
+    public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
+    {
+        var rowid = "";
+        var commentSql = "";
+        if (cn.DatabaseType == DatabaseType.Postgres)
         {
+            rowid = "rowid BIGSERIAL PRIMARY KEY,";
+            commentSql = "COMMENT ON TABLE CircleMemberMigrationsV0 IS '{ \"Version\": 0 }';";
+        }
+        else
+        {
+            rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
         }
 
-        public override async Task CreateTableWithCommentAsync(IConnectionWrapper cn)
-        {
-            var rowid = "";
-            var commentSql = "";
-            if (cn.DatabaseType == DatabaseType.Postgres)
-            {
-               rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE CircleMemberMigrationsV0 IS '{ \"Version\": 0 }';";
-            }
-            else
-               rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
-            var wori = "";
-            string createSql =
+        var wori = "";
+        var createSql =
                 "CREATE TABLE IF NOT EXISTS CircleMemberMigrationsV0( -- { \"Version\": 0 }\n"
-                   +rowid
-                   +"identityId BYTEA NOT NULL, "
-                   +"circleId BYTEA NOT NULL, "
-                   +"memberId BYTEA NOT NULL, "
-                   +"data BYTEA  "
-                   +", UNIQUE(identityId,circleId,memberId)"
-                   +$"){wori};"
-                   ;
-            await SqlHelper.CreateTableWithCommentAsync(cn, "CircleMemberMigrationsV0", createSql, commentSql);
-        }
+                + rowid
+                + "identityId BYTEA NOT NULL, "
+                + "circleId BYTEA NOT NULL, "
+                + "memberId BYTEA NOT NULL, "
+                + "data BYTEA  "
+                + ", UNIQUE(identityId,circleId,memberId)"
+                + $"){wori};"
+            ;
+        await SqlHelper.CreateTableWithCommentAsync(cn, "CircleMemberMigrationsV0", createSql, commentSql);
+    }
 
-        public new static List<string> GetColumnNames()
+    public new static List<string> GetColumnNames()
+    {
+        var sl = new List<string>();
+        sl.Add("rowId");
+        sl.Add("identityId");
+        sl.Add("circleId");
+        sl.Add("memberId");
+        sl.Add("data");
+        return sl;
+    }
+
+    public async Task<int> CopyDataAsync(IConnectionWrapper cn)
+    {
+        await CheckSqlTableVersion(cn, "CircleMemberMigrationsV0", MigrationVersion);
+        await CheckSqlTableVersion(cn, "CircleMember", PreviousVersion);
+        await using var copyCommand = cn.CreateCommand();
         {
-            var sl = new List<string>();
-            sl.Add("rowId");
-            sl.Add("identityId");
-            sl.Add("circleId");
-            sl.Add("memberId");
-            sl.Add("data");
-            return sl;
+            copyCommand.CommandText =
+                "INSERT INTO CircleMemberMigrationsV0 (rowId,identityId,circleId,memberId,data) " +
+                "SELECT rowId,identityId,circleId,memberId,data " +
+                "FROM CircleMember;";
+            return await copyCommand.ExecuteNonQueryAsync();
         }
+    }
 
-        public async Task<int> CopyDataAsync(IConnectionWrapper cn)
+    // DriveMainIndex is presumed to be the previous version
+    // Will upgrade from the previous version to version 0
+    public override async Task UpAsync(IConnectionWrapper cn)
+    {
+        using (var trn = await cn.BeginStackedTransactionAsync())
         {
-            await CheckSqlTableVersion(cn, "CircleMemberMigrationsV0", MigrationVersion);
-            await CheckSqlTableVersion(cn, "CircleMember", PreviousVersion);
-            await using var copyCommand = cn.CreateCommand();
-            {
-                copyCommand.CommandText = "INSERT INTO CircleMemberMigrationsV0 (rowId,identityId,circleId,memberId,data) " +
-               $"SELECT rowId,identityId,circleId,memberId,data "+
-               $"FROM CircleMember;";
-               return await copyCommand.ExecuteNonQueryAsync();
-            }
+            // Create the initial table
+            await CreateTableWithCommentAsync(cn);
+            await SqlHelper.RenameAsync(cn, "CircleMemberMigrationsV0", "CircleMember");
+            trn.Commit();
         }
+    }
 
-        // Will upgrade from the previous version to version 0
-        public override async Task UpAsync(IConnectionWrapper cn)
-        {
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    // Create the initial table
-                    await CreateTableWithCommentAsync(cn);
-                    await SqlHelper.RenameAsync(cn, "CircleMemberMigrationsV0", "CircleMember");
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
-        }
-
-        public override async Task DownAsync(IConnectionWrapper cn)
-        {
-            await CheckSqlTableVersion(cn, "CircleMember", MigrationVersion);
-            throw new  Exception("You cannot move down from version 0");
-        }
-
+    public override async Task DownAsync(IConnectionWrapper cn)
+    {
+        await CheckSqlTableVersion(cn, "CircleMember", MigrationVersion);
+        throw new Exception("You cannot move down from version 0");
     }
 }
