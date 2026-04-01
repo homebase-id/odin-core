@@ -14,8 +14,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Inbox;
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2DriveInboxController(PeerInboxProcessor peerInboxProcessor) : OdinControllerBase
 {
-    [HttpGet("process")]
-    [SwaggerOperation(Tags = [SwaggerInfo.DriveStatus])]
+    [HttpGet("inbox/process")]
+    [SwaggerOperation(Tags = [SwaggerInfo.DriveInbox])]
     public async Task<InboxStatus> ProcessInbox(Guid driveId, [FromQuery] int batchSize = 10)
     {
         var targetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId);
