@@ -6,7 +6,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage;
+namespace Odin.Core.Storage.Database.Identity.Wrappers;
 
 public class SingleKeyValueStorage
 {
@@ -57,7 +57,7 @@ public class SingleKeyValueStorage
         var keyValueRecords = keyValuePairs.Select(pair => new KeyValueRecord
         {
             key = MakeStorageKey(pair.key),
-            data = OdinSystemSerializer.Serialize(pair.value).ToUtf8ByteArray()
+            data = OdinSystemSerializer.Serialize<T>(pair.value).ToUtf8ByteArray()
         }).ToList();
 
         await tblKeyValue.UpsertManyAsync(keyValueRecords);

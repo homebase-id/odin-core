@@ -6,7 +6,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Database.Identity.Table;
 
-namespace Odin.Core.Storage;
+namespace Odin.Core.Storage.Database.Identity.Wrappers;
 
 /// <summary>
 /// Key value storage using 3 keys; serializes as json

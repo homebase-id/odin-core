@@ -5,9 +5,10 @@ using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Tests;
+namespace Odin.Core.Storage.Tests.Database.Identity.Wrappers;
 
 public class SingleKeyValueStorageTests : IocTestBase
 {
