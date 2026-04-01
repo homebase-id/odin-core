@@ -4,9 +4,10 @@ using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Storage.Database.System.Table;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Tests;
+namespace Odin.Core.Storage.Tests.Exceptions;
 
 #nullable enable
 public class OdinDatabaseExceptionTests : IocTestBase

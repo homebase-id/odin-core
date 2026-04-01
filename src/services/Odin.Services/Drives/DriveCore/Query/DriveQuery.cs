@@ -16,6 +16,7 @@ using Odin.Services.Peer.Incoming.Drive.Transfer;
 using QueryBatchCursor = Odin.Core.Storage.QueryBatchCursor;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Exceptions;
 using Odin.Services.Drives.FileSystem.Base;
 
 namespace Odin.Services.Drives.DriveCore.Query;

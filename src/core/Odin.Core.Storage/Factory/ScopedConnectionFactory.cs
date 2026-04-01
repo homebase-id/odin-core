@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Util;
 
 namespace Odin.Core.Storage.Factory;

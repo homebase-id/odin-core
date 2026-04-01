@@ -4,7 +4,7 @@ using Npgsql;
 using Odin.Core.Exceptions;
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage;
+namespace Odin.Core.Storage.Exceptions;
 
 // SQLite error codes: https://www.sqlite.org/rescode.html
 // PostgreSQL error codes: https://www.postgresql.org/docs/current/errcodes-appendix.html
