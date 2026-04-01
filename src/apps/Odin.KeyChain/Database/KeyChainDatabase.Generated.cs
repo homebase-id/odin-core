@@ -2,10 +2,9 @@
 
 using System;
 using System.Collections.Immutable;
-using Odin.Core.Storage.Database.KeyChain;
-using Odin.Core.Storage.Database.KeyChain.Table;
+using Odin.KeyChain.Database.Table;
 
-namespace Odin.Core.Storage.Database.KeyChain;
+namespace Odin.KeyChain.Database;
 
 public partial class KeyChainDatabase
 {

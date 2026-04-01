@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Concurrency;
-using Odin.Core.Storage.Database.KeyChain.Connection;
+using Odin.Core.Storage.Database;
+using Odin.KeyChain.Database.Connection;
 
-namespace Odin.Core.Storage.Database.KeyChain;
+namespace Odin.KeyChain.Database;
 
 public partial class KeyChainMigrator(
     ILogger<KeyChainMigrator> logger,

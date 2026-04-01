@@ -2,9 +2,10 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using Odin.Core.Storage.Database.KeyChain.Migrations;
+using Odin.Core.Storage.Database;
+using Odin.KeyChain.Database.Migrations;
 
-namespace Odin.Core.Storage.Database.KeyChain;
+namespace Odin.KeyChain.Database;
 
 public partial class KeyChainMigrator
 {

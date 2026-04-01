@@ -1,13 +1,12 @@
 ﻿using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Autofac;
-using Odin.Core.Storage.Database.KeyChain.Connection;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
+using Odin.KeyChain.Database.Connection;
 
-namespace Odin.Core.Storage.Database.KeyChain;
+namespace Odin.KeyChain.Database;
 
 #nullable enable
 

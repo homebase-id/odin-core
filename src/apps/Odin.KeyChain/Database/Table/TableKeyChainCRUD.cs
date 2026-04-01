@@ -1,25 +1,16 @@
-using System;
 using System.Data;
 using System.Data.Common;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
-using Odin.Core.Time;
-using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Attestation.Connection;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.KeyChain.Connection;
-using Odin.Core.Storage.Database.Notary.Connection;
-using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Storage;
-using Odin.Core.Util;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.SQLite; //added for homebase social sync
+using Odin.Core.Time;
+using Odin.KeyChain.Database.Connection;
+
+//added for homebase social sync
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
-namespace Odin.Core.Storage.Database.KeyChain.Table
+namespace Odin.KeyChain.Database.Table
 {
     public record KeyChainRecord
     {

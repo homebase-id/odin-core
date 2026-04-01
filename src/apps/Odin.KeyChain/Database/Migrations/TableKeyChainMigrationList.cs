@@ -1,7 +1,6 @@
-using System;
-using System.Collections.Generic;
+using Odin.Core.Storage.Database;
 
-namespace Odin.Core.Storage.Database.KeyChain.Migrations;
+namespace Odin.KeyChain.Database.Migrations;
 
 public class TableKeyChainMigrationList : MigrationListBase
 {

@@ -1,6 +1,6 @@
 using Odin.Core.Storage.Factory;
 
-namespace Odin.Core.Storage.Database.KeyChain.Connection;
+namespace Odin.KeyChain.Database.Connection;
 
 #nullable enable
 

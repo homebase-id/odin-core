@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Odin.Core.Storage.Database.KeyChain.Connection;
+﻿using Odin.KeyChain.Database.Connection;
 
-namespace Odin.Core.Storage.Database.KeyChain.Table;
+namespace Odin.KeyChain.Database.Table;
 
 public class TableKeyChain(
     ScopedKeyChainConnectionFactory scopedConnectionFactory)

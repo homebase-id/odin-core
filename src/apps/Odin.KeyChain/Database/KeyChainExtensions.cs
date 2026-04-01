@@ -1,11 +1,10 @@
-using System;
 using Autofac;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Logging;
-using Odin.Core.Storage.Database.KeyChain.Connection;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Factory;
+using Odin.KeyChain.Database.Connection;
 
-namespace Odin.Core.Storage.Database.KeyChain;
+namespace Odin.KeyChain.Database;
 
 public static class KeyChainExtensions
 {
@@ -55,7 +54,7 @@ public static class KeyChainExtensions
     private static ContainerBuilder RegisterKeyChainDatabase(this ContainerBuilder cb)
     {
         // Database
-        cb.RegisterType<KeyChainDatabase>().InstancePerDependency();
+        cb.RegisterType<Odin.KeyChain.Database.KeyChainDatabase>().InstancePerDependency();
 
         // Migrator
         cb.RegisterType<KeyChainMigrator>().InstancePerDependency();
@@ -69,7 +68,7 @@ public static class KeyChainExtensions
             .InstancePerLifetimeScope(); // Important!
 
         // Tables
-        foreach (var tableType in KeyChainDatabase.TableTypes)
+        foreach (var tableType in Odin.KeyChain.Database.KeyChainDatabase.TableTypes)
         {
             cb.RegisterType(tableType).InstancePerLifetimeScope();
         }
