@@ -26,9 +26,9 @@ public class LocalAppMetadata
 
     /// <summary>
     /// Timestamp indicating when the file was read by the local identity.
-    /// Set when SendReadReceipt is called and not modified afterward.
+    /// Set when SendReadReceipt is called. May be updated with a later timestamp.
     /// </summary>
-    public UnixTimeUtc? ReadTime { get; init; }
+    public UnixTimeUtc? ReadTime { get; set; }
 
     public bool TryValidate()
     {

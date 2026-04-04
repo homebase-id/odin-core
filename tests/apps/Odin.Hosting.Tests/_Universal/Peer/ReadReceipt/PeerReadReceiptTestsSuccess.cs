@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Services.Apps;
@@ -234,6 +235,279 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             ClassicAssert.IsTrue(samRecipientStatus2.LatestTransferStatus == LatestTransferStatus.Delivered);
             ClassicAssert.IsTrue(samRecipientStatus2.LatestSuccessfullyDeliveredVersionTag == senderUploadResult2.NewVersionTag);
             
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public async Task CanSendReadReceiptWithSpecificTimestamp(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) =
+                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+            await callerContext.Initialize(recipientOwnerClient);
+            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var fileForReadReceipt = new ExternalFileIdentifier()
+            {
+                FileId = recipientFiles.Single().Value.FileId,
+                TargetDrive = recipientFiles.Single().Value.TargetDrive
+            };
+
+            // Send read receipt with a specific past timestamp
+            var pastTimestamp = UnixTimeUtc.Now().AddSeconds(-30);
+            var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt], pastTimestamp);
+            ClassicAssert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+
+            // Verify the local ReadTime matches the supplied timestamp
+            var getFileHeaderResponse = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
+            var readTime = getFileHeaderResponse.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(readTime);
+            ClassicAssert.AreEqual(pastTimestamp.milliseconds, readTime.Value.milliseconds);
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public async Task SendReadReceiptWithFutureTimestampGetsClamped(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) =
+                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+            await callerContext.Initialize(recipientOwnerClient);
+            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var fileForReadReceipt = new ExternalFileIdentifier()
+            {
+                FileId = recipientFiles.Single().Value.FileId,
+                TargetDrive = recipientFiles.Single().Value.TargetDrive
+            };
+
+            // Send read receipt with a future timestamp (1 hour ahead)
+            var beforeSend = UnixTimeUtc.Now();
+            var futureTimestamp = UnixTimeUtc.Now().AddSeconds(3600);
+            var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt], futureTimestamp);
+            ClassicAssert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+
+            // Verify the ReadTime was clamped to approximately now, not the future value
+            var getFileHeaderResponse = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
+            var readTime = getFileHeaderResponse.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(readTime);
+            ClassicAssert.IsTrue(readTime.Value >= beforeSend, "ReadTime should be at or after the time we sent the request");
+            ClassicAssert.IsTrue(readTime.Value < futureTimestamp, "ReadTime should have been clamped, not set to future value");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public async Task SendReadReceiptDoesNotDowngradeReadTime(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) =
+                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+            await callerContext.Initialize(recipientOwnerClient);
+            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var fileForReadReceipt = new ExternalFileIdentifier()
+            {
+                FileId = recipientFiles.Single().Value.FileId,
+                TargetDrive = recipientFiles.Single().Value.TargetDrive
+            };
+
+            // First read receipt with no timestamp (sets ReadTime to ~now)
+            var sendReadReceiptResponse1 = await driveClient.SendReadReceipt([fileForReadReceipt]);
+            ClassicAssert.IsTrue(sendReadReceiptResponse1.IsSuccessStatusCode);
+
+            // Capture the ReadTime
+            var getFileHeaderResponse1 = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse1.IsSuccessStatusCode);
+            var originalReadTime = getFileHeaderResponse1.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(originalReadTime);
+
+            // Second read receipt with an earlier timestamp — should be rejected
+            var olderTimestamp = UnixTimeUtc.Now().AddSeconds(-300);
+            var sendReadReceiptResponse2 = await driveClient.SendReadReceipt([fileForReadReceipt], olderTimestamp);
+            ClassicAssert.IsTrue(sendReadReceiptResponse2.IsSuccessStatusCode);
+
+            // Verify ReadTime was NOT downgraded
+            var getFileHeaderResponse2 = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse2.IsSuccessStatusCode);
+            var currentReadTime = getFileHeaderResponse2.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(currentReadTime);
+            ClassicAssert.AreEqual(originalReadTime.Value.milliseconds, currentReadTime.Value.milliseconds,
+                "ReadTime should not have been downgraded to the older timestamp");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public async Task SendReadReceiptWithoutTimestampDoesNotOverwriteExisting(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) =
+                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+            await callerContext.Initialize(recipientOwnerClient);
+            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var fileForReadReceipt = new ExternalFileIdentifier()
+            {
+                FileId = recipientFiles.Single().Value.FileId,
+                TargetDrive = recipientFiles.Single().Value.TargetDrive
+            };
+
+            // First: send read receipt with a specific past timestamp
+            var pastTimestamp = UnixTimeUtc.Now().AddSeconds(-60);
+            var sendReadReceiptResponse1 = await driveClient.SendReadReceipt([fileForReadReceipt], pastTimestamp);
+            ClassicAssert.IsTrue(sendReadReceiptResponse1.IsSuccessStatusCode);
+
+            // Capture the ReadTime
+            var getFileHeaderResponse1 = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse1.IsSuccessStatusCode);
+            var originalReadTime = getFileHeaderResponse1.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(originalReadTime);
+            ClassicAssert.AreEqual(pastTimestamp.milliseconds, originalReadTime.Value.milliseconds);
+
+            // Second: send read receipt WITHOUT timestamp — should NOT overwrite
+            var sendReadReceiptResponse2 = await driveClient.SendReadReceipt([fileForReadReceipt]);
+            ClassicAssert.IsTrue(sendReadReceiptResponse2.IsSuccessStatusCode);
+
+            // Verify ReadTime was NOT overwritten with now()
+            var getFileHeaderResponse2 = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse2.IsSuccessStatusCode);
+            var currentReadTime = getFileHeaderResponse2.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(currentReadTime);
+            ClassicAssert.AreEqual(originalReadTime.Value.milliseconds, currentReadTime.Value.milliseconds,
+                "ReadTime should not have been overwritten by a call without timestamp");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public async Task SendReadReceiptWithNewerTimestampUpgradesReadTime(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) =
+                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+            await callerContext.Initialize(recipientOwnerClient);
+            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var fileForReadReceipt = new ExternalFileIdentifier()
+            {
+                FileId = recipientFiles.Single().Value.FileId,
+                TargetDrive = recipientFiles.Single().Value.TargetDrive
+            };
+
+            // First: send read receipt with an older past timestamp
+            var olderTimestamp = UnixTimeUtc.Now().AddSeconds(-60);
+            var sendReadReceiptResponse1 = await driveClient.SendReadReceipt([fileForReadReceipt], olderTimestamp);
+            ClassicAssert.IsTrue(sendReadReceiptResponse1.IsSuccessStatusCode);
+
+            // Verify ReadTime == olderTimestamp
+            var getFileHeaderResponse1 = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse1.IsSuccessStatusCode);
+            var readTime1 = getFileHeaderResponse1.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(readTime1);
+            ClassicAssert.AreEqual(olderTimestamp.milliseconds, readTime1.Value.milliseconds);
+
+            // Second: send read receipt with a newer (but still past) timestamp
+            var newerTimestamp = UnixTimeUtc.Now().AddSeconds(-10);
+            var sendReadReceiptResponse2 = await driveClient.SendReadReceipt([fileForReadReceipt], newerTimestamp);
+            ClassicAssert.IsTrue(sendReadReceiptResponse2.IsSuccessStatusCode);
+
+            // Verify ReadTime was upgraded to newerTimestamp
+            var getFileHeaderResponse2 = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(getFileHeaderResponse2.IsSuccessStatusCode);
+            var readTime2 = getFileHeaderResponse2.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(readTime2);
+            ClassicAssert.AreEqual(newerTimestamp.milliseconds, readTime2.Value.milliseconds,
+                "ReadTime should have been upgraded to the newer timestamp");
+
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
