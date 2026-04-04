@@ -1286,6 +1286,60 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
+public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                throw new OdinClientException("Cannot update local app data for non-existent file", OdinClientErrorCode.InvalidFile);
+            }
+
+            var existingLocalAppData = header.FileMetadata.LocalAppData;
+
+            if (existingLocalAppData?.ReadTime != null)
+            {
+                return false;
+            }
+
+            var newVersionTag = DriveFileUtility.CreateVersionTag();
+            var mergedMetadata = new LocalAppMetadata
+            {
+                VersionTag = existingLocalAppData?.VersionTag ?? Guid.Empty,
+                Iv = existingLocalAppData?.Iv,
+                Content = existingLocalAppData?.Content,
+                Tags = existingLocalAppData?.Tags ?? [],
+                ReadTime = UnixTimeUtc.Now()
+            };
+
+            mergedMetadata.Validate();
+
+            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
+
+            try
+            {
+                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+                if (await TryShouldRaiseDriveEventAsync(file))
+                {
+                    await TryPublishAsync(new DriveFileChangedNotification
+                    {
+                        File = file,
+                        ServerFileHeader = updatedHeader,
+                        OdinContext = odinContext,
+                    });
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Failed to send DriveFileChangedNotification");
+            }
+
+            return true;
+        }
+        
         public async Task CleanupUploadTemporaryFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors,
             IOdinContext odinContext)
         {
@@ -1408,11 +1462,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                         GroupId = appData.GroupId,
                         UserDate = appData.UserDate,
                         ArchivalStatus = appData.ArchivalStatus,
-                        
+
                         Content = "",
                         PreviewThumbnail = null,
                     },
-                    
+
                     ReferencedFile = null,
                     ReactionPreview = null,
                     IsEncrypted = false,
@@ -1688,7 +1742,6 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (theDrive == null)
             {
-                _logger.LogError("DriveManager returned null for driveId: {drive} ", driveId);
                 return;
             }
 

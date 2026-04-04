@@ -78,7 +78,7 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     public async Task<List<DriveMainIndexRecord>> GetAllByDriveIdAsync(Guid driveId, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        var result = await Cache.GetOrSetListAsync(
             GetCacheKey(driveId),
             _ => _table.GetAllByDriveIdAsync(driveId),
             ttl ?? DefaultTtl,

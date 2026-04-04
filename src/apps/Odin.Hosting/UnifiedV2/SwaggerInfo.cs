@@ -9,6 +9,7 @@ public static class SwaggerInfo
 
     // Drive-level status
     public const string DriveStatus = "Drive Status";
+    public const string DriveInbox = "Drive Inbox";
 
     // File read-only endpoints (header, payload, thumbs, history)
     public const string FileRead = "File Read Operations";

@@ -1,0 +1,53 @@
+﻿using System.Data;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using Autofac;
+using Odin.Attestation.Database.Connection;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Factory;
+
+namespace Odin.Attestation.Database;
+
+#nullable enable
+
+[SuppressMessage("ReSharper", "ExplicitCallerInfoArgument")]
+public partial class AttestationDatabase(ILifetimeScope lifetimeScope) : AbstractDatabase<IAttestationDbConnectionFactory>(lifetimeScope)
+{
+    private readonly ILifetimeScope _lifetimeScope = lifetimeScope;
+
+    //
+    // Connection
+    //
+    public override async Task<IConnectionWrapper> CreateScopedConnectionAsync(
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0)
+    {
+        var factory = _lifetimeScope.Resolve<ScopedAttestationConnectionFactory>();
+        var cn = await factory.CreateScopedConnectionAsync(filePath, lineNumber);
+        return cn;
+    }
+
+    //
+    // Transaction
+    //
+    public override async Task<IScopedTransaction> BeginStackedTransactionAsync(
+        IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+        CancellationToken cancellationToken = default,
+        [CallerFilePath] string? filePath = null,
+        [CallerLineNumber] int lineNumber = 0)
+    {
+        var factory = _lifetimeScope.Resolve<ScopedAttestationTransactionFactory>();
+        var tx = await factory.BeginStackedTransactionAsync(isolationLevel, cancellationToken, filePath, lineNumber);
+        return tx;
+    }
+
+    //
+    // Migration
+    //
+
+    public override async Task MigrateDatabaseAsync()
+    {
+        var migrator = _lifetimeScope.Resolve<AttestationMigrator>();
+        await migrator.MigrateAsync();
+    }
+}

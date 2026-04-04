@@ -319,5 +319,39 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             ClassicAssert.IsTrue(r[1] == ":wink:");
             // It'll probably be fairly random which of the last ones are 'in' given they all have the same count
         }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        public async Task PagingByRowIdTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tbl = scope.Resolve<TableDriveReactions>();
+            var identityKey = scope.Resolve<OdinIdentity>();
+
+            var driveId = Guid.NewGuid();
+            var p1 = Guid.NewGuid();
+            var p2 = Guid.NewGuid();
+            var p3 = Guid.NewGuid();
+
+            await tbl.InsertAsync(new DriveReactionsRecord() { identityId = identityKey, driveId = driveId, identity = new OdinId("frodo.baggins.me"), postId = p1, singleReaction = ":lol:" });
+            await tbl.InsertAsync(new DriveReactionsRecord() { identityId = identityKey, driveId = driveId, identity = new OdinId("sam.gamgee.me"), postId = p2, singleReaction = ":wink:" });
+            await tbl.InsertAsync(new DriveReactionsRecord() { identityId = identityKey, driveId = driveId, identity = new OdinId("gandalf.white.me"), postId = p3, singleReaction = ":smile:" });
+
+            var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
+            Assert.That(page1.Count, Is.EqualTo(2));
+            Assert.That(cursor1, Is.Not.Null);
+
+            var (page2, cursor2) = await tbl.PagingByRowIdAsync(2, cursor1);
+            Assert.That(page2.Count, Is.EqualTo(1));
+            Assert.That(cursor2, Is.Null);
+
+            var (all, allCursor) = await tbl.PagingByRowIdAsync(100, null);
+            Assert.That(all.Count, Is.EqualTo(3));
+            Assert.That(allCursor, Is.Null);
+        }
     }
 }

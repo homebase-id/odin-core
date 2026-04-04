@@ -5,17 +5,15 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Odin.Core.Time;
-using Odin.Core.Identity;
-using Odin.Core.Storage.Database.Attestation.Connection;
-using Odin.Core.Storage.Database.Identity.Connection;
-using Odin.Core.Storage.Database.KeyChain.Connection;
-using Odin.Core.Storage.Database.Notary.Connection;
-using Odin.Core.Storage.Database.System.Connection;
-using Odin.Core.Storage.Factory;
-using Odin.Core.Storage;
 using Odin.Core.Util;
+using Odin.Core.Identity;
+using Odin.Core.Storage;
+using Odin.Core.Storage.Database;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Storage.Exceptions;
-using Odin.Core.Storage.SQLite; //added for homebase social sync
+using Odin.Core.Storage.Database.System.Connection;
+
+#nullable disable
 
 // THIS FILE IS AUTO GENERATED - DO NOT EDIT
 
@@ -458,6 +456,49 @@ namespace Odin.Core.Storage.Database.System.Table
                 } //
             } // using
         }
+
+        public virtual async Task<(List<JobsRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (count == int.MaxValue)
+                count--; // avoid overflow when doing +1 on the param below
+            if (inCursor == null)
+                inCursor = 0;
+
+            await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+            await using var getPaging0Command = cn.CreateCommand();
+            {
+                getPaging0Command.CommandText = "SELECT rowId,id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM Jobs " +
+                                            "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
+
+                getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
+                getPaging0Command.AddParameter("@count", DbType.Int64, count+1);
+
+                {
+                    await using (var rdr = await getPaging0Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    {
+                        var result = new List<JobsRecord>();
+                        Int64? nextCursor;
+                        int n = 0;
+                        while ((n < count) && await rdr.ReadAsync())
+                        {
+                            n++;
+                            result.Add(ReadRecordFromReaderAll(rdr));
+                        } // while
+                        if ((n > 0) && await rdr.ReadAsync())
+                        {
+                                nextCursor = result[n - 1].rowId;
+                        }
+                        else
+                        {
+                            nextCursor = null;
+                        }
+                        return (result, nextCursor);
+                    } // using
+                } //
+            } // using 
+        } // PagingGet
 
     }
 }

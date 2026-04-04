@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -66,5 +67,10 @@ public class TableKeyValue(
     {
         item.identityId = odinIdentity;
         return await base.UpdateAsync(item);
+    }
+
+    public async Task<(List<KeyValueRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
     }
 }

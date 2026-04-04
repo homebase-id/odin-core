@@ -89,7 +89,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             [FromQuery] Guid alias,
             [FromQuery] Guid type)
         {
-            var file = MapToInternalFile(new ExternalFileIdentifier()
+            var file = await MapToInternalFileAsync(new ExternalFileIdentifier()
             {
                 FileId = fileId,
                 TargetDrive = new TargetDrive()

@@ -18,6 +18,7 @@ using Odin.Core.Refit;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Core.X509;

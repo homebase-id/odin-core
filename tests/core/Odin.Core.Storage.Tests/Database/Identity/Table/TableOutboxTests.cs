@@ -732,5 +732,38 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
 
             // That would recover all popped items that have not been committed or cancelled.
         }
+
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+        #if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+        #endif
+        public async Task PagingByRowIdTest(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var tbl = scope.Resolve<TableOutbox>();
+
+            var driveId = SequentialGuid.CreateGuid();
+            var f1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+
+            await tbl.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f1, recipient = "frodo.baggins.me", priority = 0, dependencyFileId = null, value = null });
+            await tbl.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", priority = 1, dependencyFileId = null, value = null });
+            await tbl.InsertAsync(new OutboxRecord() { driveId = driveId, fileId = f3, recipient = "frodo.baggins.me", priority = 2, dependencyFileId = null, value = null });
+
+            var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
+            Assert.That(page1.Count, Is.EqualTo(2));
+            Assert.That(cursor1, Is.Not.Null);
+
+            var (page2, cursor2) = await tbl.PagingByRowIdAsync(2, cursor1);
+            Assert.That(page2.Count, Is.EqualTo(1));
+            Assert.That(cursor2, Is.Null);
+
+            var (all, allCursor) = await tbl.PagingByRowIdAsync(100, null);
+            Assert.That(all.Count, Is.EqualTo(3));
+            Assert.That(allCursor, Is.Null);
+        }
     }
 }

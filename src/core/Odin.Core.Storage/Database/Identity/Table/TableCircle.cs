@@ -31,4 +31,9 @@ public class TableCircle(
     {
         return await PagingByCircleIdAsync(count, odinIdentity, inCursor);
     }
+
+    public async Task<(List<CircleRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
+    {
+        return await base.PagingByRowIdAsync(count, odinIdentity.IdentityId, inCursor);
+    }
 }

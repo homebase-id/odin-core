@@ -35,7 +35,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         protected async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
             var result = await this.GetHttpFileSystemResolver().ResolveFileSystem().Storage
-                .GetSharedSecretEncryptedHeader(MapToInternalFile(request), WebOdinContext);
+                .GetSharedSecretEncryptedHeader(await MapToInternalFileAsync(request), WebOdinContext);
 
             if (result == null)
             {
@@ -81,7 +81,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         protected async Task<FileTransferHistoryResponse> GetFileTransferHistory(ExternalFileIdentifier file)
         {
             var storage = GetHttpFileSystemResolver().ResolveFileSystem().Storage;
-            var (count, history) = await storage.GetTransferHistory(this.MapToInternalFile(file), WebOdinContext);
+            var (count, history) = await storage.GetTransferHistory(await MapToInternalFileAsync(file), WebOdinContext);
             if (history == null)
             {
                 return null;
@@ -99,7 +99,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
-            return await GetPayloadStream(MapToInternalFile(request.File), request.Key, request.Chunk);
+            return await GetPayloadStream(await MapToInternalFileAsync(request.File), request.Key, request.Chunk);
         }
 
         protected async Task<IActionResult> GetPayloadStream(InternalDriveFileId file, string key, FileChunk chunk)
@@ -186,7 +186,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
-            return await GetThumbnailInternal(MapToInternalFile(request.File),
+            return await GetThumbnailInternal(await MapToInternalFileAsync(request.File),
                 request.Width,
                 request.Height,
                 request.PayloadKey,
@@ -249,7 +249,11 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Files not specified");
             }
 
-            var internalFiles = request.Files.Select(MapToInternalFile).ToList();
+            var internalFiles = new List<InternalDriveFileId>();
+            foreach (var file in request.Files)
+            {
+                internalFiles.Add(await MapToInternalFileAsync(file));
+            }
             return await peerOutgoingTransferService.SendReadReceipt(internalFiles, WebOdinContext,
                 this.GetHttpFileSystemResolver().GetFileSystemType());
         }
@@ -354,7 +358,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException("Missing version tag", OdinClientErrorCode.MissingVersionTag);
             }
 
-            var file = MapToInternalFile(request.File);
+            var file = await MapToInternalFileAsync(request.File);
             var fs = this.GetHttpFileSystemResolver().ResolveFileSystem();
 
             return new DeletePayloadResult()

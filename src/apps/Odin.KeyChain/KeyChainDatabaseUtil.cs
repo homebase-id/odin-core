@@ -3,8 +3,8 @@ using Odin.Core;
 using System.Text;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Storage.Database.KeyChain;
-using Odin.Core.Storage.Database.KeyChain.Table;
+using Odin.KeyChain.Database.Table;
+using KeyChainDatabase = Odin.KeyChain.Database.KeyChainDatabase;
 
 namespace Odin.KeyChain;
 

@@ -7,10 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="14.0.0" />
+    <PackageReference Include="AutoMapper" Version="16.1.1" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.17" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
     <PackageReference Include="Npgsql" Version="9.0.2" />
     <PackageReference Include="System.Runtime.Caching" Version="9.0.2" />
     <PackageReference Include="ZiggyCreatures.FusionCache" Version="2.1.0" />
@@ -22,14 +22,6 @@
   <ItemGroup>
     <ProjectReference Include="../Odin.Core.Cryptography/Odin.Core.Cryptography.csproj" />
     <ProjectReference Include="../Odin.Core/Odin.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Database\Attestation\Migrations\" />
-    <Folder Include="Database\Identity\Migrations\" />
-    <Folder Include="Database\KeyChain\Migrations\" />
-    <Folder Include="Database\Notary\Migrations\" />
-    <Folder Include="Database\System\Migrations\" />
   </ItemGroup>
 
 </Project>

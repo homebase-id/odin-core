@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
@@ -23,15 +25,17 @@ namespace Odin.Hosting.Authentication.Peer;
 
 public class PeerCapiAuthenticationHandler(
     IOptionsMonitor<PeerCapiAuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
+    ILoggerFactory loggerFactory,
     OdinConfiguration config,
     UrlEncoder encoder,
     ICorrelationContext correlationContext,
     ITenantLevel2Cache<PeerCapiAuthenticationHandler> cache,
     IDynamicHttpClientFactory httpClientFactory,
     OdinIdentity odinIdentity)
-    : AuthenticationHandler<PeerCapiAuthenticationSchemeOptions>(options, logger, encoder)
+    : AuthenticationHandler<PeerCapiAuthenticationSchemeOptions>(options, loggerFactory, encoder)
 {
+    private readonly ILoggerFactory _loggerFactory = loggerFactory;
+
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var capiSession = Context.Request.Headers[ICapiCallbackSession.SessionHttpHeaderName].ToString();
@@ -65,7 +69,18 @@ public class PeerCapiAuthenticationHandler(
             httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, "here-comes-the-callback");
             httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.CorrelationId, correlationContext.Id);
 
-            var response = await httpClient.GetAsync(url);
+            HttpResponseMessage response;
+            try
+            {
+                response = await httpClient.GetAsync(url);
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("SSL connection could not be established"))
+            {
+                // Silently catch SSL errors and return an authentication failure,
+                // as this likely indicates a missing or an untrusted certificate on the remote peer.
+                return AuthenticateResult.Fail(ex.Message);
+            }
+
             if (response.StatusCode != HttpStatusCode.OK)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
