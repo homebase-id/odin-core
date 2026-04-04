@@ -38,15 +38,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             [FromQuery] Guid type,
             [FromQuery] string extension)
         {
-            var file = MapToInternalFile(new ExternalFileIdentifier()
+            var file = new InternalDriveFileId()
             {
                 FileId = fileId,
-                TargetDrive = new TargetDrive()
-                {
-                    Alias = alias,
-                    Type = type
-                }
-            });
+                DriveId = alias
+            };
 
             return await this.GetHttpFileSystemResolver()
                 .ResolveFileSystem()
@@ -64,16 +60,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             [FromQuery] Guid type,
             [FromQuery] string extension)
         {
-            var file = MapToInternalFile(new ExternalFileIdentifier()
+            var file = new InternalDriveFileId()
             {
                 FileId = fileId,
-                TargetDrive = new TargetDrive()
-                {
-                    Alias = alias,
-                    Type = type
-                }
-            });
-
+                DriveId = alias
+            };
+            
             return await this.GetHttpFileSystemResolver()
                 .ResolveFileSystem()
                 .Storage
