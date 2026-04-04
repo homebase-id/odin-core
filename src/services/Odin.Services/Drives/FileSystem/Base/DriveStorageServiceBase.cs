@@ -1280,6 +1280,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var existingLocalAppData = header.FileMetadata.LocalAppData;
 
+            // If no timestamp provided and ReadTime is already set, no update needed
+            if (!timestamp.HasValue && existingLocalAppData?.ReadTime != null)
+            {
+                return false;
+            }
+
             var now = UnixTimeUtc.Now();
             var effectiveReadTime = timestamp.HasValue
                 ? (timestamp.Value < now ? timestamp.Value : now)
