@@ -28,7 +28,9 @@ dotnet run --project src/apps/Odin.Hosting
 docker/start-dev-servers.sh
 ```
 
-Test framework is **NUnit**. Tests are under `tests/` mirroring the `src/` structure. Integration tests in `Odin.Hosting.Tests` use `WebScaffold` for test server setup and pre-built test identities (frodo, sam, pippin, merry `.dotyou.cloud`).
+Test framework is **NUnit** across 10 test projects (~2,000+ tests total). Tests are under `tests/` mirroring the `src/` structure. Integration tests in `Odin.Hosting.Tests` (~933 tests, the largest project) use `WebScaffold` for test server setup and pre-built test identities (frodo, sam, pippin, merry `.dotyou.cloud`).
+
+**Note:** `dotnet test` CLI runs in NUnit "Non-Explicit" mode, which excludes `[Explicit]` tests. The CLI total will be lower than Visual Studio Test Explorer's count. This is expected — not missing tests.
 
 ## Architecture
 
