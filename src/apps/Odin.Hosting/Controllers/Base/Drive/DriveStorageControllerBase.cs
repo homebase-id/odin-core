@@ -255,7 +255,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 internalFiles.Add(await MapToInternalFileAsync(file));
             }
             return await peerOutgoingTransferService.SendReadReceipt(internalFiles, WebOdinContext,
-                this.GetHttpFileSystemResolver().GetFileSystemType());
+                this.GetHttpFileSystemResolver().GetFileSystemType(), request.Timestamp);
         }
 
         /// <summary>

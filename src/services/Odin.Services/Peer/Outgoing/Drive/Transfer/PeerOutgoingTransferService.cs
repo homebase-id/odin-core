@@ -198,7 +198,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         /// </summary>
         public async Task<SendReadReceiptResult> SendReadReceipt(Guid driveId, FileQueryParams queryParams, UnixTimeUtc upToTimestamp,
             IOdinContext odinContext,
-            FileSystemType fileSystemType)
+            FileSystemType fileSystemType, UnixTimeUtc? timestamp = null)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
 
@@ -241,14 +241,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 .Select(f => new InternalDriveFileId(driveId, f.FileId))
                 .ToList();
 
-            return await SendReadReceipt(files, odinContext, fileSystemType);
+            return await SendReadReceipt(files, odinContext, fileSystemType, timestamp);
         }
 
         /// <summary>
         /// Sends a notification to the original sender indicating the file was read
         /// </summary>
         public async Task<SendReadReceiptResult> SendReadReceipt(List<InternalDriveFileId> files, IOdinContext odinContext,
-            FileSystemType fileSystemType)
+            FileSystemType fileSystemType, UnixTimeUtc? timestamp = null)
         {
             var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
             foreach (var file in files)
@@ -289,7 +289,7 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 // Update localappdata for this file now that we've enqueued everything
                 try
                 {
-                    var success = await fs.Storage.UpdateLocalReadTime(file, odinContext);
+                    var success = await fs.Storage.UpdateLocalReadTime(file, odinContext, timestamp);
                     if (success)
                     {
                         successfulFiles.Add(file);

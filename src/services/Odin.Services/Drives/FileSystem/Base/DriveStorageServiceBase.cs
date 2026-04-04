@@ -1266,7 +1266,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext)
+        public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext, UnixTimeUtc? timestamp = null)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
@@ -1280,7 +1280,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             var existingLocalAppData = header.FileMetadata.LocalAppData;
 
-            if (existingLocalAppData?.ReadTime != null)
+            var now = UnixTimeUtc.Now();
+            var effectiveReadTime = timestamp.HasValue
+                ? (timestamp.Value < now ? timestamp.Value : now)
+                : now;
+
+            if (existingLocalAppData?.ReadTime != null && existingLocalAppData.ReadTime.Value >= effectiveReadTime)
             {
                 return false;
             }
@@ -1292,7 +1297,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 Iv = existingLocalAppData?.Iv,
                 Content = existingLocalAppData?.Content,
                 Tags = existingLocalAppData?.Tags ?? [],
-                ReadTime = UnixTimeUtc.Now()
+                ReadTime = effectiveReadTime
             };
 
             mergedMetadata.Validate();
