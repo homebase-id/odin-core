@@ -21,48 +21,57 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
     public class V2DriveBatchFileWriteOperationsController(PeerOutgoingTransferService peerOutgoingTransferService) :
         V2DriveControllerBase(peerOutgoingTransferService)
     {
-        // /// <summary>
-        // /// Sends a read receipt for a file.
-        // /// </summary>
-        // [SwaggerOperation(
-        //     Summary = "Send read receipt for one or more files",
-        //     Description = "Sends a read receipt to the peer transfer service.",
-        //     Tags = [SwaggerInfo.FileTransfer]
-        // )]
-        // [HttpPost("send-read-receipt-batch-by-time")]
-        // public async Task<SendReadReceiptResultV2> SendReadReceipt(Guid driveId, [FromBody] SendReadReceiptByEndTimeRequestV2 request)
-        // {
-        //     var queryParams = new FileQueryParams()
-        //     {
-        //         GroupId = request.GroupId.HasValue ? [request.GroupId.Value] : null,
-        //         FileType = request.FileType.HasValue ? [request.FileType.Value] : null,
-        //         DataType = request.DataType.HasValue ? [request.DataType.Value] : null,
-        //     };
-            
-        //     var v1Result = await PeerOutgoingTransferService.SendReadReceipt(
-        //         driveId,
-        //         queryParams,
-        //         request.EndTime,
-        //         WebOdinContext,
-        //         base.GetFileSystemType(),
-        //         request.Timestamp);
+        /// <summary>
+        /// Sends a read receipt for files matching a query by end time.
+        /// </summary>
+        [SwaggerOperation(
+            Summary = "Send read receipt by time query",
+            Description = "Sends a read receipt for all files on the drive matching the given FileType, DataType, " +
+                          "and/or GroupId that were created on or before EndTime. " +
+                          "An optional Timestamp can specify when the files were actually read (e.g. for offline scenarios). " +
+                          "If Timestamp is omitted and the file is already marked as read, it is skipped (no unnecessary update). " +
+                          "If Timestamp is provided, it is clamped to min(Timestamp, now) and only applied when it is " +
+                          "later than the file's current read time.",
+            Tags = [SwaggerInfo.FileTransfer]
+        )]
+        [HttpPost("send-read-receipt-batch-by-time")]
+        public async Task<SendReadReceiptResultV2> SendReadReceiptByTime(Guid driveId, [FromBody] SendReadReceiptByEndTimeRequestV2 request)
+        {
+            var queryParams = new FileQueryParams()
+            {
+                GroupId = request.GroupId.HasValue ? [request.GroupId.Value] : null,
+                FileType = request.FileType.HasValue ? [request.FileType.Value] : null,
+                DataType = request.DataType.HasValue ? [request.DataType.Value] : null,
+            };
 
-        //     return new SendReadReceiptResultV2
-        //     {
-        //         Results = v1Result.Results.Select(v1Item => new SendReadReceiptResultFileItemV2
-        //         {
-        //             FileId = v1Item.File.FileId,
-        //             Status = v1Item.Status
-        //         }).ToList()
-        //     };
-        // }
+            var v1Result = await PeerOutgoingTransferService.SendReadReceipt(
+                driveId,
+                queryParams,
+                request.EndTime,
+                WebOdinContext,
+                base.GetFileSystemType(),
+                request.Timestamp);
+
+            return new SendReadReceiptResultV2
+            {
+                Results = v1Result.Results.Select(v1Item => new SendReadReceiptResultFileItemV2
+                {
+                    FileId = v1Item.File.FileId,
+                    Status = v1Item.Status
+                }).ToList()
+            };
+        }
 
         /// <summary>
-        /// Sends a read receipt for a file.
+        /// Sends a read receipt for one or more specific files by ID.
         /// </summary>
         [SwaggerOperation(
             Summary = "Send read receipt for one or more files",
-            Description = "Sends a read receipt to the peer transfer service.",
+            Description = "Marks the specified files as read and notifies the original sender via the peer transfer service. " +
+                          "An optional Timestamp can specify when the files were actually read (e.g. for offline scenarios). " +
+                          "If Timestamp is omitted and a file is already marked as read, it is skipped (no unnecessary update). " +
+                          "If Timestamp is provided, it is clamped to min(Timestamp, now) and only applied when it is " +
+                          "later than the file's current read time.",
             Tags = [SwaggerInfo.FileTransfer]
         )]
         [HttpPost("send-read-receipt-batch")]
