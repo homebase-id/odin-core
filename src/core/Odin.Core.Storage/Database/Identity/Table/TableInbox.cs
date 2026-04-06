@@ -381,6 +381,30 @@ public class TableInbox(
         return await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Returns the count of items ready to be processed (popstamp IS NULL) for a specific box.
+    /// This is a lightweight query suitable for caching as a guard before calling PopSpecificBoxAsync.
+    /// </summary>
+    public async Task<int> GetReadyCountAsync(Guid boxId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText = "SELECT COUNT(*) FROM inbox WHERE identityId = @identityId AND boxId = @boxId AND popstamp IS NULL";
+
+        var param1 = cmd.CreateParameter();
+        var param2 = cmd.CreateParameter();
+        param1.ParameterName = "@identityId";
+        param1.Value = odinIdentity.IdentityIdAsByteArray();
+        param2.ParameterName = "@boxId";
+        param2.Value = boxId.ToByteArray();
+        cmd.Parameters.Add(param1);
+        cmd.Parameters.Add(param2);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result == DBNull.Value ? 0 : (int)(long)result!;
+    }
+
     // Change to internal
     public async Task<(List<InboxRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
     {

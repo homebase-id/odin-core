@@ -102,6 +102,7 @@ public static class IdentityExtensions
         cb.RegisterType<TableKeyThreeValueCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyTwoValueCached>().InstancePerLifetimeScope();
         cb.RegisterType<TableKeyValueCached>().InstancePerLifetimeScope();
+        cb.RegisterType<TableInboxCached>().InstancePerLifetimeScope();
 
         return cb;
     }
