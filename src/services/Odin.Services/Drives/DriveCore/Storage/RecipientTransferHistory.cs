@@ -48,7 +48,11 @@ public class RecipientTransferHistoryItem
     /// <summary>
     /// Indicates the recipient replied that the file was read (as called by the app)
     /// </summary>
-    public bool IsReadByRecipient => ReadByRecipientTimestampMs > 0;
+    public bool IsReadByRecipient
+    {
+        get => ReadByRecipientTimestampMs > 0;
+        set => ReadByRecipientTimestampMs = value ? 1 : 0;
+    }
 }
 
 public enum LatestTransferStatus

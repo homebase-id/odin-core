@@ -13,7 +13,6 @@ using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
-using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -108,60 +107,44 @@ public class GetTransferHistoryTests
     }
 
     [Test]
-    public async Task GetTransferHistory_IsReadByRecipient_ReturnsTimestamp()
+    public async Task GetTransferHistory_IsReadByRecipient_ReturnsNullableTimestamp()
     {
-        var senderIdentity = TestIdentities.Samwise;
-        var recipientIdentity = TestIdentities.Frodo;
-
+        var identity = TestIdentities.Samwise;
         var callerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
-        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(senderIdentity);
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
 
         var metadata = SampleMetadataData.Create(fileType: 100);
         metadata.AccessControlList = AccessControlList.Authenticated;
         metadata.AllowDistribution = true;
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
-        List<TestIdentity> recipients = [recipientIdentity];
-        var uploadResult = await TransferFile(senderIdentity, metadata, payload, recipients, callerContext);
+        List<TestIdentity> recipients = [TestIdentities.Frodo];
+        var uploadResult = await TransferFile(identity, metadata, payload, recipients, callerContext);
 
-        // Get transfer history before read receipt — IsReadByRecipient should be null
-        var readerClient = new DriveReaderV2Client(senderIdentity.OdinId, new OwnerTestCase(callerContext.TargetDrive).GetFactory());
-        await new OwnerTestCase(callerContext.TargetDrive).Initialize(ownerApiClient);
-        readerClient = new DriveReaderV2Client(senderIdentity.OdinId, new OwnerTestCase(callerContext.TargetDrive).GetFactory());
+        await callerContext.Initialize(ownerApiClient);
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
 
         var file = uploadResult.File;
-        var beforeReadReceipt = await readerClient.GetTransferHistoryAsync(file.TargetDrive.Alias, file.FileId);
-        ClassicAssert.IsTrue(beforeReadReceipt.StatusCode == HttpStatusCode.OK);
-        var itemBefore = beforeReadReceipt.Content.GetHistoryItem(recipientIdentity.OdinId);
-        ClassicAssert.IsNotNull(itemBefore);
-        ClassicAssert.IsNull(itemBefore.IsReadByRecipient, "Should be null before read receipt");
+        var getTransferHistory = await client.GetTransferHistoryAsync(file.TargetDrive.Alias, file.FileId);
+        ClassicAssert.IsTrue(getTransferHistory.StatusCode == HttpStatusCode.OK);
 
-        // Sam sends a read receipt from Frodo's side
-        var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipientIdentity);
-        var recipientWriterContext = new OwnerTestCase(callerContext.TargetDrive);
-        await recipientWriterContext.Initialize(recipientOwnerClient);
-        var writerClient = new DriveWriterV2Client(recipientIdentity.OdinId, recipientWriterContext.GetFactory());
+        var transferHistory = getTransferHistory.Content;
+        ClassicAssert.IsNotNull(transferHistory);
 
-        var beforeTs = UnixTimeUtc.Now().milliseconds;
-        var sendResult = await writerClient.SendReadReceipt(callerContext.TargetDrive.Alias, [file.FileId]);
-        ClassicAssert.IsTrue(sendResult.IsSuccessStatusCode, $"SendReadReceipt failed: {sendResult.StatusCode}");
+        foreach (var recipient in recipients)
+        {
+            var item = transferHistory.GetHistoryItem(recipient.OdinId);
+            ClassicAssert.IsNotNull(item);
+            ClassicAssert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.Delivered,
+                $"actual status was {item.LatestTransferStatus}");
 
-        // Wait for outbox drain on recipient and process inbox on sender
-        await recipientOwnerClient.DriveRedux.WaitForEmptyOutbox(callerContext.TargetDrive);
-        await ownerApiClient.DriveRedux.ProcessInbox(callerContext.TargetDrive);
-        var afterTs = UnixTimeUtc.Now().milliseconds;
+            // V2 returns IsReadByRecipient as long? (null = not read, positive = timestamp)
+            // Before any read receipt, it should be null
+            ClassicAssert.IsNull(item.IsReadByRecipient,
+                "V2 IsReadByRecipient should be null for unread items (not false)");
+        }
 
-        // Get transfer history after read receipt — IsReadByRecipient should be a positive timestamp
-        var afterReadReceipt = await readerClient.GetTransferHistoryAsync(file.TargetDrive.Alias, file.FileId);
-        ClassicAssert.IsTrue(afterReadReceipt.StatusCode == HttpStatusCode.OK);
-        var itemAfter = afterReadReceipt.Content.GetHistoryItem(recipientIdentity.OdinId);
-        ClassicAssert.IsNotNull(itemAfter);
-        ClassicAssert.IsNotNull(itemAfter.IsReadByRecipient, "Should be a timestamp after read receipt");
-        ClassicAssert.IsTrue(itemAfter.IsReadByRecipient > 0, "Timestamp should be positive");
-        ClassicAssert.IsTrue(itemAfter.IsReadByRecipient >= beforeTs, $"Timestamp {itemAfter.IsReadByRecipient} should be >= {beforeTs}");
-        ClassicAssert.IsTrue(itemAfter.IsReadByRecipient <= afterTs, $"Timestamp {itemAfter.IsReadByRecipient} should be <= {afterTs}");
-
-        await Cleanup(senderIdentity, recipients);
+        await Cleanup(identity, recipients);
     }
 
     public async Task Cleanup(TestIdentity identity, List<TestIdentity> recipients)

@@ -167,7 +167,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 LatestTransferStatus = item.LatestTransferStatus,
                 IsInOutbox = item.IsInOutbox,
                 LatestSuccessfullyDeliveredVersionTag = item.LatestSuccessfullyDeliveredVersionTag,
-                IsReadByRecipient = item.ReadByRecipientTimestampMs
+                IsReadByRecipient = item.ReadByRecipientTimestampMs > 0 ? item.ReadByRecipientTimestampMs : null
             }).ToList();
 
             return new FileTransferHistoryResponseV2()
