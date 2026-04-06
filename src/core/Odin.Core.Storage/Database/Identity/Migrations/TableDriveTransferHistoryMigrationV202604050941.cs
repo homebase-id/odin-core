@@ -78,7 +78,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             {
                 copyCommand.CommandText = "INSERT INTO DriveTransferHistoryMigrationsV202604050941 (rowId,identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag,isReadByRecipient) " +
                $"SELECT rowId,identityId,driveId,fileId,remoteIdentityId,latestTransferStatus,isInOutbox,latestSuccessfullyDeliveredVersionTag," +
-               $"CASE WHEN isReadByRecipient = 1 THEN {nowMs} ELSE 0 END "+
+               $"CASE WHEN isReadByRecipient THEN {nowMs} ELSE 0 END "+
                $"FROM DriveTransferHistory;";
                return await copyCommand.ExecuteNonQueryAsync();
             }
