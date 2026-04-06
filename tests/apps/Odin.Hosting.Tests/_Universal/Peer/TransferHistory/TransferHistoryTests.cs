@@ -10,6 +10,8 @@ using Odin.Core;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests._V2.ApiClient.Factory;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -166,6 +168,69 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             ClassicAssert.IsTrue(updatedFileResponse.IsSuccessStatusCode);
             var updatedFile = updatedFileResponse.Content;
             ClassicAssert.IsTrue(updatedFile.ServerMetadata.OriginalRecipientCount == transitOptions.Recipients.Count);
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(OwnerAllowed))]
+        public async Task V2TransferHistoryReturnsReadByRecipientTimestamp(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles, _, _) =
+                await TransferEncryptedMetadata(senderOwnerClient, targetDrive, transitOptions);
+
+            // Create V2 reader for sender using owner auth
+            var senderToken = senderOwnerClient.GetTokenContext();
+            var v2Factory = new ApiClientFactoryV2("DI", senderToken.AuthenticationResult, senderToken.SharedSecret.GetKey());
+            var v2Reader = new DriveReaderV2Client(senderOwnerClient.Identity.OdinId, v2Factory);
+
+            // Before read receipt: V2 should return null
+            var beforeHistory = await v2Reader.GetTransferHistoryAsync(targetDrive.Alias, uploadResult.File.FileId);
+            ClassicAssert.IsTrue(beforeHistory.IsSuccessStatusCode);
+            var beforeItem = beforeHistory.Content.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+            ClassicAssert.IsNotNull(beforeItem);
+            ClassicAssert.IsNull(beforeItem.IsReadByRecipient, "V2 should return null before read receipt");
+
+            // Send read receipt
+            var recipientFile = recipientFiles.Single();
+            var client = _scaffold.CreateOwnerApiClientRedux(TestIdentities.InitializedIdentities[recipientFile.Key]);
+            var fileForReadReceipt = new ExternalFileIdentifier()
+            {
+                FileId = recipientFile.Value.FileId,
+                TargetDrive = recipientFile.Value.TargetDrive
+            };
+
+            var beforeTs = UnixTimeUtc.Now().milliseconds;
+            var sendResult = await client.DriveRedux.SendReadReceipt([fileForReadReceipt]);
+            ClassicAssert.IsTrue(sendResult.IsSuccessStatusCode);
+            await client.DriveRedux.WaitForEmptyOutbox(fileForReadReceipt.TargetDrive);
+            await senderOwnerClient.DriveRedux.ProcessInbox(targetDrive);
+            var afterTs = UnixTimeUtc.Now().milliseconds;
+
+            // After read receipt: V2 should return a positive timestamp
+            var afterHistory = await v2Reader.GetTransferHistoryAsync(targetDrive.Alias, uploadResult.File.FileId);
+            ClassicAssert.IsTrue(afterHistory.IsSuccessStatusCode);
+            var afterItem = afterHistory.Content.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
+            ClassicAssert.IsNotNull(afterItem);
+            ClassicAssert.IsNotNull(afterItem.IsReadByRecipient, "V2 should return a timestamp after read receipt");
+            ClassicAssert.IsTrue(afterItem.IsReadByRecipient > 0, "Timestamp should be positive");
+            ClassicAssert.IsTrue(afterItem.IsReadByRecipient >= beforeTs,
+                $"Timestamp {afterItem.IsReadByRecipient} should be >= {beforeTs}");
+            ClassicAssert.IsTrue(afterItem.IsReadByRecipient <= afterTs,
+                $"Timestamp {afterItem.IsReadByRecipient} should be <= {afterTs}");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
