@@ -16,7 +16,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)
     /// </summary>
-    public class TransitInboxBoxStorage(TableInbox tableInbox, ILogger<TransitInboxBoxStorage> logger)
+    public class TransitInboxBoxStorage(TableInboxCached tableInbox, ILogger<TransitInboxBoxStorage> logger)
     {
         public async Task AddAsync(TransferInboxItem item)
         {
@@ -26,6 +26,18 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
             await tableInbox.InsertAsync(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
 
             PerformanceCounter.IncrementCounter("Inbox Item Added");
+        }
+
+        /// <summary>
+        /// Returns the cached count of items ready to be processed (not yet popped) for the given drive.
+        /// This is a cheap cache-guarded check: on the hot path (empty inbox), it returns 0 from the
+        /// in-memory FusionCache with zero DB calls. Use this before deciding whether to call
+        /// ProcessInboxAsync — if it returns 0, skip processing entirely and avoid all the overhead
+        /// of the full inbox pop/decrypt/write pipeline.
+        /// </summary>
+        public async Task<int> GetReadyCountAsync(Guid driveId)
+        {
+            return await tableInbox.GetReadyCountAsync(driveId);
         }
 
         public async Task<InboxStatus> GetStatusAsync(Guid driveId)

@@ -753,7 +753,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             try
             {
                 //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive, drive.GetDriveUploadPath());
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive,
+                    drive.GetDriveUploadPath());
 
                 // get all the existing payloads that are not in the incoming list, we'll keep these
                 var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
@@ -984,7 +985,8 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             // First prepare by copying everything needed
-            var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext, sourceFolderPath);
+            var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext,
+                sourceFolderPath);
             try
             {
                 await AssertPayloadsExistOnFileSystemAsync(header);
@@ -1286,7 +1288,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
-public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext)
+        public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext, UnixTimeUtc? timestamp = null)
         {
             OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
 
@@ -1300,7 +1302,18 @@ public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinConte
 
             var existingLocalAppData = header.FileMetadata.LocalAppData;
 
-            if (existingLocalAppData?.ReadTime != null)
+            // If no timestamp provided and ReadTime is already set, no update needed
+            if (!timestamp.HasValue && existingLocalAppData?.ReadTime != null)
+            {
+                return false;
+            }
+
+            var now = UnixTimeUtc.Now();
+            var effectiveReadTime = timestamp.HasValue
+                ? (timestamp.Value < now ? timestamp.Value : now)
+                : now;
+
+            if (existingLocalAppData?.ReadTime != null && existingLocalAppData.ReadTime.Value >= effectiveReadTime)
             {
                 return false;
             }
@@ -1312,7 +1325,7 @@ public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinConte
                 Iv = existingLocalAppData?.Iv,
                 Content = existingLocalAppData?.Content,
                 Tags = existingLocalAppData?.Tags ?? [],
-                ReadTime = UnixTimeUtc.Now()
+                ReadTime = effectiveReadTime
             };
 
             mergedMetadata.Validate();
@@ -1339,7 +1352,7 @@ public async Task<bool> UpdateLocalReadTime(InternalDriveFileId file, IOdinConte
 
             return true;
         }
-        
+
         public async Task CleanupUploadTemporaryFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors,
             IOdinContext odinContext)
         {

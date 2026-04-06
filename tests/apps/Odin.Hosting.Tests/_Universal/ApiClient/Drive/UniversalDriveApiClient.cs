@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography;
+using Odin.Core.Time;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.Apps;
@@ -1027,13 +1028,14 @@ public class UniversalDriveApiClient(OdinId identity, IApiClientFactory factory)
         return results;
     }
 
-    public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(List<ExternalFileIdentifier> files)
+    public async Task<ApiResponse<SendReadReceiptResult>> SendReadReceipt(List<ExternalFileIdentifier> files, UnixTimeUtc? timestamp = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var transitSvc = RefitCreator.RestServiceFor<IUniversalDriveHttpClientApi>(client, sharedSecret);
         var response = await transitSvc.SendReadReceipt(new SendReadReceiptRequest
         {
-            Files = files
+            Files = files,
+            Timestamp = timestamp
         });
 
         return response;
