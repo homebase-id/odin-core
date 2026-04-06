@@ -202,7 +202,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             ClassicAssert.IsTrue(beforeHistory.IsSuccessStatusCode);
             var beforeItem = beforeHistory.Content.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
             ClassicAssert.IsNotNull(beforeItem);
-            ClassicAssert.IsNull(beforeItem.IsReadByRecipient, "V2 should return null before read receipt");
+            ClassicAssert.IsNull(beforeItem.ReadByRecipientTimestamp, "V2 should return null before read receipt");
 
             // Send read receipt
             var recipientFile = recipientFiles.Single();
@@ -225,12 +225,12 @@ namespace Odin.Hosting.Tests._Universal.Peer.TransferHistory
             ClassicAssert.IsTrue(afterHistory.IsSuccessStatusCode);
             var afterItem = afterHistory.Content.GetHistoryItem(recipientOwnerClient.Identity.OdinId);
             ClassicAssert.IsNotNull(afterItem);
-            ClassicAssert.IsNotNull(afterItem.IsReadByRecipient, "V2 should return a timestamp after read receipt");
-            ClassicAssert.IsTrue(afterItem.IsReadByRecipient > 0, "Timestamp should be positive");
-            ClassicAssert.IsTrue(afterItem.IsReadByRecipient >= beforeTs,
-                $"Timestamp {afterItem.IsReadByRecipient} should be >= {beforeTs}");
-            ClassicAssert.IsTrue(afterItem.IsReadByRecipient <= afterTs,
-                $"Timestamp {afterItem.IsReadByRecipient} should be <= {afterTs}");
+            ClassicAssert.IsNotNull(afterItem.ReadByRecipientTimestamp, "V2 should return a timestamp after read receipt");
+            ClassicAssert.IsTrue(afterItem.ReadByRecipientTimestamp > 0, "Timestamp should be positive");
+            ClassicAssert.IsTrue(afterItem.ReadByRecipientTimestamp >= beforeTs,
+                $"Timestamp {afterItem.ReadByRecipientTimestamp} should be >= {beforeTs}");
+            ClassicAssert.IsTrue(afterItem.ReadByRecipientTimestamp <= afterTs,
+                $"Timestamp {afterItem.ReadByRecipientTimestamp} should be <= {afterTs}");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }

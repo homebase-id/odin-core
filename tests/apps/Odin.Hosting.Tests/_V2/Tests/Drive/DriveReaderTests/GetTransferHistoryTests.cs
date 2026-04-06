@@ -140,7 +140,7 @@ public class GetTransferHistoryTests
 
             // V2 returns IsReadByRecipient as long? (null = not read, positive = timestamp)
             // Before any read receipt, it should be null
-            ClassicAssert.IsNull(item.IsReadByRecipient,
+            ClassicAssert.IsNull(item.ReadByRecipientTimestamp,
                 "V2 IsReadByRecipient should be null for unread items (not false)");
         }
 
