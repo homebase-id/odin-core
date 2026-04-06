@@ -2,8 +2,8 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Storage;
-using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2;
+using Odin.Hosting.UnifiedV2.Drive.Read;
 using Odin.Services.Apps;
 using Refit;
 
@@ -47,6 +47,6 @@ public interface IDriveReaderHttpClientApiV2
         FileSystemType fileSystemType);
 
     [Get(Endpoint + "/transfer-history")]
-    Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistory([AliasAs("driveId:guid")] Guid driveId,
+    Task<ApiResponse<FileTransferHistoryResponseV2>> GetTransferHistory([AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("fileId:guid")] Guid fileId, FileSystemType fileSystemType);
 }

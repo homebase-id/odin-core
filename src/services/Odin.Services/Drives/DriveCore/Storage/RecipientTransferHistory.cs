@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 
@@ -39,9 +40,15 @@ public class RecipientTransferHistoryItem
     public Guid? LatestSuccessfullyDeliveredVersionTag { get; set; }
 
     /// <summary>
+    /// The timestamp (Unix epoch milliseconds) when the recipient read the file, 0 if not read.
+    /// </summary>
+    [JsonIgnore]
+    public long ReadByRecipientTimestampMs { get; set; }
+
+    /// <summary>
     /// Indicates the recipient replied that the file was read (as called by the app)
     /// </summary>
-    public bool IsReadByRecipient { get; set; }
+    public bool IsReadByRecipient => ReadByRecipientTimestampMs > 0;
 }
 
 public enum LatestTransferStatus

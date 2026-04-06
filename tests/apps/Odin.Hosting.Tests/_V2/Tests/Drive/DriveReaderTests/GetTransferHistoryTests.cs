@@ -13,6 +13,7 @@ using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
+using Odin.Core.Time;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -104,6 +105,63 @@ public class GetTransferHistoryTests
         }
 
         await Cleanup(identity, recipients);
+    }
+
+    [Test]
+    public async Task GetTransferHistory_IsReadByRecipient_ReturnsTimestamp()
+    {
+        var senderIdentity = TestIdentities.Samwise;
+        var recipientIdentity = TestIdentities.Frodo;
+
+        var callerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(senderIdentity);
+
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.AccessControlList = AccessControlList.Authenticated;
+        metadata.AllowDistribution = true;
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+
+        List<TestIdentity> recipients = [recipientIdentity];
+        var uploadResult = await TransferFile(senderIdentity, metadata, payload, recipients, callerContext);
+
+        // Get transfer history before read receipt — IsReadByRecipient should be null
+        var readerClient = new DriveReaderV2Client(senderIdentity.OdinId, new OwnerTestCase(callerContext.TargetDrive).GetFactory());
+        await new OwnerTestCase(callerContext.TargetDrive).Initialize(ownerApiClient);
+        readerClient = new DriveReaderV2Client(senderIdentity.OdinId, new OwnerTestCase(callerContext.TargetDrive).GetFactory());
+
+        var file = uploadResult.File;
+        var beforeReadReceipt = await readerClient.GetTransferHistoryAsync(file.TargetDrive.Alias, file.FileId);
+        ClassicAssert.IsTrue(beforeReadReceipt.StatusCode == HttpStatusCode.OK);
+        var itemBefore = beforeReadReceipt.Content.GetHistoryItem(recipientIdentity.OdinId);
+        ClassicAssert.IsNotNull(itemBefore);
+        ClassicAssert.IsNull(itemBefore.IsReadByRecipient, "Should be null before read receipt");
+
+        // Sam sends a read receipt from Frodo's side
+        var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(recipientIdentity);
+        var recipientWriterContext = new OwnerTestCase(callerContext.TargetDrive);
+        await recipientWriterContext.Initialize(recipientOwnerClient);
+        var writerClient = new DriveWriterV2Client(recipientIdentity.OdinId, recipientWriterContext.GetFactory());
+
+        var beforeTs = UnixTimeUtc.Now().milliseconds;
+        var sendResult = await writerClient.SendReadReceipt(callerContext.TargetDrive.Alias, [file.FileId]);
+        ClassicAssert.IsTrue(sendResult.IsSuccessStatusCode, $"SendReadReceipt failed: {sendResult.StatusCode}");
+
+        // Wait for outbox drain on recipient and process inbox on sender
+        await recipientOwnerClient.DriveRedux.WaitForEmptyOutbox(callerContext.TargetDrive);
+        await ownerApiClient.DriveRedux.ProcessInbox(callerContext.TargetDrive);
+        var afterTs = UnixTimeUtc.Now().milliseconds;
+
+        // Get transfer history after read receipt — IsReadByRecipient should be a positive timestamp
+        var afterReadReceipt = await readerClient.GetTransferHistoryAsync(file.TargetDrive.Alias, file.FileId);
+        ClassicAssert.IsTrue(afterReadReceipt.StatusCode == HttpStatusCode.OK);
+        var itemAfter = afterReadReceipt.Content.GetHistoryItem(recipientIdentity.OdinId);
+        ClassicAssert.IsNotNull(itemAfter);
+        ClassicAssert.IsNotNull(itemAfter.IsReadByRecipient, "Should be a timestamp after read receipt");
+        ClassicAssert.IsTrue(itemAfter.IsReadByRecipient > 0, "Timestamp should be positive");
+        ClassicAssert.IsTrue(itemAfter.IsReadByRecipient >= beforeTs, $"Timestamp {itemAfter.IsReadByRecipient} should be >= {beforeTs}");
+        ClassicAssert.IsTrue(itemAfter.IsReadByRecipient <= afterTs, $"Timestamp {itemAfter.IsReadByRecipient} should be <= {afterTs}");
+
+        await Cleanup(senderIdentity, recipients);
     }
 
     public async Task Cleanup(TestIdentity identity, List<TestIdentity> recipients)

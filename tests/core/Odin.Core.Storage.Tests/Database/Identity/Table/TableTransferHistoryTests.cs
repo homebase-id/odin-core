@@ -7,6 +7,7 @@ using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Tests.Database.Identity.Table
 {
@@ -62,16 +63,17 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             r = await tbl.GetAsync(d1, f1);
             ClassicAssert.IsTrue(r[0].isInOutbox == false);
 
-            // IsInOutbox
-            n = await tbl.UpdateTransferHistoryRecordAsync(d1, f1, frodoId, null, null, null, isReadByRecipient: true);
+            // IsReadByRecipient (now a timestamp: 0 = not read, >0 = read-at ms)
+            var readAtMs = UnixTimeUtc.Now().milliseconds;
+            n = await tbl.UpdateTransferHistoryRecordAsync(d1, f1, frodoId, null, null, null, readByRecipientTimestamp: readAtMs);
             ClassicAssert.IsTrue(n == 1);
             r = await tbl.GetAsync(d1, f1);
-            ClassicAssert.IsTrue(r[0].isReadByRecipient == true);
+            ClassicAssert.IsTrue(r[0].isReadByRecipient.milliseconds == readAtMs);
 
-            n = await tbl.UpdateTransferHistoryRecordAsync(d1, f1, frodoId, null, null, null, isReadByRecipient: false);
+            n = await tbl.UpdateTransferHistoryRecordAsync(d1, f1, frodoId, null, null, null, readByRecipientTimestamp: 0);
             ClassicAssert.IsTrue(n == 1);
             r = await tbl.GetAsync(d1, f1);
-            ClassicAssert.IsTrue(r[0].isReadByRecipient == false);
+            ClassicAssert.IsTrue(r[0].isReadByRecipient.milliseconds == 0);
 
             // LatestTransferStatus
             n = await tbl.UpdateTransferHistoryRecordAsync(d1, f1, frodoId, latestTransferStatus: 42, null, null, null);
@@ -108,9 +110,9 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table
             var rid2 = new OdinId("sam.gamgee.me");
             var rid3 = new OdinId("gandalf.white.me");
 
-            await tbl.InsertAsync(new DriveTransferHistoryRecord() { driveId = driveId, fileId = f1, remoteIdentityId = rid1, latestTransferStatus = 1, isInOutbox = false, isReadByRecipient = false, latestSuccessfullyDeliveredVersionTag = null });
-            await tbl.InsertAsync(new DriveTransferHistoryRecord() { driveId = driveId, fileId = f2, remoteIdentityId = rid2, latestTransferStatus = 2, isInOutbox = false, isReadByRecipient = false, latestSuccessfullyDeliveredVersionTag = null });
-            await tbl.InsertAsync(new DriveTransferHistoryRecord() { driveId = driveId, fileId = f3, remoteIdentityId = rid3, latestTransferStatus = 3, isInOutbox = false, isReadByRecipient = false, latestSuccessfullyDeliveredVersionTag = null });
+            await tbl.InsertAsync(new DriveTransferHistoryRecord() { driveId = driveId, fileId = f1, remoteIdentityId = rid1, latestTransferStatus = 1, isInOutbox = false, isReadByRecipient = new UnixTimeUtc(0), latestSuccessfullyDeliveredVersionTag = null });
+            await tbl.InsertAsync(new DriveTransferHistoryRecord() { driveId = driveId, fileId = f2, remoteIdentityId = rid2, latestTransferStatus = 2, isInOutbox = false, isReadByRecipient = new UnixTimeUtc(0), latestSuccessfullyDeliveredVersionTag = null });
+            await tbl.InsertAsync(new DriveTransferHistoryRecord() { driveId = driveId, fileId = f3, remoteIdentityId = rid3, latestTransferStatus = 3, isInOutbox = false, isReadByRecipient = new UnixTimeUtc(0), latestSuccessfullyDeliveredVersionTag = null });
 
             var (page1, cursor1) = await tbl.PagingByRowIdAsync(2, null);
             Assert.That(page1.Count, Is.EqualTo(2));

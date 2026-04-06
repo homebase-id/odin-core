@@ -215,7 +215,7 @@ public abstract class OutboxWorkerBase(
         var update = new UpdateTransferHistoryData()
         {
             IsInOutbox = false,
-            IsReadByRecipient = false,
+            ReadByRecipientTimestamp = 0,
             LatestTransferStatus = LatestTransferStatus.Delivered,
             VersionTag = versionTag
         };

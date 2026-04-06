@@ -11,11 +11,14 @@ public class UpdateTransferHistoryData
 
     public bool? IsInOutbox { get; set; }
 
-    public bool? IsReadByRecipient { get; set; }
+    /// <summary>
+    /// 0 = not read, positive value = read-at timestamp in milliseconds (UnixTimeUtc)
+    /// </summary>
+    public Int64? ReadByRecipientTimestamp { get; set; }
 
 
     public string ToDebug()
     {
-        return $"LatestTransferStatus: {LatestTransferStatus} VersionTag: {VersionTag} IsInOutbox: {IsInOutbox} IsReadByRecipient: {IsReadByRecipient}";
+        return $"LatestTransferStatus: {LatestTransferStatus} VersionTag: {VersionTag} IsInOutbox: {IsInOutbox} ReadByRecipientTimestamp: {ReadByRecipientTimestamp}";
     }
 }
