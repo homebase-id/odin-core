@@ -8,6 +8,7 @@ namespace Odin.PushNotification;
 public interface IPushNotification
 {
     Task<string> Post(DevicePushNotificationRequestV1 request);
+    Task<bool> Validate(DevicePushNotificationValidateRequestV1 request);
 }
 
 public class PushNotification : IPushNotification
@@ -63,6 +64,22 @@ public class PushNotification : IPushNotification
 
         var response = await _firebaseMessaging.SendAsync(message);
         return response;
+    }
+
+    public async Task<bool> Validate(DevicePushNotificationValidateRequestV1 request)
+    {
+        var message = new Message
+        {
+            Token = request.DeviceToken,
+            Notification = new Notification
+            {
+                Title = "validation",
+                Body = "validation",
+            },
+        };
+
+        await _firebaseMessaging.SendAsync(message, dryRun: true);
+        return true;
     }
 
     //

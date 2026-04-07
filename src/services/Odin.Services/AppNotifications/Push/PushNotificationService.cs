@@ -195,6 +195,39 @@ public class PushNotificationService(
             notification.OdinContext);
     }
 
+    public async Task<PushNotificationVerificationResult> VerifyDeviceRegistrationAsync(IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        var subscription = await GetDeviceSubscriptionAsync(odinContext);
+        if (subscription == null)
+        {
+            return new PushNotificationVerificationResult
+            {
+                HasSubscription = false
+            };
+        }
+
+        var result = new PushNotificationVerificationResult
+        {
+            HasSubscription = true,
+            Subscription = subscription.Redacted()
+        };
+
+        if (!string.IsNullOrEmpty(subscription.FirebaseDeviceToken))
+        {
+            result.SubscriptionType = "Firebase";
+            await ValidateFirebaseTokenAsync(subscription, result, odinContext);
+        }
+        else
+        {
+            result.SubscriptionType = "WebPush";
+            result.IsTokenValid = null;
+        }
+
+        return result;
+    }
+
     public async Task PushAsync(PushNotificationContent content, IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
@@ -376,6 +409,62 @@ public class PushNotificationService(
         catch (Exception e)
         {
             logger.LogError(e, "Failed sending device push notification");
+        }
+    }
+
+    private async Task ValidateFirebaseTokenAsync(
+        PushNotificationSubscription subscription,
+        PushNotificationVerificationResult result,
+        IOdinContext odinContext)
+    {
+        var thisDomain = odinContext.Tenant.DomainName;
+        var certificate = await certificateStore.GetCertificateAsync(thisDomain);
+
+        if (certificate == null)
+        {
+            logger.LogError("No certificate found for {originDomain} during token validation.", thisDomain);
+            result.IsTokenValid = null;
+            result.InvalidReason = "Internal error: missing certificate";
+            return;
+        }
+
+        try
+        {
+            var messageId = Guid.NewGuid().ToString();
+            var signature = certificate.CreateSignature(messageId);
+
+            var request = new DevicePushNotificationValidateRequestV1
+            {
+                DevicePlatform = subscription.FirebaseDevicePlatform,
+                DeviceToken = subscription.FirebaseDeviceToken,
+                OriginDomain = thisDomain,
+                Id = messageId,
+                Signature = signature,
+                Timestamp = DateTimeOffset.UtcNow.ToString("O"),
+                CorrelationId = correlationContext.Id,
+            };
+
+            var baseUri = new Uri(configuration.PushNotification.BaseUrl);
+            var httpClient = httpClientFactory.CreateClient(baseUri.Host);
+            httpClient.BaseAddress = baseUri;
+            httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.CorrelationId, correlationContext.Id);
+            var push = RestService.For<IDevicePushNotificationApi>(httpClient);
+
+            var response = await push.ValidateToken(request);
+            result.IsTokenValid = response.Valid;
+            result.InvalidReason = response.Reason;
+        }
+        catch (ApiException apiEx)
+        {
+            logger.LogError(apiEx, "Error calling push notification validate endpoint: {status}", apiEx.StatusCode);
+            result.IsTokenValid = null;
+            result.InvalidReason = "Validation service error";
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error validating Firebase token");
+            result.IsTokenValid = null;
+            result.InvalidReason = "Validation service unavailable";
         }
     }
 

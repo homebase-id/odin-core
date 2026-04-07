@@ -1,8 +1,10 @@
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Hosting.Controllers.Base.Notifications;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.AppNotifications.Push;
+using Odin.Services.Base;
 
 namespace Odin.Hosting.UnifiedV2.Notifications
 {
@@ -15,5 +17,11 @@ namespace Odin.Hosting.UnifiedV2.Notifications
         ILoggerFactory loggerFactory)
         : PushNotificationControllerBase(notificationService, loggerFactory)
     {
+        [HttpGet("verify")]
+        public async Task<IActionResult> VerifyRegistration()
+        {
+            var result = await NotificationService.VerifyDeviceRegistrationAsync(WebOdinContext);
+            return new JsonResult(result);
+        }
     }
 }

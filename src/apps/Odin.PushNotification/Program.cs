@@ -1,4 +1,5 @@
 using FirebaseAdmin;
+using FirebaseAdmin.Messaging;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
@@ -112,6 +113,49 @@ app.MapPost("/message/v1", async (
     })
     .WithOpenApi();
 
+app.MapPost("/validate/v1", async (
+        ILogger<PushNotification> logger,
+        IPushNotification pushNotification,
+        ISignatureCheck signatureCheck,
+        IValidator<DevicePushNotificationValidateRequestV1> validator,
+        [FromBody] DevicePushNotificationValidateRequestV1 request) =>
+    {
+        var validationResult = validator.Validate(request);
+        if (!validationResult.IsValid)
+        {
+            return Results.BadRequest(validationResult.Errors);
+        }
+
+        var skipSignatureCheck = app.Environment.IsDevelopment() && request.OriginDomain.EndsWith(".dotyou.cloud");
+        if (!skipSignatureCheck)
+        {
+            var isValidSignature = await signatureCheck.Validate(request.OriginDomain, request.Signature, request.Id);
+            if (!isValidSignature)
+            {
+                return Results.BadRequest("Invalid message signature");
+            }
+        }
+
+        try
+        {
+            await pushNotification.Validate(request);
+            return Results.Ok(new DeviceTokenValidationResponse { Valid = true });
+        }
+        catch (FirebaseMessagingException e)
+        {
+            logger.LogInformation(
+                "Token validation failed for device {device} from {domain}: {code} - {error}",
+                request.DeviceToken, request.OriginDomain, e.ErrorCode, e.Message);
+            return Results.Ok(new DeviceTokenValidationResponse { Valid = false, Reason = e.ErrorCode.ToString() });
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error validating token: {error}", e.Message);
+            return Results.Problem("An internal error occurred.", statusCode: 500);
+        }
+    })
+    .WithOpenApi();
+
 app.Run();
 
 //
@@ -135,4 +179,18 @@ public class PushNotificationRequestValidator : AbstractValidator<DevicePushNoti
 }
 
 //
+
+public class PushNotificationValidateRequestValidator : AbstractValidator<DevicePushNotificationValidateRequestV1>
+{
+    public PushNotificationValidateRequestValidator()
+    {
+        RuleFor(request => request.Version).Equal(1);
+        RuleFor(request => request.DevicePlatform).NotEmpty();
+        RuleFor(request => request.DeviceToken).NotEmpty();
+        RuleFor(request => request.OriginDomain).NotEmpty();
+        RuleFor(request => request.Signature).NotEmpty();
+        RuleFor(request => request.Id).NotEmpty();
+        RuleFor(request => request.CorrelationId).NotEmpty();
+    }
+}
 

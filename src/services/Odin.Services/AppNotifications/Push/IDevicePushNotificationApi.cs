@@ -8,5 +8,8 @@ public interface IDevicePushNotificationApi
 {
     [Post("/message/v1")]
     Task<string> PostMessage([Body] DevicePushNotificationRequestV1 request);
+
+    [Post("/validate/v1")]
+    Task<DeviceTokenValidationResponse> ValidateToken([Body] DevicePushNotificationValidateRequestV1 request);
 }
 

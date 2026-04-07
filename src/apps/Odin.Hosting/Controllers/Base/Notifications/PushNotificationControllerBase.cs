@@ -21,6 +21,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         private readonly ILogger<PushNotificationControllerBase> _logger =
             loggerFactory.CreateLogger<PushNotificationControllerBase>();
 
+        protected PushNotificationService NotificationService => notificationService;
+
         /// <summary />
         [HttpPost("subscribe")]
         public async Task<IActionResult> SubscribeDevice([FromBody] PushNotificationSubscribeDeviceRequest request)
