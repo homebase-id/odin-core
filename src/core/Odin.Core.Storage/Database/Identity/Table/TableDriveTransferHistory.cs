@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
+using Odin.Core.Time;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
@@ -18,7 +19,7 @@ public class TableDriveTransferHistory(
         int? latestTransferStatus,
         Guid? latestSuccessfullyDeliveredVersionTag,
         bool? isInOutbox,
-        bool? isReadByRecipient)
+        Int64? readByRecipientTimestamp)
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         await using var tx = await cn.BeginStackedTransactionAsync();
@@ -44,10 +45,10 @@ public class TableDriveTransferHistory(
             parameters["@latestSuccessfullyDeliveredVersionTag"] = latestSuccessfullyDeliveredVersionTag.Value.ToByteArray();
         }
 
-        if (isReadByRecipient.HasValue)
+        if (readByRecipientTimestamp.HasValue)
         {
             updateFields.Add("isReadByRecipient = @isReadByRecipient");
-            parameters["@isReadByRecipient"] = isReadByRecipient.Value;
+            parameters["@isReadByRecipient"] = readByRecipientTimestamp.Value;
         }
 
         if (latestTransferStatus.HasValue)
@@ -128,7 +129,7 @@ public class TableDriveTransferHistory(
             latestTransferStatus = 0,
             isInOutbox = true,
             latestSuccessfullyDeliveredVersionTag = null,
-            isReadByRecipient = false
+            isReadByRecipient = new UnixTimeUtc(0)
         };
 
         return base.TryInsertAsync(item);

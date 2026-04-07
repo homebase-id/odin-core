@@ -32,6 +32,29 @@ Test framework is **NUnit** across 10 test projects (~2,000+ tests total). Tests
 
 **Note:** `dotnet test` CLI runs in NUnit "Non-Explicit" mode, which excludes `[Explicit]` tests. The CLI total will be lower than Visual Studio Test Explorer's count. This is expected — not missing tests.
 
+### Writing Integration Tests (Odin.Hosting.Tests)
+
+Two test infrastructures exist side by side:
+
+- **`_Universal/`** -- V1 API tests. Uses `OwnerApiClientRedux` which bundles all clients (`DriveRedux`, `Connections`, `DriveManager`) with helpers like `WaitForEmptyOutbox()`, `ProcessInbox()`, `SendReadReceipt()`. Peer-to-peer flows (transfers, read receipts, reactions) are well-supported here.
+
+- **`_V2/`** -- V2 API tests. Uses separate `DriveReaderV2Client` and `DriveWriterV2Client`. These require manual construction:
+  1. Create an `OwnerTestCase(targetDrive)` (or `AppTestCase`, `GuestTestCase`)
+  2. Call `await callerContext.Initialize(ownerApiClient)` -- **must be called before `GetFactory()`**
+  3. Create client: `new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory())`
+
+  V2 clients lack outbox/inbox helpers. For peer-to-peer flows in V2 tests, fall back to `OwnerApiClientRedux.DriveRedux` for `WaitForEmptyOutbox()`, `ProcessInbox()`, and `SendReadReceipt()`, or add the test to an existing `_Universal/` test class where the infrastructure works.
+
+**Peer file transfer pattern** (for tests that send files between identities):
+1. Create drives on both sender and recipient with the same `TargetDrive`
+2. Create a circle on the recipient granting `DrivePermission.Write` on the target drive
+3. Connect: sender sends connection request, recipient accepts into the circle
+4. Upload with `TransitOptions { Recipients = [...], AllowDistribution = true }`
+5. `WaitForEmptyOutbox()` on sender, then `ProcessInbox()` on recipient
+6. Find recipient's copy via `QueryByGlobalTransitId(uploadResult.GlobalTransitIdFileIdentifier)` -- the recipient has a **different FileId** than the sender
+
+**Test identities**: `TestIdentities.Frodo`, `TestIdentities.Samwise`, etc. Each `WebScaffold` instance runs its own server. Test classes that need peer flows must include at least two identities in `RunBeforeAnyTests()`.
+
 ## Architecture
 
 ### Layer Structure
@@ -92,3 +115,7 @@ Custom crypto layer in `Odin.Core.Cryptography`. AES-GCM (preferred) and AES-CBC
 - `UnixTimeUtc` -- millisecond-precision UTC timestamp used throughout
 - `ServerFileHeader` -- encrypted file header with metadata
 - `LocalAppMetadata` -- per-file metadata that stays local (never sent to peers)
+
+## CI / CD
+Do NOT use slash (/) in Git branch names.
+

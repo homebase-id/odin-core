@@ -172,7 +172,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             var update = new UpdateTransferHistoryData()
             {
-                IsReadByRecipient = true,
+                ReadByRecipientTimestamp = UnixTimeUtc.Now().milliseconds,
                 IsInOutbox = false
             };
 

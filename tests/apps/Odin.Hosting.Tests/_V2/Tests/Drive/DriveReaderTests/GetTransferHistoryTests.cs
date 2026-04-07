@@ -106,6 +106,47 @@ public class GetTransferHistoryTests
         await Cleanup(identity, recipients);
     }
 
+    [Test]
+    public async Task GetTransferHistory_IsReadByRecipient_ReturnsNullableTimestamp()
+    {
+        var identity = TestIdentities.Samwise;
+        var callerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+
+        var metadata = SampleMetadataData.Create(fileType: 100);
+        metadata.AccessControlList = AccessControlList.Authenticated;
+        metadata.AllowDistribution = true;
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+
+        List<TestIdentity> recipients = [TestIdentities.Frodo];
+        var uploadResult = await TransferFile(identity, metadata, payload, recipients, callerContext);
+
+        await callerContext.Initialize(ownerApiClient);
+        var client = new DriveReaderV2Client(identity.OdinId, callerContext.GetFactory());
+
+        var file = uploadResult.File;
+        var getTransferHistory = await client.GetTransferHistoryAsync(file.TargetDrive.Alias, file.FileId);
+        ClassicAssert.IsTrue(getTransferHistory.StatusCode == HttpStatusCode.OK);
+
+        var transferHistory = getTransferHistory.Content;
+        ClassicAssert.IsNotNull(transferHistory);
+
+        foreach (var recipient in recipients)
+        {
+            var item = transferHistory.GetHistoryItem(recipient.OdinId);
+            ClassicAssert.IsNotNull(item);
+            ClassicAssert.IsTrue(item.LatestTransferStatus == LatestTransferStatus.Delivered,
+                $"actual status was {item.LatestTransferStatus}");
+
+            // V2 returns IsReadByRecipient as long? (null = not read, positive = timestamp)
+            // Before any read receipt, it should be null
+            ClassicAssert.IsNull(item.ReadByRecipientTimestamp,
+                "V2 IsReadByRecipient should be null for unread items (not false)");
+        }
+
+        await Cleanup(identity, recipients);
+    }
+
     public async Task Cleanup(TestIdentity identity, List<TestIdentity> recipients)
     {
         var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);

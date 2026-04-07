@@ -895,13 +895,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                 AssertValidFileSystemType(header.ServerMetadata);
 
                 _logger.LogDebug(
-                    "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t IsReadByRecipient: {isRead}",
+                    "Updating transfer history success on file:{file} for recipient:{recipient} Version:{versionTag}\t Status:{status}\t IsInOutbox:{outbox}\t ReadByRecipientTimestamp: {readTs}",
                     file,
                     recipient,
                     updateData.VersionTag,
                     updateData.LatestTransferStatus,
                     updateData.IsInOutbox,
-                    updateData.IsReadByRecipient);
+                    updateData.ReadByRecipientTimestamp);
 
                 await using (var tx = await db.BeginStackedTransactionAsync())
                 {

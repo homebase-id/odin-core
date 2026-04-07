@@ -29,7 +29,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Int32 latestTransferStatus { get; set; }
         public Boolean isInOutbox { get; set; }
         public Guid? latestSuccessfullyDeliveredVersionTag { get; set; }
-        public Boolean isReadByRecipient { get; set; }
+        public UnixTimeUtc isReadByRecipient { get; set; }
         public void Validate()
         {
             identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
@@ -64,13 +64,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE DriveTransferHistory IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE DriveTransferHistory IS '{ \"Version\": 202604050941 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS DriveTransferHistory( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS DriveTransferHistory( -- { \"Version\": 202604050941 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"driveId BYTEA NOT NULL, "
@@ -79,7 +79,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"latestTransferStatus BIGINT NOT NULL, "
                    +"isInOutbox BOOLEAN NOT NULL, "
                    +"latestSuccessfullyDeliveredVersionTag BYTEA , "
-                   +"isReadByRecipient BOOLEAN NOT NULL "
+                   +"isReadByRecipient BIGINT NOT NULL "
                    +", UNIQUE(identityId,driveId,fileId,remoteIdentityId)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0DriveTransferHistory ON DriveTransferHistory(identityId,driveId,fileId);"
@@ -104,7 +104,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@latestTransferStatus", DbType.Int32, item.latestTransferStatus);
                 insertCommand.AddParameter("@isInOutbox", DbType.Boolean, item.isInOutbox);
                 insertCommand.AddParameter("@latestSuccessfullyDeliveredVersionTag", DbType.Binary, item.latestSuccessfullyDeliveredVersionTag);
-                insertCommand.AddParameter("@isReadByRecipient", DbType.Boolean, item.isReadByRecipient);
+                insertCommand.AddParameter("@isReadByRecipient", DbType.Int64, item.isReadByRecipient.milliseconds);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -132,7 +132,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@latestTransferStatus", DbType.Int32, item.latestTransferStatus);
                 insertCommand.AddParameter("@isInOutbox", DbType.Boolean, item.isInOutbox);
                 insertCommand.AddParameter("@latestSuccessfullyDeliveredVersionTag", DbType.Binary, item.latestSuccessfullyDeliveredVersionTag);
-                insertCommand.AddParameter("@isReadByRecipient", DbType.Boolean, item.isReadByRecipient);
+                insertCommand.AddParameter("@isReadByRecipient", DbType.Int64, item.isReadByRecipient.milliseconds);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -161,7 +161,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.AddParameter("@latestTransferStatus", DbType.Int32, item.latestTransferStatus);
                 upsertCommand.AddParameter("@isInOutbox", DbType.Boolean, item.isInOutbox);
                 upsertCommand.AddParameter("@latestSuccessfullyDeliveredVersionTag", DbType.Binary, item.latestSuccessfullyDeliveredVersionTag);
-                upsertCommand.AddParameter("@isReadByRecipient", DbType.Boolean, item.isReadByRecipient);
+                upsertCommand.AddParameter("@isReadByRecipient", DbType.Int64, item.isReadByRecipient.milliseconds);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -189,7 +189,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.AddParameter("@latestTransferStatus", DbType.Int32, item.latestTransferStatus);
                 updateCommand.AddParameter("@isInOutbox", DbType.Boolean, item.isInOutbox);
                 updateCommand.AddParameter("@latestSuccessfullyDeliveredVersionTag", DbType.Binary, item.latestSuccessfullyDeliveredVersionTag);
-                updateCommand.AddParameter("@isReadByRecipient", DbType.Boolean, item.isReadByRecipient);
+                updateCommand.AddParameter("@isReadByRecipient", DbType.Int64, item.isReadByRecipient.milliseconds);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -263,7 +263,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.latestTransferStatus = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[5];
             item.isInOutbox = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[6]);
             item.latestSuccessfullyDeliveredVersionTag = (rdr[7] == DBNull.Value) ? null : new Guid((byte[])rdr[7]);
-            item.isReadByRecipient = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[8]);
+            item.isReadByRecipient = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -343,7 +343,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.latestTransferStatus = (rdr[1] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[1];
             item.isInOutbox = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[2]);
             item.latestSuccessfullyDeliveredVersionTag = (rdr[3] == DBNull.Value) ? null : new Guid((byte[])rdr[3]);
-            item.isReadByRecipient = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[4]);
+            item.isReadByRecipient = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[4]);
             return item;
        }
 
@@ -390,7 +390,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.latestTransferStatus = (rdr[2] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (int)(long)rdr[2];
             item.isInOutbox = (rdr[3] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[3]);
             item.latestSuccessfullyDeliveredVersionTag = (rdr[4] == DBNull.Value) ? null : new Guid((byte[])rdr[4]);
-            item.isReadByRecipient = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[5]);
+            item.isReadByRecipient = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
             return item;
        }
 
