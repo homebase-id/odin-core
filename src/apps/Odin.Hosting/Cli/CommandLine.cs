@@ -335,11 +335,11 @@ public class CommandLine
         // Fails if the identity already exists in the registry.
         //
         // examples:
-        //   dotnet run -- sqlite2pg-identity frodo.dotyou.cloud /path/to/src/system.db /path/to/src/identity.db
+        //   dotnet run -- sqlite2pg-identity frodo.dotyou.cloud /path/to/src/system.db /path/to/src/identity.db commit
         //
-        if (args.Length >= 4 && args[0] == "sqlite2pg-identity")
+        if (args.Length >= 5 && args[0] == "sqlite2pg-identity")
         {
-            Sqlite2Pg.ImportIdentityAsync(_serviceProvider, args[1], args[2], args[3]).BlockingWait();
+            Sqlite2Pg.ImportIdentityAsync(_serviceProvider, args[1], args[2], args[3], args[4] == "commit").BlockingWait();
             return (true, 0);
         }
 

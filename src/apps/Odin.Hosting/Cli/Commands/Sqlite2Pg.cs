@@ -26,7 +26,8 @@ public static class Sqlite2Pg
         IServiceProvider services,
         string identityDomain,
         string sourceSqliteSystemDbPath,
-        string sourceSqliteIdentityDbPath
+        string sourceSqliteIdentityDbPath,
+        bool commit
     )
     {
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
@@ -158,7 +159,7 @@ public static class Sqlite2Pg
             targetSystemDb,
             sourceIdentityDb,
             targetIdentityDb,
-            dryRun: false);
+            commit);
     }
 
 }

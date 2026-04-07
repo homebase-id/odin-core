@@ -22,8 +22,10 @@ public static class IdentityDataImporter
         SystemDatabase targetSystemDatabase,
         IdentityDatabase sourceIdentityDatabase,
         IdentityDatabase targetIdentityDatabase,
-        bool dryRun)
+        bool commit)
     {
+        logger.LogInformation("Importing identity database {identityDomain}", identityDomain);
+
         await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
         await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
 
@@ -33,6 +35,27 @@ public static class IdentityDataImporter
         // System tables
         //
 
+        // Registrations (only the row for this identity)
+        totalRows += await ImportTableAsync(sourceSystemDatabase.Registrations.PagingByRowIdAsync,
+            async r =>
+            {
+                if (r.primaryDomainName.Equals(identityDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    return await targetSystemDatabase.Registrations.InsertAsync(r);
+                }
+                return 0;
+            }, logger, sourceSystemDatabase.Registrations.TableName);
+
+        // Certificates (only the row for this identity)
+        totalRows += await ImportTableAsync(sourceSystemDatabase.Certificates.PagingByRowIdAsync,
+            async r =>
+            {
+                if (r.domain.DomainName.Equals(identityDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    return await targetSystemDatabase.Certificates.InsertAsync(r);
+                }
+                return 0;
+            }, logger, sourceSystemDatabase.Certificates.TableName);
 
         //
         // Identity tables
@@ -137,13 +160,15 @@ public static class IdentityDataImporter
         // Commit ?
         //
 
-        if (!dryRun)
+        if (!commit)
         {
-            logger.LogInformation("Imported {count} total rows", totalRows);
+            logger.LogInformation("Dry run: rolling back {count} rows", totalRows);
         }
         else
         {
-            logger.LogInformation("Dry run: rolling back {count} rows", totalRows);
+            logger.LogInformation("Imported {count} total rows", totalRows);
+            systemTransaction.Commit();
+            identityTransaction.Commit();
         }
     }
 
