@@ -456,13 +456,13 @@ public class PushNotificationService(
         }
         catch (ApiException apiEx)
         {
-            logger.LogError(apiEx, "Error calling push notification validate endpoint: {status}", apiEx.StatusCode);
+            logger.LogWarning(apiEx, "Error calling push notification validate endpoint: {status}", apiEx.StatusCode);
             result.IsTokenValid = null;
             result.InvalidReason = "Validation service error";
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error validating Firebase token");
+            logger.LogWarning(e, "Error validating Firebase token");
             result.IsTokenValid = null;
             result.InvalidReason = "Validation service unavailable";
         }
