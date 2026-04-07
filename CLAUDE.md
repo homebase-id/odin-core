@@ -55,6 +55,10 @@ Two test infrastructures exist side by side:
 
 **Test identities**: `TestIdentities.Frodo`, `TestIdentities.Samwise`, etc. Each `WebScaffold` instance runs its own server. Test classes that need peer flows must include at least two identities in `RunBeforeAnyTests()`.
 
+## Git Conventions
+
+- **Branch names use dashes only** (e.g., `feature-my-feature`). Never use slashes in branch names.
+
 ## Architecture
 
 ### Layer Structure
