@@ -118,7 +118,7 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetBatchCollection(request);
     }
 
-    public async Task<ApiResponse<FileTransferHistoryResponse>> GetTransferHistoryAsync(Guid driveId, Guid fileId,
+    public async Task<ApiResponse<FileTransferHistoryResponseV2>> GetTransferHistoryAsync(Guid driveId, Guid fileId,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

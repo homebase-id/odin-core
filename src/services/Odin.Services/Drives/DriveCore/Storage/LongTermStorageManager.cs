@@ -87,7 +87,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     latestTransferStatus: null,
                     latestSuccessfullyDeliveredVersionTag: null,
                     isInOutbox: true,
-                    isReadByRecipient: null);
+                    readByRecipientTimestamp: null);
 
                 if (affectedRows != 1)
                 {
@@ -118,7 +118,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 (int?)updateData.LatestTransferStatus,
                 updateData.VersionTag,
                 updateData.IsInOutbox,
-                updateData.IsReadByRecipient);
+                updateData.ReadByRecipientTimestamp);
 
             var (history, modified) = await UpdateTransferHistorySummary(driveId, fileId);
 
@@ -347,7 +347,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     LatestTransferStatus = (LatestTransferStatus)item.latestTransferStatus,
                     IsInOutbox = item.isInOutbox,
                     LatestSuccessfullyDeliveredVersionTag = item.latestSuccessfullyDeliveredVersionTag,
-                    IsReadByRecipient = item.isReadByRecipient
+                    ReadByRecipientTimestampMs = item.isReadByRecipient.milliseconds
                 }
             ).ToList();
         }

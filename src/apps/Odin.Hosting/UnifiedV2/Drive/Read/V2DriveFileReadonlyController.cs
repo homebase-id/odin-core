@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
@@ -138,7 +140,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
 
         [HttpGet("transfer-history")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
-        public async Task<FileTransferHistoryResponse> GetFileTransferHistory(
+        public async Task<FileTransferHistoryResponseV2> GetFileTransferHistory(
             [FromRoute] Guid driveId,
             [FromRoute] Guid fileId)
         {
@@ -158,10 +160,21 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 return null;
             }
 
-            return new FileTransferHistoryResponse()
+            var v2Items = history.Results.Select(item => new RecipientTransferHistoryItemV2
+            {
+                Recipient = item.Recipient,
+                LastUpdated = item.LastUpdated,
+                LatestTransferStatus = item.LatestTransferStatus,
+                IsInOutbox = item.IsInOutbox,
+                LatestSuccessfullyDeliveredVersionTag = item.LatestSuccessfullyDeliveredVersionTag,
+                ReadByRecipientTimestamp = item.ReadByRecipientTimestampMs > 0 ? item.ReadByRecipientTimestampMs : null
+            }).ToList();
+
+            return new FileTransferHistoryResponseV2()
             {
                 OriginalRecipientCount = count,
-                History = history
+                History = new PagedResult<RecipientTransferHistoryItemV2>(
+                    history.Request, history.TotalPages, v2Items)
             };
         }
 
