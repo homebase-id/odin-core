@@ -328,15 +328,18 @@ public class CommandLine
         // Command line: Migrate identity data from SQLite to PostgreSQL
         //
         // The system must be configured for PostgreSQL (target).
-        // Takes the path to a per-identity SQLite database file and the identity domain name.
+        // Arguments:
+        // - Domain name to import
+        // - System SQLite database file to import from
+        // - Per-identity SQLite database file to import from
         // Fails if the identity already exists in the registry.
         //
         // examples:
-        //   dotnet run -- sqlite2pg /path/to/identity.db example.com
+        //   dotnet run -- sqlite2pg-identity frodo.dotyou.cloud /path/to/src/system.db /path/to/src/identity.db
         //
-        if (args.Length > 2 && args[0] == "sqlite2pg")
+        if (args.Length >= 4 && args[0] == "sqlite2pg-identity")
         {
-            Sqlite2Pg.ExecuteAsync(_serviceProvider, args[1], args[2]).BlockingWait();
+            Sqlite2Pg.ImportIdentityAsync(_serviceProvider, args[1], args[2], args[3]).BlockingWait();
             return (true, 0);
         }
 
