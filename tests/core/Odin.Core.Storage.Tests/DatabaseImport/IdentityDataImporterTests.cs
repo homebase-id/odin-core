@@ -5,7 +5,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Odin.Core.Storage.Database.Identity;
 
-namespace Odin.Core.Storage.Tests.Database.Identity;
+namespace Odin.Core.Storage.Tests.DatabaseImport;
 
 // IdentityDataImporter.ImportAsync must explicitly call ImportTableAsync for each table
 // in IdentityDatabase because the table record types don't share a common base type or interface,
@@ -50,12 +50,12 @@ public class IdentityDataImporterTests
         // Read the IdentityDataImporter source file
         var solutionRoot = FindSolutionRoot();
         var migratorSourcePath = Path.Combine(solutionRoot,
-            "src", "core", "Odin.Core.Storage", "Database", "Identity", "IdentityDataImporter.cs");
+            "src", "core", "Odin.Core.Storage", "DatabaseImport", "IdentityDataImporter.cs");
         var sourceCode = File.ReadAllText(migratorSourcePath);
 
         // Verify each table property is referenced in the migrator
         var missingTables = tablePropertyNames
-            .Where(name => !sourceCode.Contains($"sourceDb.{name}.PagingByRowIdAsync"))
+            .Where(name => !sourceCode.Contains($"sourceIdentityDatabase.{name}.PagingByRowIdAsync"))
             .ToList();
 
         Assert.That(missingTables, Is.Empty,
