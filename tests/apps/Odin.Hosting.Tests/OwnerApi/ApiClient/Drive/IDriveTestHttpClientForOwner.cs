@@ -64,6 +64,12 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Drive
         [Get(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
+        [Get(RootStorageEndpoint + "/upload-file-exists")]
+        Task<ApiResponse<bool>> UploadFileExists(Guid fileId, Guid alias, Guid type, string extension);
+
+        [Get(RootStorageEndpoint + "/inbox-file-exists")]
+        Task<ApiResponse<bool>> InboxFileExists(Guid fileId, Guid alias, Guid type, string extension);
+
         [Post(RootQueryEndpoint + "/modified")]
         Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
 

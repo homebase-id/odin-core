@@ -25,25 +25,26 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
     /// </summary>
     public class PeerFileUpdateWriter(ILogger logger, FileSystemResolver fileSystemResolver, IDriveManager driveManager)
     {
-        public async Task<(bool success, List<PayloadDescriptor> payloads)> UpsertFileAsync(TempFile tempFile,
+        public async Task<(bool success, List<PayloadDescriptor> payloads)> UpsertFileAsync(InternalDriveFileId file,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             IOdinContext odinContext,
-            WriteSecondDatabaseRowBase markComplete)
+            WriteSecondDatabaseRowBase markComplete,
+            string sourceFolderPath)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
             var fileSystemType = instructionSet.FileSystemType;
             var fs = fileSystemResolver.ResolveFileSystem(fileSystemType);
 
-            logger.LogDebug("PeerFileUpdateWriter - UpsertFileAsync called tempFile: {file}", tempFile);
+            logger.LogDebug("PeerFileUpdateWriter - UpsertFileAsync called file: {file}", file);
 
-            var incomingMetadata = await LoadMetadataFromTemp(tempFile, fs, odinContext);
+            var incomingMetadata = await LoadMetadataFromTemp(file, fs, sourceFolderPath, odinContext);
 
             // Validations
             var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext);
-            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(tempFile,
+            var (targetAcl, isCollaborationChannel) = await DetermineAclAsync(file,
                 instructionSet,
                 fileSystemType,
                 incomingMetadata,
@@ -61,8 +62,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             if (null == existingHeader)
             {
-                logger.LogDebug("PeerFileUpdateWriter WriteNewFile - temp file: {file}. Payload count: {pc}",
-                    tempFile,
+                logger.LogDebug("PeerFileUpdateWriter WriteNewFile - file: {file}. Payload count: {pc}",
+                    file,
                     incomingMetadata.Payloads?.Count);
                 //
                 // we must create a new file
@@ -71,14 +72,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter WriteNewFile",
                     async () =>
                     {
-                        (success, payloads) = await fs.Storage.CommitNewFile(tempFile,
+                        (success, payloads) = await fs.Storage.CommitNewFile(file,
                             decryptedKeyHeader,
                             incomingMetadata,
                             serverMetadata,
                             ignorePayload: false,
                             odinContext,
-                            useThisVersionTag: instructionSet.Request.NewVersionTag, 
-                            markComplete);
+                            useThisVersionTag: instructionSet.Request.NewVersionTag,
+                            markComplete,
+                            sourceFolderPath: sourceFolderPath);
                     });
 
                 logger.LogDebug("PeerFileUpdateWriter WriteNewFile - success: {success} committed payload count {pc}",
@@ -91,8 +93,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             //Update existing file
             await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter UpdateExistingFile", async () =>
             {
-                logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - temp file: {file}. Payload count: {pc}. GTID: {gtid}",
-                    tempFile,
+                logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - file: {file}. Payload count: {pc}. GTID: {gtid}",
+                    file,
                     incomingMetadata.Payloads?.Count,
                     incomingMetadata.GlobalTransitId);
                 
@@ -120,7 +122,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                (success, payloads) = await fs.Storage.UpdateBatchAsync(tempFile, targetFile.Value, manifest, odinContext, markComplete);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, targetFile.Value, manifest, odinContext, markComplete, sourceFolderPath: sourceFolderPath);
                 
                 logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - success: {success} committed payload count {pc}",
                     success,
@@ -132,21 +134,22 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         }
 
         private async Task<FileMetadata> LoadMetadataFromTemp(
-            TempFile tempFile,
+            InternalDriveFileId file,
             IDriveFileSystem fs,
+            string sourceFolderPath,
             IOdinContext odinContext)
         {
             FileMetadata incomingMetadata = default;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
             {
-                var bytes = await fs.Storage.GetAllFileBytesFromTempFile(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower(),
-                    odinContext);
+                var extension = MultipartHostTransferParts.Metadata.ToString().ToLower();
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file, extension, sourceFolderPath, odinContext);
 
                 if (bytes == null)
                 {
                     // this is bad error.
-                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", tempFile.File.FileId,
-                        tempFile.File.DriveId);
+                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", file.FileId,
+                        file.DriveId);
                     throw new OdinFileWriteException("Missing temp file while processing inbox");
                 }
 
@@ -155,8 +158,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 incomingMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
                 if (null == incomingMetadata)
                 {
-                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", tempFile.File.FileId,
-                        tempFile.File.DriveId);
+                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", file.FileId,
+                        file.DriveId);
                     throw new OdinFileWriteException("Metadata could not be deserialized");
                 }
             });
@@ -171,7 +174,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return incomingMetadata;
         }
 
-        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(TempFile tempFile,
+        private async Task<(AccessControlList acl, bool isCollabChannel)> DetermineAclAsync(InternalDriveFileId file,
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             FileSystemType fileSystemType,
             FileMetadata metadata,
@@ -184,7 +187,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
 
-            var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
+            var drive = await driveManager.GetDriveAsync(file.DriveId);
             var isCollaborationChannel = drive.IsCollaborationDrive();
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage

@@ -108,7 +108,7 @@ public class DefraggerTest
 
             var driveCount = drives.Count;
 
-            Directory.CreateDirectory(ownerClient.Configuration..TempDrivesPath);
+            Directory.CreateDirectory(ownerClient.Configuration..UploadDrivesPath);
 
             foreach (var drive in drives)
             {

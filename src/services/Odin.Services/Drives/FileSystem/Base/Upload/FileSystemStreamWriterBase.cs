@@ -30,7 +30,7 @@ public abstract class FileSystemStreamWriterBase
     private readonly TenantContext _tenantContext;
 
 
-    private readonly IDriveManager _driveManager;
+    protected readonly IDriveManager _driveManager;
     private readonly PeerOutgoingTransferService _peerOutgoingTransferService;
     private readonly ILogger _logger;
 
@@ -115,7 +115,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -163,7 +163,7 @@ public abstract class FileSystemStreamWriterBase
             result.ThumbnailDescriptor.PixelHeight
         );
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(Package.InternalFile.AsTempFileUpload(), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(Package.InternalFile, extension, data, odinContext);
 
         if (bytesWritten != data.Length)
         {
@@ -391,13 +391,13 @@ public abstract class FileSystemStreamWriterBase
         return recipientStatus;
     }
 
-    public async Task CleanupTempFiles(IOdinContext odinContext)
+    public async Task CleanupStagingFiles(IOdinContext odinContext)
     {
         if (Package?.InternalFile != null)
         {
             // use the descriptors from the package as they would have been uploaded to the upload folder
             var descriptors = Package.GetFinalPayloadDescriptors();
-            await FileSystem.Storage.CleanupUploadTemporaryFiles(Package.InternalFile.AsTempFileUpload(), descriptors, odinContext);
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(Package.InternalFile, descriptors, odinContext);
         }
     }
 

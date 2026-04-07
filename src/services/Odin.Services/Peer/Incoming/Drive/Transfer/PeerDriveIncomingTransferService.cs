@@ -59,20 +59,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var canDirectWrite = await CanDirectWriteFile(driveId, metadata, transferInstructionSet, odinContext);
 
             // Notice here: we always create a new fileId when receiving a new file.
-            var file = new TempFile()
-            {
-                File = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext),
-                StorageType = canDirectWrite ? TempStorageType.Upload : TempStorageType.Inbox
-            };
+            var file = await fileSystem.Storage.CreateInternalFileId(driveId, odinContext);
 
-            _transferState = new IncomingTransferStateItem(file, transferInstructionSet);
-            await WriteInstructionsAndMetadataToInbox(file, metadata, transferInstructionSet, odinContext);
+            _transferState = new IncomingTransferStateItem(file, canDirectWrite, transferInstructionSet);
+            await WriteInstructionsAndMetadataToStorage(file, canDirectWrite, metadata, transferInstructionSet, odinContext);
         }
 
         public async Task AcceptPayload(string key, string fileExtension, Stream data, IOdinContext odinContext)
         {
             _uploadedKeys.TryAdd(key, new List<string>());
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext);
+            if (_transferState.IsDirectWrite)
+                await fileSystem.Storage.WriteUploadStream(_transferState.File, fileExtension, data, odinContext);
+            else
+                await fileSystem.Storage.WriteInboxStream(_transferState.File, fileExtension, data, odinContext);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
@@ -87,7 +86,10 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             thumbnailKeys.Add(thumbnailKey);
             _uploadedKeys[payloadKey] = thumbnailKeys;
 
-            await fileSystem.Storage.WriteTempStream(_transferState.TempFile, fileExtension, data, odinContext);
+            if (_transferState.IsDirectWrite)
+                await fileSystem.Storage.WriteUploadStream(_transferState.File, fileExtension, data, odinContext);
+            else
+                await fileSystem.Storage.WriteInboxStream(_transferState.File, fileExtension, data, odinContext);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
@@ -281,12 +283,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
         }
 
-        public async Task CleanupTempFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
+        public async Task CleanupStagingFiles(List<PayloadDescriptor> descriptors, IOdinContext odinContext)
         {
-            if (_transferState?.TempFile != null)
+            if (_transferState?.File != null && _transferState.IsDirectWrite)
             {
                 // use the descriptors from the package as they would have been uploaded to the upload folder
-                await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.TempFile, descriptors, odinContext);
+                await fileSystem.Storage.CleanupUploadTemporaryFiles(_transferState.File, descriptors, odinContext);
             }
         }
 
@@ -296,7 +298,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             IOdinContext odinContext)
         {
             //S0001, S1000, S2000 - can the sender write the content to the target drive?
-            await fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.File.DriveId, odinContext);
+            await fileSystem.Storage.AssertCanWriteToDrive(stateItem.File.DriveId, odinContext);
 
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata, odinContext);
 
@@ -306,43 +308,47 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
 
             logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
-                stateItem.TempFile);
+                stateItem.File);
 
-            var tempFile = _transferState.TempFile with { StorageType = TempStorageType.Inbox };
             var instructionSet = _transferState.TransferInstructionSet;
 
             try
             {
-                await WriteInstructionsAndMetadataToInbox(tempFile, fileMetadata, instructionSet, odinContext);
+                await WriteInstructionsAndMetadataToStorage(stateItem.File, isDirectWrite: false, fileMetadata, instructionSet, odinContext);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "After TryDirectWriteFailed, we also failed to ensure " +
-                                   "metadata and instructions are available to the inbox.  file: {tempFile}", tempFile);
+                                   "metadata and instructions are available to the inbox.  file: {file}", stateItem.File);
             }
 
             //S1220
             return await RouteToInboxAsync(stateItem, odinContext);
         }
 
-        private async Task WriteInstructionsAndMetadataToInbox(TempFile tempFile, FileMetadata fileMetadata,
+        private async Task WriteInstructionsAndMetadataToStorage(InternalDriveFileId file, bool isDirectWrite,
+            FileMetadata fileMetadata,
             EncryptedRecipientTransferInstructionSet instructionSet,
             IOdinContext odinContext)
         {
-            logger.LogDebug("Writing metadata as {tempFile}", tempFile);
+            logger.LogDebug("Writing metadata for file {file} (isDirectWrite: {isDirectWrite})", file, isDirectWrite);
 
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
-            await fileSystem.Storage.WriteTempStream(tempFile, TenantPathManager.TransferInstructionSetExtension, stream,
-                odinContext);
+            if (isDirectWrite)
+                await fileSystem.Storage.WriteUploadStream(file, TenantPathManager.TransferInstructionSetExtension, stream, odinContext);
+            else
+                await fileSystem.Storage.WriteInboxStream(file, TenantPathManager.TransferInstructionSetExtension, stream, odinContext);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
-            await fileSystem.Storage.WriteTempStream(tempFile, TenantPathManager.MetadataExtension, metadataStream,
-                odinContext);
+            if (isDirectWrite)
+                await fileSystem.Storage.WriteUploadStream(file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
+            else
+                await fileSystem.Storage.WriteInboxStream(file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
         }
 
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata, IOdinContext odinContext)
         {
-            if (!await CanDirectWriteFile(stateItem.TempFile.File.DriveId, metadata, stateItem.TransferInstructionSet, odinContext))
+            if (!await CanDirectWriteFile(stateItem.File.DriveId, metadata, stateItem.TransferInstructionSet, odinContext))
             {
                 return false;
             }
@@ -353,12 +359,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var sender = odinContext.GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
                 odinContext);
+            var drive = await driveManager.GetDriveAsync(stateItem.File.DriveId);
 
             if (metadata.IsEncrypted == false)
             {
                 //S1110 - Write to disk and send notifications
-                await writer.HandleFile(stateItem.TempFile, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                    odinContext);
+                await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
+                    odinContext, sourceFolderPath: stateItem.IsDirectWrite ? drive.GetDriveUploadPath() : drive.GetDriveInboxPath());
 
                 return true;
             }
@@ -367,19 +374,19 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             if (metadata.IsEncrypted)
             {
                 // Next determine if we can direct write the file
-                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.File.DriveId, out _);
+                var hasStorageKey = odinContext.PermissionsContext.TryGetDriveStorageKey(stateItem.File.DriveId, out _);
 
                 //S1200
                 if (hasStorageKey)
                 {
                     //S1205
-                    await writer.HandleFile(stateItem.TempFile, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                        odinContext);
+                    await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
+                        odinContext, sourceFolderPath: stateItem.IsDirectWrite ? drive.GetDriveUploadPath() : drive.GetDriveInboxPath());
                     return true;
                 }
 
                 logger.LogDebug("Caller can direct-write to drive [{drive}] but does not have storage " +
-                                "key for encrypted file", stateItem.TempFile.File.DriveId);
+                                "key for encrypted file", stateItem.File.DriveId);
 
                 //S2210 - comments cannot fall back to inbox
                 if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
@@ -410,8 +417,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 Sender = odinContext.GetCallerOdinIdOrFail(),
 
                 InstructionType = TransferInstructionType.SaveFile,
-                DriveId = stateItem.TempFile.File.DriveId,
-                FileId = stateItem.TempFile.File.FileId,
+                DriveId = stateItem.File.DriveId,
+                FileId = stateItem.File.FileId,
                 TransferInstructionSet = stateItem.TransferInstructionSet,
 
                 FileSystemType = stateItem.TransferInstructionSet.FileSystemType,

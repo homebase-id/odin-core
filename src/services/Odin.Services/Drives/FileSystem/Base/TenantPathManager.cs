@@ -57,8 +57,10 @@ public class TenantPathManager
 
     public readonly string RegistrationPath;  // e.g. /data/tenants/registrations/<tenant-id>/
     public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
-    public readonly string TempPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
-    public readonly string TempDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
+    public readonly string UploadPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
+    public readonly string UploadDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
+    public readonly string InboxPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp  (same dir for now)
+    public readonly string InboxDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives  (same dir for now)
 
     public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
     public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
@@ -87,8 +89,10 @@ public class TenantPathManager
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
-        TempPath = Path.Combine(RegistrationPath, TempFolder);
-        TempDrivesPath = Path.Combine(TempPath, DrivesFolder);
+        UploadPath = Path.Combine(RegistrationPath, TempFolder);
+        UploadDrivesPath = Path.Combine(UploadPath, DrivesFolder);
+        InboxPath = Path.Combine(RegistrationPath, TempFolder);
+        InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
 
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
         PayloadsDrivesPath = Path.Combine(PayloadsPath, DrivesFolder);
@@ -114,13 +118,25 @@ public class TenantPathManager
     // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/inbox
     public string GetDriveInboxPath(Guid driveId)
     {
-        return Path.Combine(TempDrivesPath, GuidToPathSafeString(driveId), InboxFolder);
+        return Path.Combine(InboxDrivesPath, GuidToPathSafeString(driveId), InboxFolder);
     }
 
     // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/uploads
     public string GetDriveUploadPath(Guid driveId)
     {
-        return Path.Combine(TempDrivesPath, GuidToPathSafeString(driveId), UploadFolder);
+        return Path.Combine(UploadDrivesPath, GuidToPathSafeString(driveId), UploadFolder);
+    }
+
+    // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/inbox/<file-id>.<extension>
+    public string GetDriveInboxFilePath(Guid driveId, Guid fileId, string extension)
+    {
+        return Path.Combine(GetDriveInboxPath(driveId), GetFilename(fileId, extension));
+    }
+
+    // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/uploads/<file-id>.<extension>
+    public string GetDriveUploadFilePath(Guid driveId, Guid fileId, string extension)
+    {
+        return Path.Combine(GetDriveUploadPath(driveId), GetFilename(fileId, extension));
     }
 
     // e.g. /data/tenants/payloads/<tenant-id>/drives/<drive-id>/files
@@ -251,7 +267,7 @@ public class TenantPathManager
     public void CreateDirectories()
     {
         Directory.CreateDirectory(HeadersPath);
-        Directory.CreateDirectory(TempPath);
+        Directory.CreateDirectory(UploadPath);
 
         if (!S3PayloadsEnabled)
         {

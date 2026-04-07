@@ -66,7 +66,7 @@ public abstract class PayloadStreamWriterBase
         }
 
         var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, descriptor.PayloadUid);
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile.AsTempFileUpload(), extension, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extension, data, odinContext);
         if (bytesWritten > 0)
         {
             _package.Payloads.Add(descriptor.PackagePayloadDescriptor(bytesWritten, contentTypeFromMultipartSection));
@@ -112,7 +112,7 @@ public abstract class PayloadStreamWriterBase
             result.ThumbnailDescriptor.PixelWidth,
             result.ThumbnailDescriptor.PixelHeight);
 
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.TempFile.AsTempFileUpload(), extenstion, data, odinContext);
+        var bytesWritten = await FileSystem.Storage.WriteUploadStream(_package.UploadFile, extenstion, data, odinContext);
 
         _package.Thumbnails.Add(new PackageThumbnailDescriptor()
         {
@@ -154,12 +154,12 @@ public abstract class PayloadStreamWriterBase
         };
     }
 
-    public async Task CleanupTempFiles(IOdinContext odinContext)
+    public async Task CleanupStagingFiles(IOdinContext odinContext)
     {
-        if (_package?.TempFile != null)
+        if (_package?.UploadFile != null)
         {
             var uploadedPayloads = _package.GetFinalPayloadDescriptors();
-            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.TempFile.AsTempFileUpload(), uploadedPayloads, odinContext);
+            await FileSystem.Storage.CleanupUploadTemporaryFiles(_package.UploadFile, uploadedPayloads, odinContext);
         }
     }
 

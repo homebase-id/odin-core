@@ -3,7 +3,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
 using Directory = System.IO.Directory;
@@ -29,16 +28,28 @@ public sealed class TempFolderCleanUpBackgroundService(
 
             try
             {
-                TempFolderCleanUp.Execute(
+                UploadFolderCleanUp.Execute(
                     logger,
-                    tenantContext.TenantPathManager.TempPath,
+                    tenantContext.TenantPathManager.UploadDrivesPath,
                     uploadAgeThreshold,
+                    stoppingToken);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "UploadFolderCleanUp: {message}", e.Message);
+            }
+
+            try
+            {
+                InboxFolderCleanUp.Execute(
+                    logger,
+                    tenantContext.TenantPathManager.InboxDrivesPath,
                     inboxAgeThreshold,
                     stoppingToken);
             }
             catch (Exception e)
             {
-                logger.LogError(e, "TempFolderCleanUpBackgroundService: {message}", e.Message);
+                logger.LogError(e, "InboxFolderCleanUp: {message}", e.Message);
             }
 
             var interval = TimeSpan.FromHours(24);
@@ -50,39 +61,20 @@ public sealed class TempFolderCleanUpBackgroundService(
 
 //
 
-public static class TempFolderCleanUp
+public static class UploadFolderCleanUp
 {
     public static void Execute(
         ILogger logger,
-        string tempFolder,
-        TimeSpan uploadAgeThreshold,
-        TimeSpan inboxAgeThreshold,
+        string uploadDrivesPath,
+        TimeSpan ageThreshold,
         CancellationToken stoppingToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tempFolder, nameof(tempFolder));
-
-        if (uploadAgeThreshold <= TimeSpan.Zero)
-        {
-            throw new ArgumentException("Upload age threshold must be positive", nameof(uploadAgeThreshold));
-        }
-
-        if (inboxAgeThreshold <= TimeSpan.Zero)
-        {
-            throw new ArgumentException("Inbox age threshold must be positive", nameof(inboxAgeThreshold));
-        }
-
-        if (!Directory.Exists(tempFolder))
-        {
-            throw new OdinSystemException($"Temp folder {tempFolder} does not exist");
-        }
-
-        var drivesFolder = Path.Combine(tempFolder, TenantPathManager.DrivesFolder);
-        if (!Directory.Exists(drivesFolder))
+        if (!Directory.Exists(uploadDrivesPath))
         {
             return;
         }
 
-        var drives = Directory.GetDirectories(drivesFolder);
+        var drives = Directory.GetDirectories(uploadDrivesPath);
         foreach (var drive in drives)
         {
             if (stoppingToken.IsCancellationRequested)
@@ -90,17 +82,8 @@ public static class TempFolderCleanUp
                 return;
             }
 
-            if (!stoppingToken.IsCancellationRequested)
-            {
-                var uploadsPath = Path.Combine(drive, TenantPathManager.UploadFolder);
-                CleanUp(logger, uploadsPath, uploadAgeThreshold, stoppingToken);
-            }
-
-            if (!stoppingToken.IsCancellationRequested)
-            {
-                var inboxPath = Path.Combine(drive, TenantPathManager.InboxFolder);
-                CleanUp(logger, inboxPath, inboxAgeThreshold, stoppingToken);
-            }
+            var uploadsPath = Path.Combine(drive, TenantPathManager.UploadFolder);
+            CleanUp(logger, uploadsPath, ageThreshold, stoppingToken);
         }
     }
 
@@ -113,7 +96,7 @@ public static class TempFolderCleanUp
             return;
         }
 
-        logger.LogDebug("{service} is scanning {folder}", nameof(TempFolderCleanUp), folder);
+        logger.LogDebug("{service} is scanning {folder}", nameof(UploadFolderCleanUp), folder);
 
         try
         {
@@ -138,20 +121,99 @@ public static class TempFolderCleanUp
                     var fileInfo = new FileInfo(file);
                     if (fileInfo.LastWriteTimeUtc < cutoffTime)
                     {
-                        logger.LogDebug("TempFolderCleanUp: deleting file {file}", file);
+                        logger.LogDebug("UploadFolderCleanUp: deleting file {file}", file);
                         File.Delete(file);
                     }
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "TempFolderCleanUp({file}): {message}", file, e.Message);
+                    logger.LogError(e, "UploadFolderCleanUp({file}): {message}", file, e.Message);
                 }
             }
         }
         catch (Exception e)
         {
-            logger.LogError(e, "TempFolderCleanUp({folder}): {message}", folder, e.Message);
+            logger.LogError(e, "UploadFolderCleanUp({folder}): {message}", folder, e.Message);
         }
     }
 }
 
+//
+
+// NOTE: This class is likely dead code in the future — inbox files are not expected to be cleaned up
+public static class InboxFolderCleanUp
+{
+    public static void Execute(
+        ILogger logger,
+        string inboxDrivesPath,
+        TimeSpan ageThreshold,
+        CancellationToken stoppingToken = default)
+    {
+        if (!Directory.Exists(inboxDrivesPath))
+        {
+            return;
+        }
+
+        var drives = Directory.GetDirectories(inboxDrivesPath);
+        foreach (var drive in drives)
+        {
+            if (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var inboxPath = Path.Combine(drive, TenantPathManager.InboxFolder);
+            CleanUp(logger, inboxPath, ageThreshold, stoppingToken);
+        }
+    }
+
+    //
+
+    private static void CleanUp(ILogger logger, string folder, TimeSpan threshold, CancellationToken stoppingToken)
+    {
+        if (!Directory.Exists(folder))
+        {
+            return;
+        }
+
+        logger.LogDebug("{service} is scanning {folder}", nameof(InboxFolderCleanUp), folder);
+
+        try
+        {
+            var subDirectories = Directory.GetDirectories(folder);
+            if (subDirectories.Length > 0)
+            {
+                logger.LogError("Illegal subdirectories detected in {Folder}", folder);
+            }
+
+            var cutoffTime = DateTime.UtcNow.Subtract(threshold);
+            var files = Directory.GetFiles(folder);
+
+            foreach (var file in files)
+            {
+                if (stoppingToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                try
+                {
+                    var fileInfo = new FileInfo(file);
+                    if (fileInfo.LastWriteTimeUtc < cutoffTime)
+                    {
+                        logger.LogDebug("InboxFolderCleanUp: deleting file {file}", file);
+                        File.Delete(file);
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "InboxFolderCleanUp({file}): {message}", file, e.Message);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "InboxFolderCleanUp({folder}): {message}", folder, e.Message);
+        }
+    }
+}

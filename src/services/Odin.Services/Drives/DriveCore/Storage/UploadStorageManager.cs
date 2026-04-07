@@ -6,107 +6,54 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Base;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Drives.DriveCore.Storage
 {
     /// <summary>
-    /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.
+    /// Temporary storage for a given drive. Used to stage incoming file parts from uploads.
     /// </summary>
     public class UploadStorageManager(
         FileReaderWriter fileReaderWriter,
-        IDriveManager driveManager,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
     {
         private readonly TenantPathManager _tenantPathManager = tenantContext.TenantPathManager;
 
-        public async Task<bool> TempFileExists(TempFile tempFile, string extension)
+        public Task<bool> UploadFileExists(InternalDriveFileId file, string extension)
         {
-            string path = await GetTempFilenameAndPathInternal(tempFile, extension);
-            return fileReaderWriter.FileExists(path);
+            string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
+            return Task.FromResult(fileReaderWriter.FileExists(path));
         }
 
         /// <summary>
-        /// Gets a stream of data for the specified file
+        /// Gets all bytes for the specified file
         /// </summary>
-        public async Task<byte[]> GetAllFileBytes(TempFile tempFile, string extension)
+        public async Task<byte[]> GetAllUploadFileBytes(InternalDriveFileId file, string extension)
         {
-            string path = await GetTempFilenameAndPathInternal(tempFile, extension);
-
-            logger.LogDebug("Getting temp file bytes for [{path}]", path);
-            var bytes = await fileReaderWriter.GetAllFileBytesAsync(path);
-            logger.LogDebug("Got {count} bytes from {path}", bytes.Length, path);
-            return bytes;
+            string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
+            return await fileReaderWriter.GetAllFileBytesAsync(path);
         }
 
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        public async Task<uint> WriteStream(TempFile tempFile, string extension, Stream stream)
+        public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            string path = await GetTempFilenameAndPathInternal(tempFile, extension, true);
-            logger.LogDebug("Writing temp file: {filePath}", path);
-            var bytesWritten = await fileReaderWriter.WriteStreamAsync(path, stream);
-            if (bytesWritten == 0)
-            {
-                // Sanity #1
-                logger.LogDebug("I didn't write anything to {filePath}", path);
-            }
-            else if (!File.Exists(path))
-            {
-                // Sanity #2
-                logger.LogError("I wrote {count} bytes, but file is not there {filePath}", bytesWritten, path);
-            }
-
-            logger.LogDebug("Wrote {count} bytes to {filePath}", bytesWritten, path);
-
-            return bytesWritten;
-        }
-
-        public async Task CleanupInboxFiles(TempFile tempFile, List<PayloadDescriptor> descriptors)
-        {
-            if (tempFile.StorageType != TempStorageType.Inbox)
-            {
-                logger.LogDebug("{method} ignoring call to cleanup {type} files", nameof(CleanupInboxFiles), tempFile.StorageType);
-                return;
-            }
-
-            logger.LogDebug("CleanupInboxTemporaryFiles called - tempFile: {t}", tempFile);
-
-            await CleanupTempFilesInternal(tempFile, descriptors);
-            
-            //TODO: the extensions should be centralized
-            string[] additionalFiles =
-            [
-                await GetTempFilenameAndPathInternal(tempFile, TenantPathManager.MetadataExtension),
-                await GetTempFilenameAndPathInternal(tempFile, TenantPathManager.TransferInstructionSetExtension)
-            ];
-
-            foreach (var file in additionalFiles)
-            {
-                logger.LogDebug("CleanupInboxTemporaryFiles Deleting additional File: {file}", file);
-            }
-            
-            // clean up the transfer header and metadata since we keep those in the inbox
-            fileReaderWriter.DeleteFiles(additionalFiles);
+            fileReaderWriter.CreateDirectory(_tenantPathManager.GetDriveUploadPath(file.DriveId));
+            string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
+            return await fileReaderWriter.WriteStreamAsync(path, stream);
         }
 
         /// <summary>
-        /// Deletes all files matching <param name="tempFile"></param> regardless of extension
+        /// Deletes all files matching <param name="file"></param> regardless of extension
         /// </summary>
-        public async Task CleanupUploadedTempFiles(TempFile tempFile, List<PayloadDescriptor> descriptors)
+        public Task CleanupUploadFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
-            if (tempFile.StorageType != TempStorageType.Upload)
-            {
-                logger.LogDebug("{method} ignoring call to cleanup {type} files", nameof(CleanupUploadedTempFiles), tempFile.StorageType);
-                return;
-            }
-
-            await CleanupTempFilesInternal(tempFile, descriptors);
+            CleanupUploadFilesInternal(file, descriptors);
+            return Task.CompletedTask;
         }
 
-        private async Task CleanupTempFilesInternal(TempFile tempFile, List<PayloadDescriptor> descriptors)
+        private void CleanupUploadFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
         {
             try
             {
@@ -115,17 +62,12 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     return;
                 }
 
-                var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
-
                 var targetFiles = new List<string>();
-
-                // add in transfer history and metadata
-
 
                 descriptors!.ForEach(descriptor =>
                 {
                     var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-                    string payloadDirectoryAndFilename = GetTempFilenameAndPathInternal(drive, tempFile, payloadExtension);
+                    string payloadDirectoryAndFilename = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, payloadExtension);
                     targetFiles.Add(payloadDirectoryAndFilename);
 
                     descriptor.Thumbnails?.ForEach(thumb =>
@@ -134,7 +76,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                             descriptor.Uid,
                             thumb.PixelWidth,
                             thumb.PixelHeight);
-                        string thumbnailDirectoryAndFilename = GetTempFilenameAndPathInternal(drive, tempFile, thumbnailExtension);
+                        string thumbnailDirectoryAndFilename = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, thumbnailExtension);
                         targetFiles.Add(thumbnailDirectoryAndFilename);
                     });
                 });
@@ -143,50 +85,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Failure while cleaning up temp files");
+                logger.LogError(e, "Failure while cleaning up upload files");
             }
-        }
-
-        /// <summary>
-        /// Gets the physical path of the specified file
-        /// </summary>
-        public async Task<string> GetPath(TempFile tempFile, string extension)
-        {
-            string path = await GetTempFilenameAndPathInternal(tempFile, extension);
-            return path;
-        }
-
-        private string GetUploadOrInboxFileDirectory(StorageDrive drive, TempFile tempFile, bool ensureExists = false)
-        {
-            string path;
-
-            if (tempFile.StorageType == TempStorageType.Upload)
-                path = drive.GetDriveUploadPath();
-            else
-                path = drive.GetDriveInboxPath();
-
-            if (ensureExists)
-            {
-                Directory.CreateDirectory(path);
-            }
-
-            return path;
-        }
-
-        private async Task<string> GetTempFilenameAndPathInternal(TempFile tempFile, string extension, bool ensureExists = false)
-        {
-            var drive = await driveManager.GetDriveAsync(tempFile.File.DriveId);
-            return GetTempFilenameAndPathInternal(drive, tempFile, extension, ensureExists);
-        }
-
-        private string GetTempFilenameAndPathInternal(StorageDrive drive, TempFile tempFile, string extension, bool ensureExists = false)
-        {
-            var fileId = tempFile.File.FileId;
-
-            string dir = GetUploadOrInboxFileDirectory(drive, tempFile, ensureExists);
-            var r = Path.Combine(dir, TenantPathManager.GetFilename(fileId, extension));
-
-            return r;
         }
     }
 }

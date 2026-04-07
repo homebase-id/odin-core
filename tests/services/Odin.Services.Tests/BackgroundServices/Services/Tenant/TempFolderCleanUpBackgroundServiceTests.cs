@@ -4,7 +4,6 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Odin.Core.Exceptions;
 using Odin.Services.Background.BackgroundServices.Tenant;
 
 namespace Odin.Services.Tests.BackgroundServices.Services.Tenant;
@@ -12,7 +11,7 @@ namespace Odin.Services.Tests.BackgroundServices.Services.Tenant;
 [TestFixture]
 public class TempFolderCleanUpBackgroundServiceTests
 {
-    private string _testTempRoot = "";
+    private string _testDrivesRoot = "";
     private Mock<ILogger> _loggerMock = new ();
     private TimeSpan _uploadAgeThreshold;
     private TimeSpan _inboxAgeThreshold;
@@ -20,11 +19,10 @@ public class TempFolderCleanUpBackgroundServiceTests
     [SetUp]
     public void Setup()
     {
-        // Create a unique temp folder for testing
-        _testTempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(_testTempRoot);
+        // Create a unique drives folder for testing (mirrors UploadDrivesPath / InboxDrivesPath)
+        _testDrivesRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "drives");
+        Directory.CreateDirectory(_testDrivesRoot);
 
-        // Define thresholds for testing
         _uploadAgeThreshold = TimeSpan.FromHours(1);
         _inboxAgeThreshold = TimeSpan.FromHours(2);
     }
@@ -32,85 +30,77 @@ public class TempFolderCleanUpBackgroundServiceTests
     [TearDown]
     public void TearDown()
     {
-        // Clean up test directory after test
-        if (Directory.Exists(_testTempRoot))
+        var root = Path.GetDirectoryName(_testDrivesRoot)!;
+        if (Directory.Exists(root))
         {
             try
             {
-                Directory.Delete(_testTempRoot, true);
+                Directory.Delete(root, true);
             }
             catch (IOException)
             {
-                // If we can't delete it immediately, schedule it for deletion on process exit
-                Thread.Sleep(100); // Give system a moment to release file handles
-                try
-                {
-                    Directory.Delete(_testTempRoot, true);
-                }
-                catch
-                {
-                    Console.WriteLine($"Warning: Could not delete temp directory {_testTempRoot}");
-                }
+                Thread.Sleep(100);
+                try { Directory.Delete(root, true); }
+                catch { Console.WriteLine($"Warning: Could not delete temp directory {root}"); }
             }
         }
     }
 
     [Test]
-    public void Execute_DeletesOldFiles_PreservesRecentFiles()
+    public void UploadFolderCleanUp_DeletesOldFiles_PreservesRecentFiles()
     {
         // Arrange
         SetupTestFolderStructure();
 
-        string drive1UploadsPath = Path.Combine(_testTempRoot, "drives", "drive1", "uploads");
-        string drive1InboxPath = Path.Combine(_testTempRoot, "drives", "drive1", "inbox");
+        string drive1UploadsPath = Path.Combine(_testDrivesRoot, "drive1", "uploads");
 
-        // Create old files that should be deleted
-        string oldUploadFile = Path.Combine(drive1UploadsPath, "old_upload.txt");
-        string oldInboxFile = Path.Combine(drive1InboxPath, "old_inbox.txt");
+        string oldFile = Path.Combine(drive1UploadsPath, "old_upload.txt");
+        string newFile = Path.Combine(drive1UploadsPath, "new_upload.txt");
 
-        // Create new files that should be preserved
-        string newUploadFile = Path.Combine(drive1UploadsPath, "new_upload.txt");
-        string newInboxFile = Path.Combine(drive1InboxPath, "new_inbox.txt");
-
-        CreateFileWithTimestamp(oldUploadFile, DateTime.UtcNow.Subtract(_uploadAgeThreshold).Subtract(TimeSpan.FromMinutes(30)));
-        CreateFileWithTimestamp(oldInboxFile, DateTime.UtcNow.Subtract(_inboxAgeThreshold).Subtract(TimeSpan.FromMinutes(30)));
-        CreateFileWithTimestamp(newUploadFile, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)));
-        CreateFileWithTimestamp(newInboxFile, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)));
+        CreateFileWithTimestamp(oldFile, DateTime.UtcNow.Subtract(_uploadAgeThreshold).Subtract(TimeSpan.FromMinutes(30)));
+        CreateFileWithTimestamp(newFile, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)));
 
         // Act
-        TempFolderCleanUp.Execute(
-            _loggerMock.Object,
-            _testTempRoot,
-            _uploadAgeThreshold,
-            _inboxAgeThreshold
-        );
+        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold);
 
         // Assert
-        Assert.That(File.Exists(oldUploadFile), Is.False, "Old upload file should be deleted");
-        Assert.That(File.Exists(oldInboxFile), Is.False, "Old inbox file should be deleted");
-        Assert.That(File.Exists(newUploadFile), Is.True,"Recent upload file should be preserved");
-        Assert.That(File.Exists(newInboxFile), Is.True,"Recent inbox file should be preserved");
+        Assert.That(File.Exists(oldFile), Is.False, "Old upload file should be deleted");
+        Assert.That(File.Exists(newFile), Is.True, "Recent upload file should be preserved");
     }
 
     [Test]
-    public void Execute_HandlesIllegalSubdirectories()
+    public void InboxFolderCleanUp_DeletesOldFiles_PreservesRecentFiles()
     {
         // Arrange
         SetupTestFolderStructure();
 
-        string drive1UploadsPath = Path.Combine(_testTempRoot, "drives", "drive1", "uploads");
+        string drive1InboxPath = Path.Combine(_testDrivesRoot, "drive1", "inbox");
 
-        // Create illegal subdirectory
-        string illegalSubdir = Path.Combine(drive1UploadsPath, "illegal_subdir");
-        Directory.CreateDirectory(illegalSubdir);
+        string oldFile = Path.Combine(drive1InboxPath, "old_inbox.txt");
+        string newFile = Path.Combine(drive1InboxPath, "new_inbox.txt");
+
+        CreateFileWithTimestamp(oldFile, DateTime.UtcNow.Subtract(_inboxAgeThreshold).Subtract(TimeSpan.FromMinutes(30)));
+        CreateFileWithTimestamp(newFile, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)));
 
         // Act
-        TempFolderCleanUp.Execute(
-            _loggerMock.Object,
-            _testTempRoot,
-            _uploadAgeThreshold,
-            _inboxAgeThreshold
-        );
+        InboxFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _inboxAgeThreshold);
+
+        // Assert
+        Assert.That(File.Exists(oldFile), Is.False, "Old inbox file should be deleted");
+        Assert.That(File.Exists(newFile), Is.True, "Recent inbox file should be preserved");
+    }
+
+    [Test]
+    public void UploadFolderCleanUp_HandlesIllegalSubdirectories()
+    {
+        // Arrange
+        SetupTestFolderStructure();
+
+        string drive1UploadsPath = Path.Combine(_testDrivesRoot, "drive1", "uploads");
+        Directory.CreateDirectory(Path.Combine(drive1UploadsPath, "illegal_subdir"));
+
+        // Act
+        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold);
 
         // Assert
         _loggerMock.Verify(
@@ -126,85 +116,54 @@ public class TempFolderCleanUpBackgroundServiceTests
     }
 
     [Test]
-    public void Execute_RespectsStoppingToken()
+    public void UploadFolderCleanUp_RespectsStoppingToken()
     {
         // Arrange
         SetupTestFolderStructure();
 
-        string drive1UploadsPath = Path.Combine(_testTempRoot, "drives", "drive1", "uploads");
-        string oldUploadFile = Path.Combine(drive1UploadsPath, "old_upload.txt");
-        CreateFileWithTimestamp(oldUploadFile, DateTime.UtcNow.Subtract(_uploadAgeThreshold).Subtract(TimeSpan.FromMinutes(30)));
+        string drive1UploadsPath = Path.Combine(_testDrivesRoot, "drive1", "uploads");
+        string oldFile = Path.Combine(drive1UploadsPath, "old_upload.txt");
+        CreateFileWithTimestamp(oldFile, DateTime.UtcNow.Subtract(_uploadAgeThreshold).Subtract(TimeSpan.FromMinutes(30)));
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel(); // Cancel token immediately
+        cts.Cancel();
 
         // Act
-        TempFolderCleanUp.Execute(
-            _loggerMock.Object,
-            _testTempRoot,
-            _uploadAgeThreshold,
-            _inboxAgeThreshold,
-            cts.Token
-        );
+        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold, cts.Token);
 
         // Assert
-        Assert.That(File.Exists(oldUploadFile), Is.True, "File should not be deleted when token is cancelled");
+        Assert.That(File.Exists(oldFile), Is.True, "File should not be deleted when token is cancelled");
     }
 
     [Test]
-    public void Execute_ThrowsException_WhenTempFolderDoesNotExist()
+    public void UploadFolderCleanUp_ReturnsSilently_WhenDrivesPathDoesNotExist()
     {
         // Arrange
-        string nonExistentFolder = Path.Combine(_testTempRoot, "non_existent_folder");
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
-        // Act & Assert
-        var ex = Assert.Throws<OdinSystemException>(() => TempFolderCleanUp.Execute(
-            _loggerMock.Object,
-            nonExistentFolder,
-            _uploadAgeThreshold,
-            _inboxAgeThreshold
-        ));
-
-        Assert.That(ex?.Message, Does.Contain("does not exist"));
+        // Act & Assert — should not throw
+        Assert.DoesNotThrow(() =>
+            UploadFolderCleanUp.Execute(_loggerMock.Object, nonExistentPath, _uploadAgeThreshold));
     }
 
     [Test]
-    public void Execute_ThrowsException_WhenThresholdsAreNegative()
+    public void InboxFolderCleanUp_ReturnsSilently_WhenDrivesPathDoesNotExist()
     {
-        // Act & Assert - Negative upload threshold
-        var ex1 = Assert.Throws<ArgumentException>(() => TempFolderCleanUp.Execute(
-            _loggerMock.Object,
-            _testTempRoot,
-            TimeSpan.FromSeconds(-1),
-            _inboxAgeThreshold
-        ));
+        // Arrange
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
-        Assert.That(ex1?.Message, Does.Contain("Upload age threshold"));
-
-        // Act & Assert - Negative inbox threshold
-        var ex2 = Assert.Throws<ArgumentException>(() => TempFolderCleanUp.Execute(
-            _loggerMock.Object,
-            _testTempRoot,
-            _uploadAgeThreshold,
-            TimeSpan.FromSeconds(-1)
-        ));
-
-        Assert.That(ex2?.Message, Does.Contain("Inbox age threshold"));
+        // Act & Assert — should not throw
+        Assert.DoesNotThrow(() =>
+            InboxFolderCleanUp.Execute(_loggerMock.Object, nonExistentPath, _inboxAgeThreshold));
     }
 
     private void SetupTestFolderStructure()
     {
-        // Create the base folders structure
-        string drivesFolder = Path.Combine(_testTempRoot, "drives");
-        Directory.CreateDirectory(drivesFolder);
-
-        // Create two drive folders
-        string drive1 = Path.Combine(drivesFolder, "drive1");
-        string drive2 = Path.Combine(drivesFolder, "drive2");
+        string drive1 = Path.Combine(_testDrivesRoot, "drive1");
+        string drive2 = Path.Combine(_testDrivesRoot, "drive2");
         Directory.CreateDirectory(drive1);
         Directory.CreateDirectory(drive2);
 
-        // Create uploads and inbox folders for each drive
         Directory.CreateDirectory(Path.Combine(drive1, "uploads"));
         Directory.CreateDirectory(Path.Combine(drive1, "inbox"));
         Directory.CreateDirectory(Path.Combine(drive2, "uploads"));
@@ -218,4 +177,3 @@ public class TempFolderCleanUpBackgroundServiceTests
         File.SetLastWriteTimeUtc(filePath, timestamp);
     }
 }
-
