@@ -115,3 +115,7 @@ Custom crypto layer in `Odin.Core.Cryptography`. AES-GCM (preferred) and AES-CBC
 - `UnixTimeUtc` -- millisecond-precision UTC timestamp used throughout
 - `ServerFileHeader` -- encrypted file header with metadata
 - `LocalAppMetadata` -- per-file metadata that stays local (never sent to peers)
+
+## CI / CD
+Do NOT use slash (/) in Git branch names.
+
