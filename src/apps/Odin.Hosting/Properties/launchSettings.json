@@ -7,7 +7,7 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "XXcommandLineArgs": "sqlite2pg-identity sam.dotyou.cloud /home/seb/tmp/dotyou/system/sys.db /home/seb/tmp/dotyou/tenants/registrations/20000000-0000-0000-0000-000000000002/headers/identity.db"
+      "XXcommandLineArgs": "sqlite2pg-identity sam.dotyou.cloud /home/seb/tmp/dotyou-backup/system/sys.db /home/seb/tmp/dotyou-backup/tenants/registrations/20000000-0000-0000-0000-000000000002/headers/identity.db commit"
     }
   }
 }
