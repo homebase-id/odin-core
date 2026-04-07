@@ -205,7 +205,7 @@ public abstract class AbstractMigrator
 
     //
 
-    internal async Task<long> GetCurrentVersionAsync()
+    public async Task<long> GetCurrentVersionAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
         return await GetCurrentVersionAsync(cn);
