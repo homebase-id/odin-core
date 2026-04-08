@@ -19,26 +19,33 @@ public class JobRunnerBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var tasks = new List<Task>();
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            logger.LogDebug("{service} is running", GetType().Name);
-
-            while (!stoppingToken.IsCancellationRequested && await tableJobs.GetNextScheduledJobAsync() is { } job)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var task = jobManager.RunJobNowAsync(job.id, stoppingToken);
-                tasks.Add(task);
-            }
+                logger.LogDebug("{service} is running", GetType().Name);
 
-            tasks.RemoveAll(t => t.IsCompleted);
+                while (!stoppingToken.IsCancellationRequested && await tableJobs.GetNextScheduledJobAsync() is { } job)
+                {
+                    var task = jobManager.RunJobNowAsync(job.id, stoppingToken);
+                    tasks.Add(task);
+                }
 
-            if (!stoppingToken.IsCancellationRequested)
-            {
-                var sleepDuration = CalculateSleepDuration(await tableJobs.GetNextRunTimeAsync());
-                logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, sleepDuration);
-                await SleepAsync(sleepDuration, stoppingToken);
+                tasks.RemoveAll(t => t.IsCompleted);
+
+                if (!stoppingToken.IsCancellationRequested)
+                {
+                    var sleepDuration = CalculateSleepDuration(await tableJobs.GetNextRunTimeAsync());
+                    logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, sleepDuration);
+                    await SleepAsync(sleepDuration, stoppingToken);
+                }
             }
         }
-        await Task.WhenAll(tasks);
+        finally
+        {
+            // Drain in-flight jobs before exiting, even if OperationCanceledException was thrown somewhere
+            await Task.WhenAll(tasks);
+        }
     }
     
     //
