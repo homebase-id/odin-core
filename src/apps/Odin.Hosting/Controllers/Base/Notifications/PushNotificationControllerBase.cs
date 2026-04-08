@@ -80,6 +80,10 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         }
 
 
+        /// <summary>
+        /// Returns the current device's push notification subscription (redacted).
+        /// Returns 404 if no subscription exists; use this to verify whether a push notification token is registered.
+        /// </summary>
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscriptionDetails()
         {
