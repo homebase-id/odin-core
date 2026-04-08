@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Refit;
 
@@ -15,19 +16,21 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
         Task<ApiResponse<PeerTransferResponse>> SendHostToHost(
             StreamPart header,
             StreamPart metaData,
-            params StreamPart[] additionalStreamParts);
+            StreamPart[] additionalStreamParts,
+            CancellationToken cancellationToken = default);
 
         [Multipart]
         [Patch(DriveRoot + "/update")]
         Task<ApiResponse<PeerTransferResponse>> UpdatePeerFile(
             StreamPart header,
             StreamPart metaData,
-            params StreamPart[] additionalStreamParts);
-        
+            StreamPart[] additionalStreamParts,
+            CancellationToken cancellationToken = default);
+
         [Post(DriveRoot + "/deletelinkedfile")]
-        Task<ApiResponse<PeerTransferResponse>> DeleteLinkedFile([Body] DeleteRemoteFileRequest request);
+        Task<ApiResponse<PeerTransferResponse>> DeleteLinkedFile([Body] DeleteRemoteFileRequest request, CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/mark-file-read")]
-        Task<ApiResponse<PeerTransferResponse>> MarkFileAsRead(MarkFileAsReadRequest markFileAsReadRequest);
+        Task<ApiResponse<PeerTransferResponse>> MarkFileAsRead(MarkFileAsReadRequest markFileAsReadRequest, CancellationToken cancellationToken = default);
     }
 }

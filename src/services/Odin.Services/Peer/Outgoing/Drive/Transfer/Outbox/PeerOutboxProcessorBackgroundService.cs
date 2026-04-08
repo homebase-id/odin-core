@@ -47,35 +47,41 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             var domain = tenantContext.HostOdinId.DomainName;
 
             var tasks = new List<Task>();
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                // Sanity: Make sure we have a certificate for the domain before processing the outbox.
-                // Missing certificate can happen in rare, temporary, situations if the certificate has expired
-                // or has not yet been created.
-                if (await certificateStore.GetCertificateAsync(domain) == null)
+                while (!stoppingToken.IsCancellationRequested)
                 {
-                    logger.LogInformation("No certificate found for domain {domain}. Skipping outbox processing", domain);
-                    await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
-                    continue;
+                    // Sanity: Make sure we have a certificate for the domain before processing the outbox.
+                    // Missing certificate can happen in rare, temporary, situations if the certificate has expired
+                    // or has not yet been created.
+                    if (await certificateStore.GetCertificateAsync(domain) == null)
+                    {
+                        logger.LogInformation("No certificate found for domain {domain}. Skipping outbox processing", domain);
+                        await SleepAsync(TimeSpan.FromMinutes(1), stoppingToken);
+                        continue;
+                    }
+
+                    logger.LogDebug("{service} is running", GetType().Name);
+
+                    while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItemAsync() is { } item)
+                    {
+                        var task = ProcessItemThread(item, stoppingToken);
+                        tasks.Add(task);
+                    }
+
+                    var nextRun = await peerOutbox.NextRunAsync() ?? MaxSleepDuration;
+
+                    tasks.RemoveAll(t => t.IsCompleted);
+
+                    logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, nextRun);
+                    await SleepAsync(nextRun, stoppingToken);
                 }
-
-                logger.LogDebug("{service} is running", GetType().Name);
-
-                while (!stoppingToken.IsCancellationRequested && await peerOutbox.GetNextItemAsync() is { } item)
-                {
-                    var task = ProcessItemThread(item, stoppingToken);
-                    tasks.Add(task);
-                }
-
-                var nextRun = await peerOutbox.NextRunAsync() ?? MaxSleepDuration;
-
-                tasks.RemoveAll(t => t.IsCompleted);
-
-                logger.LogDebug("{service} is sleeping for {SleepDuration}", GetType().Name, nextRun);
-                await SleepAsync(nextRun, stoppingToken);
             }
-
-            await Task.WhenAll(tasks);
+            finally
+            {
+                // Drain in-flight outbox tasks before exiting, even if OperationCanceledException was thrown somewhere
+                await Task.WhenAll(tasks);
+            }
         }
 
         /// <summary>
@@ -117,12 +123,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                     await RescheduleItem(peerOutbox, fileItem, nextRun);
                 }
             }
-            catch (OperationCanceledException oce)
+            catch (OperationCanceledException)
             {
                 await RescheduleItem(peerOutbox, fileItem, UnixTimeUtc.Now());
 
                 // Expected when using cancellation token
-                logger.LogInformation(oce, "ProcessItem Canceled for file:{file} and recipient: {r} ", fileItem.File, fileItem.Recipient);
+                logger.LogInformation("ProcessItem Canceled for file:{file} and recipient: {r} ", fileItem.File, fileItem.Recipient);
             }
             catch (OdinFileReadException fileReadException)
             {

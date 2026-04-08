@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Base;
 using Odin.Services.Membership.Connections.Verification;
@@ -18,18 +19,18 @@ namespace Odin.Services.Membership.Connections
         /// Verifies a connection is valid between two identities
         /// </summary>
         [Post(RootPath + "/verify-identity-connection")]
-        Task<ApiResponse<VerifyConnectionResponse>> VerifyConnection();
-        
+        Task<ApiResponse<VerifyConnectionResponse>> VerifyConnection(CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Verifies a connection is valid between two identities
         /// </summary>
         [Post(RootPath + "/update-remote-verification-hash")]
-        Task<ApiResponse<SyncRemoteVerificationHashResult>> UpdateRemoteVerificationHash(SharedSecretEncryptedPayload payload);
+        Task<ApiResponse<SyncRemoteVerificationHashResult>> UpdateRemoteVerificationHash(SharedSecretEncryptedPayload payload, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Makes an introduction between two identities
         /// </summary>
         [Post(RootPath + "/make-introduction")]
-        Task<ApiResponse<HttpContent>> MakeIntroduction([Body] SharedSecretEncryptedPayload request);
+        Task<ApiResponse<HttpContent>> MakeIntroduction([Body] SharedSecretEncryptedPayload request, CancellationToken cancellationToken = default);
     }
 }

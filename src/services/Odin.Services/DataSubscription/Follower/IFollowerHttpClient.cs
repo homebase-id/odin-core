@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Peer;
@@ -14,9 +15,9 @@ namespace Odin.Services.DataSubscription.Follower
         private const string RootPath = PeerApiPathConstants.FollowersV1;
 
         [Post(RootPath + "/follow")]
-        Task<ApiResponse<HttpContent>> Follow([Body] EccEncryptedPayload request);
+        Task<ApiResponse<HttpContent>> Follow([Body] EccEncryptedPayload request, CancellationToken cancellationToken = default);
 
         [Post(RootPath + "/unfollow")]
-        Task<ApiResponse<HttpContent>> Unfollow();
+        Task<ApiResponse<HttpContent>> Unfollow(CancellationToken cancellationToken = default);
     }
 }

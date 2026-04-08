@@ -80,7 +80,7 @@ public class SendReadReceiptOutboxWorker(
                 clientAuthToken,
                 request.FileSystemType);
 
-            return await client.MarkFileAsRead(request);
+            return await client.MarkFileAsRead(request, cancellationToken);
         }
 
         try

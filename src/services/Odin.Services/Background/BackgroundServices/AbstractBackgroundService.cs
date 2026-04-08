@@ -52,6 +52,8 @@ public abstract class AbstractBackgroundService(ILogger logger)
 
     // Call me in your ExecuteAsync method to sleep for a random duration between duration1 and duration2 (max 7 days)
     // Call InternalNotifyWorkAvailable() to wake up.
+    // Throws OperationCanceledException if stoppingToken is cancelled while sleeping — callers can rely on standard
+    // .NET cancellation semantics to exit their loops. ExecuteWithCatchAllAsync swallows the OCE at the top level.
     protected async Task SleepAsync(TimeSpan duration1, TimeSpan duration2, CancellationToken stoppingToken)
     {
         if (duration1 == TimeSpan.Zero && duration2 == TimeSpan.Zero)
@@ -90,12 +92,23 @@ public abstract class AbstractBackgroundService(ILogger logger)
             var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
             var delay = Task.Delay(duration, stoppingToken);
 
-            // Sleep for duration or until InternalNotifyWorkAvailable is called
+            // Sleep for duration or until InternalNotifyWorkAvailable is called.
             await Task.WhenAny(wakeUp, delay);
-        }
-        catch (OperationCanceledException)
-        {
-            // ignore - this is expected and will happen when stoppingToken is canceled
+
+            // DO NOT DELETE THE LINE BELOW.
+            //
+            // Task.WhenAny has a quirk: it returns Task<Task>, and the outer task completes as soon as
+            // any inner task reaches a terminal state (success, failure, OR cancellation). Awaiting the
+            // outer task hands us back the inner task AS A VALUE — it does NOT unwrap and rethrow.
+            // So when stoppingToken fires, `delay` transitions to Cancelled, WhenAny completes, the
+            // await above returns the cancelled task as a discarded value, and execution falls through
+            // here with NO exception thrown. Without the explicit check below, SleepAsync would silently
+            // return on cancellation and callers would have to re-check the token themselves — which is
+            // exactly the footgun this method used to have.
+            //
+            // To surface cancellation properly, we either need `await (await Task.WhenAny(...))` (ugly
+            // double-await) or an explicit ThrowIfCancellationRequested. We went with the latter.
+            stoppingToken.ThrowIfCancellationRequested();
         }
         finally
         {
