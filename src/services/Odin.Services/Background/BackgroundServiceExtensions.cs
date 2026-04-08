@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
@@ -101,13 +102,16 @@ public static class BackgroundServiceExtensions
     {
         var multitenantContainer = services.GetRequiredService<IMultiTenantContainer>();
         var registry = services.GetRequiredService<IIdentityRegistry>();
-        var registrations = registry.GetList().Result;
+        var registrations = await registry.GetList();
+
+        var shutdownTasks = new List<Task>();
         foreach (var registration in registrations.Results)
         {
             var scope = multitenantContainer.GetTenantScope(registration.PrimaryDomainName);
             var backgroundServiceManager = scope.Resolve<IBackgroundServiceManager>();
-            await backgroundServiceManager.ShutdownAsync();
+            shutdownTasks.Add(backgroundServiceManager.ShutdownAsync());
         }
+        await Task.WhenAll(shutdownTasks);
     }
     
     //

@@ -498,14 +498,12 @@ public static class HostExtensions
         logger.LogDebug("Starting clean up in {method}", nameof(BeforeApplicationStopping));
 
         //
-        // Shutdown all tenant background services
+        // Shutdown tenant and system background services in parallel
         //
-        services.ShutdownTenantBackgroundServices().BlockingWait();
-
-        //
-        // Shutdown system background services
-        //
-        services.ShutdownSystemBackgroundServices().BlockingWait();
+        Task.WhenAll(
+            services.ShutdownTenantBackgroundServices(),
+            services.ShutdownSystemBackgroundServices()
+        ).BlockingWait();
 
         //
         // Wait for any registered fire-and-forget tasks to complete

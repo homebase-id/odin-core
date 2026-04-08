@@ -19,11 +19,16 @@ public sealed class LastSeenBackgroundService(
         {
             await SleepAsync(saveInterval, stoppingToken);
             await SaveAsync();
-            if (!stoppingToken.IsCancellationRequested)
-            {
-                await DeleteOldDatabaseRecords();
-            }
+            await DeleteOldDatabaseRecords();
         }
+    }
+
+    //
+
+    protected override async Task StoppedAsync(CancellationToken stoppingToken)
+    {
+        // Persist any pending last-seen state before shutdown.
+        await SaveAsync();
     }
 
     //

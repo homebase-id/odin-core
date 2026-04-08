@@ -619,14 +619,20 @@ public class NotifyTestBackgroundService(ILogger logger) : BaseBackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            await SleepAsync(TimeSpan.FromHours(1), stoppingToken);
-            if (!stoppingToken.IsCancellationRequested)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                _notified = true;
+                await SleepAsync(TimeSpan.FromHours(1), stoppingToken);
+                if (!stoppingToken.IsCancellationRequested)
+                {
+                    _notified = true;
+                }
             }
         }
-        DidFinish = true;
+        finally
+        {
+            DidFinish = true;
+        }
     }
 }
