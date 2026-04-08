@@ -21,6 +21,8 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         private readonly ILogger<PushNotificationControllerBase> _logger =
             loggerFactory.CreateLogger<PushNotificationControllerBase>();
 
+        protected PushNotificationService NotificationService => notificationService;
+
         /// <summary />
         [HttpPost("subscribe")]
         public async Task<IActionResult> SubscribeDevice([FromBody] PushNotificationSubscribeDeviceRequest request)
@@ -85,7 +87,7 @@ namespace Odin.Hosting.Controllers.Base.Notifications
         /// Returns 404 if no subscription exists; use this to verify whether a push notification token is registered.
         /// </summary>
         [HttpGet("subscription")]
-        public async Task<IActionResult> GetSubscriptionDetails()
+        public virtual async Task<IActionResult> GetSubscriptionDetails()
         {
             
             var subscription = await notificationService.GetDeviceSubscriptionAsync(WebOdinContext);
