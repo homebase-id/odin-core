@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Time;
@@ -11,6 +12,40 @@ using Odin.Core.Time;
 namespace Odin.Core.Storage.DatabaseImport;
 
 // SEB:NOTE all this stuff in here is experimental and NOT production ready
+
+/*
+
+Intermittent bug:
+
+$ rm -r $HOME/tmp/dotyou
+Run dev backend in sqlite mode and local payload storage. It correctly creates the 4 dev hobbits.
+Login in FE with Frodo and Sam. Connect them. Send af few chat messages between them.
+Stop backend.
+
+$ mv $HOME/tmp/dotyou $HOME/tmp/dotyou-backup
+
+Clean PG database
+Run dev backend in pg mode and local payload storage. It correctly creates 0 dev hobbits.
+System tables have now been created in PG.
+Directory $HOME/tmp/dotyou has been created again (with no registrations)
+
+$ cp -r $HOME/tmp/dotyou-backup/tenants/payloads/* $HOME/tmp/dotyou/tenants/payloads/
+
+Run sqlite2pg-all command line program. The program imports all rows from system tables and all rows from each of the 4 hobbits.
+
+Run dev backend in pg mode and local payload storage. It correctly loads the 4 dev hobbits that were just imported.
+
+Login with Frodo in frontend. Error:
+
+2026-04-08T12:24:44.7827820+02:00 ERR 1dc14583-c1de-4567-a7a4-98dae1db07f5 frodo.dotyou.cloud frodo.dotyou.cloud Failed to update local read time for file: FileId=16c9d619-d06b-b800-919c-ab10df6efba0 Drive=9ff813af-f2d6-1e2f-9b9d-b189e72d1a11 (Cannot update local app data for non-existent file)
+Odin.Core.Exceptions.OdinClientException: Cannot update local app data for non-existent file
+  at Odin.Services.Drives.FileSystem.Base.DriveStorageServiceBase.UpdateLocalReadTime(InternalDriveFileId file, IOdinContext odinContext, Nullable`1 timestamp) in /home/seb/code/odin/odin-core/src/services/Odin.Services/Drives/FileSystem/Base/DriveStorageServiceBase.cs:line 1278
+  at Odin.Services.Peer.Outgoing.Drive.Transfer.PeerOutgoingTransferService.SendReadReceipt(List`1 files, IOdinContext odinContext, FileSystemType fileSystemType, Nullable`1 timestamp) in /home/seb/code/odin/odin-core/src/services/Odin.Services/Peer/Outgoing/Drive/Transfer/PeerOutgoingTransferService.cs:line 292
+
+Problems:
+- Why doesn't the file exist (it was explicitly copied above) ?
+- Why is frodo sending a read-receipt at this time? All chat messages were accounted for.
+ */
 
 public static class DataImporter
 {
@@ -57,6 +92,17 @@ public static class DataImporter
         bool commit)
     {
         logger.LogInformation("Importing all system database tables");
+
+        // Refuse to import into a non-empty target. Registrations is the canonical signal
+        // that the target has already had data imported into it; mixing a fresh import on
+        // top of existing rows would silently merge two unrelated installations.
+        var existingRegistrations = await targetSystemDatabase.Registrations.GetAllAsync();
+        if (existingRegistrations.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Refusing to import: target system database already contains "
+                + $"{existingRegistrations.Count} registration(s). The target must be empty.");
+        }
 
         await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
 
@@ -121,6 +167,36 @@ public static class DataImporter
             logger.LogInformation("Imported {count} rows for {identityDomain}", totalRows, identityDomain);
             identityTransaction.Commit();
         }
+    }
+
+    //
+    // Removes a single identity's footprint from the system database (Registrations + Certificates).
+    // Use this to undo the system-level rows that ImportAllSystemDataAsync committed for an
+    // identity whose subsequent ImportIdentityOnlyAsync failed — restoring the precondition the
+    // singular sqlite2pg-identity command needs to retry that identity.
+    //
+    // Both rows are deleted: the singular ImportIdentityAsync bailout checks Registrations, and
+    // ImportSystemTablesForIdentityAsync would later re-insert Certificates (which would conflict
+    // with a leftover row from the failed ImportAllAsync).
+    //
+    public static async Task DeleteIdentityFromSystemDataAsync(
+        ILogger logger,
+        SystemDatabase targetSystemDatabase,
+        Guid identityId,
+        string identityDomain)
+    {
+        logger.LogInformation("Cleaning up system rows for {identityDomain}", identityDomain);
+
+        await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
+
+        var registrationRows = await targetSystemDatabase.Registrations.DeleteAsync(identityId);
+        var certificateRows = await targetSystemDatabase.Certificates.DeleteAsync(new OdinId(identityDomain));
+
+        logger.LogInformation(
+            "Deleted {registrations} registration row(s) and {certificates} certificate row(s) for {identityDomain}",
+            registrationRows, certificateRows, identityDomain);
+
+        systemTransaction.Commit();
     }
 
     //
