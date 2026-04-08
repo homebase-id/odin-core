@@ -133,7 +133,7 @@ public class SendFileOutboxWorkerAsync(
                     recipient, clientAuthToken);
 
                 var response = await client.SendHostToHost(
-                    transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray());
+                    transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray(), cancellationToken);
 
                 logger.LogDebug("SendHostToHost END recipient:{recipient} status:{status}",
                     recipient.ToString(), response.StatusCode);

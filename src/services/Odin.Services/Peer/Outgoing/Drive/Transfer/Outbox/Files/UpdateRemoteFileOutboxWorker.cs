@@ -132,7 +132,7 @@ public class UpdateRemoteFileOutboxWorker(
                     recipient, clientAuthToken);
 
                 var response = await client.UpdatePeerFile(
-                    transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray());
+                    transferKeyHeaderStreamPart, metaDataStreamPart, payloadStreamParts.ToArray(), cancellationToken);
 
                 logger.LogDebug("UpdatePeerFile END");
 

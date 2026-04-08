@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Base;
@@ -12,11 +13,11 @@ namespace Odin.Services.Peer.AppNotification
         private const string RootPath = PeerApiPathConstants.AppNotificationsV1;
 
         [Post(RootPath + "/token")]
-        Task<ApiResponse<SharedSecretEncryptedPayload>> GetAppNotificationToken();
-        
-        
+        Task<ApiResponse<SharedSecretEncryptedPayload>> GetAppNotificationToken(CancellationToken cancellationToken = default);
+
+
         [Post(RootPath + "/enqueue-push-notification")]
-        Task<ApiResponse<PeerTransferResponse>> EnqueuePushNotification([Body] PushNotificationOutboxRecord request);
+        Task<ApiResponse<PeerTransferResponse>> EnqueuePushNotification([Body] PushNotificationOutboxRecord request, CancellationToken cancellationToken = default);
 
     }
 }

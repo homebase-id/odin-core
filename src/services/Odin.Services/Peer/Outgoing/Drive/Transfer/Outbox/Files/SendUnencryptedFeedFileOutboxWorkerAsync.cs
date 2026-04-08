@@ -189,7 +189,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
             .WithDelay(Configuration.Host.PeerOperationDelayMs)
             .WithCancellation(cancellationToken)
-            .ExecuteAsync(async () => { httpResponse = await client.SendFeedFileMetadata(request); });
+            .ExecuteAsync(async () => { httpResponse = await client.SendFeedFileMetadata(request, cancellationToken); });
 
         return httpResponse;
     }
@@ -215,7 +215,7 @@ public class SendUnencryptedFeedFileOutboxWorkerAsync(
             .WithAttempts(Configuration.Host.PeerOperationMaxAttempts)
             .WithDelay(Configuration.Host.PeerOperationDelayMs)
             .WithCancellation(cancellationToken)
-            .ExecuteAsync(async () => { httpResponse = await client.DeleteFeedMetadata(request); });
+            .ExecuteAsync(async () => { httpResponse = await client.DeleteFeedMetadata(request, cancellationToken); });
 
         return httpResponse;
     }

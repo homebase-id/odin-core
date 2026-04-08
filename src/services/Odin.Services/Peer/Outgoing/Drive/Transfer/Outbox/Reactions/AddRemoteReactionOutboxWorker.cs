@@ -80,7 +80,7 @@ public class AddRemoteReactionOutboxWorker(
                 clientAuthToken,
                 item.FileSystemType);
 
-            return await client.AddReaction(item);
+            return await client.AddReaction(item, cancellationToken);
         }
 
         try

@@ -80,7 +80,7 @@ public class DeleteRemoteReactionOutboxWorker(
                 clientAuthToken,
                 item.FileSystemType);
 
-            return await client.DeleteReaction(item);
+            return await client.DeleteReaction(item, cancellationToken);
         }
 
         try

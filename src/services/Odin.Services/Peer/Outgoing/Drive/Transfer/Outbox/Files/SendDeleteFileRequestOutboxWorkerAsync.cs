@@ -80,7 +80,7 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
                 clientAuthToken,
                 request.FileSystemType);
 
-            return await client.DeleteLinkedFile(request);
+            return await client.DeleteLinkedFile(request, cancellationToken);
         }
 
         try
