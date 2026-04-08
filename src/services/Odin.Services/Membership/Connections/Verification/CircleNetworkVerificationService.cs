@@ -177,7 +177,7 @@ public class CircleNetworkVerificationService(
             var client = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<ICircleNetworkPeerConnectionsClient>(recipient,
                 clientAuthToken.ToAuthenticationToken());
 
-            ApiResponse<VerifyConnectionResponse> response = await client.VerifyConnection();
+            ApiResponse<VerifyConnectionResponse> response = await client.VerifyConnection(cancellationToken);
             return response;
         }
     }
@@ -313,7 +313,7 @@ public class CircleNetworkVerificationService(
             var client = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<ICircleNetworkPeerConnectionsClient>(recipient,
                 clientAuthToken.ToAuthenticationToken());
 
-            return await client.UpdateRemoteVerificationHash(encryptedPayload);
+            return await client.UpdateRemoteVerificationHash(encryptedPayload, cancellationToken);
         }
 
         try

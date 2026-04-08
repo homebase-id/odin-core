@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Peer;
 using Refit;
@@ -10,8 +11,8 @@ namespace Odin.Services.EncryptionKeyService
     public interface IPeerEncryptionKeyServiceHttpClient
     {
         private const string Root = PeerApiPathConstants.EncryptionV1;
-                
+
         [Get(Root + "/ecc_public_key")]
-        Task<ApiResponse<GetEccPublicKeyResponse>> GetEccPublicKey(PublicPrivateKeyType keyType);
+        Task<ApiResponse<GetEccPublicKeyResponse>> GetEccPublicKey(PublicPrivateKeyType keyType, CancellationToken cancellationToken = default);
     }
 }

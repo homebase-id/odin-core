@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Fluff;
 using Odin.Services.Base;
@@ -16,9 +17,9 @@ namespace Odin.Services.Membership.Connections.Requests
         private const string RootPath = PeerApiPathConstants.InvitationsV1;
 
         [Post(RootPath + "/connect")]
-        Task<ApiResponse<HttpContent>> DeliverConnectionRequest([Body] EccEncryptedPayload request);
+        Task<ApiResponse<HttpContent>> DeliverConnectionRequest([Body] EccEncryptedPayload request, CancellationToken cancellationToken = default);
 
         [Post(RootPath + "/establishconnection")]
-        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply);
+        Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply, CancellationToken cancellationToken = default);
     }
 }

@@ -49,7 +49,7 @@ public class SendIntroductionOutboxWorker(
                     var client = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<ICircleNetworkPeerConnectionsClient>(recipient,
                         clientAuthToken.ToAuthenticationToken());
 
-                    response = await client.MakeIntroduction(encryptedPayload);
+                    response = await client.MakeIntroduction(encryptedPayload, cancellationToken);
                 });
 
             if (response.IsSuccessStatusCode)
