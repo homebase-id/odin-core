@@ -344,6 +344,26 @@ public class CommandLine
         }
 
         //
+        // Command line: Migrate ALL system + identity data from SQLite to PostgreSQL
+        //
+        // The system must be configured for PostgreSQL (target).
+        // Arguments:
+        // - System SQLite database file to import from
+        // - SQLite tenants root directory (the parent of the "registrations" folder).
+        //   Each identity database is expected at:
+        //     <tenants-root>/registrations/<identity-id>/headers/identity.db
+        // - "commit" to apply, anything else for a dry run
+        //
+        // examples:
+        //   dotnet run -- sqlite2pg-all /path/to/src/sys.db /path/to/src/tenants commit
+        //
+        if (args.Length >= 4 && args[0] == "sqlite2pg-all")
+        {
+            Sqlite2Pg.ImportAllAsync(_serviceProvider, args[1], args[2], args[3] == "commit").BlockingWait();
+            return (true, 0);
+        }
+
+        //
         // Command line: Create CDN CAT
         //
         // examples:

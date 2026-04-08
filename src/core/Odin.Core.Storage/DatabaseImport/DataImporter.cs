@@ -12,10 +12,11 @@ namespace Odin.Core.Storage.DatabaseImport;
 
 // SEB:NOTE all this stuff in here is experimental and NOT production ready
 
-public static class IdentityDataImporter
+public static class DataImporter
 {
     private const int PageSize = 100;
-    public static async Task ImportAsync(
+
+    public static async Task ImportIdentityAsync(
         ILogger logger,
         string identityDomain,
         SystemDatabase sourceSystemDatabase,
@@ -30,10 +31,107 @@ public static class IdentityDataImporter
         await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
 
         var totalRows = 0;
+        totalRows += await ImportSystemTablesForIdentityAsync(logger, identityDomain, sourceSystemDatabase, targetSystemDatabase);
+        totalRows += await ImportIdentityTablesAsync(logger, sourceIdentityDatabase, targetIdentityDatabase);
 
-        //
-        // System tables
-        //
+        if (!commit)
+        {
+            logger.LogInformation("Dry run: rolling back {count} rows", totalRows);
+        }
+        else
+        {
+            logger.LogInformation("Imported {count} total rows", totalRows);
+            systemTransaction.Commit();
+            identityTransaction.Commit();
+        }
+    }
+
+    //
+    // Imports ALL system database tables (no per-identity filtering).
+    // Use this when migrating an entire SQLite system database to PostgreSQL.
+    //
+    public static async Task ImportAllSystemDataAsync(
+        ILogger logger,
+        SystemDatabase sourceSystemDatabase,
+        SystemDatabase targetSystemDatabase,
+        bool commit)
+    {
+        logger.LogInformation("Importing all system database tables");
+
+        await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
+
+        var totalRows = 0;
+
+        // Jobs
+        totalRows += await ImportTableAsync(sourceSystemDatabase.Jobs.PagingByRowIdAsync,
+            r => targetSystemDatabase.Jobs.InsertAsync(r), logger, sourceSystemDatabase.Jobs.TableName);
+
+        // Certificates
+        totalRows += await ImportTableAsync(sourceSystemDatabase.Certificates.PagingByRowIdAsync,
+            r => targetSystemDatabase.Certificates.InsertAsync(r), logger, sourceSystemDatabase.Certificates.TableName);
+
+        // LastSeen
+        totalRows += await ImportTableAsync(sourceSystemDatabase.LastSeen.PagingByRowIdAsync,
+            r => targetSystemDatabase.LastSeen.InsertAsync(r), logger, sourceSystemDatabase.LastSeen.TableName);
+
+        // Registrations
+        totalRows += await ImportTableAsync(sourceSystemDatabase.Registrations.PagingByRowIdAsync,
+            r => targetSystemDatabase.Registrations.InsertAsync(r), logger, sourceSystemDatabase.Registrations.TableName);
+
+        // Settings
+        totalRows += await ImportTableAsync(sourceSystemDatabase.Settings.PagingByRowIdAsync,
+            r => targetSystemDatabase.Settings.InsertAsync(r), logger, sourceSystemDatabase.Settings.TableName);
+
+        if (!commit)
+        {
+            logger.LogInformation("Dry run: rolling back {count} system rows", totalRows);
+        }
+        else
+        {
+            logger.LogInformation("Imported {count} total system rows", totalRows);
+            systemTransaction.Commit();
+        }
+    }
+
+    //
+    // Imports a single identity's identity-database tables only (no system data).
+    // Use this in combination with ImportAllSystemDataAsync when migrating every
+    // identity from a SQLite source to a PostgreSQL target.
+    //
+    public static async Task ImportIdentityOnlyAsync(
+        ILogger logger,
+        string identityDomain,
+        IdentityDatabase sourceIdentityDatabase,
+        IdentityDatabase targetIdentityDatabase,
+        bool commit)
+    {
+        logger.LogInformation("Importing identity database {identityDomain}", identityDomain);
+
+        await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
+
+        var totalRows = await ImportIdentityTablesAsync(
+            logger, sourceIdentityDatabase, targetIdentityDatabase);
+
+        if (!commit)
+        {
+            logger.LogInformation("Dry run: rolling back {count} rows for {identityDomain}", totalRows, identityDomain);
+        }
+        else
+        {
+            logger.LogInformation("Imported {count} rows for {identityDomain}", totalRows, identityDomain);
+            identityTransaction.Commit();
+        }
+    }
+
+    //
+
+    private static async Task<int> ImportSystemTablesForIdentityAsync(
+        ILogger logger,
+        string identityDomain,
+        SystemDatabase sourceSystemDatabase,
+        SystemDatabase targetSystemDatabase)
+    {
+        var totalRows = 0;
 
         // Registrations (only the row for this identity)
         totalRows += await ImportTableAsync(sourceSystemDatabase.Registrations.PagingByRowIdAsync,
@@ -57,9 +155,17 @@ public static class IdentityDataImporter
                 return 0;
             }, logger, sourceSystemDatabase.Certificates.TableName);
 
-        //
-        // Identity tables
-        //
+        return totalRows;
+    }
+
+    //
+
+    private static async Task<int> ImportIdentityTablesAsync(
+        ILogger logger,
+        IdentityDatabase sourceIdentityDatabase,
+        IdentityDatabase targetIdentityDatabase)
+    {
+        var totalRows = 0;
 
         // Drives
         totalRows += await ImportTableAsync(sourceIdentityDatabase.Drives.PagingByRowIdAsync,
@@ -156,20 +262,7 @@ public static class IdentityDataImporter
                 return 0;
             }, logger, sourceIdentityDatabase.Nonce.TableName);
 
-        //
-        // Commit ?
-        //
-
-        if (!commit)
-        {
-            logger.LogInformation("Dry run: rolling back {count} rows", totalRows);
-        }
-        else
-        {
-            logger.LogInformation("Imported {count} total rows", totalRows);
-            systemTransaction.Commit();
-            identityTransaction.Commit();
-        }
+        return totalRows;
     }
 
     //
