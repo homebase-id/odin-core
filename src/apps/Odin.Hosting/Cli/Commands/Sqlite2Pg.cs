@@ -136,6 +136,12 @@ public static class Sqlite2Pg
         var targetIdentityMigrator = targetPgsqlIdentityScope.Resolve<IdentityMigrator>();
 
         //
+        // A fresh identity in the target PostgreSQL has version -1 (no per-identity migrations
+        // have been run yet). Bring it up to the latest schema before importing data.
+        //
+        await targetIdentityMigrator.MigrateAsync();
+
+        //
         // Check identity schema versions match
         //
 
@@ -281,39 +287,70 @@ public static class Sqlite2Pg
             logger.LogInformation("[{index}/{total}] Importing identity {identityDomain} ({identityId})",
                 identityIndex, identityJobs.Count, job.identityDomain, job.identityId);
 
-            await using var sourceSqliteIdentityScope = workContainer.BeginLifetimeScope(cb =>
+            try
             {
-                cb.RegisterInstance(new OdinIdentity(job.identityId, job.identityDomain)).SingleInstance();
-                cb.AddSqliteIdentityDatabaseServices(job.identityId, job.identityDbPath);
-            });
+                await using var sourceSqliteIdentityScope = workContainer.BeginLifetimeScope(cb =>
+                {
+                    cb.RegisterInstance(new OdinIdentity(job.identityId, job.identityDomain)).SingleInstance();
+                    cb.AddSqliteIdentityDatabaseServices(job.identityId, job.identityDbPath);
+                });
 
-            await using var targetPgsqlIdentityScope = workContainer.BeginLifetimeScope(cb =>
-            {
-                cb.RegisterInstance(new OdinIdentity(job.identityId, job.identityDomain)).SingleInstance();
-                cb.AddPgsqlIdentityDatabaseServices(job.identityId, config.Database.ConnectionString);
-            });
+                await using var targetPgsqlIdentityScope = workContainer.BeginLifetimeScope(cb =>
+                {
+                    cb.RegisterInstance(new OdinIdentity(job.identityId, job.identityDomain)).SingleInstance();
+                    cb.AddPgsqlIdentityDatabaseServices(job.identityId, config.Database.ConnectionString);
+                });
 
-            var sourceIdentityDb = sourceSqliteIdentityScope.Resolve<IdentityDatabase>();
-            var targetIdentityDb = targetPgsqlIdentityScope.Resolve<IdentityDatabase>();
-            var sourceIdentityMigrator = sourceSqliteIdentityScope.Resolve<IdentityMigrator>();
-            var targetIdentityMigrator = targetPgsqlIdentityScope.Resolve<IdentityMigrator>();
+                var sourceIdentityDb = sourceSqliteIdentityScope.Resolve<IdentityDatabase>();
+                var targetIdentityDb = targetPgsqlIdentityScope.Resolve<IdentityDatabase>();
+                var sourceIdentityMigrator = sourceSqliteIdentityScope.Resolve<IdentityMigrator>();
+                var targetIdentityMigrator = targetPgsqlIdentityScope.Resolve<IdentityMigrator>();
 
-            var sourceIdentityVersion = await sourceIdentityMigrator.GetCurrentVersionAsync();
-            var targetIdentityVersion = await targetIdentityMigrator.GetCurrentVersionAsync();
+                // A fresh identity in the target PostgreSQL has version -1 (no per-identity
+                // migrations have been run yet). Bring it up to the latest schema before
+                // importing data.
+                await targetIdentityMigrator.MigrateAsync();
 
-            if (sourceIdentityVersion != targetIdentityVersion)
-            {
-                throw new InvalidOperationException(
-                    $"Identity schema version mismatch for {job.identityDomain}: source is at {sourceIdentityVersion}, target is at {targetIdentityVersion}. " +
-                    "Both databases must be at the same schema version before importing data.");
+                var sourceIdentityVersion = await sourceIdentityMigrator.GetCurrentVersionAsync();
+                var targetIdentityVersion = await targetIdentityMigrator.GetCurrentVersionAsync();
+
+                if (sourceIdentityVersion != targetIdentityVersion)
+                {
+                    throw new InvalidOperationException(
+                        $"Identity schema version mismatch for {job.identityDomain}: source is at {sourceIdentityVersion}, target is at {targetIdentityVersion}. " +
+                        "Both databases must be at the same schema version before importing data.");
+                }
+
+                await DataImporter.ImportIdentityOnlyAsync(
+                    logger,
+                    job.identityDomain,
+                    sourceIdentityDb,
+                    targetIdentityDb,
+                    commit);
             }
-
-            await DataImporter.ImportIdentityOnlyAsync(
-                logger,
-                job.identityDomain,
-                sourceIdentityDb,
-                targetIdentityDb,
-                commit);
+            catch (Exception)
+            {
+                // ImportAllSystemDataAsync already committed this identity's Registrations +
+                // Certificates rows before the per-identity loop began. Roll those back so the
+                // failed identity is invisible in the target system database, restoring the
+                // precondition the singular sqlite2pg-identity command needs to retry it.
+                // Cleanup is best-effort; never let it mask the original exception.
+                if (commit)
+                {
+                    try
+                    {
+                        await DataImporter.DeleteIdentityFromSystemDataAsync(
+                            logger, targetSystemDb, job.identityId, job.identityDomain);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        logger.LogError(cleanupEx,
+                            "Cleanup of system rows for {identityDomain} failed; manual cleanup required",
+                            job.identityDomain);
+                    }
+                }
+                throw;
+            }
         }
     }
 
