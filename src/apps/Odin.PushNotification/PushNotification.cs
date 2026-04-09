@@ -56,7 +56,12 @@ public class PushNotification : IPushNotification
                 Aps = new Aps
                 {
                     ContentAvailable = true,
-                    MutableContent = true
+                    MutableContent = true,
+                    Alert = new ApsAlert
+                    {
+                        Title = request.Title,
+                        Body = request.Body,
+                    },
                 },
             }
         };
