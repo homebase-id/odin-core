@@ -23,7 +23,7 @@ public class PushNotification : IPushNotification
 
         var firebaseApp = FirebaseApp.Create(new AppOptions
         {
-            Credential = GoogleCredential.FromFile(firebaseCredentialsFile),
+            Credential = CredentialFactory.FromFile<ServiceAccountCredential>(firebaseCredentialsFile).ToGoogleCredential()
         });
 
         _firebaseMessaging = FirebaseMessaging.GetMessaging(firebaseApp);
