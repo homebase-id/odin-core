@@ -1,4 +1,5 @@
 using FirebaseAdmin;
+using FirebaseAdmin.Messaging;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
@@ -67,9 +68,18 @@ app.MapPost("/message/v1", async (
         IValidator<DevicePushNotificationRequestV1> validator,
         [FromBody] DevicePushNotificationRequestV1 request) =>
     {
+        logger.LogInformation(
+            "Received push request id {id} platform {platform} from {from} to {to} origin {origin} device {device}",
+            request.Id, request.DevicePlatform, request.FromDomain, request.ToDomain, request.OriginDomain,
+            request.DeviceToken);
+
         var validationResult = validator.Validate(request);
         if (!validationResult.IsValid)
         {
+            logger.LogWarning(
+                "Validation failed for push request {id} from {from}: {errors}",
+                request.Id, request.FromDomain,
+                string.Join("; ", validationResult.Errors.Select(e => $"{e.PropertyName}: {e.ErrorMessage}")));
             return Results.BadRequest(validationResult.Errors);
         }
 
@@ -82,8 +92,17 @@ app.MapPost("/message/v1", async (
             var isValidSignature = await signatureCheck.Validate(request.OriginDomain, request.Signature, request.Id);
             if (!isValidSignature)
             {
+                logger.LogWarning(
+                    "Invalid signature on push request {id} from origin {origin}",
+                    request.Id, request.OriginDomain);
                 return Results.BadRequest("Invalid message signature");
             }
+        }
+        else
+        {
+            logger.LogDebug(
+                "Skipping signature check for development origin {origin} on request {id}",
+                request.OriginDomain, request.Id);
         }
 
         //
@@ -96,16 +115,43 @@ app.MapPost("/message/v1", async (
                 request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, response);
             return Results.Ok("Message sent successfully to Firebase.");
         }
+        catch (FirebaseMessagingException e)
+        {
+            var httpStatus = e.HttpResponse?.StatusCode.ToString() ?? "n/a";
+            string? httpBody = null;
+            if (e.HttpResponse?.Content != null)
+            {
+                try
+                {
+                    httpBody = await e.HttpResponse.Content.ReadAsStringAsync();
+                }
+                catch (Exception readEx)
+                {
+                    logger.LogDebug(readEx, "Could not read FCM response body for request {id}", request.Id);
+                }
+            }
+
+            logger.LogError(e,
+                "Firebase send failed for {platform} message {id} from {from} to {to} device {device}: " +
+                "errorCode={errorCode} messagingErrorCode={messagingErrorCode} fcmStatus={fcmStatus} fcmBody={fcmBody} message={message}",
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken,
+                e.ErrorCode, e.MessagingErrorCode, httpStatus, httpBody, e.Message);
+
+            return Results.Problem(type: e.ErrorCode.ToString(), detail: e.Message, statusCode: 502);
+        }
         catch (FirebaseException e)
         {
-            logger.LogError("Error sending {platform} message with id {id} from {from} to {to} for device {device}: {code} - {error}",
-                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, e.ErrorCode, e.Message);
+            logger.LogError(e,
+                "Firebase send failed (non-messaging) for {platform} message {id} from {from} to {to} device {device}: " +
+                "errorCode={errorCode} message={message}",
+                request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken,
+                e.ErrorCode, e.Message);
             return Results.Problem(type: e.ErrorCode.ToString(), detail: e.Message, statusCode: 502);
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error sending message: {error}", e.Message);
-            logger.LogError(e, "Error sending {platform} message with id {id} from {from} to {to} for device {device}: {error}",
+            logger.LogError(e,
+                "Unexpected error sending {platform} message {id} from {from} to {to} for device {device}: {error}",
                 request.DevicePlatform, request.Id, request.FromDomain, request.ToDomain, request.DeviceToken, e.Message);
             return Results.Problem("An internal error occurred.", statusCode: 500);
         }
