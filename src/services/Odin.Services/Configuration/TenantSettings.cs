@@ -22,6 +22,7 @@ public class TenantSettings
         ConnectedIdentitiesCanReactOnAnonymousDrives = true,
         ConnectedIdentitiesCanCommentOnAnonymousDrives = true,
         DisableAutoAcceptIntroductionsForTests = false,
+        DisableAutoAcceptConnectionRequests = false,
         SendMonthlySecurityHealthReport = false
     };
 
@@ -53,6 +54,13 @@ public class TenantSettings
     public bool SendMonthlySecurityHealthReport { get; set; }
     
     public bool DisableAutoAcceptIntroductions { get; set; }
+
+    /// <summary>
+    /// When true, incoming connection requests with origin <see cref="Membership.Connections.Requests.ConnectionRequestOrigin.IdentityOwnerApp"/>
+    /// are NOT auto-accepted; they land in the pending list for manual acceptance.
+    /// Defaults to true so existing identities preserve current (manual-accept) behavior.
+    /// </summary>
+    public bool DisableAutoAcceptConnectionRequests { get; set; } = false;
 
     public bool ConnectedIdentitiesCanCommentOnAnonymousDrives { get; set; }
 

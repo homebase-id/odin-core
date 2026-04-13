@@ -9,7 +9,6 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
@@ -300,6 +299,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 _logger.LogDebug("Auto-accept connection request from {sender} since there is already an ICR", sender);
                 await AutoAcceptAsync(sender, newContext);
                 return;
+            }
+
+            if (!_tenantContext.Settings.DisableAutoAcceptConnectionRequests)
+            {
+                var pending = await _circleNetworkRequestService.GetPendingRequestAsync(sender, newContext);
+                if (pending?.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
+                {
+                    _logger.LogDebug("Auto-accept app-initiated connection request from {sender}", sender);
+                    await AutoAcceptAsync(sender, newContext);
+                    return;
+                }
             }
 
             _logger.LogDebug("Auto-accept was not executed for request from {sender}; no matching reasons to accept", sender);
