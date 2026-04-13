@@ -47,6 +47,14 @@ public static class SystemAppConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
+                    Drive = SystemDriveConstants.FeedDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
                     Drive = SystemDriveConstants.ChatDrive,
                     Permission = DrivePermission.ReadWrite
                 }

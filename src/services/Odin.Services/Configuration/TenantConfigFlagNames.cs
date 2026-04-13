@@ -34,7 +34,10 @@ public enum TenantConfigFlagNames
     
     /// <summary/>
     DisableAutoAcceptIntroductionsForTests,
-    
+
+    /// <summary/>
+    DisableAutoAcceptConnectionRequests,
+
     /// <summary/>
     SendMonthlySecurityHealthReport
 }

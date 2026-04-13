@@ -13,7 +13,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Fluff;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
@@ -183,6 +182,12 @@ namespace Odin.Services.Membership.Connections.Requests
                 }
             }
 
+            if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
+            {
+                await HandleConnectionRequestInternalForAppAsync(header, odinContext);
+                return;
+            }
+
             if (header.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
                 await HandleConnectionRequestInternalForIntroductionAsync(header, odinContext);
@@ -238,7 +243,7 @@ namespace Odin.Services.Membership.Connections.Requests
             };
 
             await UpsertPendingConnectionRequestAsync(request);
-            
+
             await mediator.Publish(new ConnectionRequestReceivedNotification()
             {
                 Sender = request.SenderOdinId,
@@ -303,7 +308,8 @@ namespace Odin.Services.Membership.Connections.Requests
             var incomingRequest = await GetPendingRequestAsync((OdinId)header.Sender, odinContext);
             if (null == incomingRequest)
             {
-                throw new OdinClientException($"No pending request was found from sender [{header.Sender}]", OdinClientErrorCode.IncomingRequestNotFound);
+                throw new OdinClientException($"No pending request was found from sender [{header.Sender}]",
+                    OdinClientErrorCode.IncomingRequestNotFound);
             }
 
             incomingRequest.Validate();
@@ -336,8 +342,9 @@ namespace Odin.Services.Membership.Connections.Requests
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
             accessGrant ??= new AccessExchangeGrant()
             {
-                MasterKeyEncryptedKeyStoreKey =
-                    odinContext.Caller.HasMasterKey ? new SymmetricKeyEncryptedAes(masterKey, keyStoreKey) : null,
+                MasterKeyEncryptedKeyStoreKey = odinContext.Caller.HasMasterKey
+                    ? new SymmetricKeyEncryptedAes(masterKey, keyStoreKey)
+                    : null,
                 IsRevoked = false,
                 CircleGrants = await circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
                     keyStoreKey,
@@ -410,13 +417,14 @@ namespace Odin.Services.Membership.Connections.Requests
                     .ExecuteAsync(async () =>
                     {
                         var json = OdinSystemSerializer.Serialize(acceptedReq);
-                        var encryptedPayload =
-                            SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(), remoteClientAccessToken.SharedSecret);
+                        var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(json.ToUtf8ByteArray(),
+                            remoteClientAccessToken.SharedSecret);
                         var d = new Dictionary<string, string>()
                         {
                             { OdinHeaderNames.EstablishConnectionAuthToken, authenticationToken64 }
                         };
-                        var client = await _odinHttpClientFactory.CreateClientAsync<ICircleNetworkRequestHttpClient>(senderOdinId, headers: d);
+                        var client = await _odinHttpClientFactory.CreateClientAsync<ICircleNetworkRequestHttpClient>(senderOdinId,
+                            headers: d);
 
                         httpResponse = await client.EstablishConnection(encryptedPayload);
                     });
@@ -481,7 +489,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     // this will always be true due to the fact the record is removed AFTER the request is sent AND the fact the 
                     // establish connection is called as part of the outgoing request.
                 }
-                
+
                 // this can also happen if the connection was already approved via auto-accept 
                 var existingConnection = await _cns.GetIcrAsync(caller, odinContext, true);
                 if (existingConnection.IsConnected() && existingConnection.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
@@ -798,6 +806,50 @@ namespace Odin.Services.Membership.Connections.Requests
             }
         }
 
+        private async Task HandleConnectionRequestInternalForAppAsync(ConnectionRequestHeader header, IOdinContext ctx)
+        {
+            ctx.Caller.AssertCallerIsOwner();
+            var odinContext = OdinContextUpgrades.UsePermissions(ctx, PermissionKeys.ReadCircleMembership);
+
+            var recipient = (OdinId)header.Recipient;
+
+            logger.LogDebug("Sending app-connection request to {recipient}; meaning there is no master key", recipient);
+
+            var incomingRequest = await this.GetPendingRequestAsync(recipient, odinContext);
+            if (incomingRequest != null)
+            {
+                // just accept the request; using the ACL info (header.CircleIds, etc.)
+                var ac = new AcceptRequestHeader
+                {
+                    Sender = recipient,
+                    CircleIds = header.CircleIds,
+                    ContactData = header.ContactData
+                };
+
+                await this.AcceptConnectionRequestAsync(ac, tryOverrideAcl: false, odinContext);
+                return;
+            }
+
+            var existingOutgoingRequest = await this.GetSentRequestInternalAsync(recipient);
+            if (null == existingOutgoingRequest)
+            {
+                await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+                return;
+            }
+            
+            var existingRequestOrigin = existingOutgoingRequest.ConnectionRequestOrigin;
+            if (existingRequestOrigin == ConnectionRequestOrigin.Introduction)
+            {
+                // overwrite with the new app-initiated request and resend
+                await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+            }
+            else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner || existingRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
+            {
+                // a full owner-console request already exists; resend using its circles
+                throw new OdinClientException("There is an existing outgoing connection request", OdinClientErrorCode.ConnectionRequestAlreadySent);
+            }
+        }
+
         private async Task CreateAndSendRequestInternalAsync(ConnectionRequestHeader header, SensitiveByteArray masterKey,
             IOdinContext odinContext)
         {
@@ -954,7 +1006,7 @@ namespace Odin.Services.Membership.Connections.Requests
             else
             {
                 logger.LogDebug("TrySendRequestInternal to {recipient} failed the first time. " +
-                                 "Invalidating public key cache and retrying", recipient);
+                                "Invalidating public key cache and retrying", recipient);
 
                 await publicPrivateKeyService.InvalidateRecipientEccPublicKeyAsync(keyType, recipient);
                 sendResult1 = await Send();
@@ -989,9 +1041,9 @@ namespace Odin.Services.Membership.Connections.Requests
 
         private PublicPrivateKeyType GetPublicPrivateKeyType(ConnectionRequestOrigin origin)
         {
-            return origin == ConnectionRequestOrigin.Introduction
-                ? PublicPrivateKeyType.OfflineKey
-                : PublicPrivateKeyType.OnlineIcrEncryptedKey;
+            return origin == ConnectionRequestOrigin.IdentityOwner
+                ? PublicPrivateKeyType.OnlineIcrEncryptedKey
+                : PublicPrivateKeyType.OfflineKey;
         }
 
         private static string CacheKey(Guid uuid)

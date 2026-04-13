@@ -18,6 +18,7 @@ public static class CircleNetworkUtils
                 list.EnsureItem(SystemCircleConstants.ConfirmedConnectionsCircleId);
                 break;
             case ConnectionRequestOrigin.Introduction:
+            case ConnectionRequestOrigin.IdentityOwnerApp:
                 list.EnsureItem(SystemCircleConstants.AutoConnectionsCircleId);
                 break;
         }

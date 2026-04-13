@@ -12,5 +12,10 @@ public enum ConnectionRequestOrigin
     /// <summary>
     /// Indicates the connection request came because another identity introduce you to the recipient
     /// </summary>
-    Introduction = 2
+    Introduction = 2,
+    
+    /// <summary>
+    /// The request was sent by an app from the owner; meaning there is no master key at the time of sending
+    /// </summary>
+    IdentityOwnerApp = 3
 }
