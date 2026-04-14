@@ -151,7 +151,7 @@ public class PayloadS3ReaderWriter(ILogger<PayloadS3ReaderWriter> logger, IS3Pay
             .WithExponentialBackoff(TimeSpan.FromSeconds(5))
             .WithCancellation(cancellationToken)
             .WithLogging(logger)
-            .WithoutWrapper()
+            .WithoutExceptionWrapper()
             .RetryOnPredicate((ex, _) =>
             {
                 if (ex.InnerException is not AmazonS3Exception s3Ex)
