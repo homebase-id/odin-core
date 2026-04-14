@@ -6,12 +6,14 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Util;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Capi;
@@ -31,7 +33,8 @@ public class PeerCapiAuthenticationHandler(
     ICorrelationContext correlationContext,
     ITenantLevel2Cache<PeerCapiAuthenticationHandler> cache,
     IDynamicHttpClientFactory httpClientFactory,
-    OdinIdentity odinIdentity)
+    OdinIdentity odinIdentity,
+    IHostApplicationLifetime applicationLifetime)
     : AuthenticationHandler<PeerCapiAuthenticationSchemeOptions>(options, loggerFactory, encoder)
 {
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
@@ -66,18 +69,35 @@ public class PeerCapiAuthenticationHandler(
             {
                 cfg.AllowUntrustedServerCertificate = config.CertificateRenewal.UseCertificateAuthorityProductionServers == false;
             });
-            httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, "here-comes-the-callback");
+            httpClient.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName, "here-comes-the-callback"); // Required dummy value
             httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.CorrelationId, correlationContext.Id);
 
             HttpResponseMessage response;
             try
             {
-                response = await httpClient.GetAsync(url);
+                response = await TryRetry.Create()
+                    .WithAttempts(3)
+                    .WithDelay(TimeSpan.FromSeconds(1))
+                    .WithCancellation(applicationLifetime.ApplicationStopping)
+                    .RetryOnPredicate((ex, _) => ex is HttpRequestException httpEx && httpEx.Message.Contains("Connection refused"))
+                    .ExecuteAsync(async () => await httpClient.GetAsync(url, applicationLifetime.ApplicationStopping));
+            }
+            catch (OperationCanceledException ex)
+            {
+                return AuthenticateResult.Fail(ex.Message);
             }
             catch (HttpRequestException ex) when (ex.Message.Contains("SSL connection could not be established"))
             {
                 // Silently catch SSL errors and return an authentication failure,
                 // as this likely indicates a missing or an untrusted certificate on the remote peer.
+                return AuthenticateResult.Fail(ex.Message);
+            }
+            catch (HttpRequestException ex) when (ex.Message.Contains("Connection refused"))
+            {
+                // Silently catch connection refused errors and return an authentication failure.
+                // The remote is gone and no point letting it bubble up to log an error we can't do anything about.
+                var logger = _loggerFactory.CreateLogger<PeerCapiAuthenticationHandler>();
+                logger.LogInformation("PeerCapi authentication failed: connection refused");
                 return AuthenticateResult.Fail(ex.Message);
             }
 

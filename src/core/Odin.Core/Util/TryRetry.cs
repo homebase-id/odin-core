@@ -164,9 +164,9 @@ public class RetryBuilder
     }
 
     /// <summary>
-    /// Sets a logger to log retry attempts
+    /// Don't wrap exceptions in TryRetryException
     /// </summary>
-    public RetryBuilder WithoutWrapper()
+    public RetryBuilder WithoutExceptionWrapper()
     {
         _wrapException = false;
         return this;

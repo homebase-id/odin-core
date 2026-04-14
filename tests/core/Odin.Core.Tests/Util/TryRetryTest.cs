@@ -769,7 +769,7 @@ public class TryRetryTests
     {
         var cts = new CancellationTokenSource();
         cts.Cancel();
-        var builder = TryRetry.Create().WithoutWrapper();
+        var builder = TryRetry.Create().WithoutExceptionWrapper();
 
         Assert.Throws<IOException>(() =>
         {
