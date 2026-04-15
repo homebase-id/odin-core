@@ -9,7 +9,8 @@
       },
       "XXcommandLineArgs": "sqlite2pg-identity sam.dotyou.cloud /home/seb/tmp/dotyou-backup/system/sys.db /home/seb/tmp/dotyou-backup/tenants/registrations/20000000-0000-0000-0000-000000000002/headers/identity.db commit",
       "CCcommandLineArgs": "sqlite2pg-all /home/seb/tmp/dotyou-backup/system/sys.db /home/seb/tmp/dotyou-backup/tenants commit",
-      "CCCcommandLineArgs": "sqlite2pg-all /home/seb/tmp/bleeding/system/sys.db /home/seb/tmp/bleeding/tenants commit"
+      "CCCcommandLineArgs": "sqlite2pg-all /home/seb/tmp/bleeding/system/sys.db /home/seb/tmp/bleeding/tenants commit",
+      "CCCCcommandLineArgs": "pg-ping"
     }
   }
 }
