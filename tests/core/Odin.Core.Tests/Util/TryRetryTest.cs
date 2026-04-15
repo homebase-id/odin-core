@@ -270,6 +270,41 @@ public class TryRetryTests
     }
 
     [Test]
+    public void Execute_Void_RetryOnPredicate_GivesUpAfterFirstAttempt()
+    {
+        var callCount = 0;
+        var predicateCalls = 0;
+        var builder = TryRetry
+            .Create()
+            .WithAttempts(3)
+            .WithDelay(TimeSpan.FromMilliseconds(10))
+            .WithLogging(_loggerMock.Object)
+            .RetryOnPredicate((ex, attempt) =>
+            {
+                predicateCalls++;
+                return false;
+            });
+
+        var ex = Assert.Throws<TryRetryException>(() =>
+        {
+            builder.Execute(() =>
+            {
+                callCount++;
+                throw new IOException("Test failure");
+            });
+        });
+
+        Assert.That(callCount, Is.EqualTo(1));
+        Assert.That(predicateCalls, Is.EqualTo(1));
+        Assert.That(ex!.InnerException, Is.TypeOf<IOException>());
+
+        VerifyLog(LogLevel.Trace, "Executing attempt 1 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Attempt 1 succeeded", Times.Never());
+        VerifyLog(LogLevel.Warning, "Retry: giving up after 1 attempt(s): 'Test failure'", Times.Once());
+        VerifyAnyLog(LogLevel.Warning, Times.Once());
+    }
+
+    [Test]
     public void Execute_Void_RetryOnPredicate_DoesNotRetryException()
     {
         var callCount = 0;
@@ -644,13 +679,63 @@ public class TryRetryTests
         cts.Cancel();
         var builder = TryRetry.Create().WithCancellation(cts.Token);
 
-        Assert.ThrowsAsync<TaskCanceledException>(async () =>
+        var ex = Assert.ThrowsAsync<OperationCanceledException>(async () =>
             await builder.ExecuteAsync(async ct =>
             {
                 Assert.That(ct.IsCancellationRequested, Is.False); // Well, we never get this far...
                 await Task.CompletedTask;
                 return "Success";
             }));
+        Assert.That(ex!.CancellationToken, Is.EqualTo(cts.Token));
+    }
+
+    [Test]
+    public void ExecuteAsync_ReturnValue_NonRetryableException_SurfacesWrappedException()
+    {
+        // Regression: previously the generic ExecuteAsync<T> used ContinueWith(OnlyOnRanToCompletion),
+        // which turned faulted tasks into Canceled tasks and made non-retryable exceptions surface
+        // as TaskCanceledException instead of the original failure.
+        var builder = TryRetry
+            .Create()
+            .WithAttempts(3)
+            .WithDelay(TimeSpan.FromMilliseconds(10))
+            .RetryOnPredicate((_, _) => false);
+
+        var ex = Assert.ThrowsAsync<TryRetryException>(async () =>
+            await builder.ExecuteAsync(async () =>
+            {
+                await Task.CompletedTask;
+                throw new IOException("not found");
+#pragma warning disable CS0162
+                return "unreachable";
+#pragma warning restore CS0162
+            }));
+
+        Assert.That(ex!.InnerException, Is.TypeOf<IOException>());
+        Assert.That(ex!.InnerException!.Message, Is.EqualTo("not found"));
+    }
+
+    [Test]
+    public void ExecuteAsync_ReturnValue_NonRetryableException_WithoutWrapper_SurfacesOriginalException()
+    {
+        var builder = TryRetry
+            .Create()
+            .WithAttempts(3)
+            .WithDelay(TimeSpan.FromMilliseconds(10))
+            .WithoutExceptionWrapper()
+            .RetryOnPredicate((_, _) => false);
+
+        var ex = Assert.ThrowsAsync<IOException>(async () =>
+            await builder.ExecuteAsync(async () =>
+            {
+                await Task.CompletedTask;
+                throw new IOException("not found");
+#pragma warning disable CS0162
+                return "unreachable";
+#pragma warning restore CS0162
+            }));
+
+        Assert.That(ex!.Message, Is.EqualTo("not found"));
     }
 
     [Test]
@@ -778,6 +863,26 @@ public class TryRetryTests
     }
 
     // Logging Tests
+    private void VerifyLog(LogLevel level, string message, Times times)
+    {
+        _loggerMock.Verify(l => l.Log(
+            level,
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((v, _) => v.ToString() == message),
+            It.IsAny<Exception>(),
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()), times);
+    }
+
+    private void VerifyAnyLog(LogLevel level, Times times)
+    {
+        _loggerMock.Verify(l => l.Log(
+            level,
+            It.IsAny<EventId>(),
+            It.IsAny<It.IsAnyType>(),
+            It.IsAny<Exception>(),
+            It.IsAny<Func<It.IsAnyType, Exception, string>>()), times);
+    }
+
     [Test]
     public void Execute_Void_WithLogger_LogsAttemptsAndSuccess()
     {
@@ -786,11 +891,10 @@ public class TryRetryTests
 
         builder.Execute(() => callCount++);
 
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Trace),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(2)); // Start and success logs
+        VerifyLog(LogLevel.Trace, "Executing attempt 1 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Attempt 1 succeeded", Times.Once());
+        VerifyAnyLog(LogLevel.Warning, Times.Never());
+        VerifyAnyLog(LogLevel.Error, Times.Never());
     }
 
     [Test]
@@ -803,21 +907,15 @@ public class TryRetryTests
             builder.Execute(() => throw new IOException("Test failure"));
         });
 
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Trace),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.AtLeast(3)); // Start attempts
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Warning),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(3)); // Retry warnings
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Error),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never); // Final failure
+        VerifyLog(LogLevel.Trace, "Executing attempt 1 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Executing attempt 2 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Executing attempt 3 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Attempt 3 succeeded", Times.Never());
+        VerifyLog(LogLevel.Warning, "Attempt 1 of 3 failed: 'Test failure' - retrying in 10ms", Times.Once());
+        VerifyLog(LogLevel.Warning, "Attempt 2 of 3 failed: 'Test failure' - retrying in 10ms", Times.Once());
+        VerifyLog(LogLevel.Warning, "Retry: giving up after 3 attempt(s): 'Test failure'", Times.Once());
+        VerifyAnyLog(LogLevel.Warning, Times.Exactly(3));
+        VerifyAnyLog(LogLevel.Error, Times.Never());
     }
 
     [Test]
@@ -830,11 +928,10 @@ public class TryRetryTests
             await Task.CompletedTask;
         });
 
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Trace),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(2)); // Start and success logs
+        VerifyLog(LogLevel.Trace, "Executing attempt 1 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Attempt 1 succeeded", Times.Once());
+        VerifyAnyLog(LogLevel.Warning, Times.Never());
+        VerifyAnyLog(LogLevel.Error, Times.Never());
     }
 
     [Test]
@@ -847,20 +944,14 @@ public class TryRetryTests
             await builder.ExecuteAsync(_ => throw new IOException("Test failure"));
         });
 
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Trace),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.AtLeast(3)); // Start attempts
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Warning),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Exactly(3)); // Retry warnings
-        _loggerMock.Verify(l => l.Log(It.Is<LogLevel>(level => level == LogLevel.Error),
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never); // Final failure
+        VerifyLog(LogLevel.Trace, "Executing attempt 1 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Executing attempt 2 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Executing attempt 3 of 3", Times.Once());
+        VerifyLog(LogLevel.Trace, "Attempt 3 succeeded", Times.Never());
+        VerifyLog(LogLevel.Warning, "Attempt 1 of 3 failed: 'Test failure' - retrying in 10ms", Times.Once());
+        VerifyLog(LogLevel.Warning, "Attempt 2 of 3 failed: 'Test failure' - retrying in 10ms", Times.Once());
+        VerifyLog(LogLevel.Warning, "Retry: giving up after 3 attempt(s): 'Test failure'", Times.Once());
+        VerifyAnyLog(LogLevel.Warning, Times.Exactly(3));
+        VerifyAnyLog(LogLevel.Error, Times.Never());
     }
 }
