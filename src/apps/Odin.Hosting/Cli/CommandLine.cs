@@ -364,6 +364,18 @@ public class CommandLine
         }
 
         //
+        // Command line: Ping configured PG database connection
+        //
+        // examples:
+        //   dotnet run -- pg-ping
+        //
+        if (args.Length >= 1 && args[0] == "pg-ping")
+        {
+            PgPing.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
+        //
         // Command line: Create CDN CAT
         //
         // examples:
