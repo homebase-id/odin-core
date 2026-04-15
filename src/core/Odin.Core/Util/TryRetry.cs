@@ -314,7 +314,7 @@ public class RetryBuilder
             }
             catch (Exception e)
             {
-                _logger?.LogWarning("All {attempts} retry attempts failed: '{message}'", attempt, e.Message);
+                _logger?.LogWarning("Retry: giving up after {attempts} attempt(s): '{message}'", attempt, e.Message);
                 if (_wrapException)
                 {
                     throw new TryRetryException($"{e.Message} (giving up after {attempt} attempt(s))", e);
@@ -369,7 +369,7 @@ public class RetryBuilder
             }
             catch (Exception e)
             {
-                _logger?.LogWarning("All {attempts} retry attempts failed: '{message}'", _attempts, e.Message);
+                _logger?.LogWarning("Retry: giving up after {attempts} attempt(s): '{message}'", attempt, e.Message);
                 throw new TryRetryException($"{e.Message} (giving up after {_attempts} attempt(s))", e);
             }
         }
