@@ -26,20 +26,10 @@ public class PushNotificationSubscription
             AccessRegistrationId = this.AccessRegistrationId,
             SubscriptionStartedDate = this.SubscriptionStartedDate,
             ExpirationTime = this.ExpirationTime,
-        };
-    }
-
-    public RedactedPushNotificationSubscriptionV2 RedactedV2()
-    {
-        return new RedactedPushNotificationSubscriptionV2()
-        {
-            FriendlyName = this.FriendlyName,
-            AccessRegistrationId = this.AccessRegistrationId,
-            SubscriptionStartedDate = this.SubscriptionStartedDate,
-            ExpirationTime = this.ExpirationTime,
             FirebaseDeviceToken = this.FirebaseDeviceToken,
         };
     }
+
 }
 
 public class RedactedPushNotificationSubscription
@@ -50,9 +40,6 @@ public class RedactedPushNotificationSubscription
 
     public UnixTimeUtc ExpirationTime { get; set; }
     public UnixTimeUtc SubscriptionStartedDate { get; set; }
-}
 
-public class RedactedPushNotificationSubscriptionV2 : RedactedPushNotificationSubscription
-{
     public string FirebaseDeviceToken { get; set; }
 }
