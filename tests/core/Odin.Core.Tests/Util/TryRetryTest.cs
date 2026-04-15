@@ -679,13 +679,63 @@ public class TryRetryTests
         cts.Cancel();
         var builder = TryRetry.Create().WithCancellation(cts.Token);
 
-        Assert.ThrowsAsync<TaskCanceledException>(async () =>
+        var ex = Assert.ThrowsAsync<OperationCanceledException>(async () =>
             await builder.ExecuteAsync(async ct =>
             {
                 Assert.That(ct.IsCancellationRequested, Is.False); // Well, we never get this far...
                 await Task.CompletedTask;
                 return "Success";
             }));
+        Assert.That(ex!.CancellationToken, Is.EqualTo(cts.Token));
+    }
+
+    [Test]
+    public void ExecuteAsync_ReturnValue_NonRetryableException_SurfacesWrappedException()
+    {
+        // Regression: previously the generic ExecuteAsync<T> used ContinueWith(OnlyOnRanToCompletion),
+        // which turned faulted tasks into Canceled tasks and made non-retryable exceptions surface
+        // as TaskCanceledException instead of the original failure.
+        var builder = TryRetry
+            .Create()
+            .WithAttempts(3)
+            .WithDelay(TimeSpan.FromMilliseconds(10))
+            .RetryOnPredicate((_, _) => false);
+
+        var ex = Assert.ThrowsAsync<TryRetryException>(async () =>
+            await builder.ExecuteAsync(async () =>
+            {
+                await Task.CompletedTask;
+                throw new IOException("not found");
+#pragma warning disable CS0162
+                return "unreachable";
+#pragma warning restore CS0162
+            }));
+
+        Assert.That(ex!.InnerException, Is.TypeOf<IOException>());
+        Assert.That(ex!.InnerException!.Message, Is.EqualTo("not found"));
+    }
+
+    [Test]
+    public void ExecuteAsync_ReturnValue_NonRetryableException_WithoutWrapper_SurfacesOriginalException()
+    {
+        var builder = TryRetry
+            .Create()
+            .WithAttempts(3)
+            .WithDelay(TimeSpan.FromMilliseconds(10))
+            .WithoutExceptionWrapper()
+            .RetryOnPredicate((_, _) => false);
+
+        var ex = Assert.ThrowsAsync<IOException>(async () =>
+            await builder.ExecuteAsync(async () =>
+            {
+                await Task.CompletedTask;
+                throw new IOException("not found");
+#pragma warning disable CS0162
+                return "unreachable";
+#pragma warning restore CS0162
+            }));
+
+        Assert.That(ex!.Message, Is.EqualTo("not found"));
     }
 
     [Test]

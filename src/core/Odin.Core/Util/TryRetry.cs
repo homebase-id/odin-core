@@ -262,19 +262,17 @@ public class RetryBuilder
     /// <summary>
     /// Executes the asynchronous action with the configured retry behavior
     /// </summary>
-    public Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action)
+    public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action)
     {
-        return ExecuteInternalAsync(action)
-            .ContinueWith(t => t.Result!, TaskContinuationOptions.OnlyOnRanToCompletion);
+        return (await ExecuteInternalAsync(action))!;
     }
 
     /// <summary>
     /// Executes the asynchronous action with the configured retry behavior
     /// </summary>
-    public Task<T> ExecuteAsync<T>(Func<Task<T>> action)
+    public async Task<T> ExecuteAsync<T>(Func<Task<T>> action)
     {
-        return ExecuteInternalAsync<T>(_ => action())
-            .ContinueWith(t => t.Result!, TaskContinuationOptions.OnlyOnRanToCompletion);
+        return (await ExecuteInternalAsync<T>(_ => action()))!;
     }
 
     // Wrapper for void synchronous action returning void
@@ -370,7 +368,11 @@ public class RetryBuilder
             catch (Exception e)
             {
                 _logger?.LogWarning("Retry: giving up after {attempts} attempt(s): '{message}'", attempt, e.Message);
-                throw new TryRetryException($"{e.Message} (giving up after {_attempts} attempt(s))", e);
+                if (_wrapException)
+                {
+                    throw new TryRetryException($"{e.Message} (giving up after {attempt} attempt(s))", e);
+                }
+                throw;
             }
         }
     }
