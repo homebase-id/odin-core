@@ -5,12 +5,14 @@ using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using NUnit.Framework;
 using Odin.Core.Logging.Statistics.Serilog;
 using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Storage.Database.System.Connection;
+using Odin.Core.Storage.Exceptions;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
 using Odin.Test.Helpers.Logging;
@@ -396,5 +398,122 @@ public class ScopedTransactionFactoryTest : IocTestBase
             Assert.That(result, Is.EqualTo(0));
         }
     }
+
+    //
+    // Reproduces the scenario in DriveQuery.cs:249 where a unique-constraint
+    // violation is caught inside an open transaction and further SELECTs are
+    // issued. On SQLite this works; on Postgres the transaction is poisoned
+    // (SQLSTATE 25P02) until rolled back.
+    //
+
+    private async Task CreateUniqueTableAsync()
+    {
+        var scopedTransactionFactory = Services.Resolve<ScopedSystemTransactionFactory>();
+        await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
+
+        await using (var dropCmd = tx.CreateCommand())
+        {
+            dropCmd.CommandText = "DROP TABLE IF EXISTS test_unique;";
+            await dropCmd.ExecuteNonQueryAsync();
+        }
+
+        await using (var createCmd = tx.CreateCommand())
+        {
+            createCmd.CommandText = "CREATE TABLE test_unique (name TEXT UNIQUE);";
+            await createCmd.ExecuteNonQueryAsync();
+        }
+
+        tx.Commit();
+    }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ConstraintViolationDoesNotPoisonTransaction(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateUniqueTableAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
+
+        await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
+
+        await using (var insertA = tx.CreateCommand())
+        {
+            insertA.CommandText = "INSERT INTO test_unique (name) VALUES ('a');";
+            await insertA.ExecuteNonQueryAsync();
+        }
+
+        var caught = false;
+        try
+        {
+            await using var insertDup = tx.CreateCommand();
+            insertDup.CommandText = "INSERT INTO test_unique (name) VALUES ('a');";
+            await insertDup.ExecuteNonQueryAsync();
+        }
+        catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
+        {
+            caught = true;
+        }
+
+        Assert.That(caught, Is.True, "expected OdinDatabaseException with IsUniqueConstraintViolation");
+
+        // On SQLite, the transaction is still usable after the violation.
+        await using var selectCmd = tx.CreateCommand();
+        selectCmd.CommandText = "SELECT COUNT(*) FROM test_unique;";
+        var result = await selectCmd.ExecuteScalarAsync();
+        Assert.That(result, Is.EqualTo(1));
+    }
+
+// #if RUN_POSTGRES_TESTS
+//     [Test]
+//     public async Task ConstraintViolationPoisonsTransaction_Postgres()
+//     {
+//         await RegisterServicesAsync(DatabaseType.Postgres);
+//         await CreateUniqueTableAsync();
+//
+//         await using var scope = Services.BeginLifetimeScope();
+//         var scopedTransactionFactory = scope.Resolve<ScopedSystemTransactionFactory>();
+//
+//         await using var tx = await scopedTransactionFactory.BeginStackedTransactionAsync();
+//
+//         await using (var insertA = tx.CreateCommand())
+//         {
+//             insertA.CommandText = "INSERT INTO test_unique (name) VALUES ('a');";
+//             await insertA.ExecuteNonQueryAsync();
+//         }
+//
+//         var caught = false;
+//         try
+//         {
+//             await using var insertDup = tx.CreateCommand();
+//             insertDup.CommandText = "INSERT INTO test_unique (name) VALUES ('a');";
+//             await insertDup.ExecuteNonQueryAsync();
+//         }
+//         catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
+//         {
+//             caught = true;
+//         }
+//
+//         Assert.That(caught, Is.True, "expected OdinDatabaseException with IsUniqueConstraintViolation");
+//
+//         // On Postgres, the transaction is now in an aborted state.
+//         // Even a plain SELECT fails with SQLSTATE 25P02.
+//         var ex = Assert.ThrowsAsync<OdinDatabaseException>(async () =>
+//         {
+//             await using var selectCmd = tx.CreateCommand();
+//             selectCmd.CommandText = "SELECT COUNT(*) FROM test_unique;";
+//             await selectCmd.ExecuteScalarAsync();
+//         });
+//
+//         var pg = ex!.InnerException as PostgresException;
+//         Assert.That(pg, Is.Not.Null, "expected inner PostgresException");
+//         Assert.That(pg!.SqlState, Is.EqualTo("25P02"),
+//             "expected 'current transaction is aborted' (25P02)");
+//     }
+// #endif
 }
 

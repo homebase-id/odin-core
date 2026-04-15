@@ -246,6 +246,21 @@ public class DriveQuery(
             header.FileMetadata.SetCreatedModifiedWithDatabaseValue(driveMainIndexRecord.created, driveMainIndexRecord.modified);
             header.FileMetadata.VersionTag = driveMainIndexRecord.hdrVersionTag;
         }
+        //
+        // SEB:TODO fix this constraint hack
+        //
+        // OK. So the fix is to use SAVEPOINTS. But that's just expanding on what is already a hack, do you agree?
+        //
+        // Yes, largely agree. Savepoints would make the symptom go away on Postgres, but the underlying smell stays: the code is using exceptions + a follow-up read as flow control to decide which of three things (FileId / UniqueId / GlobalTransitId) collided. That's the actual hack.
+        //
+        // The less-hacky fix is to not rely on the violation at all — check before writing, or let the upsert tell you. Concretely:
+        //
+        // 1. Pre-check inside the transaction. Do the GetByUniqueIdAsync / GetByGlobalTransitIdAsync lookups before BaseUpsertEntryZapZapAsync, decide if it's a conflict, throw OdinClientException yourself. No exception-driven control flow, no poisoned transaction, works identically on both backends. The theoretical race (another writer inserts between check and upsert) is the same race
+        // the current code has and the unique index is still there as the hard guarantee.
+        // 2. Make the upsert return the conflict reason. ON CONFLICT in Postgres and SQLite both let you distinguish which constraint fired; BaseUpsertEntryZapZapAsync could return a typed result (Inserted / Updated / ConflictOnUniqueId / ConflictOnGlobalTransitId / …) instead of throwing. Then the caller just reads a field.
+        //
+        // Savepoints are the right tactical fix if you want the minimum diff and to preserve current semantics. But if you're asking whether they're architecturally clean — no, they're a patch on a patch. Option 1 is the cheapest real fix; option 2 is the proper one.
+        //
         catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
         {
             DriveMainIndexRecord rf = null;
