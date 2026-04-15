@@ -223,6 +223,12 @@ public static class Sqlite2Pg
         var targetSystemMigrator = targetPgsqlSystemScope.Resolve<SystemMigrator>();
 
         //
+        // Migrate target system schema
+        //
+
+        await targetSystemDb.MigrateDatabaseAsync();
+
+        //
         // Check system schema versions match
         //
 
