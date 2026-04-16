@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -112,7 +113,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 var qp = new FileQueryParamsV1()
                 {
                     TargetDrive = new TargetDrive(),
-                    GroupId = new List<Guid>() { groupIdToBeDeleted }
+                    GroupId = new List<Guid>() { groupIdToBeDeleted },
+                    FileState = new List<FileState>() { FileState.Active }
                 };
 
                 var options = new QueryBatchResultOptions()

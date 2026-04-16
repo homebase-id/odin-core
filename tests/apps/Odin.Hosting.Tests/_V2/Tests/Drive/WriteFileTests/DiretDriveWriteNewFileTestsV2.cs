@@ -417,6 +417,93 @@ public class DiretDriveWriteNewFileTestsV2
 
     [Test]
     [TestCaseSource(nameof(TestCasesSecuredDrive))]
+    public async Task DeleteByGroupIdSkipsAlreadySoftDeletedFiles(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        var identity = TestIdentities.Pippin;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var v2Owner = _scaffold.CreateOwnerV2ClientCollection(identity);
+        var targetDrive = callerContext.TargetDrive;
+        await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
+
+        var groupId = Guid.NewGuid();
+
+        // Upload 3 files in the same group
+        var f1 = SampleMetadataData.Create(fileType: 101, groupId: groupId, acl: AccessControlList.Anonymous);
+        var f2 = SampleMetadataData.Create(fileType: 102, groupId: groupId, acl: AccessControlList.Anonymous);
+        var f3 = SampleMetadataData.Create(fileType: 103, groupId: groupId, acl: AccessControlList.Anonymous);
+
+        UploadResult uploadResult1 = await this.UploadAndValidate(f1, targetDrive);
+        UploadResult uploadResult2 = await this.UploadAndValidate(f2, targetDrive);
+        UploadResult uploadResult3 = await this.UploadAndValidate(f3, targetDrive);
+
+        await callerContext.Initialize(ownerApiClient);
+        var callerDriveClient = new DriveWriterV2Client(identity.OdinId, callerContext.GetFactory());
+        var driveId = callerContext.DriveId;
+
+        // Soft-delete file1 individually first
+        var preDeleteResponse = await callerDriveClient.SoftDeleteFile(driveId, uploadResult1.File.FileId);
+        if (expectedStatusCode == HttpStatusCode.OK)
+        {
+            ClassicAssert.IsTrue(preDeleteResponse.StatusCode == HttpStatusCode.OK);
+        }
+
+        // Record the Updated timestamp of the already-deleted file
+        var headerAfterFirstDelete = await v2Owner.DriveReader.GetFileHeaderAsync(driveId, uploadResult1.File.FileId);
+        var updatedTimestampAfterFirstDelete = headerAfterFirstDelete.Content?.FileMetadata?.Updated ?? default;
+
+        // Now delete by group id — should only touch file2 and file3
+        var deleteRequests = new List<DeleteFileByGroupIdRequestV2>()
+        {
+            new()
+            {
+                GroupId = groupId,
+                Recipients = default
+            }
+        };
+
+        var deleteByGroupResponse = await callerDriveClient.DeleteFilesByGroupIdList(driveId,
+            new DeleteFilesByGroupIdBatchRequestV2()
+            {
+                Requests = deleteRequests
+            });
+
+        ClassicAssert.IsTrue(deleteByGroupResponse.StatusCode == expectedStatusCode,
+            $"Status code should be {expectedStatusCode} but was {deleteByGroupResponse.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK)
+        {
+            var result = deleteByGroupResponse.Content;
+            ClassicAssert.IsNotNull(result);
+
+            var groupResult = result.Results.SingleOrDefault(r => r.GroupId == groupId);
+            ClassicAssert.IsNotNull(groupResult);
+
+            // Only file2 and file3 should appear — file1 was already deleted
+            ClassicAssert.AreEqual(2, groupResult!.DeleteFileResults.Count);
+            ClassicAssert.IsNull(groupResult.DeleteFileResults.SingleOrDefault(d => d.FileId == uploadResult1.File.FileId),
+                "Already-deleted file1 should not appear in results");
+            ClassicAssert.IsNotNull(groupResult.DeleteFileResults.SingleOrDefault(d => d.FileId == uploadResult2.File.FileId));
+            ClassicAssert.IsNotNull(groupResult.DeleteFileResults.SingleOrDefault(d => d.FileId == uploadResult3.File.FileId));
+
+            // Verify file1's Updated timestamp was NOT changed
+            var headerAfterGroupDelete = await v2Owner.DriveReader.GetFileHeaderAsync(driveId, uploadResult1.File.FileId);
+            ClassicAssert.IsTrue(headerAfterGroupDelete.IsSuccessStatusCode);
+            ClassicAssert.AreEqual(updatedTimestampAfterFirstDelete, headerAfterGroupDelete.Content.FileMetadata.Updated,
+                "Already-deleted file should not have its Updated timestamp changed");
+
+            // Verify file2 and file3 are now deleted
+            var header2 = await v2Owner.DriveReader.GetFileHeaderAsync(driveId, uploadResult2.File.FileId);
+            ClassicAssert.IsTrue(header2.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(header2.Content.FileState == FileState.Deleted);
+
+            var header3 = await v2Owner.DriveReader.GetFileHeaderAsync(driveId, uploadResult3.File.FileId);
+            ClassicAssert.IsTrue(header3.IsSuccessStatusCode);
+            ClassicAssert.IsTrue(header3.Content.FileState == FileState.Deleted);
+        }
+    }
+
+    [Test]
+    [TestCaseSource(nameof(TestCasesSecuredDrive))]
     public async Task CanGetDeletedFileByGlobalTransitId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
         var identity = TestIdentities.Pippin;
