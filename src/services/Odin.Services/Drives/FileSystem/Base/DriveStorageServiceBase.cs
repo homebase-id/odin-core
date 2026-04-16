@@ -1215,6 +1215,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 VersionTag = targetVersionTag,
                 Content = header.FileMetadata.LocalAppData?.Content,
                 Tags = newTags,
+                LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
             };
 
             await longTermStorageManager.SaveLocalMetadataTagsAsync(file, mergedMetadata, newVersionTag);
@@ -1265,6 +1266,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 Iv = initVector,
                 Content = newContent,
                 Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
+                LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
             };
 
             mergedMetadata.Validate();
@@ -1325,7 +1327,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 Iv = existingLocalAppData?.Iv,
                 Content = existingLocalAppData?.Content,
                 Tags = existingLocalAppData?.Tags ?? [],
-                ReadTime = effectiveReadTime
+                ReadTime = effectiveReadTime,
+                LocalReactions = existingLocalAppData?.LocalReactions,
             };
 
             mergedMetadata.Validate();
@@ -1351,6 +1354,55 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
 
             return true;
+        }
+
+        public async Task UpdateLocalReactionsAsync(InternalDriveFileId file, List<string> localReactions,
+            IOdinContext odinContext)
+        {
+            OdinValidationUtils.AssertIsTrue(file.IsValid(), "file is invalid");
+
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var header = await GetServerFileHeaderForWriting(file, odinContext);
+            if (null == header)
+            {
+                return;
+            }
+
+            var existingLocalAppData = header.FileMetadata.LocalAppData;
+
+            var newVersionTag = DriveFileUtility.CreateVersionTag();
+            var mergedMetadata = new LocalAppMetadata
+            {
+                VersionTag = existingLocalAppData?.VersionTag ?? Guid.Empty,
+                Iv = existingLocalAppData?.Iv,
+                Content = existingLocalAppData?.Content,
+                Tags = existingLocalAppData?.Tags ?? [],
+                ReadTime = existingLocalAppData?.ReadTime,
+                LocalReactions = localReactions,
+            };
+
+            mergedMetadata.Validate();
+
+            await longTermStorageManager.SaveLocalMetadataAsync(file, mergedMetadata, newVersionTag);
+
+            try
+            {
+                var updatedHeader = await GetServerFileHeaderForWriting(file, odinContext);
+                if (await TryShouldRaiseDriveEventAsync(file))
+                {
+                    await TryPublishAsync(new DriveFileChangedNotification
+                    {
+                        File = file,
+                        ServerFileHeader = updatedHeader,
+                        OdinContext = odinContext,
+                    });
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning(e, "Failed to send DriveFileChangedNotification for local reactions update");
+            }
         }
 
         public async Task CleanupUploadTemporaryFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors,
