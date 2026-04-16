@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -18,6 +20,7 @@ using Odin.Services.Util;
 namespace Odin.Services.Drives.Reactions.Redux.Group;
 
 public class GroupReactionService(
+    ILogger<GroupReactionService> logger,
     TenantContext tenantContext,
     ReactionContentService reactionContentService,
     PeerOutbox peerOutbox,
@@ -44,6 +47,15 @@ public class GroupReactionService(
         var result = new AddReactionResult();
 
         await reactionContentService.AddReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, null);
+
+        try
+        {
+            await UpdateLocalReactionListAsync(localFile, reaction, added: true, odinContext, fileSystemType);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to update local reaction list after adding reaction");
+        }
 
         if (options?.Recipients?.Any() ?? false)
         {
@@ -74,6 +86,15 @@ public class GroupReactionService(
         var result = new DeleteReactionResult();
         await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext,
             markComplete: null);
+
+        try
+        {
+            await UpdateLocalReactionListAsync(localFile, reaction, added: false, odinContext, fileSystemType);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to update local reaction list after deleting reaction");
+        }
 
         if (options?.Recipients?.Any() ?? false)
         {
@@ -210,5 +231,36 @@ public class GroupReactionService(
 
         await peerOutbox.AddItemAsync(outboxItem, useUpsert: true);
         return TransferStatus.Enqueued;
+    }
+
+    private async Task UpdateLocalReactionListAsync(
+        InternalDriveFileId localFile,
+        string reaction,
+        bool added,
+        IOdinContext odinContext,
+        FileSystemType fileSystemType)
+    {
+        var fs = _fileSystemResolver.ResolveFileSystem(fileSystemType);
+        var header = await fs.Storage.GetServerFileHeader(localFile, odinContext);
+        if (header == null)
+        {
+            return;
+        }
+
+        var localReactions = header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
+
+        if (added)
+        {
+            if (!localReactions.Contains(reaction))
+            {
+                localReactions.Add(reaction);
+            }
+        }
+        else
+        {
+            localReactions.Remove(reaction);
+        }
+
+        await fs.Storage.UpdateLocalReactionsAsync(localFile, localReactions, odinContext);
     }
 }

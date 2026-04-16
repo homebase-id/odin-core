@@ -12,7 +12,6 @@ public class LocalAppMetadata
 {
     public static readonly int MaxTagCount = 50;
     public static readonly int MaxLocalAppDataContentLength = 4 * 1024;
-
     public Guid VersionTag { get; set; }
 
     /// <summary>
@@ -29,6 +28,13 @@ public class LocalAppMetadata
     /// Set when SendReadReceipt is called. May be updated with a later timestamp.
     /// </summary>
     public UnixTimeUtc? ReadTime { get; set; }
+
+    /// <summary>
+    /// Best-effort cache of the local user's own reactions on this file (up to 5).
+    /// Updated when the local user adds/removes reactions via GroupReactionService.
+    /// May drift from the authoritative driveReactions table but self-corrects on next interaction.
+    /// </summary>
+    public List<string> LocalReactions { get; set; }
 
     public bool TryValidate()
     {
