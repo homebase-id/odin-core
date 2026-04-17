@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -292,7 +293,9 @@ public class DriveManager : IDriveManager
 
     public async Task<StorageDrive?> GetDriveAsync(Guid driveId, bool failIfInvalid = false)
     {
-        var driveData = await _driveCache.GetOrSetAsync(
+        var driveData = _tableDrives.InDatabaseTransaction
+            ? await GetDriveInternal(driveId)
+            : await _driveCache.GetOrSetAsync(
             CacheKeyDrive + driveId,
             _ => GetDriveInternal(driveId),
             CacheTtl,
@@ -404,13 +407,17 @@ public class DriveManager : IDriveManager
         PageOptions pageOptions,
         IOdinContext odinContext)
     {
-        var allDrivesData = await _driveCache.GetOrSetAsync(
+        async Task<IEnumerable<StorageDriveData>> AllDrivesDataReader(CancellationToken _)
+        {
+            var (drives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
+            return drives.Select(ToStorageDriveData);
+        }
+
+        var allDrivesData = _tableDrives.InDatabaseTransaction
+            ? await AllDrivesDataReader(CancellationToken.None)
+            : await _driveCache.GetOrSetAsync(
             CacheKeyAllDrives,
-            async _ =>
-            {
-                var (drives, _, _) = await _tableDrives.GetList(int.MaxValue, null);
-                return drives.Select(ToStorageDriveData);
-            },
+            AllDrivesDataReader,
             CacheTtl,
             EntrySize.Medium,
             RootInvalidationTag);
