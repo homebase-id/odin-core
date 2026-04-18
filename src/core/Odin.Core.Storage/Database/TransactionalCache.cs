@@ -47,7 +47,7 @@ public sealed class TransactionalCache
     private readonly List<string> _rootTag;
     private string RootTag { get; }
 
-    private bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
+    public bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
 
     //
 
