@@ -7,8 +7,10 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 #nullable enable
 
 public class TableAppGrantsCached(TableAppGrants table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, RootInvalidationTag)
 {
+    public const string RootInvalidationTag = nameof(TableAppGrants);
+
     private const string CacheKeyAll = "all:all:all";
 
     //

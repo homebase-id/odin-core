@@ -39,6 +39,8 @@ public sealed class TransactionalCache
     private long _misses;
     public long Misses => Interlocked.Read(ref _misses);
 
+    public bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
+
     private readonly ILevel2Cache _cache;
     private readonly ITransactionalCacheStats _cacheStats;
     private readonly IScopedConnectionFactory _scopedConnectionFactory;
@@ -46,8 +48,6 @@ public sealed class TransactionalCache
 
     private readonly List<string> _rootTag;
     private string RootTag { get; }
-
-    private bool InDatabaseTransaction => _scopedConnectionFactory.HasTransaction;
 
     //
 
@@ -268,14 +268,18 @@ public sealed class TransactionalCache
 
     public async Task InvalidateAllAsync()
     {
+        // SEB:NOTE we have to invalidate both immediately and after a transaction so the change will be visible to:
+        // - Cache instances aware of the transaction (everything implementing AbstractTableCaching).
+        // - Cache instances running within a transaction but not aware of it,
+        //   e.g. instances of ITenantLevel2Cache using the same invalidation tags as AbstractTableCaching,
+        //   but not aware of the transaction themselves
+
+        await _cache.RemoveByTagAsync(_rootTag);
+
         if (InDatabaseTransaction)
         {
             _scopedConnectionFactory.AddPostCommitAction(async () => await _cache.RemoveByTagAsync(_rootTag));
             _scopedConnectionFactory.AddPostRollbackAction(async () => await _cache.RemoveByTagAsync(_rootTag));
-        }
-        else
-        {
-            await _cache.RemoveByTagAsync(_rootTag);
         }
     }
 
@@ -290,14 +294,18 @@ public sealed class TransactionalCache
             return;
         }
 
+        // SEB:NOTE we have to invalidate both immediately and after a transaction so the change will be visible to:
+        // - Cache instances aware of the transaction (everything implementing AbstractTableCaching).
+        // - Cache instances running within a transaction but not aware of it,
+        //   e.g. instances of ITenantLevel2Cache using the same invalidation tags as AbstractTableCaching,
+        //   but not aware of the transaction themselves
+
+        await Task.WhenAll(actionsArray.Select(a => a()));
+
         if (InDatabaseTransaction)
         {
             _scopedConnectionFactory.AddPostCommitAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
             _scopedConnectionFactory.AddPostRollbackAction(async () => await Task.WhenAll(actionsArray.Select(a => a())));
-        }
-        else
-        {
-            await Task.WhenAll(actionsArray.Select(a => a()));
         }
     }
 
