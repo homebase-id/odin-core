@@ -7,8 +7,10 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 #nullable enable
 
 public class TableAppNotificationsCached(TableAppNotifications table, IIdentityTransactionalCacheFactory cacheFactory) :
-    AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
+    AbstractTableCaching(cacheFactory, table.GetType().Name, RootInvalidationTag)
 {
+    public const string RootInvalidationTag = nameof(TableAppNotifications);
+
     private static readonly List<string> PagingByCreateTags = ["PagingByCreate"];
 
     //

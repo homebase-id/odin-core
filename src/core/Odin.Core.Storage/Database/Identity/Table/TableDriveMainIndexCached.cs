@@ -8,11 +8,12 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 
 public class TableDriveMainIndexCached : AbstractTableCaching
 {
+    public const string RootInvalidationTag = TableDriveMainIndexCacheKeys.RootInvalidationTag;
     private readonly TableDriveMainIndex _table;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public TableDriveMainIndexCached(TableDriveMainIndex table, IIdentityTransactionalCacheFactory cacheFactory) :
-        base(cacheFactory, table.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
+        base(cacheFactory, table.GetType().Name, RootInvalidationTag)
     {
         _table = table;
         _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);

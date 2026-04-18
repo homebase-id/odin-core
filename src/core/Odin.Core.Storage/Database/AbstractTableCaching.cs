@@ -21,6 +21,7 @@ public abstract class AbstractTableCaching(ITransactionalCacheFactory cacheFacto
 
     public long Hits => Cache.Hits;
     public long Misses => Cache.Misses;
+    public bool InDatabaseTransaction => Cache.InDatabaseTransaction;
 
     public Task InvalidateAllAsync()
     {

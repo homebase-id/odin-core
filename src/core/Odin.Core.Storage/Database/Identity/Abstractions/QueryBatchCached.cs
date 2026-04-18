@@ -11,11 +11,12 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions;
 
 public class QueryBatchCached : AbstractTableCaching
 {
+    public const string RootInvalidationTag = TableDriveMainIndexCacheKeys.RootInvalidationTag;
     private readonly QueryBatch _meta;
     private readonly TableDriveMainIndexCacheKeys _cacheKeys;
 
     public QueryBatchCached(QueryBatch meta, IIdentityTransactionalCacheFactory cacheFactory)
-        : base(cacheFactory, meta.GetType().Name, TableDriveMainIndexCacheKeys.RootInvalidationTag)
+        : base(cacheFactory, meta.GetType().Name, RootInvalidationTag)
     {
         _meta = meta;
         _cacheKeys = new TableDriveMainIndexCacheKeys(Cache);

@@ -21,9 +21,11 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 /// is invalidated on every mutation (insert, pop, commit, cancel, recover) so it never serves stale
 /// data that would cause items to be missed.
 /// </summary>
-public class TableInboxCached(TableInbox table, IIdentityTransactionalCacheFactory cacheFactory)
-    : AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
+public class TableInboxCached(TableInbox table, IIdentityTransactionalCacheFactory cacheFactory) :
+    AbstractTableCaching(cacheFactory, table.GetType().Name, RootInvalidationTag)
 {
+    public const string RootInvalidationTag = nameof(TableInbox);
+
     //
 
     private static string GetCacheKey(Guid boxId)
