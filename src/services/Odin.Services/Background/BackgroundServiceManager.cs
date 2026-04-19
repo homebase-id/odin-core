@@ -151,15 +151,12 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
     public async Task StopAllAsync()
     {
-        var tasks = new List<Task>();
+        List<string> identifiers;
         using (await _lock.ReaderLockAsync())
         {
-            foreach (var serviceIdentifier in _backgroundServices.Keys)
-            {
-                tasks.Add(StopAsync(serviceIdentifier));
-            }
+            identifiers = _backgroundServices.Keys.ToList();
         }
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(identifiers.Select(StopAsync));
     }
 
     //
