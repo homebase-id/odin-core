@@ -89,7 +89,12 @@ public abstract class AbstractBackgroundService(ILogger logger)
         var duration = Random.Next((int)duration1.TotalMilliseconds, (int)duration2.TotalMilliseconds);
         try
         {
-            var wakeUp = _wakeUpEvent.WaitAsync(stoppingToken);
+            // Passing CancellationToken.None here is deliberate — the BCL's Task.WaitAsync short-circuits
+            // when the token CanBeCanceled is false and returns the event's shared TCS.Task directly
+            // (no wrapper, no registration). Passing `stoppingToken` would wrap that in a new Task per
+            // iteration and register a cancellation callback that leaks on the stoppingToken until shutdown.
+            // Cancellation is observed via `delay` + the explicit ThrowIfCancellationRequested below.
+            var wakeUp = _wakeUpEvent.WaitAsync(CancellationToken.None);
             var delay = Task.Delay(duration, stoppingToken);
 
             // Sleep for duration or until InternalNotifyWorkAvailable is called.
@@ -148,7 +153,7 @@ public abstract class AbstractBackgroundService(ILogger logger)
         {
             await ExecuteAsync(stoppingToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
             // ignore
         }
