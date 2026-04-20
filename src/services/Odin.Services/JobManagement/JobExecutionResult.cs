@@ -9,14 +9,15 @@ public enum RunResult
     Unknown,    // Invalid state.
     Success,    // Job completed successfully.
     Fail,       // Job failed. Retry the job after RetryInterval has passed or give up if the job has been retried too many times.
-    Reschedule, // Reschedule the job (job data is kept).
+    Defer,      // Reschedule the incomplete job (job data is kept).
+    Repeat,     // Reschedule the successfully completed job (job data is kept).
     Abort,      // Abort and delete the job.
 }
 
 public sealed class JobExecutionResult
 {
     public RunResult Result { get; private set; }
-    public DateTimeOffset RescheduleAt { get; private set; } 
+    public DateTimeOffset NextRun { get; private set; }
     
     //
    
@@ -34,10 +35,18 @@ public sealed class JobExecutionResult
     
     //
     
-    public static JobExecutionResult Reschedule(DateTimeOffset nextRun) => new JobExecutionResult
+    public static JobExecutionResult Defer(DateTimeOffset nextRun) => new JobExecutionResult
     {
-        Result = RunResult.Reschedule,
-        RescheduleAt = nextRun
+        Result = RunResult.Defer,
+        NextRun = nextRun
+    };
+
+    //
+
+    public static JobExecutionResult Repeat(DateTimeOffset nextRun) => new JobExecutionResult
+    {
+        Result = RunResult.Repeat,
+        NextRun = nextRun
     };
     
     //

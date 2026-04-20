@@ -7,7 +7,7 @@ using Odin.Services.JobManagement.Jobs;
 
 namespace Odin.Services.Tests.JobManagement.Jobs;
 
-public class RescheduleJobTest(ILogger<RescheduleJobTest> logger) : AbstractJob
+public class DeferJobTest(ILogger<DeferJobTest> logger) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("621134bc-d789-4ca2-a8a3-99688252ec40");
     public override string JobType => JobTypeId.ToString();
@@ -16,8 +16,8 @@ public class RescheduleJobTest(ILogger<RescheduleJobTest> logger) : AbstractJob
     
     public override Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Running RescheduleJobTest");
-        return Task.FromResult(JobExecutionResult.Reschedule(new DateTimeOffset(2100, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+        logger.LogInformation("Running DeferJobTest");
+        return Task.FromResult(JobExecutionResult.Defer(new DateTimeOffset(2100, 1, 1, 0, 0, 0, TimeSpan.Zero)));
     }
     
     //
