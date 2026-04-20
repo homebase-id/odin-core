@@ -129,8 +129,6 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
             // Postgres specific sql
             //
             """
-            BEGIN;
-
             -- Select the next scheduled job... 
             WITH NextJob AS (
                 SELECT id
@@ -138,16 +136,16 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
                 WHERE nextRun <= @now AND state = @scheduled
                 ORDER BY priority ASC, nextRun ASC
                 LIMIT 1
-                FOR UPDATE
-            )
-
+                FOR UPDATE SKIP LOCKED
+            ),
             -- ...and update it to preflight, while making sure nobody beat us to it.
-            UPDATE jobs
-            SET state = @preflight
-            WHERE Id = (SELECT Id FROM NextJob) AND state = @scheduled
-            RETURNING *;
-
-            COMMIT;
+            updated as (
+                UPDATE jobs
+                SET state = @preflight
+                WHERE Id = (SELECT Id FROM NextJob) AND state = @scheduled
+                RETURNING *
+            )
+            SELECT * FROM updated
             """;
 
         var now = cmd.CreateParameter();

@@ -216,7 +216,7 @@ public class JobManager(
         {
             // Host is probably terminating. Pick up job next time it starts.
             // We add 3 seconds for good measure, mostly to not confuse the test runner.
-            result = JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(3));
+            result = JobExecutionResult.Defer(DateTimeOffset.Now.AddSeconds(3));
             errorMessage = ex.Message;
         }
         catch (Exception ex)
@@ -251,16 +251,31 @@ public class JobManager(
         }
 
         //
-        // Reschedule?
+        // Defer?
         //
-        else if (result.Result == RunResult.Reschedule)
+        else if (result.Result == RunResult.Defer)
         {
-            logger.LogInformation("JobManager rescheduled job '{name}' id:{jobId} for {runat}",
-                record.name, record.id, result.RescheduleAt.ToString("O"));
+            logger.LogInformation("JobManager rescheduling deferred job '{name}' id:{jobId} for {runat}",
+                record.name, record.id, result.NextRun.ToString("O"));
             record.state = (int)JobState.Scheduled;
-            record.nextRun = result.RescheduleAt.ToUnixTimeMilliseconds();
+            record.nextRun = result.NextRun.ToUnixTimeMilliseconds();
             record.runCount = 0;
             record.lastError = errorMessage ?? "job was rescheduled";
+            record.jobData = job.SerializeJobData();
+            await UpdateAsync(record);
+        }
+
+        //
+        // Repeat?
+        //
+        else if (result.Result == RunResult.Repeat)
+        {
+            logger.LogInformation("JobManager rescheduling successful job '{name}' id:{jobId} for {runat}",
+                record.name, record.id, result.NextRun.ToString("O"));
+            record.state = (int)JobState.Scheduled;
+            record.nextRun = result.NextRun.ToUnixTimeMilliseconds();
+            record.runCount = 0;
+            record.lastError = null;
             record.jobData = job.SerializeJobData();
             await UpdateAsync(record);
         }

@@ -131,13 +131,14 @@ public class JobManagerTests
         jobTypeRegistry.RegisterJobType<SimpleJobWithDelayTest>(builder, SimpleJobWithDelayTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<EventuallySucceedJobTest>(builder, EventuallySucceedJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<AbortingJobTest>(builder, AbortingJobTest.JobTypeId);
-        jobTypeRegistry.RegisterJobType<RescheduleJobTest>(builder, RescheduleJobTest.JobTypeId);
-        jobTypeRegistry.RegisterJobType<RescheduleOnCancelJobTest>(builder, RescheduleOnCancelJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<DeferJobTest>(builder, DeferJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<DeferOnCancelJobTest>(builder, DeferOnCancelJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<JobWithHashTest>(builder, JobWithHashTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<FailingJobWithHashTest>(builder, FailingJobWithHashTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<FailingJobTest>(builder, FailingJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<ChainedJobTest>(builder, ChainedJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<ScopedJobTest>(builder, ScopedJobTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<RepeatingJobWithHashTest>(builder, RepeatingJobWithHashTest.JobTypeId);
 
         builder.AddDatabaseServices();
         switch (databaseType)
@@ -717,14 +718,14 @@ public class JobManagerTests
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _container.Resolve<IJobManager>();
 
-        var job = jobManager.NewJob<RescheduleJobTest>();
+        var job = jobManager.NewJob<DeferJobTest>();
 
         var jobId = await jobManager.ScheduleJobAsync(job);
 
         // Act
         await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
 
-        var rescheduledJob = await jobManager.GetJobAsync<RescheduleJobTest>(jobId);
+        var rescheduledJob = await jobManager.GetJobAsync<DeferJobTest>(jobId);
         Assert.That(rescheduledJob, Is.Not.Null);
         Assert.That(rescheduledJob!.Id, Is.EqualTo(jobId));
         Assert.That(rescheduledJob!.State, Is.EqualTo(JobState.Scheduled));
@@ -749,14 +750,14 @@ public class JobManagerTests
         var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
-        var job = jobManager.NewJob<RescheduleJobTest>();
+        var job = jobManager.NewJob<DeferJobTest>();
 
         var jobId = await jobManager.ScheduleJobAsync(job);
 
         // Act
         await Task.Delay(200);
 
-        var rescheduledJob = await jobManager.GetJobAsync<RescheduleJobTest>(jobId);
+        var rescheduledJob = await jobManager.GetJobAsync<DeferJobTest>(jobId);
         Assert.That(rescheduledJob, Is.Not.Null);
         Assert.That(rescheduledJob!.Id, Is.EqualTo(jobId));
         Assert.That(rescheduledJob!.State, Is.EqualTo(JobState.Scheduled));
@@ -778,7 +779,7 @@ public class JobManagerTests
         await CreateHostedJobManagerAsync(databaseType);
         var jobManager = _container.Resolve<IJobManager>();
 
-        var job = jobManager.NewJob<RescheduleOnCancelJobTest>();
+        var job = jobManager.NewJob<DeferOnCancelJobTest>();
         job.JobData = new RescheduleOnCancelJobTestData
         {
             CancelUsingException = cancelUsingException
@@ -789,7 +790,7 @@ public class JobManagerTests
         // Act
         await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
 
-        job = await jobManager.GetJobAsync<RescheduleOnCancelJobTest>(jobId);
+        job = await jobManager.GetJobAsync<DeferOnCancelJobTest>(jobId);
         Assert.That(job, Is.Not.Null);
         Assert.That(job!.State, Is.EqualTo(JobState.Scheduled));
         Assert.That(job!.Record!.runCount, Is.EqualTo(0));
@@ -812,7 +813,7 @@ public class JobManagerTests
         var jobManager = _container.Resolve<IJobManager>();
         await StartBackgroundServices();
 
-        var job = jobManager.NewJob<RescheduleOnCancelJobTest>();
+        var job = jobManager.NewJob<DeferOnCancelJobTest>();
         job.JobData = new RescheduleOnCancelJobTestData
         {
             CancelUsingException = cancelUsingException
@@ -823,7 +824,7 @@ public class JobManagerTests
         // Act
         await Task.Delay(200);
 
-        job = await jobManager.GetJobAsync<RescheduleOnCancelJobTest>(jobId);
+        job = await jobManager.GetJobAsync<DeferOnCancelJobTest>(jobId);
         Assert.That(job, Is.Not.Null);
         Assert.That(job!.State, Is.EqualTo(JobState.Scheduled));
         Assert.That(job!.Record!.runCount, Is.EqualTo(0));
@@ -1225,6 +1226,78 @@ public class JobManagerTests
     }
     
     //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldRunRepeatingUniqueJobDirectly(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+
+        var job = jobManager.NewJob<RepeatingJobWithHashTest>();
+        var jobId = await jobManager.ScheduleJobAsync(job);
+        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
+
+        var copy = jobManager.NewJob<RepeatingJobWithHashTest>();
+        var copyId = await jobManager.ScheduleJobAsync(copy);
+        Assert.That(copyId, Is.EqualTo(jobId));
+
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+        copy = await jobManager.GetJobAsync<RepeatingJobWithHashTest>(jobId);
+        Assert.That(copy!.JobData.RunCount,  Is.EqualTo(1));
+        Assert.That(copy.State, Is.EqualTo(JobState.Scheduled));
+
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+        copy = await jobManager.GetJobAsync<RepeatingJobWithHashTest>(jobId);
+        Assert.That(copy!.JobData.RunCount,  Is.EqualTo(2));
+        Assert.That(copy.State, Is.EqualTo(JobState.Scheduled));
+
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+        copy = await jobManager.GetJobAsync<RepeatingJobWithHashTest>(jobId);
+        Assert.That(copy!.JobData.RunCount,  Is.EqualTo(3));
+        Assert.That(copy.State, Is.EqualTo(JobState.Succeeded));
+
+        AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldRunRepeatingUniqueJobInTheBackground(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        await StartBackgroundServices();
+
+        var job = jobManager.NewJob<RepeatingJobWithHashTest>();
+        var jobId = await jobManager.ScheduleJobAsync(job);
+        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
+
+        var copy = jobManager.NewJob<RepeatingJobWithHashTest>();
+        var copyId = await jobManager.ScheduleJobAsync(copy);
+        Assert.That(copyId, Is.EqualTo(jobId));
+
+        await WaitForJobStatus<RepeatingJobWithHashTest>(jobManager, copyId, JobState.Succeeded, TimeSpan.FromSeconds(2));
+
+        copy = await jobManager.GetJobAsync<RepeatingJobWithHashTest>(jobId);
+        Assert.That(copy!.JobData.RunCount,  Is.EqualTo(3));
+        Assert.That(copy.State, Is.EqualTo(JobState.Succeeded));
+
+        await StopBackgroundServices();
+        AssertLogEvents();
+    }
+
+    //
+
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
