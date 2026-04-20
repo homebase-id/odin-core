@@ -60,7 +60,7 @@ public class SecurityHealthCheckJob(
             if (await certificateStore.GetCertificateAsync(Data.Tenant) == null)
             {
                 logger.LogInformation("No certificate found for domain {domain}. Waiting one minute", Data.Tenant);
-                return JobExecutionResult.Reschedule(DateTimeOffset.UtcNow.AddMinutes(1));
+                return JobExecutionResult.Defer(DateTimeOffset.UtcNow.AddMinutes(1));
             }
 
             var tenantScope = tenantContainer.LookupTenantScope(Data.Tenant!);
@@ -109,7 +109,7 @@ public class SecurityHealthCheckJob(
             return JobExecutionResult.Fail();
         }
 
-        return JobExecutionResult.Reschedule(DateTimeOffset.UtcNow.AddDays(30));
+        return JobExecutionResult.Repeat(DateTimeOffset.UtcNow.AddDays(30));
     }
 
     public override string? CreateJobHash()

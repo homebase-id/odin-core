@@ -13,7 +13,7 @@ public class RescheduleOnCancelJobTestData
     public bool CancelUsingException { get; set; }
 }
 
-public class RescheduleOnCancelJobTest(ILogger<RescheduleOnCancelJobTest> logger) : AbstractJob
+public class DeferOnCancelJobTest(ILogger<DeferOnCancelJobTest> logger) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("de878720-f0ce-4269-9d19-49c34b36a343");
     public override string JobType => JobTypeId.ToString();
@@ -29,7 +29,7 @@ public class RescheduleOnCancelJobTest(ILogger<RescheduleOnCancelJobTest> logger
         cts.Cancel();
         cancellationToken = cts.Token;
 
-        logger.LogInformation("Running RescheduleOnCancelJobTest");
+        logger.LogInformation("Running DeferOnCancelJobTest");
 
         if (!cancellationToken.IsCancellationRequested)
         {
@@ -42,7 +42,7 @@ public class RescheduleOnCancelJobTest(ILogger<RescheduleOnCancelJobTest> logger
         }
 
         // We add 3 seconds for good measure, mostly to not confuse the test runner.
-        return Task.FromResult(JobExecutionResult.Reschedule(DateTimeOffset.Now.AddSeconds(3)));
+        return Task.FromResult(JobExecutionResult.Defer(DateTimeOffset.Now.AddSeconds(3)));
     }
     
     //
