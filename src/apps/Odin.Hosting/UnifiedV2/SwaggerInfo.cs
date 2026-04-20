@@ -8,7 +8,7 @@ public static class SwaggerInfo
     public const string Health = "Health";
 
     // Drive-level status
-    public const string DriveStatus = "Drive Status";
+    public const string DriveMetadata = "Drive Metadata";
     public const string DriveInbox = "Drive Inbox";
 
     // File read-only endpoints (header, payload, thumbs, history)

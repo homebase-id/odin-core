@@ -24,7 +24,7 @@ public class V2DriveStatusController(
     : DriveStorageControllerBase(peerOutgoingTransferService)
 {
     [HttpGet("status")]
-    [SwaggerOperation(Tags = [SwaggerInfo.DriveStatus])]
+    [SwaggerOperation(Tags = [SwaggerInfo.DriveMetadata])]
     public async Task<IActionResult> GetStatus(Guid driveId)
     {
         WebOdinContext.Caller.AssertCallerIsOwner();
