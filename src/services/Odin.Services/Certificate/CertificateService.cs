@@ -160,8 +160,15 @@ public class CertificateService : ICertificateService
             var account = await LoadAccountAsync();
             if (account == null)
             {
-                account = await _certesAcme.CreateAccountAsync(_accountConfig.AcmeContactEmail, cancellationToken);
-                await SaveAccountAsync(account);
+                await using (await _nodeLock.LockAsync(LockKey("CertesAccountLock"), cancellationToken: cancellationToken))
+                {
+                    account = await LoadAccountAsync();
+                    if (account == null)
+                    {
+                        account = await _certesAcme.CreateAccountAsync(_accountConfig.AcmeContactEmail, cancellationToken);
+                    }
+                    await SaveAccountAsync(account);
+                }
             }
 
             var domains = new List<string> { domain };
