@@ -213,6 +213,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 .BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}");
             var systemDatabase = scope.Resolve<SystemDatabase>();
             await systemDatabase.Registrations.DeleteAsync(registration.Id);
+            await systemDatabase.Certificates.DeleteAsync(new OdinId(registration.PrimaryDomainName));
 
             await UnloadRegistration(registration);
 
