@@ -208,7 +208,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (null != registration)
         {
             _trie.RemoveDomain(domain);
+
+            await using var scope = GetOrCreateMultiTenantScope(registration)
+                .BeginLifetimeScope($"DeleteRegistration:{registration.PrimaryDomainName}");
+            var systemDatabase = scope.Resolve<SystemDatabase>();
+            await systemDatabase.Registrations.DeleteAsync(registration.Id);
+
             await UnloadRegistration(registration);
+
             var tenantRoot = Path.Combine(RegistrationRoot, registration.Id.ToString());
             Directory.Delete(tenantRoot, true);
             await DeletePayloads(registration);
