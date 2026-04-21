@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -26,6 +27,12 @@ using Odin.Services.Util;
 
 #nullable enable
 
+// SEB:TODO this file needs to be combined with PeerAppNotificationHandler.cs
+
+// SEB:TODO this file needs to be split up into different classes handling
+// - websocket incoming and outgoing messages
+// - client notifications (i.e. messages coming from the "inside" and going out to a websocket)
+
 // SEB:TODO cleanup SendMessageAsync params
 
 namespace Odin.Services.AppNotifications.WebSocket
@@ -38,22 +45,22 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         private readonly ILogger<PeerAppNotificationHandler> _logger;
         private readonly ITenantPubSub _pubSub;
-        private readonly IDriveManager _driveManager;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly PeerAppNotificationService _peerAppNotificationService;
         private readonly SharedDeviceSocketCollection<PeerAppNotificationHandler> _deviceSocketCollection;
         private readonly RefCountedSubscription _notificationSubscription;
 
         public PeerAppNotificationHandler(ILogger<PeerAppNotificationHandler> logger,
             ITenantPubSub pubSub,
-            IDriveManager driveManager,
+            IServiceScopeFactory serviceScopeFactory,
             PeerAppNotificationService peerAppNotificationService,
             SharedDeviceSocketCollection<PeerAppNotificationHandler> deviceSocketCollection)
         {
             _logger = logger;
-            _driveManager = driveManager;
             _peerAppNotificationService = peerAppNotificationService;
             _deviceSocketCollection = deviceSocketCollection;
             _pubSub = pubSub;
+            _serviceScopeFactory = serviceScopeFactory;
 
             _notificationSubscription =
                 new RefCountedSubscription(_pubSub, NotificationChannel, NotificationHandler);
@@ -295,6 +302,9 @@ namespace Odin.Services.AppNotifications.WebSocket
         // Dst: WebSocket
         private async Task WsPublishAsync(DriveNotificationMessage notification)
         {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var driveManager =  scope.ServiceProvider.GetRequiredService<IDriveManager>();
+
             var sockets = _deviceSocketCollection.GetAll().Values
                 .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
 
@@ -305,7 +315,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                 var o = new ClientDriveNotification
                 {
-                    TargetDrive = (await _driveManager.GetDriveAsync(notification.File.DriveId)).TargetDriveInfo,
+                    TargetDrive = (await driveManager.GetDriveAsync(notification.File.DriveId)).TargetDriveInfo,
                     Header = hasSharedSecret
                         ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                         : null,
