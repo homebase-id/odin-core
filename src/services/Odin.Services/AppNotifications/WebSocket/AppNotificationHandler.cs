@@ -6,8 +6,8 @@ using System.Net.WebSockets;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using MediatR;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -46,7 +46,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         private readonly ILogger<AppNotificationHandler> _logger;
         private readonly ITenantPubSub _pubSub;
-        private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly ILifetimeScope _tenantScope;
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly SharedDeviceSocketCollection<AppNotificationHandler> _deviceSocketCollection;
         private readonly RefCountedSubscription _notificationSubscription;
@@ -54,13 +54,13 @@ namespace Odin.Services.AppNotifications.WebSocket
         public AppNotificationHandler(
             ILogger<AppNotificationHandler> logger,
             ITenantPubSub pubSub,
-            IServiceScopeFactory serviceScopeFactory,
+            ILifetimeScope tenantScope,
             PeerInboxProcessor peerInboxProcessor,
             SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         {
             _logger = logger;
             _pubSub = pubSub;
-            _serviceScopeFactory = serviceScopeFactory;
+            _tenantScope = tenantScope;
             _peerInboxProcessor = peerInboxProcessor;
             _deviceSocketCollection = deviceSocketCollection;
 
@@ -286,21 +286,28 @@ namespace Odin.Services.AppNotifications.WebSocket
         // Dst: WebSocket
         private async Task WsPublishAsync(DriveNotificationMessage notification)
         {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var driveManager =  scope.ServiceProvider.GetRequiredService<IDriveManager>();
-
             var sockets = _deviceSocketCollection.GetAll().Values
-                .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
+                .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId))
+                .ToList();
+
+            if (sockets.Count == 0)
+            {
+                return;
+            }
+
+            await using var scope = _tenantScope.BeginLifetimeScope();
+            var driveManager =  scope.Resolve<IDriveManager>();
+            var driveId = notification.ServerFileHeader.FileMetadata.File.DriveId;
+            var drive = await driveManager.GetDriveAsync(driveId);
 
             foreach (var deviceSocket in sockets)
             {
                 var deviceOdinContext = deviceSocket.DeviceOdinContext;
                 var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
 
-                var driveId = notification.ServerFileHeader.FileMetadata.File.DriveId;
                 var o = new ClientDriveNotification
                 {
-                    TargetDrive = (await driveManager.GetDriveAsync(driveId)).TargetDriveInfo,
+                    TargetDrive = drive?.TargetDriveInfo,
                     Header = hasSharedSecret
                         ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                         : null,
