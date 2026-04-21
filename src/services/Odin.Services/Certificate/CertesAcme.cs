@@ -53,13 +53,13 @@ public sealed class CertesAcme : ICertesAcme
 
     public async Task<AcmeAccount> CreateAccountAsync(string contactEmail, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Creating account for {contactEmail}", contactEmail);
+        _logger.LogDebug("Creating letsencrypt account for {contactEmail}", contactEmail);
         var sw = Stopwatch.StartNew();
 
         var acme = new AcmeContext(_directoryUri);
         await acme.NewAccount(contactEmail, true);
 
-        _logger.LogDebug("Created account for {contactEmail} in {Elapsed}s",
+        _logger.LogDebug("Created letsencrypt account for {contactEmail} in {Elapsed}s",
             contactEmail, sw.ElapsedMilliseconds / 1000.0);
 
         return new AcmeAccount { AccounKeyPem = acme.AccountKey.ToPem() };
