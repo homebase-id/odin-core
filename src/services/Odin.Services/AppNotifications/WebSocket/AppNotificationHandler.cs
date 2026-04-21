@@ -280,17 +280,25 @@ namespace Odin.Services.AppNotifications.WebSocket
         private async Task WsPublishAsync(DriveNotificationMessage notification)
         {
             var sockets = _deviceSocketCollection.GetAll().Values
-                .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId));
+                .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId))
+                .ToList();
+
+            if (sockets.Count == 0)
+            {
+                return;
+            }
+
+            var driveId = notification.ServerFileHeader.FileMetadata.File.DriveId;
+            var drive = await _driveManager.GetDriveAsync(driveId);
 
             foreach (var deviceSocket in sockets)
             {
                 var deviceOdinContext = deviceSocket.DeviceOdinContext;
                 var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
 
-                var driveId = notification.ServerFileHeader.FileMetadata.File.DriveId;
                 var o = new ClientDriveNotification
                 {
-                    TargetDrive = (await _driveManager.GetDriveAsync(driveId)).TargetDriveInfo,
+                    TargetDrive = drive?.TargetDriveInfo,
                     Header = hasSharedSecret
                         ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
                         : null,
