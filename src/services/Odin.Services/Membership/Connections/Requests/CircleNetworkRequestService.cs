@@ -201,6 +201,112 @@ namespace Odin.Services.Membership.Connections.Requests
         }
 
         /// <summary>
+        /// Sends a connection request as an app-origin "auto-connect" call. Delegates to the
+        /// existing <see cref="SendConnectionRequestAsync"/> flow with origin
+        /// <see cref="ConnectionRequestOrigin.IdentityOwnerApp"/>, then inspects local state to
+        /// describe what actually happened (connected, pending, blocked, etc.) so the calling app
+        /// can respond without a second round trip.
+        /// </summary>
+        public async Task<AutoConnectResult> SendAutoConnectRequestAsync(ConnectionRequestHeader header,
+            CancellationToken cancellationToken, IOdinContext odinContext)
+        {
+            if (header == null || string.IsNullOrWhiteSpace(header.Recipient))
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.InvalidRequest };
+            }
+
+            var recipient = (OdinId)header.Recipient;
+
+            // Pre-flight: the existing IdentityOwnerApp send path does not guard against
+            // re-sending to an already-connected recipient (see CircleNetworkRequestService.cs
+            // line 175 — the guard there is IdentityOwner-only). Short-circuit here so the
+            // caller gets a clear AlreadyConnected outcome instead of a redundant round trip.
+            var preIcr = await _cns.GetIcrAsync(recipient, odinContext);
+            if (preIcr.Status == ConnectionStatus.Blocked)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.Blocked };
+            }
+            if (preIcr.IsConnected())
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.AlreadyConnected };
+            }
+
+            // Force app-origin regardless of what the caller passed; the endpoint is the
+            // statement of intent.
+            var autoHeader = new ConnectionRequestHeader
+            {
+                Recipient = header.Recipient,
+                ContactData = header.ContactData,
+                Message = header.Message,
+                CircleIds = header.CircleIds,
+                IntroducerOdinId = header.IntroducerOdinId,
+                ConnectionRequestOrigin = ConnectionRequestOrigin.IdentityOwnerApp,
+            };
+
+            // Snapshot whether we already had a pending incoming request from the recipient so
+            // we can tell the AcceptedFromExistingIncoming case apart from Connected afterward.
+            var hadIncomingPending = await GetPendingRequestInternalAsync(recipient) != null;
+
+            try
+            {
+                await SendConnectionRequestAsync(autoHeader, cancellationToken, odinContext);
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ConnectionRequestToYourself)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.InvalidRequest, Detail = e.Message };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.BlockedConnection)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.Blocked };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ConnectionRequestAlreadySent)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.OutgoingRequestAlreadyExists };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.IntroductoryRequestAlreadySent)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.DuplicateIntroductoryRequest };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.CannotSendConnectionRequestToValidConnection)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.AlreadyConnected };
+            }
+            catch (OdinSecurityException e)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.RecipientRejected, Detail = e.Message };
+            }
+            catch (OdinRemoteIdentityException e)
+            {
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.RecipientUnreachable, Detail = e.Message };
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "Auto-connect to {recipient} failed with unexpected error", recipient);
+                return new AutoConnectResult { Outcome = AutoConnectOutcome.Failed, Detail = e.Message };
+            }
+
+            // Send completed without throwing. Inspect local state to decide what actually happened.
+            var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
+            if (postIcr.IsConnected())
+            {
+                return new AutoConnectResult
+                {
+                    Outcome = hadIncomingPending
+                        ? AutoConnectOutcome.AcceptedFromExistingIncoming
+                        : AutoConnectOutcome.Connected
+                };
+            }
+
+            return new AutoConnectResult { Outcome = AutoConnectOutcome.PendingManualApproval };
+        }
+
+        private async Task<PendingConnectionRequestHeader> GetPendingRequestInternalAsync(OdinId sender)
+        {
+            return await _pendingRequestValueStorage
+                .GetAsync<PendingConnectionRequestHeader>(tblKeyThreeValue, MakePendingRequestsKey(sender));
+        }
+
+        /// <summary>
         /// Stores a new pending/incoming request that is not yet accepted.
         /// </summary>
         public async Task ReceiveConnectionRequestAsync(EccEncryptedPayload payload, CancellationToken cancellationToken,
@@ -843,9 +949,24 @@ namespace Odin.Services.Membership.Connections.Requests
                 // overwrite with the new app-initiated request and resend
                 await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
             }
-            else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner || existingRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
+            else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
             {
-                // a full owner-console request already exists; resend using its circles
+                // Resend in case something changed on the recipient side (e.g. they
+                // deleted the pending request). Merge circles so we don't lose any
+                // grants from the earlier app-origin request.
+                var newCircles = header.CircleIds ?? [];
+                var existingCircles = existingOutgoingRequest.PendingAccessExchangeGrant.CircleGrants.Keys
+                    .Select(c => new GuidId(c))
+                    .ToList();
+                newCircles.AddRange(existingCircles.Where(c => !newCircles.Exists(nc => nc == c)).ToList());
+                header.CircleIds = newCircles;
+                await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+            }
+            else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+            {
+                // An owner-console request already exists; the app path has no master
+                // key so it cannot reproduce the ICR-key-bound grant — refuse rather
+                // than silently downgrade.
                 throw new OdinClientException("There is an existing outgoing connection request", OdinClientErrorCode.ConnectionRequestAlreadySent);
             }
         }
