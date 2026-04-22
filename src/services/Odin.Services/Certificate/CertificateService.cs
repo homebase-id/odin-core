@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Odin.Core.Exceptions;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.Registry.Registration;
@@ -125,7 +123,7 @@ public class CertificateService : ICertificateService
                 return true;
             }
 
-            _logger.LogWarning("Could not renew {domain} certificate. See previous messages.", domain);
+            _logger.LogError("Could not RENEW {domain} certificate. See previous messages.", domain);
             return false;
         }
     }
@@ -185,7 +183,11 @@ public class CertificateService : ICertificateService
                 {
                     pems = await _certesAcme.CreateCertificateAsync(account, domains.ToArray(), cancellationToken);
                 }
-                catch (OdinSystemException e)
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception e)
                 {
                     if (--maxTries > 0)
                     {
@@ -204,7 +206,7 @@ public class CertificateService : ICertificateService
         }
         catch (Exception e)
         {
-            var error = $"Error creating certificate for {domain}: {e.Message}";
+            var error = $"Error creating certificate for {domain}: {e.Message.ReplaceLineEndings(". ").TrimEnd()}";
             _logger.LogError("{error}", error);
             await _certificateStore.StoreFailedCertificateUpdateAsync(domain, error);
             return null;
