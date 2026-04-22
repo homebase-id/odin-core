@@ -200,6 +200,7 @@ public class ScopedConnectionFactory<T>(
     private DbTransaction? _transaction;
     private Guid _transactionId;
     private int _transactionRefCount;
+    private ITransactionWrapper? _transactionWrapper;
     private bool _commit;
 
     public DatabaseType DatabaseType => _connectionFactory.DatabaseType;
@@ -350,7 +351,8 @@ public class ScopedConnectionFactory<T>(
                 throw new OdinDatabaseException(instance.DatabaseType, message);
             }
 
-            return new TransactionWrapper(instance);
+            instance._transactionWrapper = new TransactionWrapper(instance);
+            return instance._transactionWrapper;
         }
 
         //
@@ -533,12 +535,12 @@ public class ScopedConnectionFactory<T>(
         {
             // Don't check for parallelism here. Dispose must always be allowed to run.
 
-            GC.SuppressFinalize(this);
             if (_disposed)
             {
-                instance.LogError("Transaction already disposed");
                 return;
             }
+
+            GC.SuppressFinalize(this);
 
             // Sanity
             if (instance._connection == null)
@@ -601,6 +603,7 @@ public class ScopedConnectionFactory<T>(
                     instance._postCommitActions.Clear();
                     instance._postRollbackActions.Clear();
                     instance._transaction = null!;
+                    instance._transactionWrapper = null;
                     instance._commit = false;
                     _disposed = true;
 
@@ -716,6 +719,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("ExecuteNonQueryAsync failed", e);
+                await AbortTransactionAsync();
                 throw new OdinDatabaseException(instance.DatabaseType, "ExecuteNonQueryAsync failed", e);
             }
         }
@@ -748,6 +752,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("ExecuteReaderAsync failed", e);
+                await AbortTransactionAsync();
                 throw new OdinDatabaseException(instance.DatabaseType, "ExecuteReaderAsync failed", e);
             }
         }
@@ -779,6 +784,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("ExecuteScalarAsync failed", e);
+                await AbortTransactionAsync();
                 throw new OdinDatabaseException(instance.DatabaseType, "ExecuteScalarAsync failed", e);
             }
         }
@@ -799,6 +805,7 @@ public class ScopedConnectionFactory<T>(
             catch (Exception e)
             {
                 instance.LogException("PrepareAsync failed", e);
+                await AbortTransactionAsync();
                 throw new OdinDatabaseException(instance.DatabaseType, "PrepareAsync failed", e);
             }
         }
@@ -836,6 +843,30 @@ public class ScopedConnectionFactory<T>(
         ~CommandWrapper()
         {
             FinalizerError.ReportMissingDispose(GetType(), instance._logger);
+        }
+
+        //
+
+        private async Task AbortTransactionAsync()
+        {
+            if (instance._transactionWrapper == null)
+            {
+                return;
+            }
+
+            try
+            {
+                instance._logger.LogDebug("Aborting transaction due to command failure");
+                // Force the wrapper's DisposeAsync to take the refcount-hits-zero path and run
+                // its full rollback+cleanup logic, regardless of how deep the stacked transaction is.
+                instance._transactionRefCount = 1;
+                instance._commit = false;
+                await instance._transactionWrapper.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                instance._logger.LogError(ex, "Transaction abort failed: {message}", ex.Message);
+            }
         }
     }
 

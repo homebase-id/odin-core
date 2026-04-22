@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,7 +27,7 @@ public class ScopedConnectionFactoryTest : IocTestBase
         await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
 
         await using var cmd = cn.CreateCommand();
-        cmd.CommandText = "CREATE TABLE test (name TEXT);";
+        cmd.CommandText = "CREATE TABLE test (name TEXT, unique_name TEXT NULL UNIQUE);";
         await cmd.ExecuteNonQueryAsync();
     }
     
@@ -354,6 +355,70 @@ public class ScopedConnectionFactoryTest : IocTestBase
             Assert.That(result, Is.EqualTo(0));
         }
     }
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldAbortTransactionOnError(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await CreateTestDatabaseAsync();
+
+        await using var scope = Services.BeginLifetimeScope();
+        var scopedConnectionFactory = scope.Resolve<ScopedSystemConnectionFactory>();
+
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+
+        await using var cmd1 = cn.CreateCommand();
+        cmd1.CommandText = "SELECT COUNT(*) FROM test;";
+        var result1 = await cmd1.ExecuteScalarAsync();
+        Assert.That(result1, Is.EqualTo(0));
+
+        cmd1.CommandText = "INSERT INTO test (unique_name) VALUES ('test');";
+        await cmd1.ExecuteNonQueryAsync();
+
+        Assert.That(cn.HasTransaction, Is.False);
+
+        Exception exception = null;
+        await using (await cn.BeginStackedTransactionAsync())
+        {
+            await using (await cn.BeginStackedTransactionAsync())
+            {
+                Assert.That(cn.HasTransaction, Is.True);
+                try
+                {
+                    await using var cmd2 = cn.CreateCommand();
+                    cmd2.CommandText = "INSERT INTO test (unique_name) VALUES ('test');";
+                    await cmd2.ExecuteNonQueryAsync();
+                }
+                catch (OdinDatabaseException e) when (e.IsUniqueConstraintViolation)
+                {
+                    exception = e;
+                    Assert.That(cn.HasTransaction, Is.False);
+                }
+                await using (var cmd = cn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM test;";
+                    var result = await cmd.ExecuteScalarAsync();
+                    Assert.That(result, Is.EqualTo(1));
+                }
+            }
+        }
+
+        await using (var cmd = cn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM test;";
+            var result = await cmd.ExecuteScalarAsync();
+            Assert.That(result, Is.EqualTo(1));
+        }
+
+        Assert.That(cn.HasTransaction, Is.False);
+        Assert.That(exception, Is.Not.Null);
+        Assert.That(exception.GetType(), Is.EqualTo(typeof(OdinDatabaseException)));
+    }
+
 
     [Test]
     [TestCase(DatabaseType.Sqlite)]
