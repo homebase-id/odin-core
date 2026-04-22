@@ -109,6 +109,21 @@ public class V2ConnectionRequestsController(
             null);
     }
 
+    // POST /requests/auto-connect
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
+    [HttpPost("requests/auto-connect")]
+    public async Task<ActionResult<AutoConnectResult>> AutoConnect(
+        [FromBody] ConnectionRequestHeader requestHeader)
+    {
+        OdinValidationUtils.AssertNotNull(requestHeader, nameof(requestHeader));
+        OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
+
+        var result = await circleNetworkRequestService
+            .SendAutoConnectRequestAsync(requestHeader, HttpContext.RequestAborted, WebOdinContext);
+
+        return Ok(result);
+    }
+
     // PUT /requests/incoming/{senderId}
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpPut("requests/incoming/{senderId}")]
