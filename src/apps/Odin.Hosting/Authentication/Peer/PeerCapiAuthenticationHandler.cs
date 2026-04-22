@@ -80,6 +80,7 @@ public class PeerCapiAuthenticationHandler(
                     .WithDelay(TimeSpan.FromSeconds(1))
                     .WithCancellation(applicationLifetime.ApplicationStopping)
                     .RetryOnPredicate((ex, _) => ex is HttpRequestException httpEx && httpEx.Message.Contains("Connection refused"))
+                    .WithoutExceptionWrapper()
                     .ExecuteAsync(async () => await httpClient.GetAsync(url, applicationLifetime.ApplicationStopping));
             }
             catch (OperationCanceledException ex)
