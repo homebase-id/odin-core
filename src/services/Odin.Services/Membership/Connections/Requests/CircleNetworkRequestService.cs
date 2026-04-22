@@ -949,9 +949,24 @@ namespace Odin.Services.Membership.Connections.Requests
                 // overwrite with the new app-initiated request and resend
                 await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
             }
-            else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner || existingRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
+            else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwnerApp)
             {
-                // a full owner-console request already exists; resend using its circles
+                // Resend in case something changed on the recipient side (e.g. they
+                // deleted the pending request). Merge circles so we don't lose any
+                // grants from the earlier app-origin request.
+                var newCircles = header.CircleIds ?? [];
+                var existingCircles = existingOutgoingRequest.PendingAccessExchangeGrant.CircleGrants.Keys
+                    .Select(c => new GuidId(c))
+                    .ToList();
+                newCircles.AddRange(existingCircles.Where(c => !newCircles.Exists(nc => nc == c)).ToList());
+                header.CircleIds = newCircles;
+                await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
+            }
+            else if (existingRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
+            {
+                // An owner-console request already exists; the app path has no master
+                // key so it cannot reproduce the ICR-key-bound grant — refuse rather
+                // than silently downgrade.
                 throw new OdinClientException("There is an existing outgoing connection request", OdinClientErrorCode.ConnectionRequestAlreadySent);
             }
         }
