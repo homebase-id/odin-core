@@ -334,20 +334,6 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.AlreadyConnected };
             }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.PublicKeyEncryptionIsInvalid)
-            {
-                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientUnreachable };
-            }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RecipientIdentityNotConfigured)
-            {
-                return new ConnectionRequestResult
-                    { Outcome = AutoConnectOutcome.RecipientIdentityNotConfigured, Detail = e.Message };
-            }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RecipientRequiresUpgrade)
-            {
-                return new ConnectionRequestResult
-                    { Outcome = AutoConnectOutcome.RecipientRequiresUpgrade, Detail = e.Message };
-            }
             catch (OdinSecurityException e)
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientRejected, Detail = e.Message };
@@ -357,13 +343,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientUnreachable, Detail = e.Message };
             }
             catch (OdinClientException e)
-            {
-                // Any OdinClientException whose error code wasn't caught above is a validation /
-                // input-shape failure (ArgumentError, NoErrorCode, etc.) — route to InvalidRequest
-                // so the caller gets a specific outcome instead of a generic Failed.
-                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest, Detail = e.Message };
-            }
-            catch (Exception e)
             {
                 logger.LogWarning(e, "Send connection request to {recipient} failed with unexpected error",
                     header.Recipient);
