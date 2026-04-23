@@ -112,7 +112,7 @@ public class V2ConnectionRequestsController(
     // POST /requests/auto-connect
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpPost("requests/auto-connect")]
-    public async Task<ActionResult<AutoConnectResult>> AutoConnect(
+    public async Task<ActionResult<ConnectionRequestResult>> AutoConnect(
         [FromBody] ConnectionRequestHeader requestHeader)
     {
         OdinValidationUtils.AssertNotNull(requestHeader, nameof(requestHeader));

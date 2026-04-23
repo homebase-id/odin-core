@@ -383,7 +383,7 @@ public class V2AutoConnectTests
     // Helpers
     // -----------------------------------------------------------------------
 
-    private static async Task<ApiResponse<AutoConnectResult>> CallAutoConnect(
+    private static async Task<ApiResponse<ConnectionRequestResult>> CallAutoConnect(
         IApiClientContext callerContext,
         OwnerApiClientRedux senderOwner,
         OdinId senderOdinId,
@@ -399,7 +399,7 @@ public class V2AutoConnectTests
         return await CallAutoConnectWithHeader(callerContext, senderOwner, senderOdinId, header);
     }
 
-    private static async Task<ApiResponse<AutoConnectResult>> CallAutoConnectWithHeader(
+    private static async Task<ApiResponse<ConnectionRequestResult>> CallAutoConnectWithHeader(
         IApiClientContext callerContext,
         OwnerApiClientRedux senderOwner,
         OdinId senderOdinId,
@@ -422,7 +422,7 @@ public class V2AutoConnectTests
         return await client.AutoConnectAsync(header);
     }
 
-    private static void AssertOutcome(AutoConnectResult result, AutoConnectOutcome expected)
+    private static void AssertOutcome(ConnectionRequestResult result, AutoConnectOutcome expected)
     {
         ClassicAssert.IsNotNull(result, "result body was null");
         ClassicAssert.IsTrue(result.Outcome == expected,
