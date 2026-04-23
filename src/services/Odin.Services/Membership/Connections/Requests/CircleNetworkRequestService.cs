@@ -273,11 +273,15 @@ namespace Odin.Services.Membership.Connections.Requests
         }
 
         /// <summary>
-        /// Sends an owner-origin connection request and returns a <see cref="ConnectionRequestResult"/>
-        /// describing the outcome. Mirrors <see cref="SendAutoConnectRequestAsync"/> but preserves the
-        /// caller's <see cref="ConnectionRequestOrigin"/> and does not inspect post-send state — for
-        /// owner-initiated sends the recipient must accept manually, so successful delivery always
-        /// resolves to <see cref="AutoConnectOutcome.PendingManualApproval"/>.
+        /// Owner-origin counterpart to <see cref="SendAutoConnectRequestAsync"/>: sends a connection
+        /// request and returns a <see cref="ConnectionRequestResult"/> describing the outcome.
+        /// Forces <see cref="ConnectionRequestOrigin.IdentityOwner"/> regardless of what the caller
+        /// passed — the endpoint is the statement of intent. The IdentityOwner origin also ensures
+        /// the existing verification guard in <see cref="SendConnectionRequestAsync"/> (which only
+        /// runs for IdentityOwner origin) short-circuits on a valid existing connection. Post-send
+        /// state is inspected so the local "accept existing incoming" path resolves to
+        /// <see cref="AutoConnectOutcome.AcceptedFromExistingIncoming"/> instead of being
+        /// mis-reported as <see cref="AutoConnectOutcome.PendingManualApproval"/>.
         /// </summary>
         public async Task<ConnectionRequestResult> SendConnectionRequestWithOutcomeAsync(
             ConnectionRequestHeader header,
@@ -289,10 +293,40 @@ namespace Odin.Services.Membership.Connections.Requests
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest };
             }
 
-            var failure = await TrySendAndMapOutcomeAsync(header, cancellationToken, odinContext);
+            var recipient = (OdinId)header.Recipient;
+
+            // Force owner origin regardless of what the caller passed; the endpoint is the
+            // statement of intent. Symmetric with SendAutoConnectRequestAsync forcing IdentityOwnerApp.
+            var ownerHeader = new ConnectionRequestHeader
+            {
+                Recipient = header.Recipient,
+                ContactData = header.ContactData,
+                Message = header.Message,
+                CircleIds = header.CircleIds,
+                IntroducerOdinId = header.IntroducerOdinId,
+                ConnectionRequestOrigin = ConnectionRequestOrigin.IdentityOwner,
+            };
+
+            // Snapshot whether we already had a pending incoming request from the recipient so we
+            // can tell the AcceptedFromExistingIncoming case apart from Connected afterward.
+            var hadIncomingPending = await GetPendingRequestInternalAsync(recipient) != null;
+
+            var failure = await TrySendAndMapOutcomeAsync(ownerHeader, cancellationToken, odinContext);
             if (failure != null)
             {
                 return failure;
+            }
+
+            // Send completed without throwing. Inspect local state to decide what actually happened.
+            var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
+            if (postIcr.IsConnected())
+            {
+                return new ConnectionRequestResult
+                {
+                    Outcome = hadIncomingPending
+                        ? AutoConnectOutcome.AcceptedFromExistingIncoming
+                        : AutoConnectOutcome.Connected
+                };
             }
 
             return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
@@ -348,7 +382,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 return new ConnectionRequestResult
                     { Outcome = AutoConnectOutcome.RecipientRequiresUpgrade, Detail = e.Message };
             }
-            catch (OdinSecurityException e)
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RemoteServerReturnedForbidden)
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientRejected, Detail = e.Message };
             }
@@ -1278,7 +1312,8 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (sendResult1.deliveryResponse.StatusCode == HttpStatusCode.Forbidden)
             {
-                throw new OdinSecurityException("Remote server denied connection");
+                throw new OdinClientException("Remote server denied connection",
+                    OdinClientErrorCode.RemoteServerReturnedForbidden);
             }
 
             if (!sendResult1.deliveryResponse.IsSuccessStatusCode)
@@ -1286,7 +1321,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 var sendResult2 = await Send();
                 if (sendResult2.deliveryResponse.StatusCode == HttpStatusCode.Forbidden)
                 {
-                    throw new OdinSecurityException("Remote server denied connection");
+                    throw new OdinClientException("Remote server denied connection",
+                        OdinClientErrorCode.RemoteServerReturnedForbidden);
                 }
 
                 if (!sendResult2.deliveryResponse.IsSuccessStatusCode)
