@@ -74,13 +74,24 @@ public static class SystemAppConstants
                     Drive = SystemDriveConstants.ProfileDrive,
                     Permission = DrivePermission.Read
                 }
-            }
+            }, 
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.PublicPostsChannelDrive,
+                    Permission = DrivePermission.All
+                }
+            }, 
+           
         ],
         PermissionSet = new PermissionSet(
             PermissionKeys.ReadConnections,
             PermissionKeys.SendPushNotifications,
             PermissionKeys.ReadConnectionRequests,
             PermissionKeys.SendIntroductions,
+            PermissionKeys.ManageFeed,
+            PermissionKeys.PublishStaticContent,
             PermissionKeys.UseTransitRead,
             PermissionKeys.UseTransitWrite)
     };
