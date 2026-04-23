@@ -90,6 +90,8 @@ public enum OdinClientErrorCode
     CannotSendConnectionRequestToValidConnection = 5005,
     RemoteServerMissingOutgoingRequest = 5006,
     ConnectionRequestAlreadySent = 5007,
+    RecipientIdentityNotConfigured = 5008,
+    RecipientRequiresUpgrade = 5009,
 
     // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
