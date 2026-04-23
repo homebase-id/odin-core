@@ -11,11 +11,14 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Json;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.PubSub;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.AppNotifications.WebRtcSignaling;
+using Odin.Services.AppNotifications.WebRtcSignaling.PeerRelay;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -48,6 +51,7 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly ITenantPubSub _pubSub;
         private readonly ILifetimeScope _tenantScope;
         private readonly PeerInboxProcessor _peerInboxProcessor;
+        private readonly WebRtcSignalingService _webRtcSignalingService;
         private readonly SharedDeviceSocketCollection<AppNotificationHandler> _deviceSocketCollection;
         private readonly RefCountedSubscription _notificationSubscription;
 
@@ -56,12 +60,14 @@ namespace Odin.Services.AppNotifications.WebSocket
             ITenantPubSub pubSub,
             ILifetimeScope tenantScope,
             PeerInboxProcessor peerInboxProcessor,
+            WebRtcSignalingService webRtcSignalingService,
             SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         {
             _logger = logger;
             _pubSub = pubSub;
             _tenantScope = tenantScope;
             _peerInboxProcessor = peerInboxProcessor;
+            _webRtcSignalingService = webRtcSignalingService;
             _deviceSocketCollection = deviceSocketCollection;
 
             _notificationSubscription =
@@ -77,7 +83,9 @@ namespace Odin.Services.AppNotifications.WebSocket
         public async Task EstablishConnection(
             System.Net.WebSockets.WebSocket webSocket,
             IOdinContext odinContext,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? remoteIpAddress = null,
+            int? remotePort = null)
         {
             var webSocketKey = Guid.NewGuid();
             try
@@ -86,6 +94,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                 {
                     Key = webSocketKey,
                     Socket = webSocket,
+                    RemoteIpAddress = remoteIpAddress,
+                    RemotePort = remotePort,
                 };
                 _deviceSocketCollection.AddSocket(deviceSocket);
 
@@ -243,6 +253,13 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));
         }
+
+        //
+
+        // True if any WebSocket session is currently open for this tenant. Used by the
+        // peer WebRTC relay controller to short-circuit with "offline" when there's no one
+        // to deliver to, rather than publishing a notification that would be a no-op.
+        public bool HasOpenSockets() => _deviceSocketCollection.GetAll().Count > 0;
 
         //
 
@@ -544,10 +561,126 @@ namespace Odin.Services.AppNotifications.WebSocket
                     await SendMessageAsync(deviceSocket, pong, encrypt: true, cancellationToken);
                     break;
 
+                case SocketCommandType.CallInvite:
+                {
+                    var p = OdinSystemSerializer.Deserialize<CallInvitePayload>(command.Data);
+                    if (p != null)
+                    {
+                        var req = new WebRtcRelayRequest { SignalType = WebRtcSignalType.Invite, CallId = p.CallId };
+                        await RelayAndReportAsync(deviceSocket, p.To, p.CallId, req, odinContext, cancellationToken);
+                    }
+                    break;
+                }
+
+                case SocketCommandType.CallOffer:
+                {
+                    var p = OdinSystemSerializer.Deserialize<CallOfferPayload>(command.Data);
+                    if (p != null)
+                    {
+                        var req = new WebRtcRelayRequest { SignalType = WebRtcSignalType.Offer, CallId = p.CallId, Sdp = p.Sdp };
+                        await RelayAndReportAsync(deviceSocket, p.To, p.CallId, req, odinContext, cancellationToken);
+                    }
+                    break;
+                }
+
+                case SocketCommandType.CallAnswer:
+                {
+                    var p = OdinSystemSerializer.Deserialize<CallAnswerPayload>(command.Data);
+                    if (p != null)
+                    {
+                        var req = new WebRtcRelayRequest { SignalType = WebRtcSignalType.Answer, CallId = p.CallId, Sdp = p.Sdp };
+                        await RelayAndReportAsync(deviceSocket, p.To, p.CallId, req, odinContext, cancellationToken);
+                    }
+                    break;
+                }
+
+                case SocketCommandType.CallIce:
+                {
+                    var p = OdinSystemSerializer.Deserialize<CallIcePayload>(command.Data);
+                    if (p != null)
+                    {
+                        var req = new WebRtcRelayRequest
+                        {
+                            SignalType = WebRtcSignalType.Ice,
+                            CallId = p.CallId,
+                            Candidate = p.Candidate,
+                            SdpMid = p.SdpMid,
+                            SdpMLineIndex = p.SdpMLineIndex,
+                        };
+                        await RelayAndReportAsync(deviceSocket, p.To, p.CallId, req, odinContext, cancellationToken);
+                    }
+                    break;
+                }
+
+                case SocketCommandType.CallHangup:
+                {
+                    var p = OdinSystemSerializer.Deserialize<CallHangupPayload>(command.Data);
+                    if (p != null)
+                    {
+                        var req = new WebRtcRelayRequest { SignalType = WebRtcSignalType.Hangup, CallId = p.CallId };
+                        await RelayAndReportAsync(deviceSocket, p.To, p.CallId, req, odinContext, cancellationToken);
+                    }
+                    break;
+                }
+
+                case SocketCommandType.CallReject:
+                {
+                    var p = OdinSystemSerializer.Deserialize<CallRejectPayload>(command.Data);
+                    if (p != null)
+                    {
+                        var req = new WebRtcRelayRequest { SignalType = WebRtcSignalType.Reject, CallId = p.CallId };
+                        await RelayAndReportAsync(deviceSocket, p.To, p.CallId, req, odinContext, cancellationToken);
+                    }
+                    break;
+                }
+
+                case SocketCommandType.Whoami:
+                {
+                    var data = new WhoamiResponseData
+                    {
+                        PublicIp = deviceSocket.RemoteIpAddress ?? "",
+                        PublicPort = deviceSocket.RemotePort ?? 0,
+                    };
+                    await SendMessageAsync(deviceSocket, JsonNotification(ClientNotificationType.WhoamiResponse, data),
+                        encrypt: true, cancellationToken);
+                    break;
+                }
+
                 default:
                     await SendErrorMessageAsync(deviceSocket, "Invalid command", cancellationToken);
                     break;
             }
+        }
+
+        // Drives a single signaling message from sender's socket → recipient's server. On
+        // anything other than Delivered=true, sends a callUnavailable back to the sender's
+        // socket only (mirrors the Pong pattern — direct reply, no MediatR fan-out).
+        private async Task RelayAndReportAsync(
+            DeviceSocket deviceSocket,
+            OdinId recipient,
+            Guid callId,
+            WebRtcRelayRequest request,
+            IOdinContext odinContext,
+            CancellationToken cancellationToken)
+        {
+            var outcome = await _webRtcSignalingService.RelayAsync(recipient, request, odinContext, cancellationToken);
+            if (outcome.Delivered)
+            {
+                return;
+            }
+
+            var data = new CallUnavailableData { CallId = callId, Reason = outcome.FailureReason };
+            await SendMessageAsync(deviceSocket, JsonNotification(ClientNotificationType.CallUnavailable, data),
+                encrypt: true, cancellationToken);
+        }
+
+        private static string JsonNotification(ClientNotificationType type, object data)
+        {
+            return OdinSystemSerializer.Serialize(new
+            {
+                NotificationType = type,
+                Data = OdinSystemSerializer.Serialize(data),
+            });
         }
 
         //

@@ -6,6 +6,7 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -46,6 +47,17 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
     public void ConfigureServices(IServiceCollection services)
     {
         services.ConfigureSystemServices(_config);
+
+        // Surface the real client IP/port to controllers and the WebRTC whoami command when
+        // running behind a reverse proxy. KnownProxies/KnownNetworks are cleared because
+        // tenants may sit behind arbitrary proxy IPs; the spoofing risk is low because the
+        // forwarded IP is only used for informational reporting (NAT hint), not auth.
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
     }
 
     // This method gets called by the runtime.
@@ -66,6 +78,10 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
 
         app.UseMiddleware<HealthzMiddleware>();
+
+        // Must run before any middleware that reads RemoteIpAddress (logging, rate limiting,
+        // WebRTC whoami) so they observe the real client IP rather than the upstream proxy.
+        app.UseForwardedHeaders();
 
         // Note 1: see NotificationSocketController
         // Note 2: UseWebSockets must be before UseLoggingMiddleware

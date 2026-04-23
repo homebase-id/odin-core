@@ -28,6 +28,12 @@ public class DeviceSocket
     public List<Guid> Drives { get; set; } = [];
     public TimeSpan Timeout { get; init; } = DefaultTimeout;
 
+    // Remote endpoint as observed at HTTP upgrade time. Used by the whoami signaling
+    // command to report the client's public IP back. After UseForwardedHeaders runs, this
+    // is the real client IP, not the proxy.
+    public string? RemoteIpAddress { get; init; }
+    public int? RemotePort { get; init; }
+
     //
 
     public async Task SendMessageAsync(string json, CancellationToken cancellationToken = default)

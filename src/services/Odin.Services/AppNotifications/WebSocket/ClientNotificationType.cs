@@ -28,7 +28,15 @@ public enum ClientNotificationType
     /// Indicates the notification doesnt need this value.  Note: this implies we might be able to dorp this field all together
     /// </summary>
     Unused = 8001,
+    CallInviteReceived = 5101,
+    CallOfferReceived = 5102,
+    CallAnswerReceived = 5103,
+    CallIceReceived = 5104,
+    CallHangupReceived = 5105,
+    CallRejectReceived = 5106,
+    CallUnavailable = 5107,
+    WhoamiResponse = 5108,
     Error = 0xBADBEEF,
     AuthenticationError = 403
-    
+
 }

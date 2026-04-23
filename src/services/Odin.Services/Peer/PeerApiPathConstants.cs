@@ -17,4 +17,6 @@ public static class PeerApiPathConstants
     public const string EncryptionV1 = HostV1 + "/encryption";
 
     public const string PasswordRecoveryV1 = HostV1 + "/passwd";
+
+    public const string WebRtcV1 = HostV1 + "/webrtc";
 }
