@@ -51,7 +51,10 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
                     DangerousEnableCompression = true
                 });
 
-                await _notificationHandler.EstablishConnection(webSocket, WebOdinContext, cancellationTokenSources.Token);
+                var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var remotePort = HttpContext.Connection.RemotePort;
+                await _notificationHandler.EstablishConnection(webSocket, WebOdinContext, cancellationTokenSources.Token,
+                    remoteIp, remotePort);
             }
             catch (OperationCanceledException)
             {

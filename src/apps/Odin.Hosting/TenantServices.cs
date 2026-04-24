@@ -8,6 +8,8 @@ using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
+using Odin.Services.AppNotifications.WebRtcSignaling;
+using Odin.Services.AppNotifications.WebRtcSignaling.Notifications;
 using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.Transit;
@@ -144,8 +146,16 @@ public static class TenantServices
             .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
             .As<INotificationHandler<AppNotificationAddedNotification>>()
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<CallInviteReceivedNotification>>()
+            .As<INotificationHandler<CallOfferReceivedNotification>>()
+            .As<INotificationHandler<CallAnswerReceivedNotification>>()
+            .As<INotificationHandler<CallIceReceivedNotification>>()
+            .As<INotificationHandler<CallHangupReceivedNotification>>()
+            .As<INotificationHandler<CallRejectReceivedNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
+
+        cb.RegisterType<WebRtcSignalingService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<PeerAppNotificationHandler>()
             // .As<INotificationHandler<FileAddedNotification>>()

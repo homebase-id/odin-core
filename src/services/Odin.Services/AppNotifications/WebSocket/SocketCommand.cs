@@ -14,4 +14,11 @@ public enum SocketCommandType
     ProcessInbox = 222,
     Ping = 999,
     WhoIsOnline = 444,
+    CallInvite = 5001,
+    CallOffer = 5002,
+    CallAnswer = 5003,
+    CallIce = 5004,
+    CallHangup = 5005,
+    CallReject = 5006,
+    Whoami = 5007,
 }
