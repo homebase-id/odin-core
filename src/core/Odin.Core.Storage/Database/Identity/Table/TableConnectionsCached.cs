@@ -40,11 +40,6 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
 
     public async Task<ConnectionsRecord?> GetAsync(OdinId identity, TimeSpan? ttl = null)
     {
-        if (InDatabaseTransaction)
-        {
-            return await table.GetAsync(identity);
-        }
-
         var result = await Cache.GetOrSetAsync(
             GetCacheKey(identity),
             _ => table.GetAsync(identity),
@@ -95,11 +90,6 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
         string? inCursor,
         TimeSpan? ttl = null)
     {
-        if (InDatabaseTransaction)
-        {
-            return await table.PagingByIdentityAsync(count, inCursor);
-        }
-
         var result = await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, inCursor),
@@ -117,11 +107,6 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
         string? inCursor,
         TimeSpan? ttl = null)
     {
-        if (InDatabaseTransaction)
-        {
-            return await table.PagingByIdentityAsync(count, status, inCursor);
-        }
-
         var result = await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + status + ":" + inCursor,
             _ => table.PagingByIdentityAsync(count, status, inCursor),
@@ -139,11 +124,6 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
         string? cursorString,
         TimeSpan? ttl = null)
     {
-        if (InDatabaseTransaction)
-        {
-            return await table.PagingByCreatedAsync(count, status, cursorString);
-        }
-
         var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + status + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, status, cursorString),
@@ -160,11 +140,6 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
         string? cursorString,
         TimeSpan? ttl = null)
     {
-        if (InDatabaseTransaction)
-        {
-            return await table.PagingByCreatedAsync(count, cursorString);
-        }
-
         var result = await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + cursorString,
             _ => table.PagingByCreatedAsync(count, cursorString),
