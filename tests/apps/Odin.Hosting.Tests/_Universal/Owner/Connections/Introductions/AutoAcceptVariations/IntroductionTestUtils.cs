@@ -95,9 +95,13 @@ internal static class IntroductionTestUtils
         var sam = scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        //Note disconnecting does not unblock
+        //Note disconnecting does not unblock — clear all six directional blocks across all pairs
         await merry.Network.UnblockConnection(sam.OdinId);
         await sam.Network.UnblockConnection(merry.OdinId);
+        await sam.Network.UnblockConnection(frodo.OdinId);
+        await merry.Network.UnblockConnection(frodo.OdinId);
+        await frodo.Network.UnblockConnection(sam.OdinId);
+        await frodo.Network.UnblockConnection(merry.OdinId);
 
         await frodo.Connections.DisconnectFrom(sam.OdinId);
         await frodo.Connections.DisconnectFrom(merry.OdinId);
@@ -108,6 +112,22 @@ internal static class IntroductionTestUtils
         await merry.Connections.DisconnectFrom(sam.OdinId);
         await sam.Connections.DisconnectFrom(merry.OdinId);
 
+        // Clear any stray sent/pending requests across all pairings.
+        await frodo.Connections.DeleteSentRequestTo(sam.OdinId);
+        await frodo.Connections.DeleteSentRequestTo(merry.OdinId);
+        await sam.Connections.DeleteSentRequestTo(frodo.OdinId);
+        await sam.Connections.DeleteSentRequestTo(merry.OdinId);
+        await merry.Connections.DeleteSentRequestTo(frodo.OdinId);
+        await merry.Connections.DeleteSentRequestTo(sam.OdinId);
+
+        await frodo.Connections.DeleteConnectionRequestFrom(sam.OdinId);
+        await frodo.Connections.DeleteConnectionRequestFrom(merry.OdinId);
+        await sam.Connections.DeleteConnectionRequestFrom(frodo.OdinId);
+        await sam.Connections.DeleteConnectionRequestFrom(merry.OdinId);
+        await merry.Connections.DeleteConnectionRequestFrom(frodo.OdinId);
+        await merry.Connections.DeleteConnectionRequestFrom(sam.OdinId);
+
+        await frodo.Connections.DeleteAllIntroductions();
         await merry.Connections.DeleteAllIntroductions();
         await sam.Connections.DeleteAllIntroductions();
     }
