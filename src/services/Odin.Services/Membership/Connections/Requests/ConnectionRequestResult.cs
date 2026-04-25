@@ -56,12 +56,12 @@ namespace Odin.Services.Membership.Connections.Requests
         InvalidRequest = 10,
 
         /// <summary>
-        /// An unexpected error occurred. See <see cref="AutoConnectResult.Detail"/>.
+        /// An unexpected error occurred. See <see cref="ConnectionRequestResult.Detail"/>.
         /// </summary>
         Failed = 99,
     }
 
-    public class AutoConnectResult
+    public class ConnectionRequestResult
     {
         public AutoConnectOutcome Outcome { get; set; }
 

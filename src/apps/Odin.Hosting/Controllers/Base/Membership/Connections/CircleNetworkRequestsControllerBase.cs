@@ -152,6 +152,25 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return true;
         }
 
+        /// <summary>
+        /// Sends a connection request and returns a structured <see cref="ConnectionRequestResult"/>
+        /// instead of throwing on recoverable failures. Unreachable recipients, duplicates, and
+        /// remote rejections come back as outcome values rather than 4xx/5xx responses so the UI
+        /// can render a user-friendly message.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
+        [HttpPost("send-request-with-outcome")]
+        public async Task<ConnectionRequestResult> SendConnectionRequestExpanded(
+            [FromBody] ConnectionRequestHeader requestHeader)
+        {
+            OdinValidationUtils.AssertNotNull(requestHeader, nameof(requestHeader));
+            OdinValidationUtils.AssertIsTrue(requestHeader.Id != Guid.Empty, "Invalid Id");
+            OdinValidationUtils.AssertIsValidOdinId(requestHeader.Recipient, out _);
+
+            return await circleNetworkRequestService.SendConnectionRequestWithOutcomeAsync(
+                requestHeader, HttpContext.RequestAborted, WebOdinContext);
+        }
+
         [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("introductions/send-introductions")]
         public async Task<IActionResult> SendIntroductions([FromBody] IntroductionGroup group)

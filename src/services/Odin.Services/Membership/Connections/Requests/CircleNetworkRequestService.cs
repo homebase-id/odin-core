@@ -207,12 +207,12 @@ namespace Odin.Services.Membership.Connections.Requests
         /// describe what actually happened (connected, pending, blocked, etc.) so the calling app
         /// can respond without a second round trip.
         /// </summary>
-        public async Task<AutoConnectResult> SendAutoConnectRequestAsync(ConnectionRequestHeader header,
+        public async Task<ConnectionRequestResult> SendAutoConnectRequestAsync(ConnectionRequestHeader header,
             CancellationToken cancellationToken, IOdinContext odinContext)
         {
             if (header == null || string.IsNullOrWhiteSpace(header.Recipient))
             {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.InvalidRequest };
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest };
             }
 
             var recipient = (OdinId)header.Recipient;
@@ -224,11 +224,11 @@ namespace Odin.Services.Membership.Connections.Requests
             var preIcr = await _cns.GetIcrAsync(recipient, odinContext);
             if (preIcr.Status == ConnectionStatus.Blocked)
             {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.Blocked };
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.Blocked };
             }
             if (preIcr.IsConnected())
             {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.AlreadyConnected };
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.AlreadyConnected };
             }
 
             // Force app-origin regardless of what the caller passed; the endpoint is the
@@ -247,49 +247,17 @@ namespace Odin.Services.Membership.Connections.Requests
             // we can tell the AcceptedFromExistingIncoming case apart from Connected afterward.
             var hadIncomingPending = await GetPendingRequestInternalAsync(recipient) != null;
 
-            try
+            var failure = await TrySendAndMapOutcomeAsync(autoHeader, cancellationToken, odinContext);
+            if (failure != null)
             {
-                await SendConnectionRequestAsync(autoHeader, cancellationToken, odinContext);
-            }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ConnectionRequestToYourself)
-            {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.InvalidRequest, Detail = e.Message };
-            }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.BlockedConnection)
-            {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.Blocked };
-            }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ConnectionRequestAlreadySent)
-            {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.OutgoingRequestAlreadyExists };
-            }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.IntroductoryRequestAlreadySent)
-            {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.DuplicateIntroductoryRequest };
-            }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.CannotSendConnectionRequestToValidConnection)
-            {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.AlreadyConnected };
-            }
-            catch (OdinSecurityException e)
-            {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.RecipientRejected, Detail = e.Message };
-            }
-            catch (OdinRemoteIdentityException e)
-            {
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.RecipientUnreachable, Detail = e.Message };
-            }
-            catch (Exception e)
-            {
-                logger.LogWarning(e, "Auto-connect to {recipient} failed with unexpected error", recipient);
-                return new AutoConnectResult { Outcome = AutoConnectOutcome.Failed, Detail = e.Message };
+                return failure;
             }
 
             // Send completed without throwing. Inspect local state to decide what actually happened.
             var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
             if (postIcr.IsConnected())
             {
-                return new AutoConnectResult
+                return new ConnectionRequestResult
                 {
                     Outcome = hadIncomingPending
                         ? AutoConnectOutcome.AcceptedFromExistingIncoming
@@ -297,7 +265,85 @@ namespace Odin.Services.Membership.Connections.Requests
                 };
             }
 
-            return new AutoConnectResult { Outcome = AutoConnectOutcome.PendingManualApproval };
+            return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
+        }
+
+        /// <summary>
+        /// Sends an owner-origin connection request and returns a <see cref="ConnectionRequestResult"/>
+        /// describing the outcome. Mirrors <see cref="SendAutoConnectRequestAsync"/> but preserves the
+        /// caller's <see cref="ConnectionRequestOrigin"/> and does not inspect post-send state — for
+        /// owner-initiated sends the recipient must accept manually, so successful delivery always
+        /// resolves to <see cref="AutoConnectOutcome.PendingManualApproval"/>.
+        /// </summary>
+        public async Task<ConnectionRequestResult> SendConnectionRequestWithOutcomeAsync(
+            ConnectionRequestHeader header,
+            CancellationToken cancellationToken,
+            IOdinContext odinContext)
+        {
+            if (header == null || string.IsNullOrWhiteSpace(header.Recipient))
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest };
+            }
+
+            var failure = await TrySendAndMapOutcomeAsync(header, cancellationToken, odinContext);
+            if (failure != null)
+            {
+                return failure;
+            }
+
+            return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
+        }
+
+        /// <summary>
+        /// Sends a connection request and translates any thrown exception into a
+        /// <see cref="ConnectionRequestResult"/>. Returns null on success so the caller can build
+        /// its own success outcome (e.g., Connected vs PendingManualApproval). Single source of
+        /// truth for exception→outcome mapping across the auto-connect and owner-send paths.
+        /// </summary>
+        private async Task<ConnectionRequestResult> TrySendAndMapOutcomeAsync(
+            ConnectionRequestHeader header,
+            CancellationToken cancellationToken,
+            IOdinContext odinContext)
+        {
+            try
+            {
+                await SendConnectionRequestAsync(header, cancellationToken, odinContext);
+                return null;
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ConnectionRequestToYourself)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest, Detail = e.Message };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.BlockedConnection)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.Blocked };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.ConnectionRequestAlreadySent)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.OutgoingRequestAlreadyExists };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.IntroductoryRequestAlreadySent)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.DuplicateIntroductoryRequest };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.CannotSendConnectionRequestToValidConnection)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.AlreadyConnected };
+            }
+            catch (OdinSecurityException e)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientRejected, Detail = e.Message };
+            }
+            catch (OdinRemoteIdentityException e)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientUnreachable, Detail = e.Message };
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "Send connection request to {recipient} failed with unexpected error",
+                    header.Recipient);
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.Failed, Detail = e.Message };
+            }
         }
 
         private async Task<PendingConnectionRequestHeader> GetPendingRequestInternalAsync(OdinId sender)

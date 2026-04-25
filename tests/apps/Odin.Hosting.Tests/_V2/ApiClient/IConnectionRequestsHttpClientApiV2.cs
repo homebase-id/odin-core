@@ -10,5 +10,5 @@ public interface IConnectionRequestsHttpClientApiV2
     private const string Root = UnifiedApiRouteConstants.Connections;
 
     [Post(Root + "/requests/auto-connect")]
-    Task<ApiResponse<AutoConnectResult>> AutoConnect([Body] ConnectionRequestHeader header);
+    Task<ApiResponse<ConnectionRequestResult>> AutoConnect([Body] ConnectionRequestHeader header);
 }

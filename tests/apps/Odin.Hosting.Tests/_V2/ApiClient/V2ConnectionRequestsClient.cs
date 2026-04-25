@@ -8,7 +8,7 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public class V2ConnectionRequestsClient(OdinId identity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<AutoConnectResult>> AutoConnectAsync(ConnectionRequestHeader header)
+    public async Task<ApiResponse<ConnectionRequestResult>> AutoConnectAsync(ConnectionRequestHeader header)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IConnectionRequestsHttpClientApiV2>(client, sharedSecret);
