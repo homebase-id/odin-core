@@ -56,6 +56,18 @@ namespace Odin.Services.Membership.Connections.Requests
         InvalidRequest = 10,
 
         /// <summary>
+        /// The recipient identity server has not completed initial setup.
+        /// The sender should reach out to the recipient out of band to ask them to finish setup.
+        /// </summary>
+        RecipientIdentityNotConfigured = 11,
+
+        /// <summary>
+        /// The recipient identity server requires a version upgrade before it can process the
+        /// request. The sender should reach out to the recipient out of band to ask them to upgrade.
+        /// </summary>
+        RecipientRequiresUpgrade = 12,
+
+        /// <summary>
         /// An unexpected error occurred. See <see cref="ConnectionRequestResult.Detail"/>.
         /// </summary>
         Failed = 99,
