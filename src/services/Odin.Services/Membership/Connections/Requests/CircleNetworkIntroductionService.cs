@@ -103,6 +103,25 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
                 var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, false);
 
+                if (clientAuthToken == null)
+                {
+                    // Diagnostic: figure out why the token is null. Re-read the ICR with overrideHack
+                    // so the read itself can't fail on permissions, then re-read again to see if a
+                    // second read returns different data (cache vs db divergence).
+                    var icr1 = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
+                    var icr2 = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
+                    _logger.LogError(
+                        "EnqueueOutboxItem: null clientAuthToken for [{recipient}]. " +
+                        "icr1.Status={s1} icr1.LastUpdated={u1} icr1.IsConnected={c1} icr1.HasAccessGrant={g1} " +
+                        "icr2.Status={s2} icr2.LastUpdated={u2} icr2.IsConnected={c2} icr2.HasAccessGrant={g2} " +
+                        "tenant={tenant}",
+                        recipient,
+                        icr1?.Status, icr1?.LastUpdated, icr1?.IsConnected(), icr1?.AccessGrant != null,
+                        icr2?.Status, icr2?.LastUpdated, icr2?.IsConnected(), icr2?.AccessGrant != null,
+                        odinContext.Tenant);
+                    return false;
+                }
+
                 var item = new OutboxFileItem
                 {
                     Recipient = recipient,
