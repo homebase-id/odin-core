@@ -38,8 +38,19 @@ public class SendingIntroductionsTests
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
+        // Always run Cleanup so a failing assertion mid-test doesn't poison the fixture.
+        // Tests that already call Cleanup() at the end are fine — Cleanup is idempotent.
+        try
+        {
+            await Cleanup();
+        }
+        catch
+        {
+            // Cleanup is best-effort; never let it mask the actual test failure.
+        }
+
         _scaffold.AssertLogEvents();
     }
 
@@ -330,7 +341,10 @@ public class SendingIntroductionsTests
         ClassicAssert.IsTrue(frodoInfoResponse.Content.Status == ConnectionStatus.Blocked);
 
         var requestToPippinResponse = await frodoOnwerClient.Connections.SendConnectionRequest(sam);
-        ClassicAssert.IsTrue(requestToPippinResponse.StatusCode == HttpStatusCode.Forbidden);
+        // SendConnectionRequest now surfaces a remote 403 as HTTP 400 with
+        // OdinClientErrorCode.RemoteServerReturnedForbidden so callers can discriminate the cause.
+        ClassicAssert.IsTrue(requestToPippinResponse.StatusCode == HttpStatusCode.BadRequest,
+            $"expected BadRequest but got {requestToPippinResponse.StatusCode}");
 
         var unblockResponse = await pippinOwnerClient.Network.UnblockConnection(frodo);
         ClassicAssert.IsTrue(unblockResponse.IsSuccessStatusCode);
@@ -521,13 +535,28 @@ public class SendingIntroductionsTests
         await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
         await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
 
-        await merry.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
+        // Clear any stray sent/pending requests across all pairings.
+        await frodo.Connections.DeleteSentRequestTo(sam.Identity.OdinId);
+        await frodo.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
+        await sam.Connections.DeleteSentRequestTo(frodo.Identity.OdinId);
+        await sam.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
+        await merry.Connections.DeleteSentRequestTo(frodo.Identity.OdinId);
         await merry.Connections.DeleteSentRequestTo(sam.Identity.OdinId);
 
+        await frodo.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
+        await frodo.Connections.DeleteConnectionRequestFrom(merry.Identity.OdinId);
+        await sam.Connections.DeleteConnectionRequestFrom(frodo.Identity.OdinId);
         await sam.Connections.DeleteConnectionRequestFrom(merry.Identity.OdinId);
-        await sam.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
+        await merry.Connections.DeleteConnectionRequestFrom(frodo.Identity.OdinId);
+        await merry.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
 
+        // Clear any blocks across all pairings (the previous version only unblocked merry<->sam,
+        // missing the case where a test left sam or merry blocking frodo).
         await sam.Network.UnblockConnection(merry.Identity.OdinId);
         await merry.Network.UnblockConnection(sam.Identity.OdinId);
+        await sam.Network.UnblockConnection(frodo.Identity.OdinId);
+        await merry.Network.UnblockConnection(frodo.Identity.OdinId);
+        await frodo.Network.UnblockConnection(sam.Identity.OdinId);
+        await frodo.Network.UnblockConnection(merry.Identity.OdinId);
     }
 }
