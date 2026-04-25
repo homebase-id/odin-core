@@ -470,11 +470,32 @@ public class SendingIntroductionsTests
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
-        await frodo.Connections.SendConnectionRequest(merry.OdinId, []);
+        var sendToSam = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        ClassicAssert.IsTrue(sendToSam.IsSuccessStatusCode,
+            $"Prepare: frodo->sam SendConnectionRequest failed: {sendToSam.StatusCode}");
+        var sendToMerry = await frodo.Connections.SendConnectionRequest(merry.OdinId, []);
+        ClassicAssert.IsTrue(sendToMerry.IsSuccessStatusCode,
+            $"Prepare: frodo->merry SendConnectionRequest failed: {sendToMerry.StatusCode}");
 
-        await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
-        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+        var merryAccept = await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
+        ClassicAssert.IsTrue(merryAccept.IsSuccessStatusCode,
+            $"Prepare: merry.AcceptConnectionRequest(frodo) failed: {merryAccept.StatusCode}");
+        var samAccept = await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+        ClassicAssert.IsTrue(samAccept.IsSuccessStatusCode,
+            $"Prepare: sam.AcceptConnectionRequest(frodo) failed: {samAccept.StatusCode}");
+
+        // Verify both sides actually have the connection on frodo's tenant. If these fail in CI we
+        // know Prepare did not establish state, even though the API calls returned OK.
+        var frodoSeesSam = await frodo.Network.GetConnectionInfo(sam.OdinId);
+        ClassicAssert.IsTrue(frodoSeesSam.IsSuccessStatusCode,
+            $"Prepare: frodo.GetConnectionInfo(sam) failed: {frodoSeesSam.StatusCode}");
+        ClassicAssert.IsTrue(frodoSeesSam.Content.Status == ConnectionStatus.Connected,
+            $"Prepare: frodo's view of sam is {frodoSeesSam.Content.Status}, expected Connected");
+        var frodoSeesMerry = await frodo.Network.GetConnectionInfo(merry.OdinId);
+        ClassicAssert.IsTrue(frodoSeesMerry.IsSuccessStatusCode,
+            $"Prepare: frodo.GetConnectionInfo(merry) failed: {frodoSeesMerry.StatusCode}");
+        ClassicAssert.IsTrue(frodoSeesMerry.Content.Status == ConnectionStatus.Connected,
+            $"Prepare: frodo's view of merry is {frodoSeesMerry.Content.Status}, expected Connected");
 
         await frodo.Connections.DeleteAllIntroductions();
         await sam.Connections.DeleteAllIntroductions();
