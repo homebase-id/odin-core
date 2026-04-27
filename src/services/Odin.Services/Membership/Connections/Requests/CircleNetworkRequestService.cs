@@ -234,11 +234,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.Blocked };
             }
 
-<<<<<<< send-request-redux
             if (preIcr.IsConnected() && await IsConnectionRemotelyValidAsync(recipient, cancellationToken, odinContext))
-=======
-            if (preIcr.IsConnected())
->>>>>>> main
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.AlreadyConnected };
             }
@@ -351,7 +347,6 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             // Send completed without throwing. Inspect local state to decide what actually happened.
-<<<<<<< send-request-redux
             // Local IsConnected() alone isn't enough — our ICR can be Connected (stale, or just
             // marked so by AcceptConnectionRequestAsync) while the recipient still only has a
             // pending-incoming. Verify with the recipient before reporting success. Owner origin
@@ -380,17 +375,6 @@ namespace Odin.Services.Membership.Connections.Requests
                             : AutoConnectOutcome.Connected
                     };
                 }
-=======
-            var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
-            if (postIcr.IsConnected())
-            {
-                return new ConnectionRequestResult
-                {
-                    Outcome = hadIncomingPending
-                        ? AutoConnectOutcome.AcceptedFromExistingIncoming
-                        : AutoConnectOutcome.Connected
-                };
->>>>>>> main
             }
 
             return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
@@ -511,7 +495,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 {
                     throw new OdinSecurityException("Identity is blocked");
                 }
-<<<<<<< send-request-redux
 
                 var outgoingTimestamp = await cache.TryGetAsync<Guid>(CacheKey(sender), cancellationToken);
                 if (outgoingTimestamp.HasValue)
@@ -533,29 +516,6 @@ namespace Odin.Services.Membership.Connections.Requests
 
                 await UpsertPendingConnectionRequestAsync(request);
 
-=======
-
-                var outgoingTimestamp = await cache.TryGetAsync<Guid>(CacheKey(sender), cancellationToken);
-                if (outgoingTimestamp.HasValue)
-                {
-                    //who short first?  if mine was sent first
-                    if (ByteArrayUtil.muidcmp(outgoingTimestamp, payload.TimestampId) == -1)
-                    {
-                        throw new OdinClientException("Introductory request already sent",
-                            OdinClientErrorCode.IntroductoryRequestAlreadySent);
-                    }
-                }
-
-                var request = new PendingConnectionRequestHeader()
-                {
-                    SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
-                    ReceivedTimestampMilliseconds = UnixTimeUtc.Now(),
-                    EccEncryptedPayload = payload
-                };
-
-                await UpsertPendingConnectionRequestAsync(request);
-
->>>>>>> main
                 await mediator.Publish(new ConnectionRequestReceivedNotification()
                 {
                     Sender = request.SenderOdinId,
@@ -565,7 +525,6 @@ namespace Odin.Services.Membership.Connections.Requests
                 }, cancellationToken);
             }
             catch (OdinClientException)
-<<<<<<< send-request-redux
             {
                 // Already a mapped error code — let the sender receive it verbatim.
                 throw;
@@ -577,19 +536,6 @@ namespace Odin.Services.Membership.Connections.Requests
             }
             catch (Exception ex)
             {
-=======
-            {
-                // Already a mapped error code — let the sender receive it verbatim.
-                throw;
-            }
-            catch (OdinSecurityException)
-            {
-                // Recipient deliberately refused (blocked) — surface as 403 unchanged.
-                throw;
-            }
-            catch (Exception ex)
-            {
->>>>>>> main
                 // Unknown failure. If the recipient is behind on version, the underlying cause is
                 // likely schema/code drift — tell the sender so they can nudge the recipient to
                 // upgrade out of band. RequiresUpgradeAsync itself can fail (config storage); if
