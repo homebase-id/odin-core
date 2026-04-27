@@ -313,8 +313,7 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             await using var scope = _tenantScope.BeginLifetimeScope();
             var driveManager =  scope.Resolve<IDriveManager>();
-            var driveId = notification.ServerFileHeader.FileMetadata.File.DriveId;
-            var drive = await driveManager.GetDriveAsync(driveId);
+            var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
 
             foreach (var deviceSocket in sockets)
             {
