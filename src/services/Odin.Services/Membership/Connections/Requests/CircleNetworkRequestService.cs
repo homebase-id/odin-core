@@ -224,13 +224,17 @@ namespace Odin.Services.Membership.Connections.Requests
             // re-sending to an already-connected recipient (see CircleNetworkRequestService.cs
             // line 175 — the guard there is IdentityOwner-only). Short-circuit here so the
             // caller gets a clear AlreadyConnected outcome instead of a redundant round trip.
+            // Local IsConnected() can be stale, so verify with the recipient before short-
+            // circuiting. App context has no master key, so use tryRepairMissingHash: false.
+            // If verification can't be performed (no ICR key access, etc.) or returns invalid,
+            // fall through to the send flow so the request can repair the connection.
             var preIcr = await _cns.GetIcrAsync(recipient, odinContext);
             if (preIcr.Status == ConnectionStatus.Blocked)
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.Blocked };
             }
 
-            if (preIcr.IsConnected())
+            if (preIcr.IsConnected() && await IsConnectionRemotelyValidAsync(recipient, cancellationToken, odinContext))
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.AlreadyConnected };
             }
@@ -258,8 +262,11 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             // Send completed without throwing. Inspect local state to decide what actually happened.
+            // Local IsConnected() alone isn't enough — our ICR can be Connected (stale, or just
+            // marked so by AcceptConnectionRequestAsync) while the recipient still only has a
+            // pending-incoming. Verify with the recipient before reporting success.
             var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
-            if (postIcr.IsConnected())
+            if (postIcr.IsConnected() && await IsConnectionRemotelyValidAsync(recipient, cancellationToken, odinContext))
             {
                 return new ConnectionRequestResult
                 {
@@ -270,6 +277,28 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
+        }
+
+        // App-context wrapper around VerifyConnectionAsync. Uses the read-only repair-skip path
+        // since IdentityOwnerApp has no master key, and treats any verification exception as
+        // "couldn't verify" -> not valid, so the caller can be pessimistic about success.
+        private async Task<bool> IsConnectionRemotelyValidAsync(OdinId recipient, CancellationToken cancellationToken,
+            IOdinContext odinContext)
+        {
+            try
+            {
+                var verification = await verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext,
+                    tryRepairMissingHash: false);
+                return verification.IsValid;
+            }
+            catch (OdinIdentityVerificationException)
+            {
+                return false;
+            }
+            catch (OdinSecurityException)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -318,15 +347,34 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             // Send completed without throwing. Inspect local state to decide what actually happened.
+            // Local IsConnected() alone isn't enough — our ICR can be Connected (stale, or just
+            // marked so by AcceptConnectionRequestAsync) while the recipient still only has a
+            // pending-incoming. Verify with the recipient before reporting success. Owner origin
+            // has the master key, so the repair path inside VerifyConnectionAsync is safe here.
             var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
             if (postIcr.IsConnected())
             {
-                return new ConnectionRequestResult
+                IcrVerificationResult verification;
+                try
                 {
-                    Outcome = hadIncomingPending
-                        ? AutoConnectOutcome.AcceptedFromExistingIncoming
-                        : AutoConnectOutcome.Connected
-                };
+                    verification = await verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext);
+                }
+                catch (OdinIdentityVerificationException)
+                {
+                    // Couldn't verify — be pessimistic and report as pending so the caller
+                    // doesn't get a false AcceptedFromExistingIncoming/Connected.
+                    return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
+                }
+
+                if (verification.IsValid)
+                {
+                    return new ConnectionRequestResult
+                    {
+                        Outcome = hadIncomingPending
+                            ? AutoConnectOutcome.AcceptedFromExistingIncoming
+                            : AutoConnectOutcome.Connected
+                    };
+                }
             }
 
             return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
