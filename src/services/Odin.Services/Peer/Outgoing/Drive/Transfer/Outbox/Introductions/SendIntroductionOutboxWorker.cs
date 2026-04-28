@@ -59,7 +59,14 @@ public class SendIntroductionOutboxWorker(
 
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                return (false, UnixTimeUtc.Now().AddMinutes(10));
+                // Recipient denied the introduction (e.g. introducer lacks AllowIntroductions
+                // permission, or recipient has the introduced identity blocked). Retrying won't
+                // change the answer — drop the item so the outbox doesn't stall for 10 minutes.
+                var body = response.Error?.Content;
+                logger.LogInformation(
+                    "SendIntroduction to {recipient} returned 403; dropping outbox item. body={body}",
+                    recipient, body);
+                return (true, UnixTimeUtc.ZeroTime);
             }
 
             throw new OdinOutboxProcessingException("Failed while enqueuing notification")

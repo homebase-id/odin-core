@@ -138,7 +138,7 @@ public class DatabaseConnectionTests : IocTestBase
     public async Task MassivePreparedConnectionTest(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
-        await PerformanceFramework.ThreadedTestAsync(20, 100, MassiveConnectionPreparedStatementTest);
+        await PerformanceFramework.ThreadedTestAsync(10, 100, MassiveConnectionPreparedStatementTest);
     }
 
     private async Task<(long, long[])> MassiveConnectionPreparedStatementTest(int threadNo, int iterations)

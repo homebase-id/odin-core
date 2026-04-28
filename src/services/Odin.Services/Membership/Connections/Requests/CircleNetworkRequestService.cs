@@ -23,6 +23,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
 using Odin.Services.EncryptionKeyService;
@@ -53,7 +54,9 @@ namespace Odin.Services.Membership.Connections.Requests
         CircleNetworkVerificationService verificationService,
         OdinConfiguration odinConfiguration,
         TableKeyThreeValueCached tblKeyThreeValue,
-        ITenantLevel2Cache<CircleNetworkRequestService> cache)
+        ITenantLevel2Cache<CircleNetworkRequestService> cache,
+        TenantConfigService tenantConfigService,
+        VersionUpgradeScheduler versionUpgradeScheduler)
         : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {
         private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
@@ -221,12 +224,17 @@ namespace Odin.Services.Membership.Connections.Requests
             // re-sending to an already-connected recipient (see CircleNetworkRequestService.cs
             // line 175 — the guard there is IdentityOwner-only). Short-circuit here so the
             // caller gets a clear AlreadyConnected outcome instead of a redundant round trip.
+            // Local IsConnected() can be stale, so verify with the recipient before short-
+            // circuiting. App context has no master key, so use tryRepairMissingHash: false.
+            // If verification can't be performed (no ICR key access, etc.) or returns invalid,
+            // fall through to the send flow so the request can repair the connection.
             var preIcr = await _cns.GetIcrAsync(recipient, odinContext);
             if (preIcr.Status == ConnectionStatus.Blocked)
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.Blocked };
             }
-            if (preIcr.IsConnected())
+
+            if (preIcr.IsConnected() && await IsConnectionRemotelyValidAsync(recipient, cancellationToken, odinContext))
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.AlreadyConnected };
             }
@@ -254,8 +262,11 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             // Send completed without throwing. Inspect local state to decide what actually happened.
+            // Local IsConnected() alone isn't enough — our ICR can be Connected (stale, or just
+            // marked so by AcceptConnectionRequestAsync) while the recipient still only has a
+            // pending-incoming. Verify with the recipient before reporting success.
             var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
-            if (postIcr.IsConnected())
+            if (postIcr.IsConnected() && await IsConnectionRemotelyValidAsync(recipient, cancellationToken, odinContext))
             {
                 return new ConnectionRequestResult
                 {
@@ -268,12 +279,38 @@ namespace Odin.Services.Membership.Connections.Requests
             return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
         }
 
+        // App-context wrapper around VerifyConnectionAsync. Uses the read-only repair-skip path
+        // since IdentityOwnerApp has no master key, and treats any verification exception as
+        // "couldn't verify" -> not valid, so the caller can be pessimistic about success.
+        private async Task<bool> IsConnectionRemotelyValidAsync(OdinId recipient, CancellationToken cancellationToken,
+            IOdinContext odinContext)
+        {
+            try
+            {
+                var verification = await verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext,
+                    tryRepairMissingHash: false);
+                return verification.IsValid;
+            }
+            catch (OdinIdentityVerificationException)
+            {
+                return false;
+            }
+            catch (OdinSecurityException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>
-        /// Sends an owner-origin connection request and returns a <see cref="ConnectionRequestResult"/>
-        /// describing the outcome. Mirrors <see cref="SendAutoConnectRequestAsync"/> but preserves the
-        /// caller's <see cref="ConnectionRequestOrigin"/> and does not inspect post-send state — for
-        /// owner-initiated sends the recipient must accept manually, so successful delivery always
-        /// resolves to <see cref="AutoConnectOutcome.PendingManualApproval"/>.
+        /// Owner-origin counterpart to <see cref="SendAutoConnectRequestAsync"/>: sends a connection
+        /// request and returns a <see cref="ConnectionRequestResult"/> describing the outcome.
+        /// Forces <see cref="ConnectionRequestOrigin.IdentityOwner"/> regardless of what the caller
+        /// passed — the endpoint is the statement of intent. The IdentityOwner origin also ensures
+        /// the existing verification guard in <see cref="SendConnectionRequestAsync"/> (which only
+        /// runs for IdentityOwner origin) short-circuits on a valid existing connection. Post-send
+        /// state is inspected so the local "accept existing incoming" path resolves to
+        /// <see cref="AutoConnectOutcome.AcceptedFromExistingIncoming"/> instead of being
+        /// mis-reported as <see cref="AutoConnectOutcome.PendingManualApproval"/>.
         /// </summary>
         public async Task<ConnectionRequestResult> SendConnectionRequestWithOutcomeAsync(
             ConnectionRequestHeader header,
@@ -285,10 +322,59 @@ namespace Odin.Services.Membership.Connections.Requests
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest };
             }
 
-            var failure = await TrySendAndMapOutcomeAsync(header, cancellationToken, odinContext);
+            var recipient = (OdinId)header.Recipient;
+
+            // Force owner origin regardless of what the caller passed; the endpoint is the
+            // statement of intent. Symmetric with SendAutoConnectRequestAsync forcing IdentityOwnerApp.
+            var ownerHeader = new ConnectionRequestHeader
+            {
+                Recipient = header.Recipient,
+                ContactData = header.ContactData,
+                Message = header.Message,
+                CircleIds = header.CircleIds,
+                IntroducerOdinId = header.IntroducerOdinId,
+                ConnectionRequestOrigin = ConnectionRequestOrigin.IdentityOwner,
+            };
+
+            // Snapshot whether we already had a pending incoming request from the recipient so we
+            // can tell the AcceptedFromExistingIncoming case apart from Connected afterward.
+            var hadIncomingPending = await GetPendingRequestInternalAsync(recipient) != null;
+
+            var failure = await TrySendAndMapOutcomeAsync(ownerHeader, cancellationToken, odinContext);
             if (failure != null)
             {
                 return failure;
+            }
+
+            // Send completed without throwing. Inspect local state to decide what actually happened.
+            // Local IsConnected() alone isn't enough — our ICR can be Connected (stale, or just
+            // marked so by AcceptConnectionRequestAsync) while the recipient still only has a
+            // pending-incoming. Verify with the recipient before reporting success. Owner origin
+            // has the master key, so the repair path inside VerifyConnectionAsync is safe here.
+            var postIcr = await _cns.GetIcrAsync(recipient, odinContext);
+            if (postIcr.IsConnected())
+            {
+                IcrVerificationResult verification;
+                try
+                {
+                    verification = await verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext);
+                }
+                catch (OdinIdentityVerificationException)
+                {
+                    // Couldn't verify — be pessimistic and report as pending so the caller
+                    // doesn't get a false AcceptedFromExistingIncoming/Connected.
+                    return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
+                }
+
+                if (verification.IsValid)
+                {
+                    return new ConnectionRequestResult
+                    {
+                        Outcome = hadIncomingPending
+                            ? AutoConnectOutcome.AcceptedFromExistingIncoming
+                            : AutoConnectOutcome.Connected
+                    };
+                }
             }
 
             return new ConnectionRequestResult { Outcome = AutoConnectOutcome.PendingManualApproval };
@@ -330,13 +416,34 @@ namespace Odin.Services.Membership.Connections.Requests
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.AlreadyConnected };
             }
-            catch (OdinSecurityException e)
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.PublicKeyEncryptionIsInvalid)
+            {
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientUnreachable };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RecipientIdentityNotConfigured)
+            {
+                return new ConnectionRequestResult
+                    { Outcome = AutoConnectOutcome.RecipientIdentityNotConfigured, Detail = e.Message };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RecipientRequiresUpgrade)
+            {
+                return new ConnectionRequestResult
+                    { Outcome = AutoConnectOutcome.RecipientRequiresUpgrade, Detail = e.Message };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RemoteServerReturnedForbidden)
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientRejected, Detail = e.Message };
             }
             catch (OdinRemoteIdentityException e)
             {
                 return new ConnectionRequestResult { Outcome = AutoConnectOutcome.RecipientUnreachable, Detail = e.Message };
+            }
+            catch (OdinClientException e)
+            {
+                // Any OdinClientException whose error code wasn't caught above is a validation /
+                // input-shape failure (ArgumentError, NoErrorCode, etc.) — route to InvalidRequest
+                // so the caller gets a specific outcome instead of a generic Failed.
+                return new ConnectionRequestResult { Outcome = AutoConnectOutcome.InvalidRequest, Detail = e.Message };
             }
             catch (Exception e)
             {
@@ -360,49 +467,101 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             odinContext.Caller.AssertCallerIsAuthenticated();
 
-            //TODO: check robot detection code
-
-            if (!await publicPrivateKeyService.IsValidEccPublicKeyAsync(payload.KeyType, payload.EncryptionPublicKeyCrc32))
+            // Pre-flight: our server must be past initial setup. Otherwise, the ECC key, ICR
+            // lookups, and storage are all unreliable — tell the sender so they can reach the
+            // recipient out of band.
+            if (!await tenantConfigService.IsIdentityServerConfiguredAsync())
             {
-                throw new OdinClientException("Encrypted Payload Public Key does not match recipient",
-                    OdinClientErrorCode.PublicKeyEncryptionIsInvalid);
+                throw new OdinClientException(
+                    "Recipient identity server has not completed initial setup",
+                    OdinClientErrorCode.RecipientIdentityNotConfigured);
             }
 
-            var sender = odinContext.GetCallerOdinIdOrFail();
-            var recipient = tenantContext.HostOdinId;
-
-            var existingConnection = await _cns.GetIcrAsync(sender, odinContext, true);
-            if (existingConnection.Status == ConnectionStatus.Blocked)
+            try
             {
-                throw new OdinSecurityException("Identity is blocked");
-            }
+                //TODO: check robot detection code
 
-            var outgoingTimestamp = await cache.TryGetAsync<Guid>(CacheKey(sender), cancellationToken);
-            if (outgoingTimestamp.HasValue)
-            {
-                //who short first?  if mine was sent first
-                if (ByteArrayUtil.muidcmp(outgoingTimestamp, payload.TimestampId) == -1)
+                if (!await publicPrivateKeyService.IsValidEccPublicKeyAsync(payload.KeyType, payload.EncryptionPublicKeyCrc32))
                 {
-                    throw new OdinClientException("Introductory request already sent", OdinClientErrorCode.IntroductoryRequestAlreadySent);
+                    throw new OdinClientException("Encrypted Payload Public Key does not match recipient",
+                        OdinClientErrorCode.PublicKeyEncryptionIsInvalid);
                 }
+
+                var sender = odinContext.GetCallerOdinIdOrFail();
+                var recipient = tenantContext.HostOdinId;
+
+                var existingConnection = await _cns.GetIcrAsync(sender, odinContext, true);
+                if (existingConnection.Status == ConnectionStatus.Blocked)
+                {
+                    throw new OdinSecurityException("Identity is blocked");
+                }
+
+                var outgoingTimestamp = await cache.TryGetAsync<Guid>(CacheKey(sender), cancellationToken);
+                if (outgoingTimestamp.HasValue)
+                {
+                    //who short first?  if mine was sent first
+                    if (ByteArrayUtil.muidcmp(outgoingTimestamp, payload.TimestampId) == -1)
+                    {
+                        throw new OdinClientException("Introductory request already sent",
+                            OdinClientErrorCode.IntroductoryRequestAlreadySent);
+                    }
+                }
+
+                var request = new PendingConnectionRequestHeader()
+                {
+                    SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
+                    ReceivedTimestampMilliseconds = UnixTimeUtc.Now(),
+                    EccEncryptedPayload = payload
+                };
+
+                await UpsertPendingConnectionRequestAsync(request);
+
+                await mediator.Publish(new ConnectionRequestReceivedNotification()
+                {
+                    Sender = request.SenderOdinId,
+                    Recipient = recipient,
+                    OdinContext = odinContext,
+                    Request = request,
+                }, cancellationToken);
             }
-
-            var request = new PendingConnectionRequestHeader()
+            catch (OdinClientException)
             {
-                SenderOdinId = odinContext.GetCallerOdinIdOrFail(),
-                ReceivedTimestampMilliseconds = UnixTimeUtc.Now(),
-                EccEncryptedPayload = payload
-            };
-
-            await UpsertPendingConnectionRequestAsync(request);
-
-            await mediator.Publish(new ConnectionRequestReceivedNotification()
+                // Already a mapped error code — let the sender receive it verbatim.
+                throw;
+            }
+            catch (OdinSecurityException)
             {
-                Sender = request.SenderOdinId,
-                Recipient = recipient,
-                OdinContext = odinContext,
-                Request = request,
-            }, cancellationToken);
+                // Recipient deliberately refused (blocked) — surface as 403 unchanged.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Unknown failure. If the recipient is behind on version, the underlying cause is
+                // likely schema/code drift — tell the sender so they can nudge the recipient to
+                // upgrade out of band. RequiresUpgradeAsync itself can fail (config storage); if
+                // it does, swallow that secondary failure and rethrow the original.
+                bool requiresUpgrade = false;
+                try
+                {
+                    (requiresUpgrade, _, _) = await versionUpgradeScheduler.RequiresUpgradeAsync();
+                }
+                catch (Exception upgradeCheckEx)
+                {
+                    logger.LogWarning(upgradeCheckEx,
+                        "RequiresUpgradeAsync failed while handling ReceiveConnectionRequestAsync error");
+                }
+
+                if (requiresUpgrade)
+                {
+                    logger.LogWarning(ex,
+                        "ReceiveConnectionRequestAsync failed; recipient requires version upgrade");
+                    throw new OdinClientException(
+                        "Recipient identity server requires a version upgrade",
+                        OdinClientErrorCode.RecipientRequiresUpgrade);
+                }
+
+                throw;
+            }
         }
 
         /// <summary>
@@ -988,7 +1147,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 await CreateAndSendRequestInternalAsync(header, masterKey: null, odinContext);
                 return;
             }
-            
+
             var existingRequestOrigin = existingOutgoingRequest.ConnectionRequestOrigin;
             if (existingRequestOrigin == ConnectionRequestOrigin.Introduction)
             {
@@ -1013,7 +1172,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 // An owner-console request already exists; the app path has no master
                 // key so it cannot reproduce the ICR-key-bound grant — refuse rather
                 // than silently downgrade.
-                throw new OdinClientException("There is an existing outgoing connection request", OdinClientErrorCode.ConnectionRequestAlreadySent);
+                throw new OdinClientException("There is an existing outgoing connection request",
+                    OdinClientErrorCode.ConnectionRequestAlreadySent);
             }
         }
 
@@ -1168,6 +1328,20 @@ namespace Odin.Services.Membership.Connections.Requests
                         // throw new OdinClientException("Remote server already sent a request",
                         //     OdinClientErrorCode.IntroductoryRequestAlreadySent);
                     }
+
+                    if (code == OdinClientErrorCode.RecipientIdentityNotConfigured)
+                    {
+                        throw new OdinClientException(
+                            "Recipient identity server has not completed initial setup",
+                            OdinClientErrorCode.RecipientIdentityNotConfigured);
+                    }
+
+                    if (code == OdinClientErrorCode.RecipientRequiresUpgrade)
+                    {
+                        throw new OdinClientException(
+                            "Recipient identity server requires a version upgrade",
+                            OdinClientErrorCode.RecipientRequiresUpgrade);
+                    }
                 }
             }
             else
@@ -1186,7 +1360,8 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (sendResult1.deliveryResponse.StatusCode == HttpStatusCode.Forbidden)
             {
-                throw new OdinSecurityException("Remote server denied connection");
+                throw new OdinClientException("Remote server denied connection",
+                    OdinClientErrorCode.RemoteServerReturnedForbidden);
             }
 
             if (!sendResult1.deliveryResponse.IsSuccessStatusCode)
@@ -1194,7 +1369,8 @@ namespace Odin.Services.Membership.Connections.Requests
                 var sendResult2 = await Send();
                 if (sendResult2.deliveryResponse.StatusCode == HttpStatusCode.Forbidden)
                 {
-                    throw new OdinSecurityException("Remote server denied connection");
+                    throw new OdinClientException("Remote server denied connection",
+                        OdinClientErrorCode.RemoteServerReturnedForbidden);
                 }
 
                 if (!sendResult2.deliveryResponse.IsSuccessStatusCode)

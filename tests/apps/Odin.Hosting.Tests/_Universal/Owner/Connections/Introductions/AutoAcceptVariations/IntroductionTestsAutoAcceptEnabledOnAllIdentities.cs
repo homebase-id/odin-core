@@ -39,8 +39,19 @@ public class IntroductionTestsAutoAcceptEnabledOnAllIdentities
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
+        // Always run Cleanup so a failing assertion mid-test doesn't poison the next test.
+        // Tests already calling Cleanup() at end remain correct — Cleanup is idempotent.
+        try
+        {
+            await IntroductionTestUtils.Cleanup(_scaffold);
+        }
+        catch
+        {
+            // Cleanup is best-effort; never let it mask the actual test failure.
+        }
+
         _scaffold.AssertLogEvents();
     }
 

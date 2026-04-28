@@ -379,6 +379,116 @@ public class V2AutoConnectTests
         }
     }
 
+    [Test]
+    [TestCaseSource(nameof(AllowedCallers))]
+    public async Task AutoConnect_WhenSenderIcrIsStaleAndRecipientHasNoIcr_DoesNotShortCircuitToAlreadyConnected(
+        IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Regression: the pre-ICR check used to short-circuit to AlreadyConnected based purely
+        // on the sender's local IsConnected(). If the recipient had wiped their ICR (one-sided
+        // disconnect), the sender would falsely report AlreadyConnected even though the recipient
+        // no longer has a corresponding connection. The fix verifies with the recipient before
+        // short-circuiting; on verification failure, the request flows through and re-establishes.
+
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        try
+        {
+            // Establish a real bilateral connection.
+            await senderOwner.Connections.SendConnectionRequest(recipient.OdinId, new List<GuidId>());
+            await recipientOwner.Connections.AcceptConnectionRequest(sender.OdinId);
+            await AssertBothSidesConnected(senderOwner, recipientOwner, sender.OdinId, recipient.OdinId);
+
+            // One-sided disconnect: recipient wipes their ICR for the sender. Sender's ICR for
+            // the recipient remains in Connected state — the stale half of the bug scenario.
+            var disc = await recipientOwner.Connections.DisconnectFrom(sender.OdinId);
+            ClassicAssert.IsTrue(disc.IsSuccessStatusCode, "pre-seed: one-sided disconnect failed");
+
+            var senderIcrBefore = await senderOwner.Network.GetConnectionInfo(recipient.OdinId);
+            ClassicAssert.IsTrue(senderIcrBefore.Content.Status == ConnectionStatus.Connected,
+                "pre-seed: sender ICR should still be Connected after recipient-only disconnect");
+            var recipientIcrBefore = await recipientOwner.Network.GetConnectionInfo(sender.OdinId);
+            ClassicAssert.IsTrue(recipientIcrBefore.Content.Status != ConnectionStatus.Connected,
+                "pre-seed: recipient ICR should not be Connected after disconnect");
+
+            var response = await CallAutoConnect(callerContext, senderOwner, sender.OdinId, recipient.OdinId);
+
+            ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode);
+            // Regression assertion: the pre-ICR check must NOT short-circuit to AlreadyConnected
+            // when the recipient has no corresponding ICR. The exact downstream outcome
+            // (Connected vs PendingManualApproval) depends on whether auto-accept on the recipient
+            // completes the handshake under one-sided-disconnect leftover state — that's not what
+            // we're pinning here.
+            ClassicAssert.IsTrue(response.Content.Outcome != AutoConnectOutcome.AlreadyConnected,
+                $"pre-ICR check short-circuited to AlreadyConnected despite stale ICR; got {response.Content.Outcome}");
+        }
+        finally
+        {
+            await FullCleanup(senderOwner, recipientOwner, sender.OdinId, recipient.OdinId);
+            await callerContext.Cleanup();
+        }
+    }
+
+    [Test]
+    [TestCaseSource(nameof(AllowedCallers))]
+    public async Task AutoConnect_WhenLocalConnectedButRecipientCannotAccept_ReturnsPendingManualApproval(
+        IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Regression: post-send classification used to report Connected/AcceptedFromExistingIncoming
+        // based on the sender's local IsConnected() alone. If the sender's ICR was stale-Connected
+        // and the recipient declined to auto-accept the new request, the sender would falsely
+        // claim success when in fact the recipient only had a pending-incoming. The fix verifies
+        // with the recipient post-send and falls back to PendingManualApproval on failure.
+
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        try
+        {
+            // Establish a real bilateral connection, then one-sided disconnect on recipient.
+            await senderOwner.Connections.SendConnectionRequest(recipient.OdinId, new List<GuidId>());
+            await recipientOwner.Connections.AcceptConnectionRequest(sender.OdinId);
+            await AssertBothSidesConnected(senderOwner, recipientOwner, sender.OdinId, recipient.OdinId);
+
+            var disc = await recipientOwner.Connections.DisconnectFrom(sender.OdinId);
+            ClassicAssert.IsTrue(disc.IsSuccessStatusCode, "pre-seed: one-sided disconnect failed");
+
+            // Disable auto-accept on recipient so the new request from the auto-connect call
+            // sits as a pending incoming rather than completing the handshake.
+            var flagSet = await recipientOwner.Configuration.UpdateTenantSettingsFlag(
+                TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "true");
+            ClassicAssert.IsTrue(flagSet.IsSuccessStatusCode, "failed to set DisableAutoAcceptConnectionRequests");
+
+            var senderIcrBefore = await senderOwner.Network.GetConnectionInfo(recipient.OdinId);
+            ClassicAssert.IsTrue(senderIcrBefore.Content.Status == ConnectionStatus.Connected,
+                "pre-seed: sender ICR should still be Connected (stale)");
+
+            var response = await CallAutoConnect(callerContext, senderOwner, sender.OdinId, recipient.OdinId);
+
+            ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode);
+            AssertOutcome(response.Content, AutoConnectOutcome.PendingManualApproval);
+
+            // Recipient should have received the new request as a pending incoming.
+            var pendingResp = await recipientOwner.Connections.GetIncomingRequestFrom(sender.OdinId);
+            ClassicAssert.IsTrue(pendingResp.IsSuccessStatusCode && pendingResp.Content != null,
+                "recipient should have a pending incoming request after PendingManualApproval");
+        }
+        finally
+        {
+            await recipientOwner.Configuration.UpdateTenantSettingsFlag(
+                TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "false");
+            await FullCleanup(senderOwner, recipientOwner, sender.OdinId, recipient.OdinId);
+            await callerContext.Cleanup();
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
