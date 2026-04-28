@@ -4,9 +4,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Background;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -20,7 +22,9 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2DriveBatchQueryController(
         PeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager,
-        ILogger<V2DriveControllerBase> logger) :
+        ILogger<V2DriveControllerBase> logger,
+        PeerInboxDriveQueue peerInboxDriveQueue,
+        IBackgroundServiceNotifier<PeerInboxProcessorBackgroundService> peerInboxProcessorNotifier) :
         V2DriveControllerBase(peerOutgoingTransferService, logger)
     {
         [HttpPost("query-batch-collection")]
@@ -32,6 +36,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             foreach (var section in request.Queries)
             {
                 section.AssertIsValid();
+                peerInboxDriveQueue.Enqueue(section.DriveId, WebOdinContext);
+
                 var theDrive = await driveManager.GetDriveAsync(section.DriveId);
                 var qp = section.QueryParams;
                 var newSection = new CollectionQueryParamSection
@@ -59,6 +65,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
 
                 v1Queries.Add(newSection);
             }
+
+            await peerInboxProcessorNotifier.NotifyWorkAvailableAsync();
 
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
             var collection = await fs.Query.GetBatchCollection(v1Queries, WebOdinContext);

@@ -6,16 +6,19 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Identity;
+using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
+using Odin.Hosting.UnifiedV2.Drive.Read;
 using Odin.Hosting.UnifiedV2.Drive.Write;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
+using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -483,6 +486,320 @@ public class DeleteFileIdBatchPeerTestsV2
         ClassicAssert.IsTrue(senderHeader.IsSuccessStatusCode);
         ClassicAssert.AreEqual(FileState.Active, senderHeader.Content!.FileState,
             "sender's local file should remain Active when peer enqueue fails");
+    }
+
+    // #8 — Recipient hits V2 query-batch on his own drive AFTER the sender's
+    // delete has been delivered (and queued in his inbox). The recipient does NOT
+    // call ProcessInbox explicitly. The PeerInboxProcessorBackgroundService should
+    // pick up the wake from the query-batch endpoint and drain the inbox using the
+    // recipient's cloned context.
+    [Test]
+    public async Task DeleteFileIdBatch_RecipientV2QueryBatch_TriggersInboxDrainWithoutExplicitProcessInbox()
+    {
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+
+        var senderCallerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        var targetDrive = senderCallerContext.TargetDrive;
+        await PrepareScenario(senderOwner, [recipientOwner], targetDrive);
+
+        // Distribute one file. UploadAndDistributeMetadata uses the V1 helpers and
+        // calls recipient.ProcessInbox internally so the recipient's copy is Active
+        // before we start the test proper.
+        var upload = await UploadAndDistributeMetadata(senderOwner, targetDrive, fileType: 480, [recipient.OdinId]);
+        await AssertRecipientHasFile(recipientOwner, upload, expectedState: FileState.Active);
+
+        // Sender invokes V2 delete-batch with the recipient.
+        await senderCallerContext.Initialize(senderOwner);
+        var v2Writer = new DriveWriterV2Client(sender.OdinId, senderCallerContext.GetFactory());
+
+        var deleteResponse = await v2Writer.DeleteFileList(targetDrive.Alias, new List<DeleteFileRequestV2>
+        {
+            new() { FileId = upload.File.FileId, Recipients = [recipient.OdinId] }
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, deleteResponse.StatusCode);
+        ClassicAssert.AreEqual(DeleteLinkedFileStatus.Enqueued,
+            deleteResponse.Content!.Results.Single().RecipientStatus[recipient.OdinId]);
+
+        // Wait for the sender's outbox to drain — at this point the delete has been
+        // delivered to the recipient and AcceptDeleteLinkedFileRequestAsync has
+        // queued it to the recipient's inbox.
+        await senderOwner.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+        // We deliberately do NOT call recipientOwner.DriveRedux.ProcessInbox(...) here.
+        // Instead, the recipient calls V2 query-batch on his own drive — which should
+        // wake PeerInboxProcessorBackgroundService and drain the pending delete using
+        // the recipient's cloned IOdinContext.
+        var recipientCallerContext = new OwnerTestCase(targetDrive);
+        await recipientCallerContext.Initialize(recipientOwner);
+        var recipientV2Reader = new DriveReaderV2Client(recipient.OdinId, recipientCallerContext.GetFactory());
+
+        var queryResponse = await recipientV2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1
+            {
+                TargetDrive = targetDrive,
+            },
+            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, queryResponse.StatusCode);
+
+        // Poll for the recipient's file to flip to Deleted. The bg service drain is
+        // async — it has to wake, dequeue, build a child scope, fetch the drive, run
+        // ProcessInboxAsync, and soft-delete. 15s is generous for CI; in practice
+        // this is sub-second.
+        var becameDeleted = await WaitForFileStateAsync(
+            recipientOwner, upload, FileState.Deleted, TimeSpan.FromSeconds(15));
+        ClassicAssert.IsTrue(becameDeleted,
+            "recipient V2 query-batch should have woken PeerInboxProcessorBackgroundService " +
+            "and drained the pending delete from the inbox; file remained non-Deleted");
+
+        await Cleanup(senderOwner, [recipientOwner]);
+    }
+
+    // #9 — Same trigger, exercised through V2 query-batch-collection (multi-drive).
+    // The collection endpoint enqueues each section's drive id and calls the
+    // notifier once after the loop.
+    [Test]
+    public async Task DeleteFileIdBatch_RecipientV2QueryBatchCollection_TriggersInboxDrain()
+    {
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+
+        var senderCallerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        var targetDrive = senderCallerContext.TargetDrive;
+        await PrepareScenario(senderOwner, [recipientOwner], targetDrive);
+
+        var upload = await UploadAndDistributeMetadata(senderOwner, targetDrive, fileType: 481, [recipient.OdinId]);
+        await AssertRecipientHasFile(recipientOwner, upload, expectedState: FileState.Active);
+
+        await senderCallerContext.Initialize(senderOwner);
+        var v2Writer = new DriveWriterV2Client(sender.OdinId, senderCallerContext.GetFactory());
+
+        var deleteResponse = await v2Writer.DeleteFileList(targetDrive.Alias, new List<DeleteFileRequestV2>
+        {
+            new() { FileId = upload.File.FileId, Recipients = [recipient.OdinId] }
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+        await senderOwner.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+        var recipientCallerContext = new OwnerTestCase(targetDrive);
+        await recipientCallerContext.Initialize(recipientOwner);
+        var recipientV2Reader = new DriveReaderV2Client(recipient.OdinId, recipientCallerContext.GetFactory());
+
+        var collectionResponse = await recipientV2Reader.GetBatchCollectionAsync(new QueryBatchCollectionRequestV2
+        {
+            Queries =
+            [
+                new CollectionQueryParamSectionV2
+                {
+                    Name = "all-on-drive",
+                    DriveId = targetDrive.Alias,
+                    QueryParams = new FileQueryParams(),
+                    ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+                }
+            ]
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, collectionResponse.StatusCode);
+
+        var becameDeleted = await WaitForFileStateAsync(
+            recipientOwner, upload, FileState.Deleted, TimeSpan.FromSeconds(15));
+        ClassicAssert.IsTrue(becameDeleted,
+            "V2 query-batch-collection on the recipient should have triggered the inbox " +
+            "drain background service");
+
+        await Cleanup(senderOwner, [recipientOwner]);
+    }
+
+    // #10 — App caller has ReadWrite but is NOT the owner. PeerInboxDriveQueue.Enqueue
+    // gates on Caller.IsOwner && PermissionsContext.HasDrivePermission(driveId, ReadWrite).
+    // App callers fail the IsOwner check, so the queue must reject the request and the
+    // recipient's pending inbox delete must remain pending until an owner triggers it.
+    [Test]
+    public async Task DeleteFileIdBatch_AppCallerQueryBatch_GateRejects_InboxRemainsPending()
+    {
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+
+        var senderCallerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        var targetDrive = senderCallerContext.TargetDrive;
+        await PrepareScenario(senderOwner, [recipientOwner], targetDrive);
+
+        var upload = await UploadAndDistributeMetadata(senderOwner, targetDrive, fileType: 482, [recipient.OdinId]);
+        await AssertRecipientHasFile(recipientOwner, upload, expectedState: FileState.Active);
+
+        // Sender deletes via V2; delete lands in Sam's inbox.
+        await senderCallerContext.Initialize(senderOwner);
+        var v2Writer = new DriveWriterV2Client(sender.OdinId, senderCallerContext.GetFactory());
+        var deleteResponse = await v2Writer.DeleteFileList(targetDrive.Alias, new List<DeleteFileRequestV2>
+        {
+            new() { FileId = upload.File.FileId, Recipients = [recipient.OdinId] }
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, deleteResponse.StatusCode);
+        await senderOwner.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+        // Sam registers an App with ReadWrite. The App queries V2 query-batch on Sam's drive.
+        // The Enqueue gate must reject because IsOwner=false.
+        var appCallerContext = new AppTestCase(
+            targetDrive,
+            DrivePermission.ReadWrite,
+            new TestPermissionKeyList(PermissionKeyAllowance.Apps.ToArray()));
+        await appCallerContext.Initialize(recipientOwner);
+        var appV2Reader = new DriveReaderV2Client(recipient.OdinId, appCallerContext.GetFactory());
+
+        var appQuery = await appV2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = targetDrive },
+            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, appQuery.StatusCode);
+
+        // Wait briefly. If the gate were broken, the bg service would drain.
+        var prematurelyDeleted = await WaitForFileStateAsync(
+            recipientOwner, upload, FileState.Deleted, TimeSpan.FromSeconds(2));
+        ClassicAssert.IsFalse(prematurelyDeleted,
+            "App caller (non-owner) must not drive inbox processing; the gate should reject Enqueue " +
+            "so the pending delete remains in the inbox.");
+
+        // Now the owner queries — gate accepts and bg service drains.
+        var recipientCallerContext = new OwnerTestCase(targetDrive);
+        await recipientCallerContext.Initialize(recipientOwner);
+        var recipientV2Reader = new DriveReaderV2Client(recipient.OdinId, recipientCallerContext.GetFactory());
+        var ownerQuery = await recipientV2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = targetDrive },
+            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, ownerQuery.StatusCode);
+
+        var becameDeleted = await WaitForFileStateAsync(
+            recipientOwner, upload, FileState.Deleted, TimeSpan.FromSeconds(15));
+        ClassicAssert.IsTrue(becameDeleted,
+            "Owner V2 query-batch should drain the previously-pending delete that the App caller couldn't.");
+
+        await Cleanup(senderOwner, [recipientOwner]);
+    }
+
+    // #11 — Guest caller (YouAuth domain with Read on the drive) is not the owner.
+    // Same gate rejection as the App test — pending inbox items must not be drained
+    // under a low-priv caller's context.
+    [Test]
+    public async Task DeleteFileIdBatch_GuestCallerQueryBatch_GateRejects_InboxRemainsPending()
+    {
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+
+        var senderCallerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        var targetDrive = senderCallerContext.TargetDrive;
+        await PrepareScenario(senderOwner, [recipientOwner], targetDrive);
+
+        var upload = await UploadAndDistributeMetadata(senderOwner, targetDrive, fileType: 483, [recipient.OdinId]);
+        await AssertRecipientHasFile(recipientOwner, upload, expectedState: FileState.Active);
+
+        await senderCallerContext.Initialize(senderOwner);
+        var v2Writer = new DriveWriterV2Client(sender.OdinId, senderCallerContext.GetFactory());
+        var deleteResponse = await v2Writer.DeleteFileList(targetDrive.Alias, new List<DeleteFileRequestV2>
+        {
+            new() { FileId = upload.File.FileId, Recipients = [recipient.OdinId] }
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, deleteResponse.StatusCode);
+        await senderOwner.DriveRedux.WaitForEmptyOutbox(targetDrive);
+
+        // Sam registers a guest YouAuth domain with Read. Guest queries via V2.
+        var guestCallerContext = new GuestTestCase(targetDrive, DrivePermission.Read);
+        await guestCallerContext.Initialize(recipientOwner);
+        var guestV2Reader = new DriveReaderV2Client(recipient.OdinId, guestCallerContext.GetFactory());
+
+        var guestQuery = await guestV2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = targetDrive },
+            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, guestQuery.StatusCode);
+
+        var prematurelyDeleted = await WaitForFileStateAsync(
+            recipientOwner, upload, FileState.Deleted, TimeSpan.FromSeconds(2));
+        ClassicAssert.IsFalse(prematurelyDeleted,
+            "Guest caller (non-owner) must not drive inbox processing; pending delete remains.");
+
+        await Cleanup(senderOwner, [recipientOwner]);
+    }
+
+    // #12 — Owner queries V2 query-batch on a drive with an empty inbox. Gate accepts,
+    // bg service wakes, finds nothing pending, returns to sleep. The endpoint must
+    // return 200 cleanly and there must be no spurious state changes on the drive.
+    [Test]
+    public async Task DeleteFileIdBatch_OwnerQueryBatch_OnEmptyInbox_NoSideEffects()
+    {
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+
+        var senderCallerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        var targetDrive = senderCallerContext.TargetDrive;
+        await PrepareScenario(senderOwner, [recipientOwner], targetDrive);
+
+        // UploadAndDistributeMetadata calls ProcessInbox internally, leaving Sam's inbox empty
+        // and the file in Active state.
+        var upload = await UploadAndDistributeMetadata(senderOwner, targetDrive, fileType: 484, [recipient.OdinId]);
+        await AssertRecipientHasFile(recipientOwner, upload, expectedState: FileState.Active);
+
+        // Owner queries — gate accepts, bg service wakes, finds an empty inbox, no-ops.
+        var recipientCallerContext = new OwnerTestCase(targetDrive);
+        await recipientCallerContext.Initialize(recipientOwner);
+        var recipientV2Reader = new DriveReaderV2Client(recipient.OdinId, recipientCallerContext.GetFactory());
+
+        var queryResponse = await recipientV2Reader.GetBatchAsync(targetDrive.Alias, new QueryBatchRequest
+        {
+            QueryParams = new FileQueryParamsV1 { TargetDrive = targetDrive },
+            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+        });
+        ClassicAssert.AreEqual(HttpStatusCode.OK, queryResponse.StatusCode);
+
+        // Give the bg service time to wake; the file must remain Active.
+        var spuriouslyDeleted = await WaitForFileStateAsync(
+            recipientOwner, upload, FileState.Deleted, TimeSpan.FromSeconds(2));
+        ClassicAssert.IsFalse(spuriouslyDeleted,
+            "Owner V2 query-batch on a drive with an empty inbox must not change any file state.");
+
+        await Cleanup(senderOwner, [recipientOwner]);
+    }
+
+    private static async Task<bool> WaitForFileStateAsync(
+        OwnerApiClientRedux recipientOwner,
+        UploadResult upload,
+        FileState expectedState,
+        TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            var query = await recipientOwner.DriveRedux.QueryByGlobalTransitId(upload.GlobalTransitIdFileIdentifier);
+            var hit = query.Content?.SearchResults.SingleOrDefault();
+            if (hit?.FileState == expectedState)
+            {
+                return true;
+            }
+
+            await Task.Delay(200);
+        }
+
+        return false;
     }
 
     private async Task<UploadResult> UploadAndDistributeMetadata(

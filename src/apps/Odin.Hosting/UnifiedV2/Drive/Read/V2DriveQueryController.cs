@@ -3,7 +3,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Background;
 using Odin.Services.Drives;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -13,7 +15,10 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     [Route(UnifiedApiRouteConstants.FilesRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.Anonymous)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveQueryController : OdinControllerBase
+    public class V2DriveQueryController(
+        PeerInboxDriveQueue peerInboxDriveQueue,
+        IBackgroundServiceNotifier<PeerInboxProcessorBackgroundService> peerInboxProcessorNotifier)
+        : OdinControllerBase
     {
         [HttpPost("query-batch")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
@@ -22,14 +27,16 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             OdinValidationUtils.AssertNotNull(request, "request");
             OdinValidationUtils.AssertNotNull(request.QueryParams, "QueryParams");
             OdinValidationUtils.AssertNotNull(request.ResultOptionsRequest, "ResultOptionsRequest");
-            
+
+            await KickOffInboxProcessing(driveId);
+
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
-            
-            var batch = await fs.Query.GetBatch(driveId, 
+
+            var batch = await fs.Query.GetBatch(driveId,
                 request.QueryParams,
-                request.ResultOptionsRequest.ToQueryBatchResultOptions(), 
+                request.ResultOptionsRequest.ToQueryBatchResultOptions(),
                 WebOdinContext);
-            
+
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -37,6 +44,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
         public async Task<QueryBatchResponse> QuerySmartBatch([FromRoute] Guid driveId, [FromBody] QueryBatchRequestV2 request)
         {
+            await KickOffInboxProcessing(driveId);
+
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
             var batch = await fs.Query.GetSmartBatch(driveId,
@@ -45,6 +54,12 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
                 WebOdinContext);
 
             return QueryBatchResponse.FromResult(batch);
+        }
+
+        private async Task KickOffInboxProcessing(Guid driveId)
+        {
+            peerInboxDriveQueue.Enqueue(driveId, WebOdinContext);
+            await peerInboxProcessorNotifier.NotifyWorkAvailableAsync();
         }
     }
 }
