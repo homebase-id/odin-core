@@ -13,9 +13,12 @@ public static class RedisPing
     internal static async Task ExecuteAsync(IServiceProvider services)
     {
         var config = services.GetRequiredService<OdinConfiguration>();
-        if (!config.Redis.Enabled)
+
+        // NOTE: ignoring config.Redis.Enabled on purpose, since we want to be able to ping even if it's not enabled
+
+        if (config.Redis.Configuration == "")
         {
-            throw new OdinSystemException("Redis not enabled in config");
+            throw new OdinSystemException("Redis config is missing");
         }
 
         var logger = services.GetRequiredService<ILogger<CommandLine>>();
