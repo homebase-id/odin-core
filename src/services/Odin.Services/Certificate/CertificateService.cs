@@ -123,7 +123,7 @@ public class CertificateService : ICertificateService
                 return true;
             }
 
-            _logger.LogError("Could not RENEW {domain} certificate. See previous messages.", domain);
+            _logger.LogWarning("Could not RENEW {domain} certificate. See previous messages.", domain);
             return false;
         }
     }
