@@ -358,6 +358,7 @@ public static class Sqlite2Pg
                 throw;
             }
         }
-    }
 
+        logger.LogInformation("Done importing {total} identities", identityJobs.Count);
+    }
 }
