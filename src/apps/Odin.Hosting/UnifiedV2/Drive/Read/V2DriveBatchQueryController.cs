@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -16,8 +17,11 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     [Route(UnifiedApiRouteConstants.DrivesRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveBatchQueryController(PeerOutgoingTransferService peerOutgoingTransferService, DriveManager driveManager) :
-        V2DriveControllerBase(peerOutgoingTransferService)
+    public class V2DriveBatchQueryController(
+        PeerOutgoingTransferService peerOutgoingTransferService,
+        DriveManager driveManager,
+        ILogger<V2DriveControllerBase> logger) :
+        V2DriveControllerBase(peerOutgoingTransferService, logger)
     {
         [HttpPost("query-batch-collection")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]

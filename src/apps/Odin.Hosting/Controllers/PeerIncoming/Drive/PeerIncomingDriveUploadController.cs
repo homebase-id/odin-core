@@ -197,14 +197,26 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         [HttpPost("deletelinkedfile")]
         public async Task<PeerTransferResponse> DeleteLinkedFile(DeleteRemoteFileRequest request)
         {
+            _logger.LogDebug("[DeleteFlow] PeerIncoming.DeleteLinkedFile -> tenant:{tenant} caller:{caller} gtid:{gtid} targetDrive:{drive} fileSystemType:{fst}",
+                WebOdinContext.Tenant,
+                WebOdinContext.Caller?.OdinId,
+                request?.RemoteGlobalTransitIdFileIdentifier?.GlobalTransitId,
+                request?.RemoteGlobalTransitIdFileIdentifier?.TargetDrive,
+                request?.FileSystemType);
+
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             var perimeterService = GetPerimeterService(fileSystem);
 
-            return await perimeterService.AcceptDeleteLinkedFileRequestAsync(
+            var response = await perimeterService.AcceptDeleteLinkedFileRequestAsync(
                 request.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                 request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 request.FileSystemType,
                 WebOdinContext);
+
+            _logger.LogDebug("[DeleteFlow] PeerIncoming.DeleteLinkedFile -> response code:{code} for gtid:{gtid}",
+                response.Code, request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+
+            return response;
         }
 
         [HttpPost("mark-file-read")]

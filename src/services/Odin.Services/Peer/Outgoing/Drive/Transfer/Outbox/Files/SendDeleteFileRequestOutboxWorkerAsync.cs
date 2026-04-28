@@ -29,11 +29,12 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
     {
         try
         {
-            logger.LogDebug("SendDeleteFileRequest -> Sending request for file: {file} to {recipient}", _fileItem.File, _fileItem.Recipient);
+            logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> Sending request for file: {file} to {recipient} (marker:{marker})",
+                _fileItem.File, _fileItem.Recipient, _fileItem.Marker);
 
             var globalTransitId = await SendRequest(_fileItem, cancellationToken);
 
-            logger.LogDebug("SendDeleteFileRequest -> Success for gtid {gtid} (version:{version}) to {recipient} - Action: " +
+            logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> Success for gtid {gtid} (version:{version}) to {recipient} - Action: " +
                             "Marking Complete (popStamp:{marker})",
                 globalTransitId,
                 "no version info",
@@ -92,6 +93,12 @@ public class SendDeleteFileRequestOutboxWorkerAsync(
                 .WithDelay(Configuration.Host.PeerOperationDelayMs)
                 .WithCancellation(cancellationToken)
                 .ExecuteAsync(async () => { response = await TrySendDeleteFileRequest(); });
+
+            logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> HTTP response from {recipient} for gtid:{gtid} status:{status} success:{success}",
+                recipient,
+                request.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                response.StatusCode,
+                response.IsSuccessStatusCode);
 
             if (response.IsSuccessStatusCode)
             {
