@@ -253,7 +253,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             await transitInboxBoxStorage.AddAsync(item);
 
-            logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> queued to inbox; sender:{sender} gtid:{gtid} driveId:{driveId} inboxItemId:{itemId}",
+            await mediator.Publish(new InboxItemReceivedNotification
+            {
+                TargetDrive = targetDrive,
+                FileSystemType = fileSystemType,
+                TransferFileType = TransferFileType.Normal,
+            });
+
+            logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> queued to inbox and published InboxItemReceivedNotification; sender:{sender} gtid:{gtid} driveId:{driveId} inboxItemId:{itemId}",
                 item.Sender, globalTransitId, driveId, item.Id);
 
             return new PeerTransferResponse()
