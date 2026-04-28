@@ -376,6 +376,18 @@ public class CommandLine
         }
 
         //
+        // Command line: Ping configured redis database connection
+        //
+        // examples:
+        //   dotnet run -- redis-ping
+        //
+        if (args.Length >= 1 && args[0] == "redis-ping")
+        {
+            RedisPing.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
+        //
         // Command line: Create CDN CAT
         //
         // examples:
