@@ -34,6 +34,12 @@ public class ConnectIntroduceeOutboxWorker(
         {
             await introductionService.SendAutoConnectIntroduceeRequest(iid, cancellationToken, odinContext);
         }
+        catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.RemoteServerReturnedForbidden)
+        {
+            // Recipient blocked us (or otherwise refused at the network edge). Equivalent to the
+            // OdinSecurityException case below — retrying won't change the answer, mark complete.
+            return (true, UnixTimeUtc.ZeroTime);
+        }
         catch (OdinClientException)
         {
             return (false, UnixTimeUtc.Now().AddMinutes(10));

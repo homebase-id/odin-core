@@ -34,13 +34,13 @@ public class CircleNetworkVerificationService(
     // private readonly ILogger<CircleNetworkVerificationService> _logger = logger;
 
     public async Task<IcrVerificationResult> VerifyConnectionAsync(OdinId recipient, CancellationToken cancellationToken,
-        IOdinContext odinContext)
+        IOdinContext odinContext, bool tryRepairMissingHash = true)
     {
-        // so this is a curious issue - 
+        // so this is a curious issue -
         // when the odinContext.Caller and the recipient param are the same
         // there's a chance the odinContext.Caller will be only authenticated
         // because the ICR is invalid but the ICR's status will show as connected
-        // 
+        //
 
         var icr = await CircleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
 
@@ -71,7 +71,19 @@ public class CircleNetworkVerificationService(
         var expectedHash = icr!.VerificationHash;
         if (expectedHash.IsNullOrEmpty())
         {
-            //try syncing 
+            // The repair path requires the master key (ForceSynchronizeVerificationHashAsync
+            // asserts it). Read-only callers (e.g. app-context) skip the sync and return
+            // not-valid so the caller can decide what to do without us asserting.
+            if (!tryRepairMissingHash)
+            {
+                return new IcrVerificationResult
+                {
+                    IsValid = false,
+                    RemoteIdentityWasConnected = null
+                };
+            }
+
+            //try syncing
             logger.LogDebug("Missing expected verification hash.  attempting synchronization");
             var (success, _) = await ForceSynchronizeVerificationHashAsync(icr.OdinId, cancellationToken, odinContext);
 

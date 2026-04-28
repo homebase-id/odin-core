@@ -828,8 +828,14 @@ namespace Odin.Services.Membership.Connections
                 };
             }
 
-            //look up the verification hash on the caller's icr
-            var callerIcr = await this.GetIcrAsync(odinContext.GetCallerOdinIdOrFail(), odinContext, true);
+            // Look up the verification hash on the caller's icr.
+            // Skip the lazy encryption upgrade: this is a peer-context call (caller is the
+            // remote identity, not the owner) and the upgrade path requires our own ICR key
+            // which is not in scope here. Reading the verification hash does not need the
+            // encrypted CAT — only the hash byte field — so the upgrade is unnecessary.
+            // The upgrade will happen the next time the owner reads the ICR.
+            var callerIcr = await this.GetIcrAsync(odinContext.GetCallerOdinIdOrFail(), odinContext,
+                overrideHack: true, tryUpgradeEncryption: false);
 
             if (callerIcr.VerificationHash.IsNullOrEmpty())
             {

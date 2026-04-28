@@ -38,8 +38,19 @@ public class SendingIntroductionsTests
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
+        // Always run Cleanup so a failing assertion mid-test doesn't poison the fixture.
+        // Tests that already call Cleanup() at the end are fine — Cleanup is idempotent.
+        try
+        {
+            await Cleanup();
+        }
+        catch
+        {
+            // Cleanup is best-effort; never let it mask the actual test failure.
+        }
+
         _scaffold.AssertLogEvents();
     }
 
@@ -330,7 +341,10 @@ public class SendingIntroductionsTests
         ClassicAssert.IsTrue(frodoInfoResponse.Content.Status == ConnectionStatus.Blocked);
 
         var requestToPippinResponse = await frodoOnwerClient.Connections.SendConnectionRequest(sam);
-        ClassicAssert.IsTrue(requestToPippinResponse.StatusCode == HttpStatusCode.Forbidden);
+        // SendConnectionRequest now surfaces a remote 403 as HTTP 400 with
+        // OdinClientErrorCode.RemoteServerReturnedForbidden so callers can discriminate the cause.
+        ClassicAssert.IsTrue(requestToPippinResponse.StatusCode == HttpStatusCode.BadRequest,
+            $"expected BadRequest but got {requestToPippinResponse.StatusCode}");
 
         var unblockResponse = await pippinOwnerClient.Network.UnblockConnection(frodo);
         ClassicAssert.IsTrue(unblockResponse.IsSuccessStatusCode);
@@ -470,11 +484,32 @@ public class SendingIntroductionsTests
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
         var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
 
-        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
-        await frodo.Connections.SendConnectionRequest(merry.OdinId, []);
+        var sendToSam = await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        ClassicAssert.IsTrue(sendToSam.IsSuccessStatusCode,
+            $"Prepare: frodo->sam SendConnectionRequest failed: {sendToSam.StatusCode}");
+        var sendToMerry = await frodo.Connections.SendConnectionRequest(merry.OdinId, []);
+        ClassicAssert.IsTrue(sendToMerry.IsSuccessStatusCode,
+            $"Prepare: frodo->merry SendConnectionRequest failed: {sendToMerry.StatusCode}");
 
-        await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
-        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+        var merryAccept = await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
+        ClassicAssert.IsTrue(merryAccept.IsSuccessStatusCode,
+            $"Prepare: merry.AcceptConnectionRequest(frodo) failed: {merryAccept.StatusCode}");
+        var samAccept = await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+        ClassicAssert.IsTrue(samAccept.IsSuccessStatusCode,
+            $"Prepare: sam.AcceptConnectionRequest(frodo) failed: {samAccept.StatusCode}");
+
+        // Verify both sides actually have the connection on frodo's tenant. If these fail in CI we
+        // know Prepare did not establish state, even though the API calls returned OK.
+        var frodoSeesSam = await frodo.Network.GetConnectionInfo(sam.OdinId);
+        ClassicAssert.IsTrue(frodoSeesSam.IsSuccessStatusCode,
+            $"Prepare: frodo.GetConnectionInfo(sam) failed: {frodoSeesSam.StatusCode}");
+        ClassicAssert.IsTrue(frodoSeesSam.Content.Status == ConnectionStatus.Connected,
+            $"Prepare: frodo's view of sam is {frodoSeesSam.Content.Status}, expected Connected");
+        var frodoSeesMerry = await frodo.Network.GetConnectionInfo(merry.OdinId);
+        ClassicAssert.IsTrue(frodoSeesMerry.IsSuccessStatusCode,
+            $"Prepare: frodo.GetConnectionInfo(merry) failed: {frodoSeesMerry.StatusCode}");
+        ClassicAssert.IsTrue(frodoSeesMerry.Content.Status == ConnectionStatus.Connected,
+            $"Prepare: frodo's view of merry is {frodoSeesMerry.Content.Status}, expected Connected");
 
         await frodo.Connections.DeleteAllIntroductions();
         await sam.Connections.DeleteAllIntroductions();
@@ -500,13 +535,28 @@ public class SendingIntroductionsTests
         await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
         await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
 
-        await merry.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
+        // Clear any stray sent/pending requests across all pairings.
+        await frodo.Connections.DeleteSentRequestTo(sam.Identity.OdinId);
+        await frodo.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
+        await sam.Connections.DeleteSentRequestTo(frodo.Identity.OdinId);
+        await sam.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
+        await merry.Connections.DeleteSentRequestTo(frodo.Identity.OdinId);
         await merry.Connections.DeleteSentRequestTo(sam.Identity.OdinId);
 
+        await frodo.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
+        await frodo.Connections.DeleteConnectionRequestFrom(merry.Identity.OdinId);
+        await sam.Connections.DeleteConnectionRequestFrom(frodo.Identity.OdinId);
         await sam.Connections.DeleteConnectionRequestFrom(merry.Identity.OdinId);
-        await sam.Connections.DeleteSentRequestTo(merry.Identity.OdinId);
+        await merry.Connections.DeleteConnectionRequestFrom(frodo.Identity.OdinId);
+        await merry.Connections.DeleteConnectionRequestFrom(sam.Identity.OdinId);
 
+        // Clear any blocks across all pairings (the previous version only unblocked merry<->sam,
+        // missing the case where a test left sam or merry blocking frodo).
         await sam.Network.UnblockConnection(merry.Identity.OdinId);
         await merry.Network.UnblockConnection(sam.Identity.OdinId);
+        await sam.Network.UnblockConnection(frodo.Identity.OdinId);
+        await merry.Network.UnblockConnection(frodo.Identity.OdinId);
+        await frodo.Network.UnblockConnection(sam.Identity.OdinId);
+        await frodo.Network.UnblockConnection(merry.Identity.OdinId);
     }
 }
