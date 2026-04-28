@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -19,8 +20,10 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
     [Route(UnifiedApiRouteConstants.FilesRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveBatchFileWriteOperationsController(PeerOutgoingTransferService peerOutgoingTransferService) :
-        V2DriveControllerBase(peerOutgoingTransferService)
+    public class V2DriveBatchFileWriteOperationsController(
+        PeerOutgoingTransferService peerOutgoingTransferService,
+        ILogger<V2DriveControllerBase> logger) :
+        V2DriveControllerBase(peerOutgoingTransferService, logger)
     {
         /// <summary>
         /// Sends a read receipt for files matching a query by end time.
@@ -159,10 +162,19 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
         {
             WebOdinContext.PermissionsContext.AssertCanWriteToDrive(driveId);
 
+            Logger.LogDebug("[DeleteFlow] DeleteFileIdBatch entry -> tenant:{tenant} caller:{caller} driveId:{driveId} requestCount:{count}",
+                WebOdinContext.Tenant,
+                WebOdinContext.Caller?.OdinId,
+                driveId,
+                request?.Requests?.Count ?? 0);
+
             var batchResult = new DeleteFileIdBatchResultV2()
             {
                 Results = await DeleteFileIdBatchInternal(driveId, request.Requests)
             };
+
+            Logger.LogDebug("[DeleteFlow] DeleteFileIdBatch exit -> driveId:{driveId} resultCount:{count}",
+                driveId, batchResult.Results.Count);
 
             return batchResult;
         }

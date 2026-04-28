@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base.Drive;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
@@ -21,8 +22,10 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
     [Route(UnifiedApiRouteConstants.ByFileId)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DriveSingleFileWriteOperationsController(PeerOutgoingTransferService peerOutgoingTransferService)
-        : V2DriveControllerBase(peerOutgoingTransferService)
+    public class V2DriveSingleFileWriteOperationsController(
+        PeerOutgoingTransferService peerOutgoingTransferService,
+        ILogger<V2DriveControllerBase> logger)
+        : V2DriveControllerBase(peerOutgoingTransferService, logger)
     {
         [SwaggerOperation(
             Summary = "Update local metadata tags",

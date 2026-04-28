@@ -176,11 +176,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
             IEnumerable<string> recipients,
             IOdinContext odinContext)
         {
+            var recipientList = recipients?.ToList() ?? [];
+            logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> tenant:{tenant} fileId:{fileId} fileSystemType:{fst} recipientCount:{rc}",
+                odinContext.Tenant, fileId, fileTransferOptions.FileSystemType, recipientList.Count);
+
             var fs = _fileSystemResolver.ResolveFileSystem(fileTransferOptions.FileSystemType);
             var header = await fs.Storage.GetServerFileHeader(fileId, odinContext);
 
             if (null == header)
             {
+                logger.LogWarning("[DeleteFlow] SendDeleteFileRequest -> file not found fileId:{fileId} fileSystemType:{fst}",
+                    fileId, fileTransferOptions.FileSystemType);
                 throw new OdinClientException("File not found", OdinClientErrorCode.InvalidFile);
             }
 
@@ -190,7 +196,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
                 TargetDrive = odinContext.PermissionsContext.GetTargetDrive(header.FileMetadata.File.DriveId)
             };
 
-            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipients, odinContext);
+            logger.LogDebug("[DeleteFlow] SendDeleteFileRequest -> fileId: {fileId} -> resolved gtid:{gtid} targetDrive:{drive}; calling EnqueueDeletes",
+                fileId,
+                remoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                remoteGlobalTransitIdFileIdentifier.TargetDrive);
+
+            return await EnqueueDeletes(fileId, remoteGlobalTransitIdFileIdentifier, fileTransferOptions, recipientList, odinContext);
         }
 
         /// <summary>
@@ -507,7 +518,13 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer
 
                 await peerOutbox.AddItemAsync(item, useUpsert: true);
                 results.Add(recipient.DomainName, DeleteLinkedFileStatus.Enqueued);
+
+                logger.LogDebug("[DeleteFlow] EnqueueDeletes -> outbox item added recipient:{recipient} gtid:{gtid} fileId:{fileId} fileSystemType:{fst}",
+                    recipient, remoteGlobalTransitIdFileIdentifier.GlobalTransitId, fileId, fileTransferOptions.FileSystemType);
             }
+
+            logger.LogDebug("[DeleteFlow] EnqueueDeletes -> notifying outbox processor of {count} new delete item(s) for gtid:{gtid}",
+                results.Count, remoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             await backgroundServiceNotifier.NotifyWorkAvailableAsync();
 
