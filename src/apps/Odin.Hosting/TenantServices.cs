@@ -76,6 +76,7 @@ using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
+using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting;
 
@@ -100,6 +101,7 @@ public static class TenantServices
         //
 
         cb.RegisterInstance(new OdinIdentity(registration.Id, registration.PrimaryDomainName)).SingleInstance();
+        cb.RegisterType<TenantRootScope>().As<ITenantRootScope>().SingleInstance();
 
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance();
 

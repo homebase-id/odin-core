@@ -27,6 +27,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Tenant.Container;
 
 #nullable enable
 
@@ -48,8 +49,8 @@ namespace Odin.Services.AppNotifications.WebSocket
         private const string NotificationChannel = nameof(AppNotificationHandler);
 
         private readonly ILogger<AppNotificationHandler> _logger;
+        private readonly ITenantRootScope _tenantRootScope;
         private readonly ITenantPubSub _pubSub;
-        private readonly ILifetimeScope _tenantScope;
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly WebRtcSignalingService _webRtcSignalingService;
         private readonly SharedDeviceSocketCollection<AppNotificationHandler> _deviceSocketCollection;
@@ -57,21 +58,19 @@ namespace Odin.Services.AppNotifications.WebSocket
 
         public AppNotificationHandler(
             ILogger<AppNotificationHandler> logger,
+            ITenantRootScope tenantRootScope,
             ITenantPubSub pubSub,
-            ILifetimeScope tenantScope,
             PeerInboxProcessor peerInboxProcessor,
             WebRtcSignalingService webRtcSignalingService,
             SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         {
             _logger = logger;
+            _tenantRootScope = tenantRootScope;
             _pubSub = pubSub;
-            _tenantScope = tenantScope;
             _peerInboxProcessor = peerInboxProcessor;
             _webRtcSignalingService = webRtcSignalingService;
             _deviceSocketCollection = deviceSocketCollection;
-
-            _notificationSubscription =
-                new RefCountedSubscription(_pubSub, NotificationChannel, NotificationHandler);
+            _notificationSubscription = new RefCountedSubscription(_pubSub, NotificationChannel, NotificationHandler);
         }
 
         //
@@ -312,7 +311,12 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
-            await using var scope = _tenantScope.BeginLifetimeScope();
+            await using var scope = _tenantRootScope.BeginLifetimeScope();
+            if (scope == null)
+            {
+                return;
+            }
+
             var driveManager =  scope.Resolve<IDriveManager>();
             var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
 
