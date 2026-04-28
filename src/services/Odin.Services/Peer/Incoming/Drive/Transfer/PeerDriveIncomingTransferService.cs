@@ -196,16 +196,24 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         {
             var driveId = targetDrive.Alias;
 
+            logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> caller:{caller} gtid:{gtid} targetDrive:{drive} driveId:{driveId} fileSystemType:{fst}",
+                odinContext.Caller?.OdinId, globalTransitId, targetDrive, driveId, fileSystemType);
+
             //TODO: add checks if the sender can write comments if this is a comment
             await fileSystem.Storage.AssertCanWriteToDrive(driveId, odinContext);
 
             var drive = await driveManager.GetDriveAsync(driveId);
             if (fileSystemType == FileSystemType.Comment || drive.IsCollaborationDrive())
             {
+                logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> direct soft-delete path (comment/collab) for gtid:{gtid} driveId:{driveId}",
+                    globalTransitId, driveId);
+
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
                 var header = await fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId, odinContext);
                 if (null == header)
                 {
+                    logger.LogWarning("[DeleteFlow] AcceptDeleteLinkedFileRequest -> no file found by gtid:{gtid} on driveId:{driveId} (direct path)",
+                        globalTransitId, driveId);
                     //TODO: should this be a 404?
                     throw new OdinClientException("Invalid global transit Id");
                 }
@@ -218,6 +226,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         DriveId = driveId
                     },
                     odinContext, null);
+
+                logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> direct soft-delete complete for fileId:{fileId} gtid:{gtid}",
+                    header.FileId, globalTransitId);
 
                 return new PeerTransferResponse()
                 {
@@ -241,6 +252,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             };
 
             await transitInboxBoxStorage.AddAsync(item);
+
+            await mediator.Publish(new InboxItemReceivedNotification
+            {
+                TargetDrive = targetDrive,
+                FileSystemType = fileSystemType,
+                TransferFileType = TransferFileType.Normal,
+            });
+
+            logger.LogDebug("[DeleteFlow] AcceptDeleteLinkedFileRequest -> queued to inbox and published InboxItemReceivedNotification; sender:{sender} gtid:{gtid} driveId:{driveId} inboxItemId:{itemId}",
+                item.Sender, globalTransitId, driveId, item.Id);
 
             return new PeerTransferResponse()
             {

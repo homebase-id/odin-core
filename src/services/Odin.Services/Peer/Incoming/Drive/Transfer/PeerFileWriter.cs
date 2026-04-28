@@ -130,13 +130,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<bool> DeleteFile(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete)
         {
+            logger.LogDebug("[DeleteFlow] PeerFileWriter.DeleteFile -> looking up gtid:{gtid} driveId:{driveId} sender:{sender}",
+                item.GlobalTransitId, item.DriveId, item.Sender);
+
             var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId, odinContext);
 
             if (clientFileHeader == null)
             {
                 // this is bad error.
                 logger.LogError(
-                    "While attempting to delete a file - Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found ",
+                    "[DeleteFlow] PeerFileWriter.DeleteFile -> Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found",
                     item.GlobalTransitId, item.DriveId);
                 throw new OdinFileWriteException("Missing file by global transit id while file while processing delete request in inbox");
             }
@@ -147,7 +150,15 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 DriveId = item.DriveId,
             };
 
-            return await fs.Storage.SoftDeleteLongTermFile(file, odinContext, markComplete);
+            logger.LogDebug("[DeleteFlow] PeerFileWriter.DeleteFile -> resolved fileId:{fileId} for gtid:{gtid}; soft-deleting",
+                file.FileId, item.GlobalTransitId);
+
+            var result = await fs.Storage.SoftDeleteLongTermFile(file, odinContext, markComplete);
+
+            logger.LogDebug("[DeleteFlow] PeerFileWriter.DeleteFile -> soft-delete returned {result} for fileId:{fileId} gtid:{gtid}",
+                result, file.FileId, item.GlobalTransitId);
+
+            return result;
         }
 
         public async Task<bool> MarkFileAsRead(IDriveFileSystem fs, TransferInboxItem item, IOdinContext odinContext,

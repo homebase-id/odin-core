@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -61,7 +62,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
     {
         public readonly Guid SystemProcessApiKey = systemProcessApiKey;
         private readonly string _defaultOwnerPassword = "EnSøienØ";
-        private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
+        // ConcurrentDictionary because RunBeforeAnyTests calls SetupOwnerAccount in Parallel.ForEach;
+        // a plain Dictionary silently corrupts under concurrent Add and loses entries (e.g. "No token found for tom.dotyou.cloud").
+        private readonly ConcurrentDictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
 
         internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate,
             X509Chain chain,
@@ -313,7 +316,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 SharedSecret = sharedSecret
             };
 
-            _ownerLoginTokens.Add(identity, context);
+            if (!_ownerLoginTokens.TryAdd(identity, context))
+            {
+                throw new InvalidOperationException(
+                    $"SetupOwnerAccount called twice for {identity}; existing token would be overwritten");
+            }
 
             if (initializeIdentity)
             {
