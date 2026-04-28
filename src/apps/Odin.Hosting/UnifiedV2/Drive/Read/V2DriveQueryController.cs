@@ -22,7 +22,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     {
         [HttpPost("query-batch")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
-        public async Task<QueryBatchResponse> QueryBatch([FromRoute] Guid driveId, [FromBody] QueryBatchRequestV2 request)
+        public async Task<QueryBatchResponse> QueryBatch([FromRoute] Guid driveId, [FromBody] 
         {
             OdinValidationUtils.AssertNotNull(request, "request");
             OdinValidationUtils.AssertNotNull(request.QueryParams, "QueryParams");

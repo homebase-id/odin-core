@@ -52,13 +52,13 @@ public class PeerInboxProcessorBackgroundService(
             var drive = await driveManager.GetDriveAsync(request.DriveId);
             if (drive == null)
             {
-                logger.LogDebug("[DeleteFlow] PeerInboxProcessorBgService -> drive {driveId} not found; skipping",
+                logger.LogDebug("PeerInboxProcessorBgService -> drive {driveId} not found; skipping",
                     request.DriveId);
                 return;
             }
 
             var processor = childScope.Resolve<PeerInboxProcessor>();
-            logger.LogDebug("[DeleteFlow] PeerInboxProcessorBgService -> draining inbox for drive {drive} as caller {caller}",
+            logger.LogDebug("PeerInboxProcessorBgService -> draining inbox for drive {drive} as caller {caller}",
                 drive.TargetDriveInfo, request.OdinContext.Caller?.OdinId);
             await processor.ProcessInboxAsync(drive.TargetDriveInfo, request.OdinContext, batchSize: 100);
         }
@@ -68,7 +68,7 @@ public class PeerInboxProcessorBackgroundService(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "[DeleteFlow] PeerInboxProcessorBgService -> error draining drive {driveId}",
+            logger.LogError(e, "PeerInboxProcessorBgService -> error draining drive {driveId}",
                 request.DriveId);
         }
     }
