@@ -325,6 +325,57 @@ public class CommandLine
         }
 
         //
+        // Command line: Migrate identity data from SQLite to PostgreSQL
+        //
+        // The system must be configured for PostgreSQL (target).
+        // Arguments:
+        // - Domain name to import
+        // - System SQLite database file to import from
+        // - Per-identity SQLite database file to import from
+        // Fails if the identity already exists in the registry.
+        //
+        // examples:
+        //   dotnet run -- sqlite2pg-identity frodo.dotyou.cloud /path/to/src/system.db /path/to/src/identity.db commit
+        //
+        if (args.Length >= 5 && args[0] == "sqlite2pg-identity")
+        {
+            Sqlite2Pg.ImportIdentityAsync(_serviceProvider, args[1], args[2], args[3], args[4] == "commit").BlockingWait();
+            return (true, 0);
+        }
+
+        //
+        // Command line: Migrate ALL system + identity data from SQLite to PostgreSQL
+        //
+        // The system must be configured for PostgreSQL (target).
+        // Arguments:
+        // - System SQLite database file to import from
+        // - SQLite tenants root directory (the parent of the "registrations" folder).
+        //   Each identity database is expected at:
+        //     <tenants-root>/registrations/<identity-id>/headers/identity.db
+        // - "commit" to apply, anything else for a dry run
+        //
+        // examples:
+        //   dotnet run -- sqlite2pg-all /path/to/src/sys.db /path/to/src/tenants commit
+        //
+        if (args.Length >= 4 && args[0] == "sqlite2pg-all")
+        {
+            Sqlite2Pg.ImportAllAsync(_serviceProvider, args[1], args[2], args[3] == "commit").BlockingWait();
+            return (true, 0);
+        }
+
+        //
+        // Command line: Ping configured PG database connection
+        //
+        // examples:
+        //   dotnet run -- pg-ping
+        //
+        if (args.Length >= 1 && args[0] == "pg-ping")
+        {
+            PgPing.ExecuteAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
+        //
         // Command line: Create CDN CAT
         //
         // examples:
