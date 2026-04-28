@@ -372,9 +372,17 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             IOdinContext odinContext,
             CancellationToken cancellationToken)
         {
+            logger.LogDebug("[DeleteFlow] OutboxProcessor -> dispatching SendDeleteFileRequestOutboxWorker for recipient:{recipient} fileId:{fileId} marker:{marker} attempt:{attempt}",
+                fileItem.Recipient, fileItem.File, fileItem.Marker, fileItem.AttemptCount);
+
             var workLogger = loggerFactory.CreateLogger<SendDeleteFileRequestOutboxWorkerAsync>();
             var worker = new SendDeleteFileRequestOutboxWorkerAsync(fileItem, workLogger, odinConfiguration, odinHttpClientFactory);
-            return await worker.Send(odinContext, cancellationToken);
+            var result = await worker.Send(odinContext, cancellationToken);
+
+            logger.LogDebug("[DeleteFlow] OutboxProcessor -> SendDeleteFileRequestOutboxWorker returned shouldMarkComplete:{complete} nextRun:{nextRun} for recipient:{recipient} fileId:{fileId}",
+                result.shouldMarkComplete, result.nextRun, fileItem.Recipient, fileItem.File);
+
+            return result;
         }
 
         private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendIntroduction(OutboxFileItem fileItem,

@@ -208,9 +208,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
                 {
-                    logger.LogDebug("Processing Inbox -> DeleteFile marker/popstamp:[{maker}]",
+                    logger.LogDebug("[DeleteFlow] PeerInboxProcessor -> DeleteFile begin sender:{sender} gtid:{gtid} driveId:{driveId} marker/popstamp:[{maker}]",
+                        inboxItem.Sender,
+                        inboxItem.GlobalTransitId,
+                        inboxItem.DriveId,
                         Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                     var success = await writer.DeleteFile(fs, inboxItem, odinContext, markComplete);
+                    logger.LogDebug("[DeleteFlow] PeerInboxProcessor -> DeleteFile result success:{success} gtid:{gtid} driveId:{driveId}",
+                        success, inboxItem.GlobalTransitId, inboxItem.DriveId);
                     return (success ? InboxReturnTypes.HasBeenMarkedComplete : InboxReturnTypes.TryAgainLater, []);
                 }
 
