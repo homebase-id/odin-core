@@ -69,28 +69,6 @@ public class TempFolderCleanUpBackgroundServiceTests
     }
 
     [Test]
-    public void InboxFolderCleanUp_DeletesOldFiles_PreservesRecentFiles()
-    {
-        // Arrange
-        SetupTestFolderStructure();
-
-        string drive1InboxPath = Path.Combine(_testDrivesRoot, "drive1", "inbox");
-
-        string oldFile = Path.Combine(drive1InboxPath, "old_inbox.txt");
-        string newFile = Path.Combine(drive1InboxPath, "new_inbox.txt");
-
-        CreateFileWithTimestamp(oldFile, DateTime.UtcNow.Subtract(_inboxAgeThreshold).Subtract(TimeSpan.FromMinutes(30)));
-        CreateFileWithTimestamp(newFile, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(10)));
-
-        // Act
-        InboxFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _inboxAgeThreshold);
-
-        // Assert
-        Assert.That(File.Exists(oldFile), Is.False, "Old inbox file should be deleted");
-        Assert.That(File.Exists(newFile), Is.True, "Recent inbox file should be preserved");
-    }
-
-    [Test]
     public void UploadFolderCleanUp_HandlesIllegalSubdirectories()
     {
         // Arrange
@@ -144,17 +122,6 @@ public class TempFolderCleanUpBackgroundServiceTests
         // Act & Assert — should not throw
         Assert.DoesNotThrow(() =>
             UploadFolderCleanUp.Execute(_loggerMock.Object, nonExistentPath, _uploadAgeThreshold));
-    }
-
-    [Test]
-    public void InboxFolderCleanUp_ReturnsSilently_WhenDrivesPathDoesNotExist()
-    {
-        // Arrange
-        var nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-
-        // Act & Assert — should not throw
-        Assert.DoesNotThrow(() =>
-            InboxFolderCleanUp.Execute(_loggerMock.Object, nonExistentPath, _inboxAgeThreshold));
     }
 
     private void SetupTestFolderStructure()
