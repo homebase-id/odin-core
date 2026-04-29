@@ -31,7 +31,7 @@ public sealed class PeerInboxDriveQueue(ILogger<PeerInboxDriveQueue> logger)
     // accept owner contexts that have ReadWrite on the target drive.
     public bool Enqueue(Guid driveId, IOdinContext odinContext)
     {
-        if (!IsAuthorized(driveId, odinContext))
+        if (!IsAuthorizedToDrain(driveId, odinContext))
         {
             logger.LogDebug(
                 "PeerInboxDriveQueue.Enqueue skipped: caller {caller} not authorized for ReadWrite on drive {driveId} (isOwner={isOwner})",
@@ -45,7 +45,14 @@ public sealed class PeerInboxDriveQueue(ILogger<PeerInboxDriveQueue> logger)
 
     public bool TryDequeue(out Request request) => _channel.Reader.TryRead(out request);
 
-    private static bool IsAuthorized(Guid driveId, IOdinContext odinContext)
+    // Same gate that Enqueue uses. Exposed so the inline-drain helper
+    // (InboxDrainOnQuery) can apply the identical check before calling
+    // PeerInboxProcessor.ProcessInboxAsync directly. Inbox processing applies
+    // pending writes (soft-delete, read-receipt, reactions) on behalf of the
+    // drive owner; running it under a low-privileged context would throw
+    // OdinSecurityException on the underlying storage call and the processor
+    // would mark the inbox item DeleteFromInbox — silently dropping it.
+    public static bool IsAuthorizedToDrain(Guid driveId, IOdinContext odinContext)
     {
         if (odinContext?.Caller == null || odinContext.PermissionsContext == null)
         {

@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
-using Odin.Services.Background;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
@@ -23,8 +22,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         PeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager,
         ILogger<V2DriveControllerBase> logger,
-        PeerInboxDriveQueue peerInboxDriveQueue,
-        IBackgroundServiceNotifier<PeerInboxProcessorBackgroundService> peerInboxProcessorNotifier) :
+        InboxDrainOnQuery inboxDrainOnQuery) :
         V2DriveControllerBase(peerOutgoingTransferService, logger)
     {
         [HttpPost("query-batch-collection")]
@@ -36,7 +34,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             foreach (var section in request.Queries)
             {
                 section.AssertIsValid();
-                peerInboxDriveQueue.Enqueue(section.DriveId, WebOdinContext);
+
+                await inboxDrainOnQuery.DrainIfReadyAsync(section.DriveId, WebOdinContext);
 
                 var theDrive = await driveManager.GetDriveAsync(section.DriveId);
                 var qp = section.QueryParams;
@@ -65,8 +64,6 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
 
                 v1Queries.Add(newSection);
             }
-
-            await peerInboxProcessorNotifier.NotifyWorkAvailableAsync();
 
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
             var collection = await fs.Query.GetBatchCollection(v1Queries, WebOdinContext);
