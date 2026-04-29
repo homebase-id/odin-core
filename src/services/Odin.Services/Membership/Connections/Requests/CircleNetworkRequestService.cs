@@ -161,6 +161,13 @@ namespace Odin.Services.Membership.Connections.Requests
             }
 
             var recipient = (OdinId)header.Recipient;
+
+            // [DEBUG-754] Trace entry to SendConnectionRequest so we can correlate with the eventual
+            // RemoteServerMissingOutgoingRequest throw at line 754 (CircleNetworkRequestService.cs).
+            logger.LogInformation(
+                "[DEBUG-754] SendConnectionRequestAsync entry. recipient={recipient} origin={origin}",
+                recipient, header.ConnectionRequestOrigin);
+
             if (recipient == odinContext.Caller.OdinId)
             {
                 throw new OdinClientException(
@@ -175,9 +182,33 @@ namespace Odin.Services.Membership.Connections.Requests
                 throw new OdinClientException("You've blocked this connection", OdinClientErrorCode.BlockedConnection);
             }
 
+            // [DEBUG-754] Snapshot local state before any branching: ICR status, sent-request,
+            // pending-incoming. These three answer "did we have any reason to short-circuit
+            // into accept-mode?" If pending-incoming is non-null here, we will go through
+            // AcceptConnectionRequestAsync and can hit line 754. PendingConnectionRequestHeader
+            // is encrypted-at-rest so we only log presence + timestamp; origin lives inside
+            // the encrypted payload.
+            var existingSentForTrace = await GetSentRequestInternalAsync(recipient);
+            var existingPendingForTrace = await GetPendingRequestInternalAsync(recipient);
+            logger.LogInformation(
+                "[DEBUG-754] Pre-branch state. recipient={recipient} icrStatus={icrStatus} icrIsConnected={isConnected} " +
+                "hasSentRequest={hasSent} sentOrigin={sentOrigin} hasPendingIncoming={hasPending} pendingReceivedAt={pendingReceivedAt}",
+                recipient,
+                existingConnection.Status,
+                existingConnection.IsConnected(),
+                existingSentForTrace != null,
+                existingSentForTrace?.ConnectionRequestOrigin,
+                existingPendingForTrace != null,
+                existingPendingForTrace?.ReceivedTimestampMilliseconds.milliseconds);
+
             if (existingConnection.IsConnected() && header.ConnectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner)
             {
-                if ((await verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext)).IsValid)
+                var verifyResult = await verificationService.VerifyConnectionAsync(recipient, cancellationToken, odinContext);
+                logger.LogInformation(
+                    "[DEBUG-754] VerifyConnectionAsync result. recipient={recipient} isValid={isValid} remoteWasConnected={remoteConnected}",
+                    recipient, verifyResult.IsValid, verifyResult.RemoteIdentityWasConnected);
+
+                if (verifyResult.IsValid)
                 {
                     // connection is good
                     throw new OdinClientException("Cannot send connection request to a valid connection",
@@ -616,12 +647,28 @@ namespace Odin.Services.Membership.Connections.Requests
         {
             header.Validate();
 
+            // [DEBUG-754] Trace the entry point so we can tell whether AcceptConnectionRequestAsync
+            // was reached via the IdentityOwner Send short-circuit, an explicit accept-incoming
+            // call from the UI, the Introduction auto-accept, or the App handler.
+            logger.LogInformation(
+                "[DEBUG-754] AcceptConnectionRequestAsync entry. sender={sender} tryOverrideAcl={tryOverride} authContext={ac}",
+                header.Sender, tryOverrideAcl, odinContext.AuthContext);
+
             var incomingRequest = await GetPendingRequestAsync((OdinId)header.Sender, odinContext);
             if (null == incomingRequest)
             {
                 throw new OdinClientException($"No pending request was found from sender [{header.Sender}]",
                     OdinClientErrorCode.IncomingRequestNotFound);
             }
+
+            // [DEBUG-754] Capture the pending-incoming we'll be acting on so the user can confirm
+            // it really existed at call time, even if it's no longer in storage when they look later.
+            logger.LogInformation(
+                "[DEBUG-754] Acting on pending-incoming. sender={sender} origin={origin} introducer={introducer} receivedAt={receivedAt}",
+                incomingRequest.SenderOdinId,
+                incomingRequest.ConnectionRequestOrigin,
+                incomingRequest.IntroducerOdinId,
+                incomingRequest.ReceivedTimestampMilliseconds.milliseconds);
 
             incomingRequest.Validate();
             var senderOdinId = (OdinId)incomingRequest.SenderOdinId;
@@ -748,6 +795,50 @@ namespace Odin.Services.Membership.Connections.Requests
 
             if (!httpResponse.IsSuccessStatusCode)
             {
+                // [DEBUG-754] Dump everything we know at the moment of failure: the recipient
+                // (=senderOdinId here, since this is the accept-flow), the http code, and our
+                // current local state. This is the diagnostic snapshot for the
+                // "A connected to B / B has nothing for A" puzzle.
+                string remoteBody = null;
+                try
+                {
+                    remoteBody = httpResponse.Error?.Content;
+                }
+                catch
+                {
+                    // best-effort
+                }
+
+                ConnectionRequest pendingNow = null;
+                try
+                {
+                    pendingNow = await GetPendingRequestAsync(senderOdinId, odinContext);
+                }
+                catch
+                {
+                    // best-effort
+                }
+
+                var sentNow = await GetSentRequestInternalAsync(senderOdinId);
+                var icrNow = await _cns.GetIcrAsync(senderOdinId, odinContext, true);
+
+                logger.LogWarning(
+                    "[DEBUG-754] EstablishConnection failed. peer={peer} httpStatus={status} httpReason={reason} " +
+                    "remoteBody={body} localPendingPresent={hasPending} localPendingOrigin={pendingOrigin} " +
+                    "localPendingIntroducer={pendingIntroducer} localSentPresent={hasSent} localSentOrigin={sentOrigin} " +
+                    "localIcrStatus={icrStatus} localIcrIsConnected={icrConnected}",
+                    senderOdinId,
+                    (int)httpResponse.StatusCode,
+                    httpResponse.ReasonPhrase,
+                    remoteBody,
+                    pendingNow != null,
+                    pendingNow?.ConnectionRequestOrigin,
+                    pendingNow?.IntroducerOdinId,
+                    sentNow != null,
+                    sentNow?.ConnectionRequestOrigin,
+                    icrNow.Status,
+                    icrNow.IsConnected());
+
                 if (httpResponse.StatusCode == HttpStatusCode.Forbidden)
                 {
                     // The remote server does not have a corresponding outgoing request for this sender
@@ -790,6 +881,34 @@ namespace Odin.Services.Membership.Connections.Requests
             var authToken = ClientAuthenticationToken.FromPortableBytes64(authenticationToken64);
             var caller = odinContext.GetCallerOdinIdOrFail();
             var originalRequest = await GetSentRequestInternalAsync(caller);
+
+            // [DEBUG-754] We are the recipient (B in the puzzle scenario). Log whether we
+            // actually have a sent-request for the caller (A), and our ICR view of A.
+            // If originalRequest is null we are about to throw — which surfaces back to A
+            // as 403 and triggers the line-754 throw on A's side.
+            ConnectionStatus icrStatusForCaller;
+            bool icrConnectedForCaller;
+            try
+            {
+                var callerIcr = await _cns.GetIcrAsync(caller, odinContext, true);
+                icrStatusForCaller = callerIcr.Status;
+                icrConnectedForCaller = callerIcr.IsConnected();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[DEBUG-754] EstablishConnection: failed to load ICR for caller {caller}", caller);
+                icrStatusForCaller = ConnectionStatus.None;
+                icrConnectedForCaller = false;
+            }
+
+            logger.LogInformation(
+                "[DEBUG-754] EstablishConnection (recipient side) entry. caller={caller} hasSentRequest={hasSent} " +
+                "sentOrigin={sentOrigin} icrStatus={icrStatus} icrIsConnected={icrConnected}",
+                caller,
+                originalRequest != null,
+                originalRequest?.ConnectionRequestOrigin,
+                icrStatusForCaller,
+                icrConnectedForCaller);
 
             //Assert that I previously sent a request to the identity attempting to connected with me
             if (null == originalRequest)
@@ -1018,6 +1137,18 @@ namespace Odin.Services.Membership.Connections.Requests
             var incomingRequest = await this.GetPendingRequestAsync(recipient, odinContext);
             if (incomingRequest != null)
             {
+                // [DEBUG-754] We are short-circuiting Send into Accept because a pending-incoming
+                // from the recipient was found. This is the path that leads to line 754 if the
+                // remote 403s on EstablishConnection.
+                logger.LogInformation(
+                    "[DEBUG-754] IdentityOwner short-circuit: pending-incoming present for {recipient}; " +
+                    "diverting Send into AcceptConnectionRequestAsync. " +
+                    "incomingSender={sender} incomingOrigin={origin} incomingIntroducer={introducer}",
+                    recipient,
+                    incomingRequest.SenderOdinId,
+                    incomingRequest.ConnectionRequestOrigin,
+                    incomingRequest.IntroducerOdinId);
+
                 // just accept the request; using the ACL info (header.CircleIds, etc.)
                 var ac = new AcceptRequestHeader
                 {
@@ -1033,10 +1164,17 @@ namespace Odin.Services.Membership.Connections.Requests
             var existingOutgoingRequest = await this.GetSentRequestInternalAsync(recipient);
             if (null == existingOutgoingRequest)
             {
+                logger.LogInformation(
+                    "[DEBUG-754] IdentityOwner: no pending-incoming, no existing sent-request — creating fresh outgoing to {recipient}",
+                    recipient);
                 await CreateAndSendRequestInternalAsync(header, masterKey, odinContext);
             }
             else
             {
+                logger.LogInformation(
+                    "[DEBUG-754] IdentityOwner: no pending-incoming; existing sent-request present (origin={origin}) for {recipient}",
+                    existingOutgoingRequest.ConnectionRequestOrigin, recipient);
+
                 if (existingOutgoingRequest.ConnectionRequestOrigin == ConnectionRequestOrigin.Introduction)
                 {
                     //overwrite this with new request and send it
