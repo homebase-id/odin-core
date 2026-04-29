@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Caching.Memory;
@@ -16,6 +17,16 @@ namespace Odin.Core.Storage.Cache;
 
 public static class FusionCacheWrapperExtensions
 {
+    // IncludeFields is required so ValueTuple round-trips through STJ — without it,
+    // Item1/Item2/Item3 (public fields, not properties) are skipped, the entry
+    // serializes as "{}", and a Redis hit deserializes back to default(...) with a
+    // null List. That triggered an NRE in DriveQueryServiceBase.CreateClientFileHeadersAsync.
+    // SEB:TODO switch to FusionCacheNeueccMessagePackSerializer?
+    internal static FusionCacheSystemTextJsonSerializer CreateCacheSerializer()
+    {
+        return new FusionCacheSystemTextJsonSerializer(new JsonSerializerOptions { IncludeFields = true });
+    }
+
     public static IServiceCollection AddCoreCacheServices(
         this IServiceCollection services,
         CacheConfiguration cacheConfiguration)
@@ -56,10 +67,7 @@ public static class FusionCacheWrapperExtensions
                 // factory needs to use a scoped db connection.
                 IsFailSafeEnabled = false,
             })
-            .WithSerializer(
-                // new FusionCacheNeueccMessagePackSerializer()
-                new FusionCacheSystemTextJsonSerializer() // SEB:TODO switch to FusionCacheNeueccMessagePackSerializer?
-            );
+            .WithSerializer(CreateCacheSerializer());
 
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)
         {
