@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using NUnit.Framework;
-using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
@@ -92,13 +91,13 @@ public class TenantPathManagerTests
             _config.Host.TenantDataRootPath,
             "registrations",
             tenantId.ToString(),
-            "temp")));
+            "inbox")));
 
         Assert.That(tenantPathManager.InboxDrivesPath, Is.EqualTo(Path.Combine(
             _config.Host.TenantDataRootPath,
             "registrations",
             tenantId.ToString(),
-            "temp",
+            "inbox",
             "drives")));
 
         Assert.That(tenantPathManager.PayloadsPath, Is.EqualTo(Path.Combine(
@@ -153,10 +152,9 @@ public class TenantPathManagerTests
             _config.Host.TenantDataRootPath,
             "registrations",
             tenantId.ToString(),
-            "temp",
+            "inbox",
             "drives",
-            "11111111abcdabcd1111111111111111",
-            "inbox")));
+            "11111111abcdabcd1111111111111111")));
     }
 
     //

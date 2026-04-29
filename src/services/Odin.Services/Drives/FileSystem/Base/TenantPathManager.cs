@@ -30,9 +30,11 @@ public record ParsedThumbnailFileRecord
     public int Height { get; init; }
 }
 
+
+// SEB:TODO this class should be DI in TenantServices
 public class TenantPathManager
 {
-    public static readonly string TransferInstructionSetExtension = "transferkeyheader";
+    public const string TransferInstructionSetExtension = "transferkeyheader";
     public const string MetadataExtension = "metadata";
     
     public const string ValidPayloadKeyRegex = "^[a-z0-9_]{8,10}$";
@@ -60,7 +62,7 @@ public class TenantPathManager
     public readonly string UploadPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
     public readonly string UploadDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
     public readonly string InboxPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp  (same dir for now)
-    public readonly string InboxDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives  (same dir for now)
+    public readonly string InboxDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/inbox/drives
 
     public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
     public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
@@ -89,11 +91,10 @@ public class TenantPathManager
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
+        InboxPath = Path.Combine(RegistrationPath, InboxFolder);
+        InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
         UploadPath = Path.Combine(RegistrationPath, TempFolder);
         UploadDrivesPath = Path.Combine(UploadPath, DrivesFolder);
-        InboxPath = Path.Combine(RegistrationPath, TempFolder);
-        InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
-
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
         PayloadsDrivesPath = Path.Combine(PayloadsPath, DrivesFolder);
     }
@@ -115,10 +116,10 @@ public class TenantPathManager
     // Disk root locations
     // ----------------------
 
-    // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/inbox
+    // e.g. /data/tenants/registrations/<tenant-id>/inbox/drives/<drive-id>
     public string GetDriveInboxPath(Guid driveId)
     {
-        return Path.Combine(InboxDrivesPath, GuidToPathSafeString(driveId), InboxFolder);
+        return Path.Combine(InboxDrivesPath, GuidToPathSafeString(driveId));
     }
 
     // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/uploads

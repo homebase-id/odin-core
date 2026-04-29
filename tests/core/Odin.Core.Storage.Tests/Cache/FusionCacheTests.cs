@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
@@ -6,18 +7,42 @@ using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using Odin.Core.Storage.Cache;
 using Testcontainers.Redis;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization.NeueccMessagePack;
 
 namespace Odin.Core.Storage.Tests.Cache;
 
-#if RUN_REDIS_TESTS
-
 #nullable enable
 
 public class FusionCacheTests
 {
+    // Regression test for the QueryBatch NRE caused by ValueTuples not surviving
+    // FusionCache's STJ serialization round-trip. With default JsonSerializerOptions,
+    // ValueTuple's Item1/Item2/Item3 are public fields (not properties) and are
+    // skipped by System.Text.Json. The entry serializes as "{}" and a Redis L2 hit
+    // deserializes back to default(...), giving a null List that NRE'd in
+    // DriveQueryServiceBase.CreateClientFileHeadersAsync. CreateCacheSerializer must
+    // configure IncludeFields = true so the production cache serializer round-trips
+    // tuples correctly. This test calls the same factory the DI wiring uses, so a
+    // regression there fails this test.
+    [Test]
+    public void ProductionCacheSerializer_RoundTripsValueTuple()
+    {
+        var serializer = FusionCacheWrapperExtensions.CreateCacheSerializer();
+
+        var original = (records: new List<int> { 1, 2, 3 }, moreRows: true, cursor: "abc");
+        var bytes = serializer.Serialize(original);
+
+        var roundTripped = serializer.Deserialize<(List<int>, bool, string)>(bytes);
+
+        Assert.That(roundTripped.Item1, Is.EqualTo(new List<int> { 1, 2, 3 }));
+        Assert.That(roundTripped.Item2, Is.True);
+        Assert.That(roundTripped.Item3, Is.EqualTo("abc"));
+    }
+
+#if RUN_REDIS_TESTS
     private RedisContainer? _redisContainer;
     private ILifetimeScope? _services;
 
@@ -162,7 +187,11 @@ public class FusionCacheTests
         public Guid Id { get; set; }
         public Guid Uuid { get; set; }
     }
+
+#endif
 }
+
+#if RUN_REDIS_TESTS
 
 #region TestServices
 
