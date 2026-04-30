@@ -107,6 +107,11 @@ public class InboxDrainOnQueryTests
             fileType: 7772);
 
         await sender.DriveRedux.WaitForEmptyOutbox(targetDrive);
+        // WaitForEmptyOutbox confirms the sender's side; this confirms the recipient's
+        // inbox row is visible to InboxDrainOnQuery.GetReadyCountAsync before the V2
+        // query lands. Without it, a loaded CI host occasionally races the query
+        // ahead of the cache invalidation and the drain becomes a no-op.
+        await WaitForRecipientInboxItem(recipient, targetDrive);
 
         var v2Reader = await BuildOwnerV2Reader(recipient, targetDrive);
 
@@ -399,6 +404,27 @@ public class InboxDrainOnQueryTests
         var ownerCtx = new OwnerTestCase(targetDrive);
         await ownerCtx.Initialize(recipient);
         return new DriveReaderV2Client(recipient.Identity.OdinId, ownerCtx.GetFactory());
+    }
+
+    private static async Task WaitForRecipientInboxItem(
+        OwnerApiClientRedux recipient,
+        TargetDrive targetDrive,
+        TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+        while (DateTime.UtcNow < deadline)
+        {
+            var status = await recipient.DriveRedux.GetDriveStatus(targetDrive);
+            if (status.IsSuccessStatusCode && status.Content!.Inbox.TotalItems >= 1)
+            {
+                return;
+            }
+
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException(
+            $"Inbox item never appeared on {recipient.Identity.OdinId} for drive {targetDrive.Alias}");
     }
 
     private async Task<UploadResult> SendFileFromSenderToRecipient(
