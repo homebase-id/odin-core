@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Drives.Management;
@@ -21,43 +22,52 @@ public sealed class InboxDrainOnQuery(
     PeerInboxProcessor peerInboxProcessor,
     PeerInboxDriveQueue peerInboxDriveQueue,
     IBackgroundServiceNotifier<PeerInboxProcessorBackgroundService> peerInboxProcessorNotifier,
-    IDriveManager driveManager)
+    IDriveManager driveManager,
+    ILogger<InboxDrainOnQuery> logger
+    )
 {
     public const int InlineBatchLimit = 50;
 
     public async Task DrainIfReadyAsync(Guid driveId, IOdinContext odinContext)
     {
-        var drive = await driveManager.GetDriveAsync(driveId);
-        if (drive == null)
+        try
         {
-            return;
-        }
-        
-        // Same auth gate PeerInboxDriveQueue.Enqueue uses: inbox processing applies
-        // owner-level writes. Apps authenticated to the owner's identity run as owner
-        // and pass; guests do not. Invoking ProcessInboxAsync under a guest context
-        // would silently DeleteFromInbox the items (see comment on IsAuthorizedToDrain),
-        // so skip the inline drain for guest callers and let an owner-acting query
-        // (or any explicit /process-inbox call) do the work.
-        if (!PeerInboxDriveQueue.IsAuthorizedToDrain(driveId, odinContext))
-        {
-            return;
-        }
+            var drive = await driveManager.GetDriveAsync(driveId);
+            if (drive == null)
+            {
+                return;
+            }
 
-        var readyCount = await transitInboxBoxStorage.GetReadyCountAsync(driveId);
-        if (readyCount <= 0)
-        {
-            return;
-        }
+            // Same auth gate PeerInboxDriveQueue.Enqueue uses: inbox processing applies
+            // owner-level writes. Apps authenticated to the owner's identity run as owner
+            // and pass; guests do not. Invoking ProcessInboxAsync under a guest context
+            // would silently DeleteFromInbox the items (see comment on IsAuthorizedToDrain),
+            // so skip the inline drain for guest callers and let an owner-acting query
+            // (or any explicit /process-inbox call) do the work.
+            if (!PeerInboxDriveQueue.IsAuthorizedToDrain(driveId, odinContext))
+            {
+                return;
+            }
 
-        // Hand the overflow off first so the background can start working on it
-        // while we do our inline pass.
-        if (readyCount > InlineBatchLimit)
-        {
-            peerInboxDriveQueue.Enqueue(driveId, odinContext);
-            await peerInboxProcessorNotifier.NotifyWorkAvailableAsync();
-        }
+            var readyCount = await transitInboxBoxStorage.GetReadyCountAsync(driveId);
+            if (readyCount <= 0)
+            {
+                return;
+            }
 
-        await peerInboxProcessor.ProcessInboxAsync(drive.TargetDriveInfo, odinContext, InlineBatchLimit);
+            // Hand the overflow off first so the background can start working on it
+            // while we do our inline pass.
+            if (readyCount > InlineBatchLimit)
+            {
+                peerInboxDriveQueue.Enqueue(driveId, odinContext);
+                await peerInboxProcessorNotifier.NotifyWorkAvailableAsync();
+            }
+
+            await peerInboxProcessor.ProcessInboxAsync(drive.TargetDriveInfo, odinContext, InlineBatchLimit);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to drain inbox  Skipping process. {message}", e.Message);
+        }
     }
 }

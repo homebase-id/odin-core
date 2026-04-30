@@ -42,6 +42,21 @@ public class V2ConnectionIntroductionsController(
         return Ok(result);
     }
 
+    // POST /introductions/preflight
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
+    [HttpPost("introductions/preflight")]
+    public async Task<IActionResult> PreflightIntroductions(
+        [FromBody] IntroductionGroup group)
+    {
+        OdinValidationUtils.AssertNotNull(group, nameof(group));
+        OdinValidationUtils.AssertValidRecipientList(group.Recipients);
+
+        var result = await introductionService
+            .PreflightIntroductionsAsync(group.Recipients, WebOdinContext, HttpContext.RequestAborted);
+
+        return Ok(result);
+    }
+
     // POST /introductions/process
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpPost("introductions/process")]
