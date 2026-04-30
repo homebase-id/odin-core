@@ -9,6 +9,7 @@ using Odin.Services.Background.BackgroundServices.Tenant;
 using Odin.Services.Configuration;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Registry;
 using Odin.Services.Security.Job;
@@ -74,6 +75,7 @@ public static class BackgroundServiceExtensions
         // cb.RegisterBackgroundService<DummyTenantBackgroundService>();
         cb.RegisterBackgroundService<InboxOutboxReconciliationBackgroundService>();
         cb.RegisterBackgroundService<PeerOutboxProcessorBackgroundService>();
+        cb.RegisterBackgroundService<PeerInboxProcessorBackgroundService>();
         cb.RegisterBackgroundService<TempFolderCleanUpBackgroundService>();
         cb.RegisterBackgroundService<SecurityHealthCheckBackgroundScheduler>();
 
@@ -90,6 +92,7 @@ public static class BackgroundServiceExtensions
     
         // await bsm.StartAsync<DummyTenantBackgroundService>("dummy-tenant-background-service");
         await bsm.StartAsync<PeerOutboxProcessorBackgroundService>();
+        await bsm.StartAsync<PeerInboxProcessorBackgroundService>();
         await bsm.StartAsync<InboxOutboxReconciliationBackgroundService>();
         await bsm.StartAsync<TempFolderCleanUpBackgroundService>();
         await bsm.StartAsync<SecurityHealthCheckBackgroundScheduler>();
