@@ -283,6 +283,8 @@ public static class TenantServices
         cb.RegisterType<PeerOutbox>().InstancePerLifetimeScope();
 
         cb.RegisterType<PeerInboxProcessor>().InstancePerLifetimeScope();
+        cb.RegisterType<PeerInboxDriveQueue>().AsSelf().SingleInstance();
+        cb.RegisterType<InboxDrainOnQuery>().InstancePerLifetimeScope();
 
         cb.RegisterType<TransitAuthenticationService>()
             .As<INotificationHandler<ConnectionFinalizedNotification>>()

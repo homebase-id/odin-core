@@ -190,7 +190,10 @@ namespace Odin.Hosting.Controllers.Base.Drive
             {
                 try
                 {
-                    await updateWriter.CleanupStagingFiles(WebOdinContext);
+                    if (updateWriter != null)
+                    {
+                        await updateWriter.CleanupStagingFiles(WebOdinContext);
+                    }
                 }
                 catch (Exception e)
                 {
