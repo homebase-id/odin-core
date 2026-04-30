@@ -24,11 +24,13 @@ public sealed class PeerInboxDriveQueue(ILogger<PeerInboxDriveQueue> logger)
 
     // Returns true if the request was enqueued, false if the caller is not authorized
     // to drive inbox processing on this drive. Inbox processing applies pending writes
-    // (soft-delete, read-receipt, reactions) on behalf of the drive owner; if a
-    // low-privileged caller's context were used, ProcessInboxAsync would throw
-    // OdinSecurityException on the underlying storage call and PeerInboxProcessor
-    // would mark the inbox item DeleteFromInbox — silently dropping it. So we only
-    // accept owner contexts that have ReadWrite on the target drive.
+    // (soft-delete, read-receipt, reactions) on behalf of the identity owner. Apps
+    // authenticated to the owner's identity run as owner and pass IsOwner; guests
+    // (YouAuth domain callers) do not. If a guest context were used, ProcessInboxAsync
+    // would throw OdinSecurityException on the underlying storage call and
+    // PeerInboxProcessor would mark the inbox item DeleteFromInbox — silently
+    // dropping it. So we only accept owner-acting contexts with ReadWrite on the
+    // target drive.
     public bool Enqueue(Guid driveId, IOdinContext odinContext)
     {
         if (!IsAuthorizedToDrain(driveId, odinContext))
@@ -49,9 +51,10 @@ public sealed class PeerInboxDriveQueue(ILogger<PeerInboxDriveQueue> logger)
     // (InboxDrainOnQuery) can apply the identical check before calling
     // PeerInboxProcessor.ProcessInboxAsync directly. Inbox processing applies
     // pending writes (soft-delete, read-receipt, reactions) on behalf of the
-    // drive owner; running it under a low-privileged context would throw
-    // OdinSecurityException on the underlying storage call and the processor
-    // would mark the inbox item DeleteFromInbox — silently dropping it.
+    // identity owner. Apps authenticated to the owner's identity run as owner
+    // and pass IsOwner; guests do not. Running this under a guest context would
+    // throw OdinSecurityException on the underlying storage call and the
+    // processor would mark the inbox item DeleteFromInbox — silently dropping it.
     public static bool IsAuthorizedToDrain(Guid driveId, IOdinContext odinContext)
     {
         if (odinContext?.Caller == null || odinContext.PermissionsContext == null)

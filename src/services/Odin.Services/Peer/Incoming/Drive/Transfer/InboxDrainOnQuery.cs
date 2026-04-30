@@ -34,10 +34,11 @@ public sealed class InboxDrainOnQuery(
         }
         
         // Same auth gate PeerInboxDriveQueue.Enqueue uses: inbox processing applies
-        // owner-level writes, and ProcessInboxAsync would silently DeleteFromInbox
-        // items if invoked under a low-privileged context (see comment on
-        // IsAuthorizedToDrain). Skip the inline drain entirely for non-owner callers
-        // and let the owner's next query (or any explicit /process-inbox call) do the work.
+        // owner-level writes. Apps authenticated to the owner's identity run as owner
+        // and pass; guests do not. Invoking ProcessInboxAsync under a guest context
+        // would silently DeleteFromInbox the items (see comment on IsAuthorizedToDrain),
+        // so skip the inline drain for guest callers and let an owner-acting query
+        // (or any explicit /process-inbox call) do the work.
         if (!PeerInboxDriveQueue.IsAuthorizedToDrain(driveId, odinContext))
         {
             return;

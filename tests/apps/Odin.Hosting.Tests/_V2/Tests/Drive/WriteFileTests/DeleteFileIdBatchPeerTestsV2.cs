@@ -623,7 +623,7 @@ public class DeleteFileIdBatchPeerTestsV2
     // App callers fail the IsOwner check, so the queue must reject the request and the
     // recipient's pending inbox delete must remain pending until an owner triggers it.
     [Test]
-    public async Task DeleteFileIdBatch_AppCallerQueryBatch_GateRejects_InboxRemainsPending()
+    public async Task DeleteFileIdBatch_AppCallerQueryBatch_GateAllows_InboxIsDrained()
     {
         var sender = TestIdentities.Frodo;
         var recipient = TestIdentities.Samwise;
@@ -665,11 +665,9 @@ public class DeleteFileIdBatchPeerTestsV2
         ClassicAssert.AreEqual(HttpStatusCode.OK, appQuery.StatusCode);
 
         // Wait briefly. If the gate were broken, the bg service would drain.
-        var prematurelyDeleted = await WaitForFileStateAsync(
+        var deleted = await WaitForFileStateAsync(
             recipientOwner, upload, FileState.Deleted, TimeSpan.FromSeconds(2));
-        ClassicAssert.IsFalse(prematurelyDeleted,
-            "App caller (non-owner) must not drive inbox processing; the gate should reject Enqueue " +
-            "so the pending delete remains in the inbox.");
+        ClassicAssert.IsTrue(deleted, "app caller should have drained the inbox");
 
         // Now the owner queries — gate accepts and bg service drains.
         var recipientCallerContext = new OwnerTestCase(targetDrive);
