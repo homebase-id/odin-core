@@ -1,19 +1,28 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Autofac;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Storage.Database.Identity;
+using Odin.Core.Storage.Database.Identity.Wrappers;
+using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
+using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests._V2.Tests.Connections;
 
@@ -181,6 +190,60 @@ public class V2PreflightIntroductionsTests
     }
 
     [Test]
+    public async Task Preflight_WhenRecipientNotConfigured_ReturnsRecipientNotConfigured()
+    {
+        // Connect Frodo to both Sam and Merry while everyone is still configured (the connection
+        // handshake itself rejects unconfigured recipients — see CircleNetworkRequestService line
+        // 504). Then surgically clear Merry's FirstRunInfo so IsIdentityServerConfiguredAsync flips
+        // to false on her tenant. Frodo's existing ICR with Merry is unaffected, so the preflight
+        // call still reaches Merry — and her PreflightIncomingIntroductionAsync should report
+        // IsConfigured=false back to Frodo.
+
+        var introducer = TestIdentities.Frodo;
+        var sam = TestIdentities.Samwise;
+        var merry = TestIdentities.Merry;
+
+        var introducerOwner = _scaffold.CreateOwnerApiClientRedux(introducer);
+
+        await ConnectIntroducer(introducer, sam);
+        await ConnectIntroducer(introducer, merry);
+
+        FirstRunInfo savedFirstRun = null;
+        try
+        {
+            savedFirstRun = await ReadFirstRunInfoAsync(merry.OdinId);
+            ClassicAssert.IsNotNull(savedFirstRun, "pre-seed: merry should have FirstRunInfo before we clear it");
+
+            await ClearFirstRunInfoAsync(merry.OdinId);
+
+            var response = await CallPreflight(introducerOwner, introducer.OdinId, new IntroductionGroup
+            {
+                Message = "preflight",
+                Recipients = [sam.OdinId, merry.OdinId],
+            });
+
+            ClassicAssert.IsTrue(response.StatusCode == HttpStatusCode.OK,
+                $"expected 200 but got {response.StatusCode}");
+            ClassicAssert.AreEqual(2, response.Content.Recipients.Count);
+
+            AssertStatus(response.Content, sam.OdinId, IntroductionPreflightStatus.Ready);
+            AssertStatus(response.Content, merry.OdinId, IntroductionPreflightStatus.RecipientNotConfigured);
+
+            var merryStatus = response.Content.Recipients.Single(r => r.Recipient == merry.OdinId.DomainName);
+            ClassicAssert.IsFalse(merryStatus.IsConfigured, "merry should report IsConfigured=false");
+            ClassicAssert.IsNotNull(merryStatus.Detail, "RecipientNotConfigured outcome should include a Detail");
+        }
+        finally
+        {
+            // Restore so subsequent tests in this fixture see merry configured again.
+            if (savedFirstRun != null)
+            {
+                await UpsertFirstRunInfoAsync(merry.OdinId, savedFirstRun);
+            }
+        }
+    }
+
+    [Test]
     public async Task Preflight_WhenRecipientListEmpty_ReturnsBadRequest()
     {
         var introducer = TestIdentities.Frodo;
@@ -227,6 +290,37 @@ public class V2PreflightIntroductionsTests
         var icr = await introducerOwner.Network.GetConnectionInfo(recipient.OdinId);
         ClassicAssert.IsTrue(icr.IsSuccessStatusCode && icr.Content.Status == ConnectionStatus.Connected,
             $"ConnectIntroducer: introducer ICR with {recipient.OdinId} is {icr.Content?.Status}");
+    }
+
+    // Reproduces the private storage handle TenantConfigService uses internally so tests can
+    // poke FirstRunInfo on a specific tenant. The context key here MUST match
+    // TenantConfigService.ConfigContextKey — if that ever changes, this constant changes too.
+    private static readonly SingleKeyValueStorage TestConfigStorage =
+        TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("b9e1c2a3-e0e0-480e-a696-ce602b052d07"));
+
+    private async Task<FirstRunInfo> ReadFirstRunInfoAsync(OdinId tenant)
+    {
+        var db = ResolveTenantIdentityDatabase(tenant);
+        return await TestConfigStorage.GetAsync<FirstRunInfo>(db.KeyValueCached, FirstRunInfo.Key);
+    }
+
+    private async Task ClearFirstRunInfoAsync(OdinId tenant)
+    {
+        var db = ResolveTenantIdentityDatabase(tenant);
+        await TestConfigStorage.DeleteAsync(db.KeyValueCached, FirstRunInfo.Key);
+    }
+
+    private async Task UpsertFirstRunInfoAsync(OdinId tenant, FirstRunInfo info)
+    {
+        var db = ResolveTenantIdentityDatabase(tenant);
+        await TestConfigStorage.UpsertAsync(db.KeyValueCached, FirstRunInfo.Key, info);
+    }
+
+    private IdentityDatabase ResolveTenantIdentityDatabase(OdinId tenant)
+    {
+        var container = _scaffold.Services.GetRequiredService<IMultiTenantContainer>();
+        var scope = container.GetTenantScope(tenant.DomainName);
+        return scope.Resolve<IdentityDatabase>();
     }
 
     private static void AssertStatus(IntroductionPreflightResult result, OdinId recipient, IntroductionPreflightStatus expected)
