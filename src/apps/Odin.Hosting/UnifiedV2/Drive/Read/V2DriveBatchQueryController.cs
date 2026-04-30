@@ -7,6 +7,7 @@ using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.Management;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -20,7 +21,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     public class V2DriveBatchQueryController(
         PeerOutgoingTransferService peerOutgoingTransferService,
         DriveManager driveManager,
-        ILogger<V2DriveControllerBase> logger) :
+        ILogger<V2DriveControllerBase> logger,
+        InboxDrainOnQuery inboxDrainOnQuery) :
         V2DriveControllerBase(peerOutgoingTransferService, logger)
     {
         [HttpPost("query-batch-collection")]
@@ -32,6 +34,9 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             foreach (var section in request.Queries)
             {
                 section.AssertIsValid();
+
+                await inboxDrainOnQuery.DrainIfReadyAsync(section.DriveId, WebOdinContext);
+
                 var theDrive = await driveManager.GetDriveAsync(section.DriveId);
                 var qp = section.QueryParams;
                 var newSection = new CollectionQueryParamSection

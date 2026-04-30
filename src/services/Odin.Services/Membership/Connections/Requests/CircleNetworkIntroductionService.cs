@@ -467,7 +467,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             ContactData = new ContactRequestData(),
         };
 
-        _logger.LogDebug("Attempting to auto-accept connection request from {sender}", sender);
+        // [DEBUG-754] Mark introduction-auto-accept as the entry path so it can be told
+        // apart from owner-Send-short-circuit and explicit accept-incoming UI calls.
+        _logger.LogInformation(
+            "[DEBUG-754] Introduction AutoAcceptAsync entry — about to call AcceptConnectionRequestAsync. sender={sender}",
+            sender);
         var newContext = OdinContextUpgrades.UsePermissions(odinContext,
             PermissionKeys.ReadCircleMembership,
             PermissionKeys.ManageFeed);
