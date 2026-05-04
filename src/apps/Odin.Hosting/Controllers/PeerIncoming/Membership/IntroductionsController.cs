@@ -24,5 +24,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             await introductionService.ReceiveIntroductions(payload, WebOdinContext);
             return Ok();
         }
+
+        [HttpPost("preflight-introduction")]
+        public async Task<IActionResult> PreflightIntroduction()
+        {
+            var result = await introductionService.PreflightIncomingIntroductionAsync(WebOdinContext);
+            return Ok(result);
+        }
     }
 }
