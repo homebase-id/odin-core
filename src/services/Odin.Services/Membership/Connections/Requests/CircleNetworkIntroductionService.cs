@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -19,6 +21,7 @@ using Odin.Services.Apps;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
@@ -26,6 +29,7 @@ using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
+using Refit;
 
 namespace Odin.Services.Membership.Connections.Requests;
 
@@ -46,6 +50,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private readonly IdentityDatabase _db;
     private readonly PushNotificationService _pushNotificationService;
     private readonly IDriveManager _driveManager;
+    private readonly TenantConfigService _tenantConfigService;
+    private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
 
     /// <summary>
     /// Enables introducing identities to each other
@@ -61,6 +67,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         PushNotificationService pushNotificationService,
         IDriveManager driveManager,
         TenantContext tenantContext,
+        TenantConfigService tenantConfigService,
+        VersionUpgradeScheduler versionUpgradeScheduler,
         IdentityDatabase db)
         : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
@@ -72,6 +80,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         _pushNotificationService = pushNotificationService;
         _driveManager = driveManager;
         _tenantContext = tenantContext;
+        _tenantConfigService = tenantConfigService;
+        _versionUpgradeScheduler = versionUpgradeScheduler;
     }
 
     private const string ReceivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
@@ -178,6 +188,158 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Reports whether this server is in a state where it could accept an introduction
+    /// from the calling identity. Used by the peer preflight endpoint. Does not throw on
+    /// permission checks — just reports the result so the caller can render a meaningful
+    /// message to its user.
+    /// </summary>
+    public async Task<PeerIntroductionPreflightResponse> PreflightIncomingIntroductionAsync(IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertCallerIsAuthenticated();
+
+        var isConfigured = await _tenantConfigService.IsIdentityServerConfiguredAsync();
+
+        bool requiresUpgrade = false;
+        try
+        {
+            (requiresUpgrade, _, _) = await _versionUpgradeScheduler.RequiresUpgradeAsync();
+        }
+        catch (Exception ex)
+        {
+            // Config storage can fail on a partially-initialized server. Treat this as
+            // "no signal" rather than failing the whole preflight; the IsConfigured flag
+            // already tells the caller setup isn't complete.
+            _logger.LogDebug(ex, "PreflightIncomingIntroductionAsync: RequiresUpgradeAsync threw");
+        }
+
+        var allowsIntroductions = odinContext.PermissionsContext != null
+                                  && odinContext.PermissionsContext.HasPermission(PermissionKeys.AllowIntroductions);
+
+        return new PeerIntroductionPreflightResponse
+        {
+            IsConfigured = isConfigured,
+            RequiresUpgrade = requiresUpgrade,
+            AllowsIntroductions = allowsIntroductions,
+        };
+    }
+
+    /// <summary>
+    /// Probes each recipient to determine whether an introduction would succeed before
+    /// the caller commits to <see cref="SendIntroductions"/>. Runs probes in parallel and
+    /// returns a per-recipient status the UI can render to the user.
+    /// </summary>
+    public async Task<IntroductionPreflightResult> PreflightIntroductionsAsync(
+        List<string> recipients,
+        IOdinContext odinContext,
+        CancellationToken cancellationToken)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
+        OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: false);
+
+        var targets = recipients.ToOdinIdList().Without(odinContext.Tenant);
+
+        var probeTasks = targets.Select(r => ProbeRecipientAsync(r, odinContext, cancellationToken)).ToList();
+        var statuses = await Task.WhenAll(probeTasks);
+
+        return new IntroductionPreflightResult
+        {
+            Recipients = statuses.ToList()
+        };
+    }
+
+    private async Task<RecipientPreflightStatus> ProbeRecipientAsync(OdinId recipient, IOdinContext odinContext,
+        CancellationToken cancellationToken)
+    {
+        var status = new RecipientPreflightStatus
+        {
+            Recipient = recipient,
+        };
+
+        try
+        {
+            var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected: false);
+            if (clientAuthToken == null)
+            {
+                status.Status = IntroductionPreflightStatus.NotConnected;
+                status.Detail = "No valid ICR with recipient";
+                return status;
+            }
+
+            var client = await OdinHttpClientFactory.CreateClientUsingAccessTokenAsync<ICircleNetworkPeerConnectionsClient>(
+                recipient,
+                clientAuthToken.ToAuthenticationToken());
+
+            ApiResponse<PeerIntroductionPreflightResponse> response;
+            try
+            {
+                response = await client.PreflightIntroduction(cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                status.Status = IntroductionPreflightStatus.Unreachable;
+                status.Detail = "Recipient did not respond";
+                return status;
+            }
+            catch (HttpRequestException ex)
+            {
+                status.Status = IntroductionPreflightStatus.Unreachable;
+                status.Detail = ex.Message;
+                return status;
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden)
+            {
+                status.Status = IntroductionPreflightStatus.RecipientRejected;
+                status.Detail = "Recipient denied the preflight";
+                return status;
+            }
+
+            if (!response.IsSuccessStatusCode || response.Content == null)
+            {
+                status.Status = IntroductionPreflightStatus.Unreachable;
+                status.Detail = $"Recipient returned {(int)response.StatusCode}";
+                return status;
+            }
+
+            var payload = response.Content;
+            status.IsConfigured = payload.IsConfigured;
+            status.RequiresUpgrade = payload.RequiresUpgrade;
+            status.AllowsIntroductions = payload.AllowsIntroductions;
+
+            if (!payload.IsConfigured)
+            {
+                status.Status = IntroductionPreflightStatus.RecipientNotConfigured;
+                status.Detail = "Recipient identity server has not completed initial setup";
+                return status;
+            }
+
+            if (payload.RequiresUpgrade)
+            {
+                status.Status = IntroductionPreflightStatus.RecipientRequiresUpgrade;
+                status.Detail = "Recipient identity server requires a version upgrade";
+                return status;
+            }
+
+            if (!payload.AllowsIntroductions)
+            {
+                status.Status = IntroductionPreflightStatus.IntroductionsNotPermitted;
+                status.Detail = "Recipient has not granted AllowIntroductions to this identity";
+                return status;
+            }
+
+            status.Status = IntroductionPreflightStatus.Ready;
+            return status;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Preflight probe to {recipient} failed unexpectedly", recipient);
+            status.Status = IntroductionPreflightStatus.UnknownError;
+            status.Detail = ex.Message;
+            return status;
+        }
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Services.Base;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
 using Refit;
@@ -32,5 +33,11 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         [Post(RootPath + "/make-introduction")]
         Task<ApiResponse<HttpContent>> MakeIntroduction([Body] SharedSecretEncryptedPayload request, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Asks the recipient whether an introduction from the caller would currently succeed.
+        /// </summary>
+        [Post(RootPath + "/preflight-introduction")]
+        Task<ApiResponse<PeerIntroductionPreflightResponse>> PreflightIntroduction(CancellationToken cancellationToken = default);
     }
 }
