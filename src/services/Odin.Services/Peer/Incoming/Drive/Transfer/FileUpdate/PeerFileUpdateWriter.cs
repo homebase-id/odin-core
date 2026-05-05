@@ -87,7 +87,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     success,
                     payloads?.Count);
 
-                return (success, payloads);
+                // Return the incoming descriptors (what was staged in inbox temp) so cleanup
+                // deletes every staged file, not just whatever the commit happened to return.
+                return (success, incomingMetadata.Payloads ?? []);
             }
 
             //Update existing file
@@ -130,7 +132,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             });
 
-            return (success, payloads);
+            // Return the incoming descriptors (what was staged in inbox temp) so cleanup
+            // deletes every staged file, not just whatever UpdateBatchAsync committed.
+            return (success, incomingMetadata.Payloads ?? []);
         }
 
         private async Task<FileMetadata> LoadMetadataFromTemp(
