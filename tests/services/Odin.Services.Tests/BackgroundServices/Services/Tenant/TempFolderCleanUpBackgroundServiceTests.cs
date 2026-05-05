@@ -107,7 +107,8 @@ public class TempFolderCleanUpBackgroundServiceTests
         cts.Cancel();
 
         // Act
-        UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold, cts.Token);
+        Assert.Throws<OperationCanceledException>(() =>
+            UploadFolderCleanUp.Execute(_loggerMock.Object, _testDrivesRoot, _uploadAgeThreshold, cts.Token));
 
         // Assert
         Assert.That(File.Exists(oldFile), Is.True, "File should not be deleted when token is cancelled");
