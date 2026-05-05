@@ -77,6 +77,7 @@ public static class BackgroundServiceExtensions
         cb.RegisterBackgroundService<PeerOutboxProcessorBackgroundService>();
         cb.RegisterBackgroundService<PeerInboxProcessorBackgroundService>();
         cb.RegisterBackgroundService<TempFolderCleanUpBackgroundService>();
+        cb.RegisterBackgroundService<InboxOrphanScanBackgroundService>();
         cb.RegisterBackgroundService<SecurityHealthCheckBackgroundScheduler>();
 
         // Add more tenant background services here
@@ -95,6 +96,7 @@ public static class BackgroundServiceExtensions
         await bsm.StartAsync<PeerInboxProcessorBackgroundService>();
         await bsm.StartAsync<InboxOutboxReconciliationBackgroundService>();
         await bsm.StartAsync<TempFolderCleanUpBackgroundService>();
+        await bsm.StartAsync<InboxOrphanScanBackgroundService>();
         await bsm.StartAsync<SecurityHealthCheckBackgroundScheduler>();
         
     }
