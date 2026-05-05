@@ -33,7 +33,7 @@ public sealed class TempFolderCleanUpBackgroundService(
                     uploadAgeThreshold,
                     stoppingToken);
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 logger.LogError(e, "UploadFolderCleanUp: {message}", e.Message);
             }
@@ -63,10 +63,7 @@ public static class UploadFolderCleanUp
         var drives = Directory.GetDirectories(uploadDrivesPath);
         foreach (var drive in drives)
         {
-            if (stoppingToken.IsCancellationRequested)
-            {
-                return;
-            }
+            stoppingToken.ThrowIfCancellationRequested();
 
             var uploadsPath = Path.Combine(drive, TenantPathManager.UploadFolder);
             CleanUp(logger, uploadsPath, ageThreshold, stoppingToken);
@@ -97,10 +94,7 @@ public static class UploadFolderCleanUp
 
             foreach (var file in files)
             {
-                if (stoppingToken.IsCancellationRequested)
-                {
-                    return;
-                }
+                stoppingToken.ThrowIfCancellationRequested();
 
                 try
                 {
@@ -111,13 +105,13 @@ public static class UploadFolderCleanUp
                         File.Delete(file);
                     }
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
                     logger.LogError(e, "UploadFolderCleanUp({file}): {message}", file, e.Message);
                 }
             }
         }
-        catch (Exception e)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             logger.LogError(e, "UploadFolderCleanUp({folder}): {message}", folder, e.Message);
         }
