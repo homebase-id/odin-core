@@ -30,7 +30,7 @@ public sealed class InboxOrphanScanBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Stagger initial run across tenants to avoid simultaneous IO storms.
-        // await SleepAsync(TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(120), stoppingToken);
+        await SleepAsync(TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(120), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
