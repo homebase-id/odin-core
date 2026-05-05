@@ -365,10 +365,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         var driveId = SystemDriveConstants.TransientTempDrive.Alias;
 
         //Store the introductions by the identity to which you're being introduces
+        var newIdentities = new List<string>();
         foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
         {
             // Note: we do not indicate if you're already connected or
-            // have blocked the identity being introduced as we do not 
+            // have blocked the identity being introduced as we do not
             // want to communicate any such information to the introducer
             var icr = await CircleNetworkService.GetIcrAsync(identity, odinContext, overrideHack: true);
             if (icr.IsConnected() || icr.Status == ConnectionStatus.Blocked)
@@ -385,12 +386,23 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             };
 
             await SaveAndEnqueueToConnect(iid, driveId);
+            newIdentities.Add(identity);
+        }
+
+        if (newIdentities.Count == 0)
+        {
+            return;
         }
 
         var notification = new IntroductionsReceivedNotification()
         {
             IntroducerOdinId = introducer,
-            Introduction = introduction,
+            Introduction = new Introduction
+            {
+                Identities = newIdentities,
+                Message = introduction.Message,
+                Timestamp = introduction.Timestamp,
+            },
             OdinContext = odinContext
         };
 
