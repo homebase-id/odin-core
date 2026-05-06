@@ -385,14 +385,14 @@ public class LevelXCacheTests
         var expectedRecord = new PocoA { Id = id, Uuid = Guid.NewGuid() };
 
         // Set the value with a short expiration
-        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMilliseconds(500));
+        await cache.SetAsync(key, expectedRecord, TimeSpan.FromMilliseconds(2000));
 
         // Ensure it's retrievable
         var record1 = cache.GetOrDefault<PocoA?>(key);
         Assert.That(record1, Is.Not.Null);
 
         // Wait for expiration
-        await Task.Delay(1000);
+        await Task.Delay(3000);
 
         // Ensure it's gone
         var record2 = cache.GetOrDefault<PocoA?>(key);

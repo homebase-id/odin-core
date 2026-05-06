@@ -11,9 +11,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 public class TableCircleCachedTests : IocTestBase
 {
     [Test]
-    public async Task ItShouldTestCachingFromAtoZ()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShouldTestCachingFromAtoZ(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableCircleCached = scope.Resolve<TableCircleCached>();
 
@@ -28,7 +32,7 @@ public class TableCircleCachedTests : IocTestBase
         var circleData3 = Guid.Parse("33333333-DDDD-0000-0000-000000000000").ToByteArray();
 
         {
-            var record = await tableCircleCached.GetAsync(circleId1, TimeSpan.FromMilliseconds(100));
+            var record = await tableCircleCached.GetAsync(circleId1, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableCircleCached.Hits, Is.EqualTo(0));
             Assert.That(tableCircleCached.Misses, Is.EqualTo(1));
@@ -42,40 +46,47 @@ public class TableCircleCachedTests : IocTestBase
             new CircleRecord { circleId = circleId3, circleName = circleName3, data = circleData3 });
 
         {
-            var record = await tableCircleCached.GetAsync(circleId1, TimeSpan.FromMilliseconds(100));
+            var record = await tableCircleCached.GetAsync(circleId1, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableCircleCached.Hits, Is.EqualTo(0));
             Assert.That(tableCircleCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
 
         {
             List<CircleRecord> records;
             Guid? cursor;
 
             // Record 1 MISS
-            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
+            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
             Assert.That(tableCircleCached.Hits, Is.EqualTo(0));
             Assert.That(tableCircleCached.Misses, Is.EqualTo(3));
 
+            if (redisEnabled) WipeL1();
+
             // Record 1 HIT
-            (records, cursor) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
+            (records, cursor) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
             Assert.That(tableCircleCached.Hits, Is.EqualTo(1));
             Assert.That(tableCircleCached.Misses, Is.EqualTo(3));
 
+            if (redisEnabled) WipeL1();
+
             // Record 1 MISS
-            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, cursor, TimeSpan.FromMilliseconds(100));
+            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, cursor, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId2));
             Assert.That(tableCircleCached.Hits, Is.EqualTo(1));
             Assert.That(tableCircleCached.Misses, Is.EqualTo(4));
 
+            if (redisEnabled) WipeL1();
+
             // Record 1 HIT
-            (records, cursor) = await tableCircleCached.PagingByCircleIdAsync(1, cursor, TimeSpan.FromMilliseconds(100));
+            (records, cursor) = await tableCircleCached.PagingByCircleIdAsync(1, cursor, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId2));
             Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
@@ -84,25 +95,31 @@ public class TableCircleCachedTests : IocTestBase
 
         await tableCircleCached.DeleteAsync(circleId3);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableCircleCached.GetAsync(circleId3, TimeSpan.FromMilliseconds(100));
+            var record = await tableCircleCached.GetAsync(circleId3, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
             Assert.That(tableCircleCached.Misses, Is.EqualTo(5));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             List<CircleRecord> records;
 
             // Record 1 MISS - DeleteAsync invalidated all Paging caches
-            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
+            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
             Assert.That(tableCircleCached.Hits, Is.EqualTo(2));
             Assert.That(tableCircleCached.Misses, Is.EqualTo(6));
 
+            if (redisEnabled) WipeL1();
+
             // Record 1 HIT
-            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(100));
+            (records, _) = await tableCircleCached.PagingByCircleIdAsync(1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].circleId, Is.EqualTo(circleId1));
             Assert.That(tableCircleCached.Hits, Is.EqualTo(3));

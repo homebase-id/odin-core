@@ -7,6 +7,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
+public sealed record DrivesPage(List<DrivesRecord> Records, UnixTimeUtc? NextCursor, long NextRowId);
+
 public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFactory cacheFactory) :
     AbstractTableCaching(cacheFactory, table.GetType().Name, RootInvalidationTag)
 {
@@ -107,14 +109,17 @@ public class TableDrivesCached(TableDrives table, IIdentityTransactionalCacheFac
 
     //
 
-    public async Task<(List<DrivesRecord>, UnixTimeUtc? nextCursor, long nextRowId)> GetList(int count, Int64? inCursor,
+    public async Task<DrivesPage> GetList(int count, Int64? inCursor,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             GetDriveListCacheKey(count, inCursor),
-            _ => table.GetList(count, inCursor),
+            async _ =>
+            {
+                var (records, nextCursor, nextRowId) = await table.GetList(count, inCursor);
+                return new DrivesPage(records, nextCursor, nextRowId);
+            },
             ttl ?? DefaultTtl);
-        return result;
     }
 
     //

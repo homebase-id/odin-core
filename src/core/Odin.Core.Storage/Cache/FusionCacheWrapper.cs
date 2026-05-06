@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Core.Storage.Cache;
@@ -18,13 +19,30 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     //
 
+    private static readonly TimeSpan MinL2Duration = TimeSpan.FromSeconds(2);
+    private void GuardDurationForL2(TimeSpan duration, FusionCacheEntryOptions options)
+    {
+        if (duration < MinL2Duration)
+        {
+            throw new OdinSystemException(
+                $"Cache duration {duration.TotalMilliseconds}ms is too short when writing to the distributed (L2) " +
+                $"cache. Microsoft.Extensions.Caching.StackExchangeRedis truncates TTL to whole seconds via " +
+                $"(long)TotalSeconds, so any sub-second value becomes EXPIRE 0 and Redis deletes the key " +
+                $"immediately. Use a duration >= {MinL2Duration.TotalSeconds}s. See " +
+                "https://github.com/dotnet/aspnetcore/blob/8ee12ef7a2c179f3d7c7da5ab33d76d652042d0b/src/Caching/StackExchangeRedis/src/RedisCache.cs#L586");
+        }
+    }
+
+    //
+
     public TValue? GetOrDefault<TValue>(
         string key,
         TValue? defaultValue = default,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultEntryOptions.Duplicate();
+        CacheTypeGuard<TValue>.EnsureValid();
 
+        var options = DefaultEntryOptions.Duplicate();
         return cache.GetOrDefault(
             AddPrefix(key),
             defaultValue,
@@ -39,8 +57,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         TValue? defaultValue = default,
         CancellationToken cancellationToken = default)
     {
-        var options = DefaultEntryOptions.Duplicate();
+        CacheTypeGuard<TValue>.EnsureValid();
 
+        var options = DefaultEntryOptions.Duplicate();
         return cache.GetOrDefaultAsync(
             AddPrefix(key),
             defaultValue,
@@ -52,8 +71,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public MaybeValue<TValue> TryGet<TValue>(string key, CancellationToken cancellationToken = default)
     {
-        var options = DefaultEntryOptions.Duplicate();
+        CacheTypeGuard<TValue>.EnsureValid();
 
+        var options = DefaultEntryOptions.Duplicate();
         return cache.TryGet<TValue>(
             AddPrefix(key),
             options,
@@ -64,8 +84,9 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
 
     public ValueTask<MaybeValue<TValue>> TryGetAsync<TValue>(string key, CancellationToken cancellationToken = default)
     {
-        var options = DefaultEntryOptions.Duplicate();
+        CacheTypeGuard<TValue>.EnsureValid();
 
+        var options = DefaultEntryOptions.Duplicate();
         return cache.TryGetAsync<TValue>(
             AddPrefix(key),
             options,
@@ -82,8 +103,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        CacheTypeGuard<TValue>.EnsureValid();
+
         var options = DefaultEntryOptions.Duplicate(duration);
         options.Size = entrySize;
+
+        GuardDurationForL2(duration, options);
 
         return cache.GetOrSet(
             AddPrefix(key),
@@ -103,8 +128,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        CacheTypeGuard<TValue>.EnsureValid();
+
         var options = DefaultEntryOptions.Duplicate(duration);
         options.Size = entrySize;
+
+        GuardDurationForL2(duration, options);
 
         return cache.GetOrSetAsync(
             AddPrefix(key),
@@ -124,8 +153,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        CacheTypeGuard<TValue>.EnsureValid();
+
         var options = DefaultEntryOptions.Duplicate(duration);
         options.Size = entrySize;
+
+        GuardDurationForL2(duration, options);
 
         return cache.GetOrSet<TValue>(
             AddPrefix(key),
@@ -145,8 +178,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        CacheTypeGuard<TValue>.EnsureValid();
+
         var options = DefaultEntryOptions.Duplicate(duration);
         options.Size = entrySize;
+
+        GuardDurationForL2(duration, options);
 
         return cache.GetOrSetAsync<TValue>(
             AddPrefix(key),
@@ -166,7 +203,11 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        CacheTypeGuard<TValue>.EnsureValid();
+
         var options = DefaultEntryOptions.Duplicate(duration);
+
+        GuardDurationForL2(duration, options);
 
         return cache.GetOrSetAsync<TValue>(
             AddPrefix(key),
@@ -191,8 +232,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        CacheTypeGuard<TValue>.EnsureValid();
+
         var options = DefaultEntryOptions.Duplicate(duration);
         options.Size = entrySize;
+
+        GuardDurationForL2(duration, options);
 
         cache.Set(
             AddPrefix(key),
@@ -212,8 +257,12 @@ public abstract class FusionCacheWrapper(string cacheKeyPrefix, IFusionCache cac
         IEnumerable<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
+        CacheTypeGuard<TValue>.EnsureValid();
+
         var options = DefaultEntryOptions.Duplicate(duration);
         options.Size = entrySize;
+
+        GuardDurationForL2(duration, options);
 
         return cache.SetAsync(
             AddPrefix(key),

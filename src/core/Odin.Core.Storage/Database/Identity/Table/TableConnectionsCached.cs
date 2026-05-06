@@ -7,6 +7,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
+public sealed record ConnectionsPage(List<ConnectionsRecord> Records, string NextCursor);
+
 public class TableConnectionsCached(TableConnections table, IIdentityTransactionalCacheFactory cacheFactory) :
     AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
@@ -85,68 +87,80 @@ public class TableConnectionsCached(TableConnections table, IIdentityTransaction
 
     //
 
-    public async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(
+    public async Task<ConnectionsPage> PagingByIdentityAsync(
         int count,
         string? inCursor,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + inCursor,
-            _ => table.PagingByIdentityAsync(count, inCursor),
+            async _ =>
+            {
+                var (records, nextCursor) = await table.PagingByIdentityAsync(count, inCursor);
+                return new ConnectionsPage(records, nextCursor);
+            },
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             PagingByTags);
-        return result;
     }
 
     //
 
-    public async Task<(List<ConnectionsRecord>, string nextCursor)> PagingByIdentityAsync(
+    public async Task<ConnectionsPage> PagingByIdentityAsync(
         int count,
         int status,
         string? inCursor,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "PagingByIdentity" + ":" + count + ":" + status + ":" + inCursor,
-            _ => table.PagingByIdentityAsync(count, status, inCursor),
+            async _ =>
+            {
+                var (records, nextCursor) = await table.PagingByIdentityAsync(count, status, inCursor);
+                return new ConnectionsPage(records, nextCursor);
+            },
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             PagingByTags);
-        return result;
     }
 
     //
 
-    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(
+    public async Task<ConnectionsPage> PagingByCreatedAsync(
         int count,
         int status,
         string? cursorString,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + status + ":" + cursorString,
-            _ => table.PagingByCreatedAsync(count, status, cursorString),
+            async _ =>
+            {
+                var (records, nextCursor) = await table.PagingByCreatedAsync(count, status, cursorString);
+                return new ConnectionsPage(records, nextCursor);
+            },
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             PagingByTags);
-        return result;
     }
 
     //
 
-    public async Task<(List<ConnectionsRecord>, string cursor)> PagingByCreatedAsync(
+    public async Task<ConnectionsPage> PagingByCreatedAsync(
         int count,
         string? cursorString,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + cursorString,
-            _ => table.PagingByCreatedAsync(count, cursorString),
+            async _ =>
+            {
+                var (records, nextCursor) = await table.PagingByCreatedAsync(count, cursorString);
+                return new ConnectionsPage(records, nextCursor);
+            },
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             PagingByTags);
-        return result;
     }
 
     //

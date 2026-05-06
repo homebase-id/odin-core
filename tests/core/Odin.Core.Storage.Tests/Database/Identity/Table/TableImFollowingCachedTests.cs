@@ -12,9 +12,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 public class TableImFollowingCachedTests : IocTestBase
 {
     [Test]
-    public async Task ItShouldTestCachingFromAtoZ()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShouldTestCachingFromAtoZ(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableImFollowingCached = scope.Resolve<TableImFollowingCached>();
 
@@ -27,18 +31,20 @@ public class TableImFollowingCachedTests : IocTestBase
         var d2 = Guid.NewGuid();
 
         {
-            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
+            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(0));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(0));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(1));
         }
 
         {
-            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
+            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(0));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(1));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(1));
         }
+
+        if (redisEnabled) WipeL1();
 
         // Odin follows d1
         await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i1), driveId = d1 });
@@ -53,15 +59,19 @@ public class TableImFollowingCachedTests : IocTestBase
         // Heimdal follows d2
         await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i4), driveId = d2 });
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
+            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(1));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
+            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(2));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(2));
@@ -70,44 +80,56 @@ public class TableImFollowingCachedTests : IocTestBase
         // Loke follows everything
         await tableImFollowingCached.InsertAsync(new ImFollowingRecord { identity = new OdinId(i5), driveId = Guid.Empty });
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
+            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(2));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(3));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(100));
+            var records = await tableImFollowingCached.GetAsync(new OdinId(i1), TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(3));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(3));
         }
 
+        if (redisEnabled) WipeL1();
+
         List<string> followers;
         {
-            (followers, _) = await tableImFollowingCached.GetAllFollowersAsync(100, null, TimeSpan.FromMilliseconds(100));
+            (followers, _) = await tableImFollowingCached.GetAllFollowersAsync(100, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(followers.Count, Is.EqualTo(5));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(3));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(4));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            (followers, _) = await tableImFollowingCached.GetAllFollowersAsync(100, null, TimeSpan.FromMilliseconds(100));
+            (followers, _) = await tableImFollowingCached.GetAllFollowersAsync(100, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(followers.Count, Is.EqualTo(5));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(4));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(4));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(100));
+            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(followers.Count, Is.EqualTo(4));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(4));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(5));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(100));
+            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(followers.Count, Is.EqualTo(4));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(5));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(5));
@@ -115,15 +137,19 @@ public class TableImFollowingCachedTests : IocTestBase
 
         await tableImFollowingCached.DeleteAsync(new OdinId(i1), d1);
 
+        if (redisEnabled) WipeL1();
+
         {
-            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(100));
+            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(followers.Count, Is.EqualTo(3));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(5));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(6));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(100));
+            (followers, _) = await tableImFollowingCached.GetFollowersAsync(100, d1, null, TimeSpan.FromMilliseconds(2000));
             Assert.That(followers.Count, Is.EqualTo(3));
             Assert.That(tableImFollowingCached.Hits, Is.EqualTo(6));
             Assert.That(tableImFollowingCached.Misses, Is.EqualTo(6));

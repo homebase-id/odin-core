@@ -12,9 +12,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions;
 public class MainIndexMetaCachedTests : IocTestBase
 {
     [Test]
-    public async Task ItShouldTestCachingFromAtoZ()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShould_HitAndMissNullValues_WhenGettingNonExistingRecords(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableDriveMainIndexCached = scope.Resolve<TableDriveMainIndexCached>();
         var mainIndexMetaCached = scope.Resolve<MainIndexMetaCached>();
@@ -80,6 +84,8 @@ public class MainIndexMetaCachedTests : IocTestBase
             Assert.That(queryBatchCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
@@ -92,12 +98,16 @@ public class MainIndexMetaCachedTests : IocTestBase
         //
         await tableDriveMainIndexCached.InsertAsync(item1);
 
+        if (redisEnabled) WipeL1();
+
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(queryBatchCached.Hits, Is.EqualTo(1));
             Assert.That(queryBatchCached.Misses, Is.EqualTo(2));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
@@ -108,6 +118,8 @@ public class MainIndexMetaCachedTests : IocTestBase
 
         await tableDriveMainIndexCached.InsertAsync(item2);
 
+        if (redisEnabled) WipeL1();
+
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
@@ -117,12 +129,16 @@ public class MainIndexMetaCachedTests : IocTestBase
 
         await tableDriveMainIndexCached.DeleteAsync(item1.driveId, item1.fileId);
 
+        if (redisEnabled) WipeL1();
+
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
             Assert.That(queryBatchCached.Hits, Is.EqualTo(3));
             Assert.That(queryBatchCached.Misses, Is.EqualTo(3));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
@@ -133,8 +149,10 @@ public class MainIndexMetaCachedTests : IocTestBase
 
         await tableDriveMainIndexCached.InsertAsync(item1);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(1));
@@ -142,28 +160,38 @@ public class MainIndexMetaCachedTests : IocTestBase
 
         await mainIndexMetaCached.BaseUpsertEntryZapZapAsync(item1);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(1));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         await mainIndexMetaCached.DeleteEntryAsync(item1.driveId, item1.fileId);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(1));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(3));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
@@ -176,12 +204,16 @@ public class MainIndexMetaCachedTests : IocTestBase
 
         await mainIndexMetaCached.UpdateLocalTagsAsync(item1.driveId, item1.fileId, [Guid.NewGuid(), Guid.NewGuid()]);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(item1.driveId, item1.fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(1));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(4));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             var (records, _, _) = await queryBatchCached.QueryBatchAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
@@ -190,6 +222,8 @@ public class MainIndexMetaCachedTests : IocTestBase
             Assert.That(queryBatchCached.Misses, Is.EqualTo(5));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             var (records, _, _) = await queryBatchCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
@@ -197,12 +231,16 @@ public class MainIndexMetaCachedTests : IocTestBase
             Assert.That(queryBatchCached.Misses, Is.EqualTo(6));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             var (records, _, _) = await queryBatchCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(queryBatchCached.Hits, Is.EqualTo(5));
             Assert.That(queryBatchCached.Misses, Is.EqualTo(6));
         }
+
+        if (redisEnabled) WipeL1();
 
         // SEB:NOTE QueryModifiedAsync has issues with time resolution of selecting modified records too close to
         // an update. So we add a small delay here to make sure the record is picked up. We should fix this properly.
@@ -215,6 +253,8 @@ public class MainIndexMetaCachedTests : IocTestBase
             Assert.That(queryBatchCached.Misses, Is.EqualTo(7));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             var (records, _, _) = await queryBatchCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
             Assert.That(records.Count, Is.EqualTo(0));
@@ -223,6 +263,8 @@ public class MainIndexMetaCachedTests : IocTestBase
         }
 
         await tableDriveMainIndexCached.UpdateReactionSummaryAsync(item1.driveId, item1.fileId, "hopla");
+
+        if (redisEnabled) WipeL1();
 
         {
             var (records, _, _) = await queryBatchCached.QueryBatchSmartCursorAsync(item1.driveId, 100, cursor, requiredSecurityGroup: allIntRange);
@@ -234,6 +276,8 @@ public class MainIndexMetaCachedTests : IocTestBase
         // SEB:NOTE QueryModifiedAsync has issues with time resolution of selecting modified records too close to
         // an update. So we add a small delay here to make sure the record is picked up. We should fix this properly.
         await Task.Delay(100);
+
+        if (redisEnabled) WipeL1();
 
         {
             var (records, _, _) = await queryBatchCached.QueryModifiedAsync(item1.driveId, 100, "cursor", requiredSecurityGroup: allIntRange);
