@@ -6,6 +6,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
+public sealed record AppNotificationsPage(List<AppNotificationsRecord> Records, string Cursor);
+
 public class TableAppNotificationsCached(TableAppNotifications table, IIdentityTransactionalCacheFactory cacheFactory) :
     AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
@@ -77,19 +79,21 @@ public class TableAppNotificationsCached(TableAppNotifications table, IIdentityT
 
     //
 
-    public async Task<(List<AppNotificationsRecord>, string cursor)> PagingByCreatedAsync(
+    public async Task<AppNotificationsPage> PagingByCreatedAsync(
         int count,
         string? cursorString,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + cursorString,
-            _ => table.PagingByCreatedAsync(count, cursorString),
+            async _ =>
+            {
+                var (records, cursor) = await table.PagingByCreatedAsync(count, cursorString);
+                return new AppNotificationsPage(records, cursor);
+            },
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             PagingByCreateTags);
-
-        return result;
     }
 
     //

@@ -1,5 +1,4 @@
 using System;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.Caching.Memory;
@@ -17,21 +16,30 @@ namespace Odin.Core.Storage.Cache;
 
 public static class FusionCacheWrapperExtensions
 {
-    // IncludeFields is required so ValueTuple round-trips through STJ — without it,
-    // Item1/Item2/Item3 (public fields, not properties) are skipped, the entry
-    // serializes as "{}", and a Redis hit deserializes back to default(...) with a
-    // null List. That triggered an NRE in DriveQueryServiceBase.CreateClientFileHeadersAsync.
-    // SEB:TODO switch to FusionCacheNeueccMessagePackSerializer?
-    internal static FusionCacheSystemTextJsonSerializer CreateCacheSerializer()
-    {
-        return new FusionCacheSystemTextJsonSerializer(new JsonSerializerOptions { IncludeFields = true });
-    }
-
     public static IServiceCollection AddCoreCacheServices(
         this IServiceCollection services,
-        CacheConfiguration cacheConfiguration)
+        CacheConfiguration cacheConfiguration,
+        IMemoryCache? memoryCache = null,
+        Action<FusionCacheOptions>? configureFusionCacheOptions = null)
     {
         services.AddSingleton(cacheConfiguration);
+
+        // Tests pass in their own MemoryCache so they can hold a reference for WipeL1(). When
+        // not supplied, we create one here that's only ever reachable via FusionCache — it is
+        // not registered in DI, so it can't shadow any IMemoryCache another consumer registers.
+        memoryCache ??= new MemoryCache(new MemoryCacheOptions
+        {
+            // SizeLimit is in abstract units, not bytes. Each cache entry is assigned a Size value
+            // (default 1). Compaction triggers when the sum of all entry sizes reaches SizeLimit.
+            // With SizeLimit = 1_000_000, examples:
+            //   - 1,000,000 small entries (size 1)
+            //   - 100,000 medium entries (size 10)
+            //   - 10,000 large entries (size 100)
+            //   - or any combination summing to 1,000,000
+            //
+            SizeLimit = cacheConfiguration.MemoryCacheSizeLimit,
+            CompactionPercentage = cacheConfiguration.MemoryCacheCompactionPercentage,
+        });
 
         var builder = services.AddFusionCache()
             .WithOptions(options =>
@@ -43,19 +51,10 @@ public static class FusionCacheWrapperExtensions
                 // options.DistributedCacheErrorsLogLevel = LogLevel.Error;
                 // options.FactorySyntheticTimeoutsLogLevel = LogLevel.Debug;
                 // options.FactoryErrorsLogLevel = LogLevel.Error;
+
+                configureFusionCacheOptions?.Invoke(options);
             })
-            .WithMemoryCache(new MemoryCache(new MemoryCacheOptions
-             {
-                 // SizeLimit is in abstract units, not bytes. Each cache entry is assigned a Size
-                 // value (default 1). Compaction triggers when the sum of all entry sizes reaches
-                 // SizeLimit. With SizeLimit = 1_000_000, examples:
-                 //   - 1,000,000 small entries (size 1)
-                 //   - 100,000 medium entries (size 10)
-                 //   - 10,000 large entries (size 100)
-                 //   - or any combination summing to 1,000,000
-                 SizeLimit = cacheConfiguration.MemoryCacheSizeLimit,
-                 CompactionPercentage = cacheConfiguration.MemoryCacheCompactionPercentage,
-             }))
+            .WithMemoryCache(memoryCache)
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
                 Duration = TimeSpan.FromMinutes(1),
@@ -67,7 +66,8 @@ public static class FusionCacheWrapperExtensions
                 // factory needs to use a scoped db connection.
                 IsFailSafeEnabled = false,
             })
-            .WithSerializer(CreateCacheSerializer());
+            // SEB:TODO switch to FusionCacheNeueccMessagePackSerializer?
+            .WithSerializer(new FusionCacheSystemTextJsonSerializer());
 
         if (cacheConfiguration.Level2CacheType == Level2CacheType.Redis)
         {

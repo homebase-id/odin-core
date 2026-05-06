@@ -10,9 +10,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 public class TableCircleMemberCachedTests : IocTestBase
 {
     [Test]
-    public async Task ItShouldTestCachingFromAtoZ()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShouldTestCachingFromAtoZ(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableCircleMemberCached = scope.Resolve<TableCircleMemberCached>();
 
@@ -27,28 +31,34 @@ public class TableCircleMemberCachedTests : IocTestBase
         var d3 = Guid.Parse("33333333-DDDD-0000-0000-000000000000").ToByteArray();
 
         {
-            var record = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(100));
+            var record = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(2000));
             Assert.That(record.Count, Is.EqualTo(0));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(0));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(100));
+            var record = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(2000));
             Assert.That(record.Count, Is.EqualTo(0));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(1));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(100));
+            var record = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(2000));
             Assert.That(record.Count, Is.EqualTo(0));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(1));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(100));
+            var record = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(2000));
             Assert.That(record.Count, Is.EqualTo(0));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(2));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(2));
@@ -63,36 +73,46 @@ public class TableCircleMemberCachedTests : IocTestBase
         await tableCircleMemberCached.InsertAsync(
             new CircleMemberRecord { circleId = c3, memberId = m3, data = d3 });
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableCircleMemberCached.GetAllCirclesAsync(TimeSpan.FromMilliseconds(100));
+            var records = await tableCircleMemberCached.GetAllCirclesAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(3));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(2));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(3));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(100));
+            var records = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(2));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(2));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(4));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(100));
+            var records = await tableCircleMemberCached.GetCircleMembersAsync(c1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(2));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(3));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(4));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(100));
+            var records = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(3));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(5));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(100));
+            var records = await tableCircleMemberCached.GetMemberCirclesAndDataAsync(m1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableCircleMemberCached.Hits, Is.EqualTo(4));
             Assert.That(tableCircleMemberCached.Misses, Is.EqualTo(5));

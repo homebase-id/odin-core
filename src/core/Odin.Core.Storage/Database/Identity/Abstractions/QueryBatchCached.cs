@@ -9,6 +9,22 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions;
 
 #nullable enable
 
+// Named records (not ValueTuples) so cache entries round-trip through the default
+// System.Text.Json serializer. ValueTuple's Item1/Item2/Item3 are public fields, which
+// STJ skips by default; that previously serialized entries as "{}" and deserialized
+// to default(...), causing an NRE in DriveQueryServiceBase.CreateClientFileHeadersAsync.
+public sealed record QueryBatchCachedResult(
+    List<DriveMainIndexRecord> Records,
+    bool MoreRows,
+    QueryBatchCursor Cursor);
+
+public sealed record QueryModifiedCachedResult(
+    List<DriveMainIndexRecord> Records,
+    bool MoreRows,
+    string Cursor);
+
+//
+
 public class QueryBatchCached : AbstractTableCaching
 {
     private readonly QueryBatch _meta;
@@ -27,7 +43,7 @@ public class QueryBatchCached : AbstractTableCaching
     }
 
 
-    public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchAsync(
+    public async Task<QueryBatchCachedResult> QueryBatchAsync(
         Guid driveId,
         int noOfItems,
         QueryBatchCursor cursor,
@@ -74,28 +90,32 @@ public class QueryBatchCached : AbstractTableCaching
             localTagsAnyOf,
             localTagsAllOf);
 
-        var query = () => _meta.QueryBatchAsync(
-            driveId,
-            noOfItems,
-            cursor,
-            sortOrder,
-            sortField,
-            fileSystemType,
-            fileStateAnyOf,
-            requiredSecurityGroup,
-            globalTransitIdAnyOf,
-            filetypesAnyOf,
-            datatypesAnyOf,
-            senderidAnyOf,
-            groupIdAnyOf,
-            uniqueIdAnyOf,
-            archivalStatusAnyOf,
-            userdateSpan,
-            aclAnyOf,
-            tagsAnyOf,
-            tagsAllOf,
-            localTagsAnyOf,
-            localTagsAllOf);
+        var query = async () =>
+        {
+            var (records, moreRows, c) = await _meta.QueryBatchAsync(
+                driveId,
+                noOfItems,
+                cursor,
+                sortOrder,
+                sortField,
+                fileSystemType,
+                fileStateAnyOf,
+                requiredSecurityGroup,
+                globalTransitIdAnyOf,
+                filetypesAnyOf,
+                datatypesAnyOf,
+                senderidAnyOf,
+                groupIdAnyOf,
+                uniqueIdAnyOf,
+                archivalStatusAnyOf,
+                userdateSpan,
+                aclAnyOf,
+                tagsAnyOf,
+                tagsAllOf,
+                localTagsAnyOf,
+                localTagsAllOf);
+            return new QueryBatchCachedResult(records, moreRows, c);
+        };
 
         var result = await Cache.GetOrSetAsync(
             cacheKey,
@@ -109,7 +129,7 @@ public class QueryBatchCached : AbstractTableCaching
 
     //
 
-    public async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> QueryBatchSmartCursorAsync(
+    public async Task<QueryBatchCachedResult> QueryBatchSmartCursorAsync(
         Guid driveId,
         int noOfItems,
         QueryBatchCursor cursor,
@@ -156,28 +176,32 @@ public class QueryBatchCached : AbstractTableCaching
             localTagsAnyOf,
             localTagsAllOf);
 
-        var query = () => _meta.QueryBatchSmartCursorAsync(
-            driveId,
-            noOfItems,
-            cursor,
-            sortOrder,
-            sortField,
-            fileSystemType,
-            fileStateAnyOf,
-            requiredSecurityGroup,
-            globalTransitIdAnyOf,
-            filetypesAnyOf,
-            datatypesAnyOf,
-            senderidAnyOf,
-            groupIdAnyOf,
-            uniqueIdAnyOf,
-            archivalStatusAnyOf,
-            userdateSpan,
-            aclAnyOf,
-            tagsAnyOf,
-            tagsAllOf,
-            localTagsAnyOf,
-            localTagsAllOf);
+        var query = async () =>
+        {
+            var (records, moreRows, c) = await _meta.QueryBatchSmartCursorAsync(
+                driveId,
+                noOfItems,
+                cursor,
+                sortOrder,
+                sortField,
+                fileSystemType,
+                fileStateAnyOf,
+                requiredSecurityGroup,
+                globalTransitIdAnyOf,
+                filetypesAnyOf,
+                datatypesAnyOf,
+                senderidAnyOf,
+                groupIdAnyOf,
+                uniqueIdAnyOf,
+                archivalStatusAnyOf,
+                userdateSpan,
+                aclAnyOf,
+                tagsAnyOf,
+                tagsAllOf,
+                localTagsAnyOf,
+                localTagsAllOf);
+            return new QueryBatchCachedResult(records, moreRows, c);
+        };
 
         var result = await Cache.GetOrSetAsync(
             cacheKey,
@@ -191,7 +215,7 @@ public class QueryBatchCached : AbstractTableCaching
 
     //
 
-    public async Task<(List<DriveMainIndexRecord>, bool moreRows, string cursor)> QueryModifiedAsync(
+    public async Task<QueryModifiedCachedResult> QueryModifiedAsync(
         Guid driveId,
         int noOfItems,
         string? cursorString,
@@ -234,26 +258,30 @@ public class QueryBatchCached : AbstractTableCaching
             localTagsAnyOf,
             localTagsAllOf);
 
-        var query = () => _meta.QueryModifiedAsync(
-            driveId,
-            noOfItems,
-            cursorString,
-            stopAtModifiedUnixTimeSeconds,
-            fileSystemType,
-            requiredSecurityGroup,
-            globalTransitIdAnyOf,
-            filetypesAnyOf,
-            datatypesAnyOf,
-            senderidAnyOf,
-            groupIdAnyOf,
-            uniqueIdAnyOf,
-            archivalStatusAnyOf,
-            userdateSpan,
-            aclAnyOf,
-            tagsAnyOf,
-            tagsAllOf,
-            localTagsAnyOf,
-            localTagsAllOf);
+        var query = async () =>
+        {
+            var (records, moreRows, c) = await _meta.QueryModifiedAsync(
+                driveId,
+                noOfItems,
+                cursorString,
+                stopAtModifiedUnixTimeSeconds,
+                fileSystemType,
+                requiredSecurityGroup,
+                globalTransitIdAnyOf,
+                filetypesAnyOf,
+                datatypesAnyOf,
+                senderidAnyOf,
+                groupIdAnyOf,
+                uniqueIdAnyOf,
+                archivalStatusAnyOf,
+                userdateSpan,
+                aclAnyOf,
+                tagsAnyOf,
+                tagsAllOf,
+                localTagsAnyOf,
+                localTagsAllOf);
+            return new QueryModifiedCachedResult(records, moreRows, c);
+        };
 
         var result = await Cache.GetOrSetAsync(
             cacheKey,

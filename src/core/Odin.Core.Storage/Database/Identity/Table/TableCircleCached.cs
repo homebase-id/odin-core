@@ -6,6 +6,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
+public sealed record CirclePage(List<CircleRecord> Records, Guid? NextCursor);
+
 public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFactory cacheFactory) :
     AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
@@ -78,19 +80,21 @@ public class TableCircleCached(TableCircle table, IIdentityTransactionalCacheFac
 
     //
 
-    public async Task<(List<CircleRecord>, Guid? nextCursor)> PagingByCircleIdAsync(
+    public async Task<CirclePage> PagingByCircleIdAsync(
         int count,
         Guid? inCursor,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "PagingByCreated" + ":" + count + ":" + inCursor,
-            _ => table.PagingByCircleIdAsync(count, inCursor),
+            async _ =>
+            {
+                var (records, nextCursor) = await table.PagingByCircleIdAsync(count, inCursor);
+                return new CirclePage(records, nextCursor);
+            },
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             PagingByCircleIdTags);
-
-        return result;
     }
 
     //
