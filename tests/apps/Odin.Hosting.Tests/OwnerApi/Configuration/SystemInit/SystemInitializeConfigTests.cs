@@ -160,7 +160,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
-            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 7);
+            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 8);
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
                 dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
@@ -199,9 +199,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
-            ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+            ClassicAssert.IsNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
-                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)),
+                "auto connections do not get access to moments");
 
             ClassicAssert.IsTrue(!autoConnectionsSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions));
 
