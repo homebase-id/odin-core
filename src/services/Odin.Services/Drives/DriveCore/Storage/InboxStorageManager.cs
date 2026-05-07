@@ -72,7 +72,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             try
             {
-                if (!descriptors?.Any() ?? false)
+                if (descriptors == null || descriptors.Count == 0)
                 {
                     return;
                 }
