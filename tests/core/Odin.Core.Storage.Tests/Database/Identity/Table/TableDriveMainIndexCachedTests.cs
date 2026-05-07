@@ -10,9 +10,13 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 public class TableDriveMainIndexCachedTests : IocTestBase
 {
     [Test]
-    public async Task ItShouldTestCachingFromAtoZ()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShouldTestCachingFromAtoZ(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableDriveMainIndexCached = scope.Resolve<TableDriveMainIndexCached>();
 
@@ -25,92 +29,116 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         var uniqueId2 = Guid.NewGuid();
 
         {
-            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromSeconds(1));
+            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromSeconds(1));
+            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(1));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId2, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId2, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(1));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId2, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId2, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(2));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(2));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(3));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(3));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(3));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, uniqueId2, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, uniqueId2, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(3));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(4));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, uniqueId2, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, uniqueId2, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(4));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(4));
         }
 
+        if (redisEnabled) WipeL1();
+
         var globalTransitId = Guid.NewGuid();
 
         {
-            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(4));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(5));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(5));
         }
 
+        if (redisEnabled) WipeL1();
+
         var fileId = Guid.NewGuid();
 
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(5));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(6));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(6));
         }
+
+        if (redisEnabled) WipeL1();
 
         //
         // Insert and Get
@@ -163,70 +191,88 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         await tableDriveMainIndexCached.InsertAsync(item1);
         await tableDriveMainIndexCached.InsertAsync(item2);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(6));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(7));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(7));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromSeconds(1));
+            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(8));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByUniqueIdAsync(driveId, uniqueId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(9));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetByGlobalTransitIdAsync(driveId, globalTransitId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(10));
         }
+
+        if (redisEnabled) WipeL1();
 
         //
         // Delete and Get
         //
 
         {
-            var record = await tableDriveMainIndexCached.GetAsync(item2.driveId, item2.fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(item2.driveId, item2.fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(11));
         }
 
+        if (redisEnabled) WipeL1();
+
         await tableDriveMainIndexCached.DeleteAsync(item1.driveId, item1.fileId);
 
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(7));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(12));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(item2.driveId, item2.fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(item2.driveId, item2.fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(12));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromSeconds(1));
+            var records = await tableDriveMainIndexCached.GetAllByDriveIdAsync(driveId, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(13));
@@ -237,8 +283,10 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         //
         await tableDriveMainIndexCached.InsertAsync(item1);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(14));
@@ -246,15 +294,19 @@ public class TableDriveMainIndexCachedTests : IocTestBase
 
         await tableDriveMainIndexCached.UpsertAllButReactionsAndTransferAsync(item1, Guid.NewGuid());
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(8));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(15));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(15));
@@ -262,8 +314,10 @@ public class TableDriveMainIndexCachedTests : IocTestBase
 
         await tableDriveMainIndexCached.UpdateReactionSummaryAsync(item1.driveId, item1.fileId, "foobar");
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(16));
@@ -271,8 +325,10 @@ public class TableDriveMainIndexCachedTests : IocTestBase
 
         await tableDriveMainIndexCached.UpdateTransferSummaryAsync(item1.driveId, item1.fileId, "abnc");
 
+        if (redisEnabled) WipeL1();
+
         {
-            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromSeconds(1));
+            var record = await tableDriveMainIndexCached.GetAsync(driveId, fileId, TimeSpan.FromMilliseconds(2000));
             Assert.That(record, Is.Not.Null);
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(17));
@@ -282,31 +338,39 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         // GetDriveSize
         //
 
+        if (redisEnabled) WipeL1();
+
         {
-            var (count, size) = await tableDriveMainIndexCached.GetDriveSizeAsync(driveId, TimeSpan.FromSeconds(1));
+            var (count, size) = await tableDriveMainIndexCached.GetDriveSizeAsync(driveId, TimeSpan.FromMilliseconds(2000));
             Assert.That(count, Is.EqualTo(1));
             Assert.That(size, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(9));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(18));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var (count, size) = await tableDriveMainIndexCached.GetDriveSizeAsync(driveId, TimeSpan.FromSeconds(1));
+            var (count, size) = await tableDriveMainIndexCached.GetDriveSizeAsync(driveId, TimeSpan.FromMilliseconds(2000));
             Assert.That(count, Is.EqualTo(1));
             Assert.That(size, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(10));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(18));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromSeconds(1));
+            var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(size, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(10));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(19));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromSeconds(1));
+            var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(size, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(11));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(19));
@@ -315,8 +379,10 @@ public class TableDriveMainIndexCachedTests : IocTestBase
         await tableDriveMainIndexCached.DeleteAsync(item1.driveId, item1.fileId);
         await tableDriveMainIndexCached.InsertAsync(item1);
 
+        if (redisEnabled) WipeL1();
+
         {
-            var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromSeconds(1));
+            var size = await tableDriveMainIndexCached.GetTotalSizeAllDrivesAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(size, Is.EqualTo(0));
             Assert.That(tableDriveMainIndexCached.Hits, Is.EqualTo(11));
             Assert.That(tableDriveMainIndexCached.Misses, Is.EqualTo(20));

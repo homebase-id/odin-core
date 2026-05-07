@@ -59,7 +59,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // Single record miss
         {
-            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(100));
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].data, Is.EqualTo(data1));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(0));
@@ -68,7 +68,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // Single record hit
         {
-            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(100));
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].data, Is.EqualTo(data1));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(1));
@@ -77,7 +77,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // All records miss
         {
-            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(100));
+            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(all.Count, Is.EqualTo(2));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(1));
             Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(2));
@@ -85,7 +85,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // All records hit
         {
-            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(100));
+            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(all.Count, Is.EqualTo(2));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(2));
             Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(2));
@@ -96,7 +96,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // Single record miss (upsert has invalidated GetByOdinHashIdAsync)
         {
-            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(100));
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].data, Is.EqualTo(data2));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(2));
@@ -105,7 +105,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // Single record hit
         {
-            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(100));
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(records[0].data, Is.EqualTo(data2));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(3));
@@ -116,7 +116,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // All records miss (delete has invalidated everything)
         {
-            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(100));
+            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(all.Count, Is.EqualTo(1));
             Assert.That(all[0].odinHashId, Is.EqualTo(odinHashId2));
             Assert.That(all[0].data, Is.EqualTo(data2));
@@ -126,7 +126,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // All records hit
         {
-            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(100));
+            var all = await tableAppGrantsCached.GetAllAsync(TimeSpan.FromMilliseconds(2000));
             Assert.That(all.Count, Is.EqualTo(1));
             Assert.That(all[0].odinHashId, Is.EqualTo(odinHashId2));
             Assert.That(all[0].data, Is.EqualTo(data2));
@@ -141,7 +141,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // Single record miss
         {
-            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(100));
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId1, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(4));
             Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(5));
@@ -149,7 +149,7 @@ public class TableAppGrantsCachedTests : IocTestBase
 
         // Single record miss
         {
-            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId2, TimeSpan.FromMilliseconds(100));
+            var records = await tableAppGrantsCached.GetByOdinHashIdAsync(odinHashId2, TimeSpan.FromMilliseconds(2000));
             Assert.That(records.Count, Is.EqualTo(1));
             Assert.That(tableAppGrantsCached.Hits, Is.EqualTo(4));
             Assert.That(tableAppGrantsCached.Misses, Is.EqualTo(6));

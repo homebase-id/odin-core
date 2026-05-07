@@ -1,5 +1,6 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
@@ -25,12 +26,17 @@ public class TestServices : IDisposable
     private RedisContainer? _redisContainer;
     private ILifetimeScope? _services;
 
+    // Held so tests can call Compact(1.0) to wipe L1 and force the next read through L2.
+    // Same instance handed to FusionCache via WithMemoryCache.
+    public MemoryCache? L1MemoryCache { get; private set; }
+
     //
 
     public void Dispose()
     {
         GC.SuppressFinalize(this);
         _services?.Dispose();
+        L1MemoryCache?.Dispose();
         _postgresContainer?.StopAsync().Wait();
         _postgresContainer?.DisposeAsync().AsTask().Wait();
         _redisContainer?.StopAsync().Wait();
@@ -79,12 +85,20 @@ public class TestServices : IDisposable
             level2CacheType = Level2CacheType.Redis;
         }
 
-        serviceCollection.AddCoreCacheServices(new CacheConfiguration
+        L1MemoryCache = new MemoryCache(new MemoryCacheOptions
         {
-            MemoryCacheSizeLimit = long.MaxValue,
-            MemoryCacheCompactionPercentage = 0.25,
-            Level2CacheType = level2CacheType
+            SizeLimit = long.MaxValue,
+            CompactionPercentage = 0.25,
         });
+
+        serviceCollection.AddCoreCacheServices(
+            new CacheConfiguration
+            {
+                MemoryCacheSizeLimit = long.MaxValue,
+                MemoryCacheCompactionPercentage = 0.25,
+                Level2CacheType = level2CacheType
+            },
+            memoryCache: L1MemoryCache);
 
         if (redisEnabled)
         {

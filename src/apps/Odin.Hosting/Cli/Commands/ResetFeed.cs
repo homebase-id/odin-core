@@ -39,7 +39,7 @@ public static class ResetFeed
 
             var results = await GetHeadersInFeedDrive(db);
 
-            var headers = results.Item1;
+            var headers = results.Records;
             logger.LogDebug("Deleting {items} headers from feed rive for tenant {t}", headers.Count, tenant.PrimaryDomainName);
 
             foreach (var header in headers)
@@ -56,7 +56,7 @@ public static class ResetFeed
             }
 
             var shouldBeAllGoneResults = await GetHeadersInFeedDrive(db);
-            if (shouldBeAllGoneResults.Item1.Count > 0)
+            if (shouldBeAllGoneResults.Records.Count > 0)
             {
                 throw new OdinSystemException("items still on feed drive");
             }
@@ -66,7 +66,7 @@ public static class ResetFeed
 
         logger.LogInformation("Feed reset complete");
 
-        async Task<(List<DriveMainIndexRecord>, bool moreRows, QueryBatchCursor cursor)> GetHeadersInFeedDrive(IdentityDatabase db)
+        async Task<QueryBatchCachedResult> GetHeadersInFeedDrive(IdentityDatabase db)
         {
             var results = await db.QueryBatchCached.QueryBatchAsync(feedDriveId,
                 Int32.MaxValue,

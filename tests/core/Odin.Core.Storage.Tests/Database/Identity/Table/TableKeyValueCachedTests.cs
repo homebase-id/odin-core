@@ -11,32 +11,40 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Table;
 public class TableKeyValueCachedTests : IocTestBase
 {
     [Test]
-    public async Task ItShould_HitAndMissNullValues_WhenGettingNonExistingRecords()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShould_HitAndMissNullValues_WhenGettingNonExistingRecords(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableKeyValueCached = scope.Resolve<TableKeyValueCached>();
 
         var k1 = Guid.NewGuid().ToByteArray();
 
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Null);
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Null);
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
 
-        await Task.Delay(200);
+        await Task.Delay(3000);
+
+        if (redisEnabled) WipeL1();
 
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Null);
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(1));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
@@ -46,9 +54,13 @@ public class TableKeyValueCachedTests : IocTestBase
     //
 
     [Test]
-    public async Task ItShould_HitAndMissRecords_WhenGettingExistingRecords()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShould_HitAndMissRecords_WhenGettingExistingRecords(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableKeyValueCached = scope.Resolve<TableKeyValueCached>();
 
@@ -56,11 +68,13 @@ public class TableKeyValueCachedTests : IocTestBase
         var v1 = Guid.NewGuid().ToByteArray();
 
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Null);
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             var r = await tableKeyValueCached.InsertAsync(
@@ -70,8 +84,10 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
@@ -79,10 +95,12 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
-        await Task.Delay(200);
+        await Task.Delay(3000);
+
+        if (redisEnabled) WipeL1();
 
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
@@ -94,9 +112,13 @@ public class TableKeyValueCachedTests : IocTestBase
     //
 
     [Test]
-    public async Task ItShould_HitAndMissRecords_WhenGettingExistingRecordThatIsDeleted()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShould_HitAndMissRecords_WhenGettingExistingRecordThatIsDeleted(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableKeyValueCached = scope.Resolve<TableKeyValueCached>();
 
@@ -104,11 +126,13 @@ public class TableKeyValueCachedTests : IocTestBase
         var v1 = Guid.NewGuid().ToByteArray();
 
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Null);
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             var r = await tableKeyValueCached.InsertAsync(
@@ -118,14 +142,18 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             await tableKeyValueCached.DeleteAsync(k1);
@@ -133,8 +161,10 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Null);
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(3));
@@ -144,9 +174,13 @@ public class TableKeyValueCachedTests : IocTestBase
     //
 
     [Test]
-    public async Task ItShould_HitAndMissRecords_WhenInvalidatingAll()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShould_HitAndMissRecords_WhenInvalidatingAll(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var tableKeyValueCached = scope.Resolve<TableKeyValueCached>();
 
@@ -154,11 +188,13 @@ public class TableKeyValueCachedTests : IocTestBase
         var v1 = Guid.NewGuid().ToByteArray();
 
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Null);
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
+
+        if (redisEnabled) WipeL1();
 
         {
             var r = await tableKeyValueCached.InsertAsync(
@@ -168,8 +204,10 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
@@ -177,14 +215,18 @@ public class TableKeyValueCachedTests : IocTestBase
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             await tableKeyValueCached.InvalidateAllAsync();
             Assert.That(tableKeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(tableKeyValueCached.Misses, Is.EqualTo(2));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
-            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(100));
+            var r = await tableKeyValueCached.GetAsync(k1, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Not.Null);
             Assert.That(r.key, Is.EqualTo(k1));
             Assert.That(r.data, Is.EqualTo(v1));
@@ -196,9 +238,13 @@ public class TableKeyValueCachedTests : IocTestBase
     //
 
     [Test]
-    public async Task ItShould_SkipCacheUpdates_InTransactions()
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShould_SkipCacheUpdates_InTransactions(bool redisEnabled)
     {
-        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
         await using var scope = Services.BeginLifetimeScope();
         var db = scope.Resolve<IdentityDatabase>();
 
@@ -208,17 +254,21 @@ public class TableKeyValueCachedTests : IocTestBase
             await using var tx = await db.BeginStackedTransactionAsync();
             await db.KeyValueCached.InsertAsync(item);
 
+            if (redisEnabled) WipeL1();
+
             {
                 // We're in a transaction, so cache was not updated in above INSERT
-                var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(100));
+                var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(2000));
                 Assert.That(r, Is.Not.Null);
                 Assert.That(db.KeyValueCached.Hits, Is.EqualTo(0));
                 Assert.That(db.KeyValueCached.Misses, Is.EqualTo(0));
             }
 
+            if (redisEnabled) WipeL1();
+
             {
                 // We're in still a transaction, so cache was not updated in above INSERT
-                var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(100));
+                var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(2000));
                 Assert.That(r, Is.Not.Null);
                 Assert.That(db.KeyValueCached.Hits, Is.EqualTo(0));
                 Assert.That(db.KeyValueCached.Misses, Is.EqualTo(0));
@@ -229,17 +279,21 @@ public class TableKeyValueCachedTests : IocTestBase
             // NOTE: technically we're still in the transaction until leaving this scope
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             // MISS: we're not in a transaction, so cache is now accessed
-            var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(100));
+            var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Not.Null);
             Assert.That(db.KeyValueCached.Hits, Is.EqualTo(0));
             Assert.That(db.KeyValueCached.Misses, Is.EqualTo(1));
         }
 
+        if (redisEnabled) WipeL1();
+
         {
             // HIT: we're not in a transaction, so cache is now accessed
-            var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(100));
+            var r = await db.KeyValueCached.GetAsync(item.key, TimeSpan.FromMilliseconds(2000));
             Assert.That(r, Is.Not.Null);
             Assert.That(db.KeyValueCached.Hits, Is.EqualTo(1));
             Assert.That(db.KeyValueCached.Misses, Is.EqualTo(1));
