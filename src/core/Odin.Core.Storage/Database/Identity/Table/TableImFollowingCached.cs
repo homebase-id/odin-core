@@ -7,6 +7,8 @@ namespace Odin.Core.Storage.Database.Identity.Table;
 
 #nullable enable
 
+public sealed record ImFollowingPage(List<string> Followers, string NextCursor);
+
 public class TableImFollowingCached(TableImFollowing table, IIdentityTransactionalCacheFactory cacheFactory) :
     AbstractTableCaching(cacheFactory, table.GetType().Name, table.GetType().Name)
 {
@@ -67,31 +69,37 @@ public class TableImFollowingCached(TableImFollowing table, IIdentityTransaction
 
     //
 
-    public async Task<(List<string> followers, string nextCursor)> GetAllFollowersAsync(
+    public async Task<ImFollowingPage> GetAllFollowersAsync(
         int count,
         string? inCursor,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "GetAllFollowers" + ":" + count + ":" + inCursor,
-            _ => table.GetAllFollowersAsync(count, inCursor),
+            async _ =>
+            {
+                var (followers, nextCursor) = await table.GetAllFollowersAsync(count, inCursor);
+                return new ImFollowingPage(followers, nextCursor);
+            },
             ttl ?? DefaultTtl);
-        return result;
     }
 
     //
 
-    public async Task<(List<string> followers, string nextCursor)> GetFollowersAsync(
+    public async Task<ImFollowingPage> GetFollowersAsync(
         int count,
         Guid driveId,
         string? inCursor,
         TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             "GetFollowers" + ":" + count + ":" + driveId + ":" + inCursor,
-            _ => table.GetFollowersAsync(count, driveId, inCursor),
+            async _ =>
+            {
+                var (followers, nextCursor) = await table.GetFollowersAsync(count, driveId, inCursor);
+                return new ImFollowingPage(followers, nextCursor);
+            },
             ttl ?? DefaultTtl);
-        return result;
     }
 
     //

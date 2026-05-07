@@ -18,29 +18,54 @@ namespace Odin.Core.Storage.Tests.Cache;
 
 public class FusionCacheTests
 {
-    // Regression test for the QueryBatch NRE caused by ValueTuples not surviving
-    // FusionCache's STJ serialization round-trip. With default JsonSerializerOptions,
-    // ValueTuple's Item1/Item2/Item3 are public fields (not properties) and are
-    // skipped by System.Text.Json. The entry serializes as "{}" and a Redis L2 hit
-    // deserializes back to default(...), giving a null List that NRE'd in
-    // DriveQueryServiceBase.CreateClientFileHeadersAsync. CreateCacheSerializer must
-    // configure IncludeFields = true so the production cache serializer round-trips
-    // tuples correctly. This test calls the same factory the DI wiring uses, so a
-    // regression there fails this test.
+    // ValueTuple's Item1/Item2/... are public fields, which the default STJ serializer
+    // skips. Caching a ValueTuple silently round-trips to default(...) and previously
+    // NRE'd in DriveQueryServiceBase.CreateClientFileHeadersAsync. The cache wrappers
+    // route every TValue through CacheTypeGuard<TValue> to fail fast instead. This
+    // test pins that contract.
     [Test]
-    public void ProductionCacheSerializer_RoundTripsValueTuple()
+    public void CacheTypeGuard_RejectsValueTuple()
     {
-        var serializer = FusionCacheWrapperExtensions.CreateCacheSerializer();
-
-        var original = (records: new List<int> { 1, 2, 3 }, moreRows: true, cursor: "abc");
-        var bytes = serializer.Serialize(original);
-
-        var roundTripped = serializer.Deserialize<(List<int>, bool, string)>(bytes);
-
-        Assert.That(roundTripped.Item1, Is.EqualTo(new List<int> { 1, 2, 3 }));
-        Assert.That(roundTripped.Item2, Is.True);
-        Assert.That(roundTripped.Item3, Is.EqualTo("abc"));
+        Assert.Throws<TypeInitializationException>(
+            () => CacheTypeGuard<(List<int>, bool, string)>.EnsureValid());
     }
+
+    [Test]
+    public void CacheTypeGuard_RejectsTuple()
+    {
+        Assert.Throws<TypeInitializationException>(
+            () => CacheTypeGuard<Tuple<List<int>, bool, string>>.EnsureValid());
+    }
+
+    [Test]
+    public void CacheTypeGuard_RejectsAnonymousType()
+    {
+        var sample = new { Records = new List<int> { 1 }, Cursor = "x" };
+        Assert.Throws<TypeInitializationException>(
+            () => InvokeEnsureValid(sample.GetType()));
+    }
+
+    [Test]
+    public void CacheTypeGuard_AllowsNamedRecord()
+    {
+        Assert.DoesNotThrow(() => CacheTypeGuard<NamedResult>.EnsureValid());
+    }
+
+    private static void InvokeEnsureValid(Type t)
+    {
+        var closed = typeof(CacheTypeGuard<>).MakeGenericType(t);
+        var method = closed.GetMethod(nameof(CacheTypeGuard<int>.EnsureValid))!;
+        try
+        {
+            method.Invoke(null, null);
+        }
+        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException != null)
+        {
+            throw ex.InnerException;
+        }
+    }
+
+    private sealed record NamedResult(List<int> Records, bool MoreRows, string Cursor);
 
 #if RUN_REDIS_TESTS
     private RedisContainer? _redisContainer;

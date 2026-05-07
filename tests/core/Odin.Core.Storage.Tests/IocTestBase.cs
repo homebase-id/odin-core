@@ -67,4 +67,16 @@ public abstract class IocTestBase
             redisEnabled,
             logEventLevel: logEventLevel);
     }
+
+    // Wipe the L1 (in-memory) cache that FusionCache is using. TestServices owns and held a
+    // reference to the MemoryCache it handed FusionCache via WithMemoryCache, so this evicts
+    // every entry FusionCache currently has in L1 — the next read falls through to L2 (Redis,
+    // when redisEnabled=true) and exercises the JSON serialize/deserialize path.
+    //
+    // Test-controlled, not subscribed to FusionCache events. Call this between writes and
+    // reads in any test that wants to force an L2 round-trip.
+    protected void WipeL1()
+    {
+        _testServices!.L1MemoryCache!.Compact(1.0);
+    }
 }

@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
 
+public sealed record DriveSize(long Count, long Size);
+
 #nullable enable
 
 public class TableDriveMainIndexCached : AbstractTableCaching
@@ -175,15 +177,18 @@ public class TableDriveMainIndexCached : AbstractTableCaching
 
     //
 
-    public async Task<(Int64, Int64)> GetDriveSizeAsync(Guid driveId, TimeSpan? ttl = null)
+    public async Task<DriveSize> GetDriveSizeAsync(Guid driveId, TimeSpan? ttl = null)
     {
-        var result = await Cache.GetOrSetAsync(
+        return await Cache.GetOrSetAsync(
             GetDriveSizeCacheKey(driveId),
-            _ => _table.GetDriveSizeAsync(driveId),
+            async _ =>
+            {
+                var (count, size) = await _table.GetDriveSizeAsync(driveId);
+                return new DriveSize(count, size);
+            },
             ttl ?? DefaultTtl,
             DefaultEntrySize,
             GetDriveIdTags(driveId));
-        return result;
     }
 
     //
