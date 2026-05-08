@@ -136,6 +136,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive),
                 $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
+            ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.MomentsDrive),
+                $"expected drive [{SystemDriveConstants.MomentsDrive}] not found");
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.MailDrive),
                 $"expected drive [{SystemDriveConstants.MailDrive}] not found");
             ClassicAssert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
@@ -158,7 +160,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));
-            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 7);
+            ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.DriveGrants.Count() == 8);
 
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(dg =>
                 dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
@@ -167,6 +169,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+            
+            ClassicAssert.IsNotNull(connectedIdentitiesSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+         
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Permissions.Keys.Count == 1,
                 "By default, the system circle should have 1 permission");
             ClassicAssert.IsNotNull(
@@ -191,6 +198,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
+
+            ClassicAssert.IsNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+                dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
+                      dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)),
+                "auto connections do not get access to moments");
 
             ClassicAssert.IsTrue(!autoConnectionsSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions));
 
@@ -324,7 +336,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                     dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React));
             ClassicAssert.IsNotNull(chatDriveGrant, "the chat drive grant should exist in system circle");
-
+            
+            var momentsDriveGrant =
+                systemCircle.DriveGrants.SingleOrDefault(dg =>
+                    dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
+                    dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React));
+            ClassicAssert.IsNotNull(momentsDriveGrant, "the chat drive grant should exist in system circle");
 
             //
             // additional circle exists
