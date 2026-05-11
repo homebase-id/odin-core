@@ -446,6 +446,39 @@ public class PeerDriveQueryService(
         }
     }
 
+    public async Task<bool> FileExistsOnRemote(Guid driveId, PeerFileExistsByUidAndVersionTagRequest request, IOdinContext odinContext)
+    {
+        var odinId = request.OdinId;
+        
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        try
+        {
+            var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
+
+            var remoteRequest = new RemoteFileExistsByUidAndVersionTagRequest
+            {
+                DriveId = driveId,
+                UniqueId = request.UniqueId,
+                VersionTag = request.VersionTag
+            };
+            
+            ApiResponse<bool> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.RemoteFileExists(remoteRequest); });
+
+            await HandleInvalidResponseAsync(odinId, response, odinContext);
+
+            return response.Content;
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
     private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClientAsync(OdinId odinId,
         FileSystemType? fileSystemType,
         IOdinContext odinContext)
@@ -455,7 +488,7 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead);
 
-        if(odinContext.AuthContext == "youauth-token")
+        if (odinContext.AuthContext == "youauth-token")
         {
             //Youauth cannot 
             var authHttpClient = await odinHttpClientFactory.CreateClientAsync<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
@@ -465,7 +498,8 @@ public class PeerDriveQueryService(
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
         var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
-        var httpClient = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
+        var httpClient =
+            await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
         return (icr, httpClient);
     }
 
@@ -487,7 +521,7 @@ public class PeerDriveQueryService(
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
-        if(odinContext.AuthContext == "youauth-token")
+        if (odinContext.AuthContext == "youauth-token")
         {
             sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
             return sharedSecretEncryptedFileHeader;
