@@ -15,9 +15,11 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Query;
+using Odin.Services.Peer.Outgoing.Drive.Query;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Controllers.Base;
 using Odin.Services.Drives.DriveCore.Query;
+using Odin.Services.Drives.DriveCore.Storage;
 
 namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 {
@@ -149,54 +151,96 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return drives;
         }
         
-        [HttpPost("file-exists")]
-        public async Task<IActionResult> GetFileExists([FromBody] RemoteFileExistsByUidAndVersionTagRequest request)
+        /// <summary>
+        /// Reports whether a file with the given UniqueId (or, on the sibling endpoint,
+        /// GlobalTransitId) exists on this peer, and — when the caller is entitled to it —
+        /// the file's current VersionTag.
+        /// </summary>
+        /// <remarks>
+        /// Purpose: "heal-a-group" flows. The author of a file fanned out across connected
+        /// peers needs a cheap way to detect peers whose copy is missing or out of date so
+        /// it can resend. Without this, the only signal is uploading and observing whether
+        /// the peer rejects the write — wasteful and noisy.
+        ///
+        /// Response is always 200 with a <see cref="FileExistsOnPeerResponse"/> body when
+        /// the caller is authorized; "file is not here" is expressed as <c>Exists = false</c>,
+        /// not as 404. Lack of any drive permission throws <see cref="OdinSecurityException"/>.
+        ///
+        /// The body is tiered by what the caller can already see through other channels:
+        ///   • Caller has Read on the drive — returns { Exists, VersionTag }. A Read caller
+        ///     can already fetch the full header (and the VersionTag with it) via the other
+        ///     peer-query endpoints, so withholding it here would only force a follow-up
+        ///     call to the same answer.
+        ///   • Caller has only Write on the drive, and is the file's OriginalAuthor —
+        ///     returns { Exists, VersionTag }. The author is the only party allowed to
+        ///     overwrite a file by UniqueId, and needs the tag to decide between
+        ///     "do nothing" and "resend".
+        ///   • Caller has only Write on the drive, and is NOT the OriginalAuthor —
+        ///     returns { Exists, VersionTag = null }. Write-only peers have no normal path
+        ///     to a header, so for them the VersionTag really is new information; without
+        ///     overwrite rights they don't need it and we don't surface it.
+        ///
+        /// Why we don't also hide existence in the last case: a caller with drive access can
+        /// already determine that a UniqueId / GlobalTransitId is taken via other paths
+        /// (drive listings, or attempting an upload and observing the collision rejection).
+        /// Suppressing the existence bit here would only force a wasted round trip on the
+        /// way to the same answer.
+        ///
+        /// VersionTag is deliberately not a request parameter: the server returns the
+        /// authoritative value (when the caller is entitled to it) and the caller does
+        /// the comparison.
+        /// </remarks>
+        [HttpPost("file-exists_byuniqueid")]
+        public async Task<FileExistsOnPeerResponse> GetFileExistsByUniqueId([FromBody] RemoteFileExistsByUniqueIdRequest request)
         {
-            var uid = request.UniqueId;
-            if (WebOdinContext.PermissionsContext.HasDrivePermission(request.DriveId, DrivePermission.Read))
+            var (hasRead, _) = AssertDriveAccessForFileExists(request.DriveId);
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            var header = await queryService.GetServerFileHeaderByClientUniqueIdSkippingFileAcl(
+                request.DriveId, request.UniqueId, WebOdinContext);
+            return BuildFileExistsResponse(header, hasRead);
+        }
+
+        /// <inheritdoc cref="GetFileExistsByUniqueId"/>
+        [HttpPost("file-exists_byglobaltransitid")]
+        public async Task<FileExistsOnPeerResponse> GetFileExistsByGlobalTransitId(
+            [FromBody] RemoteFileExistsByGlobalTransitIdRequest request)
+        {
+            var (hasRead, _) = AssertDriveAccessForFileExists(request.DriveId);
+            var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
+            var header = await queryService.GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(
+                request.DriveId, request.GlobalTransitId, WebOdinContext);
+            return BuildFileExistsResponse(header, hasRead);
+        }
+
+        private (bool hasRead, bool hasWrite) AssertDriveAccessForFileExists(Guid driveId)
+        {
+            var hasRead = WebOdinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read);
+            var hasWrite = WebOdinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);
+            if (!hasRead && !hasWrite)
             {
-                var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-                var result = await queryService.GetFileByClientUniqueId(
-                    request.DriveId,
-                    uid,
-                    new ResultOptions() { MaxRecords = 1 }, WebOdinContext);
-
-                if (result == null)
-                {
-                    return NotFound();
-                }
-
-                if (result.FileMetadata.VersionTag != request.VersionTag)
-                {
-                    return NotFound();
-                }
-
-                return Ok();
-            }
-            
-            // if they only have write-access, check for that
-            if (WebOdinContext.PermissionsContext.HasDrivePermission(request.DriveId, DrivePermission.Write))
-            {
-                var queryService = GetHttpFileSystemResolver().ResolveFileSystem().Query;
-                var result = await queryService.GetFileByClientUniqueIdForWriting(
-                    request.DriveId,
-                    uid,
-                    WebOdinContext);
-
-                if (result == null)
-                {
-                    return NotFound();
-                }
-                
-                if (result.FileMetadata.VersionTag != request.VersionTag)
-                {
-                    return NotFound();
-                }
-
-                return Ok();
+                throw new OdinSecurityException("no access to drive");
             }
 
-            throw new OdinSecurityException("no access to drive");
+            return (hasRead, hasWrite);
+        }
+
+        private FileExistsOnPeerResponse BuildFileExistsResponse(ServerFileHeader header, bool hasRead)
+        {
+            if (header == null)
+            {
+                return new FileExistsOnPeerResponse { Exists = false, VersionTag = null };
+            }
+
+            var caller = WebOdinContext.GetCallerOdinIdOrFail();
+            var isAuthor = header.FileMetadata.OriginalAuthor.HasValue
+                           && header.FileMetadata.OriginalAuthor.Value == caller;
+
+            var entitledToTag = hasRead || isAuthor;
+            return new FileExistsOnPeerResponse
+            {
+                Exists = true,
+                VersionTag = entitledToTag ? header.FileMetadata.VersionTag : null,
+            };
         }
 
         ///
@@ -339,10 +383,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
             return result;
         }
 
-        private PeerDriveQueryService GetPerimeterService()
+        private Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService GetPerimeterService()
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
-            return new PeerDriveQueryService(driveManager, fileSystem);
+            return new Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService(driveManager, fileSystem);
         }
     }
 }

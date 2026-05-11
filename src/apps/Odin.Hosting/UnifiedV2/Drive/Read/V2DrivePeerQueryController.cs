@@ -10,18 +10,38 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
     [ApiController]
-    [Route(UnifiedApiRouteConstants.PeerFilesRoot)]
+    [Route(UnifiedApiRouteConstants.PeerByUniqueId)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [ApiExplorerSettings(GroupName = "v2")]
-    public class V2DrivePeerQueryController(
-        PeerDriveQueryService peerDriveQueryService)
-        : OdinControllerBase
+    public class V2DrivePeerQueryByUidController(PeerDriveQueryService peerDriveQueryService) : OdinControllerBase
     {
-        [HttpPost("file-exists")]
+        [HttpGet("exists")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
-        public async Task<bool> GetFileExists([FromRoute] Guid driveId, [FromBody] PeerFileExistsByUidAndVersionTagRequest request)
+        public async Task<FileExistsOnPeerResponse> GetExists(
+            [FromRoute] string odinId,
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid uid)
         {
-            return await peerDriveQueryService.FileExistsOnRemote(driveId, request, WebOdinContext);
+            return await peerDriveQueryService.FileExistsOnRemoteByUniqueId(
+                (OdinId)odinId, driveId, uid, WebOdinContext);
+        }
+    }
+
+    [ApiController]
+    [Route(UnifiedApiRouteConstants.PeerByGtid)]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [ApiExplorerSettings(GroupName = "v2")]
+    public class V2DrivePeerQueryByGtidController(PeerDriveQueryService peerDriveQueryService) : OdinControllerBase
+    {
+        [HttpGet("exists")]
+        [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
+        public async Task<FileExistsOnPeerResponse> GetExists(
+            [FromRoute] string odinId,
+            [FromRoute] Guid driveId,
+            [FromRoute] Guid gtid)
+        {
+            return await peerDriveQueryService.FileExistsOnRemoteByGlobalTransitId(
+                (OdinId)odinId, driveId, gtid, WebOdinContext);
         }
     }
 }

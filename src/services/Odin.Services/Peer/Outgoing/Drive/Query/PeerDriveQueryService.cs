@@ -446,38 +446,58 @@ public class PeerDriveQueryService(
         }
     }
 
-    public async Task<bool> FileExistsOnRemote(Guid driveId, PeerFileExistsByUidAndVersionTagRequest request, IOdinContext odinContext)
+    public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByUniqueId(OdinId odinId, Guid driveId, Guid uniqueId,
+        IOdinContext odinContext)
     {
-        var odinId = request.OdinId;
-        
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
         try
         {
             var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
 
-            var remoteRequest = new RemoteFileExistsByUidAndVersionTagRequest
+            var remoteRequest = new RemoteFileExistsByUniqueIdRequest
             {
                 DriveId = driveId,
-                UniqueId = request.UniqueId,
-                VersionTag = request.VersionTag
+                UniqueId = uniqueId,
             };
-            
-            ApiResponse<bool> response = null;
+
+            ApiResponse<FileExistsOnPeerResponse> response = null;
             await TryRetry.Create()
                 .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
                 .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
-                .ExecuteAsync(async () => { response = await httpClient.RemoteFileExists(remoteRequest); });
-
-            // The remote signals "missing or stale" with 404; anything else flows through the
-            // standard non-success handling.
-            if (response.StatusCode == HttpStatusCode.NotFound)
-            {
-                return false;
-            }
+                .ExecuteAsync(async () => { response = await httpClient.RemoteFileExistsByUniqueId(remoteRequest); });
 
             await HandleInvalidResponseAsync(odinId, response, odinContext);
+            return response.Content;
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
 
-            return true;
+    public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByGlobalTransitId(OdinId odinId, Guid driveId, Guid globalTransitId,
+        IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        try
+        {
+            var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
+
+            var remoteRequest = new RemoteFileExistsByGlobalTransitIdRequest
+            {
+                DriveId = driveId,
+                GlobalTransitId = globalTransitId,
+            };
+
+            ApiResponse<FileExistsOnPeerResponse> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.RemoteFileExistsByGlobalTransitId(remoteRequest); });
+
+            await HandleInvalidResponseAsync(odinId, response, odinContext);
+            return response.Content;
         }
         catch (TryRetryException t)
         {

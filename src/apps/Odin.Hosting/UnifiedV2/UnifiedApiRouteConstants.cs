@@ -17,7 +17,10 @@ public static class UnifiedApiRouteConstants
     public const string Links = BasePath + "/links";
     public const string Capi = BasePath + "/capi";
 
-    public const string PeerDrivesRoot = BasePath + "/peer/drives";
-    public const string PeerByDriveId = PeerDrivesRoot + "/{driveId:guid}";
+    public const string PeerRoot = BasePath + "/peer";
+    public const string PeerByOdinId = PeerRoot + "/{odinId}";
+    public const string PeerByDriveId = PeerByOdinId + "/drives/{driveId:guid}";
     public const string PeerFilesRoot = PeerByDriveId + "/files";
+    public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
+    public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
 }

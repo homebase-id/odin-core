@@ -8,9 +8,15 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public interface IDrivePeerQueryHttpClientApiV2
 {
-    private const string Endpoint = UnifiedApiRouteConstants.PeerFilesRoot;
+    [Get(UnifiedApiRouteConstants.PeerByUniqueId + "/exists")]
+    Task<ApiResponse<FileExistsOnPeerResponse>> GetFileExistsByUid(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("uid:guid")] Guid uid);
 
-    [Post(Endpoint + "/file-exists")]
-    Task<ApiResponse<bool>> GetFileExists([AliasAs("driveId:guid")] Guid driveId,
-        [Body] PeerFileExistsByUidAndVersionTagRequest request);
+    [Get(UnifiedApiRouteConstants.PeerByGtid + "/exists")]
+    Task<ApiResponse<FileExistsOnPeerResponse>> GetFileExistsByGtid(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("gtid:guid")] Guid gtid);
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -14,14 +13,19 @@ using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive;
-using Odin.Services.Peer.Outgoing.Drive.Query;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.PeerQueryTests;
 
-// Exercises V2DrivePeerQueryController.GetFileExists:
-//   POST /api/v2/peer/drives/{driveId:guid}/files/file-exists
-// The sender uploads a metadata-only file with a UniqueId, fans it out to a
-// connected recipient, then asks the V2 endpoint whether the recipient has it.
+// Exercises the V2 peer "file-exists" endpoints:
+//   GET /api/v2/peer/{odinId}/drives/{driveId}/files/by-uid/{uid}/exists
+//   GET /api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/exists
+//
+// The response tier (whether VersionTag is included) depends on the caller's
+// drive permission and whether the caller is the file's OriginalAuthor:
+//   - Read on drive  -> VersionTag returned
+//   - Write only, caller IS OriginalAuthor -> VersionTag returned
+//   - Write only, caller is NOT OriginalAuthor -> VersionTag null
+//   - Neither permission -> security error
 public class GetFileExistsOnPeerTestsV2
 {
     private WebScaffold _scaffold;
@@ -36,10 +40,7 @@ public class GetFileExistsOnPeerTestsV2
     }
 
     [OneTimeTearDown]
-    public void OneTimeTearDown()
-    {
-        _scaffold.RunAfterAnyTests();
-    }
+    public void OneTimeTearDown() => _scaffold.RunAfterAnyTests();
 
     [SetUp]
     public void Setup()
@@ -49,112 +50,231 @@ public class GetFileExistsOnPeerTestsV2
     }
 
     [TearDown]
-    public void TearDown()
-    {
-        _scaffold.AssertLogEvents();
-    }
+    public void TearDown() => _scaffold.AssertLogEvents();
 
     [Test]
-    public async Task GetFileExists_WhenRecipientHasMatchingUidAndVersionTag_ReturnsTrue()
+    public async Task ByUid_ReadCaller_FilePresent_ReturnsExistsTrueAndVersionTag()
     {
-        var sender = TestIdentities.Frodo;
-        var recipient = TestIdentities.Samwise;
-
-        var callerContext = new OwnerTestCase(TargetDrive.NewTargetDrive());
-        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
-        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
-
-        var targetDrive = callerContext.TargetDrive;
-        await PrepareScenario(senderOwner, recipientOwner, targetDrive);
+        var (senderOwner, recipientOwner, targetDrive) = await SetUpConnected(DrivePermission.Read | DrivePermission.Write);
 
         var uniqueId = Guid.NewGuid();
-        var upload = await UploadAndDistributeMetadata(senderOwner, recipientOwner, targetDrive,
-            fileType: 9001, uniqueId: uniqueId, recipient.OdinId);
+        var upload = await UploadAndDistributeMetadata(senderOwner, recipientOwner, targetDrive, uniqueId);
+        var recipientVersionTag = await ReadRecipientVersionTag(recipientOwner, upload.GlobalTransitIdFileIdentifier, uniqueId);
 
-        // Look up the recipient's copy. UniqueId is preserved across the transfer, but
-        // the recipient assigns its own VersionTag on receipt — that locally-stored
-        // VersionTag is what the receiving handler compares against, so it's what the
-        // caller must supply.
-        var recipientCopy = await recipientOwner.DriveRedux.QueryByGlobalTransitId(upload.GlobalTransitIdFileIdentifier);
-        ClassicAssert.IsTrue(recipientCopy.IsSuccessStatusCode);
-        var recipientHeader = recipientCopy.Content!.SearchResults.SingleOrDefault();
-        ClassicAssert.IsNotNull(recipientHeader, "recipient should have a copy after distribution");
-        ClassicAssert.AreEqual(uniqueId, recipientHeader!.FileMetadata.AppData.UniqueId,
-            "recipient's copy should preserve the sender's UniqueId");
-        var recipientVersionTag = recipientHeader.FileMetadata.VersionTag;
+        var response = await CallV2(senderOwner, recipientOwner.Identity.OdinId, targetDrive.Alias,
+            byUid: uniqueId);
 
-        await callerContext.Initialize(senderOwner);
-        var peerClient = new DrivePeerReaderV2Client(sender.OdinId, callerContext.GetFactory());
-
-        var response = await peerClient.GetFileExistsAsync(targetDrive.Alias,
-            new PeerFileExistsByUidAndVersionTagRequest
-            {
-                OdinId = recipient.OdinId,
-                UniqueId = uniqueId,
-                VersionTag = recipientVersionTag
-            });
-
-        ClassicAssert.AreEqual(HttpStatusCode.OK, response.StatusCode,
-            $"V2 peer file-exists should return 200 OK; got {response.StatusCode}");
-        ClassicAssert.IsTrue(response.Content,
-            "V2 peer file-exists should report true when the recipient has the file at the same VersionTag");
+        AssertOk(response);
+        ClassicAssert.IsTrue(response.Content!.Exists);
+        ClassicAssert.AreEqual(recipientVersionTag, response.Content.VersionTag,
+            "Read caller is entitled to the VersionTag; should match the recipient's locally-stored tag");
 
         await Cleanup(senderOwner, recipientOwner);
     }
 
-    private async Task<Odin.Services.Drives.FileSystem.Base.Upload.UploadResult> UploadAndDistributeMetadata(
+    [Test]
+    public async Task ByGtid_ReadCaller_FilePresent_ReturnsExistsTrueAndVersionTag()
+    {
+        var (senderOwner, recipientOwner, targetDrive) = await SetUpConnected(DrivePermission.Read | DrivePermission.Write);
+
+        var upload = await UploadAndDistributeMetadata(senderOwner, recipientOwner, targetDrive, uniqueId: Guid.NewGuid());
+        var recipientVersionTag = await ReadRecipientVersionTag(recipientOwner, upload.GlobalTransitIdFileIdentifier);
+
+        var response = await CallV2(senderOwner, recipientOwner.Identity.OdinId, targetDrive.Alias,
+            byGtid: upload.GlobalTransitIdFileIdentifier.GlobalTransitId);
+
+        AssertOk(response);
+        ClassicAssert.IsTrue(response.Content!.Exists);
+        ClassicAssert.AreEqual(recipientVersionTag, response.Content.VersionTag);
+
+        await Cleanup(senderOwner, recipientOwner);
+    }
+
+    [Test]
+    public async Task ByUid_ReadCaller_FileMissing_ReturnsExistsFalse()
+    {
+        var (senderOwner, recipientOwner, targetDrive) = await SetUpConnected(DrivePermission.Read | DrivePermission.Write);
+
+        // Nothing uploaded — ask about a random UniqueId.
+        var response = await CallV2(senderOwner, recipientOwner.Identity.OdinId, targetDrive.Alias,
+            byUid: Guid.NewGuid());
+
+        AssertOk(response);
+        ClassicAssert.IsFalse(response.Content!.Exists);
+        ClassicAssert.IsNull(response.Content.VersionTag);
+
+        await Cleanup(senderOwner, recipientOwner);
+    }
+
+    [Test]
+    public async Task ByUid_WriteOnlyCaller_Author_ReturnsExistsTrueAndVersionTag()
+    {
+        var (senderOwner, recipientOwner, targetDrive) = await SetUpConnected(DrivePermission.Write);
+
+        var uniqueId = Guid.NewGuid();
+        var upload = await UploadAndDistributeMetadata(senderOwner, recipientOwner, targetDrive, uniqueId);
+        var recipientVersionTag = await ReadRecipientVersionTag(recipientOwner, upload.GlobalTransitIdFileIdentifier, uniqueId);
+
+        // Sender uploaded -> sender IS OriginalAuthor on the recipient's copy.
+        var response = await CallV2(senderOwner, recipientOwner.Identity.OdinId, targetDrive.Alias,
+            byUid: uniqueId);
+
+        AssertOk(response);
+        ClassicAssert.IsTrue(response.Content!.Exists);
+        ClassicAssert.AreEqual(recipientVersionTag, response.Content.VersionTag,
+            "Write-only caller IS the OriginalAuthor; should still receive the VersionTag");
+
+        await Cleanup(senderOwner, recipientOwner);
+    }
+
+    [Test]
+    public async Task ByUid_WriteOnlyCaller_NotAuthor_ReturnsExistsTrueButNullVersionTag()
+    {
+        // Recipient (Sam) uploads the file LOCALLY -> Sam is OriginalAuthor.
+        // Caller (Frodo) has Write-only on Sam's drive but is not the author.
+        var (senderOwner, recipientOwner, targetDrive) = await SetUpConnected(DrivePermission.Write);
+
+        var uniqueId = Guid.NewGuid();
+        await UploadLocalMetadata(recipientOwner, targetDrive, uniqueId);
+
+        var response = await CallV2(senderOwner, recipientOwner.Identity.OdinId, targetDrive.Alias,
+            byUid: uniqueId);
+
+        AssertOk(response);
+        ClassicAssert.IsTrue(response.Content!.Exists);
+        ClassicAssert.IsNull(response.Content.VersionTag,
+            "Write-only caller who is not the OriginalAuthor must not receive the VersionTag");
+
+        await Cleanup(senderOwner, recipientOwner);
+    }
+
+    [Test]
+    public async Task ByUid_CallerWithNoDrivePermission_ReturnsNonSuccess()
+    {
+        // Connect Frodo and Sam, but the circle grants no permission on this particular drive.
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        var grantedDrive = TargetDrive.NewTargetDrive();   // circle grants on THIS drive
+        var queriedDrive = TargetDrive.NewTargetDrive();   // we ask about THIS drive (no grant)
+
+        await senderOwner.DriveManager.CreateDrive(grantedDrive, "granted", "", allowAnonymousReads: false);
+        await recipientOwner.DriveManager.CreateDrive(grantedDrive, "granted", "", allowAnonymousReads: false);
+        await recipientOwner.DriveManager.CreateDrive(queriedDrive, "queried", "", allowAnonymousReads: false);
+
+        var circleId = Guid.NewGuid();
+        var permissions = TestUtils.CreatePermissionGrantRequest(grantedDrive, DrivePermission.Write);
+        await recipientOwner.Network.CreateCircle(circleId, "elsewhere", permissions);
+        await senderOwner.Connections.SendConnectionRequest(recipient.OdinId);
+        await recipientOwner.Connections.AcceptConnectionRequest(sender.OdinId, [circleId]);
+
+        var response = await CallV2(senderOwner, recipient.OdinId, queriedDrive.Alias, byUid: Guid.NewGuid());
+
+        ClassicAssert.IsFalse(response.IsSuccessStatusCode,
+            $"caller has no permission on the queried drive; expected non-success, got {response.StatusCode}");
+
+        await Cleanup(senderOwner, recipientOwner);
+    }
+
+    // --- helpers ---
+
+    private static void AssertOk<T>(Refit.ApiResponse<T> response)
+    {
+        ClassicAssert.AreEqual(HttpStatusCode.OK, response.StatusCode,
+            $"expected 200 OK; got {response.StatusCode}: {response.Error?.Content}");
+        ClassicAssert.IsNotNull(response.Content);
+    }
+
+    private async Task<Refit.ApiResponse<Odin.Services.Peer.Outgoing.Drive.Query.FileExistsOnPeerResponse>> CallV2(
+        OwnerApiClientRedux senderOwner, OdinId peer, Guid driveId, Guid? byUid = null, Guid? byGtid = null)
+    {
+        var callerContext = new OwnerTestCase(new TargetDrive { Alias = driveId, Type = Guid.Empty });
+        await callerContext.Initialize(senderOwner);
+        var peerClient = new DrivePeerReaderV2Client(senderOwner.Identity.OdinId, callerContext.GetFactory());
+
+        if (byUid.HasValue)
+            return await peerClient.GetFileExistsByUidAsync(peer, driveId, byUid.Value);
+        if (byGtid.HasValue)
+            return await peerClient.GetFileExistsByGtidAsync(peer, driveId, byGtid.Value);
+        throw new ArgumentException("must supply byUid or byGtid");
+    }
+
+    private async Task<(OwnerApiClientRedux sender, OwnerApiClientRedux recipient, TargetDrive drive)> SetUpConnected(
+        DrivePermission granted)
+    {
+        var sender = TestIdentities.Frodo;
+        var recipient = TestIdentities.Samwise;
+        var senderOwner = _scaffold.CreateOwnerApiClientRedux(sender);
+        var recipientOwner = _scaffold.CreateOwnerApiClientRedux(recipient);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await senderOwner.DriveManager.CreateDrive(targetDrive, "file-exists test", "", allowAnonymousReads: false);
+        await recipientOwner.DriveManager.CreateDrive(targetDrive, "file-exists test", "", allowAnonymousReads: false);
+
+        var circleId = Guid.NewGuid();
+        var permissions = TestUtils.CreatePermissionGrantRequest(targetDrive, granted);
+        await recipientOwner.Network.CreateCircle(circleId, $"circle with {granted}", permissions);
+
+        await senderOwner.Connections.SendConnectionRequest(recipient.OdinId);
+        await recipientOwner.Connections.AcceptConnectionRequest(sender.OdinId, [circleId]);
+
+        return (senderOwner, recipientOwner, targetDrive);
+    }
+
+    private static async Task<Odin.Services.Drives.FileSystem.Base.Upload.UploadResult> UploadAndDistributeMetadata(
         OwnerApiClientRedux senderOwner,
         OwnerApiClientRedux recipientOwner,
         TargetDrive targetDrive,
-        int fileType,
-        Guid uniqueId,
-        OdinId recipient)
+        Guid uniqueId)
     {
-        var metadata = SampleMetadataData.Create(
-            fileType: fileType,
-            acl: AccessControlList.Connected,
-            allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Connected, allowDistribution: true);
         metadata.AppData.UniqueId = uniqueId;
 
-        var transitOptions = new TransitOptions
+        var transit = new TransitOptions
         {
             IsTransient = false,
-            Recipients = [recipient.ToString()],
+            Recipients = [recipientOwner.Identity.OdinId.ToString()],
             DisableTransferHistory = false,
             Priority = OutboxPriority.High
         };
 
-        var response = await senderOwner.DriveRedux.UploadNewMetadata(targetDrive, metadata, transitOptions);
+        var response = await senderOwner.DriveRedux.UploadNewMetadata(targetDrive, metadata, transit);
         ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"upload failed: {response.StatusCode}");
-        var uploadResult = response.Content;
-        ClassicAssert.IsNotNull(uploadResult);
-        ClassicAssert.IsNotNull(uploadResult!.GlobalTransitId, "uploaded file is missing a GlobalTransitId");
+        var result = response.Content;
+        ClassicAssert.IsNotNull(result!.GlobalTransitId);
 
         await senderOwner.DriveRedux.WaitForEmptyOutbox(targetDrive);
         await recipientOwner.DriveRedux.ProcessInbox(targetDrive);
         await recipientOwner.DriveRedux.WaitForEmptyInbox(targetDrive);
 
-        return uploadResult;
+        return result;
     }
 
-    private static async Task PrepareScenario(
-        OwnerApiClientRedux senderOwner,
-        OwnerApiClientRedux recipientOwner,
-        TargetDrive targetDrive)
+    private static async Task UploadLocalMetadata(OwnerApiClientRedux owner, TargetDrive targetDrive, Guid uniqueId)
     {
-        await senderOwner.DriveManager.CreateDrive(targetDrive, "Peer file-exists test drive", "",
-            allowAnonymousReads: false);
-        await recipientOwner.DriveManager.CreateDrive(targetDrive, "Peer file-exists test drive", "",
-            allowAnonymousReads: false);
+        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Connected, allowDistribution: false);
+        metadata.AppData.UniqueId = uniqueId;
+        var response = await owner.DriveRedux.UploadNewMetadata(targetDrive, metadata, transitOptions: null);
+        ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"local upload failed: {response.StatusCode}");
+    }
 
-        // Grant the sender Write on the recipient's drive so the peer transfer can land.
-        // The receiving file-exists handler accepts either Read or Write on the drive.
-        var circleId = Guid.NewGuid();
-        var permissions = TestUtils.CreatePermissionGrantRequest(targetDrive, DrivePermission.Write);
-        await recipientOwner.Network.CreateCircle(circleId, "circle with write access", permissions);
-
-        await senderOwner.Connections.SendConnectionRequest(recipientOwner.Identity.OdinId);
-        await recipientOwner.Connections.AcceptConnectionRequest(senderOwner.Identity.OdinId, [circleId]);
+    private static async Task<Guid> ReadRecipientVersionTag(
+        OwnerApiClientRedux recipientOwner,
+        Odin.Services.Drives.GlobalTransitIdFileIdentifier gtid,
+        Guid? expectedUniqueId = null)
+    {
+        var recipientCopy = await recipientOwner.DriveRedux.QueryByGlobalTransitId(gtid);
+        ClassicAssert.IsTrue(recipientCopy.IsSuccessStatusCode);
+        var header = recipientCopy.Content!.SearchResults.SingleOrDefault();
+        ClassicAssert.IsNotNull(header, "recipient should have a copy after distribution");
+        if (expectedUniqueId.HasValue)
+        {
+            ClassicAssert.AreEqual(expectedUniqueId.Value, header!.FileMetadata.AppData.UniqueId,
+                "recipient should preserve the sender's UniqueId");
+        }
+        return header!.FileMetadata.VersionTag;
     }
 
     private static async Task Cleanup(OwnerApiClientRedux senderOwner, OwnerApiClientRedux recipientOwner)
