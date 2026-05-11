@@ -48,8 +48,8 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query
         [Get(PeerApiPathConstants.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext(CancellationToken cancellationToken = default);
 
-        [Get(DriveRoot + "/file-exists")]
-        Task<ApiResponse<bool>> RemoteFileExists(RemoteFileExistsByUidAndVersionTagRequest request, CancellationToken cancellationToken = default);
+        [Post(DriveRoot + "/file-exists")]
+        Task<ApiResponse<bool>> RemoteFileExists([Body] RemoteFileExistsByUidAndVersionTagRequest request, CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/header_byglobaltransitid")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file,

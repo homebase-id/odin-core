@@ -468,9 +468,16 @@ public class PeerDriveQueryService(
                 .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
                 .ExecuteAsync(async () => { response = await httpClient.RemoteFileExists(remoteRequest); });
 
+            // The remote signals "missing or stale" with 404; anything else flows through the
+            // standard non-success handling.
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+
             await HandleInvalidResponseAsync(odinId, response, odinContext);
 
-            return response.Content;
+            return true;
         }
         catch (TryRetryException t)
         {
