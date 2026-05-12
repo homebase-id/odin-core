@@ -1,10 +1,13 @@
+#nullable enable
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Odin.Hosting;
@@ -14,17 +17,27 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 /// <summary>
 /// One in-process Odin server. Boots <see cref="Program.CreateHostBuilder"/> over
 /// <c>Microsoft.AspNetCore.TestHost.TestServer</c> instead of Kestrel — no ports, no TLS,
-/// no real cert handshakes. Hosts one or more tenants via <c>Development__PreconfiguredDomains</c>.
+/// no real cert handshakes. Hosts one or more tenants via <c>Development:PreconfiguredDomains</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Global state caveat:</b> configuration is delivered via process-wide
-/// <see cref="Environment.SetEnvironmentVariable(string,string)"/> calls. Two
-/// <see cref="OdinHost"/> instances in the same process will race on the path-specific vars
-/// (<c>Host__TenantDataRootPath</c>, etc.) if their constructors interleave. Today this is benign
-/// because tests boot fixtures sequentially, but it's the landmine to retire before we turn on
-/// parallel-fixture execution. See <see cref="ApplyEnvironment"/>.
+/// Configuration injection is split in two layers so that multiple hosts can run in the same
+/// process (and in parallel) without clobbering each other:
 /// </para>
+/// <list type="bullet">
+///   <item><description>
+///     A <b>static, idempotent env-var baseline</b> set once on first <see cref="StartAsync"/>.
+///     This satisfies the eager reads in <c>Program.CreateHostBuilder</c> (which calls
+///     <c>AppSettings.LoadConfig(true)</c> and <c>Directory.CreateDirectory</c> before
+///     returning a builder) using a shared scratch dir. Everything in this layer is process-stable.
+///   </description></item>
+///   <item><description>
+///     <b>Per-host <see cref="IConfigurationBuilder.AddInMemoryCollection"/> overrides</b>
+///     stacked on top via a follow-up <c>ConfigureAppConfiguration</c>. These win at DI bind time
+///     (in-memory provider is registered last), so each host's services see their own
+///     tenant data root, log path, preconfigured domains, and system-process API key.
+///   </description></item>
+/// </list>
 /// </remarks>
 public sealed class OdinHost : IAsyncDisposable
 {
@@ -49,11 +62,19 @@ public sealed class OdinHost : IAsyncDisposable
         }
 
         var dataRoot = Path.Combine(Path.GetTempPath(), "odin-tests-v2", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dataRoot);
+        var tenantData = Path.Combine(dataRoot, "tenants");
+        var systemData = Path.Combine(dataRoot, "system");
+        var logs = Path.Combine(dataRoot, "logs");
+        Directory.CreateDirectory(tenantData);
+        Directory.CreateDirectory(systemData);
+        Directory.CreateDirectory(logs);
 
-        ApplyEnvironment(dataRoot, identities);
+        EnsureGlobalEnvBaseline();
+
+        var overrides = BuildPerHostConfig(identities, tenantData, systemData, logs);
 
         var builder = Program.CreateHostBuilder([])
+            .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
             .ConfigureWebHost(web => web.UseTestServer());
 
         var host = builder.Build();
@@ -95,14 +116,40 @@ public sealed class OdinHost : IAsyncDisposable
         }
     }
 
-    private static void ApplyEnvironment(string dataRoot, string[] identities)
+    private static Dictionary<string, string?> BuildPerHostConfig(
+        string[] identities, string tenantData, string systemData, string logs)
     {
-        var tenantData = Path.Combine(dataRoot, "tenants");
-        var systemData = Path.Combine(dataRoot, "system");
-        var logs = Path.Combine(dataRoot, "logs");
-        Directory.CreateDirectory(tenantData);
-        Directory.CreateDirectory(systemData);
-        Directory.CreateDirectory(logs);
+        var cfg = new Dictionary<string, string?>
+        {
+            ["Host:TenantDataRootPath"] = tenantData,
+            ["Host:SystemDataRootPath"] = systemData,
+            ["Host:SystemProcessApiKey"] = Guid.NewGuid().ToString(),
+            ["Logging:LogFilePath"] = logs,
+        };
+
+        for (var i = 0; i < identities.Length; i++)
+        {
+            cfg[$"Development:PreconfiguredDomains:{i}"] = identities[i];
+        }
+
+        return cfg;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // One-shot, process-wide env baseline. Idempotent under parallel callers.
+    // ---------------------------------------------------------------------------------------------
+
+    private static int _baselineInitialized;
+
+    private static void EnsureGlobalEnvBaseline()
+    {
+        if (Interlocked.CompareExchange(ref _baselineInitialized, 1, 0) != 0)
+        {
+            return;
+        }
+
+        var scratch = Path.Combine(Path.GetTempPath(), "odin-tests-v2-baseline");
+        Directory.CreateDirectory(scratch);
 
         // Runtime mode
         Set("ASPNETCORE_ENVIRONMENT", "Development");
@@ -112,12 +159,10 @@ public sealed class OdinHost : IAsyncDisposable
         Set("Redis__Enabled", "false");
         Set("S3PayloadStorage__Enabled", "false");
 
-        // Pre-register the test identities (DevEnvironmentSetup will load their dev certs from SslSourcePath).
-        // Certs are read from disk for tenant registration but are NOT used at the transport layer —
-        // TestServer has no TLS handshake.
+        // Dev certs on disk — read by DevEnvironmentSetup during tenant registration.
+        // The cert files exist but are never used at the transport layer (no TLS under TestServer).
         Set("Development__SslSourcePath", "./https/");
-        var preconfigured = "[" + string.Join(",", identities.Select(id => $"\"{id}\"")) + "]";
-        Set("Development__PreconfiguredDomains", preconfigured);
+        Set("Development__PreconfiguredDomains", "[]"); // overridden per-host
 
         // Registry config (required-by-schema even though no real DNS work happens in tests)
         Set("Registry__ProvisioningDomain", "provisioning.dotyou.cloud");
@@ -131,19 +176,19 @@ public sealed class OdinHost : IAsyncDisposable
         Set("Registry__AutomatedIdentityKey", "e36f5077-bec3-4410-89fe-5bc822dc4c8d");
         Set("Registry__AutomatedPasswordRecoveryIdentities", "[]");
 
-        // Host paths & sockets — sockets are unused under TestServer but must satisfy the config schema
-        Set("Host__TenantDataRootPath", tenantData);
-        Set("Host__SystemDataRootPath", systemData);
+        // Host paths & sockets — paths are baseline scratch, overridden per-host; sockets unused under TestServer.
+        Set("Host__TenantDataRootPath", scratch);
+        Set("Host__SystemDataRootPath", scratch);
         Set("Host__IPAddressListenList__0__HttpPort", "0");
         Set("Host__IPAddressListenList__0__HttpsPort", "0");
         Set("Host__IPAddressListenList__0__Ip", "127.0.0.1");
-        Set("Host__SystemProcessApiKey", Guid.NewGuid().ToString());
+        Set("Host__SystemProcessApiKey", Guid.Empty.ToString()); // overridden per-host
         Set("Host__IpRateLimitRequestsPerSecond", int.MaxValue.ToString());
         Set("Host__ClientRegistrationThreshold", int.MaxValue.ToString());
         Set("Host__ClientRegistrationWindowThreshold", int.MaxValue.ToString());
 
-        // Logging
-        Set("Logging__LogFilePath", logs);
+        // Logging — baseline path overridden per-host
+        Set("Logging__LogFilePath", scratch);
         Set("Logging__EnableStatistics", "true");
 
         // Background services off — tests drive everything explicitly

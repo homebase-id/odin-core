@@ -9,12 +9,10 @@ namespace Odin.Hosting.Tests.V2;
 /// Base fixture for fast V2 tests. Boots one in-process <see cref="OdinHost"/> per test class with
 /// the identities declared by <see cref="HostIdentities"/>; tears it down once at the end.
 /// Tests within a class share the host (and any seeded state) — per-test DB reset is a later phase.
+/// Fixtures run in parallel: <see cref="OdinHost"/> isolates per-host config via in-memory
+/// providers, so different fixtures' data roots / preconfigured domains never collide.
 /// </summary>
-/// <remarks>
-/// Fixtures run sequentially because <see cref="OdinHost"/> configures via process-global environment
-/// variables (see remarks on that type). Enable fixture-parallelism only after the config-injection
-/// path is migrated to <c>ConfigureAppConfiguration(AddInMemoryCollection)</c>.
-/// </remarks>
+[Parallelizable(ParallelScope.Fixtures)]
 public abstract class V2Fixture
 {
     protected OdinHost Host { get; private set; } = null!;
