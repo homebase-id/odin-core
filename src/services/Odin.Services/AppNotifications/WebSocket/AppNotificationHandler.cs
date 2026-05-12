@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -51,6 +52,13 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly PeerInboxProcessor _peerInboxProcessor;
         private readonly SharedDeviceSocketCollection<AppNotificationHandler> _deviceSocketCollection;
         private readonly RefCountedSubscription _notificationSubscription;
+
+        // Per-drive coalescer for server-side inbox drains triggered by InboxItemReceived
+        // notifications. The cached gate (TableInboxCached.GetReadyCountAsync) keeps repeat
+        // drains cheap, but under arrival bursts we'd still do redundant DB work; this keeps
+        // it to one in-flight drain per drive per process. Lazy<Task> ensures GetOrAdd's
+        // value factory races never start more than one drain task.
+        private readonly ConcurrentDictionary<Guid, Lazy<Task>> _inFlightDrains = new();
 
         public AppNotificationHandler(
             ILogger<AppNotificationHandler> logger,
@@ -335,6 +343,18 @@ namespace Odin.Services.AppNotifications.WebSocket
         // InboxItemReceivedNotification
         //
 
+        // TODO: This notification is largely redundant now. TryDrainInboxForDriveAsync runs
+        // synchronously before we send InboxItemReceived to clients, and any
+        // DriveFileAddedNotification it produces fans out as FileAdded over the same WS
+        // (via Handle(IDriveNotification)) — carrying the actual file header. The bare
+        // "something arrived" ping is therefore useful only when no FileAdded will follow.
+        // Suppress per TransferFileType once clients have migrated: keep it for types that
+        // don't produce a FileAdded (e.g. read receipts, reactions) and drop it for the rest.
+        // Note: empirical testing showed InboxItemReceived does not currently reach the
+        // owner WS in the peer-file-arrival scenario at all — there is little owner-WS
+        // back-compat surface to preserve. The peer-app WS path (PeerAppNotificationHandler)
+        // may differ; verify before removing.
+
         // Src: MediatR
         // Dst: PubSub queue
         public async Task Handle(InboxItemReceivedNotification notification, CancellationToken cancellationToken = default)
@@ -355,6 +375,13 @@ namespace Odin.Services.AppNotifications.WebSocket
         private async Task WsPublishAsync(InboxItemReceivedNotificationMessage notification)
         {
             var notificationDriveId = notification.TargetDrive.Alias;
+
+            // Opportunistic server-side inbox drain, mirroring the QueryBatch path.
+            // We use an owner-acting context already cached on a locally-subscribed
+            // DeviceSocket; any DriveFileAdded events the drain produces will fan out
+            // through Handle(IDriveNotification) onto the same sockets.
+            await TryDrainInboxForDriveAsync(notificationDriveId);
+
             var translated = new TranslatedClientNotification(notification.NotificationType,
                 OdinSystemSerializer.Serialize(new
                 {
@@ -364,6 +391,53 @@ namespace Odin.Services.AppNotifications.WebSocket
                 }));
 
             await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, false);
+        }
+
+        //
+
+        private async Task TryDrainInboxForDriveAsync(Guid driveId)
+        {
+            var deviceOdinContext = _deviceSocketCollection.GetAll().Values
+                .Select(ds => ds.DeviceOdinContext)
+                .FirstOrDefault(ctx => ctx != null && PeerInboxDriveQueue.IsAuthorizedToDrain(driveId, ctx));
+
+            if (deviceOdinContext == null)
+            {
+                return;
+            }
+
+            var lazy = _inFlightDrains.GetOrAdd(driveId,
+                id => new Lazy<Task>(() => RunDrainAsync(id, deviceOdinContext)));
+
+            try
+            {
+                await lazy.Value;
+            }
+            catch (Exception e)
+            {
+                // InboxDrainOnQuery already swallows and logs internally; this is defensive
+                // so a drain failure can never break the WS notification fan-out.
+                _logger.LogInformation(e, "Inbox drain on WS notify failed: {error}", e.Message);
+            }
+        }
+
+        private async Task RunDrainAsync(Guid driveId, IOdinContext deviceOdinContext)
+        {
+            try
+            {
+                await using var scope = _tenantRootScope.BeginLifetimeScope();
+                if (scope == null)
+                {
+                    return;
+                }
+
+                var drain = scope.Resolve<InboxDrainOnQuery>();
+                await drain.DrainIfReadyAsync(driveId, deviceOdinContext);
+            }
+            finally
+            {
+                _inFlightDrains.TryRemove(driveId, out _);
+            }
         }
 
         //
