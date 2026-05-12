@@ -22,43 +22,62 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query
         Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request, CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/batchcollection")]
-        Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection([Body] QueryBatchCollectionRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection([Body] QueryBatchCollectionRequest request,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/querymodified")]
-        Task<ApiResponse<QueryModifiedResponse>> QueryModified([Body] QueryModifiedRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<QueryModifiedResponse>> QueryModified([Body] QueryModifiedRequest request,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/header")]
-        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file, CancellationToken cancellationToken = default);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/thumb")]
-        Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayloadStream([Body] GetPayloadRequest request, CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/metadata/type")]
-        Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request,
+            CancellationToken cancellationToken = default);
 
         [Get(PeerApiPathConstants.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext(CancellationToken cancellationToken = default);
 
+        [Post(DriveRoot + "/file-exists_byuniqueid")]
+        Task<ApiResponse<FileExistsOnPeerResponse>> RemoteFileExistsByUniqueId([Body] RemoteFileExistsByUniqueIdRequest request,
+            CancellationToken cancellationToken = default);
+
+        [Post(DriveRoot + "/file-exists_byglobaltransitid")]
+        Task<ApiResponse<FileExistsOnPeerResponse>> RemoteFileExistsByGlobalTransitId(
+            [Body] RemoteFileExistsByGlobalTransitIdRequest request,
+            CancellationToken cancellationToken = default);
+
         [Post(DriveRoot + "/header_byglobaltransitid")]
-        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file, CancellationToken cancellationToken = default);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByGlobalTransitId(GlobalTransitIdFileIdentifier file,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/thumb_byglobaltransitid")]
-        Task<ApiResponse<HttpContent>> GetThumbnailStreamByGlobalTransitId([Body] GetThumbnailByGlobalTransitIdRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<HttpContent>> GetThumbnailStreamByGlobalTransitId([Body] GetThumbnailByGlobalTransitIdRequest request,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/payload_byglobaltransitid")]
-        Task<ApiResponse<HttpContent>> GetPayloadStreamByGlobalTransitId([Body] GetPayloadByGlobalTransitIdRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<HttpContent>> GetPayloadStreamByGlobalTransitId([Body] GetPayloadByGlobalTransitIdRequest request,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/header_byuniqueid")]
-        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueId(GetPayloadByUniqueIdRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByUniqueId(GetPayloadByUniqueIdRequest request,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/thumb_byuniqueid")]
-        Task<ApiResponse<HttpContent>> GetThumbnailStreamByUniqueId([Body] GetThumbnailRequest request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<HttpContent>> GetThumbnailStreamByUniqueId([Body] GetThumbnailRequest request,
+            CancellationToken cancellationToken = default);
 
         [Post(DriveRoot + "/payload_byuniqueid")]
-        Task<ApiResponse<HttpContent>> GetPayloadStreamByUniqueId([Body] GetPayloadRequest request, CancellationToken cancellationToken = default);
-
+        Task<ApiResponse<HttpContent>> GetPayloadStreamByUniqueId([Body] GetPayloadRequest request,
+            CancellationToken cancellationToken = default);
     }
 }
