@@ -446,6 +446,66 @@ public class PeerDriveQueryService(
         }
     }
 
+    public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByUniqueId(OdinId odinId, Guid driveId, Guid uniqueId,
+        IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        try
+        {
+            var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
+
+            var remoteRequest = new RemoteFileExistsByUniqueIdRequest
+            {
+                DriveId = driveId,
+                UniqueId = uniqueId,
+            };
+
+            ApiResponse<FileExistsOnPeerResponse> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.RemoteFileExistsByUniqueId(remoteRequest); });
+
+            await HandleInvalidResponseAsync(odinId, response, odinContext);
+            return response.Content;
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
+    public async Task<FileExistsOnPeerResponse> FileExistsOnRemoteByGlobalTransitId(OdinId odinId, Guid driveId, Guid globalTransitId,
+        IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        try
+        {
+            var (_, httpClient) = await CreateClientAsync(odinId, null, odinContext);
+
+            var remoteRequest = new RemoteFileExistsByGlobalTransitIdRequest
+            {
+                DriveId = driveId,
+                GlobalTransitId = globalTransitId,
+            };
+
+            ApiResponse<FileExistsOnPeerResponse> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.RemoteFileExistsByGlobalTransitId(remoteRequest); });
+
+            await HandleInvalidResponseAsync(odinId, response, odinContext);
+            return response.Content;
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
     private async Task<(IdentityConnectionRegistration, IPeerDriveQueryHttpClient)> CreateClientAsync(OdinId odinId,
         FileSystemType? fileSystemType,
         IOdinContext odinContext)
@@ -455,7 +515,7 @@ public class PeerDriveQueryService(
             PermissionKeys.UseTransitWrite,
             PermissionKeys.UseTransitRead);
 
-        if(odinContext.AuthContext == "youauth-token")
+        if (odinContext.AuthContext == "youauth-token")
         {
             //Youauth cannot 
             var authHttpClient = await odinHttpClientFactory.CreateClientAsync<IPeerDriveQueryHttpClient>(odinId, fileSystemType);
@@ -465,7 +525,8 @@ public class PeerDriveQueryService(
         //Note here we override the permission check because we have either UseTransitWrite or UseTransitRead
         var icr = await circleNetworkService.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: true);
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(odinContext.PermissionsContext.GetIcrKey()) : null;
-        var httpClient = await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
+        var httpClient =
+            await odinHttpClientFactory.CreateClientUsingAccessTokenAsync<IPeerDriveQueryHttpClient>(odinId, authToken, fileSystemType);
         return (icr, httpClient);
     }
 
@@ -487,7 +548,7 @@ public class PeerDriveQueryService(
     private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
         IdentityConnectionRegistration icr, IOdinContext odinContext)
     {
-        if(odinContext.AuthContext == "youauth-token")
+        if (odinContext.AuthContext == "youauth-token")
         {
             sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
             return sharedSecretEncryptedFileHeader;

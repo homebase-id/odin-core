@@ -37,6 +37,14 @@ public static class SystemAppConstants
                         Drive = SystemDriveConstants.ChatDrive,
                         Permission = DrivePermission.Write | DrivePermission.React
                     }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.MomentsDrive,
+                        Permission = DrivePermission.Write | DrivePermission.React
+                    }
                 }
             ],
             PermissionSet = new PermissionSet()
@@ -74,7 +82,15 @@ public static class SystemAppConstants
                     Drive = SystemDriveConstants.ProfileDrive,
                     Permission = DrivePermission.Read
                 }
-            }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.MomentsDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
         ],
         PermissionSet = new PermissionSet(
             PermissionKeys.ReadConnections,

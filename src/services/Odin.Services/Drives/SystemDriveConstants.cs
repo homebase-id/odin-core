@@ -17,6 +17,12 @@ public static class SystemDriveConstants
 
     public static readonly Guid ChannelDriveType = Guid.Parse("8f448716-e34c-edf9-0141-45e043ca6612");
     
+    public static readonly TargetDrive MomentsDrive = new()
+    {
+        Alias = Guid.Parse("a85f8562-6c74-4947-896b-619812cafccc"),
+        Type = Guid.Parse("4338d7d2-f217-486a-8790-a4982644c15f")
+    };
+    
     public static readonly TargetDrive ShardRecoveryDrive = new()
     {
         Alias = Guid.Parse("46242d0d67604b2aa683f05cd48d4aef"),
@@ -88,7 +94,8 @@ public static class SystemDriveConstants
         HomePageConfigDrive,
         MailDrive,
         PublicPostsChannelDrive,
-        ShardRecoveryDrive
+        ShardRecoveryDrive,
+        MomentsDrive
     ];
     
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
@@ -162,6 +169,15 @@ public static class SystemDriveConstants
         Metadata = "",
         TargetDrive = ChatDrive,
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
+    };
+    
+    public static readonly CreateDriveRequest CreateMomentsDriveRequest = new()
+    {
+        Name = "Moments Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = MomentsDrive,
+        OwnerOnly = false
     };
 
     public static readonly CreateDriveRequest CreateShardRecoveryDriveRequest = new()

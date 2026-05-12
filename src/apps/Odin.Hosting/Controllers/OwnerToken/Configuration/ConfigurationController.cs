@@ -130,7 +130,8 @@ public class OwnerConfigurationController : OdinControllerBase
             { "contact", SystemDriveConstants.ContactDrive },
             { "profile", SystemDriveConstants.ProfileDrive },
             { "wallet", SystemDriveConstants.WalletDrive },
-            { "chat", SystemDriveConstants.ChatDrive }
+            { "chat", SystemDriveConstants.ChatDrive },
+            { "moments", SystemDriveConstants.MomentsDrive }
         };
 
         return Task.FromResult(d);
