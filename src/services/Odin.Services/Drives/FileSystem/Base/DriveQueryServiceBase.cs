@@ -161,6 +161,57 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetFileByClientUniqueIdInternal(driveId, clientUniqueId, options, odinContext);
         }
 
+        /// <summary>
+        /// Metadata-only existence lookup by client unique id. Returns the raw
+        /// <see cref="ServerFileHeader"/> for the matching file (or null) without applying the
+        /// per-file ACL. Drive-level Read or Write is still required.
+        /// </summary>
+        /// <remarks>
+        /// Intended for "is there a file with this id on this drive?" endpoints — for those,
+        /// the drive-level permission is the correct gate; per-file ACL governs content access
+        /// and is the wrong question.
+        ///
+        /// Concretely, this method exists to support the peer file-exists endpoint used by
+        /// heal-a-group flows. <see cref="GetFileByClientUniqueId"/> filters through the
+        /// per-file ACL and throws <see cref="OdinSecurityException"/> when it denies — and
+        /// <c>PeerFileWriter</c> rewrites the recipient's stored ACL to
+        /// <c>SecurityGroupType.Owner</c> on receipt of a transit transfer (see
+        /// <c>PeerFileWriter.cs</c>). So the original author asking the recipient about their
+        /// own file via the normal query path would always be denied. That's correct for
+        /// content reads but wrong for an existence probe, which only needs to gate on whether
+        /// the caller has any drive access at all.
+        /// </remarks>
+        public async Task<ServerFileHeader> GetServerFileHeaderByClientUniqueIdSkippingFileAcl(Guid driveId, Guid clientUniqueId,
+            IOdinContext odinContext)
+        {
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
+
+            var record = await _driveQuery.GetByClientUniqueIdAsync(driveId, clientUniqueId);
+            if (record == null || record.fileSystemType != (int)GetFileSystemType())
+            {
+                return null;
+            }
+
+            return ServerFileHeader.FromDriveMainIndexRecord(record);
+        }
+
+        /// <inheritdoc cref="GetServerFileHeaderByClientUniqueIdSkippingFileAcl"/>
+        public async Task<ServerFileHeader> GetServerFileHeaderByGlobalTransitIdSkippingFileAcl(Guid driveId, Guid globalTransitId,
+            IOdinContext odinContext)
+        {
+            await AssertCanReadOrWriteToDriveAsync(driveId, odinContext);
+            await AssertDriveIsValidAndActive(driveId, odinContext);
+
+            var record = await _driveQuery.GetByGlobalTransitIdAsync(driveId, globalTransitId);
+            if (record == null || record.fileSystemType != (int)GetFileSystemType())
+            {
+                return null;
+            }
+
+            return ServerFileHeader.FromDriveMainIndexRecord(record);
+        }
+
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(List<CollectionQueryParamSection> queries,
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
