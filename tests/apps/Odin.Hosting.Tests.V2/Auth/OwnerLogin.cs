@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -25,6 +26,10 @@ public static class OwnerLogin
 {
     public const string DefaultPassword = "EnSøienØ";
 
+    // SetNewPassword is one-shot per identity; subsequent attempts return 400. We set the password
+    // exactly once per (host, identity) pair, then authenticate fresh on every call.
+    private static readonly ConcurrentDictionary<(OdinHost, string), bool> _passwordsSet = new();
+
     public static async Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(
         OdinHost host,
         string identity,
@@ -39,15 +44,18 @@ public static class OwnerLogin
 
         var eccKey = new EccFullKeyData(EccKeyListManagement.zeroSensitiveKey, EccKeySize.P384, 1);
 
-        var saltsResp = await svc.GenerateNewSalts();
-        EnsureSuccess(saltsResp, "GenerateNewSalts");
-        var salts = saltsResp.Content!;
-        var saltNonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, salts.PublicJwk, salts.CRC)
+        if (_passwordsSet.TryAdd((host, identity), true))
         {
-            Nonce64 = salts.Nonce64
-        };
-        var setReply = PasswordDataManager.CalculatePasswordReply(password, saltNonce, eccKey);
-        EnsureSuccess(await svc.SetNewPassword(setReply), "SetNewPassword");
+            var saltsResp = await svc.GenerateNewSalts();
+            EnsureSuccess(saltsResp, "GenerateNewSalts");
+            var salts = saltsResp.Content!;
+            var saltNonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, salts.PublicJwk, salts.CRC)
+            {
+                Nonce64 = salts.Nonce64
+            };
+            var setReply = PasswordDataManager.CalculatePasswordReply(password, saltNonce, eccKey);
+            EnsureSuccess(await svc.SetNewPassword(setReply), "SetNewPassword");
+        }
 
         var nonceResp = await svc.GenerateAuthenticationNonce();
         EnsureSuccess(nonceResp, "GenerateAuthenticationNonce");

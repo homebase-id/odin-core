@@ -23,17 +23,20 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
     private readonly string _cookieName;
     private readonly ClientAuthenticationToken _token;
     private readonly SensitiveByteArray? _sharedSecret;
+    private readonly string _basePath;
 
     public InProcessApiClientFactory(
         OdinHost host,
         string cookieName,
         ClientAuthenticationToken token,
-        SensitiveByteArray? sharedSecret = null)
+        SensitiveByteArray? sharedSecret = null,
+        string basePath = "")
     {
         _host = host;
         _cookieName = cookieName;
         _token = token;
         _sharedSecret = sharedSecret;
+        _basePath = basePath;
     }
 
     /// <remarks>
@@ -66,7 +69,7 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
         }
 
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
-        client.BaseAddress = new Uri($"https://{identity}/");
+        client.BaseAddress = new Uri($"https://{identity}{_basePath}");
         sharedSecret = _sharedSecret!;
         return client;
     }
