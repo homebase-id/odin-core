@@ -1,11 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
-using Odin.Hosting.Tests.V2.Hosting;
-using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests.V2.Examples;
@@ -39,32 +36,3 @@ public class AuthTests : V2Fixture
     }
 }
 
-/// <summary>
-/// Describes how to build a V2 caller for a parameterized test. The <see cref="TargetDrive"/> is
-/// the drive that should exist on the host before the caller is built — usually because the caller
-/// needs permissions to it (App / Guest) or because the test just needs a drive to operate on.
-/// </summary>
-public sealed class CallerSpec
-{
-    private readonly string _name;
-    public TargetDrive TargetDrive { get; }
-    public Func<OwnerSession, OdinHost, Task<IV2Caller>> Build { get; }
-
-    private CallerSpec(string name, TargetDrive drive, Func<OwnerSession, OdinHost, Task<IV2Caller>> build)
-    {
-        _name = name;
-        TargetDrive = drive;
-        Build = build;
-    }
-
-    public override string ToString() => _name;
-
-    public static CallerSpec Owner(TargetDrive drive) =>
-        new("Owner", drive, (o, _) => Task.FromResult<IV2Caller>(o));
-
-    public static CallerSpec App(TargetDrive drive, DrivePermission perm) =>
-        new($"App[{perm}]", drive, async (o, h) => await AppSession.SetupAsync(o, h, drive, perm));
-
-    public static CallerSpec Guest(TargetDrive drive, DrivePermission perm) =>
-        new($"Guest[{perm}]", drive, async (o, h) => await GuestSession.SetupAsync(o, h, drive, perm));
-}
