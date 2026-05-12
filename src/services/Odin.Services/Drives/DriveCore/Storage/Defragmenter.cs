@@ -72,6 +72,27 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return cache[fileId];
         }
 
+        // TODO: this overlaps with InboxOrphanScanBackgroundService — same fundamental check
+        // (on-disk staging file with no matching Inbox row). They are deliberately kept separate
+        // for now: the scanner is detection-only on a daily schedule, this is operator-invoked
+        // cleanup via the Defragment CLI / owner endpoint. If/when this deletion path is
+        // trusted enough to run automatically, extract the shared check into one helper and
+        // call it from both.
+        //
+        // TODO: things to fix in this method before automating it / before the next big inbox:
+        //   1. No age gate. Multipart upload writes the staging files BEFORE RouteToInboxAsync
+        //      inserts the inbox row (see PeerDriveIncomingTransferService.FinalizeTransferInternal).
+        //      There's a real, narrow race window where a file legitimately has no matching row.
+        //      The orphan scanner mitigates with a 24h LastWriteTimeUtc gate; this method has none
+        //      and will happily delete an in-flight upload. Add the same gate before enabling
+        //      cleanup in any automated context.
+        //   2. PagingByRowIdAsync(int.MaxValue, null) materializes every inbox row in memory.
+        //      Fine while inboxes are small; switch to per-fileId lookup (see
+        //      TransitInboxBoxStorage.HasPendingItemAsync) once that's a concern.
+        //   3. The .Any() predicate checks record.boxId == driveId, but the Inbox schema is
+        //      UNIQUE(identityId, fileId) — fileId alone is sufficient. Harmless, but misleading.
+        //   4. The File.Delete call below (~line 128) has a "Not confident here yet :-D haven't
+        //      covered it in a test" comment. Cover it with a test before relying on it.
         public async Task VerifyInboxEntiresIntegrity(Guid driveId, bool cleanup)
         {
             const string logPrefix = "INBOX-INTEGRITY";
