@@ -294,7 +294,10 @@ namespace Odin.Hosting.Middleware
 
             if (context.Request.Method.ToUpper() == "POST")
             {
-                if (context.Request.Headers.ContentLength == 0)
+                // No body to decrypt: either Content-Length is explicitly 0 or absent (and no chunked body).
+                // Some clients (HTTP/2, ASP.NET TestServer) omit Content-Length on bodyless POSTs.
+                if (context.Request.Headers.ContentLength.GetValueOrDefault() == 0
+                    && !context.Request.Headers.ContainsKey("Transfer-Encoding"))
                 {
                     return false;
                 }
