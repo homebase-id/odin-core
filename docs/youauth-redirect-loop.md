@@ -1,5 +1,13 @@
 # YouAuth Redirect Loop
 
+## Status
+
+- [x] **Fix #2 (`verifyToken` does real auth, matching cookie-delete options)** landed in commit on branch `youauth-loop`. Files touched:
+  - `src/apps/Odin.Hosting/Controllers/OwnerToken/Auth/OwnerAuthenticationController.cs` (rewritten `VerifyCookieBasedToken`, fixed `Response.Cookies.Delete` options in `ExpireCookieBasedToken`).
+  - `tests/apps/Odin.Hosting.Tests/OwnerApi/Authentication/ResetPasswordTests.cs::VerifyTokenReturnsFalseForStaleCookieAfterPasswordReset` covers the stale-KEK path; verified the test fails without the controller change.
+- [ ] **Fix #1 (invalidate registrations on password rewrite)**: still open. Plan below is unchanged.
+- [ ] **Fix #3 (client-side bounce counter)**: still open, optional.
+
 ## Symptom
 
 Occasionally, when a browser hits `/api/owner/v1/youauth/authorize` to start a
@@ -135,6 +143,16 @@ All three need to be true:
 - The registration row has not yet expired (default 6-month TTL, see
   `OwnerConsoleClientRegistration.TimeToLiveSeconds`).
 
+There is also a delayed-onset effect from `OdinContextCache`
+(`src/services/Odin.Services/Base/OdinContextCache.cs`, `DefaultDuration =
+60 minutes`). The cache key is `token.AsKey()`, so any successful auth before
+the password rewrite (including the password change itself) leaves a "valid"
+context cached against the cookie. Until that entry is evicted (cache expiry,
+server restart, or a registration `DeleteAsync` which calls `ResetAsync`),
+requests with the stale cookie keep succeeding. The loop only kicks in after
+the cache lets go. This is why the bug surfaces hours or a day after the
+password change, not immediately.
+
 That matches the reported "rare but happens" cadence: a small fraction of users
 who hit password recovery or changed their password, then later open a
 previously-logged-in browser/tab to do a YouAuth flow.
@@ -217,91 +235,55 @@ g. Tests: add a unit/integration test that
    3) re-uses the captured cookie on an owner endpoint and asserts `401`.
    And mirror it for `ResetPasswordUsingRecoveryKeyAsync`.
 
-### 2. Make `verifyToken` actually verify (unblocks users already in the bad state, backend)
+### 2. Make `verifyToken` actually verify (DONE)
 
-Even after fix #1, every user currently stuck in the loop will stay stuck until
+Without this, every user currently stuck in the loop would stay stuck until
 their registration row expires, because their cookie still passes
-`IsValidTokenAsync`. Fix `verifyToken` to do a real authentication.
+`IsValidTokenAsync`. `verifyToken` now performs a real authentication.
 
-Edit `VerifyCookieBasedToken` in
-`src/apps/Odin.Hosting/Controllers/OwnerToken/Auth/OwnerAuthenticationController.cs:30`:
+Shipped changes (commit on branch `youauth-loop`):
 
-```csharp
-[HttpGet("verifyToken")]
-public async Task<IActionResult> VerifyCookieBasedToken()
-{
-    var value = Request.Cookies[OwnerAuthConstants.CookieName];
-    if (!ClientAuthenticationToken.TryParse(value ?? "", out var result))
-    {
-        return new JsonResult(false);
-    }
+- `src/apps/Odin.Hosting/Controllers/OwnerToken/Auth/OwnerAuthenticationController.cs`
+  - `VerifyCookieBasedToken` now builds an `OdinClientContext` and calls
+    `OwnerAuthenticationService.UpdateOdinContextAsync` inside
+    `try { ... } catch (OdinSecurityException) { isValid = false; }`. That
+    exercises the full chain (`GetDotYouContextAsync` ->
+    `GetMasterKeyAsync` -> both `DecryptKeyClone`s) and mirrors the catch in
+    `OwnerAuthenticationHandler.HandleAuthenticateAsync`. `ExtendTokenLife` and
+    `AddUpgradeRequiredHeaderAsync` only run on success.
+  - `ExpireCookieBasedToken` now deletes the cookie with options matching the
+    set: `HttpOnly = true, Secure = true, SameSite = Strict, Path = "/"`.
+    Bundled into the same patch because `logoutOwnerAndAllApps` on the client
+    relies on the cookie actually being gone (some browsers refuse to delete a
+    `Secure` cookie via a non-`Secure` delete).
+- `tests/apps/Odin.Hosting.Tests/OwnerApi/Authentication/ResetPasswordTests.cs`
+  - New test `VerifyTokenReturnsFalseForStaleCookieAfterPasswordReset`:
+    1) login with an isolated `CookieContainer`,
+    2) assert `verifyToken` returns `true` against the fresh cookie,
+    3) reset the password via the existing scaffold owner client,
+    4) reset the tenant-scoped `OdinContextCache` (resolved via
+       `IMultiTenantContainer.GetTenantScope(...).Resolve<OdinContextCache>()`)
+       to simulate cache expiry; without this step the cached pre-reset
+       context masks the staleness and the test passes for the wrong reason,
+    5) assert `verifyToken` now returns `false` for the same cookie.
+  - Verified: passes with the fix, fails (at the post-reset assertion) when the
+    controller change is reverted.
 
-    var clientContext = new OdinClientContext
-    {
-        CorsHostName = null,
-        ClientIdOrDomain = null,
-        AccessRegistrationId = result.Id,
-        DevicePushNotificationKey = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request),
-    };
+Once `verifyToken` returns `false` for a stale-KEK cookie, the existing client
+path triggers cleanup: `useValidateAuthorization` in
+`packages/apps/owner-app/src/hooks/auth/useAuth.ts:60` sees `hasValidToken ===
+false` while `hasSharedSecret === true` and calls
+`logoutOwnerAndAllApps(capturedReturnUrl)`, which clears localStorage and
+cookies and routes to a clean login page with the original `returnUrl`
+preserved. Loop ends, user logs in, KMP app gets its authorize redirect.
 
-    bool isValid;
-    try
-    {
-        isValid = await authService.UpdateOdinContextAsync(result, clientContext, WebOdinContext);
-    }
-    catch (OdinSecurityException)
-    {
-        isValid = false;
-    }
-
-    if (isValid)
-    {
-        await authService.ExtendTokenLife(result.Id);
-        await AddUpgradeRequiredHeaderAsync();
-    }
-
-    return new JsonResult(isValid);
-}
-```
-
-Notes:
-
-- `UpdateOdinContextAsync` exercises the full chain
-  (`GetDotYouContextAsync` -> `GetMasterKeyAsync` -> both `DecryptKeyClone`s).
-  Catch `OdinSecurityException` and return `false` on it, mirroring the catch
-  in `OwnerAuthenticationHandler.HandleAuthenticateAsync:121`.
-- Keep this endpoint `[AllowAnonymous]`-equivalent. It is currently mounted
-  on `OwnerAuthenticationController` which does not have a class-level
-  `[Authorize]` attribute, so no change there.
-- Once this returns `false` for a stale-KEK cookie,
-  `useValidateAuthorization` in
-  `packages/apps/owner-app/src/hooks/auth/useAuth.ts:60` sees
-  `hasValidToken === false` while `hasSharedSecret === true` and calls
-  `logoutOwnerAndAllApps(capturedReturnUrl)`. That clears localStorage, clears
-  the cookie (best effort), and redirects to a clean login page with the
-  original returnUrl preserved. Loop ends, user logs in, KMP app gets its
-  authorize redirect.
-- Make sure `Response.Cookies.Delete(OwnerAuthConstants.CookieName)` inside
-  `ExpireCookieBasedToken` (same controller, line 70) clears with options that
-  match the original cookie (`Secure = true`, `Path = "/"`, `SameSite = Strict`,
-  `HttpOnly = true`). The default overload often does not, and some browsers
-  refuse to delete a `Secure` cookie via a non-`Secure` delete. If you observe
-  cookies surviving logout in DevTools, update the call site:
-
-  ```csharp
-  Response.Cookies.Delete(OwnerAuthConstants.CookieName, new CookieOptions
-  {
-      HttpOnly = true,
-      Secure = true,
-      SameSite = SameSiteMode.Strict,
-      Path = "/",
-  });
-  ```
-
-  This is mechanical and worth doing in the same patch since
-  `logoutOwnerAndAllApps` relies on the cookie being gone.
-- Tests: extend the test from fix #1 to also assert that `verifyToken`
-  returns `false` after the password change, given the old cookie.
+Caveat noticed while testing: the existing `OdinContextCache` keys context by
+cookie composite key (`token.AsKey()`), so the unblocking only happens once the
+cached entry is evicted (cache TTL default 60 min, or a server restart, or a
+registration delete). Fix #1 will side-effect-flush this via
+`ClientRegistrationStorage.DeleteAsync` -> `OdinContextCache.ResetAsync`. Until
+fix #1 lands, a currently-stuck user will see the loop end the next time their
+cached context expires.
 
 ### 3. Defensive loop breaker on the client (optional, frontend)
 
@@ -348,11 +330,12 @@ substitute for #1 and #2.
 
 ## Order of work
 
-1. Land fix #2 first. It is small, surgical, and immediately unblocks the
-   subset of users currently in the bad state without waiting for their cookies
-   to age out.
+1. ~~Fix #2~~ DONE. Currently-stuck users get out of the loop once their
+   cached context expires (or immediately on next request after fix #1 ships,
+   since that flushes the cache).
 2. Land fix #1 next. It removes the source of the problem so users no longer
-   land in the bad state.
+   land in the bad state, and as a side effect immediately unblocks anyone
+   still in a cached-context grace period.
 3. Optionally land fix #3 as a regression guard.
 
 ## Out-of-scope follow-ups noticed while investigating
@@ -364,9 +347,8 @@ ticket each.
   (`src/core/Odin.Core.Cryptography/Data/SymmetricKeyEncryptedAes.cs:88`)
   always sets `IsRemoteIcrIssue = true` on the thrown exception, even for
   owner-flow failures that have nothing to do with ICR. Misleading for triage.
-- `OwnerAuthenticationController.ExpireCookieBasedToken` deletes the cookie
-  with default `CookieOptions`, which does not match the `Secure` + `Strict`
-  options it was created with. Some browsers do not honour the delete.
+- ~~`OwnerAuthenticationController.ExpireCookieBasedToken` cookie-delete
+  options not matching the set options.~~ Fixed alongside fix #2.
 - Login.tsx (`packages/apps/owner-app/src/templates/Login/Login.tsx:48-61`)
   auto-sets the first password to `'a'` when the master password is not set.
   This relies on a `FirstRunToken` and only succeeds in dev/preconfigured
