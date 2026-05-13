@@ -34,7 +34,7 @@ public class FrodoToSamPeerTransferTests : V2Fixture
         await frodo.Admin.CreateDrive(sharedDrive, "Frodo's shared drive");
         await sam.Admin.CreateDrive(sharedDrive, "Sam's shared drive");
 
-        await Peer.ConnectAsync(frodo, sam, sharedDrive, DrivePermission.Write);
+        await PeerFlow.ConnectAsync(frodo, sam, sharedDrive, DrivePermission.Write);
 
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
         metadata.AllowDistribution = true;

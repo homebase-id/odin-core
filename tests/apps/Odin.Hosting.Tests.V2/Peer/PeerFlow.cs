@@ -12,12 +12,6 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests.V2.Peer;
 
-// NOTE: the class is named "Peer" inside the namespace "…V2.Peer". C# handles this — within the
-// namespace you write `Peer.ConnectAsync(...)` and the compiler resolves to the class, not the
-// namespace. From outside, `using Odin.Hosting.Tests.V2.Peer;` brings the namespace in scope and
-// `Peer.ConnectAsync` still resolves correctly. If the collision ever does cause friction,
-// rename this class to `PeerFlow` — it's a one-shot find-replace.
-
 /// <summary>
 /// Connect two V2 in-process identities for peer flows. The recipient creates a circle granting
 /// the named drive permission, the sender requests connection, the recipient accepts into the
@@ -31,7 +25,7 @@ namespace Odin.Hosting.Tests.V2.Peer;
 /// transit subsystem builds it from the upload metadata). All HTTP between sender and recipient
 /// flows through the in-process <see cref="TestPeerHttpClientFactory"/>.
 /// </remarks>
-public static class Peer
+public static class PeerFlow
 {
     public static async Task<Guid> ConnectAsync(
         OwnerSession sender,

@@ -96,7 +96,7 @@ public class FrodoToSamTransfer : V2Fixture
         var drive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(drive, "frodo's");
         await sam.Admin.CreateDrive(drive,   "sam's");
-        await Peer.ConnectAsync(frodo, sam, drive, DrivePermission.Write);
+        await PeerFlow.ConnectAsync(frodo, sam, drive, DrivePermission.Write);
 
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
         metadata.AllowDistribution = true;
@@ -141,7 +141,7 @@ Api/        V2Fixture          ← (in parent dir) the base class
             DriveHandles       ← reader + writer + reactions, bundled per caller
             Identities         ← Frodo/Sam/… constants (derived from TestIdentities)
 Auth/       OwnerLogin         ← ECC + AES-CBC password-set + authenticate dance
-Peer/       Peer.ConnectAsync  ← circle + connection request/accept helper
+Peer/       PeerFlow.ConnectAsync  ← circle + connection request/accept helper
             TestPeerHttpClientFactory  ← server-to-server in-process routing
 Isolation/  PerTestResetTests  ← proves per-test reset isolates state
             SyncHooksTests     ← proves drain hooks resolve
