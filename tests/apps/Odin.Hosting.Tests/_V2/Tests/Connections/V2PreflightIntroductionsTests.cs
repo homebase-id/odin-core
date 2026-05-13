@@ -26,6 +26,14 @@ using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests._V2.Tests.Connections;
 
+/// <summary>
+/// SUPERSEDED — ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Connections/PreflightIntroductionsTests.cs</c> on
+/// 2026-05-13. All 6 cases are ported. The FirstRunInfo-clear case in the new port resolves the
+/// tenant <c>IdentityDatabase</c> via <see cref="Hosting.OdinHost.GetTenantScope"/> instead of
+/// reaching through <c>WebScaffold.Services</c>; the storage-context Guid + handle are reused
+/// unchanged.
+/// </summary>
 public class V2PreflightIntroductionsTests
 {
     private WebScaffold _scaffold;

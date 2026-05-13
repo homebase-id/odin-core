@@ -88,6 +88,30 @@ public sealed partial class OwnerAdmin
     }
 
     // -----------------------------------------------------------------------------------------
+    // Tenant configuration flags
+    // -----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Toggles a tenant-scoped config flag (e.g. <c>DisableAutoAcceptConnectionRequests</c>).
+    /// Tests flip these to put the recipient in a non-default acceptance mode and restore them
+    /// in a <c>finally</c>.
+    /// </summary>
+    public async Task<ApiResponse<bool>> UpdateTenantSettingsFlag(
+        Odin.Services.Configuration.TenantConfigFlagNames flag, string value)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration.IRefitOwnerConfiguration>(client, ss);
+        var response = await svc.UpdateSystemConfigFlag(
+            new Odin.Services.Configuration.UpdateFlagRequest
+            {
+                FlagName = System.Enum.GetName(flag),
+                Value = value
+            });
+        EnsureSuccess(response, nameof(UpdateTenantSettingsFlag));
+        return response;
+    }
+
+    // -----------------------------------------------------------------------------------------
     // Circles (delegated to the existing new-style client; works with our factory unchanged)
     // -----------------------------------------------------------------------------------------
 

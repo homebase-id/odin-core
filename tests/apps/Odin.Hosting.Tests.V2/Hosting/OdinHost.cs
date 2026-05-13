@@ -147,6 +147,19 @@ public sealed partial class OdinHost : IAsyncDisposable
     /// </summary>
     public HttpClient CreateClient() => Server.CreateClient();
 
+    /// <summary>
+    /// Resolves the Autofac tenant scope for the given identity. Lets tests poke tenant-scoped
+    /// services directly (e.g. read/clear <c>FirstRunInfo</c> on a specific tenant's identity DB
+    /// for preflight-introduction tests). Use sparingly — most tests should go through HTTP.
+    /// </summary>
+    public ILifetimeScope GetTenantScope(string domain)
+    {
+        var multitenant = _host.Services.GetRequiredService<Odin.Services.Tenant.Container.IMultiTenantContainer>();
+        var scope = multitenant.LookupTenantScope(domain)
+            ?? throw new InvalidOperationException($"no tenant scope for {domain}; was the identity preconfigured + materialized?");
+        return scope;
+    }
+
     public async ValueTask DisposeAsync()
     {
         try
