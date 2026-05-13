@@ -13,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Odin.Hosting;
 using Autofac;
 using Odin.Core.Storage.Factory;
+using Odin.Services.Background.Testing;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
@@ -223,6 +224,20 @@ public sealed class OdinHost : IAsyncDisposable
         await pool.ClearAllAsync();
     }
 
+    /// <summary>
+    /// Resolves <see cref="ITestSync"/> from <paramref name="domain"/>'s tenant scope. Available
+    /// because <c>Testing__EnableSyncHooks</c> is set in the global env baseline above; in production
+    /// the binding doesn't exist and this would throw.
+    /// </summary>
+    public ITestSync GetTestSync(string domain)
+    {
+        var multitenant = _host.Services.GetRequiredService<IMultiTenantContainer>();
+        var scope = multitenant.LookupTenantScope(domain)
+            ?? throw new InvalidOperationException(
+                $"No tenant scope for {domain} — call EnsureTenantsMaterializedAsync first.");
+        return scope.Resolve<ITestSync>();
+    }
+
     private static void ResetDirectory(string path)
     {
         if (string.IsNullOrEmpty(path))
@@ -316,6 +331,9 @@ public sealed class OdinHost : IAsyncDisposable
         Set("BackgroundServices__EnsureCertificateProcessorIntervalSeconds", "100000");
         Set("BackgroundServices__SystemBackgroundServicesEnabled", "false");
         Set("BackgroundServices__TenantBackgroundServicesEnabled", "false");
+
+        // Test-only synchronous drain hooks — registers ITestSync in tenant DI.
+        Set("Testing__EnableSyncHooks", "true");
 
         // Cert renewal — required-by-schema; never exercised under TestServer
         Set("CertificateRenewal__NumberOfCertificateValidationTries", "3");

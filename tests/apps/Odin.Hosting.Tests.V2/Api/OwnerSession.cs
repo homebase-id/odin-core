@@ -8,6 +8,7 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Background.Testing;
 
 namespace Odin.Hosting.Tests.V2.Api;
 
@@ -34,6 +35,12 @@ public sealed class OwnerSession : IV2Caller
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
     public OwnerAdmin Admin { get; }
+
+    /// <summary>
+    /// Test-only synchronous drain hooks for this tenant's peer outbox / inbox. Resolved lazily on
+    /// first access from the tenant scope — see <see cref="OdinHost.GetTestSync"/>.
+    /// </summary>
+    public ITestSync Sync => Host.GetTestSync(Identity);
 
     private OwnerSession(OdinHost host, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
     {

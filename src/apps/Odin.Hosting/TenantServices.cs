@@ -9,6 +9,7 @@ using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Background.Testing;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authentication.YouAuth;
@@ -363,6 +364,12 @@ public static class TenantServices
         else
         {
             cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
+        }
+
+        // Test-only synchronous drain hooks. Production never enables this flag.
+        if (odinConfig.Testing.EnableSyncHooks)
+        {
+            cb.RegisterType<TestSync>().As<ITestSync>().InstancePerLifetimeScope();
         }
 
         return cb;

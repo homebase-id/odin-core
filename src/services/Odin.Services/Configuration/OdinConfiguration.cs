@@ -45,6 +45,8 @@ public class OdinConfiguration
     public S3PayloadStorageSection S3PayloadStorage { get; init; } = new();
     public CdnSection Cdn { get; init; } = new();
 
+    public TestingSection Testing { get; init; } = new();
+
     public OdinConfiguration()
     {
         // Mockable support
@@ -54,6 +56,7 @@ public class OdinConfiguration
 
     public OdinConfiguration(IConfiguration config)
     {
+        Testing = new TestingSection(config);
         Host = new HostSection(config);
         Logging = new LoggingSection(config);
         BackgroundServices = new BackgroundServicesSection(config);
@@ -598,6 +601,26 @@ public class OdinConfiguration
 
                 ExpectedAuthToken = requiredAuthToken;
             }
+        }
+    }
+
+    /// <summary>
+    /// Production-disabled surface used by the V2 in-process test framework to expose synchronous
+    /// drain hooks for the peer outbox / inbox. Production never sets <see cref="EnableSyncHooks"/>
+    /// to <c>true</c>; when it's false, <c>ITestSync</c> is not registered in DI.
+    /// </summary>
+    public class TestingSection
+    {
+        public bool EnableSyncHooks { get; init; }
+
+        public TestingSection()
+        {
+            // Mockable support
+        }
+
+        public TestingSection(IConfiguration config)
+        {
+            EnableSyncHooks = config.GetOrDefault("Testing:EnableSyncHooks", false);
         }
     }
 }
