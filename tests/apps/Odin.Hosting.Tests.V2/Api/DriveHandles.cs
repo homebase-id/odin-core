@@ -13,10 +13,12 @@ public sealed class DriveHandles
 {
     public DriveReaderV2Client Reader { get; }
     public DriveWriterV2Client Writer { get; }
+    public DriveGroupReactionV2Client Reactions { get; }
 
     public DriveHandles(OdinId identity, IApiClientFactory factory, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         Reader = new DriveReaderV2Client(identity, factory);
         Writer = new DriveWriterV2Client(identity, factory, fileSystemType);
+        Reactions = new DriveGroupReactionV2Client(identity, factory);
     }
 }
