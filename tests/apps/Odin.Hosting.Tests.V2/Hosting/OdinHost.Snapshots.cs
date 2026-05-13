@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
 using Odin.Core.Storage.Factory;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
@@ -83,7 +84,9 @@ public sealed partial class OdinHost
     /// </summary>
     /// <remarks>
     /// <para><b>What this DOES reset:</b> identity DB, payload tree, upload tree, inbox dir,
-    /// <see cref="PeerInboxDriveQueue"/> channel, the entire FusionCache for this host.</para>
+    /// <see cref="PeerInboxDriveQueue"/> channel, the entire FusionCache for this host,
+    /// <see cref="TenantContext"/>'s cached <see cref="TenantSettings"/> (re-read from disk after
+    /// the DB restore so settings flipped by a previous test don't leak across).</para>
     /// <para><b>What this does NOT reset</b> (and that you'd need to handle if a future test
     /// depends on it): any other <c>SingleInstance</c> tenant service in
     /// <c>TenantServices.ConfigureTenantServices</c> that buffers mutable state outside DB / cache —
@@ -109,6 +112,15 @@ public sealed partial class OdinHost
         var registry = _host.Services.GetRequiredService<IIdentityRegistry>();
         var multitenant = _host.Services.GetRequiredService<IMultiTenantContainer>();
 
+        // Clear the process-wide FusionCache BEFORE re-reading tenant settings: the settings reload
+        // below routes through TenantConfigService -> KeyValueCached -> FusionCache, and we want
+        // the read to hit the restored on-disk state, not whatever the previous test left in cache.
+        var fusionCache = _host.Services.GetService<IFusionCache>();
+        if (fusionCache != null)
+        {
+            await fusionCache.ClearAsync();
+        }
+
         foreach (var snapshot in _snapshots)
         {
             await ClearTenantConnectionPoolAsync(multitenant, snapshot.Domain);
@@ -121,13 +133,28 @@ public sealed partial class OdinHost
             ResetDirectory(paths.InboxPath);
 
             DrainPeerInboxDriveQueue(multitenant, snapshot.Domain);
+            await RefreshTenantSettingsAsync(multitenant, snapshot.Domain);
         }
+    }
 
-        var fusionCache = _host.Services.GetService<IFusionCache>();
-        if (fusionCache != null)
-        {
-            await fusionCache.ClearAsync();
-        }
+    /// <summary>
+    /// Re-read <see cref="TenantSettings"/> from the restored identity DB and push them into the
+    /// tenant-scoped singleton <see cref="TenantContext"/>. <c>TenantContext._tenantSettings</c> is
+    /// loaded once at tenant init and only mutated via in-process <c>UpdateSystemConfig</c> calls
+    /// from <c>TenantConfigService</c>; nothing reads it back from disk after that. Without this
+    /// reload, a test that flips <c>DisableAutoAcceptConnectionRequests</c> (or any other tenant
+    /// setting) leaks the mutated value into the next test even though the DB restore wiped the
+    /// on-disk row.
+    /// </summary>
+    private static async Task RefreshTenantSettingsAsync(IMultiTenantContainer multitenant, string domain)
+    {
+        var scope = multitenant.LookupTenantScope(domain);
+        if (scope == null) return;
+        if (!scope.TryResolve<TenantConfigService>(out var configService)) return;
+        if (!scope.TryResolve<TenantContext>(out var tenantContext)) return;
+
+        var settings = await configService.GetTenantSettingsAsync();
+        tenantContext.UpdateSystemConfig(settings);
     }
 
     private static void DrainPeerInboxDriveQueue(IMultiTenantContainer multitenant, string domain)

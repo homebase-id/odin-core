@@ -36,20 +36,6 @@ public class PreflightIntroductionsTests : V2Fixture
     private static readonly SingleKeyValueStorage TestConfigStorage =
         TenantSystemStorage.CreateSingleKeyValueStorage(Guid.Parse("b9e1c2a3-e0e0-480e-a696-ce602b052d07"));
 
-    [SetUp]
-    public async Task ResetAutoAcceptFlags()
-    {
-        // Same hygiene as AutoConnectTests: ResetAsync restores the DB but not the in-memory
-        // TenantContext.Settings, and tests in this fixture flip the flag.
-        if (Host == null) return;
-        foreach (var domain in Host.Identities)
-        {
-            var owner = await LoginAsOwner(domain);
-            await owner.Admin.UpdateTenantSettingsFlag(
-                TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "false");
-        }
-    }
-
     [Test]
     public async Task Preflight_WhenAllRecipientsConnected_ReturnsReady()
     {

@@ -37,24 +37,6 @@ public class AutoConnectTests : V2Fixture
         App
     }
 
-    /// <summary>
-    /// After the per-test DB restore, the in-memory <c>TenantContext.Settings</c> on each tenant
-    /// is NOT re-read from disk — tests that set <c>DisableAutoAcceptConnectionRequests=true</c>
-    /// leak that setting to the next test. Force it back to "false" on every identity at the start
-    /// of each test so the default state is consistent regardless of test order.
-    /// </summary>
-    [SetUp]
-    public async Task ResetAutoAcceptFlags()
-    {
-        if (Host == null) return;
-        foreach (var domain in Host.Identities)
-        {
-            var owner = await LoginAsOwner(domain);
-            await owner.Admin.UpdateTenantSettingsFlag(
-                TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "false");
-        }
-    }
-
     public static IEnumerable<object[]> AllowedCallers()
     {
         yield return [CallerKind.Owner];
