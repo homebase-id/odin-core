@@ -179,38 +179,23 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
         }
 
-        // This fixes a race condition during startup where one background service can notify
-        // another background service that hasn't started yet.
-        // It has to be async, or we risk serializing the startup of all background services.
         if (backgroundService == null)
         {
-            try
-            {
-                await TryRetry.Create()
-                    .WithAttempts(30)
-                    .WithDelay(TimeSpan.FromSeconds(1))
-                    .WithCancellation(_stoppingCts.Token)
-                    .ExecuteAsync(async () =>
-                    {
-                        using (await _lock.ReaderLockAsync())
-                        {
-                            if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
-                            {
-                                throw new InvalidOperationException(
-                                    $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
-                            }
-                        }
-                    });
-            }
-            catch (OperationCanceledException e) when (e.CancellationToken == _stoppingCts.Token)
-            {
-                // ignore
-            }
+            // Service isn't registered yet (startup race) or genuinely not running (test / dev
+            // mode). Either way: don't block. If the service starts later its own timer loop
+            // will pick up the queued work on the next tick; if it never starts, no notification
+            // we could deliver would have mattered. Previously this retried for 30s — too long
+            // for a startup race that resolves in ms, and a hang in any context that runs without
+            // background services.
+            _logger.LogDebug(
+                "NotifyWorkAvailableAsync: background service '{serviceIdentifier}' not registered; skipping wake-up.",
+                serviceIdentifier);
+            return;
         }
 
         if (!_stoppingCts.IsCancellationRequested)
         {
-            backgroundService?.BackgroundService.InternalNotifyWorkAvailable();
+            backgroundService.BackgroundService.InternalNotifyWorkAvailable();
         }
     }
 

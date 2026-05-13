@@ -127,13 +127,6 @@ public class OdinConfiguration
         public string SslSourcePath { get; init; } = "";
         public bool VersionUpgradeTestModeEnabled { get; init; }
 
-        /// <summary>
-        /// When true the host is running in-process under the V2 test framework. Production
-        /// services that need to skip their tenant-scope registration so a test-only root-level
-        /// override can win consult this. Defaults false. Never set in production config.
-        /// </summary>
-        public bool IsInProcessTestMode { get; init; }
-
         public DevelopmentSection()
         {
             // Mockable support
@@ -147,7 +140,6 @@ public class OdinConfiguration
                 PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
-                IsInProcessTestMode = config.GetOrDefault("Development:IsInProcessTestMode", false);
             }
         }
     }

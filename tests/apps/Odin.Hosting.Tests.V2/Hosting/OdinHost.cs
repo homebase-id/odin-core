@@ -221,7 +221,6 @@ public sealed partial class OdinHost : IAsyncDisposable
         SetHostPathsBaseline(scratch);
         SetLoggingBaseline(scratch);
         SetBackgroundServicesBaseline();
-        SetTestingBaseline();
         SetCertRenewalBaseline();
         SetMailBaseline();
         SetAdminBaseline();
@@ -291,17 +290,6 @@ public sealed partial class OdinHost : IAsyncDisposable
         Set("BackgroundServices__EnsureCertificateProcessorIntervalSeconds", "100000");
         Set("BackgroundServices__SystemBackgroundServicesEnabled", "false");
         Set("BackgroundServices__TenantBackgroundServicesEnabled", "false");
-    }
-
-    /// <summary>
-    /// Marks the host as running under the V2 in-process test framework. The single production
-    /// branch keyed on this (in <c>TenantServices</c>) skips the production <c>IOdinHttpClientFactory</c>
-    /// and swaps the peer outbox/inbox notifiers for no-ops. Everything else test-only is
-    /// registered at root container level in <see cref="StartAsync"/>.
-    /// </summary>
-    private static void SetTestingBaseline()
-    {
-        Set("Development__IsInProcessTestMode", "true");
     }
 
     /// <summary>Required-by-schema; never exercised under TestServer.</summary>

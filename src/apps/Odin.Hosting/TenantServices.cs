@@ -9,7 +9,6 @@ using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.AppNotifications.WebSocket;
-using Odin.Services.Background.Testing;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authentication.Transit;
 using Odin.Services.Authentication.YouAuth;
@@ -168,13 +167,14 @@ public static class TenantServices
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
-        // When Development:IsInProcessTestMode is set the V2 test framework provides its own
-        // IOdinHttpClientFactory at the root container level (routes peer calls back to TestServer).
-        // Skip the production registration so the test impl resolves via parent-scope fallback.
-        if (!odinConfig.Development.IsInProcessTestMode)
-        {
-            cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
-        }
+        // PreserveExistingDefaults lets the V2 in-process test framework register its own
+        // IOdinHttpClientFactory at root scope (routes peer calls back to TestServer) without
+        // being shadowed by this tenant-scope registration. Production has no root registration,
+        // so this becomes the default as usual.
+        cb.RegisterType<OdinHttpClientFactory>()
+            .As<IOdinHttpClientFactory>()
+            .SingleInstance()
+            .PreserveExistingDefaults();
         cb.RegisterType<CapiCallbackSession>().As<ICapiCallbackSession>().SingleInstance();
 
         cb.RegisterType<HomeCachingService>()
@@ -370,21 +370,6 @@ public static class TenantServices
         else
         {
             cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
-        }
-
-        // In-process test mode: tests don't StartAsync the background services, so the production
-        // notifier would wait up to 30s for the service to register and hang every code path that
-        // enqueues outbox/inbox work. Swap to no-ops; drain is driven explicitly via ITestSync
-        // (registered at root by the test framework). ITestSync itself isn't registered here —
-        // it's a test-project type resolved via parent-scope fallback.
-        if (odinConfig.Development.IsInProcessTestMode)
-        {
-            cb.RegisterType<NoopBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService>>()
-                .As<IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService>>()
-                .SingleInstance();
-            cb.RegisterType<NoopBackgroundServiceNotifier<PeerInboxProcessorBackgroundService>>()
-                .As<IBackgroundServiceNotifier<PeerInboxProcessorBackgroundService>>()
-                .SingleInstance();
         }
 
         return cb;
