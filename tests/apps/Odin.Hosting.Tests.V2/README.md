@@ -122,30 +122,41 @@ Three test-only seams make this work:
 
 ## Non-goals
 
-- **V1 controller tests** (`/api/owner/v1/...` as the system under test) — stay on `WebScaffold`. V1 admin endpoints are reused here only for fixture seeding (drives, apps, circles, YouAuth domains).
+- **V1 controller tests** (`/api/owner/v1/...` as the system under test) — stay on `WebScaffold`. V1 admin endpoints are reused here only for fixture seeding (drives, apps, circles, YouAuth domains) and to back caller-scoped inbox processing (`OwnerSync` / `AppSync` POST to the V1 inbox endpoint so the request runs under real owner / app permissions).
 - **mTLS-bound paths** — V2 tests run TLS-less; anything that genuinely requires client cert auth has to stay on real Kestrel.
-- **Background-service timer behavior** — services are registered but never started. Anything time-driven (cert renewal, orphan scan, scheduled jobs) needs the V1 framework.
+- **Background-service timer behavior** — services are registered but never started. Anything time-driven (cert renewal, orphan scan, scheduled jobs) needs the V1 framework. Tests drain the peer outbox explicitly via `Sync.DrainOutboxAsync` and process the inbox via `Sync.ProcessInboxAsync`.
+- **WebSocket-driven flows** — the host registers `SharedDeviceSocketCollection` but no V2 test currently opens a socket. The reset path clears both registries between tests, so adding one shouldn't surprise the next test.
 
 ---
 
 ## Where things live
 
 ```
-Hosting/    OdinHost           ← TestServer + tenant container + snapshot/reset/test-sync
+Hosting/    OdinHost           ← TestServer + tenant container + snapshot/reset
+            OdinHost.Snapshots ← DB / payload / queue / cache reset
+            OdinHost.TestSync  ← ITestSync resolver (outbox drain)
             InProcessApiClientFactory ← Owner/App/Guest client → server
             DbSnapshot         ← per-tenant identity.db backup/restore
+            TestServerHolder   ← bootstrap-time TestServer indirection
+            TestSync           ← outbox drain (direct service calls)
+            HttpInboxSync<T>   ← caller-scoped inbox processing via HTTP
+            OwnerSync, AppSync ← owner / app inbox endpoints
 Api/        V2Fixture          ← (in parent dir) the base class
             OwnerSession, AppSession, GuestSession, IV2Caller
             CallerSpec, DriveSpec
-            OwnerAdmin         ← V1 admin endpoints (CreateDrive, RegisterApp, …)
+            OwnerAdmin (+ .Apps / .YouAuth partials) ← V1 admin endpoints
             DriveHandles       ← reader + writer + reactions, bundled per caller
             Identities         ← Frodo/Sam/… constants (derived from TestIdentities)
 Auth/       OwnerLogin         ← ECC + AES-CBC password-set + authenticate dance
-Peer/       PeerFlow.ConnectAsync  ← circle + connection request/accept helper
+Peer/       PeerFlow           ← drive-create + circle + connect helper (+ bidirectional)
             TestPeerHttpClientFactory  ← server-to-server in-process routing
+            TestPeerCapiAuthenticationHandler ← test-side peer auth (X-Test-Peer-Identity)
+            FrodoToSamPeerTransferTests, PeerScenarioTests
 Isolation/  PerTestResetTests  ← proves per-test reset isolates state
-            SyncHooksTests     ← proves drain hooks resolve
-Ported/     Tests ported from _V2/Tests/ (will move to topical folders later)
+            SyncHooksTests     ← proves drain hooks + AppSync resolve
+Ported/     Tests ported from _V2/Tests/ — read-only / drive write+read + reactions.
+            Will move to topical folders once enough peer + caller-type coverage
+            lands that "ported" stops being a useful distinction.
 Smoke/      Ping + multi-tenant routing smokes (ResetBetweenTests = false)
 ```
 
