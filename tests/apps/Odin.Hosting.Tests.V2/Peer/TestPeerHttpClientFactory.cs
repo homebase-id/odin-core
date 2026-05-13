@@ -35,10 +35,36 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
     private readonly TestServerHolder _serverHolder;
     private readonly OdinIdentity _localIdentity;
 
+    // Cached handler so we don't orphan one per peer call. server.CreateHandler() returns a fresh
+    // instance each call; the handler just routes anything fed to it back into the TestServer, so
+    // sharing one across all clients (and disposeHandler: false on each HttpClient) is correct.
+    // Keyed by TestServer reference for the (unlikely) case of the holder swapping between tests.
+    private readonly object _handlerLock = new();
+    private TestServer? _cachedHandlerServer;
+    private HttpMessageHandler? _cachedHandler;
+
     public TestPeerHttpClientFactory(TestServerHolder serverHolder, OdinIdentity localIdentity)
     {
         _serverHolder = serverHolder;
         _localIdentity = localIdentity;
+    }
+
+    private HttpMessageHandler GetHandler(TestServer server)
+    {
+        if (ReferenceEquals(_cachedHandlerServer, server) && _cachedHandler != null)
+        {
+            return _cachedHandler;
+        }
+        lock (_handlerLock)
+        {
+            if (ReferenceEquals(_cachedHandlerServer, server) && _cachedHandler != null)
+            {
+                return _cachedHandler;
+            }
+            _cachedHandler = server.CreateHandler();
+            _cachedHandlerServer = server;
+            return _cachedHandler;
+        }
     }
 
     public Task<T> CreateClientUsingAccessTokenAsync<T>(
@@ -64,8 +90,9 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
                 "TestServer has not been wired into TestServerHolder yet — OdinHost must populate it after host.StartAsync.");
 
         // Mirror the production factory's BaseAddress (capi.{remote}) so the multi-tenant middleware
-        // resolves the recipient tenant via the well-known "capi" prefix.
-        var client = new HttpClient(server.CreateHandler())
+        // resolves the recipient tenant via the well-known "capi" prefix. disposeHandler: false —
+        // the handler is shared (see GetHandler) so HttpClient must not own it.
+        var client = new HttpClient(GetHandler(server), disposeHandler: false)
         {
             BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixCertApi}.{remoteOdinId}/"),
         };
