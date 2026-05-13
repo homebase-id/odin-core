@@ -19,15 +19,15 @@ namespace Odin.Hosting.Tests.V2.Peer;
 /// Test replacement for the production <see cref="OdinHttpClientFactory"/>. Outbound peer requests
 /// (Frodo → Sam) are routed back to the in-process <see cref="TestServer"/> via its
 /// <see cref="TestServer.CreateHandler"/> instead of going over the wire. Authentication on the
-/// receiving side is via the <see cref="TestPeerIdentityHeader"/> bypass in
-/// <c>PeerCapiAuthenticationHandler</c>, not mTLS or the production CAPI session callback dance.
+/// receiving side is handled by <see cref="TestPeerCapiAuthenticationHandler"/>, which reads
+/// <see cref="TestPeerIdentityHeader"/> set below — no mTLS, no CAPI session callback dance.
 /// </summary>
 internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
 {
     /// <summary>
-    /// Header carrying the calling identity for the test-only peer-auth bypass. Read by the
-    /// test-project <c>TestPeerIdentityProvider</c>, which production code consults via the
-    /// optional <c>ITestPeerIdentityProvider</c> DI service in <c>PeerCapiAuthenticationHandler</c>.
+    /// Header carrying the calling identity. Set on every outbound peer request here and read
+    /// by <see cref="TestPeerCapiAuthenticationHandler"/> on the inbound side. The header name
+    /// is test-only — production code knows nothing about it.
     /// </summary>
     public const string TestPeerIdentityHeader = "X-Test-Peer-Identity";
 

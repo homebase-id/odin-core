@@ -14,9 +14,7 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Util;
-using Microsoft.Extensions.DependencyInjection;
 using Odin.Hosting.UnifiedV2;
-using Odin.Services.Authentication.Peer;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Capi;
 using Odin.Services.Base;
@@ -43,27 +41,6 @@ public class PeerCapiAuthenticationHandler(
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // Optional test bypass: if a test framework registered ITestPeerIdentityProvider, it can
-        // resolve the calling peer from the request (typically a header). Production never
-        // registers an impl, so GetService returns null and the production path runs unchanged.
-        var testIdentityProvider = Context.RequestServices.GetService<ITestPeerIdentityProvider>();
-        if (testIdentityProvider != null)
-        {
-            var testPeer = testIdentityProvider.TryReadIdentityFrom(Context.Request);
-            if (!string.IsNullOrWhiteSpace(testPeer))
-            {
-                var testClaims = new List<Claim>
-                {
-                    new(ClaimTypes.NameIdentifier, testPeer, ClaimValueTypes.String, Options.ClaimsIssuer),
-                    new(ClaimTypes.Name, testPeer, ClaimValueTypes.String, Options.ClaimsIssuer),
-                    new(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                    new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
-                };
-                var testPrincipal = new ClaimsPrincipal(new ClaimsIdentity(testClaims, Scheme.Name));
-                return AuthenticateResult.Success(new AuthenticationTicket(testPrincipal, Scheme.Name));
-            }
-        }
-
         var capiSession = Context.Request.Headers[ICapiCallbackSession.SessionHttpHeaderName].ToString();
         var capiRemoteDomainAndSessionId = capiSession.Split('~');
         if (capiRemoteDomainAndSessionId.Length != 2)

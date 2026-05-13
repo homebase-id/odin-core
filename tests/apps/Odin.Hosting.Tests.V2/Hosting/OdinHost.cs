@@ -5,15 +5,17 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Odin.Hosting;
 using Autofac;
 using Odin.Core.Identity;
+using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Authentication.Peer;
 using Odin.Services.Base;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -94,6 +96,25 @@ public sealed partial class OdinHost : IAsyncDisposable
         var builder = Program.CreateHostBuilder([])
             .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
             .ConfigureWebHost(web => web.UseTestServer(o => o.AllowSynchronousIO = true))
+            .ConfigureServices(services =>
+            {
+                // Swap the production PeerCapiAuthenticationHandler for the test-side handler on
+                // all three peer schemes. The test handler reads X-Test-Peer-Identity and skips
+                // the mTLS / session-validate-callback dance, which can't run over TestServer.
+                services.AddTransient<TestPeerCapiAuthenticationHandler>();
+                services.PostConfigure<AuthenticationOptions>(opts =>
+                {
+                    foreach (var scheme in opts.Schemes)
+                    {
+                        if (scheme.Name == PeerAuthConstants.TransitCapiAuthScheme
+                            || scheme.Name == PeerAuthConstants.PublicTransitAuthScheme
+                            || scheme.Name == PeerAuthConstants.FeedAuthScheme)
+                        {
+                            scheme.HandlerType = typeof(TestPeerCapiAuthenticationHandler);
+                        }
+                    }
+                });
+            })
             .ConfigureContainer<ContainerBuilder>(cb =>
             {
                 cb.RegisterInstance(serverHolder).SingleInstance();
@@ -102,9 +123,6 @@ public sealed partial class OdinHost : IAsyncDisposable
                     .InstancePerLifetimeScope();
 
                 // Test-only services. Registered at root; tenant scopes resolve via parent fallback.
-                cb.RegisterType<TestPeerIdentityProvider>()
-                    .As<ITestPeerIdentityProvider>()
-                    .SingleInstance();
                 cb.RegisterType<TestSync>()
                     .As<ITestSync>()
                     .InstancePerLifetimeScope();
