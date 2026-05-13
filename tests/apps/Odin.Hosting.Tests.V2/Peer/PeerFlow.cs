@@ -35,11 +35,12 @@ public static class PeerFlow
         OwnerSession recipient,
         DrivePermission senderPermissionOnRecipientDrive,
         string label = "shared",
-        bool bidirectional = false)
+        bool bidirectional = false,
+        bool allowAnonymousReads = true)
     {
         var drive = TargetDrive.NewTargetDrive();
-        await sender.Admin.CreateDrive(drive, $"{sender.Identity} {label}");
-        await recipient.Admin.CreateDrive(drive, $"{recipient.Identity} {label}");
+        await sender.Admin.CreateDrive(drive, $"{sender.Identity} {label}", allowAnonymousReads: allowAnonymousReads);
+        await recipient.Admin.CreateDrive(drive, $"{recipient.Identity} {label}", allowAnonymousReads: allowAnonymousReads);
         await ConnectAsync(sender, recipient, drive, senderPermissionOnRecipientDrive, bidirectional);
         return drive;
     }

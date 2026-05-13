@@ -89,10 +89,6 @@ public class FileExistsTests : V2Fixture
     }
 
     [Test]
-    [Ignore("Behavioural divergence vs. _V2: under the in-process pipeline the response includes " +
-            "the recipient's VersionTag even though caller is Write-only and not the OriginalAuthor. " +
-            "Original test asserted null. Parked until we reconcile the OriginalAuthor population " +
-            "rule between V1 (over-the-wire) and the in-process auth seam.")]
     public async Task ByUid_WriteOnlyCaller_NotAuthor_ReturnsExistsTrueButNullVersionTag()
     {
         // Recipient (Sam) uploads the file LOCALLY → Sam is OriginalAuthor.
@@ -113,9 +109,6 @@ public class FileExistsTests : V2Fixture
     }
 
     [Test]
-    [Ignore("Behavioural divergence vs. _V2: under the in-process pipeline the peer file-exists " +
-            "endpoint returns 200 with Exists=false rather than a non-success status when the " +
-            "caller lacks drive permission. Original test expected the 4xx. Parked.")]
     public async Task ByUid_CallerWithNoDrivePermission_ReturnsNonSuccess()
     {
         // Connect sender and recipient, but the circle grants no permission on the queried drive.
@@ -125,9 +118,12 @@ public class FileExistsTests : V2Fixture
         var grantedDrive = TargetDrive.NewTargetDrive();
         var queriedDrive = TargetDrive.NewTargetDrive();
 
-        await sender.Admin.CreateDrive(grantedDrive, "granted");
-        await recipient.Admin.CreateDrive(grantedDrive, "granted");
-        await recipient.Admin.CreateDrive(queriedDrive, "queried");
+        // allowAnonymousReads=false on the queried drive: otherwise every connected peer
+        // gets implicit Read via the anonymous tier, which is the exact case this test
+        // is trying to prove is rejected.
+        await sender.Admin.CreateDrive(grantedDrive, "granted", allowAnonymousReads: false);
+        await recipient.Admin.CreateDrive(grantedDrive, "granted", allowAnonymousReads: false);
+        await recipient.Admin.CreateDrive(queriedDrive, "queried", allowAnonymousReads: false);
 
         await PeerFlow.ConnectAsync(sender, recipient, grantedDrive, DrivePermission.Write);
 
@@ -144,7 +140,12 @@ public class FileExistsTests : V2Fixture
     {
         var sender = await LoginAsOwner(Identities.Frodo);
         var recipient = await LoginAsOwner(Identities.Sam);
-        var drive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, granted, "file-exists test");
+        // allowAnonymousReads=false: this fixture exercises the file-exists *tier* rules
+        // (Read vs. Write-only-but-author vs. Write-only-not-author). An anonymous-read drive
+        // grants every connected caller an implicit Read, which short-circuits the tier and
+        // surfaces VersionTag to callers who shouldn't see it.
+        var drive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, granted, "file-exists test",
+            allowAnonymousReads: false);
         return (sender, recipient, drive);
     }
 

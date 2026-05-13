@@ -18,11 +18,7 @@ namespace Odin.Hosting.Tests._V2.Tests.Drive.PeerQueryTests;
 
 /// <summary>
 /// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/FileExistsTests.cs</c>
-/// on 2026-05-13. Two of the six cases (NoDrivePermission and WriteOnlyCaller_NotAuthor) are
-/// <c>[Ignore]</c>d in the new port — they observe a behavioural divergence between the
-/// in-process auth pipeline and the V1 over-the-wire path (peer file-exists returns 200/null
-/// instead of the V1 4xx for missing permissions, and the OriginalAuthor rule applies differently
-/// for locally-uploaded files when queried via in-process peer transit). Parked for follow-up.
+/// on 2026-05-13.
 /// </summary>
 // Exercises the V2 peer "file-exists" endpoints:
 //   GET /api/v2/peer/{odinId}/drives/{driveId}/files/by-uid/{uid}/exists
