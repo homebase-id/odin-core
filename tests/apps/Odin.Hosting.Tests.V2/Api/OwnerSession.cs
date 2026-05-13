@@ -36,10 +36,12 @@ public sealed class OwnerSession : IV2Caller
     public OwnerAdmin Admin { get; }
 
     /// <summary>
-    /// Test-only synchronous drain hooks for this tenant's peer outbox / inbox. Resolved lazily on
-    /// first access from the tenant scope — see <see cref="OdinHost.GetTestSync"/>.
+    /// Test-only drain hooks scoped to this owner. Outbox drain / status reads delegate to the
+    /// tenant's <see cref="ITestSync"/>; <see cref="ITestSync.ProcessInboxAsync"/> goes through the
+    /// owner's HTTP endpoint so inbox processing runs under the owner's permissions context (see
+    /// <see cref="OwnerSync"/> for why that matters).
     /// </summary>
-    public ITestSync Sync => Host.GetTestSync(Identity);
+    public ITestSync Sync => new OwnerSync(Host.GetTestSync(Identity), this);
 
     private OwnerSession(OdinHost host, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
     {

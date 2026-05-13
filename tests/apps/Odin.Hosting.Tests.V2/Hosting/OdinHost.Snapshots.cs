@@ -9,6 +9,7 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
@@ -72,10 +73,18 @@ public sealed partial class OdinHost
 
     /// <summary>
     /// Reset every snapshotted tenant to its baseline: drain the tenant's connection pool (so the
-    /// DB file is no longer held open), copy the snapshot back over the live identity DB, and wipe
-    /// the non-DB tenant directories (payloads / temp / inbox). The tenant scope stays alive — the
-    /// next request resolves a fresh connection from the now-empty pool against the restored file.
+    /// DB file is no longer held open), copy the snapshot back over the live identity DB, wipe the
+    /// non-DB tenant directories (payloads / temp / inbox), and clear the shared FusionCache so
+    /// the table-cache layer (e.g. <c>TableConnectionsCached</c>) doesn't serve a pre-restore view
+    /// of a row that no longer exists on disk. The tenant scope stays alive — the next request
+    /// resolves a fresh connection from the now-empty pool against the restored file.
     /// </summary>
+    /// <remarks>
+    /// What still leaks across tests (and would need explicit handling if a future test depends
+    /// on it): tenant-singleton in-process state outside the cache and DB —
+    /// <c>PeerInboxDriveQueue</c>'s channel, <c>SharedDeviceSocketCollection</c>, and any other
+    /// singletons that buffer mutable state. The current 44-test suite doesn't exercise those.
+    /// </remarks>
     public async Task ResetAsync()
     {
         if (_snapshots.Count == 0)
@@ -97,6 +106,16 @@ public sealed partial class OdinHost
             ResetDirectory(paths.PayloadsPath);
             ResetDirectory(paths.UploadPath);
             ResetDirectory(paths.InboxPath);
+        }
+
+        // IFusionCache is a singleton across tenants on this host. Tenant-keyed cache prefixes
+        // mean different tenants don't read each other's entries, but they all share the same
+        // underlying store — and every fixture has its own host, so clearing everything here is
+        // both correct (covers all snapshotted tenants) and confined to this fixture's process.
+        var fusionCache = _host.Services.GetService<IFusionCache>();
+        if (fusionCache != null)
+        {
+            await fusionCache.ClearAsync();
         }
     }
 
