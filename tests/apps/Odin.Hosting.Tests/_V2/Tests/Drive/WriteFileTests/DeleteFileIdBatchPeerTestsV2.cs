@@ -26,6 +26,16 @@ using Odin.Services.Peer.Outgoing.Drive.Transfer;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests;
 
+/// <summary>
+/// SUPERSEDED — partially ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/DeleteBatchTests.cs</c> on 2026-05-13. The five
+/// core distribution-then-delete cases were ported (single recipient, multi recipient, mixed
+/// recipients, file with payloads + thumbnails, already-soft-deleted). The remaining eight cases
+/// (App / Guest callers, RecipientDisconnected, and the five background-inbox-drain scenarios)
+/// stay on the V1 framework: they depend on production behaviours the in-process framework
+/// deliberately doesn't run — background services aren't started, and the V1 Disconnect helper
+/// isn't wrapped in the fast framework.
+/// </summary>
 // Exercises the peer fan-out path of POST {drive}/files/delete-batch/by-file-id (V2).
 // The existing CanDeleteByMultipleFileIds covers only empty Recipients; these tests cover
 // the case where the caller asks the server to also notify peers to soft-delete their copy.
