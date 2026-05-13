@@ -49,8 +49,20 @@ public abstract class V2Fixture
     /// </summary>
     protected async Task<IV2Caller> SetupCaller(CallerSpec spec, string? ownerIdentity = null)
     {
+        var (caller, _) = await SetupCallerWithOwner(spec, ownerIdentity);
+        return caller;
+    }
+
+    /// <summary>
+    /// Variant of <see cref="SetupCaller"/> that also returns the owner session — useful when a test
+    /// needs to validate post-call state via the owner's reader (e.g. the App/Guest caller wrote a
+    /// file and we want to confirm it as owner).
+    /// </summary>
+    protected async Task<(IV2Caller Caller, OwnerSession Owner)> SetupCallerWithOwner(CallerSpec spec, string? ownerIdentity = null)
+    {
         var owner = await LoginAsOwner(ownerIdentity ?? Identities.Frodo);
         await owner.Admin.CreateDrive(spec.TargetDrive, "Test Drive");
-        return await spec.Build(owner);
+        var caller = await spec.Build(owner);
+        return (caller, owner);
     }
 }

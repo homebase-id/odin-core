@@ -75,7 +75,7 @@ public sealed class OdinHost : IAsyncDisposable
 
         var builder = Program.CreateHostBuilder([])
             .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
-            .ConfigureWebHost(web => web.UseTestServer());
+            .ConfigureWebHost(web => web.UseTestServer(o => o.AllowSynchronousIO = true));
 
         var host = builder.Build();
         host.BeforeApplicationStarting([]);
