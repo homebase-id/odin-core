@@ -25,9 +25,9 @@ namespace Odin.Hosting.Tests.V2.Peer;
 internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
 {
     /// <summary>
-    /// Header carrying the calling identity for the test-only peer-auth bypass. Read by
-    /// <c>PeerCapiAuthenticationHandler.HandleAuthenticateAsync</c> when
-    /// <c>OdinConfiguration.Testing.EnableSyncHooks</c> is true.
+    /// Header carrying the calling identity for the test-only peer-auth bypass. Read by the
+    /// test-project <c>TestPeerIdentityProvider</c>, which production code consults via the
+    /// optional <c>ITestPeerIdentityProvider</c> DI service in <c>PeerCapiAuthenticationHandler</c>.
     /// </summary>
     public const string TestPeerIdentityHeader = "X-Test-Peer-Identity";
 

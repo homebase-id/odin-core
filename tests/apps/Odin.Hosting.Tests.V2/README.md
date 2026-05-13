@@ -113,7 +113,7 @@ public class FrodoToSamTransfer : V2Fixture
 
 Three test-only seams make this work:
 - `TestPeerHttpClientFactory` routes outbound peer HTTP back to `TestServer.CreateHandler()`.
-- `PeerCapiAuthenticationHandler` has a conditional bypass on `X-Test-Peer-Identity` (gated on the `Testing:EnableSyncHooks` config flag, set by `OdinHost`).
+- `PeerCapiAuthenticationHandler` consults an optional `ITestPeerIdentityProvider` (production never registers an impl); the test-side impl reads `X-Test-Peer-Identity` from the request.
 - `NoopBackgroundServiceNotifier<T>` stops production code from waiting 30 s for the
   outbox processor to start (the processor is registered in DI but never `StartAsync`'d
   in tests; drain is driven via `ITestSync`).

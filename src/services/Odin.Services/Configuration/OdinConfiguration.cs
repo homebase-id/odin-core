@@ -45,8 +45,6 @@ public class OdinConfiguration
     public S3PayloadStorageSection S3PayloadStorage { get; init; } = new();
     public CdnSection Cdn { get; init; } = new();
 
-    public TestingSection Testing { get; init; } = new();
-
     public OdinConfiguration()
     {
         // Mockable support
@@ -56,7 +54,6 @@ public class OdinConfiguration
 
     public OdinConfiguration(IConfiguration config)
     {
-        Testing = new TestingSection(config);
         Host = new HostSection(config);
         Logging = new LoggingSection(config);
         BackgroundServices = new BackgroundServicesSection(config);
@@ -130,6 +127,13 @@ public class OdinConfiguration
         public string SslSourcePath { get; init; } = "";
         public bool VersionUpgradeTestModeEnabled { get; init; }
 
+        /// <summary>
+        /// When true the host is running in-process under the V2 test framework. Production
+        /// services that need to skip their tenant-scope registration so a test-only root-level
+        /// override can win consult this. Defaults false. Never set in production config.
+        /// </summary>
+        public bool IsInProcessTestMode { get; init; }
+
         public DevelopmentSection()
         {
             // Mockable support
@@ -143,6 +147,7 @@ public class OdinConfiguration
                 PreconfiguredDomains = config.GetOrDefault("Development:PreconfiguredDomains", PreconfiguredDomains).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
                 VersionUpgradeTestModeEnabled = config.GetOrDefault("Development:VersionUpgradeTestModeEnabled", false);
+                IsInProcessTestMode = config.GetOrDefault("Development:IsInProcessTestMode", false);
             }
         }
     }
@@ -604,23 +609,4 @@ public class OdinConfiguration
         }
     }
 
-    /// <summary>
-    /// Production-disabled surface used by the V2 in-process test framework to expose synchronous
-    /// drain hooks for the peer outbox / inbox. Production never sets <see cref="EnableSyncHooks"/>
-    /// to <c>true</c>; when it's false, <c>ITestSync</c> is not registered in DI.
-    /// </summary>
-    public class TestingSection
-    {
-        public bool EnableSyncHooks { get; init; }
-
-        public TestingSection()
-        {
-            // Mockable support
-        }
-
-        public TestingSection(IConfiguration config)
-        {
-            EnableSyncHooks = config.GetOrDefault("Testing:EnableSyncHooks", false);
-        }
-    }
 }

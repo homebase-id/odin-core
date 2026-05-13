@@ -13,7 +13,10 @@ using Odin.Hosting;
 using Autofac;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Services.Authentication.Peer;
 using Odin.Services.Base;
+using Odin.Services.Peer.Incoming.Drive.Transfer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
@@ -96,6 +99,14 @@ public sealed partial class OdinHost : IAsyncDisposable
                 cb.RegisterInstance(serverHolder).SingleInstance();
                 cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>()))
                     .As<IOdinHttpClientFactory>()
+                    .InstancePerLifetimeScope();
+
+                // Test-only services. Registered at root; tenant scopes resolve via parent fallback.
+                cb.RegisterType<TestPeerIdentityProvider>()
+                    .As<ITestPeerIdentityProvider>()
+                    .SingleInstance();
+                cb.RegisterType<TestSync>()
+                    .As<ITestSync>()
                     .InstancePerLifetimeScope();
             });
 
@@ -254,10 +265,15 @@ public sealed partial class OdinHost : IAsyncDisposable
         Set("BackgroundServices__TenantBackgroundServicesEnabled", "false");
     }
 
-    /// <summary>Enables the tenant-scope ITestSync registration; gates the peer-auth test bypass.</summary>
+    /// <summary>
+    /// Marks the host as running under the V2 in-process test framework. The single production
+    /// branch keyed on this (in <c>TenantServices</c>) skips the production <c>IOdinHttpClientFactory</c>
+    /// and swaps the peer outbox/inbox notifiers for no-ops. Everything else test-only is
+    /// registered at root container level in <see cref="StartAsync"/>.
+    /// </summary>
     private static void SetTestingBaseline()
     {
-        Set("Testing__EnableSyncHooks", "true");
+        Set("Development__IsInProcessTestMode", "true");
     }
 
     /// <summary>Required-by-schema; never exercised under TestServer.</summary>

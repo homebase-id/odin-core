@@ -14,7 +14,9 @@ using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Util;
+using Microsoft.Extensions.DependencyInjection;
 using Odin.Hosting.UnifiedV2;
+using Odin.Services.Authentication.Peer;
 using Odin.Services.Authorization;
 using Odin.Services.Authorization.Capi;
 using Odin.Services.Base;
@@ -41,14 +43,13 @@ public class PeerCapiAuthenticationHandler(
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // Test-only bypass: when the V2 in-process test framework is active it routes peer calls
-        // back to its own TestServer (no real network, no Let's-Encrypt-backed cert validation
-        // callback). The outbound test factory sets X-Test-Peer-Identity; we trust it here in lieu
-        // of the production session-validate-callback dance. Gated on Testing.EnableSyncHooks so
-        // this branch is unreachable in production.
-        if (config.Testing.EnableSyncHooks)
+        // Optional test bypass: if a test framework registered ITestPeerIdentityProvider, it can
+        // resolve the calling peer from the request (typically a header). Production never
+        // registers an impl, so GetService returns null and the production path runs unchanged.
+        var testIdentityProvider = Context.RequestServices.GetService<ITestPeerIdentityProvider>();
+        if (testIdentityProvider != null)
         {
-            var testPeer = Context.Request.Headers["X-Test-Peer-Identity"].ToString();
+            var testPeer = testIdentityProvider.TryReadIdentityFrom(Context.Request);
             if (!string.IsNullOrWhiteSpace(testPeer))
             {
                 var testClaims = new List<Claim>

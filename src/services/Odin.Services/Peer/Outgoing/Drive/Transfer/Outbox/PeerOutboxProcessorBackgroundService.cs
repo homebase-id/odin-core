@@ -88,10 +88,10 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// Synchronously drains every currently-pending outbox item, returning when the queue is
         /// empty. Used by the V2 test framework (<c>ITestSync</c>) to bypass the timer-driven
         /// <see cref="ExecuteAsync"/> loop — same per-item logic, no sleeps, no cert pre-check.
-        /// Safe in production but only called from test DI where <c>Testing:EnableSyncHooks</c>
-        /// is set.
+        /// <c>internal</c> + <c>InternalsVisibleTo("Odin.Hosting.Tests.V2")</c> so production
+        /// callers can't accidentally invoke it.
         /// </summary>
-        public async Task DrainAsync(CancellationToken cancellationToken = default)
+        internal async Task DrainAsync(CancellationToken cancellationToken = default)
         {
             var peerOutbox = lifetimeScope.Resolve<PeerOutbox>();
             var tasks = new List<Task>();

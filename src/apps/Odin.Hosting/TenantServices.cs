@@ -168,10 +168,10 @@ public static class TenantServices
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
-        // When Testing:EnableSyncHooks is set the V2 test framework provides its own
+        // When Development:IsInProcessTestMode is set the V2 test framework provides its own
         // IOdinHttpClientFactory at the root container level (routes peer calls back to TestServer).
         // Skip the production registration so the test impl resolves via parent-scope fallback.
-        if (!odinConfig.Testing.EnableSyncHooks)
+        if (!odinConfig.Development.IsInProcessTestMode)
         {
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
         }
@@ -372,14 +372,13 @@ public static class TenantServices
             cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
         }
 
-        // Test-only synchronous drain hooks. Production never enables this flag.
-        if (odinConfig.Testing.EnableSyncHooks)
+        // In-process test mode: tests don't StartAsync the background services, so the production
+        // notifier would wait up to 30s for the service to register and hang every code path that
+        // enqueues outbox/inbox work. Swap to no-ops; drain is driven explicitly via ITestSync
+        // (registered at root by the test framework). ITestSync itself isn't registered here —
+        // it's a test-project type resolved via parent-scope fallback.
+        if (odinConfig.Development.IsInProcessTestMode)
         {
-            cb.RegisterType<TestSync>().As<ITestSync>().InstancePerLifetimeScope();
-
-            // Tests don't StartAsync the background services. The production notifier waits up to
-            // 30s for the service to register, hanging every code path that enqueues outbox/inbox
-            // work. Swap in no-ops; drain is driven explicitly via ITestSync.
             cb.RegisterType<NoopBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService>>()
                 .As<IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService>>()
                 .SingleInstance();

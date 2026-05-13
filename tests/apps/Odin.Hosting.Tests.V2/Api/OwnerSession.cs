@@ -8,7 +8,6 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
-using Odin.Services.Background.Testing;
 
 namespace Odin.Hosting.Tests.V2.Api;
 

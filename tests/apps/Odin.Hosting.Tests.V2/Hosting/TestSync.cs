@@ -9,12 +9,13 @@ using Odin.Services.Drives;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 
-namespace Odin.Services.Background.Testing;
+namespace Odin.Hosting.Tests.V2.Hosting;
 
 /// <summary>
 /// Thin facade over <see cref="PeerOutboxProcessorBackgroundService"/>, <see cref="PeerInboxProcessor"/>,
-/// and <see cref="PeerOutbox"/>. Resolved from the tenant scope; constructs a system caller context
-/// internally so tests don't have to plumb an <c>IOdinContext</c> through.
+/// and <see cref="PeerOutbox"/>. Registered at root container level by <see cref="OdinHost"/>;
+/// tenant scopes resolve via parent-scope fallback. Constructs a system caller context internally
+/// so tests don't have to plumb an <c>IOdinContext</c> through.
 /// </summary>
 internal sealed class TestSync(
     PeerOutboxProcessorBackgroundService outboxProcessor,

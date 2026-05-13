@@ -2,7 +2,6 @@
 using System;
 using Autofac;
 using Microsoft.Extensions.DependencyInjection;
-using Odin.Services.Background.Testing;
 using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
@@ -10,9 +9,9 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 public sealed partial class OdinHost
 {
     /// <summary>
-    /// Resolves <see cref="ITestSync"/> from <paramref name="domain"/>'s tenant scope. Available
-    /// because <c>Testing__EnableSyncHooks</c> is set in the global env baseline; in production
-    /// the binding doesn't exist and this would throw.
+    /// Resolves <see cref="ITestSync"/> from <paramref name="domain"/>'s tenant scope. The impl is
+    /// registered at root container level by <see cref="StartAsync"/>; tenant scopes pick it up
+    /// via parent-scope fallback. Production never registers an impl.
     /// </summary>
     public ITestSync GetTestSync(string domain)
     {

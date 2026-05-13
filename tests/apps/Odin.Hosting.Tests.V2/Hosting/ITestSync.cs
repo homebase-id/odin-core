@@ -3,13 +3,14 @@ using System.Threading.Tasks;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 
-namespace Odin.Services.Background.Testing;
+namespace Odin.Hosting.Tests.V2.Hosting;
 
 /// <summary>
-/// Test-only synchronous drain hooks for the peer outbox / inbox. Registered conditionally when
-/// <c>OdinConfiguration.Testing.EnableSyncHooks</c> is true (set by the V2 in-process test
-/// framework; never by production). Lets tests bypass the background timer loop and call the
-/// processors directly instead of polling drive status over HTTP.
+/// Test-only synchronous drain hooks for the peer outbox / inbox. Registered by the V2 test
+/// framework's <see cref="OdinHost"/> at root container level. Lets tests bypass the background
+/// timer loop and call the processors instead of polling drive status. The impl reaches into
+/// <c>PeerOutboxProcessorBackgroundService.DrainAsync</c> (internal in <c>Odin.Services</c>,
+/// exposed via <c>InternalsVisibleTo</c>).
 /// </summary>
 /// <remarks>
 /// MediatR notifications are intentionally not represented here: Odin uses the default

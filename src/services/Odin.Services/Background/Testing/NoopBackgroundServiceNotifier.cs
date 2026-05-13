@@ -11,7 +11,7 @@ namespace Odin.Services.Background.Testing;
 /// In test mode the drain is driven explicitly via <see cref="ITestSync"/>, so the wake-up signal
 /// is unnecessary — this notifier just no-ops.
 /// </summary>
-public sealed class NoopBackgroundServiceNotifier<T> : IBackgroundServiceNotifier<T>
+internal sealed class NoopBackgroundServiceNotifier<T> : IBackgroundServiceNotifier<T>
     where T : AbstractBackgroundService
 {
     public Task NotifyWorkAvailableAsync(string? serviceIdentifier = null) => Task.CompletedTask;
