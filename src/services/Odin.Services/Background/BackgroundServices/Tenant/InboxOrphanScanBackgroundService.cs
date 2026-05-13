@@ -129,7 +129,7 @@ public static class InboxOrphanScan
         if (totalOrphans > 0)
         {
             logger.LogError(
-                "Inbox orphan summary: {count} stale file(s) under {root} (threshold: {threshold})",
+                "Inbox orphan sweep summary: {count} stale file(s) under {root} (threshold: {threshold})",
                 totalOrphans,
                 inboxDrivesPath,
                 ageThreshold);
