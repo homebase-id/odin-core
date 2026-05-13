@@ -28,6 +28,9 @@ public static class OwnerLogin
 
     // SetNewPassword is one-shot per identity; subsequent attempts return 400. We set the password
     // exactly once per (host, identity) pair, then authenticate fresh on every call.
+    // KNOWN: process-static; entries are never removed when their OdinHost is disposed. The reference
+    // is the only thing kept alive, so it's a few bytes per disposed host. Not load-bearing today
+    // (test processes are short-lived), but worth cleaning up if this framework grows long-running.
     private static readonly ConcurrentDictionary<(OdinHost, string), bool> _passwordsSet = new();
 
     public static async Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(

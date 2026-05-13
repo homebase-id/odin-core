@@ -24,6 +24,12 @@ using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
+// TODO: split into partial class files when this file passes ~450 LOC — natural seams are
+//   (1) boot/dispose/config, (2) snapshot/reset, (3) test-sync resolve, (4) EnsureGlobalEnvBaseline.
+// The env-baseline block bundles unrelated subsystems (storage, registry, certs, mail, admin) for
+// brevity; consider per-subsystem helpers if a baseline value breaks something and you have to
+// scroll a wall of Set() calls to find it.
+
 /// <summary>
 /// One in-process Odin server. Boots <see cref="Program.CreateHostBuilder"/> over
 /// <c>Microsoft.AspNetCore.TestHost.TestServer</c> instead of Kestrel — no ports, no TLS,
