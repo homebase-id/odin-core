@@ -58,7 +58,7 @@ public class SyncHooksTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Sync sentinel drive");
 
         using var cts = new CancellationTokenSource(500);
-        await owner.Sync.WaitForOutboxEmptyAsync(drive, cts.Token);
+        await owner.Sync.WaitForOutboxEmptyAsync(drive, cancellationToken: cts.Token);
         Assert.That(cts.IsCancellationRequested, Is.False, "should have completed before cancel");
     }
 }

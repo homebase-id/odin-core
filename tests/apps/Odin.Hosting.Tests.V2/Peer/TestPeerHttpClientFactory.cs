@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.TestHost;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
+using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Capi;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -103,13 +104,3 @@ internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
     }
 }
 
-/// <summary>
-/// Holds the <see cref="TestServer"/> reference between two phases of host startup. The DI delegate
-/// that builds <see cref="TestPeerHttpClientFactory"/> resolves this at request time; the
-/// <see cref="Hosting.OdinHost"/> populates <see cref="Server"/> after <c>host.GetTestServer()</c>
-/// is available, before any peer test runs.
-/// </summary>
-internal sealed class TestServerHolder
-{
-    public TestServer? Server { get; set; }
-}

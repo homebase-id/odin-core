@@ -95,6 +95,12 @@ public sealed partial class OdinHost : IAsyncDisposable
 
         var builder = Program.CreateHostBuilder([])
             .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
+            // AllowSynchronousIO=true masks something in production that does sync IO in the request
+            // pipeline (likely the upload/payload streaming path — 7 V2 tests fail without it,
+            // mostly around reactions and large writes). TestServer's default rejects sync IO; real
+            // Kestrel under the V1 framework tolerates it because Kestrel's default is permissive
+            // for some flows. Tracking down the producer is a separate piece of work; flagged here
+            // so the next reviewer doesn't think this is gratuitous defensiveness.
             .ConfigureWebHost(web => web.UseTestServer(o => o.AllowSynchronousIO = true))
             .ConfigureServices(services =>
             {
@@ -149,9 +155,11 @@ public sealed partial class OdinHost : IAsyncDisposable
         {
             await _host.StopAsync(TimeSpan.FromSeconds(10));
         }
-        catch
+        catch (Exception ex)
         {
-            // best effort; we're tearing down test infrastructure
+            // Best effort: we're tearing down test infrastructure, but log so a stuck StopAsync
+            // (e.g. a hung background service) doesn't disappear silently.
+            Console.Error.WriteLine($"[OdinHost.DisposeAsync] StopAsync failed: {ex.GetType().Name}: {ex.Message}");
         }
         _host.Dispose();
 
@@ -164,9 +172,11 @@ public sealed partial class OdinHost : IAsyncDisposable
                 Directory.Delete(DataRoot, recursive: true);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // best effort; OS will eventually clean /tmp
+            // Best effort: OS will eventually clean /tmp. Log to surface file-lock issues that
+            // would otherwise be invisible (and slowly fill /tmp under repeated test runs).
+            Console.Error.WriteLine($"[OdinHost.DisposeAsync] Directory.Delete({DataRoot}) failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

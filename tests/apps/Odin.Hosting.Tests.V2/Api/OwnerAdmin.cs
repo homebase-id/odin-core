@@ -52,15 +52,18 @@ public sealed class OwnerAdmin
 
     /// <summary>
     /// Runs the tenant initial-setup flow (system circles + system drives + any optional extras).
-    /// Required for anonymous-readable drives to work — otherwise the <c>HandleDriveAdded</c>
-    /// notification handler NREs on the missing <c>ConfirmedConnectionsCircle</c>. Idempotent on
-    /// the server, so safe to call from per-fixture warm-up.
+    /// Required for the peer connection-request flow to grant the <c>ConfirmedConnections</c>
+    /// system circle. Idempotent on the server, so safe to call from per-fixture warm-up. Throws
+    /// on non-2xx — every helper in this file throws (test setup that fails is always a broken
+    /// test, never an expected outcome).
     /// </summary>
     public async Task<ApiResponse<bool>> InitializeIdentity(InitialSetupRequest? request = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ss);
-        return await svc.InitializeIdentity(request ?? new InitialSetupRequest());
+        var response = await svc.InitializeIdentity(request ?? new InitialSetupRequest());
+        EnsureSuccess(response, nameof(InitializeIdentity));
+        return response;
     }
 
     // -----------------------------------------------------------------------------------------
@@ -81,7 +84,7 @@ public sealed class OwnerAdmin
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
-        return await svc.CreateDrive(new CreateDriveRequest
+        var response = await svc.CreateDrive(new CreateDriveRequest
         {
             TargetDrive = drive,
             Name = name,
@@ -90,6 +93,8 @@ public sealed class OwnerAdmin
             AllowSubscriptions = allowSubscriptions,
             OwnerOnly = ownerOnly,
         });
+        EnsureSuccess(response, nameof(CreateDrive));
+        return response;
     }
 
     // -----------------------------------------------------------------------------------------
@@ -100,8 +105,12 @@ public sealed class OwnerAdmin
     /// Creates a circle that members will be granted on connection. Used by <see cref="GuestSession"/>
     /// to attach a YouAuth domain to a drive-permission grant.
     /// </summary>
-    public Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant) =>
-        _network.CreateCircle(id, name, grant);
+    public async Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant)
+    {
+        var response = await _network.CreateCircle(id, name, grant);
+        EnsureSuccess(response, nameof(CreateCircle));
+        return response;
+    }
 
     // -----------------------------------------------------------------------------------------
     // Apps
@@ -129,10 +138,7 @@ public sealed class OwnerAdmin
             AuthorizedCircles = authorizedCircles ?? new List<Guid>(),
             CircleMemberPermissionGrant = circleMemberGrantRequest ?? new PermissionSetGrantRequest()
         });
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"RegisterApp failed: {response.StatusCode}");
-        }
+        EnsureSuccess(response, nameof(RegisterApp));
         return response;
     }
 
@@ -208,10 +214,7 @@ public sealed class OwnerAdmin
             CircleIds = circleIds ?? new List<GuidId>(),
             ConsentRequirements = new ConsentRequirements { ConsentRequirementType = ConsentRequirementType.Never }
         });
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"RegisterDomain failed: {response.StatusCode}");
-        }
+        EnsureSuccess(response, nameof(RegisterYouAuthDomain));
         return response;
     }
 
@@ -230,10 +233,17 @@ public sealed class OwnerAdmin
             Domain = domain.DomainName,
             ClientFriendlyName = friendlyName
         });
+        EnsureSuccess(response, nameof(RegisterYouAuthClient));
+        return response;
+    }
+
+    private static void EnsureSuccess<T>(ApiResponse<T> response, string opName)
+    {
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"RegisterClient failed: {response.StatusCode}");
+            throw new InvalidOperationException(
+                $"{opName} failed: {(int)response.StatusCode} {response.StatusCode}" +
+                (response.Error?.Content is { Length: > 0 } body ? $" — {body}" : ""));
         }
-        return response;
     }
 }

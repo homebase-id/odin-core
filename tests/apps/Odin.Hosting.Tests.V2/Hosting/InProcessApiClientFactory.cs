@@ -49,12 +49,16 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
         _sharedSecret = sharedSecret;
     }
 
-    /// <remarks>
-    /// Nominally non-nullable per <see cref="IApiClientFactory"/>, but the interface predates nullable
-    /// reference types and the upstream <c>ApiClientFactoryV2</c> also returns null for unauthenticated
-    /// callers. We mirror that.
-    /// </remarks>
-    public SensitiveByteArray SharedSecret => _sharedSecret!;
+    /// <summary>
+    /// Non-null shared secret; throws <see cref="InvalidOperationException"/> if this factory was
+    /// constructed without one. <see cref="IApiClientFactory"/>'s signature predates nullable
+    /// reference types — the upstream <c>ApiClientFactoryV2</c> silently returns null here, which
+    /// causes downstream NREs in confusing places. Throwing locally is the lesser evil.
+    /// </summary>
+    public SensitiveByteArray SharedSecret =>
+        _sharedSecret ?? throw new InvalidOperationException(
+            "InProcessApiClientFactory was constructed without a shared secret — callers asking " +
+            "for it haven't authenticated.");
 
     public HttpClient CreateHttpClient(
         OdinId identity,

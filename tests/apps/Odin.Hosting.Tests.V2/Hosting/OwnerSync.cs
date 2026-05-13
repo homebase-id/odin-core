@@ -35,8 +35,8 @@ public sealed class OwnerSync : ITestSync
     public Task<bool> IsOutboxEmptyAsync(TargetDrive drive)
         => _hostSync.IsOutboxEmptyAsync(drive);
 
-    public Task WaitForOutboxEmptyAsync(TargetDrive drive, CancellationToken cancellationToken = default)
-        => _hostSync.WaitForOutboxEmptyAsync(drive, cancellationToken);
+    public Task WaitForOutboxEmptyAsync(TargetDrive drive, System.TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        => _hostSync.WaitForOutboxEmptyAsync(drive, timeout, cancellationToken);
 
     public async Task<InboxStatus> ProcessInboxAsync(
         TargetDrive drive,

@@ -20,12 +20,13 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 public interface ITestSync
 {
     /// <summary>
-    /// Drains every pending outbox item for this tenant. Returns when the outbox is empty.
+    /// Drains every pending outbox item for this tenant, waiting for each per-item worker to
+    /// complete. Returns when the outbox is empty.
     /// </summary>
     /// <remarks>
-    /// Without in-process peer routing, actual peer sends still go to a real network address that
-    /// doesn't resolve in tests — items will go through the failure-and-reschedule path. Useful
-    /// today only as scaffolding; becomes load-bearing once peer routing lands.
+    /// Peer-destined items are routed in-process via <c>TestPeerHttpClientFactory</c>, so this
+    /// actually delivers; without that the items would go through the production failure-and-
+    /// reschedule path.
     /// </remarks>
     Task DrainOutboxAsync(CancellationToken cancellationToken = default);
 
@@ -40,8 +41,10 @@ public interface ITestSync
     Task<bool> IsOutboxEmptyAsync(TargetDrive drive);
 
     /// <summary>
-    /// Polls <see cref="IsOutboxEmptyAsync"/> with a short back-off until the outbox empties or
-    /// <paramref name="cancellationToken"/> fires. No HTTP — reads the local outbox table directly.
+    /// Polls <see cref="IsOutboxEmptyAsync"/> with a short back-off until the outbox empties, the
+    /// internal timeout expires (default 30s — override via <paramref name="timeout"/>), or
+    /// <paramref name="cancellationToken"/> fires. Throws <see cref="System.TimeoutException"/> on
+    /// timeout. No HTTP — reads the local outbox table directly.
     /// </summary>
-    Task WaitForOutboxEmptyAsync(TargetDrive drive, CancellationToken cancellationToken = default);
+    Task WaitForOutboxEmptyAsync(TargetDrive drive, System.TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 }

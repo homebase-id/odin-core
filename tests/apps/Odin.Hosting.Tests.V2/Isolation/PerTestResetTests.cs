@@ -9,17 +9,17 @@ namespace Odin.Hosting.Tests.V2.Isolation;
 
 /// <summary>
 /// Sentinel for <see cref="OdinHost.ResetAsync"/>: proves that state written in one test is not
-/// visible to the next test in the same fixture. Drive A is created and a file uploaded in the
-/// first method; the other methods would 404 or 409 if the per-test reset wasn't actually wiping
-/// the identity DB and payload tree. The methods are intentionally ordered so that
-/// <c>A</c> runs first by NUnit's default discovery order.
+/// visible to the next test in the same fixture. The first method creates Drive A and uploads a
+/// file; the other methods would 404 or 409 if the per-test reset wasn't actually wiping the
+/// identity DB and payload tree. <see cref="OrderAttribute"/> pins the sequence — relying on NUnit
+/// alphabetical method discovery is implementation-defined.
 /// </summary>
 [TestFixture]
 public class PerTestResetTests : V2Fixture
 {
     private static readonly TargetDrive SharedDriveAlias = TargetDrive.NewTargetDrive();
 
-    [Test]
+    [Test, Order(1)]
     public async Task A_CreateDriveAndUploadFile()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
@@ -30,7 +30,7 @@ public class PerTestResetTests : V2Fixture
         Assert.That(upload.IsSuccessStatusCode, Is.True);
     }
 
-    [Test]
+    [Test, Order(2)]
     public async Task B_DriveAliasIsAvailableAgain()
     {
         // If the reset didn't run, A's drive (same alias) would still exist and CreateDrive
@@ -41,7 +41,7 @@ public class PerTestResetTests : V2Fixture
         Assert.That(createResp.IsSuccessStatusCode, Is.True, $"reset did not clear drive — got {createResp.StatusCode}");
     }
 
-    [Test]
+    [Test, Order(3)]
     public async Task C_NoFilesOnFreshDrive()
     {
         // Same drive alias again, plus a peek: the drive should exist but be empty. The cleanest

@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -35,18 +36,36 @@ internal sealed class TestSync(
         return status.TotalItems == 0 && status.CheckedOutCount == 0;
     }
 
-    public async Task WaitForOutboxEmptyAsync(TargetDrive drive, CancellationToken cancellationToken = default)
+    public async Task WaitForOutboxEmptyAsync(TargetDrive drive, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
+        var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(30);
+        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
         var delay = 5;
-        while (!cancellationToken.IsCancellationRequested)
+        while (!linkedCts.IsCancellationRequested)
         {
             if (await IsOutboxEmptyAsync(drive))
             {
                 return;
             }
-            await Task.Delay(delay, cancellationToken);
+            try
+            {
+                await Task.Delay(delay, linkedCts.Token);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
             if (delay < 100) delay *= 2;
         }
+
+        if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"WaitForOutboxEmptyAsync timed out after {effectiveTimeout.TotalSeconds:F0}s on drive {drive.Alias}");
+        }
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     /// <summary>

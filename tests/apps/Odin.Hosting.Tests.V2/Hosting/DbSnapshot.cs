@@ -9,8 +9,9 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 /// Per-tenant snapshot of an identity SQLite DB. <see cref="TakeAsync"/> copies the live file to a
 /// sibling <c>.snap</c> via <see cref="BackupSqliteDatabase"/>; <see cref="RestoreAsync"/> copies it
 /// back over the live file. Callers must ensure no open connections hold the live file when
-/// restoring — in our framework the tenant lifetime scope (and its <c>DbConnectionPool</c>) is
-/// disposed first.
+/// restoring — in our framework <c>OdinHost.ResetAsync</c> clears the tenant's
+/// <c>IDbConnectionPool</c> before calling <see cref="RestoreAsync"/>. The tenant lifetime scope
+/// itself stays alive (see <see cref="OdinHost"/>.Snapshots.cs xmldoc).
 /// </summary>
 internal sealed class DbSnapshot
 {
