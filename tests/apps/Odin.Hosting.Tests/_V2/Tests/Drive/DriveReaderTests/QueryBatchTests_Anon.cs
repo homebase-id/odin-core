@@ -19,6 +19,11 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveRead/QueryBatchTests.cs</c>
+/// (combined anon + secured matrix) on 2026-05-13. The CDN caller case is deferred to the Phase 4
+/// CDN-wrapper PR. Kept temporarily for cross-reference; the fast-framework counterpart is authoritative.
+/// </summary>
 public class QueryBatchTests_Anon
 {
     private WebScaffold _scaffold;

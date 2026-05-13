@@ -21,6 +21,13 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests;
 
+/// <summary>
+/// SUPERSEDED — ported on 2026-05-13 across three fast-framework files:
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveWrite/DriveWriteTests.cs</c> (metadata-only upload),
+/// <c>...DriveWriteWithPayloadsTests.cs</c> (multi-payload upload), and
+/// <c>...DeleteFileTests.cs</c> (soft-delete + batch deletes by FileId and GroupId). Kept temporarily
+/// for cross-reference; the fast-framework counterparts are authoritative.
+/// </summary>
 // Covers using the drives directly on the identity (i.e owner console, app, and Guest endpoints)
 // Does not test security but rather drive features
 public class DiretDriveWriteNewFileTestsV2

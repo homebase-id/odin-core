@@ -11,7 +11,7 @@ the wire.
 | Per-test cost | ~5–20 ms (snapshot restore + payload wipe) | none (state leaks) |
 | Fixture parallelism | yes (`ParallelScope.Fixtures`) | no (fixed ports) |
 | Peer-to-peer flows | in-process, ~1 s end-to-end | over real loopback HTTPS |
-| Wall clock (48 tests) | ~7 s | minutes |
+| Wall clock (178 tests) | ~15 s | minutes |
 
 Coexists with the V1 framework — V1 controller tests stay there.
 
@@ -154,9 +154,11 @@ Peer/       PeerFlow           ← drive-create + circle + connect helper (+ bid
             FrodoToSamPeerTransferTests, PeerScenarioTests
 Isolation/  PerTestResetTests  ← proves per-test reset isolates state
             SyncHooksTests     ← proves drain hooks + AppSync resolve
-Ported/     Tests ported from _V2/Tests/ — read-only / drive write+read + reactions.
-            Will move to topical folders once enough peer + caller-type coverage
-            lands that "ported" stops being a useful distinction.
+Ported/     Tests ported from _V2/Tests/, organized by concern:
+            Auth/, Ping/, DriveRead/, DriveWrite/, LocalAppMetadata/, Reactions/.
+            (Peer/ Connections/ Cdn/ folders pre-exist for the later phases.)
+            Will rename to flat topical folders under the framework root once all
+            phases land and "Ported" stops being a useful distinction.
 Smoke/      Ping + multi-tenant routing smokes (ResetBetweenTests = false)
 ```
 

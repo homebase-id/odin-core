@@ -6,7 +6,7 @@ using Odin.Hosting.Tests._Universal.DriveTests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
 
-namespace Odin.Hosting.Tests.V2.Ported;
+namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 
 /// <summary>
 /// Port of <c>_V2/Tests/Drive/WriteFileTests/DiretDriveWriteNewFileTestsV2.CanUploadMetadataDataWithoutPayloads</c>.

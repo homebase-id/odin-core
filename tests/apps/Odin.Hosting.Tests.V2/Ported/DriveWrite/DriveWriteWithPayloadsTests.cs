@@ -14,7 +14,7 @@ using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
-namespace Odin.Hosting.Tests.V2.Ported;
+namespace Odin.Hosting.Tests.V2.Ported.DriveWrite;
 
 /// <summary>
 /// Port of <c>_V2/Tests/Drive/WriteFileTests/DiretDriveWriteNewFileTestsV2.CanUploadFileWith2PayloadsAnd2Thumbnails</c>.

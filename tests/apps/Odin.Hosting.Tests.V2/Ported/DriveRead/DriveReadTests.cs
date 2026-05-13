@@ -15,7 +15,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 
-namespace Odin.Hosting.Tests.V2.Ported;
+namespace Odin.Hosting.Tests.V2.Ported.DriveRead;
 
 /// <summary>
 /// Port of the by-FileId reader tests from <c>_V2/Tests/Drive/DriveReaderTests/GetFileTests</c>:

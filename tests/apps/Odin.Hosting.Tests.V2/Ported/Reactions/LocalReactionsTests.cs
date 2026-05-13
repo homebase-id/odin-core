@@ -13,7 +13,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.Reactions;
 using Refit;
 
-namespace Odin.Hosting.Tests.V2.Ported;
+namespace Odin.Hosting.Tests.V2.Ported.Reactions;
 
 /// <summary>
 /// Port of <c>_V2/Tests/Drive/Reactions/LocalReactionsTests</c>. All ten owner-only tests:
