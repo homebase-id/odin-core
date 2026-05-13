@@ -42,11 +42,13 @@ public abstract class V2Fixture
     }
 
     /// <summary>
-    /// Bake the per-identity baseline state into the host before snapshotting: for each preconfigured
-    /// identity, set the owner password and run the tenant initial-setup flow (system circles +
-    /// system drives). Without the initial-setup step, the first anonymous-readable drive created
-    /// inside any test would 500 from <c>HandleDriveAdded</c>'s missing-circle NRE — see
-    /// <see cref="OwnerAdmin.InitializeIdentity"/>. Idempotent; override to add fixture-specific
+    /// Bake the per-identity baseline state into the host before snapshotting: log in as owner of
+    /// each preconfigured identity (sets the password — needed for the snapshot baseline) and run
+    /// the tenant initial-setup flow which creates the system circles + system drives. The peer
+    /// connection-request flow grants the <c>ConfirmedConnections</c> system circle on connect;
+    /// without it, <c>CircleMembershipService.CreateCircleGrantListAsync</c> throws
+    /// "Missing circle Id". The drive-create NRE that was previously a separate concern is now
+    /// fixed in <c>HandleDriveAdded</c> directly. Idempotent; override to add fixture-specific
     /// seed state before the snapshot is taken.
     /// </summary>
     protected virtual async Task WarmTenantBaselineAsync()
