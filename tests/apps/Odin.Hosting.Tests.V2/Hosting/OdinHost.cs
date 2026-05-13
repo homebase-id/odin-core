@@ -315,20 +315,41 @@ public sealed class OdinHost : IAsyncDisposable
         var scratch = Path.Combine(Path.GetTempPath(), "odin-tests-v2-baseline");
         Directory.CreateDirectory(scratch);
 
-        // Runtime mode
-        Set("ASPNETCORE_ENVIRONMENT", "Development");
+        SetRuntimeBaseline();
+        SetStorageBaseline();
+        SetDevAndRegistryBaseline();
+        SetHostPathsBaseline(scratch);
+        SetLoggingBaseline(scratch);
+        SetBackgroundServicesBaseline();
+        SetTestingBaseline();
+        SetCertRenewalBaseline();
+        SetMailBaseline();
+        SetAdminBaseline();
+    }
 
-        // Storage backends (all in-process / local for speed)
+    private static void SetRuntimeBaseline()
+    {
+        Set("ASPNETCORE_ENVIRONMENT", "Development");
+    }
+
+    /// <summary>SQLite only, no Redis, no S3 — everything in-process / local.</summary>
+    private static void SetStorageBaseline()
+    {
         Set("Database__Type", "sqlite");
         Set("Redis__Enabled", "false");
         Set("S3PayloadStorage__Enabled", "false");
+    }
 
-        // Dev certs on disk — read by DevEnvironmentSetup during tenant registration.
-        // The cert files exist but are never used at the transport layer (no TLS under TestServer).
+    /// <summary>
+    /// <c>Development:</c> reads dev certs from disk (read by DevEnvironmentSetup at tenant
+    /// registration; never used at the transport layer under TestServer). <c>Registry:</c>
+    /// values are required-by-schema even though no real DNS work happens in tests.
+    /// </summary>
+    private static void SetDevAndRegistryBaseline()
+    {
         Set("Development__SslSourcePath", "./https/");
         Set("Development__PreconfiguredDomains", "[]"); // overridden per-host
 
-        // Registry config (required-by-schema even though no real DNS work happens in tests)
         Set("Registry__ProvisioningDomain", "provisioning.dotyou.cloud");
         Set("Registry__ManagedDomains", "[\"dev.dotyou.cloud\"]");
         Set("Registry__DnsTargetRecordType", "[\"dev.dotyou.cloud\"]");
@@ -339,8 +360,14 @@ public sealed class OdinHost : IAsyncDisposable
         Set("Registry__DnsRecordValues__FileCnameTarget", "");
         Set("Registry__AutomatedIdentityKey", "e36f5077-bec3-4410-89fe-5bc822dc4c8d");
         Set("Registry__AutomatedPasswordRecoveryIdentities", "[]");
+    }
 
-        // Host paths & sockets — paths are baseline scratch, overridden per-host; sockets unused under TestServer.
+    /// <summary>
+    /// Paths default to a shared scratch dir, overridden per-host by
+    /// <see cref="BuildPerHostConfig"/>. Sockets are zeros — never bound under TestServer.
+    /// </summary>
+    private static void SetHostPathsBaseline(string scratch)
+    {
         Set("Host__TenantDataRootPath", scratch);
         Set("Host__SystemDataRootPath", scratch);
         Set("Host__IPAddressListenList__0__HttpPort", "0");
@@ -350,20 +377,31 @@ public sealed class OdinHost : IAsyncDisposable
         Set("Host__IpRateLimitRequestsPerSecond", int.MaxValue.ToString());
         Set("Host__ClientRegistrationThreshold", int.MaxValue.ToString());
         Set("Host__ClientRegistrationWindowThreshold", int.MaxValue.ToString());
+    }
 
-        // Logging — baseline path overridden per-host
-        Set("Logging__LogFilePath", scratch);
+    private static void SetLoggingBaseline(string scratch)
+    {
+        Set("Logging__LogFilePath", scratch); // overridden per-host
         Set("Logging__EnableStatistics", "true");
+    }
 
-        // Background services off — tests drive everything explicitly
+    /// <summary>Background services are wired in DI but never <c>StartAsync</c>'d — tests drain explicitly.</summary>
+    private static void SetBackgroundServicesBaseline()
+    {
         Set("BackgroundServices__EnsureCertificateProcessorIntervalSeconds", "100000");
         Set("BackgroundServices__SystemBackgroundServicesEnabled", "false");
         Set("BackgroundServices__TenantBackgroundServicesEnabled", "false");
+    }
 
-        // Test-only synchronous drain hooks — registers ITestSync in tenant DI.
+    /// <summary>Enables the tenant-scope ITestSync registration; gates the peer-auth test bypass.</summary>
+    private static void SetTestingBaseline()
+    {
         Set("Testing__EnableSyncHooks", "true");
+    }
 
-        // Cert renewal — required-by-schema; never exercised under TestServer
+    /// <summary>Required-by-schema; never exercised under TestServer.</summary>
+    private static void SetCertRenewalBaseline()
+    {
         Set("CertificateRenewal__NumberOfCertificateValidationTries", "3");
         Set("CertificateRenewal__UseCertificateAuthorityProductionServers", "false");
         Set("CertificateRenewal__CertificateAuthorityAssociatedEmail", "email@nowhere.com");
@@ -372,14 +410,19 @@ public sealed class OdinHost : IAsyncDisposable
         Set("CertificateRenewal__CsrLocality", "Berkeley");
         Set("CertificateRenewal__CsrOrganization", "YF");
         Set("CertificateRenewal__CsrOrganizationUnit", "Dev");
+    }
 
-        // Mail (disabled)
+    private static void SetMailBaseline()
+    {
         Set("Mailgun__ApiKey", "dontcare");
         Set("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
         Set("Mailgun__EmailDomain", "odin.earth");
         Set("Mailgun__Enabled", "false");
+    }
 
-        // Admin API off (would otherwise bind a Kestrel port)
+    /// <summary>Admin API disabled — otherwise it would bind a Kestrel port.</summary>
+    private static void SetAdminBaseline()
+    {
         Set("Admin__ApiEnabled", "false");
         Set("Admin__ApiKey", "your-secret-api-key-here");
         Set("Admin__ApiKeyHttpHeaderName", "Odin-Admin-Api-Key");
