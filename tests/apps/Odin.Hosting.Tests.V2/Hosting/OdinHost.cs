@@ -237,7 +237,22 @@ public sealed partial class OdinHost : IAsyncDisposable
         SetCertRenewalBaseline();
         SetMailBaseline();
         SetAdminBaseline();
+        SetCdnBaseline();
         return true;
+    }
+
+    /// <summary>
+    /// Enables the CDN routes and seeds the bearer token used by <c>CdnSession</c>. The token has
+    /// to be set before host bootstrap because <c>CdnAuthenticationHandler</c> reads it from
+    /// config at registration time. The base URL is a known placeholder — the in-process test
+    /// pipeline never resolves it.
+    /// </summary>
+    private static void SetCdnBaseline()
+    {
+        Set("Cdn__Enabled", "true");
+        Set("Cdn__PayloadBaseUrl", "https://cdn.ravenhosting.cloud");
+        Set("Cdn__RequiredAuthToken",
+            Odin.Hosting.Tests._V2.ApiClient.TestCases.CdnTestCase.GetAuthToken64());
     }
 
     private static void SetRuntimeBaseline()

@@ -98,10 +98,12 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
 
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
         client.BaseAddress = new Uri($"https://{identity}/");
-        sharedSecret = _sharedSecret ?? throw new InvalidOperationException(
-            "InProcessApiClientFactory.CreateHttpClient(out ...) requires a shared secret; this factory " +
-            "was constructed without one. IApiClientFactory's signature predates nullable references — " +
-            "silently smuggling a null out-param causes confusing downstream NREs.");
+
+        // Soft-null: CDN-authenticated callers (and any future bearer-only flow) intentionally have
+        // no shared secret. RefitCreator.RestServiceFor handles null cleanly. The SharedSecret
+        // property (above) still throws — that's the boundary where confusion arises if a caller
+        // forgot to authenticate.
+        sharedSecret = _sharedSecret!;
         return client;
     }
 

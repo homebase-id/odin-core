@@ -24,6 +24,13 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.CDN;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Cdn/CdnTests.cs</c> on
+/// 2026-05-13. All 7 cases are ported. The in-process port introduces <c>CdnSession</c> (an
+/// <c>IV2Caller</c> with bearer-only auth, no shared secret) and seeds <c>Cdn__Enabled</c>,
+/// <c>Cdn__PayloadBaseUrl</c>, and <c>Cdn__RequiredAuthToken</c> in <c>OdinHost</c>'s env baseline
+/// using the same fixed token this <see cref="CdnTestCase"/> exposes via <c>GetAuthToken64()</c>.
+/// </summary>
 public class CdnTests
 {
     private WebScaffold _scaffold;
