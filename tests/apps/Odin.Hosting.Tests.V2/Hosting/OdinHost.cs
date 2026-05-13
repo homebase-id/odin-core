@@ -8,27 +8,14 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Odin.Hosting;
 using Autofac;
-using Odin.Core.Storage.Factory;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests.V2.Peer;
-using Odin.Services.Background.Testing;
 using Odin.Services.Base;
-using Odin.Services.Configuration;
-using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Registry;
-using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
-
-// TODO: split into partial class files when this file passes ~450 LOC — natural seams are
-//   (1) boot/dispose/config, (2) snapshot/reset, (3) test-sync resolve, (4) EnsureGlobalEnvBaseline.
-// The env-baseline block bundles unrelated subsystems (storage, registry, certs, mail, admin) for
-// brevity; consider per-subsystem helpers if a baseline value breaks something and you have to
-// scroll a wall of Set() calls to find it.
 
 /// <summary>
 /// One in-process Odin server. Boots <see cref="Program.CreateHostBuilder"/> over
@@ -36,6 +23,11 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 /// no real cert handshakes. Hosts one or more tenants via <c>Development:PreconfiguredDomains</c>.
 /// </summary>
 /// <remarks>
+/// <para>
+/// Split across three partial-class files: this one carries boot/dispose/config and the env
+/// baseline; <see cref="OdinHost"/>.Snapshots.cs carries the per-test reset machinery;
+/// <see cref="OdinHost"/>.TestSync.cs carries the <see cref="ITestSync"/> resolver.
+/// </para>
 /// <para>
 /// Configuration injection is split in two layers so that multiple hosts can run in the same
 /// process (and in parallel) without clobbering each other:
@@ -55,7 +47,7 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 ///   </description></item>
 /// </list>
 /// </remarks>
-public sealed class OdinHost : IAsyncDisposable
+public sealed partial class OdinHost : IAsyncDisposable
 {
     private readonly IHost _host;
     private readonly List<DbSnapshot> _snapshots = [];
@@ -147,137 +139,6 @@ public sealed class OdinHost : IAsyncDisposable
         {
             // best effort; OS will eventually clean /tmp
         }
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Per-test reset machinery: snapshot identity DB once at fixture setup, restore before each test.
-    // See Plan: per-test SQLite snapshot/restore.
-    // ---------------------------------------------------------------------------------------------
-
-    /// <summary>
-    /// Force lazy tenant scope creation for each preconfigured identity by hitting an anonymous V2
-    /// endpoint. After this returns the per-tenant identity DB file is guaranteed to exist on disk.
-    /// </summary>
-    public async Task EnsureTenantsMaterializedAsync()
-    {
-        using var client = Server.CreateClient();
-        foreach (var identity in Identities)
-        {
-            var resp = await client.GetAsync($"https://{identity}/api/v2/health/ping");
-            resp.EnsureSuccessStatusCode();
-        }
-    }
-
-    /// <summary>
-    /// Capture each materialized tenant's identity DB to a sibling <c>.snap</c> file. Subsequent
-    /// <see cref="ResetAsync"/> calls restore from these snapshots.
-    /// </summary>
-    /// <remarks>
-    /// Clears each tenant's connection pool before snapshotting —
-    /// <see cref="BackupSqliteDatabase.Execute"/> switches the journal mode via a PRAGMA, which
-    /// fails with "database is locked" if any pooled connection from the warm-up still has the
-    /// file open. We don't dispose the tenant scope itself: the multi-tenant middleware looks the
-    /// scope up via <c>GetTenantScope</c> (which throws if absent) rather than recreating it, so
-    /// disposing the scope would 500 every subsequent request.
-    /// </remarks>
-    public async Task TakeBaselineAsync()
-    {
-        _snapshots.Clear();
-        var config = _host.Services.GetRequiredService<OdinConfiguration>();
-        var registry = _host.Services.GetRequiredService<IIdentityRegistry>();
-        var multitenant = _host.Services.GetRequiredService<IMultiTenantContainer>();
-
-        foreach (var identity in Identities)
-        {
-            var registration = registry.ResolveIdentityRegistration(identity, out _);
-            var paths = new TenantPathManager(config, registration.Id);
-            var dbPath = paths.GetIdentityDatabasePath();
-            if (!File.Exists(dbPath))
-            {
-                throw new InvalidOperationException(
-                    $"Identity DB not found at {dbPath} — did EnsureTenantsMaterializedAsync run?");
-            }
-
-            await ClearTenantConnectionPoolAsync(multitenant, identity);
-
-            var snapshot = new DbSnapshot(identity, dbPath);
-            await snapshot.TakeAsync();
-            _snapshots.Add(snapshot);
-        }
-    }
-
-    /// <summary>
-    /// Reset every snapshotted tenant to its baseline: drain the tenant's connection pool (so the
-    /// DB file is no longer held open), copy the snapshot back over the live identity DB, and wipe
-    /// the non-DB tenant directories (payloads / temp / inbox). The tenant scope stays alive — the
-    /// next request resolves a fresh connection from the now-empty pool against the restored file.
-    /// </summary>
-    public async Task ResetAsync()
-    {
-        if (_snapshots.Count == 0)
-        {
-            return;
-        }
-
-        var config = _host.Services.GetRequiredService<OdinConfiguration>();
-        var registry = _host.Services.GetRequiredService<IIdentityRegistry>();
-        var multitenant = _host.Services.GetRequiredService<IMultiTenantContainer>();
-
-        foreach (var snapshot in _snapshots)
-        {
-            await ClearTenantConnectionPoolAsync(multitenant, snapshot.Domain);
-            await snapshot.RestoreAsync();
-
-            var registration = registry.ResolveIdentityRegistration(snapshot.Domain, out _);
-            var paths = new TenantPathManager(config, registration.Id);
-            ResetDirectory(paths.PayloadsPath);
-            ResetDirectory(paths.UploadPath);
-            ResetDirectory(paths.InboxPath);
-        }
-    }
-
-    private static async Task ClearTenantConnectionPoolAsync(IMultiTenantContainer multitenant, string domain)
-    {
-        var scope = multitenant.LookupTenantScope(domain);
-        if (scope == null)
-        {
-            return;
-        }
-
-        var pool = scope.Resolve<IDbConnectionPool>();
-        await pool.ClearAllAsync();
-    }
-
-    private static void ResetDirectory(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
-            return;
-        }
-
-        if (Directory.Exists(path))
-        {
-            Directory.Delete(path, recursive: true);
-        }
-        Directory.CreateDirectory(path);
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Test-only synchronous hooks (peer outbox / inbox drains). See ITestSync.
-    // ---------------------------------------------------------------------------------------------
-
-    /// <summary>
-    /// Resolves <see cref="ITestSync"/> from <paramref name="domain"/>'s tenant scope. Available
-    /// because <c>Testing__EnableSyncHooks</c> is set in the global env baseline; in production
-    /// the binding doesn't exist and this would throw.
-    /// </summary>
-    public ITestSync GetTestSync(string domain)
-    {
-        var multitenant = _host.Services.GetRequiredService<IMultiTenantContainer>();
-        var scope = multitenant.LookupTenantScope(domain)
-            ?? throw new InvalidOperationException(
-                $"No tenant scope for {domain} — call EnsureTenantsMaterializedAsync first.");
-        return scope.Resolve<ITestSync>();
     }
 
     private static Dictionary<string, string?> BuildPerHostConfig(
