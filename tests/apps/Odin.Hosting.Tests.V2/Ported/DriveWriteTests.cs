@@ -3,11 +3,10 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.DriveTests;
-using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
 
-namespace Odin.Hosting.Tests.V2.Examples;
+namespace Odin.Hosting.Tests.V2.Ported;
 
 /// <summary>
 /// Port of <c>_V2/Tests/Drive/WriteFileTests/DiretDriveWriteNewFileTestsV2.CanUploadMetadataDataWithoutPayloads</c>.
@@ -30,13 +29,10 @@ public class DriveWriteTests : V2Fixture
     [Test, TestCaseSource(nameof(WriteCases))]
     public async Task CanUploadMetadataWithoutPayloads(CallerSpec spec, HttpStatusCode expected)
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
-        await owner.Admin.CreateDrive(spec.TargetDrive, "Test Drive 001");
-        var caller = await spec.Build(owner, Host);
-
-        var writer = new DriveWriterV2Client(caller.Identity, caller.Factory);
+        var caller = await SetupCaller(spec);
         var metadata = SampleMetadataData.Create(fileType: 100);
-        var response = await writer.UploadNewMetadata(spec.TargetDrive.Alias, metadata);
+
+        var response = await caller.Drives.Writer.UploadNewMetadata(spec.TargetDrive.Alias, metadata);
 
         Assert.That(response.StatusCode, Is.EqualTo(expected));
     }

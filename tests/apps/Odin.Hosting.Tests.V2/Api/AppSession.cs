@@ -25,13 +25,15 @@ public sealed class AppSession : IV2Caller
     public Guid AppId { get; }
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
+    public DriveHandles Drives { get; }
 
-    private AppSession(OdinHost host, OdinId identity, Guid appId, Services.Authorization.ExchangeGrants.ClientAuthenticationToken token, byte[] sharedSecret)
+    private AppSession(OdinHost host, OdinId identity, Guid appId, ClientAuthenticationToken token, byte[] sharedSecret)
     {
         Identity = identity;
         AppId = appId;
         Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token, sharedSecret.ToSensitiveByteArray());
         Auth = new AuthV2Client(Identity, Factory);
+        Drives = new DriveHandles(Identity, Factory);
     }
 
     /// <summary>
@@ -41,7 +43,6 @@ public sealed class AppSession : IV2Caller
     /// </summary>
     public static async Task<AppSession> SetupAsync(
         OwnerSession owner,
-        OdinHost host,
         TargetDrive targetDrive,
         DrivePermission drivePermission,
         IReadOnlyList<int>? permissionKeys = null)
@@ -63,10 +64,9 @@ public sealed class AppSession : IV2Caller
             PermissionSet = new PermissionSet(permissionKeys is null ? new List<int>() : new List<int>(permissionKeys))
         };
 
-        await owner.Admin.RegisterApp(appId, permissions, authorizedCircles: new List<Guid>(),
-            circleMemberGrantRequest: new PermissionSetGrantRequest());
+        await owner.Admin.RegisterApp(appId, permissions);
         var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);
 
-        return new AppSession(host, owner.Identity, appId, token, sharedSecret);
+        return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);
     }
 }

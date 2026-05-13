@@ -14,4 +14,5 @@ public interface IV2Caller
     OdinId Identity { get; }
     InProcessApiClientFactory Factory { get; }
     AuthV2Client Auth { get; }
+    DriveHandles Drives { get; }
 }

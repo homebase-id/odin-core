@@ -1,3 +1,4 @@
+#nullable enable
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
@@ -40,4 +41,16 @@ public abstract class V2Fixture
     /// a configured API factory, and ready-to-use V2 client wrappers.
     /// </summary>
     protected Task<OwnerSession> LoginAsOwner(string identity) => OwnerSession.LoginAsync(Host, identity);
+
+    /// <summary>
+    /// One-liner for parameterized tests over <see cref="CallerSpec"/>: logs in as owner of
+    /// <paramref name="ownerIdentity"/> (default Frodo), creates the spec's <see cref="CallerSpec.TargetDrive"/>,
+    /// then builds and returns the caller (Owner / App / Guest).
+    /// </summary>
+    protected async Task<IV2Caller> SetupCaller(CallerSpec spec, string? ownerIdentity = null)
+    {
+        var owner = await LoginAsOwner(ownerIdentity ?? Identities.Frodo);
+        await owner.Admin.CreateDrive(spec.TargetDrive, "Test Drive");
+        return await spec.Build(owner);
+    }
 }

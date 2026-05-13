@@ -21,6 +21,7 @@ namespace Odin.Hosting.Tests.V2.Api;
 public sealed class OwnerSession : IV2Caller
 {
     public OdinId Identity { get; }
+    public OdinHost Host { get; }
     public ClientAuthenticationToken Token { get; }
     public SensitiveByteArray SharedSecret { get; }
 
@@ -39,16 +40,19 @@ public sealed class OwnerSession : IV2Caller
     internal InProcessApiClientFactory V1AdminFactory { get; }
 
     public AuthV2Client Auth { get; }
+    public DriveHandles Drives { get; }
     public OwnerAdmin Admin { get; }
 
     private OwnerSession(OdinHost host, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
     {
         Identity = (OdinId)identity;
+        Host = host;
         Token = token;
         SharedSecret = sharedSecret;
         Factory = new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret);
         V1AdminFactory = new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret, basePath: OwnerPaths.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
+        Drives = new DriveHandles(Identity, Factory);
         Admin = new OwnerAdmin(this);
     }
 

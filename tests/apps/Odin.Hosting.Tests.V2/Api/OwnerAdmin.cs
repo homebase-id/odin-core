@@ -89,8 +89,8 @@ public sealed class OwnerAdmin
             AppId = appId,
             PermissionSet = appPermissions.PermissionSet,
             Drives = appPermissions.Drives?.ToList(),
-            AuthorizedCircles = authorizedCircles,
-            CircleMemberPermissionGrant = circleMemberGrantRequest
+            AuthorizedCircles = authorizedCircles ?? new List<Guid>(),
+            CircleMemberPermissionGrant = circleMemberGrantRequest ?? new PermissionSetGrantRequest()
         });
         if (!response.IsSuccessStatusCode)
         {

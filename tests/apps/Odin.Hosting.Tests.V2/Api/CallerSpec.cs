@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
 
@@ -16,9 +15,9 @@ public sealed class CallerSpec
 {
     private readonly string _name;
     public TargetDrive TargetDrive { get; }
-    public Func<OwnerSession, OdinHost, Task<IV2Caller>> Build { get; }
+    public Func<OwnerSession, Task<IV2Caller>> Build { get; }
 
-    private CallerSpec(string name, TargetDrive drive, Func<OwnerSession, OdinHost, Task<IV2Caller>> build)
+    private CallerSpec(string name, TargetDrive drive, Func<OwnerSession, Task<IV2Caller>> build)
     {
         _name = name;
         TargetDrive = drive;
@@ -28,11 +27,11 @@ public sealed class CallerSpec
     public override string ToString() => _name;
 
     public static CallerSpec Owner(TargetDrive drive) =>
-        new("Owner", drive, (o, _) => Task.FromResult<IV2Caller>(o));
+        new("Owner", drive, o => Task.FromResult<IV2Caller>(o));
 
     public static CallerSpec App(TargetDrive drive, DrivePermission perm) =>
-        new($"App[{perm}]", drive, async (o, h) => await AppSession.SetupAsync(o, h, drive, perm));
+        new($"App[{perm}]", drive, async o => await AppSession.SetupAsync(o, drive, perm));
 
     public static CallerSpec Guest(TargetDrive drive, DrivePermission perm) =>
-        new($"Guest[{perm}]", drive, async (o, h) => await GuestSession.SetupAsync(o, h, drive, perm));
+        new($"Guest[{perm}]", drive, async o => await GuestSession.SetupAsync(o, drive, perm));
 }

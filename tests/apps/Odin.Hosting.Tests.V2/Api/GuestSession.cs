@@ -26,6 +26,7 @@ public sealed class GuestSession : IV2Caller
     public AsciiDomainName GuestDomain { get; }
     public InProcessApiClientFactory Factory { get; }
     public AuthV2Client Auth { get; }
+    public DriveHandles Drives { get; }
 
     private GuestSession(
         OdinHost host,
@@ -38,15 +39,15 @@ public sealed class GuestSession : IV2Caller
         GuestDomain = guestDomain;
         Factory = new InProcessApiClientFactory(host, YouAuthDefaults.XTokenCookieName, token, sharedSecret.ToSensitiveByteArray());
         Auth = new AuthV2Client(Identity, Factory);
+        Drives = new DriveHandles(Identity, Factory);
     }
 
     public static async Task<GuestSession> SetupAsync(
         OwnerSession owner,
-        OdinHost host,
         TargetDrive targetDrive,
         DrivePermission drivePermission)
     {
-        var domain = new AsciiDomainName($"{Guid.NewGuid():n}-test.org");
+        var domain = NewGuestDomain();
 
         var circleId = Guid.NewGuid();
         var circleResp = await owner.Admin.CreateCircle(circleId, "Circle with valid permissions",
@@ -74,6 +75,9 @@ public sealed class GuestSession : IV2Caller
         var clientReg = await owner.Admin.RegisterYouAuthClient(domain);
 
         var cat = ClientAccessToken.FromPortableBytes(clientReg.Content!.Data);
-        return new GuestSession(host, owner.Identity, domain, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
+        return new GuestSession(owner.Host, owner.Identity, domain, cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
     }
+
+    private static AsciiDomainName NewGuestDomain() =>
+        new($"{Guid.NewGuid():n}-test.org");
 }

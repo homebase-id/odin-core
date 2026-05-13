@@ -5,7 +5,7 @@ using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
 
-namespace Odin.Hosting.Tests.V2.Examples;
+namespace Odin.Hosting.Tests.V2.Ported;
 
 /// <summary>
 /// Port of <c>_V2/Tests/Auth/AuthTests.CanVerifyTokenAndLogout</c> — full Owner / App / Guest
@@ -26,9 +26,7 @@ public class AuthTests : V2Fixture
     [Test, TestCaseSource(nameof(CallerVariants))]
     public async Task CanVerifyTokenAndLogout(CallerSpec spec, HttpStatusCode expectedAfterLogout)
     {
-        var owner = await LoginAsOwner(Identities.Frodo);
-        await owner.Admin.CreateDrive(spec.TargetDrive, "Test Drive 001");
-        var caller = await spec.Build(owner, Host);
+        var caller = await SetupCaller(spec);
 
         Assert.That((await caller.Auth.VerifyToken()).StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That((await caller.Auth.Logout()).StatusCode, Is.EqualTo(HttpStatusCode.OK));
