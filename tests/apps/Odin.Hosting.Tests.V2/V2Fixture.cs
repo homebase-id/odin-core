@@ -21,10 +21,54 @@ public abstract class V2Fixture
     /// <summary>Identities this fixture needs preconfigured. Default is Frodo only.</summary>
     protected virtual string[] HostIdentities => [Identities.Frodo];
 
+    /// <summary>
+    /// When true (default), each <c>[Test]</c> starts against a freshly-restored copy of the
+    /// identity DB and an empty payload tree — see <see cref="OdinHost.ResetAsync"/>. Opt out
+    /// for fixtures that don't write state (e.g. smoke / ping tests) to skip the reset cost.
+    /// </summary>
+    protected virtual bool ResetBetweenTests => true;
+
     [OneTimeSetUp]
     public async Task V2FixtureSetUp()
     {
         Host = await OdinHost.StartAsync(HostIdentities);
+        if (ResetBetweenTests)
+        {
+            await Host.EnsureTenantsMaterializedAsync();
+            await WarmTenantBaselineAsync();
+            await Host.TakeBaselineAsync();
+        }
+    }
+
+    /// <summary>
+    /// Bake the per-identity baseline state into the host before snapshotting: for each preconfigured
+    /// identity, set the owner password and run the tenant initial-setup flow (system circles +
+    /// system drives). Without the initial-setup step, the first anonymous-readable drive created
+    /// inside any test would 500 from <c>HandleDriveAdded</c>'s missing-circle NRE — see
+    /// <see cref="OwnerAdmin.InitializeIdentity"/>. Idempotent; override to add fixture-specific
+    /// seed state before the snapshot is taken.
+    /// </summary>
+    protected virtual async Task WarmTenantBaselineAsync()
+    {
+        foreach (var identity in HostIdentities)
+        {
+            var owner = await LoginAsOwner(identity);
+            var resp = await owner.Admin.InitializeIdentity();
+            if (!resp.IsSuccessStatusCode)
+            {
+                throw new System.InvalidOperationException(
+                    $"InitializeIdentity failed for {identity}: {resp.StatusCode}");
+            }
+        }
+    }
+
+    [SetUp]
+    public async Task V2FixturePerTestSetUp()
+    {
+        if (ResetBetweenTests && Host != null)
+        {
+            await Host.ResetAsync();
+        }
     }
 
     [OneTimeTearDown]

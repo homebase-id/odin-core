@@ -15,6 +15,7 @@ namespace Odin.Hosting.Tests.V2.Smoke;
 public class MultiIdentitySmoke : V2Fixture
 {
     protected override string[] HostIdentities => [Identities.Frodo, Identities.Sam];
+    protected override bool ResetBetweenTests => false;
 
     [Test]
     public async Task PingResolvesPerTenant()

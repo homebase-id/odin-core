@@ -14,6 +14,7 @@ using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
+using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Apps;
@@ -21,6 +22,7 @@ using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.YouAuth;
@@ -42,6 +44,23 @@ public sealed class OwnerAdmin
     {
         _owner = owner;
         _network = new UniversalCircleNetworkApiClient(owner.Identity, owner.Factory);
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Tenant initialization (one-time per identity — creates system circles + system drives)
+    // -----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Runs the tenant initial-setup flow (system circles + system drives + any optional extras).
+    /// Required for anonymous-readable drives to work — otherwise the <c>HandleDriveAdded</c>
+    /// notification handler NREs on the missing <c>ConfirmedConnectionsCircle</c>. Idempotent on
+    /// the server, so safe to call from per-fixture warm-up.
+    /// </summary>
+    public async Task<ApiResponse<bool>> InitializeIdentity(InitialSetupRequest? request = null)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitOwnerConfiguration>(client, ss);
+        return await svc.InitializeIdentity(request ?? new InitialSetupRequest());
     }
 
     // -----------------------------------------------------------------------------------------

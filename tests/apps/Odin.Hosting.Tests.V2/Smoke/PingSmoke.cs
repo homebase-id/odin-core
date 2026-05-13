@@ -11,6 +11,8 @@ namespace Odin.Hosting.Tests.V2.Smoke;
 [TestFixture]
 public class PingSmoke : V2Fixture
 {
+    protected override bool ResetBetweenTests => false;
+
     [Test]
     public async Task PingIsReachable()
     {
