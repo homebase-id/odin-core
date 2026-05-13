@@ -19,11 +19,11 @@ public class DriveWriteTests : V2Fixture
 {
     public static IEnumerable<object[]> WriteCases()
     {
-        yield return [CallerSpec.Guest(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Forbidden];
-        yield return [CallerSpec.App(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Forbidden];
-        yield return [CallerSpec.Guest(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.OK];
-        yield return [CallerSpec.App(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.OK];
-        yield return [CallerSpec.Owner(TargetDrive.NewTargetDrive()), HttpStatusCode.OK];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
+        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
     }
 
     [Test, TestCaseSource(nameof(WriteCases))]

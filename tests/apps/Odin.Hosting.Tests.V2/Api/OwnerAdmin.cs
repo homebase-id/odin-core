@@ -48,7 +48,12 @@ public sealed class OwnerAdmin
     // Drives
     // -----------------------------------------------------------------------------------------
 
-    public async Task<ApiResponse<bool>> CreateDrive(TargetDrive drive, string name, bool allowAnonymousReads = true)
+    public async Task<ApiResponse<bool>> CreateDrive(
+        TargetDrive drive,
+        string name,
+        bool allowAnonymousReads = true,
+        bool ownerOnly = false,
+        bool allowSubscriptions = false)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
@@ -58,8 +63,8 @@ public sealed class OwnerAdmin
             Name = name,
             Metadata = string.Empty,
             AllowAnonymousReads = allowAnonymousReads,
-            AllowSubscriptions = false,
-            OwnerOnly = false,
+            AllowSubscriptions = allowSubscriptions,
+            OwnerOnly = ownerOnly,
         });
     }
 

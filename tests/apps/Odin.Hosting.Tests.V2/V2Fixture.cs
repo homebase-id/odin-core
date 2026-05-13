@@ -47,9 +47,9 @@ public abstract class V2Fixture
     /// <paramref name="ownerIdentity"/> (default Frodo), creates the spec's <see cref="CallerSpec.TargetDrive"/>,
     /// then builds and returns the caller (Owner / App / Guest).
     /// </summary>
-    protected async Task<IV2Caller> SetupCaller(CallerSpec spec, string? ownerIdentity = null, bool allowAnonymousReads = true)
+    protected async Task<IV2Caller> SetupCaller(CallerSpec spec, string? ownerIdentity = null)
     {
-        var (caller, _) = await SetupCallerWithOwner(spec, ownerIdentity, allowAnonymousReads);
+        var (caller, _) = await SetupCallerWithOwner(spec, ownerIdentity);
         return caller;
     }
 
@@ -61,11 +61,11 @@ public abstract class V2Fixture
     /// </summary>
     protected async Task<(IV2Caller Caller, OwnerSession Owner)> SetupCallerWithOwner(
         CallerSpec spec,
-        string? ownerIdentity = null,
-        bool allowAnonymousReads = true)
+        string? ownerIdentity = null)
     {
         var owner = await LoginAsOwner(ownerIdentity ?? Identities.Frodo);
-        await owner.Admin.CreateDrive(spec.TargetDrive, "Test Drive", allowAnonymousReads);
+        var d = spec.DriveSpec;
+        await owner.Admin.CreateDrive(d.Drive, d.Name, d.AllowAnonymousReads, d.OwnerOnly, d.AllowSubscriptions);
         var caller = await spec.Build(owner);
         return (caller, owner);
     }

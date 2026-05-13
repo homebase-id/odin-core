@@ -29,26 +29,26 @@ public class DriveReadTests : V2Fixture
 {
     public static IEnumerable<object[]> AnonDriveCases()
     {
-        yield return [CallerSpec.Guest(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK];
-        yield return [CallerSpec.App(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK];
-        yield return [CallerSpec.Guest(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.OK];
-        yield return [CallerSpec.App(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.OK];
-        yield return [CallerSpec.Owner(TargetDrive.NewTargetDrive()), HttpStatusCode.OK];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.OK];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.OK];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Write), HttpStatusCode.OK];
+        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.OK];
     }
 
     public static IEnumerable<object[]> SecuredDriveCases()
     {
-        yield return [CallerSpec.Guest(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK];
-        yield return [CallerSpec.App(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK];
-        yield return [CallerSpec.Guest(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden];
-        yield return [CallerSpec.App(TargetDrive.NewTargetDrive(), DrivePermission.Write), HttpStatusCode.Forbidden];
-        yield return [CallerSpec.Owner(TargetDrive.NewTargetDrive()), HttpStatusCode.OK];
+        yield return [CallerSpec.Guest(DriveSpec.Secured(), DrivePermission.Read), HttpStatusCode.OK];
+        yield return [CallerSpec.App(DriveSpec.Secured(), DrivePermission.Read), HttpStatusCode.OK];
+        yield return [CallerSpec.Guest(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.App(DriveSpec.Secured(), DrivePermission.Write), HttpStatusCode.Forbidden];
+        yield return [CallerSpec.Owner(DriveSpec.Secured()), HttpStatusCode.OK];
     }
 
     [Test, TestCaseSource(nameof(AnonDriveCases))]
     public async Task CanGetHeaderAndPayloadAndThumbnailsOnAnonymousDriveByFileId(CallerSpec spec, HttpStatusCode expected)
     {
-        var (caller, owner) = await SetupCallerWithOwner(spec, allowAnonymousReads: true);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
 
         var metadata = SampleMetadataData.Create(fileType: 100);
         metadata.AccessControlList = AccessControlList.Anonymous;
@@ -98,7 +98,7 @@ public class DriveReadTests : V2Fixture
     [Test, TestCaseSource(nameof(SecuredDriveCases))]
     public async Task CanGetHeaderAndPayloadAndThumbnailsOnSecuredDriveByFileId(CallerSpec spec, HttpStatusCode expected)
     {
-        var (caller, owner) = await SetupCallerWithOwner(spec, allowAnonymousReads: false);
+        var (caller, owner) = await SetupCallerWithOwner(spec);
 
         var metadata = SampleMetadataData.Create(fileType: 100);
         metadata.AccessControlList = AccessControlList.Authenticated;

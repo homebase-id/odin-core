@@ -18,9 +18,9 @@ public class AuthTests : V2Fixture
 {
     public static IEnumerable<object[]> CallerVariants()
     {
-        yield return [CallerSpec.Owner(TargetDrive.NewTargetDrive()), HttpStatusCode.Unauthorized];
-        yield return [CallerSpec.App(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.Unauthorized];
-        yield return [CallerSpec.Guest(TargetDrive.NewTargetDrive(), DrivePermission.Read), HttpStatusCode.OK];
+        yield return [CallerSpec.Owner(DriveSpec.Anon()), HttpStatusCode.Unauthorized];
+        yield return [CallerSpec.App(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.Unauthorized];
+        yield return [CallerSpec.Guest(DriveSpec.Anon(), DrivePermission.Read), HttpStatusCode.OK];
     }
 
     [Test, TestCaseSource(nameof(CallerVariants))]
