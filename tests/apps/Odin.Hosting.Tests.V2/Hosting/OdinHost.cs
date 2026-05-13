@@ -13,7 +13,10 @@ using Microsoft.Extensions.Hosting;
 using Odin.Hosting;
 using Autofac;
 using Odin.Core.Storage.Factory;
+using Odin.Core.Identity;
+using Odin.Hosting.Tests.V2.Peer;
 using Odin.Services.Background.Testing;
+using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
@@ -82,13 +85,26 @@ public sealed class OdinHost : IAsyncDisposable
 
         var overrides = BuildPerHostConfig(identities, tenantData, systemData, logs);
 
+        // Holder is populated AFTER host.StartAsync (TestServer not available before that), but
+        // resolved lazily by the test peer factory delegate at first request — so this works as
+        // long as no peer call fires during host startup.
+        var serverHolder = new TestServerHolder();
+
         var builder = Program.CreateHostBuilder([])
             .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
-            .ConfigureWebHost(web => web.UseTestServer(o => o.AllowSynchronousIO = true));
+            .ConfigureWebHost(web => web.UseTestServer(o => o.AllowSynchronousIO = true))
+            .ConfigureContainer<ContainerBuilder>(cb =>
+            {
+                cb.RegisterInstance(serverHolder).SingleInstance();
+                cb.Register(c => new TestPeerHttpClientFactory(serverHolder, c.Resolve<OdinIdentity>()))
+                    .As<IOdinHttpClientFactory>()
+                    .InstancePerLifetimeScope();
+            });
 
         var host = builder.Build();
         host.BeforeApplicationStarting([]);
         await host.StartAsync();
+        serverHolder.Server = host.GetTestServer();
 
         return new OdinHost(host, identities, dataRoot);
     }

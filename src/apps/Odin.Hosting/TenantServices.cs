@@ -168,7 +168,13 @@ public static class TenantServices
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
-        cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
+        // When Testing:EnableSyncHooks is set the V2 test framework provides its own
+        // IOdinHttpClientFactory at the root container level (routes peer calls back to TestServer).
+        // Skip the production registration so the test impl resolves via parent-scope fallback.
+        if (!odinConfig.Testing.EnableSyncHooks)
+        {
+            cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
+        }
         cb.RegisterType<CapiCallbackSession>().As<ICapiCallbackSession>().SingleInstance();
 
         cb.RegisterType<HomeCachingService>()
@@ -370,6 +376,16 @@ public static class TenantServices
         if (odinConfig.Testing.EnableSyncHooks)
         {
             cb.RegisterType<TestSync>().As<ITestSync>().InstancePerLifetimeScope();
+
+            // Tests don't StartAsync the background services. The production notifier waits up to
+            // 30s for the service to register, hanging every code path that enqueues outbox/inbox
+            // work. Swap in no-ops; drain is driven explicitly via ITestSync.
+            cb.RegisterType<NoopBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService>>()
+                .As<IBackgroundServiceNotifier<PeerOutboxProcessorBackgroundService>>()
+                .SingleInstance();
+            cb.RegisterType<NoopBackgroundServiceNotifier<PeerInboxProcessorBackgroundService>>()
+                .As<IBackgroundServiceNotifier<PeerInboxProcessorBackgroundService>>()
+                .SingleInstance();
         }
 
         return cb;

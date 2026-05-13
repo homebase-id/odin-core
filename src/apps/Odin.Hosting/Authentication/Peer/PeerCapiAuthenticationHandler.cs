@@ -41,6 +41,28 @@ public class PeerCapiAuthenticationHandler(
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        // Test-only bypass: when the V2 in-process test framework is active it routes peer calls
+        // back to its own TestServer (no real network, no Let's-Encrypt-backed cert validation
+        // callback). The outbound test factory sets X-Test-Peer-Identity; we trust it here in lieu
+        // of the production session-validate-callback dance. Gated on Testing.EnableSyncHooks so
+        // this branch is unreachable in production.
+        if (config.Testing.EnableSyncHooks)
+        {
+            var testPeer = Context.Request.Headers["X-Test-Peer-Identity"].ToString();
+            if (!string.IsNullOrWhiteSpace(testPeer))
+            {
+                var testClaims = new List<Claim>
+                {
+                    new(ClaimTypes.NameIdentifier, testPeer, ClaimValueTypes.String, Options.ClaimsIssuer),
+                    new(ClaimTypes.Name, testPeer, ClaimValueTypes.String, Options.ClaimsIssuer),
+                    new(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                    new(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                };
+                var testPrincipal = new ClaimsPrincipal(new ClaimsIdentity(testClaims, Scheme.Name));
+                return AuthenticateResult.Success(new AuthenticationTicket(testPrincipal, Scheme.Name));
+            }
+        }
+
         var capiSession = Context.Request.Headers[ICapiCallbackSession.SessionHttpHeaderName].ToString();
         var capiRemoteDomainAndSessionId = capiSession.Split('~');
         if (capiRemoteDomainAndSessionId.Length != 2)
