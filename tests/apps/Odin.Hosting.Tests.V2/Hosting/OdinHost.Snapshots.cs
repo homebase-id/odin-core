@@ -9,7 +9,6 @@ using Odin.Services.Configuration;
 using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Registry;
 using Odin.Services.Tenant.Container;
-using Odin.Services.AppNotifications.WebSocket;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -84,12 +83,13 @@ public sealed partial class OdinHost
     /// </summary>
     /// <remarks>
     /// <para><b>What this DOES reset:</b> identity DB, payload tree, upload tree, inbox dir,
-    /// <see cref="PeerInboxDriveQueue"/> channel, both <see cref="SharedDeviceSocketCollection{T}"/>
-    /// registries (app + peer-app notifications), the entire FusionCache for this host.</para>
+    /// <see cref="PeerInboxDriveQueue"/> channel, the entire FusionCache for this host.</para>
     /// <para><b>What this does NOT reset</b> (and that you'd need to handle if a future test
     /// depends on it): any other <c>SingleInstance</c> tenant service in
-    /// <c>TenantServices.ConfigureTenantServices</c> that buffers mutable state outside DB / cache.
-    /// The current suite doesn't exercise any.</para>
+    /// <c>TenantServices.ConfigureTenantServices</c> that buffers mutable state outside DB / cache —
+    /// notably the two <c>SharedDeviceSocketCollection&lt;T&gt;</c> registries for app + peer-app
+    /// notifications. The current suite doesn't open WebSockets; add a drain helper if/when one does.
+    /// </para>
     /// <para><b>FusionCache clear scope:</b> <see cref="IFusionCache"/> is registered as a true
     /// singleton at the process container; tenant-keyed cache prefixes mean different tenants
     /// don't read each other's entries, but they all share the same underlying store. We rely on
@@ -121,7 +121,6 @@ public sealed partial class OdinHost
             ResetDirectory(paths.InboxPath);
 
             DrainPeerInboxDriveQueue(multitenant, snapshot.Domain);
-            await DrainSocketCollectionsAsync(multitenant, snapshot.Domain);
         }
 
         var fusionCache = _host.Services.GetService<IFusionCache>();
@@ -139,35 +138,6 @@ public sealed partial class OdinHost
         while (queue.TryDequeue(out _))
         {
             // discard
-        }
-    }
-
-    /// <summary>
-    /// Close + remove every WebSocket registered on either tenant-scoped
-    /// <see cref="SharedDeviceSocketCollection{T}"/> singleton. Preventive: today no V2 test holds
-    /// a WebSocket across the test boundary, but the first one that does would otherwise see the
-    /// previous test's sockets in the registry.
-    /// </summary>
-    private static async Task DrainSocketCollectionsAsync(IMultiTenantContainer multitenant, string domain)
-    {
-        var scope = multitenant.LookupTenantScope(domain);
-        if (scope == null) return;
-
-        if (scope.TryResolve<SharedDeviceSocketCollection<AppNotificationHandler>>(out var apps))
-        {
-            await CloseAllAsync(apps);
-        }
-        if (scope.TryResolve<SharedDeviceSocketCollection<PeerAppNotificationHandler>>(out var peers))
-        {
-            await CloseAllAsync(peers);
-        }
-    }
-
-    private static async Task CloseAllAsync(DeviceSocketCollection collection)
-    {
-        foreach (var key in collection.GetAll().Keys)
-        {
-            await collection.RemoveSocket(key);
         }
     }
 

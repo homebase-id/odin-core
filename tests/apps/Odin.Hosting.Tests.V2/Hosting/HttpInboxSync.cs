@@ -22,16 +22,15 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 /// </summary>
 /// <remarks>
 /// Concrete impls (<see cref="OwnerSync"/>, <see cref="AppSync"/>) supply the per-caller Refit
-/// interface bound to their endpoint path. The Refit proxy + HttpClient are cached on first use.
+/// interface bound to their endpoint path. A fresh <see cref="HttpClient"/> is built per call and
+/// disposed when the call returns. The cost is one delegating-handler chain allocation; the inner
+/// TestServer handler is cached by <see cref="InProcessApiClientFactory"/> so we don't re-create
+/// the whole pipeline.
 /// </remarks>
 public abstract class HttpInboxSync<TRefit> : ITestSync where TRefit : class
 {
     private readonly ITestSync _hostSync;
     private readonly IV2Caller _caller;
-
-    private readonly object _lock = new();
-    private TRefit? _refitClient;
-    private HttpClient? _http;
 
     internal HttpInboxSync(ITestSync hostSync, IV2Caller caller)
     {
@@ -45,15 +44,13 @@ public abstract class HttpInboxSync<TRefit> : ITestSync where TRefit : class
     public Task<bool> IsOutboxEmptyAsync(TargetDrive drive)
         => _hostSync.IsOutboxEmptyAsync(drive);
 
-    public Task WaitForOutboxEmptyAsync(TargetDrive drive, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-        => _hostSync.WaitForOutboxEmptyAsync(drive, timeout, cancellationToken);
-
     public async Task<InboxStatus> ProcessInboxAsync(
         TargetDrive drive,
         int batchSize = 100,
         CancellationToken cancellationToken = default)
     {
-        var svc = GetOrBuildClient();
+        using var http = _caller.Factory.CreateHttpClient(_caller.Identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<TRefit>(http, sharedSecret);
         var resp = await CallProcessInboxAsync(svc, new ProcessInboxRequest { TargetDrive = drive, BatchSize = batchSize });
         if (!resp.IsSuccessStatusCode)
         {
@@ -64,16 +61,4 @@ public abstract class HttpInboxSync<TRefit> : ITestSync where TRefit : class
 
     /// <summary>Invoke the per-caller Refit interface's <c>ProcessInbox</c> method.</summary>
     protected abstract Task<ApiResponse<InboxStatus>> CallProcessInboxAsync(TRefit svc, ProcessInboxRequest request);
-
-    private TRefit GetOrBuildClient()
-    {
-        if (_refitClient != null) return _refitClient;
-        lock (_lock)
-        {
-            if (_refitClient != null) return _refitClient;
-            _http = _caller.Factory.CreateHttpClient(_caller.Identity, out var sharedSecret);
-            _refitClient = RefitCreator.RestServiceFor<TRefit>(_http, sharedSecret);
-            return _refitClient;
-        }
-    }
 }

@@ -201,15 +201,17 @@ public sealed partial class OdinHost : IAsyncDisposable
     // One-shot, process-wide env baseline. Idempotent under parallel callers.
     // ---------------------------------------------------------------------------------------------
 
-    private static int _baselineInitialized;
+    // Lazy<T> with ExecutionAndPublication guarantees the factory runs to completion before any
+    // other thread observes a non-null value. The earlier CAS-on-an-int pattern flipped the flag
+    // BEFORE the SetEnvironmentVariable calls ran, so under ParallelScope.Fixtures a second thread
+    // could win the second CAS check, return immediately, and reach Program.CreateHostBuilder's
+    // eager AppSettings.LoadConfig before the first thread had finished writing env vars.
+    private static readonly Lazy<bool> _baseline = new(InitializeBaseline, LazyThreadSafetyMode.ExecutionAndPublication);
 
-    private static void EnsureGlobalEnvBaseline()
+    private static void EnsureGlobalEnvBaseline() => _ = _baseline.Value;
+
+    private static bool InitializeBaseline()
     {
-        if (Interlocked.CompareExchange(ref _baselineInitialized, 1, 0) != 0)
-        {
-            return;
-        }
-
         var scratch = Path.Combine(Path.GetTempPath(), "odin-tests-v2-baseline");
         Directory.CreateDirectory(scratch);
 
@@ -222,6 +224,7 @@ public sealed partial class OdinHost : IAsyncDisposable
         SetCertRenewalBaseline();
         SetMailBaseline();
         SetAdminBaseline();
+        return true;
     }
 
     private static void SetRuntimeBaseline()

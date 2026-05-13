@@ -42,12 +42,4 @@ public interface ITestSync
 
     /// <summary>True when both <c>TotalItems</c> and <c>CheckedOutCount</c> are 0 on the drive's outbox.</summary>
     Task<bool> IsOutboxEmptyAsync(TargetDrive drive);
-
-    /// <summary>
-    /// Polls <see cref="IsOutboxEmptyAsync"/> with a short back-off until the outbox empties, the
-    /// internal timeout expires (default 30s — override via <paramref name="timeout"/>), or
-    /// <paramref name="cancellationToken"/> fires. Throws <see cref="System.TimeoutException"/> on
-    /// timeout. No HTTP — reads the local outbox table directly.
-    /// </summary>
-    Task WaitForOutboxEmptyAsync(TargetDrive drive, System.TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 }

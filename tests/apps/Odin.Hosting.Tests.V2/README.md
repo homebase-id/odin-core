@@ -11,7 +11,7 @@ the wire.
 | Per-test cost | ~5–20 ms (snapshot restore + payload wipe) | none (state leaks) |
 | Fixture parallelism | yes (`ParallelScope.Fixtures`) | no (fixed ports) |
 | Peer-to-peer flows | in-process, ~1 s end-to-end | over real loopback HTTPS |
-| Wall clock (49 tests) | ~7 s | minutes |
+| Wall clock (48 tests) | ~7 s | minutes |
 
 Coexists with the V1 framework — V1 controller tests stay there.
 
@@ -125,7 +125,7 @@ Three test-only seams make this work:
 - **V1 controller tests** (`/api/owner/v1/...` as the system under test) — stay on `WebScaffold`. V1 admin endpoints are reused here only for fixture seeding (drives, apps, circles, YouAuth domains) and to back caller-scoped inbox processing (`OwnerSync` / `AppSync` POST to the V1 inbox endpoint so the request runs under real owner / app permissions).
 - **mTLS-bound paths** — V2 tests run TLS-less; anything that genuinely requires client cert auth has to stay on real Kestrel.
 - **Background-service timer behavior** — services are registered but never started. Anything time-driven (cert renewal, orphan scan, scheduled jobs) needs the V1 framework. Tests drain the peer outbox explicitly via `Sync.DrainOutboxAsync` and process the inbox via `Sync.ProcessInboxAsync`.
-- **WebSocket-driven flows** — the host registers `SharedDeviceSocketCollection` but no V2 test currently opens a socket. The reset path clears both registries between tests, so adding one shouldn't surprise the next test.
+- **WebSocket-driven flows** — the host registers `SharedDeviceSocketCollection` but no V2 test currently opens a socket. The reset path does *not* clear those registries; the first test that holds a socket across the boundary will need to add a drain hook (see the "What this does NOT reset" note on `OdinHost.ResetAsync`).
 
 ---
 

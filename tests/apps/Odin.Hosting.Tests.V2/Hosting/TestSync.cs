@@ -32,36 +32,4 @@ internal sealed class TestSync(
         var status = await peerOutbox.GetOutboxStatusAsync(drive.Alias);
         return status.TotalItems == 0 && status.CheckedOutCount == 0;
     }
-
-    public async Task WaitForOutboxEmptyAsync(TargetDrive drive, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(30);
-        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-
-        var delay = 5;
-        while (!linkedCts.IsCancellationRequested)
-        {
-            if (await IsOutboxEmptyAsync(drive))
-            {
-                return;
-            }
-            try
-            {
-                await Task.Delay(delay, linkedCts.Token);
-            }
-            catch (TaskCanceledException)
-            {
-                break;
-            }
-            if (delay < 100) delay *= 2;
-        }
-
-        if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            throw new TimeoutException(
-                $"WaitForOutboxEmptyAsync timed out after {effectiveTimeout.TotalSeconds:F0}s on drive {drive.Alias}");
-        }
-        cancellationToken.ThrowIfCancellationRequested();
-    }
 }

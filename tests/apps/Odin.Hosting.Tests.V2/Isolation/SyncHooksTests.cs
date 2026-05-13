@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
@@ -68,15 +67,4 @@ public class SyncHooksTests : V2Fixture
         Assert.That(status.PoppedCount, Is.EqualTo(0));
     }
 
-    [Test]
-    public async Task WaitForOutboxEmpty_OnFreshDrive_ReturnsQuickly()
-    {
-        var owner = await LoginAsOwner(Identities.Frodo);
-        var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "Sync sentinel drive");
-
-        using var cts = new CancellationTokenSource(500);
-        await owner.Sync.WaitForOutboxEmptyAsync(drive, cancellationToken: cts.Token);
-        Assert.That(cts.IsCancellationRequested, Is.False, "should have completed before cancel");
-    }
 }

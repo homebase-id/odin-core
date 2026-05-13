@@ -95,12 +95,20 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             var peerOutbox = lifetimeScope.Resolve<PeerOutbox>();
             var tasks = new List<Task>();
-            while (!cancellationToken.IsCancellationRequested
-                   && await peerOutbox.GetNextItemAsync() is { } item)
+            try
             {
-                tasks.Add(ProcessItemThread(item, cancellationToken));
+                while (!cancellationToken.IsCancellationRequested
+                       && await peerOutbox.GetNextItemAsync() is { } item)
+                {
+                    tasks.Add(ProcessItemThread(item, cancellationToken));
+                }
             }
-            await Task.WhenAll(tasks);
+            finally
+            {
+                // Match ExecuteAsync: wait on in-flight item tasks even if GetNextItemAsync throws,
+                // so DrainAsync's contract ("returns when in-flight work is done") still holds.
+                await Task.WhenAll(tasks);
+            }
         }
 
         /// <summary>
