@@ -1,14 +1,17 @@
+using Odin.Hosting.Tests;
+
 namespace Odin.Hosting.Tests.V2.Api;
 
 /// <summary>
-/// Canonical test-identity domain names used by this framework. Mirror of the OdinIds in
-/// <c>tests/apps/Odin.Hosting.Tests/TestIdentities.cs</c> so they share certs and behave identically.
+/// Canonical test-identity domain names. Derived from <see cref="TestIdentities"/> in the V1 test
+/// project so both frameworks share a single source of truth: certs, preconfigured tenants, and
+/// any production seeding for these domains stay aligned.
 /// </summary>
 public static class Identities
 {
-    public const string Frodo = "frodo.dotyou.cloud";
-    public const string Sam = "sam.dotyou.cloud";
-    public const string Merry = "merry.dotyou.cloud";
-    public const string Pippin = "pippin.dotyou.cloud";
-    public const string TomBombadil = "tom.dotyou.cloud";
+    public static readonly string Frodo = TestIdentities.Frodo.OdinId.DomainName;
+    public static readonly string Sam = TestIdentities.Samwise.OdinId.DomainName;
+    public static readonly string Merry = TestIdentities.Merry.OdinId.DomainName;
+    public static readonly string Pippin = TestIdentities.Pippin.OdinId.DomainName;
+    public static readonly string TomBombadil = TestIdentities.TomBombadil.OdinId.DomainName;
 }
