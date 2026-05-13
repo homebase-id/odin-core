@@ -1058,6 +1058,12 @@ namespace Odin.Services.Membership.Connections
                 await this.UpdateCircleDefinitionAsync(def, odinContext);
             }
 
+            // TODO: NRE if the system circles aren't present yet — CreateDrive on a tenant that
+            // hasn't completed config/system/initialize will succeed in the DB but the handler
+            // here will throw, surfacing as a 500 on the create response. The V2 test framework
+            // works around this by calling InitializeIdentity in fixture warm-up
+            // (see V2Fixture.WarmTenantBaselineAsync). Proper fix: defensive null-guard plus
+            // either lazy-create the system circles or assert prerequisites at controller entry.
             CircleDefinition confirmedCircle = await
                 circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
             await GrantAnonymousRead(confirmedCircle);

@@ -67,6 +67,11 @@ public sealed class OwnerAdmin
     // Drives
     // -----------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Creates a drive on the owner's identity. Defaults match the V2-test convention of
+    /// anonymous-readable, non-owner-only, no subscriptions; callers typically pass these through
+    /// from <see cref="DriveSpec"/>.
+    /// </summary>
     public async Task<ApiResponse<bool>> CreateDrive(
         TargetDrive drive,
         string name,
@@ -91,6 +96,10 @@ public sealed class OwnerAdmin
     // Circles (delegated to the existing new-style client; works with our factory unchanged)
     // -----------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Creates a circle that members will be granted on connection. Used by <see cref="GuestSession"/>
+    /// to attach a YouAuth domain to a drive-permission grant.
+    /// </summary>
     public Task<ApiResponse<HttpContent>> CreateCircle(Guid id, string name, PermissionSetGrantRequest grant) =>
         _network.CreateCircle(id, name, grant);
 
@@ -98,6 +107,10 @@ public sealed class OwnerAdmin
     // Apps
     // -----------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Registers an app with the given permissions. Throws on non-2xx; callers in this framework
+    /// always want this to succeed since failure here means the rest of the test setup is broken.
+    /// </summary>
     public async Task<ApiResponse<RedactedAppRegistration>> RegisterApp(
         Guid appId,
         PermissionSetGrantRequest appPermissions,
@@ -178,6 +191,10 @@ public sealed class OwnerAdmin
     // YouAuth domains (Guest setup)
     // -----------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Registers a YouAuth domain (the third-party domain that a Guest test caller represents),
+    /// optionally granting it the given circles. Throws on non-2xx.
+    /// </summary>
     public async Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterYouAuthDomain(
         AsciiDomainName domain,
         List<GuidId>? circleIds = null)
@@ -198,6 +215,10 @@ public sealed class OwnerAdmin
         return response;
     }
 
+    /// <summary>
+    /// Registers a client under an already-registered YouAuth domain. The returned access token
+    /// and shared secret are what the <see cref="GuestSession"/> uses to authenticate.
+    /// </summary>
     public async Task<ApiResponse<YouAuthDomainClientRegistrationResponse>> RegisterYouAuthClient(
         AsciiDomainName domain,
         string friendlyName = "test in-process guest client")
