@@ -134,6 +134,8 @@ public sealed class OdinHost : IAsyncDisposable
         }
         _host.Dispose();
 
+        Odin.Hosting.Tests.V2.Auth.OwnerLogin.Forget(this);
+
         try
         {
             if (Directory.Exists(DataRoot))

@@ -27,11 +27,26 @@ public static class OwnerLogin
     public const string DefaultPassword = "EnSøienØ";
 
     // SetNewPassword is one-shot per identity; subsequent attempts return 400. We set the password
-    // exactly once per (host, identity) pair, then authenticate fresh on every call.
-    // KNOWN: process-static; entries are never removed when their OdinHost is disposed. The reference
-    // is the only thing kept alive, so it's a few bytes per disposed host. Not load-bearing today
-    // (test processes are short-lived), but worth cleaning up if this framework grows long-running.
+    // exactly once per (host, identity) pair, then authenticate fresh on every call. Entries are
+    // dropped via Forget(host) from OdinHost.DisposeAsync so this dict can't grow unboundedly even
+    // in a long-running test process.
     private static readonly ConcurrentDictionary<(OdinHost, string), bool> _passwordsSet = new();
+
+    /// <summary>
+    /// Drops all <see cref="_passwordsSet"/> entries tied to <paramref name="host"/>. Called by
+    /// <see cref="OdinHost.DisposeAsync"/> so a disposed host doesn't linger in the dictionary as
+    /// a stale key.
+    /// </summary>
+    internal static void Forget(OdinHost host)
+    {
+        foreach (var key in _passwordsSet.Keys)
+        {
+            if (ReferenceEquals(key.Item1, host))
+            {
+                _passwordsSet.TryRemove(key, out _);
+            }
+        }
+    }
 
     public static async Task<(ClientAuthenticationToken token, SensitiveByteArray sharedSecret)> RunAsync(
         OdinHost host,
