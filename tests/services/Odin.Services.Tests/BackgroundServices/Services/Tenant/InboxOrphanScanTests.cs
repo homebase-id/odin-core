@@ -75,7 +75,7 @@ public class InboxOrphanScanTests
 
         // Assert
         VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Once());
-        VerifyLog(LogLevel.Error, "Inbox orphan summary:", Times.Once());
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Once());
         Assert.That(File.Exists(orphan), Is.True, "Detection-only — file must NOT be deleted");
     }
 
@@ -120,7 +120,7 @@ public class InboxOrphanScanTests
             _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, PendingForDriveAsync);
 
         VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Once());
-        VerifyLog(LogLevel.Error, "Inbox orphan summary:", Times.Once());
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Once());
     }
 
     [Test]
@@ -200,7 +200,7 @@ public class InboxOrphanScanTests
 
         // All four files get flagged.
         VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Exactly(4));
-        VerifyLog(LogLevel.Error, "Inbox orphan summary:", Times.Once());
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Once());
     }
 
     [Test]
@@ -256,7 +256,7 @@ public class InboxOrphanScanTests
 
         // No per-file flag and no summary — the failed lookup short-circuited the drive scan.
         VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Never());
-        VerifyLog(LogLevel.Error, "Inbox orphan summary:", Times.Never());
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Never());
     }
 
     //
