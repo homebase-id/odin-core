@@ -27,6 +27,13 @@ public sealed class AppSession : IV2Caller
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
 
+    /// <summary>
+    /// App-scoped drain hooks. Mirrors <see cref="OwnerSession.Sync"/>: outbox via direct service
+    /// calls, inbox processing via the app's V1 HTTP endpoint so the request runs under the app's
+    /// own permissions context.
+    /// </summary>
+    public ITestSync Sync { get; }
+
     private AppSession(OdinHost host, OdinId identity, Guid appId, ClientAuthenticationToken token, byte[] sharedSecret)
     {
         Identity = identity;
@@ -34,6 +41,7 @@ public sealed class AppSession : IV2Caller
         Factory = new InProcessApiClientFactory(host, YouAuthConstants.AppCookieName, token, sharedSecret.ToSensitiveByteArray());
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
+        Sync = new AppSync(host.GetTestSync(identity), this);
     }
 
     /// <summary>

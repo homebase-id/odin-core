@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests.V2.Isolation;
@@ -48,6 +49,23 @@ public class SyncHooksTests : V2Fixture
         await owner.Admin.CreateDrive(drive, "Sync sentinel drive");
 
         Assert.That(await owner.Sync.IsOutboxEmptyAsync(drive), Is.True);
+    }
+
+    [Test]
+    public async Task AppSync_ProcessInbox_OnEmpty_ReturnsZero()
+    {
+        // Sanity: AppSession.Sync routes ProcessInbox through the app's V1 inbox endpoint
+        // (different path than owner's). This proves the wiring + auth round-trip works.
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "Sync sentinel drive");
+
+        var app = await AppSession.SetupAsync(owner, drive, DrivePermission.ReadWrite);
+
+        var status = await app.Sync.ProcessInboxAsync(drive);
+        Assert.That(status, Is.Not.Null);
+        Assert.That(status.TotalItems, Is.EqualTo(0));
+        Assert.That(status.PoppedCount, Is.EqualTo(0));
     }
 
     [Test]
