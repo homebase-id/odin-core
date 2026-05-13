@@ -95,12 +95,10 @@ public sealed partial class OdinHost : IAsyncDisposable
 
         var builder = Program.CreateHostBuilder([])
             .ConfigureAppConfiguration(cb => cb.AddInMemoryCollection(overrides))
-            // AllowSynchronousIO=true masks something in production that does sync IO in the request
-            // pipeline (likely the upload/payload streaming path — 7 V2 tests fail without it,
-            // mostly around reactions and large writes). TestServer's default rejects sync IO; real
-            // Kestrel under the V1 framework tolerates it because Kestrel's default is permissive
-            // for some flows. Tracking down the producer is a separate piece of work; flagged here
-            // so the next reviewer doesn't think this is gratuitous defensiveness.
+            // Match production: SystemServices.cs sets AllowSynchronousIO=true on Kestrel for the
+            // upload/payload streaming pipeline. TestServer's default rejects sync IO, so without
+            // this flag 7 V2 tests fail (reactions + large writes). We're matching production's
+            // own flag, not papering over a hidden producer.
             .ConfigureWebHost(web => web.UseTestServer(o => o.AllowSynchronousIO = true))
             .ConfigureServices(services =>
             {

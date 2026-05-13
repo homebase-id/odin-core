@@ -161,9 +161,11 @@ public sealed class OwnerAdmin
             JwkBase64UrlPublicKey = clientKeyPair.PublicKeyJwkBase64Url(),
             ClientFriendlyName = "test in-process app client"
         });
-        if (!regResponse.IsSuccessStatusCode || regResponse.Content == null)
+        EnsureSuccess(regResponse, nameof(RegisterAppClient) + ".RegisterAppOnClientUsingEcc");
+        if (regResponse.Content == null)
         {
-            throw new InvalidOperationException($"RegisterAppOnClientUsingEcc failed: {regResponse.StatusCode}");
+            throw new InvalidOperationException(
+                $"{nameof(RegisterAppClient)}.RegisterAppOnClientUsingEcc returned 2xx but empty content");
         }
 
         var reply = regResponse.Content;
@@ -174,9 +176,11 @@ public sealed class OwnerAdmin
         var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
         var tokenResp = await svc.ExchangeDigestForToken(new YouAuthTokenRequest { SecretDigest = exchangeSecretDigest });
-        if (!tokenResp.IsSuccessStatusCode || tokenResp.Content == null)
+        EnsureSuccess(tokenResp, nameof(RegisterAppClient) + ".ExchangeDigestForToken");
+        if (tokenResp.Content == null)
         {
-            throw new InvalidOperationException($"ExchangeDigestForToken failed: {tokenResp.StatusCode}");
+            throw new InvalidOperationException(
+                $"{nameof(RegisterAppClient)}.ExchangeDigestForToken returned 2xx but empty content");
         }
 
         var token = tokenResp.Content;

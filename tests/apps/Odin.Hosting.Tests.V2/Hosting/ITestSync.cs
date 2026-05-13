@@ -31,9 +31,12 @@ public interface ITestSync
     Task DrainOutboxAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Processes up to <paramref name="batchSize"/> pending inbox items for <paramref name="drive"/>
-    /// using a synthetic system caller context. Equivalent to the V1
-    /// <c>POST /api/owner/v1/peer/inbox/processor/process</c> endpoint without the HTTP hop.
+    /// Processes up to <paramref name="batchSize"/> pending inbox items for <paramref name="drive"/>.
+    /// Owner sessions (via <c>OwnerSync</c>) route this through the
+    /// <c>POST /api/owner/v1/transit/inbox/processor/process</c> endpoint so processing runs under
+    /// the owner's permissions context — paths that look files up by GTID (peer delete, read
+    /// receipt) need real drive grants. Direct (non-owner-routed) implementations build a
+    /// synthetic system context which works only for the SaveFile path.
     /// </summary>
     Task<InboxStatus> ProcessInboxAsync(TargetDrive drive, int batchSize = 100, CancellationToken cancellationToken = default);
 

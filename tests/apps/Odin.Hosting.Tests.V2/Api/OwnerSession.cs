@@ -39,9 +39,9 @@ public sealed class OwnerSession : IV2Caller
     /// Test-only drain hooks scoped to this owner. Outbox drain / status reads delegate to the
     /// tenant's <see cref="ITestSync"/>; <see cref="ITestSync.ProcessInboxAsync"/> goes through the
     /// owner's HTTP endpoint so inbox processing runs under the owner's permissions context (see
-    /// <see cref="OwnerSync"/> for why that matters).
+    /// <see cref="OwnerSync"/> for why that matters). Cached for the lifetime of this session.
     /// </summary>
-    public ITestSync Sync => new OwnerSync(Host.GetTestSync(Identity), this);
+    public ITestSync Sync { get; }
 
     private OwnerSession(OdinHost host, string identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
     {
@@ -53,6 +53,7 @@ public sealed class OwnerSession : IV2Caller
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
         Admin = new OwnerAdmin(this);
+        Sync = new OwnerSync(host.GetTestSync(identity), this);
     }
 
     public static async Task<OwnerSession> LoginAsync(OdinHost host, string identity)

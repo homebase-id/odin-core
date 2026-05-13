@@ -85,7 +85,10 @@ public sealed class InProcessApiClientFactory : IApiClientFactory
 
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
         client.BaseAddress = new Uri($"https://{identity}/");
-        sharedSecret = _sharedSecret!;
+        sharedSecret = _sharedSecret ?? throw new InvalidOperationException(
+            "InProcessApiClientFactory.CreateHttpClient(out ...) requires a shared secret; this factory " +
+            "was constructed without one. IApiClientFactory's signature predates nullable references — " +
+            "silently smuggling a null out-param causes confusing downstream NREs.");
         return client;
     }
 

@@ -107,10 +107,8 @@ public class PeerScenarioTests : V2Fixture
         // Bi-directional Write: Sam's read receipt back to Frodo lands at
         // PeerDriveIncomingTransferService.MarkFileAsReadAsync, which AssertCanWriteToDrive on
         // Frodo's local drive — Sam needs Write on Frodo's drive too, not just the other direction.
-        var drive = TargetDrive.NewTargetDrive();
-        await frodo.Admin.CreateDrive(drive, "frodo receipts");
-        await sam.Admin.CreateDrive(drive, "sam receipts");
-        await PeerFlow.ConnectBidirectionalAsync(frodo, sam, drive, DrivePermission.Write);
+        var drive = await PeerFlow.CreatePeerDriveAsync(
+            frodo, sam, DrivePermission.Write, "receipts", bidirectional: true);
 
         var (frodoFile, gtid) = await UploadAndDeliverAsync(frodo, sam, drive, fileType: 400);
 

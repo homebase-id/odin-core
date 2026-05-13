@@ -1,6 +1,9 @@
 #nullable enable
+using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core;
 using Odin.Hosting.Tests;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Services.Drives;
@@ -23,6 +26,13 @@ public sealed class OwnerSync : ITestSync
     private readonly ITestSync _hostSync;
     private readonly OwnerSession _owner;
 
+    // Lazily built and reused across calls. The Refit proxy and its HttpClient are bound to
+    // the V1 admin path-normalizing handler + the owner's auth cookie / shared secret; nothing
+    // in those changes per call, so per-call construction was pure waste.
+    private readonly object _refitLock = new();
+    private IOwnerInboxProcessorRefit? _refitClient;
+    private HttpClient? _http;
+
     internal OwnerSync(ITestSync hostSync, OwnerSession owner)
     {
         _hostSync = hostSync;
@@ -35,7 +45,7 @@ public sealed class OwnerSync : ITestSync
     public Task<bool> IsOutboxEmptyAsync(TargetDrive drive)
         => _hostSync.IsOutboxEmptyAsync(drive);
 
-    public Task WaitForOutboxEmptyAsync(TargetDrive drive, System.TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    public Task WaitForOutboxEmptyAsync(TargetDrive drive, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
         => _hostSync.WaitForOutboxEmptyAsync(drive, timeout, cancellationToken);
 
     public async Task<InboxStatus> ProcessInboxAsync(
@@ -43,21 +53,24 @@ public sealed class OwnerSync : ITestSync
         int batchSize = 100,
         CancellationToken cancellationToken = default)
     {
-        var (client, sharedSecret) = _owner.NewAdminHttpClient();
-        try
+        var svc = GetOrBuildClient();
+        var resp = await svc.ProcessInbox(new ProcessInboxRequest { TargetDrive = drive, BatchSize = batchSize });
+        if (!resp.IsSuccessStatusCode)
         {
-            var svc = RefitCreator.RestServiceFor<IOwnerInboxProcessorRefit>(client, sharedSecret);
-            var resp = await svc.ProcessInbox(new ProcessInboxRequest { TargetDrive = drive, BatchSize = batchSize });
-            if (!resp.IsSuccessStatusCode)
-            {
-                throw new System.InvalidOperationException(
-                    $"ProcessInbox HTTP failed: {resp.StatusCode}");
-            }
-            return resp.Content!;
+            throw new InvalidOperationException($"ProcessInbox HTTP failed: {resp.StatusCode}");
         }
-        finally
+        return resp.Content!;
+    }
+
+    private IOwnerInboxProcessorRefit GetOrBuildClient()
+    {
+        if (_refitClient != null) return _refitClient;
+        lock (_refitLock)
         {
-            client.Dispose();
+            if (_refitClient != null) return _refitClient;
+            (_http, var sharedSecret) = _owner.NewAdminHttpClient();
+            _refitClient = RefitCreator.RestServiceFor<IOwnerInboxProcessorRefit>(_http, sharedSecret);
+            return _refitClient;
         }
     }
 }
