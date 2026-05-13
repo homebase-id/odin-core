@@ -1,12 +1,9 @@
 #nullable enable
-using System;
-using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.YouAuth;
-using Odin.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Hosting.Tests.V2.Api;
 
@@ -33,10 +30,13 @@ public sealed class CdnSession : IV2Caller
     private CdnSession(OdinHost host, OdinId identity)
     {
         Identity = identity;
+        // Reuse the token CdnTestCase exposes — same constants the host's
+        // Cdn__RequiredAuthToken baseline is derived from, so framework and host stay in lockstep
+        // by construction (one source of truth, no parallel GUIDs to drift).
         Factory = new InProcessApiClientFactory(
             host,
             YouAuthDefaults.XTokenCookieName,
-            BuildCdnAuthToken(),
+            CdnTestCase.AuthenticationToken,
             sharedSecret: null);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
@@ -46,19 +46,5 @@ public sealed class CdnSession : IV2Caller
     public static CdnSession Setup(OdinHost host, string identity)
     {
         return new CdnSession(host, (OdinId)identity);
-    }
-
-    // Mirror the V1 CdnTestCase token verbatim so that the in-process host's Cdn__RequiredAuthToken
-    // (set in OdinHost env baseline from CdnTestCase.GetAuthToken64()) and the bearer issued by
-    // this session refer to the same logical token. Keeping the two derivations in lock-step is
-    // brittle but contained: change one place, change the env baseline.
-    private static ClientAuthenticationToken BuildCdnAuthToken()
-    {
-        return new ClientAuthenticationToken
-        {
-            Id = Guid.Parse("058de171-2525-45dc-b496-8eafb85a703b"),
-            AccessTokenHalfKey = Guid.Parse("41a247d8-fba0-442f-8391-05df4391a4e0").ToByteArray().ToSensitiveByteArray(),
-            ClientTokenType = ClientTokenType.Cdn
-        };
     }
 }

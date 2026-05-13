@@ -15,7 +15,14 @@ namespace Odin.Hosting.Tests._V2.ApiClient.TestCases;
 public class CdnTestCase(TargetDrive targetDrive, DrivePermission drivePermission) : IApiClientContext
 {
     private ApiClientFactoryV2 _factory;
-    private static ClientAuthenticationToken AuthenticationToken { get; }
+
+    /// <summary>
+    /// The fixed bearer token both the V1 fixture and the V2 in-process framework's
+    /// <c>CdnSession</c> use. Both frameworks need the SAME value because the host's
+    /// <c>Cdn__RequiredAuthToken</c> config is derived from this single field; changing the GUIDs
+    /// here automatically moves both sides in lockstep.
+    /// </summary>
+    public static ClientAuthenticationToken AuthenticationToken { get; }
 
     public TargetDrive TargetDrive { get; } = targetDrive;
     public DrivePermission DrivePermission { get; } = drivePermission;
