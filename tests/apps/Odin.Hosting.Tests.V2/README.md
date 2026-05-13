@@ -11,7 +11,7 @@ the wire.
 | Per-test cost | ~5–20 ms (snapshot restore + payload wipe) | none (state leaks) |
 | Fixture parallelism | yes (`ParallelScope.Fixtures`) | no (fixed ports) |
 | Peer-to-peer flows | in-process, ~1 s end-to-end | over real loopback HTTPS |
-| Wall clock (229 tests) | ~24 s | minutes |
+| Wall clock (full V2 suite) | ~25 s (229 tests) | ~55 s (249 tests on Kestrel + TLS) |
 
 Coexists with the V1 framework — V1 controller tests stay there.
 
