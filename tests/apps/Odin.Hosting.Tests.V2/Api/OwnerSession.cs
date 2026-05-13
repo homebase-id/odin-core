@@ -8,7 +8,6 @@ using Odin.Hosting.Tests.V2.Auth;
 using Odin.Hosting.Tests.V2.Hosting;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
-using OwnerPaths = Odin.Services.Authentication.Owner.OwnerApiPathConstants;
 
 namespace Odin.Hosting.Tests.V2.Api;
 
@@ -26,18 +25,11 @@ public sealed class OwnerSession : IV2Caller
     public SensitiveByteArray SharedSecret { get; }
 
     /// <summary>
-    /// Factory for V2 API calls and any V1 admin Refit interface with a fully-qualified RootPath
-    /// (e.g. <c>IRefitDriveManagement</c>, <c>IRefitOwnerAppRegistration</c>, <c>IRefitYouAuthDomainRegistration</c>).
-    /// BaseAddress = <c>https://{identity}/</c>; Refit string-concatenates its path on top.
+    /// Single factory used for every Refit interface — V2 (absolute paths) and V1 admin (relative
+    /// or absolute). BaseAddress = <c>https://{identity}/</c>; the factory's path-normalizing
+    /// handler rewrites V1-relative paths to include the <c>/api/owner/v1</c> prefix.
     /// </summary>
     public InProcessApiClientFactory Factory { get; }
-
-    /// <summary>
-    /// Factory for V1 admin Refit interfaces whose RootPath is relative to <c>/api/owner/v1</c>
-    /// (e.g. <c>IRefitUniversalCircleDefinition</c> with RootPath <c>/circles/definitions</c>).
-    /// BaseAddress = <c>https://{identity}/api/owner/v1</c>.
-    /// </summary>
-    internal InProcessApiClientFactory V1AdminFactory { get; }
 
     public AuthV2Client Auth { get; }
     public DriveHandles Drives { get; }
@@ -50,7 +42,6 @@ public sealed class OwnerSession : IV2Caller
         Token = token;
         SharedSecret = sharedSecret;
         Factory = new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret);
-        V1AdminFactory = new InProcessApiClientFactory(host, OwnerAuthConstants.CookieName, token, sharedSecret, basePath: OwnerPaths.BasePathV1);
         Auth = new AuthV2Client(Identity, Factory);
         Drives = new DriveHandles(Identity, Factory);
         Admin = new OwnerAdmin(this);
@@ -63,8 +54,9 @@ public sealed class OwnerSession : IV2Caller
     }
 
     /// <summary>
-    /// Owner-authenticated HttpClient + shared secret for V1 admin Refit interfaces whose RootPath
-    /// is fully qualified (starts with <c>/api/owner/v1/</c>). Each call returns a fresh client.
+    /// Owner-authenticated HttpClient + shared secret. Each call returns a fresh client; the path
+    /// handler in <see cref="InProcessApiClientFactory"/> takes care of routing V1-relative and
+    /// V2-absolute Refit paths to the right endpoint.
     /// </summary>
     internal (HttpClient client, SensitiveByteArray sharedSecret) NewAdminHttpClient()
     {

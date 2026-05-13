@@ -41,7 +41,7 @@ public sealed class OwnerAdmin
     internal OwnerAdmin(OwnerSession owner)
     {
         _owner = owner;
-        _network = new UniversalCircleNetworkApiClient(owner.Identity, owner.V1AdminFactory);
+        _network = new UniversalCircleNetworkApiClient(owner.Identity, owner.Factory);
     }
 
     // -----------------------------------------------------------------------------------------
