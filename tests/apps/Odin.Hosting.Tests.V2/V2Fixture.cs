@@ -47,21 +47,25 @@ public abstract class V2Fixture
     /// <paramref name="ownerIdentity"/> (default Frodo), creates the spec's <see cref="CallerSpec.TargetDrive"/>,
     /// then builds and returns the caller (Owner / App / Guest).
     /// </summary>
-    protected async Task<IV2Caller> SetupCaller(CallerSpec spec, string? ownerIdentity = null)
+    protected async Task<IV2Caller> SetupCaller(CallerSpec spec, string? ownerIdentity = null, bool allowAnonymousReads = true)
     {
-        var (caller, _) = await SetupCallerWithOwner(spec, ownerIdentity);
+        var (caller, _) = await SetupCallerWithOwner(spec, ownerIdentity, allowAnonymousReads);
         return caller;
     }
 
     /// <summary>
     /// Variant of <see cref="SetupCaller"/> that also returns the owner session — useful when a test
     /// needs to validate post-call state via the owner's reader (e.g. the App/Guest caller wrote a
-    /// file and we want to confirm it as owner).
+    /// file and we want to confirm it as owner) or when the test wants the owner to seed the drive
+    /// with content the caller then reads.
     /// </summary>
-    protected async Task<(IV2Caller Caller, OwnerSession Owner)> SetupCallerWithOwner(CallerSpec spec, string? ownerIdentity = null)
+    protected async Task<(IV2Caller Caller, OwnerSession Owner)> SetupCallerWithOwner(
+        CallerSpec spec,
+        string? ownerIdentity = null,
+        bool allowAnonymousReads = true)
     {
         var owner = await LoginAsOwner(ownerIdentity ?? Identities.Frodo);
-        await owner.Admin.CreateDrive(spec.TargetDrive, "Test Drive");
+        await owner.Admin.CreateDrive(spec.TargetDrive, "Test Drive", allowAnonymousReads);
         var caller = await spec.Build(owner);
         return (caller, owner);
     }
