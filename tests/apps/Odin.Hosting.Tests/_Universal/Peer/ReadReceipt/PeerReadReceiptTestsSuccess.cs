@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
@@ -16,6 +17,7 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Update;
 using Odin.Services.Drives.FileSystem.Base.Upload;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -507,6 +509,101 @@ namespace Odin.Hosting.Tests._Universal.Peer.ReadReceipt
             ClassicAssert.IsNotNull(readTime2);
             ClassicAssert.AreEqual(newerTimestamp.milliseconds, readTime2.Value.milliseconds,
                 "ReadTime should have been upgraded to the newer timestamp");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(TestCases))]
+        public async Task UpdatingLocalMetadataTagsOrContentPreservesReadTime(IApiClientContext callerContext,
+            HttpStatusCode expectedStatusCode)
+        {
+            // Regression: previously UpdateLocalMetadataTags and UpdateLocalMetadataContent rebuilt
+            // LocalAppMetadata without copying ReadTime, silently wiping it back to null on every
+            // tag/content edit. ReadTime should be preserved across these updates -- only
+            // UpdateLocalReadTime (via SendReadReceipt) should modify it, and only monotonically.
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+
+            const DrivePermission drivePermissions = DrivePermission.Write;
+
+            var targetDrive = callerContext.TargetDrive;
+            await PrepareScenario(senderOwnerClient, recipientOwnerClient, targetDrive, drivePermissions);
+
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = [recipientOwnerClient.Identity.OdinId]
+            };
+
+            var (uploadResult, _, recipientFiles) =
+                await AssertCanUploadEncryptedMetadata(senderOwnerClient, recipientOwnerClient, targetDrive, transitOptions);
+
+            await recipientOwnerClient.DriveRedux.ProcessInbox(uploadResult.File.TargetDrive);
+
+            await callerContext.Initialize(recipientOwnerClient);
+            var driveClient = new UniversalDriveApiClient(recipientOwnerClient.Identity.OdinId, callerContext.GetFactory());
+
+            var fileForReadReceipt = new ExternalFileIdentifier()
+            {
+                FileId = recipientFiles.Single().Value.FileId,
+                TargetDrive = recipientFiles.Single().Value.TargetDrive
+            };
+
+            // Set ReadTime via SendReadReceipt with a specific past timestamp
+            var pastTimestamp = UnixTimeUtc.Now().AddSeconds(-30);
+            var sendReadReceiptResponse = await driveClient.SendReadReceipt([fileForReadReceipt], pastTimestamp);
+            ClassicAssert.IsTrue(sendReadReceiptResponse.IsSuccessStatusCode);
+
+            // Capture initial ReadTime and the latest local version tag (needed for subsequent updates)
+            var headerAfterReadReceipt = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(headerAfterReadReceipt.IsSuccessStatusCode);
+            var originalReadTime = headerAfterReadReceipt.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(originalReadTime, "ReadTime should be set after SendReadReceipt");
+            ClassicAssert.AreEqual(pastTimestamp.milliseconds, originalReadTime.Value.milliseconds);
+
+            var localVersionTag = headerAfterReadReceipt.Content.FileMetadata.LocalAppData.VersionTag;
+
+            // Update local metadata tags
+            var tagsRequest = new UpdateLocalMetadataTagsRequest
+            {
+                File = fileForReadReceipt,
+                LocalVersionTag = localVersionTag,
+                Tags = [Guid.NewGuid(), Guid.NewGuid()]
+            };
+            var tagsResponse = await driveClient.UpdateLocalAppMetadataTags(tagsRequest);
+            ClassicAssert.IsTrue(tagsResponse.IsSuccessStatusCode);
+
+            // ReadTime must NOT have been wiped by the tag update
+            var headerAfterTags = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(headerAfterTags.IsSuccessStatusCode);
+            var readTimeAfterTags = headerAfterTags.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(readTimeAfterTags,
+                "ReadTime should be preserved after UpdateLocalAppMetadataTags");
+            ClassicAssert.AreEqual(originalReadTime.Value.milliseconds, readTimeAfterTags.Value.milliseconds,
+                "ReadTime should be unchanged by UpdateLocalAppMetadataTags");
+
+            // Update local metadata content -- file is encrypted so we must supply a strong IV.
+            // Content payload isn't validated server-side; random bytes are sufficient for this test.
+            var localVersionTagAfterTags = headerAfterTags.Content.FileMetadata.LocalAppData.VersionTag;
+            var contentRequest = new UpdateLocalMetadataContentRequest
+            {
+                File = fileForReadReceipt,
+                LocalVersionTag = localVersionTagAfterTags,
+                Iv = ByteArrayUtil.GetRndByteArray(16),
+                Content = Convert.ToBase64String(ByteArrayUtil.GetRndByteArray(32))
+            };
+            var contentResponse = await driveClient.UpdateLocalAppMetadataContent(contentRequest);
+            ClassicAssert.IsTrue(contentResponse.IsSuccessStatusCode);
+
+            // ReadTime must NOT have been wiped by the content update
+            var headerAfterContent = await driveClient.GetFileHeader(fileForReadReceipt);
+            ClassicAssert.IsTrue(headerAfterContent.IsSuccessStatusCode);
+            var readTimeAfterContent = headerAfterContent.Content.FileMetadata.LocalAppData.ReadTime;
+            ClassicAssert.IsNotNull(readTimeAfterContent,
+                "ReadTime should be preserved after UpdateLocalAppMetadataContent");
+            ClassicAssert.AreEqual(originalReadTime.Value.milliseconds, readTimeAfterContent.Value.milliseconds,
+                "ReadTime should be unchanged by UpdateLocalAppMetadataContent");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
