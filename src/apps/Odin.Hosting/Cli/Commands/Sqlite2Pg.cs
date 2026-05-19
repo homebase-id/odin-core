@@ -361,4 +361,144 @@ public static class Sqlite2Pg
 
         logger.LogInformation("Done importing {total} identities", identityJobs.Count);
     }
+
+    //
+    // Repair the `created` / `modified` columns on already-imported PostgreSQL rows
+    // by re-reading them from the original SQLite source. Mirrors ImportAllAsync's
+    // scaffolding (same source/target scope construction and identity-discovery
+    // logic) but routes through DataImportPatcher instead of DataImporter.
+    //
+    // Rows whose target `modified` is later than DataImportPatcher.DefaultCutoffUtc
+    // are left alone -- those have been touched legitimately since the import.
+    //
+    internal static async Task PatchAllTimestampsAsync(
+        IServiceProvider services,
+        string sourceSqliteSystemDbPath,
+        string sourceSqliteTenantsRootPath,
+        bool commit
+    )
+    {
+        var logger = services.GetRequiredService<ILogger<CommandLine>>();
+        var config = services.GetRequiredService<OdinConfiguration>();
+        var workContainer = services.GetRequiredService<IMultiTenantContainer>();
+
+        if (config.Database.Type != DatabaseType.Postgres)
+        {
+            logger.LogError("Target database type is not PostgreSQL. Current type: {type}", config.Database.Type);
+            return;
+        }
+
+        if (!File.Exists(sourceSqliteSystemDbPath))
+        {
+            logger.LogError("SQLite system database file not found: {path}", sourceSqliteSystemDbPath);
+            return;
+        }
+
+        if (!Directory.Exists(sourceSqliteTenantsRootPath))
+        {
+            logger.LogError("SQLite tenants root directory not found: {path}", sourceSqliteTenantsRootPath);
+            return;
+        }
+
+        await using var sourceSqliteSystemScope = workContainer.BeginLifetimeScope(cb =>
+        {
+            cb.AddSqliteSystemDatabaseServices(sourceSqliteSystemDbPath);
+        });
+
+        await using var targetPgsqlSystemScope = workContainer.BeginLifetimeScope(cb =>
+        {
+            cb.AddPgsqlSystemDatabaseServices(config.Database.ConnectionString);
+        });
+
+        var sourceSystemDb = sourceSqliteSystemScope.Resolve<SystemDatabase>();
+        var targetSystemDb = targetPgsqlSystemScope.Resolve<SystemDatabase>();
+        var sourceSystemMigrator = sourceSqliteSystemScope.Resolve<SystemMigrator>();
+        var targetSystemMigrator = targetPgsqlSystemScope.Resolve<SystemMigrator>();
+
+        var sourceSystemVersion = await sourceSystemMigrator.GetCurrentVersionAsync();
+        var targetSystemVersion = await targetSystemMigrator.GetCurrentVersionAsync();
+
+        if (sourceSystemVersion != targetSystemVersion)
+        {
+            throw new InvalidOperationException(
+                $"System schema version mismatch: source is at {sourceSystemVersion}, target is at {targetSystemVersion}. " +
+                "Both databases must be at the same schema version before patching.");
+        }
+
+        var cutoff = DataImportPatcher.DefaultCutoffUtc;
+
+        var registrations = await sourceSystemDb.Registrations.GetAllAsync();
+        logger.LogInformation("Found {count} registration(s) in source SQLite system database", registrations.Count);
+
+        var identityJobs = registrations
+            .Select(r => new
+            {
+                r.identityId,
+                identityDomain = r.primaryDomainName,
+                identityDbPath = Path.Combine(
+                    sourceSqliteTenantsRootPath,
+                    TenantPathManager.RegistrationsFolder,
+                    r.identityId.ToString(),
+                    TenantPathManager.HeadersFolder,
+                    "identity.db"),
+            })
+            .ToList();
+
+        foreach (var job in identityJobs)
+        {
+            if (!File.Exists(job.identityDbPath))
+            {
+                throw new InvalidOperationException(
+                    $"SQLite identity database file not found for {job.identityDomain} ({job.identityId}): {job.identityDbPath}");
+            }
+        }
+
+        await DataImportPatcher.PatchAllSystemDataAsync(
+            logger, sourceSystemDb, targetSystemDb, cutoff, commit);
+
+        var identityIndex = 0;
+        foreach (var job in identityJobs)
+        {
+            identityIndex++;
+            logger.LogInformation("[{index}/{total}] Patching identity {identityDomain} ({identityId})",
+                identityIndex, identityJobs.Count, job.identityDomain, job.identityId);
+
+            await using var sourceSqliteIdentityScope = workContainer.BeginLifetimeScope(cb =>
+            {
+                cb.RegisterInstance(new OdinIdentity(job.identityId, job.identityDomain)).SingleInstance();
+                cb.AddSqliteIdentityDatabaseServices(job.identityId, job.identityDbPath);
+            });
+
+            await using var targetPgsqlIdentityScope = workContainer.BeginLifetimeScope(cb =>
+            {
+                cb.RegisterInstance(new OdinIdentity(job.identityId, job.identityDomain)).SingleInstance();
+                cb.AddPgsqlIdentityDatabaseServices(job.identityId, config.Database.ConnectionString);
+            });
+
+            var sourceIdentityDb = sourceSqliteIdentityScope.Resolve<IdentityDatabase>();
+            var targetIdentityDb = targetPgsqlIdentityScope.Resolve<IdentityDatabase>();
+            var sourceIdentityMigrator = sourceSqliteIdentityScope.Resolve<IdentityMigrator>();
+            var targetIdentityMigrator = targetPgsqlIdentityScope.Resolve<IdentityMigrator>();
+
+            var sourceIdentityVersion = await sourceIdentityMigrator.GetCurrentVersionAsync();
+            var targetIdentityVersion = await targetIdentityMigrator.GetCurrentVersionAsync();
+
+            if (sourceIdentityVersion != targetIdentityVersion)
+            {
+                throw new InvalidOperationException(
+                    $"Identity schema version mismatch for {job.identityDomain}: source is at {sourceIdentityVersion}, target is at {targetIdentityVersion}. " +
+                    "Both databases must be at the same schema version before patching.");
+            }
+
+            await DataImportPatcher.PatchIdentityOnlyAsync(
+                logger,
+                job.identityDomain,
+                sourceIdentityDb,
+                targetIdentityDb,
+                cutoff,
+                commit);
+        }
+
+        logger.LogInformation("Done patching {total} identities", identityJobs.Count);
+    }
 }

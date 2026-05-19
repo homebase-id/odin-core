@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
+using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 
 #nullable enable
@@ -109,24 +111,36 @@ public static class DataImporter
         var totalRows = 0;
 
         // Jobs
-        totalRows += await ImportTableAsync(sourceSystemDatabase.Jobs.PagingByRowIdAsync,
-            r => targetSystemDatabase.Jobs.InsertAsync(r), logger, sourceSystemDatabase.Jobs.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.Jobs.PagingByRowIdAsync,
+            r => targetSystemDatabase.Jobs.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.Jobs.TableName);
 
         // Certificates
-        totalRows += await ImportTableAsync(sourceSystemDatabase.Certificates.PagingByRowIdAsync,
-            r => targetSystemDatabase.Certificates.InsertAsync(r), logger, sourceSystemDatabase.Certificates.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.Certificates.PagingByRowIdAsync,
+            r => targetSystemDatabase.Certificates.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.Certificates.TableName);
 
-        // LastSeen
+        // LastSeen (no created/modified columns -- timestamp column is preserved as a real parameter)
         totalRows += await ImportTableAsync(sourceSystemDatabase.LastSeen.PagingByRowIdAsync,
             r => targetSystemDatabase.LastSeen.InsertAsync(r), logger, sourceSystemDatabase.LastSeen.TableName);
 
         // Registrations
-        totalRows += await ImportTableAsync(sourceSystemDatabase.Registrations.PagingByRowIdAsync,
-            r => targetSystemDatabase.Registrations.InsertAsync(r), logger, sourceSystemDatabase.Registrations.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.Registrations.PagingByRowIdAsync,
+            r => targetSystemDatabase.Registrations.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.Registrations.TableName);
 
         // Settings
-        totalRows += await ImportTableAsync(sourceSystemDatabase.Settings.PagingByRowIdAsync,
-            r => targetSystemDatabase.Settings.InsertAsync(r), logger, sourceSystemDatabase.Settings.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.Settings.PagingByRowIdAsync,
+            r => targetSystemDatabase.Settings.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.Settings.TableName);
 
         if (!commit)
         {
@@ -151,8 +165,6 @@ public static class DataImporter
         IdentityDatabase targetIdentityDatabase,
         bool commit)
     {
-        logger.LogInformation("Importing identity database {identityDomain}", identityDomain);
-
         await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
 
         var totalRows = await ImportIdentityTablesAsync(
@@ -210,7 +222,7 @@ public static class DataImporter
         var totalRows = 0;
 
         // Registrations (only the row for this identity)
-        totalRows += await ImportTableAsync(sourceSystemDatabase.Registrations.PagingByRowIdAsync,
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.Registrations.PagingByRowIdAsync,
             async r =>
             {
                 if (r.primaryDomainName.Equals(identityDomain, StringComparison.OrdinalIgnoreCase))
@@ -218,10 +230,13 @@ public static class DataImporter
                     return await targetSystemDatabase.Registrations.InsertAsync(r);
                 }
                 return 0;
-            }, logger, sourceSystemDatabase.Registrations.TableName);
+            },
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.Registrations.TableName);
 
         // Certificates (only the row for this identity)
-        totalRows += await ImportTableAsync(sourceSystemDatabase.Certificates.PagingByRowIdAsync,
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.Certificates.PagingByRowIdAsync,
             async r =>
             {
                 if (r.domain.DomainName.Equals(identityDomain, StringComparison.OrdinalIgnoreCase))
@@ -229,7 +244,10 @@ public static class DataImporter
                     return await targetSystemDatabase.Certificates.InsertAsync(r);
                 }
                 return 0;
-            }, logger, sourceSystemDatabase.Certificates.TableName);
+            },
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.Certificates.TableName);
 
         return totalRows;
     }
@@ -244,12 +262,18 @@ public static class DataImporter
         var totalRows = 0;
 
         // Drives
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.Drives.PagingByRowIdAsync,
-            r => targetIdentityDatabase.Drives.InsertAsync(r), logger, sourceIdentityDatabase.Drives.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.Drives.PagingByRowIdAsync,
+            r => targetIdentityDatabase.Drives.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.Drives.TableName);
 
         // DriveMainIndex
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.DriveMainIndex.PagingByRowIdAsync,
-            r => targetIdentityDatabase.DriveMainIndex.InsertAsync(r), logger, sourceIdentityDatabase.DriveMainIndex.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.DriveMainIndex.PagingByRowIdAsync,
+            r => targetIdentityDatabase.DriveMainIndex.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.DriveMainIndex.TableName);
 
         // DriveTransferHistory
         totalRows += await ImportTableAsync(sourceIdentityDatabase.DriveTransferHistory.PagingByRowIdAsync,
@@ -272,12 +296,18 @@ public static class DataImporter
             r => targetIdentityDatabase.DriveReactions.InsertAsync(r), logger, sourceIdentityDatabase.DriveReactions.TableName);
 
         // AppNotifications
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.AppNotifications.PagingByRowIdAsync,
-            r => targetIdentityDatabase.AppNotifications.InsertAsync(r), logger, sourceIdentityDatabase.AppNotifications.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.AppNotifications.PagingByRowIdAsync,
+            r => targetIdentityDatabase.AppNotifications.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.AppNotifications.TableName);
 
         // ClientRegistrations
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.ClientRegistrations.PagingByRowIdAsync,
-            r => targetIdentityDatabase.ClientRegistrations.InsertAsync(r), logger, sourceIdentityDatabase.ClientRegistrations.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.ClientRegistrations.PagingByRowIdAsync,
+            r => targetIdentityDatabase.ClientRegistrations.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.ClientRegistrations.TableName);
 
         // Circle
         totalRows += await ImportTableAsync(sourceIdentityDatabase.Circle.PagingByRowIdAsync,
@@ -288,28 +318,43 @@ public static class DataImporter
             r => targetIdentityDatabase.CircleMember.InsertAsync(r), logger, sourceIdentityDatabase.CircleMember.TableName);
 
         // Connections
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.Connections.PagingByRowIdAsync,
-            r => targetIdentityDatabase.Connections.InsertAsync(r), logger, sourceIdentityDatabase.Connections.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.Connections.PagingByRowIdAsync,
+            r => targetIdentityDatabase.Connections.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.Connections.TableName);
 
         // AppGrants
         totalRows += await ImportTableAsync(sourceIdentityDatabase.AppGrants.PagingByRowIdAsync,
             r => targetIdentityDatabase.AppGrants.InsertAsync(r), logger, sourceIdentityDatabase.AppGrants.TableName);
 
         // ImFollowing
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.ImFollowing.PagingByRowIdAsync,
-            r => targetIdentityDatabase.ImFollowing.InsertAsync(r), logger, sourceIdentityDatabase.ImFollowing.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.ImFollowing.PagingByRowIdAsync,
+            r => targetIdentityDatabase.ImFollowing.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.ImFollowing.TableName);
 
         // FollowsMe
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.FollowsMe.PagingByRowIdAsync,
-            r => targetIdentityDatabase.FollowsMe.InsertAsync(r), logger, sourceIdentityDatabase.FollowsMe.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.FollowsMe.PagingByRowIdAsync,
+            r => targetIdentityDatabase.FollowsMe.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.FollowsMe.TableName);
 
         // Inbox
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.Inbox.PagingByRowIdAsync,
-            r => targetIdentityDatabase.Inbox.InsertAsync(r), logger, sourceIdentityDatabase.Inbox.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.Inbox.PagingByRowIdAsync,
+            r => targetIdentityDatabase.Inbox.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.Inbox.TableName);
 
         // Outbox
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.Outbox.PagingByRowIdAsync,
-            r => targetIdentityDatabase.Outbox.InsertAsync(r), logger, sourceIdentityDatabase.Outbox.TableName);
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.Outbox.PagingByRowIdAsync,
+            r => targetIdentityDatabase.Outbox.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.Outbox.TableName);
 
         // KeyValue
         totalRows += await ImportTableAsync(sourceIdentityDatabase.KeyValue.PagingByRowIdAsync,
@@ -328,7 +373,7 @@ public static class DataImporter
             r => targetIdentityDatabase.KeyUniqueThreeValue.InsertAsync(r), logger, sourceIdentityDatabase.KeyUniqueThreeValue.TableName);
 
         // Nonce (skip expired records since InsertAsync rejects them)
-        totalRows += await ImportTableAsync(sourceIdentityDatabase.Nonce.PagingByRowIdAsync,
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.Nonce.PagingByRowIdAsync,
             async r =>
             {
                 if (r.expiration > UnixTimeUtc.Now())
@@ -336,7 +381,10 @@ public static class DataImporter
                     return await targetIdentityDatabase.Nonce.InsertAsync(r);
                 }
                 return 0;
-            }, logger, sourceIdentityDatabase.Nonce.TableName);
+            },
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.Nonce.TableName);
 
         return totalRows;
     }
@@ -359,6 +407,68 @@ public static class DataImporter
             foreach (var record in records)
             {
                 totalRows += await writeRecord(record);
+            }
+
+            cursor = nextCursor;
+        } while (cursor != null);
+
+        if (totalRows > 0)
+        {
+            logger.LogInformation("  {table}: {count} rows", tableName, totalRows);
+        }
+
+        return totalRows;
+    }
+
+    //
+    // Variant of ImportTableAsync for tables whose CRUD InsertAsync hard-codes
+    // created/modified to NOW() ({sqlNowStr} in the INSERT SQL). After each
+    // successful insert, issue a single-row UPDATE keyed by the target's freshly
+    // assigned rowId to restore the source's original created/modified.
+    //
+    // Source timestamps are snapshot BEFORE InsertAsync runs, because the CRUD
+    // also overwrites record.created and record.modified with the target's NOW()
+    // values via its RETURNING clause.
+    //
+    private static async Task<int> ImportTimestampedTableAsync<TRecord>(
+        Func<int, long?, Task<(List<TRecord>, long?)>> readPage,
+        Func<TRecord, Task<int>> insertAsync,
+        Func<TRecord, long> readSourceCreatedMs,
+        Func<TRecord, long> readSourceModifiedMs,
+        Func<TRecord, long> readTargetRowId,
+        Func<Task<IConnectionWrapper>> openTargetConnection,
+        ILogger logger,
+        string tableName)
+    {
+        var totalRows = 0;
+        long? cursor = null;
+
+        await using var cn = await openTargetConnection();
+        var fixupSql =
+            $"UPDATE {tableName} SET created = @__created, modified = @__modified WHERE rowId = @__rowId";
+
+        do
+        {
+            var (records, nextCursor) = await readPage(PageSize, cursor);
+
+            foreach (var record in records)
+            {
+                // Snapshot source timestamps before InsertAsync mutates the record.
+                var sourceCreatedMs = readSourceCreatedMs(record);
+                var sourceModifiedMs = readSourceModifiedMs(record);
+
+                var inserted = await insertAsync(record);
+                totalRows += inserted;
+
+                if (inserted > 0)
+                {
+                    await using var cmd = cn.CreateCommand();
+                    cmd.CommandText = fixupSql;
+                    cmd.AddParameter("@__created", DbType.Int64, sourceCreatedMs);
+                    cmd.AddParameter("@__modified", DbType.Int64, sourceModifiedMs);
+                    cmd.AddParameter("@__rowId", DbType.Int64, readTargetRowId(record));
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
 
             cursor = nextCursor;

@@ -364,6 +364,30 @@ public class CommandLine
         }
 
         //
+        // Command line: Repair created/modified columns on already-imported PG rows
+        //
+        // DataImporter.InsertAsync paths replace source created/modified with NOW()
+        // because the CRUD INSERT SQL hard-codes those columns. This command re-reads
+        // the SQLite source and UPDATEs the target rows with the original values,
+        // honouring DataImportPatcher.DefaultCutoffUtc so post-import edits aren't
+        // reverted.
+        //
+        // The system must be configured for PostgreSQL (target).
+        // Arguments:
+        // - System SQLite database file to read from
+        // - SQLite tenants root directory (same layout as sqlite2pg-all)
+        // - "commit" to apply, anything else for a dry run
+        //
+        // examples:
+        //   dotnet run -- sqlite2pg-patch-timestamps /path/to/src/sys.db /path/to/src/tenants commit
+        //
+        if (args.Length >= 4 && args[0] == "sqlite2pg-patch-timestamps")
+        {
+            Sqlite2Pg.PatchAllTimestampsAsync(_serviceProvider, args[1], args[2], args[3] == "commit").BlockingWait();
+            return (true, 0);
+        }
+
+        //
         // Command line: Ping configured PG database connection
         //
         // examples:
