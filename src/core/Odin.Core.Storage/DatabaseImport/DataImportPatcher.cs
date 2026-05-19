@@ -23,9 +23,14 @@ namespace Odin.Core.Storage.DatabaseImport;
 // source and UPDATEs the target row-by-row, keyed by each table's natural
 // UNIQUE key.
 //
-// It refuses to overwrite any row whose target `modified` is past the supplied
-// cutoff -- those rows have been touched by real activity since the import and
-// must not be reverted.
+// Cutoff semantics:
+// - `created` is ALWAYS restored when the target row exists -- a row's
+//   creation time is immutable, so any value other than the source's is wrong.
+// - `modified` is restored ONLY when the target's current `modified` is
+//   at-or-before the cutoff. Rows whose `modified` is later have been touched
+//   by real user activity since the import and that newer `modified` must be
+//   preserved. This is expressed inline in the UPDATE via a CASE expression,
+//   so the conditional is atomic with the row lookup.
 
 public static class DataImportPatcher
 {
@@ -274,14 +279,17 @@ public static class DataImportPatcher
         UnixTimeUtc cutoff,
         ILogger logger)
     {
-        // The cutoff guard lives in the WHERE clause: any row whose current
-        // target `modified` is past the cutoff is silently skipped, because the
-        // UPDATE matches zero rows. We don't distinguish "skipped past cutoff"
-        // from "row missing in target" here -- callers can tell from a row count
-        // diff against the source if they care.
+        // `created` is always restored when the target row exists. `modified`
+        // is restored only when the row hasn't been touched after the cutoff;
+        // expressing that via CASE keeps the lookup and the conditional atomic
+        // (one statement, one row lock) and lets a single UPDATE cover both
+        // post-cutoff-edited rows (created-only fix) and untouched rows (both).
+        // A 0-row result means the row was not found in the target.
         var sql =
-            $"UPDATE {tableName} SET created = @__created, modified = @__modified " +
-            $"WHERE ({whereKey}) AND modified <= @__cutoff";
+            $"UPDATE {tableName} " +
+            $"SET created = @__created, " +
+            $"    modified = CASE WHEN modified <= @__cutoff THEN @__modified ELSE modified END " +
+            $"WHERE {whereKey}";
 
         var seen = 0L;
         var patched = 0L;
@@ -315,8 +323,11 @@ public static class DataImportPatcher
 
         if (seen > 0)
         {
+            // `patched` = target rows whose `created` was restored (and
+            // `modified` too, if it was still at-or-before the cutoff).
+            // `notFound` = source rows with no matching target row.
             logger.LogInformation(
-                "  {table}: seen={seen} patched={patched} skipped={skipped}",
+                "  {table}: seen={seen} patched={patched} notFound={notFound}",
                 tableName, seen, patched, seen - patched);
         }
 
