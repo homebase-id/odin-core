@@ -7,6 +7,8 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.System;
 using Odin.Core.Time;
 
+#pragma warning disable CS0162
+
 #nullable enable
 
 namespace Odin.Core.Storage.DatabaseImport;
@@ -60,6 +62,8 @@ public static class DataImporter
         IdentityDatabase targetIdentityDatabase,
         bool commit)
     {
+        throw new Exception("NO! This code creates new created/modified timestamps when importing!");
+
         logger.LogInformation("Importing identity database {identityDomain}", identityDomain);
 
         await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
@@ -91,6 +95,8 @@ public static class DataImporter
         SystemDatabase targetSystemDatabase,
         bool commit)
     {
+        throw new Exception("NO! This code creates new created/modified timestamps when importing!");
+
         logger.LogInformation("Importing all system database tables");
 
         // Refuse to import into a non-empty target. Registrations is the canonical signal
@@ -151,6 +157,8 @@ public static class DataImporter
         IdentityDatabase targetIdentityDatabase,
         bool commit)
     {
+        throw new Exception("NO! This code creates new created/modified timestamps when importing!");
+
         logger.LogInformation("Importing identity database {identityDomain}", identityDomain);
 
         await using var identityTransaction = await targetIdentityDatabase.BeginStackedTransactionAsync();
@@ -185,6 +193,8 @@ public static class DataImporter
         Guid identityId,
         string identityDomain)
     {
+        throw new Exception("NO! This code creates new created/modified timestamps when importing!");
+
         logger.LogInformation("Cleaning up system rows for {identityDomain}", identityDomain);
 
         await using var systemTransaction = await targetSystemDatabase.BeginStackedTransactionAsync();
