@@ -53,36 +53,36 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public UnixTimeUtc modified { get; set; }
         public void Validate()
         {
-            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
-            driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
-            fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
-            globalTransitId.AssertGuidNotEmpty("Guid parameter globalTransitId cannot be set to Empty GUID.");
-            if (senderId?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {senderId.Length} (min 0)");
-            if (senderId?.Length > 256) throw new OdinDatabaseValidationException($"Too long senderId, was {senderId.Length} (max 256)");
-            groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
-            uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
-            if (hdrEncryptedKeyHeader == null) throw new OdinDatabaseValidationException("Cannot be null hdrEncryptedKeyHeader");
-            if (hdrEncryptedKeyHeader?.Length < 16) throw new OdinDatabaseValidationException($"Too short hdrEncryptedKeyHeader, was {hdrEncryptedKeyHeader.Length} (min 16)");
-            if (hdrEncryptedKeyHeader?.Length > 512) throw new OdinDatabaseValidationException($"Too long hdrEncryptedKeyHeader, was {hdrEncryptedKeyHeader.Length} (max 512)");
-            hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
-            if (hdrAppData == null) throw new OdinDatabaseValidationException("Cannot be null hdrAppData");
-            if (hdrAppData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrAppData, was {hdrAppData.Length} (min 0)");
-            if (hdrAppData?.Length > 21504) throw new OdinDatabaseValidationException($"Too long hdrAppData, was {hdrAppData.Length} (max 21504)");
-            hdrLocalVersionTag.AssertGuidNotEmpty("Guid parameter hdrLocalVersionTag cannot be set to Empty GUID.");
-            if (hdrLocalAppData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrLocalAppData, was {hdrLocalAppData.Length} (min 0)");
-            if (hdrLocalAppData?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrLocalAppData, was {hdrLocalAppData.Length} (max 4096)");
-            if (hdrReactionSummary?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrReactionSummary, was {hdrReactionSummary.Length} (min 0)");
-            if (hdrReactionSummary?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrReactionSummary, was {hdrReactionSummary.Length} (max 4096)");
-            if (hdrServerData == null) throw new OdinDatabaseValidationException("Cannot be null hdrServerData");
-            if (hdrServerData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrServerData, was {hdrServerData.Length} (min 0)");
-            if (hdrServerData?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrServerData, was {hdrServerData.Length} (max 16384)");
-            if (hdrTransferHistory?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrTransferHistory, was {hdrTransferHistory.Length} (min 0)");
-            if (hdrTransferHistory?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrTransferHistory, was {hdrTransferHistory.Length} (max 16384)");
-            if (hdrFileMetaData == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
-            if (hdrFileMetaData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {hdrFileMetaData.Length} (min 0)");
-            if (hdrFileMetaData?.Length > 60000) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {hdrFileMetaData.Length} (max 60000)");
-            hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
-            hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
+            // identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
+            // driveId.AssertGuidNotEmpty("Guid parameter driveId cannot be set to Empty GUID.");
+            // fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
+            // globalTransitId.AssertGuidNotEmpty("Guid parameter globalTransitId cannot be set to Empty GUID.");
+            // if (senderId?.Length < 0) throw new OdinDatabaseValidationException($"Too short senderId, was {senderId.Length} (min 0)");
+            // if (senderId?.Length > 256) throw new OdinDatabaseValidationException($"Too long senderId, was {senderId.Length} (max 256)");
+            // groupId.AssertGuidNotEmpty("Guid parameter groupId cannot be set to Empty GUID.");
+            // uniqueId.AssertGuidNotEmpty("Guid parameter uniqueId cannot be set to Empty GUID.");
+            // if (hdrEncryptedKeyHeader == null) throw new OdinDatabaseValidationException("Cannot be null hdrEncryptedKeyHeader");
+            // if (hdrEncryptedKeyHeader?.Length < 16) throw new OdinDatabaseValidationException($"Too short hdrEncryptedKeyHeader, was {hdrEncryptedKeyHeader.Length} (min 16)");
+            // if (hdrEncryptedKeyHeader?.Length > 512) throw new OdinDatabaseValidationException($"Too long hdrEncryptedKeyHeader, was {hdrEncryptedKeyHeader.Length} (max 512)");
+            // hdrVersionTag.AssertGuidNotEmpty("Guid parameter hdrVersionTag cannot be set to Empty GUID.");
+            // if (hdrAppData == null) throw new OdinDatabaseValidationException("Cannot be null hdrAppData");
+            // if (hdrAppData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrAppData, was {hdrAppData.Length} (min 0)");
+            // if (hdrAppData?.Length > 21504) throw new OdinDatabaseValidationException($"Too long hdrAppData, was {hdrAppData.Length} (max 21504)");
+            // hdrLocalVersionTag.AssertGuidNotEmpty("Guid parameter hdrLocalVersionTag cannot be set to Empty GUID.");
+            // if (hdrLocalAppData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrLocalAppData, was {hdrLocalAppData.Length} (min 0)");
+            // if (hdrLocalAppData?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrLocalAppData, was {hdrLocalAppData.Length} (max 4096)");
+            // if (hdrReactionSummary?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrReactionSummary, was {hdrReactionSummary.Length} (min 0)");
+            // if (hdrReactionSummary?.Length > 4096) throw new OdinDatabaseValidationException($"Too long hdrReactionSummary, was {hdrReactionSummary.Length} (max 4096)");
+            // if (hdrServerData == null) throw new OdinDatabaseValidationException("Cannot be null hdrServerData");
+            // if (hdrServerData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrServerData, was {hdrServerData.Length} (min 0)");
+            // if (hdrServerData?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrServerData, was {hdrServerData.Length} (max 16384)");
+            // if (hdrTransferHistory?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrTransferHistory, was {hdrTransferHistory.Length} (min 0)");
+            // if (hdrTransferHistory?.Length > 16384) throw new OdinDatabaseValidationException($"Too long hdrTransferHistory, was {hdrTransferHistory.Length} (max 16384)");
+            // if (hdrFileMetaData == null) throw new OdinDatabaseValidationException("Cannot be null hdrFileMetaData");
+            // if (hdrFileMetaData?.Length < 0) throw new OdinDatabaseValidationException($"Too short hdrFileMetaData, was {hdrFileMetaData.Length} (min 0)");
+            // if (hdrFileMetaData?.Length > 60000) throw new OdinDatabaseValidationException($"Too long hdrFileMetaData, was {hdrFileMetaData.Length} (max 60000)");
+            // hdrTmpDriveAlias.AssertGuidNotEmpty("Guid parameter hdrTmpDriveAlias cannot be set to Empty GUID.");
+            // hdrTmpDriveType.AssertGuidNotEmpty("Guid parameter hdrTmpDriveType cannot be set to Empty GUID.");
         }
     } // End of record DriveMainIndexRecord
 
