@@ -1215,6 +1215,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 VersionTag = targetVersionTag,
                 Content = header.FileMetadata.LocalAppData?.Content,
                 Tags = newTags,
+                ReadTime = header.FileMetadata.LocalAppData?.ReadTime,
                 LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
             };
 
@@ -1266,6 +1267,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 Iv = initVector,
                 Content = newContent,
                 Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
+                ReadTime = header.FileMetadata.LocalAppData?.ReadTime,
                 LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
             };
 
