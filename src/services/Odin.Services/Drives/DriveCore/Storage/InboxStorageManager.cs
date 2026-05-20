@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Base;
@@ -44,64 +42,37 @@ namespace Odin.Services.Drives.DriveCore.Storage
             return await fileReaderWriter.WriteStreamAsync(path, stream);
         }
 
-        public Task CleanupInboxFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
+        // We used to take a List<PayloadDescriptor> and compute each .payload / .thumb path from
+        // it. That leaked staging files whenever the inbox processor caught an exception and
+        // returned an empty descriptor list (PeerInboxProcessor.ProcessInboxItemAsync's catch arms
+        // all return (DeleteFromInbox, [])): the row was MarkComplete'd and the metadata +
+        // transferkeyheader were deleted, but the .payload/.thumb files were left behind, surfacing
+        // later as inbox orphans. The drive inbox dir is a single-purpose staging area where every
+        // file is prefixed with "{fileId:N}." (see TenantPathManager.GetFilename), so a glob on that
+        // prefix is the authoritative way to remove everything for a given fileId — independent of
+        // whatever descriptors the in-flight processor managed to parse.
+        public Task CleanupInboxFiles(InternalDriveFileId file)
         {
             logger.LogDebug("CleanupInboxFiles called - file: {file}", file);
 
-            CleanupInboxFilesInternal(file, descriptors);
-
-            //TODO: the extensions should be centralized
-            string[] additionalFiles =
-            [
-                _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, TenantPathManager.MetadataExtension),
-                _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, TenantPathManager.TransferInstructionSetExtension)
-            ];
-
-            foreach (var f in additionalFiles)
-            {
-                logger.LogDebug("CleanupInboxFiles Deleting additional File: {file}", f);
-            }
-
-            // clean up the transfer header and metadata since we keep those in the inbox
-            fileReaderWriter.DeleteFiles(additionalFiles);
-
-            return Task.CompletedTask;
-        }
-
-        private void CleanupInboxFilesInternal(InternalDriveFileId file, List<PayloadDescriptor> descriptors)
-        {
             try
             {
-                if (descriptors == null || descriptors.Count == 0)
+                var dir = _tenantPathManager.GetDriveInboxPath(file.DriveId);
+                if (!Directory.Exists(dir))
                 {
-                    return;
+                    return Task.CompletedTask;
                 }
 
-                var targetFiles = new List<string>();
-
-                descriptors!.ForEach(descriptor =>
-                {
-                    var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-                    string payloadDirectoryAndFilename = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, payloadExtension);
-                    targetFiles.Add(payloadDirectoryAndFilename);
-
-                    descriptor.Thumbnails?.ForEach(thumb =>
-                    {
-                        var thumbnailExtension = TenantPathManager.GetThumbnailFileNameAndExtension(descriptor.Key,
-                            descriptor.Uid,
-                            thumb.PixelWidth,
-                            thumb.PixelHeight);
-                        string thumbnailDirectoryAndFilename = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, thumbnailExtension);
-                        targetFiles.Add(thumbnailDirectoryAndFilename);
-                    });
-                });
-
-                fileReaderWriter.DeleteFiles(targetFiles);
+                var prefix = TenantPathManager.GuidToPathSafeString(file.FileId);
+                var matches = Directory.GetFiles(dir, prefix + ".*");
+                fileReaderWriter.DeleteFiles(matches);
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Failure while cleaning up inbox files");
+                logger.LogError(e, "Failure while cleaning up inbox files for {file}", file);
             }
+
+            return Task.CompletedTask;
         }
     }
 }
