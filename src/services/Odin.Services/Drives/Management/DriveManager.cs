@@ -12,6 +12,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage.Cache;
+using Odin.Core.Storage.Database.Identity.Connection;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
@@ -42,6 +43,7 @@ public class DriveManager : IDriveManager
     private readonly IMediator _mediator;
     private readonly TenantContext _tenantContext;
     private readonly TableDrivesCached _tableDrives;
+    private readonly ScopedIdentityConnectionFactory _scopedConnectionFactory;
 
     /// <summary>
     /// Manages drive creation, metadata updates, and their overall definitions
@@ -51,13 +53,31 @@ public class DriveManager : IDriveManager
         ITenantLevel2Cache driveCache,
         IMediator mediator,
         TenantContext tenantContext,
-        TableDrivesCached tableDrives)
+        TableDrivesCached tableDrives,
+        ScopedIdentityConnectionFactory scopedConnectionFactory)
     {
         _logger = logger;
         _driveCache = driveCache;
         _mediator = mediator;
         _tenantContext = tenantContext;
         _tableDrives = tableDrives;
+        _scopedConnectionFactory = scopedConnectionFactory;
+    }
+
+    // The mediator handlers for DriveDefinitionAddedNotification mutate caches (e.g.
+    // OdinContextCache) that other connections will populate from the database. If we
+    // publish mid-transaction, those caches can be rebuilt against an uncommitted
+    // snapshot that doesn't yet contain the new drive, then stay stale until TTL.
+    // Defer until commit so observers only see committed state.
+    private Task PublishDriveDefinitionAddedAsync(DriveDefinitionAddedNotification notification)
+    {
+        if (_scopedConnectionFactory.HasTransaction)
+        {
+            _scopedConnectionFactory.AddPostCommitAction(() => _mediator.Publish(notification));
+            return Task.CompletedTask;
+        }
+
+        return _mediator.Publish(notification);
     }
 
     public async Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext)
@@ -135,7 +155,7 @@ public class DriveManager : IDriveManager
 
         _logger.LogDebug("Created a new Drive - {drive}", storageDrive.TargetDriveInfo);
 
-        await _mediator.Publish(new DriveDefinitionAddedNotification
+        await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
         {
             IsNewDrive = true,
             Drive = storageDrive,
@@ -172,7 +192,7 @@ public class DriveManager : IDriveManager
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
-            await _mediator.Publish(new DriveDefinitionAddedNotification
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
             {
                 IsNewDrive = false,
                 Drive = storageDrive,
@@ -208,7 +228,7 @@ public class DriveManager : IDriveManager
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
-            await _mediator.Publish(new DriveDefinitionAddedNotification
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
             {
                 IsNewDrive = false,
                 Drive = storageDrive,
@@ -253,7 +273,7 @@ public class DriveManager : IDriveManager
                 throw new OdinSystemException($"Archive drive should have updated 1 and only 1 row.  Number updated: {affected}");
             }
 
-            await _mediator.Publish(new DriveDefinitionAddedNotification
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
             {
                 IsNewDrive = false,
                 Drive = storageDrive,
