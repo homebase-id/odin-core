@@ -1,14 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Odin.Core.Identity;
-using Odin.Core.Time;
 using Odin.Services.Background.BackgroundServices.Tenant;
-using Odin.Services.LastSeen;
 
 namespace Odin.Services.Tests.BackgroundServices.Services.Tenant;
 
@@ -16,26 +15,29 @@ namespace Odin.Services.Tests.BackgroundServices.Services.Tenant;
 public class InboxOrphanScanTests
 {
     private string _inboxDrivesRoot = "";
+    private Guid _drive1Id;
     private string _drive1Path = "";
     private Mock<ILogger> _loggerMock = new();
-    private Mock<ILastSeenService> _lastSeenMock = new();
     private TimeSpan _ageThreshold;
-    private OdinId _hostOdinId;
+
+    // Stub for the "pending fileIds per drive" predicate. Tests populate this; the
+    // helper PendingForDriveAsync reads it.
+    private readonly Dictionary<Guid, HashSet<Guid>> _pendingByDrive = new();
 
     [SetUp]
     public void Setup()
     {
         // Layout under test:
-        //   <inboxDrivesRoot>/<driveId>/<fileId>.<ext>
+        //   <inboxDrivesRoot>/<driveId:N>/<fileId:N>.<ext>
         // mirroring TenantPathManager.InboxDrivesPath / GetDriveInboxFilePath.
         _inboxDrivesRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "drives");
-        _drive1Path = Path.Combine(_inboxDrivesRoot, Guid.NewGuid().ToString("N"));
+        _drive1Id = Guid.NewGuid();
+        _drive1Path = Path.Combine(_inboxDrivesRoot, _drive1Id.ToString("N"));
         Directory.CreateDirectory(_drive1Path);
 
         _loggerMock = new Mock<ILogger>();
-        _lastSeenMock = new Mock<ILastSeenService>();
         _ageThreshold = TimeSpan.FromHours(2);
-        _hostOdinId = (OdinId)"frodo.dotyou.cloud";
+        _pendingByDrive.Clear();
     }
 
     [TearDown]
@@ -60,79 +62,78 @@ public class InboxOrphanScanTests
     }
 
     [Test]
-    public async Task ExecuteAsync_FlagsOrphan_WhenFileOldAndTenantSeenAfterThreshold()
+    public async Task ExecuteAsync_FlagsOrphan_WhenFileOldAndFileIdNotInPendingSet()
     {
-        // Arrange — file written 5h ago, tenant seen 30min ago (well after fileWrite + 2h).
-        var fileWrite = DateTime.UtcNow.Subtract(TimeSpan.FromHours(5));
-        var orphan = Path.Combine(_drive1Path, "orphan.metadata");
-        CreateFileWithTimestamp(orphan, fileWrite);
-
-        SetupLastSeen(DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(30)));
+        // Arrange — file written 5h ago, drive's pending set is empty → orphan.
+        var orphanFileId = Guid.NewGuid();
+        var orphan = InboxFilePath(_drive1Path, orphanFileId, "metadata");
+        CreateFileWithTimestamp(orphan, DateTime.UtcNow.Subtract(TimeSpan.FromHours(5)));
 
         // Act
         await InboxOrphanScan.ExecuteAsync(
-            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, _lastSeenMock.Object, _hostOdinId);
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, PendingForDriveAsync);
 
-        // Assert — per-file orphan log + summary log
-        VerifyLog(LogLevel.Error, "Inbox orphan:", Times.Once());
-        VerifyLog(LogLevel.Error, "Inbox orphan summary:", Times.Once());
+        // Assert
+        VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Once());
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Once());
         Assert.That(File.Exists(orphan), Is.True, "Detection-only — file must NOT be deleted");
     }
 
     [Test]
-    public async Task ExecuteAsync_DoesNotFlag_WhenLastSeenIsNull()
+    public async Task ExecuteAsync_DoesNotFlag_WhenFileIdIsInPendingSet()
     {
-        // Arrange — old file but tenant never seen.
-        var orphan = Path.Combine(_drive1Path, "old.metadata");
-        CreateFileWithTimestamp(orphan, DateTime.UtcNow.Subtract(TimeSpan.FromHours(48)));
+        // Arrange — old file, but its fileId is in the pending set for this drive.
+        var fileId = Guid.NewGuid();
+        var file = InboxFilePath(_drive1Path, fileId, "metadata");
+        CreateFileWithTimestamp(file, DateTime.UtcNow.Subtract(TimeSpan.FromHours(48)));
 
-        _lastSeenMock
-            .Setup(s => s.GetLastSeenAsync(It.IsAny<OdinId>()))
-            .ReturnsAsync((UnixTimeUtc?)null);
+        SetPending(_drive1Id, fileId);
 
         // Act
         await InboxOrphanScan.ExecuteAsync(
-            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, _lastSeenMock.Object, _hostOdinId);
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, PendingForDriveAsync);
 
-        // Assert — nothing logged at error level
+        // Assert
         VerifyLog(LogLevel.Error, "Inbox orphan", Times.Never());
     }
 
     [Test]
-    public async Task ExecuteAsync_DoesNotFlag_WhenTenantNotSeenSinceFileBecameOrphanEligible()
+    public async Task ExecuteAsync_FlagsLeakedFile_OnBusyDrive()
     {
-        // Arrange — file written 90min ago. ageThreshold = 2h, so file is NOT yet old enough,
-        // but even if we tighten the rules, the tenant was last seen 2 days ago which is
-        // before fileWrite+threshold. Use file just past the threshold to make the check meaningful:
-        var fileWrite = DateTime.UtcNow.Subtract(TimeSpan.FromHours(3)); // > threshold ago, so > cutoffTime
-        var file = Path.Combine(_drive1Path, "borderline.metadata");
-        CreateFileWithTimestamp(file, fileWrite);
+        // The whole reason for the per-fileId set lookup: a drive that has legitimately-pending
+        // items must not hide leaks. Here we have one pending fileId and one leaked fileId in
+        // the same drive folder. The leaked one must be flagged; the pending one must not.
+        var pendingFileId = Guid.NewGuid();
+        var leakedFileId = Guid.NewGuid();
 
-        // Tenant last seen 2 days ago — well before fileWrite + threshold (which is ~1h ago).
-        SetupLastSeen(DateTime.UtcNow.Subtract(TimeSpan.FromDays(2)));
+        var pendingFile = InboxFilePath(_drive1Path, pendingFileId, "metadata");
+        var leakedFile  = InboxFilePath(_drive1Path, leakedFileId,  "metadata");
 
-        // Act
+        var older = DateTime.UtcNow.Subtract(TimeSpan.FromHours(5));
+        CreateFileWithTimestamp(pendingFile, older);
+        CreateFileWithTimestamp(leakedFile, older);
+
+        // Inbox table only knows about the pending one.
+        SetPending(_drive1Id, pendingFileId);
+
         await InboxOrphanScan.ExecuteAsync(
-            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, _lastSeenMock.Object, _hostOdinId);
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, PendingForDriveAsync);
 
-        // Assert — file is old, but tenant hasn't been around to process it
-        VerifyLog(LogLevel.Error, "Inbox orphan", Times.Never());
+        VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Once());
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Once());
     }
 
     [Test]
     public async Task ExecuteAsync_DoesNotFlag_WhenFileIsRecent()
     {
-        // Arrange — file written 30min ago, threshold is 2h.
-        var file = Path.Combine(_drive1Path, "fresh.metadata");
+        // Arrange — file written 30min ago, threshold 2h. Pending set is empty, but the file
+        // is under the age gate so it must not be flagged (could be mid-upload).
+        var file = InboxFilePath(_drive1Path, Guid.NewGuid(), "metadata");
         CreateFileWithTimestamp(file, DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(30)));
 
-        SetupLastSeen(DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(1)));
-
-        // Act
         await InboxOrphanScan.ExecuteAsync(
-            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, _lastSeenMock.Object, _hostOdinId);
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, PendingForDriveAsync);
 
-        // Assert
         VerifyLog(LogLevel.Error, "Inbox orphan", Times.Never());
     }
 
@@ -140,71 +141,140 @@ public class InboxOrphanScanTests
     public void ExecuteAsync_RespectsStoppingToken()
     {
         // Arrange — orphan-eligible file, but token already cancelled.
-        var orphan = Path.Combine(_drive1Path, "orphan.metadata");
+        var orphan = InboxFilePath(_drive1Path, Guid.NewGuid(), "metadata");
         CreateFileWithTimestamp(orphan, DateTime.UtcNow.Subtract(TimeSpan.FromHours(5)));
-        SetupLastSeen(DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(5)));
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        // Act / Assert
         Assert.ThrowsAsync<OperationCanceledException>(() =>
             InboxOrphanScan.ExecuteAsync(
-                _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, _lastSeenMock.Object, _hostOdinId, cts.Token));
+                _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, PendingForDriveAsync, cts.Token));
     }
 
     [Test]
     public void ExecuteAsync_ReturnsSilently_WhenInboxDrivesPathDoesNotExist()
     {
         var nonExistent = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var queried = 0;
+        Func<Guid, Task<HashSet<Guid>>> probe = _ =>
+        {
+            queried++;
+            return Task.FromResult(new HashSet<Guid>());
+        };
 
         Assert.DoesNotThrowAsync(() =>
             InboxOrphanScan.ExecuteAsync(
-                _loggerMock.Object, nonExistent, _ageThreshold, _lastSeenMock.Object, _hostOdinId));
+                _loggerMock.Object, nonExistent, _ageThreshold, probe));
 
-        // GetLastSeenAsync should not even be called when the path doesn't exist.
-        _lastSeenMock.Verify(s => s.GetLastSeenAsync(It.IsAny<OdinId>()), Times.Never);
+        // The probe should not even be called when the path doesn't exist.
+        Assert.That(queried, Is.EqualTo(0));
     }
 
     [Test]
-    public async Task ExecuteAsync_OnlyFlagsOrphanFiles_MixedFolderContents()
+    public async Task ExecuteAsync_OneInboxLookupPerDriveFolder()
     {
-        // Arrange — three files in the same drive folder:
-        //   1. old + tenant seen after threshold      -> orphan
-        //   2. old + tenant seen too recently to have processed it -> NOT orphan
-        //   3. recent                                 -> NOT orphan
-        var oldFileSeenAfter = Path.Combine(_drive1Path, "orphan.metadata");
-        var oldFileSeenTooRecently = Path.Combine(_drive1Path, "borderline.payload");
-        var freshFile = Path.Combine(_drive1Path, "fresh.thumb");
+        // A single inbox transfer typically stages multiple files sharing the same FileId
+        // (.metadata + .transferkeyheader + .payload + thumbnails). Whatever the file count,
+        // the scanner does exactly one inbox lookup per drive folder.
+        var older = DateTime.UtcNow.Subtract(TimeSpan.FromHours(5));
+        var fileId = Guid.NewGuid();
 
-        CreateFileWithTimestamp(oldFileSeenAfter,        DateTime.UtcNow.Subtract(TimeSpan.FromHours(6)));
-        CreateFileWithTimestamp(oldFileSeenTooRecently,  DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(150))); // 2.5h
-        CreateFileWithTimestamp(freshFile,               DateTime.UtcNow.Subtract(TimeSpan.FromMinutes(15)));
+        CreateFileWithTimestamp(InboxFilePath(_drive1Path, fileId, "metadata"), older);
+        CreateFileWithTimestamp(InboxFilePath(_drive1Path, fileId, "transferkeyheader"), older);
+        CreateFileWithTimestamp(InboxFilePath(_drive1Path, fileId, "convo_img-12345.payload"), older);
+        CreateFileWithTimestamp(InboxFilePath(_drive1Path, fileId, "convo_img-12345-320x240.thumb"), older);
 
-        // Tenant seen 1 hour ago.
-        // - oldFileSeenAfter:       written 6h ago → fileWrite + 2h = 4h ago. lastSeen (1h ago) > 4h ago → orphan.
-        // - oldFileSeenTooRecently: written 2.5h ago → fileWrite + 2h = 0.5h ago. lastSeen (1h ago) NOT > 0.5h ago → not orphan.
-        SetupLastSeen(DateTime.UtcNow.Subtract(TimeSpan.FromHours(1)));
+        var queries = new List<Guid>();
+        Func<Guid, Task<HashSet<Guid>>> probe = id =>
+        {
+            queries.Add(id);
+            return Task.FromResult(new HashSet<Guid>());
+        };
 
-        // Act
         await InboxOrphanScan.ExecuteAsync(
-            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, _lastSeenMock.Object, _hostOdinId);
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, probe);
 
-        // Assert — exactly one orphan log line
-        VerifyLog(LogLevel.Error, "Inbox orphan:", Times.Once());
-        VerifyLog(LogLevel.Error, "Inbox orphan summary:", Times.Once());
-        Assert.That(File.Exists(oldFileSeenAfter), Is.True);
-        Assert.That(File.Exists(oldFileSeenTooRecently), Is.True);
-        Assert.That(File.Exists(freshFile), Is.True);
+        Assert.That(queries, Has.Count.EqualTo(1));
+        Assert.That(queries[0], Is.EqualTo(_drive1Id));
+
+        // All four files get flagged.
+        VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Exactly(4));
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Once());
+    }
+
+    [Test]
+    public async Task ExecuteAsync_SkipsFoldersWithUnparseableNames()
+    {
+        // Stray subdirectory under inbox/drives that isn't a {driveId:N} name — we have no way
+        // to map it to a drive row, so we leave it (and its contents) alone.
+        var stray = Path.Combine(_inboxDrivesRoot, "not-a-guid");
+        Directory.CreateDirectory(stray);
+        CreateFileWithTimestamp(
+            Path.Combine(stray, $"{Guid.NewGuid():N}.metadata"),
+            DateTime.UtcNow.Subtract(TimeSpan.FromDays(7)));
+
+        var queried = new List<Guid>();
+        Func<Guid, Task<HashSet<Guid>>> probe = id =>
+        {
+            queried.Add(id);
+            return Task.FromResult(new HashSet<Guid>());
+        };
+
+        await InboxOrphanScan.ExecuteAsync(
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, probe);
+
+        // Only the legit drive folder was queried. The stray was skipped.
+        Assert.That(queried, Is.EquivalentTo(new[] { _drive1Id }));
+        VerifyLog(LogLevel.Error, "Inbox orphan", Times.Never());
+    }
+
+    [Test]
+    public async Task ExecuteAsync_SkipsFilesWithUnparseableNames()
+    {
+        // README.txt or similar — not a {fileId:N}.{ext} name. Should be left alone.
+        var stray = Path.Combine(_drive1Path, "README.txt");
+        CreateFileWithTimestamp(stray, DateTime.UtcNow.Subtract(TimeSpan.FromDays(7)));
+
+        await InboxOrphanScan.ExecuteAsync(
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, PendingForDriveAsync);
+
+        VerifyLog(LogLevel.Error, "Inbox orphan", Times.Never());
+    }
+
+    [Test]
+    public async Task ExecuteAsync_DoesNotFlag_WhenLookupThrows()
+    {
+        // Conservative: a flaky lookup must not produce false positives.
+        var file = InboxFilePath(_drive1Path, Guid.NewGuid(), "metadata");
+        CreateFileWithTimestamp(file, DateTime.UtcNow.Subtract(TimeSpan.FromHours(5)));
+
+        Func<Guid, Task<HashSet<Guid>>> probe = _ => throw new InvalidOperationException("db down");
+
+        await InboxOrphanScan.ExecuteAsync(
+            _loggerMock.Object, _inboxDrivesRoot, _ageThreshold, probe);
+
+        // No per-file flag and no summary — the failed lookup short-circuited the drive scan.
+        VerifyLog(LogLevel.Debug, "Inbox orphan:", Times.Never());
+        VerifyLog(LogLevel.Error, "Inbox orphan sweep summary:", Times.Never());
     }
 
     //
 
-    private void SetupLastSeen(DateTime utc)
+    private Task<HashSet<Guid>> PendingForDriveAsync(Guid driveId)
     {
-        _lastSeenMock
-            .Setup(s => s.GetLastSeenAsync(It.IsAny<OdinId>()))
-            .ReturnsAsync((UnixTimeUtc?)UnixTimeUtc.FromDateTime(utc));
+        var set = _pendingByDrive.TryGetValue(driveId, out var s) ? s : new HashSet<Guid>();
+        return Task.FromResult(set);
+    }
+
+    private void SetPending(Guid driveId, params Guid[] fileIds)
+    {
+        _pendingByDrive[driveId] = fileIds.ToHashSet();
+    }
+
+    private static string InboxFilePath(string driveFolder, Guid fileId, string extension)
+    {
+        return Path.Combine(driveFolder, $"{fileId:N}.{extension}");
     }
 
     private void VerifyLog(LogLevel level, string fragment, Times times)

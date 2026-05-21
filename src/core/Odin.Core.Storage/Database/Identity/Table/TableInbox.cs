@@ -405,6 +405,31 @@ public class TableInbox(
         return result == DBNull.Value ? 0 : (int)(long)result!;
     }
 
+    /// <summary>
+    /// Returns the set of fileIds currently in the inbox for the given box (drive), regardless
+    /// of pop state (popped, unpopped, mid-processing — all count as "still pending"). Intended
+    /// for callers that need to set-difference against an on-disk file listing (orphan scanner).
+    /// Uses the (identityId, boxId) index. Memory cost is one Guid per row for the drive only,
+    /// not the entire tenant inbox.
+    /// </summary>
+    public async Task<List<Guid>> GetPendingFileIdsForBoxAsync(Guid boxId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText = "SELECT fileId FROM inbox WHERE identityId = @identityId AND boxId = @boxId";
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityIdAsByteArray());
+        cmd.AddParameter("@boxId", DbType.Binary, boxId.ToByteArray());
+
+        var result = new List<Guid>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            result.Add(new Guid((byte[])rdr[0]));
+        }
+        return result;
+    }
+
     // Change to internal
     public async Task<(List<InboxRecord>, Int64? nextCursor)> PagingByRowIdAsync(int count, Int64? inCursor)
     {

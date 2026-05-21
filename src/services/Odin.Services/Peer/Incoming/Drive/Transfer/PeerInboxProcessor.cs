@@ -99,14 +99,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
                 PeerFileWriter writer = new PeerFileWriter(logger, fileSystemResolver, driveManager, feedWriter);
                 var markComplete = new MarkInboxComplete(transitInboxBoxStorage, file, inboxItem.Marker);
-                var payloads = new List<PayloadDescriptor>();
                 var success = InboxReturnTypes.DeleteFromInbox;
 
                 try
                 {
                     // This function will have marked the inbox item as complete if successful
                     // Otherwise if it returns false, it's a failure
-                    (success, payloads) = await ProcessInboxItemAsync(file, inboxItem, writer, odinContext, markComplete);
+                    (success, _) = await ProcessInboxItemAsync(file, inboxItem, writer, odinContext, markComplete);
 
                     logger.LogDebug("Item with file ({fileId}) Processed.  success: {s}", file.FileId, success);
                 }
@@ -126,7 +125,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         if (n == 1)
                         {
                             var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
-                            await fs.Storage.CleanupInboxTemporaryFiles(file, payloads, odinContext);
+                            await fs.Storage.CleanupInboxTemporaryFiles(file, odinContext);
                         }
                         else
                         {
@@ -136,7 +135,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     else if (success == InboxReturnTypes.HasBeenMarkedComplete)
                     {
                         var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
-                        await fs.Storage.CleanupInboxTemporaryFiles(file, payloads, odinContext);
+                        await fs.Storage.CleanupInboxTemporaryFiles(file, odinContext);
                     }
                 }
             }

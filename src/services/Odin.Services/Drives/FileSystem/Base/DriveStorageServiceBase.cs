@@ -1215,6 +1215,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 VersionTag = targetVersionTag,
                 Content = header.FileMetadata.LocalAppData?.Content,
                 Tags = newTags,
+                ReadTime = header.FileMetadata.LocalAppData?.ReadTime,
                 LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
             };
 
@@ -1266,6 +1267,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 Iv = initVector,
                 Content = newContent,
                 Tags = header.FileMetadata.LocalAppData?.Tags ?? [],
+                ReadTime = header.FileMetadata.LocalAppData?.ReadTime,
                 LocalReactions = header.FileMetadata.LocalAppData?.LocalReactions,
             };
 
@@ -1415,13 +1417,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task CleanupInboxTemporaryFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors,
-            IOdinContext odinContext)
+        public async Task CleanupInboxTemporaryFiles(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             if (await CanWriteToDrive(file.DriveId, odinContext))
             {
-                await inboxStorageManager.CleanupInboxFiles(file, descriptors);
+                await inboxStorageManager.CleanupInboxFiles(file);
             }
         }
 

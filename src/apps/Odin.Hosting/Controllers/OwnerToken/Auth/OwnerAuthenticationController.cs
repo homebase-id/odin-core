@@ -1,14 +1,17 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Bitcoin.BIP39;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Login;
+using Odin.Core.Exceptions;
 using Odin.Core.Fluff;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
 using Odin.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base;
@@ -31,19 +34,40 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         public async Task<IActionResult> VerifyCookieBasedToken()
         {
             var value = Request.Cookies[OwnerAuthConstants.CookieName];
-            if (ClientAuthenticationToken.TryParse(value ?? "", out var result))
+            if (!ClientAuthenticationToken.TryParse(value ?? "", out var token))
             {
-                var isValid = await authService.IsValidTokenAsync(result.Id);
-                if (isValid)
-                {
-                    await authService.ExtendTokenLife(result.Id);
-                    await AddUpgradeRequiredHeaderAsync();
-                }
-
-                return new JsonResult(isValid);
+                return new JsonResult(false);
             }
 
-            return new JsonResult(false);
+            // Exercise the full owner-auth decrypt chain (cookie half-key -> KEK ->
+            // master key) so a stale-KEK cookie cannot pass verifyToken while every
+            // other owner endpoint still rejects it.
+            var pushDeviceToken = PushNotificationCookieUtil.GetDeviceKey(HttpContext.Request);
+            var clientContext = new OdinClientContext
+            {
+                CorsHostName = null,
+                ClientIdOrDomain = null,
+                AccessRegistrationId = token.Id,
+                DevicePushNotificationKey = pushDeviceToken
+            };
+
+            bool isValid;
+            try
+            {
+                isValid = await authService.UpdateOdinContextAsync(token, clientContext, WebOdinContext);
+            }
+            catch (OdinSecurityException)
+            {
+                isValid = false;
+            }
+
+            if (isValid)
+            {
+                await authService.ExtendTokenLife(token.Id);
+                await AddUpgradeRequiredHeaderAsync();
+            }
+
+            return new JsonResult(isValid);
         }
 
         [HttpPost]
@@ -67,7 +91,15 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
                 await authService.ExpireTokenAsync(result.Id);
             }
 
-            Response.Cookies.Delete(OwnerAuthConstants.CookieName);
+            // Match the options the cookie was set with (see AuthenticationCookieUtil.SetCookie);
+            // some browsers refuse to delete a Secure cookie via a non-Secure Set-Cookie.
+            Response.Cookies.Delete(OwnerAuthConstants.CookieName, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Path = "/",
+            });
             return new JsonResult(true);
         }
 

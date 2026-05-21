@@ -16,14 +16,17 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)
     /// </summary>
-    public class TransitInboxBoxStorage(TableInboxCached tableInbox, ILogger<TransitInboxBoxStorage> logger)
+    public class TransitInboxBoxStorage(
+        TableInboxCached tableInboxCached,
+        TableInbox tableInboxUncached,
+        ILogger<TransitInboxBoxStorage> logger)
     {
         public async Task AddAsync(TransferInboxItem item)
         {
             item.AddedTimestamp = UnixTimeUtc.Now();
 
             var state = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            await tableInbox.InsertAsync(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
+            await tableInboxCached.InsertAsync(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
 
             PerformanceCounter.IncrementCounter("Inbox Item Added");
         }
@@ -37,12 +40,12 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         /// </summary>
         public async Task<int> GetReadyCountAsync(Guid driveId)
         {
-            return await tableInbox.GetReadyCountAsync(driveId);
+            return await tableInboxCached.GetReadyCountAsync(driveId);
         }
 
         public async Task<InboxStatus> GetStatusAsync(Guid driveId)
         {
-            var p = await tableInbox.PopStatusSpecificBoxAsync(driveId);
+            var p = await tableInboxCached.PopStatusSpecificBoxAsync(driveId);
 
             return new InboxStatus
             {
@@ -55,7 +58,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public async Task<InboxStatus> GetPendingCountAsync(Guid driveId)
         {
-            var p = await tableInbox.PopStatusSpecificBoxAsync(driveId);
+            var p = await tableInboxCached.PopStatusSpecificBoxAsync(driveId);
             return new InboxStatus()
             {
                 TotalItems = p.totalCount,
@@ -67,7 +70,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
         public async Task<List<TransferInboxItem>> GetPendingItemsAsync(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = await tableInbox.PopSpecificBoxAsync(driveId, batchSize == 0 ? 1 : batchSize);
+            var records = await tableInboxCached.PopSpecificBoxAsync(driveId, batchSize == 0 ? 1 : batchSize);
 
             if (null == records)
             {
@@ -95,7 +98,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public async Task<int> MarkCompleteAsync(InternalDriveFileId file, Guid marker)
         {
-            int n = await tableInbox.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
+            int n = await tableInboxCached.PopCommitListAsync(marker, file.DriveId, [file.FileId]);
 
             if (n != 1)
             {
@@ -112,16 +115,31 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.InboxStorage
 
         public async Task<int> MarkFailureAsync(InternalDriveFileId file, Guid marker)
         {
-            int n = await tableInbox.PopCancelListAsync(marker, file.DriveId, [file.FileId]);
+            int n = await tableInboxCached.PopCancelListAsync(marker, file.DriveId, [file.FileId]);
             PerformanceCounter.IncrementCounter("Inbox Mark Failure");
             return n;
         }
 
         public async Task<int> RecoverDeadAsync(UnixTimeUtc time)
         {
-            var recovered = await tableInbox.PopRecoverDeadAsync(time);
+            var recovered = await tableInboxCached.PopRecoverDeadAsync(time);
             PerformanceCounter.IncrementCounter("Inbox Recover Dead");
             return recovered;
+        }
+
+        // Returns every fileId the inbox table currently holds for this drive (any pop state).
+        // The orphan scanner uses this as the "pending" set: every staging file on disk whose
+        // fileId is NOT in this set, and whose age is past the orphan threshold, is a leak from
+        // a buggy cleanup path.
+        //
+        // Goes through the uncached TableInbox on purpose: the cached wrapper only memoizes
+        // per-drive ready-counts, not individual fileIds. A stale snapshot of "which fileIds
+        // are pending" could classify a freshly-committed (and not-yet-cleaned-up) row as still
+        // pending, hiding the very leak we're trying to catch.
+        public async Task<HashSet<Guid>> GetPendingFileIdsAsync(Guid driveId)
+        {
+            var ids = await tableInboxUncached.GetPendingFileIdsForBoxAsync(driveId);
+            return ids.ToHashSet();
         }
     }
 }
