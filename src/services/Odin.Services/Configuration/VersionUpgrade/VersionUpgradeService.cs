@@ -14,7 +14,6 @@ using Odin.Services.Configuration.VersionUpgrade.Version3tov4;
 using Odin.Services.Configuration.VersionUpgrade.Version4tov5;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
-using Odin.Services.Configuration.VersionUpgrade.Version7tov8;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
 
@@ -28,7 +27,6 @@ public class VersionUpgradeService(
     V4ToV5VersionMigrationService v5,
     V5ToV6VersionMigrationService v6,
     V6ToV7VersionMigrationService v7,
-    V7ToV8VersionMigrationService v8,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     ILogger<VersionUpgradeService> logger)
@@ -206,29 +204,6 @@ public class VersionUpgradeService(
                 await v7.UpgradeAsync(odinContext, cancellationToken);
 
                 await v7.ValidateUpgradeAsync(odinContext, cancellationToken);
-
-                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
-
-                tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
-            }
-
-            // do this after each version upgrade
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
-
-            if (currentVersion == 7)
-            {
-                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
-
-                _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
-
-                await v8.UpgradeAsync(odinContext, cancellationToken);
-
-                await v8.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
