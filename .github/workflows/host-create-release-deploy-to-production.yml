@@ -68,6 +68,15 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       #
+      # Build Kotlin WASM (chat-kmp)
+      #
+
+      - name: Build chat-wasm
+        uses: ./odin-core/.github/actions/host/build-kotlin-wasm
+        with:
+          odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+
+      #
       # Build Docker image
       #
 

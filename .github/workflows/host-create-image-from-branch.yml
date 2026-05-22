@@ -7,6 +7,10 @@ on:
         description: "Frontend branch/commit to include"
         required: true
         default: "main"
+      kotlin_ref:
+        description: "chat-kmp branch/commit to include"
+        required: true
+        default: "main"
 
 env:
   REGISTRY: ghcr.io
@@ -42,6 +46,16 @@ jobs:
           odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_ref: ${{ github.event.inputs.fe_ref }}
+
+      #
+      # Build Kotlin WASM (chat-kmp)
+      #
+
+      - name: Build chat-wasm
+        uses: ./odin-core/.github/actions/host/build-kotlin-wasm
+        with:
+          odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
+          git_ref: ${{ github.event.inputs.kotlin_ref }}
 
       #
       # Build docker image

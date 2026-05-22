@@ -1,0 +1,39 @@
+name: "Host: Build Kotlin WASM app"
+description: "Build chat-kmp webApp (Kotlin/WASM) and bundle into Odin.Hosting client assets"
+inputs:
+  odin_lib_token:
+    description: "Github token for chat-kmp repo"
+    required: true
+  git_ref:
+    description: "Branch or commit to build chat-kmp from"
+    required: false
+    default: "main"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: "temurin"
+        java-version: "17"
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Checkout chat-kmp
+      uses: actions/checkout@v4
+      with:
+        repository: homebase-id/chat-kmp
+        token: ${{ inputs.odin_lib_token }}
+        ref: ${{ inputs.git_ref }}
+        path: client/chat-kmp
+
+    - name: Build chat-wasm
+      shell: bash
+      working-directory: ./client/chat-kmp
+      run: |
+        ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
+        mkdir -p ../../odin-core/src/apps/Odin.Hosting/client/apps
+        mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
