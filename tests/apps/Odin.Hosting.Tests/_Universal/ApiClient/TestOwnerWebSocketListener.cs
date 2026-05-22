@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.WebSockets;
 using System.Threading;
@@ -114,7 +115,22 @@ public sealed class TestOwnerWebSocketListener
                 while (_clientWebSocket.State == WebSocketState.Open)
                 {
                     var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 4]);
-                    var receiveResult = await _clientWebSocket.ReceiveAsync(receiveBuffer, _cancellationTokenSource.Token);
+
+                    // A single logical message can span multiple frames / multiple ReceiveAsync
+                    // calls (payloads larger than the buffer). Accumulate until EndOfMessage,
+                    // otherwise large notifications get truncated and fail to deserialize.
+                    using var ms = new MemoryStream();
+                    WebSocketReceiveResult receiveResult;
+                    do
+                    {
+                        receiveResult = await _clientWebSocket.ReceiveAsync(receiveBuffer, _cancellationTokenSource.Token);
+                        if (receiveResult.MessageType == WebSocketMessageType.Close)
+                        {
+                            break;
+                        }
+
+                        ms.Write(receiveBuffer.Array!, receiveBuffer.Offset, receiveResult.Count);
+                    } while (!receiveResult.EndOfMessage);
 
                     if (receiveResult.MessageType == WebSocketMessageType.Close)
                     {
@@ -122,9 +138,7 @@ public sealed class TestOwnerWebSocketListener
                     }
                     else
                     {
-                        var array = receiveBuffer.Array;
-                        Array.Resize(ref array, receiveResult.Count);
-                        await OnNotificationReceived(DecryptClientNotificationPayload<TestClientNotification>(array));
+                        await OnNotificationReceived(DecryptClientNotificationPayload<TestClientNotification>(ms.ToArray()));
                     }
                 }
             }
