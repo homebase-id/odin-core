@@ -9,11 +9,12 @@ using NUnit.Framework.Legacy;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Hosting.Tests._Universal.ApiClient;
-using Odin.Hosting.Tests.AppAPI.Notifications;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.AppNotifications.WebSocket;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._V2.Tests.Notifications;
 
@@ -138,9 +139,20 @@ public class V2NotificationSocketControllerTests
         }, cts.Token);
 
         // Trigger a file-added event on the drive the socket subscribed to.
-        var (instructionSet, fileMetadata) =
-            NotificationTestUtils.RandomEncryptedFileHeaderNoPayload("contents are here", testAppContext.TargetDrive);
-        await _scaffold.AppApi.UploadFile(testAppContext, instructionSet, fileMetadata, false, "payload data");
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var uploadResponse = await ownerApiClient.DriveRedux.UploadNewMetadata(testAppContext.TargetDrive,
+            new UploadFileMetadata
+            {
+                AllowDistribution = false,
+                IsEncrypted = false,
+                AppData = new UploadAppFileMetaData
+                {
+                    Content = "contents are here",
+                    FileType = 150
+                },
+                AccessControlList = AccessControlList.OwnerOnly
+            });
+        Assert.That(uploadResponse.IsSuccessStatusCode, Is.True, "Upload did not succeed.");
 
         var finished = await Task.WhenAny(fileAddedReceived.Task, Task.Delay(TimeSpan.FromSeconds(20), cts.Token));
         Assert.That(finished, Is.SameAs(fileAddedReceived.Task), "Timed out waiting for FileAdded notification.");
