@@ -17,6 +17,8 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage;
 using Odin.Core.Storage.PubSub;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Authorization.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -24,8 +26,10 @@ using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer;
+using Odin.Services.Peer.AppNotification;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Tenant.Container;
+using Odin.Services.Util;
 
 #nullable enable
 
@@ -50,6 +54,8 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly ITenantRootScope _tenantRootScope;
         private readonly ITenantPubSub _pubSub;
         private readonly PeerInboxProcessor _peerInboxProcessor;
+        private readonly PeerAppNotificationService _peerAppNotificationService;
+        private readonly IAppRegistrationService _appRegistrationService;
         private readonly SharedDeviceSocketCollection<AppNotificationHandler> _deviceSocketCollection;
         private readonly RefCountedSubscription _notificationSubscription;
 
@@ -65,12 +71,16 @@ namespace Odin.Services.AppNotifications.WebSocket
             ITenantRootScope tenantRootScope,
             ITenantPubSub pubSub,
             PeerInboxProcessor peerInboxProcessor,
+            PeerAppNotificationService peerAppNotificationService,
+            IAppRegistrationService appRegistrationService,
             SharedDeviceSocketCollection<AppNotificationHandler> deviceSocketCollection)
         {
             _logger = logger;
             _tenantRootScope = tenantRootScope;
             _pubSub = pubSub;
             _peerInboxProcessor = peerInboxProcessor;
+            _peerAppNotificationService = peerAppNotificationService;
+            _appRegistrationService = appRegistrationService;
             _deviceSocketCollection = deviceSocketCollection;
             _notificationSubscription = new RefCountedSubscription(_pubSub, NotificationChannel, NotificationHandler);
         }
@@ -144,12 +154,57 @@ namespace Odin.Services.AppNotifications.WebSocket
                 if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
                 {
                     var completeMessage = ms.ToArray();
-                    var sharedSecret = odinContext.PermissionsContext.SharedSecretKey;
-
                     byte[] decryptedBytes;
+
                     try
                     {
-                        decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
+                        if (deviceSocket.DeviceOdinContext == null)
+                        {
+                            // First frame may be either a SocketAuthenticationPackage carrying
+                            // a ClientAuthToken64 (WS-frame auth) or a plain
+                            // SharedSecretEncryptedPayload from a client whose HTTP request
+                            // was already authenticated (browser app/owner cookie).
+                            SocketAuthenticationPackage? authPackage = null;
+                            try
+                            {
+                                authPackage = OdinSystemSerializer.Deserialize<SocketAuthenticationPackage>(completeMessage);
+                            }
+                            catch (Exception)
+                            {
+                                authPackage = null;
+                            }
+
+                            if (authPackage?.SharedSecretEncryptedOptions != null
+                                && !string.IsNullOrEmpty(authPackage.ClientAuthToken64))
+                            {
+                                deviceSocket.DeviceOdinContext =
+                                    await HandleAuthentication(authPackage.ClientAuthToken64, odinContext);
+                                decryptedBytes = authPackage.SharedSecretEncryptedOptions.Decrypt(
+                                    deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey);
+                            }
+                            else
+                            {
+                                decryptedBytes = SharedSecretEncryptedPayload.Decrypt(
+                                    completeMessage, odinContext.PermissionsContext.SharedSecretKey);
+                            }
+                        }
+                        else
+                        {
+                            var sharedSecret = deviceSocket.DeviceOdinContext.PermissionsContext!.SharedSecretKey;
+                            decryptedBytes = SharedSecretEncryptedPayload.Decrypt(completeMessage, sharedSecret);
+                        }
+                    }
+                    catch (OdinSecurityException)
+                    {
+                        await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
+                            {
+                                NotificationType = ClientNotificationType.AuthenticationError,
+                                Data = "Invalid Token",
+                            }),
+                            encrypt: deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                            sendEvenIfNoDeviceOdinContext: true,
+                            cancellationToken: cancellationToken);
+                        continue;
                     }
                     catch (Exception)
                     {
@@ -461,7 +516,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 if (!cancellationToken.IsCancellationRequested)
                 {
-                    await SendMessageAsync(deviceSocket, json, encrypt, cancellationToken);
+                    await SendMessageAsync(deviceSocket, json, encrypt, cancellationToken: cancellationToken);
                 }
             }
         }
@@ -485,8 +540,9 @@ namespace Odin.Services.AppNotifications.WebSocket
             await SendMessageAsync(
                 deviceSocket,
                 json,
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
-                cancellationToken);
+                encrypt: deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
+                sendEvenIfNoDeviceOdinContext: false,
+                cancellationToken: cancellationToken);
         }
 
         //
@@ -495,6 +551,7 @@ namespace Odin.Services.AppNotifications.WebSocket
             DeviceSocket deviceSocket,
             string message,
             bool encrypt,
+            bool sendEvenIfNoDeviceOdinContext = false,
             CancellationToken cancellationToken = default)
         {
             var socket = deviceSocket.Socket;
@@ -504,17 +561,29 @@ namespace Odin.Services.AppNotifications.WebSocket
                 return;
             }
 
+            if (deviceSocket.DeviceOdinContext == null)
+            {
+                await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                _logger.LogInformation("Invalid/Stale Device found; removing from list");
+                if (sendEvenIfNoDeviceOdinContext)
+                {
+                    var payload = new ClientNotificationPayload()
+                    {
+                        IsEncrypted = false,
+                        Payload = message
+                    };
+
+                    var json = OdinSystemSerializer.Serialize(payload);
+                    await deviceSocket.FireAndForgetAsync(json, cancellationToken);
+                }
+
+                return;
+            }
+
             try
             {
                 if (encrypt)
                 {
-                    if (deviceSocket.DeviceOdinContext == null)
-                    {
-                        await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
-                        _logger.LogInformation("Invalid/Stale Device found; removing from list; closing socket");
-                        throw new WebSocketException("Missing device odin context");
-                    }
-
                     if (deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey == null)
                     {
                         throw new OdinSystemException("Cannot encrypt message without shared secret key");
@@ -557,6 +626,9 @@ namespace Odin.Services.AppNotifications.WebSocket
             IOdinContext odinContext,
             CancellationToken cancellationToken = default)
         {
+            // If WS-frame auth already populated DeviceOdinContext, it wins over the HTTP one.
+            var effectiveContext = deviceSocket.DeviceOdinContext ?? odinContext;
+
             //process the command
             switch (command.Command)
             {
@@ -573,11 +645,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                         foreach (var td in options.Drives)
                         {
                             var driveId = td.Alias;
-                            odinContext.PermissionsContext.AssertCanReadDrive(driveId);
+                            effectiveContext.PermissionsContext.AssertCanReadDrive(driveId);
                             drives.Add(driveId);
                         }
 
-                        deviceSocket.DeviceOdinContext = odinContext.Clone();
+                        deviceSocket.DeviceOdinContext ??= effectiveContext.Clone();
                         deviceSocket.Drives = drives;
                     }
                     catch (OdinSecurityException e)
@@ -587,7 +659,8 @@ namespace Odin.Services.AppNotifications.WebSocket
                             deviceSocket,
                             json,
                             encrypt: false,
-                            cancellationToken);
+                            sendEvenIfNoDeviceOdinContext: true,
+                            cancellationToken: cancellationToken);
 
                         throw new CloseWebSocketException();
                     }
@@ -597,14 +670,14 @@ namespace Odin.Services.AppNotifications.WebSocket
                         deviceSocket,
                         OdinSystemSerializer.Serialize(response),
                         encrypt: true,
-                        cancellationToken);
+                        cancellationToken: cancellationToken);
                     break;
 
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     if (d != null)
                     {
-                        await _peerInboxProcessor.ProcessInboxAsync(d.TargetDrive, odinContext);
+                        await _peerInboxProcessor.ProcessInboxAsync(d.TargetDrive, effectiveContext);
                     }
                     break;
 
@@ -612,19 +685,56 @@ namespace Odin.Services.AppNotifications.WebSocket
                     var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     if (request != null)
                     {
-                        await _peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, odinContext, request.BatchSize);
+                        await _peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, effectiveContext, request.BatchSize);
                     }
                     break;
 
                 case SocketCommandType.Ping:
                     var pong = OdinSystemSerializer.Serialize(new { NotificationType = ClientNotificationType.Pong });
-                    await SendMessageAsync(deviceSocket, pong, encrypt: true, cancellationToken);
+                    await SendMessageAsync(deviceSocket, pong, encrypt: true, cancellationToken: cancellationToken);
                     break;
 
                 default:
                     await SendErrorMessageAsync(deviceSocket, "Invalid command", cancellationToken);
                     break;
             }
+        }
+
+        //
+
+        private async Task<IOdinContext> HandleAuthentication(string clientAuthToken64, IOdinContext currentOdinContext)
+        {
+            if (!ClientAuthenticationToken.TryParse(clientAuthToken64, out var clientAuthToken))
+            {
+                throw new OdinSecurityException("No token provided");
+            }
+
+            IOdinContext? ctx;
+            string authContextName;
+
+            switch (clientAuthToken.ClientTokenType)
+            {
+                case ClientTokenType.PeerNotificationSubscriber:
+                    ctx = await _peerAppNotificationService.GetDotYouContext(clientAuthToken, currentOdinContext);
+                    authContextName = "websocket-peer-app-subscriber-token";
+                    break;
+
+                case ClientTokenType.App:
+                    ctx = await _appRegistrationService.GetAppPermissionContextAsync(clientAuthToken, currentOdinContext);
+                    authContextName = "websocket-app-token";
+                    break;
+
+                default:
+                    throw new OdinSecurityException("Invalid Client Token Type");
+            }
+
+            if (ctx == null)
+            {
+                throw new OdinSecurityException("Invalid Client Token");
+            }
+
+            ctx.SetAuthContext(authContextName);
+            return ctx;
         }
 
         //
