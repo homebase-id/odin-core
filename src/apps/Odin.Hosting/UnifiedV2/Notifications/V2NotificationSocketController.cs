@@ -30,7 +30,6 @@ namespace Odin.Hosting.UnifiedV2.Notifications
     /// </summary>
     [ApiController]
     [AllowAnonymous]
-    [Route(UnifiedApiRouteConstants.NotifySocket)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2NotificationSocketController : OdinControllerBase
     {
@@ -62,15 +61,30 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             _peerAppNotificationService = peerAppNotificationService;
         }
 
-        // [HttpGet]
-        // per Claude. doing this instead of [HttpGet] allows browser
-        // WebSocket clients to upgrade over HTTP/2 (RFC 8441 Extended
-        // CONNECT uses :method=CONNECT, :protocol=websocket — [HttpGet]
-        // alone returns 405 before the controller runs). HTTP/1.1
-        // clients still use GET + Connection: Upgrade.
-        [AcceptVerbs("GET", "CONNECT")]
+        [HttpGet]
+        [Route(UnifiedApiRouteConstants.NotifySocket)]
         [ApiExplorerSettings(IgnoreApi = true)]
-        public async Task Connect()
+        public Task Connect()
+        {
+            return HandleAsync();
+        }
+
+        // Browser/WASM clients upgrade over HTTP/2 Extended CONNECT (RFC 8441:
+        // :method=CONNECT, :protocol=websocket). MVC routing rejects those with
+        // 405 Allow: GET when only [HttpGet] is present, so the wasm-facing route
+        // accepts both verbs. Native HTTP/1.1 clients keep using the [HttpGet]
+        // route above — switching that route to AcceptVerbs caused 401s on
+        // Ktor CIO/OkHttp/Darwin (the bearer subprotocol value got dropped
+        // before the controller ran).
+        [AcceptVerbs("GET", "CONNECT")]
+        [Route(UnifiedApiRouteConstants.NotifySocketWasm)]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        public Task ConnectWasm()
+        {
+            return HandleAsync();
+        }
+
+        private async Task HandleAsync()
         {
             if (!HttpContext.WebSockets.IsWebSocketRequest)
             {

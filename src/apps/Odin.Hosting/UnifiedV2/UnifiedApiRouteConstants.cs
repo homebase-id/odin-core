@@ -15,6 +15,7 @@ public static class UnifiedApiRouteConstants
     public const string ByUniqueId = FilesRoot + "/by-uid/{uid:guid}";
     public const string Notify = BasePath + "/notify/push";
     public const string NotifySocket = BasePath + "/notify/ws-token";
+    public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
     public const string Links = BasePath + "/links";
     public const string Capi = BasePath + "/capi";
 
