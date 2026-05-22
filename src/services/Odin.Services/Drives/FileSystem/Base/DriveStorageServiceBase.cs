@@ -834,11 +834,20 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (await TryShouldRaiseDriveEventAsync(targetFile))
             {
+                // Re-read so the notification carries a snapshot consistent with what was just
+                // persisted: the bumped `modified`/updated timestamp and the current localReactions
+                // (the group reaction flow updates localReactions before this runs). Publishing the
+                // pre-write `existingHeader` previously emitted a stale statisticsChanged (old
+                // `updated` and missing the reaction it announces).
+                var refreshedHeader =
+                    await longTermStorageManager.GetServerFileHeader(drive, targetFile.FileId, GetFileSystemType())
+                    ?? existingHeader;
+
                 await TryPublishAsync(new ReactionPreviewUpdatedNotification
                 {
                     File = targetFile,
-                    ServerFileHeader = existingHeader,
-                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(existingHeader, odinContext),
+                    ServerFileHeader = refreshedHeader,
+                    SharedSecretEncryptedFileHeader = DriveFileUtility.CreateClientFileHeader(refreshedHeader, odinContext),
                     OdinContext = odinContext,
                 });
             }
