@@ -62,7 +62,13 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             _peerAppNotificationService = peerAppNotificationService;
         }
 
-        [HttpGet]
+        // [HttpGet]
+        // per Claude. doing this instead of [HttpGet] allows browser
+        // WebSocket clients to upgrade over HTTP/2 (RFC 8441 Extended
+        // CONNECT uses :method=CONNECT, :protocol=websocket — [HttpGet]
+        // alone returns 405 before the controller runs). HTTP/1.1
+        // clients still use GET + Connection: Upgrade.
+        [AcceptVerbs("GET", "CONNECT")]
         [ApiExplorerSettings(IgnoreApi = true)]
         public async Task Connect()
         {
