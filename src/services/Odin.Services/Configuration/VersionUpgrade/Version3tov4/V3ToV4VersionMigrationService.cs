@@ -54,14 +54,16 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
 
                 // added because this fails when new drives are added but clients are upgrading
                 var theDrive = await driveManager.GetDriveAsync(dg.PermissionedDrive.Drive.Alias, false);
-                var driveExists = theDrive != null;
-                if (driveExists && null == confirmedCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
+                if (theDrive != null)
                 {
-                    logger.LogError("Failed {cn} is missing drive grant {dg}", confirmedCircle.Name, dg.PermissionedDrive);
-                    throw new OdinSystemException($"Validation failed.  Confirmed circle missing drive grant {dg.PermissionedDrive}");
-                }
+                    if (null == confirmedCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
+                    {
+                        logger.LogError("Failed {cn} is missing drive grant {dg}", confirmedCircle.Name, dg.PermissionedDrive);
+                        throw new OdinSystemException($"Validation failed.  Confirmed circle missing drive grant {dg.PermissionedDrive}");
+                    }
 
-                logger.LogDebug("Validated {cn} has drive grant {dg}", confirmedCircle.Name, dg.PermissionedDrive);
+                    logger.LogDebug("Validated {cn} has drive grant {dg}", confirmedCircle.Name, dg.PermissionedDrive);
+                }
             }
 
             var autoCircle = await circleDefinitionService.GetCircleAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition.Id);
@@ -75,15 +77,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
 
                 // added because this fails when new drives are added but clients are upgrading
                 var theDrive = await driveManager.GetDriveAsync(dg.PermissionedDrive.Drive.Alias, false);
-                var driveExists = theDrive != null;
-
-                if (driveExists && null == autoCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
+                if (theDrive != null)
                 {
-                    logger.LogError("Failed {cn} is missing drive grant {dg}", autoCircle.Name, dg.PermissionedDrive);
-                    throw new OdinSystemException($"Validation failed.  Auto-Connect circle missing drive grant {dg.PermissionedDrive}");
-                }
+                    if (null == autoCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
+                    {
+                        logger.LogError("Failed {cn} is missing drive grant {dg}", autoCircle.Name, dg.PermissionedDrive);
+                        throw new OdinSystemException(
+                            $"Validation failed.  Auto-Connect circle missing drive grant {dg.PermissionedDrive}");
+                    }
 
-                logger.LogDebug("Validated {cn} has drive grant {dg}", autoCircle.Name, dg.PermissionedDrive);
+                    logger.LogDebug("Validated {cn} has drive grant {dg}", autoCircle.Name, dg.PermissionedDrive);
+                }
             }
         }
     }
