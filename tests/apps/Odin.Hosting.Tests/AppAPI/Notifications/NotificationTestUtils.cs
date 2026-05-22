@@ -1,4 +1,4 @@
-﻿using Odin.Core.Serialization;
+﻿using Odin.Core;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base.Upload;
@@ -12,15 +12,15 @@ public static class NotificationTestUtils
         TargetDrive targetDrive)
     {
         var keyHeader = KeyHeader.NewRandom16();
-        
-        var encryptedJsonContents = keyHeader.EncryptDataAesAsStream(jsonContents);
+
+        var encryptedJsonContent64 = keyHeader.EncryptDataAes(jsonContents.ToUtf8ByteArray()).ToBase64();
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
             IsEncrypted = true,
             AppData = new()
             {
-                Content = OdinSystemSerializer.Serialize(encryptedJsonContents),
+                Content = encryptedJsonContent64,
                 FileType = 150
             },
             AccessControlList = AccessControlList.OwnerOnly
