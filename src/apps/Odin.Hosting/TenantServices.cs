@@ -104,6 +104,14 @@ public static class TenantServices
 
         cb.RegisterGeneric(typeof(SharedDeviceSocketCollection<>)).SingleInstance();
 
+        // Per-tenant singletons that own the single WebSocket pub/sub subscription + fan-out.
+        // Must be singletons so the RefCountedSubscription is shared across all connections of a
+        // tenant (one broker subscription, ref-counted by connection count). Their only
+        // dependencies are singleton-safe; per-connection/DB-bound work stays in the scoped
+        // AppNotificationHandler / PeerAppNotificationHandler below.
+        cb.RegisterType<AppNotificationDispatcher>().AsSelf().SingleInstance();
+        cb.RegisterType<PeerAppNotificationDispatcher>().AsSelf().SingleInstance();
+
         cb.RegisterType<ClientRegistrationStorage>().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();

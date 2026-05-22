@@ -1,69 +1,49 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Autofac;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Json;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.PubSub;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Storage;
-using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.Drives.Management;
 using Odin.Services.Mediator;
 using Odin.Services.Peer.AppNotification;
-using Odin.Services.Tenant.Container;
 using Odin.Services.Util;
 
 #nullable enable
 
-// SEB:TODO this file needs to be combined with PeerAppNotificationHandler.cs
-
-// SEB:TODO this file needs to be split up into different classes handling
-// - websocket incoming and outgoing messages
-// - client notifications (i.e. messages coming from the "inside" and going out to a websocket)
-
-// SEB:TODO cleanup SendMessageAsync params
-
 namespace Odin.Services.AppNotifications.WebSocket
 {
+    /// <summary>
+    /// Scoped MediatR handler and per-connection WebSocket command processor for the peer-app
+    /// notification pipeline. The shared subscription and notification fan-out live in the
+    /// per-tenant singleton <see cref="PeerAppNotificationDispatcher"/>; this class delegates to
+    /// it. Kept scoped so it can use the request/DB-bound <see cref="PeerAppNotificationService"/>
+    /// for connection authentication without making it a captive dependency of a singleton.
+    /// </summary>
     public class PeerAppNotificationHandler :
         INotificationHandler<IClientNotification>,
         INotificationHandler<IDriveNotification>
     {
-        private const string NotificationChannel = nameof(PeerAppNotificationHandler);
-
         private readonly ILogger<PeerAppNotificationHandler> _logger;
-        private readonly ITenantRootScope _tenantRootScope;
-        private readonly ITenantPubSub _pubSub;
+        private readonly PeerAppNotificationDispatcher _dispatcher;
         private readonly PeerAppNotificationService _peerAppNotificationService;
-        private readonly SharedDeviceSocketCollection<PeerAppNotificationHandler> _deviceSocketCollection;
-        private readonly RefCountedSubscription _notificationSubscription;
 
-        public PeerAppNotificationHandler(ILogger<PeerAppNotificationHandler> logger,
-            ITenantPubSub pubSub,
-            PeerAppNotificationService peerAppNotificationService,
-            SharedDeviceSocketCollection<PeerAppNotificationHandler> deviceSocketCollection,
-            ITenantRootScope tenantRootScope)
+        public PeerAppNotificationHandler(
+            ILogger<PeerAppNotificationHandler> logger,
+            PeerAppNotificationDispatcher dispatcher,
+            PeerAppNotificationService peerAppNotificationService)
         {
             _logger = logger;
-            _tenantRootScope = tenantRootScope;
+            _dispatcher = dispatcher;
             _peerAppNotificationService = peerAppNotificationService;
-            _deviceSocketCollection = deviceSocketCollection;
-            _pubSub = pubSub;
-            _notificationSubscription =
-                new RefCountedSubscription(_pubSub, NotificationChannel, NotificationHandler);
         }
 
         //
@@ -84,9 +64,9 @@ namespace Odin.Services.AppNotifications.WebSocket
                     Key = webSocketKey,
                     Socket = webSocket,
                 };
-                _deviceSocketCollection.AddSocket(deviceSocket);
+                _dispatcher.AddSocket(deviceSocket);
 
-                await _notificationSubscription.SubscribeAsync(cancellationToken);
+                await _dispatcher.SubscribeAsync(cancellationToken);
                 await AwaitCommands(deviceSocket, odinContext, cancellationToken);
             }
             catch (OperationCanceledException)
@@ -104,8 +84,8 @@ namespace Odin.Services.AppNotifications.WebSocket
             }
             finally
             {
-                await _notificationSubscription.UnsubscribeAsync(CancellationToken.None);
-                await _deviceSocketCollection.RemoveSocket(webSocketKey);
+                await _dispatcher.UnsubscribeAsync(CancellationToken.None);
+                await _dispatcher.RemoveSocket(webSocketKey);
                 _logger.LogTrace("WebSocket closed");
             }
         }
@@ -220,61 +200,14 @@ namespace Odin.Services.AppNotifications.WebSocket
         }
 
         //
-
-        private async Task NotificationHandler(JsonEnvelope envelope)
-        {
-            var message = envelope.DeserializeMessage();
-
-            switch (message)
-            {
-                case ClientNotificationMessage notification:
-                    await WsPublishAsync(notification);
-                    return;
-                case DriveNotificationMessage notification:
-                    await WsPublishAsync(notification);
-                    return;
-                case null:
-                    _logger.LogError("Received null message");
-                    return;
-                default:
-                    _logger.LogError("Unknown message type: {message}", message.GetType().Name);
-                    return;
-            }
-        }
-
-        //
         // IClientNotification
         //
 
         // Src: MediatR
-        // Dst: PubSub queue
-        public async Task Handle(IClientNotification notification, CancellationToken cancellationToken = default)
+        // Dst: PubSub queue (via the per-tenant dispatcher)
+        public Task Handle(IClientNotification notification, CancellationToken cancellationToken = default)
         {
-            var json = OdinSystemSerializer.Serialize(new
-            {
-                notification.NotificationType,
-                Data = notification.GetClientData()
-            });
-
-            var message = new ClientNotificationMessage
-            {
-                Json = json,
-            };
-
-            await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));
-        }
-
-        //
-
-        // Src: PubSub queue
-        // Dst: WebSocket
-        private async Task WsPublishAsync(ClientNotificationMessage notification)
-        {
-            var sockets = _deviceSocketCollection.GetAll().Values;
-            foreach (var deviceSocket in sockets)
-            {
-                await SendMessageAsync(deviceSocket, notification.Json, true);
-            }
+            return _dispatcher.PublishClientNotificationAsync(notification);
         }
 
         //
@@ -282,161 +215,29 @@ namespace Odin.Services.AppNotifications.WebSocket
         //
 
         // Src: MediatR
-        // Dst: PubSub queue
-        public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken = default)
+        // Dst: PubSub queue (via the per-tenant dispatcher)
+        public Task Handle(IDriveNotification notification, CancellationToken cancellationToken = default)
         {
-            var message = new DriveNotificationMessage
-            {
-                NotificationType  = notification.NotificationType,
-                File = notification.File,
-                IsDeleteNotification = notification is DriveFileDeletedNotification,
-                ServerFileHeader = notification.ServerFileHeader,
-                PreviousServerFileHeader = (notification as DriveFileDeletedNotification)?.PreviousServerFileHeader
-            };
-
-            await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));
+            return _dispatcher.PublishDriveNotificationAsync(notification);
         }
 
         //
 
-        // Src: PubSub queue
-        // Dst: WebSocket
-        private async Task WsPublishAsync(DriveNotificationMessage notification)
+        private Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken = default)
         {
-            var sockets = _deviceSocketCollection.GetAll().Values
-                .Where(ds => ds.Drives.Any(driveId => driveId == notification.File.DriveId))
-                .ToList();
-
-            if (sockets.Count == 0)
-            {
-                return;
-            }
-
-            await using var scope = _tenantRootScope.BeginLifetimeScope();
-            if (scope == null)
-            {
-                return;
-            }
-
-            var driveManager =  scope.Resolve<IDriveManager>();
-            var drive = await driveManager.GetDriveAsync(notification.File.DriveId);
-
-            foreach (var deviceSocket in sockets)
-            {
-                var deviceOdinContext = deviceSocket.DeviceOdinContext;
-                var hasSharedSecret = null != deviceOdinContext?.PermissionsContext?.SharedSecretKey;
-
-                var o = new ClientDriveNotification
-                {
-                    TargetDrive = drive?.TargetDriveInfo,
-                    Header = hasSharedSecret
-                        ? DriveFileUtility.CreateClientFileHeader(notification.ServerFileHeader, deviceOdinContext)
-                        : null,
-                    PreviousServerFileHeader = hasSharedSecret
-                        ? notification.IsDeleteNotification
-                            ? DriveFileUtility.CreateClientFileHeader(notification.PreviousServerFileHeader, deviceOdinContext!)
-                            : null
-                        : null
-                };
-
-                var json = OdinSystemSerializer.Serialize(new
-                {
-                    notification.NotificationType,
-                    Data = OdinSystemSerializer.Serialize(o)
-                });
-
-                await SendMessageAsync(
-                    deviceSocket,
-                    json,
-                    encrypt: true);
-            }
+            return _dispatcher.SendErrorMessageAsync(deviceSocket, errorText, cancellationToken);
         }
 
         //
 
-        private async Task SendErrorMessageAsync(DeviceSocket deviceSocket, string errorText, CancellationToken cancellationToken = default)
-        {
-            await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(new
-                {
-                    NotificationType = ClientNotificationType.Error,
-                    Data = errorText,
-                }),
-                deviceSocket.DeviceOdinContext?.PermissionsContext?.SharedSecretKey != null,
-                sendEvenIfNoDeviceOdinContext: false,
-                cancellationToken);
-        }
-
-        //
-
-        private async Task SendMessageAsync(
+        private Task SendMessageAsync(
             DeviceSocket deviceSocket,
             string message,
             bool encrypt,
             bool sendEvenIfNoDeviceOdinContext = false,
             CancellationToken cancellationToken = default)
         {
-            var socket = deviceSocket.Socket;
-
-            if (socket is not { State: WebSocketState.Open } || cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
-
-            if (deviceSocket.DeviceOdinContext == null)
-            {
-                await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
-                _logger.LogInformation("Invalid/Stale Device found; removing from list");
-                if (sendEvenIfNoDeviceOdinContext)
-                {
-                    var payload = new ClientNotificationPayload()
-                    {
-                        IsEncrypted = false,
-                        Payload = message
-                    };
-
-                    var json = OdinSystemSerializer.Serialize(payload);
-                    await deviceSocket.FireAndForgetAsync(json, cancellationToken);
-                }
-
-                return;
-            }
-
-            try
-            {
-                if (encrypt)
-                {
-                    if (deviceSocket.DeviceOdinContext.PermissionsContext?.SharedSecretKey == null)
-                    {
-                        throw new OdinSystemException("Cannot encrypt message without shared secret key");
-                    }
-
-                    var key = deviceSocket.DeviceOdinContext.PermissionsContext.SharedSecretKey;
-                    var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
-                    message = OdinSystemSerializer.Serialize(encryptedPayload);
-                }
-
-                var payload = new ClientNotificationPayload()
-                {
-                    IsEncrypted = encrypt,
-                    Payload = message
-                };
-
-                var json = OdinSystemSerializer.Serialize(payload);
-                await deviceSocket.FireAndForgetAsync(json, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // ignore, this exception is expected when the socket is closing behind the scenes
-            }
-            catch (WebSocketException e)
-            {
-                _logger.LogWarning("WebSocketException: {error}", e.Message);
-            }
-            catch (Exception e)
-            {
-                //HACK: need to find out what is trying to write when the response is complete
-                _logger.LogError(e, "SendMessageAsync: {error}", e.Message);
-            }
+            return _dispatcher.SendMessageAsync(deviceSocket, message, encrypt, sendEvenIfNoDeviceOdinContext, cancellationToken);
         }
 
         //
@@ -526,22 +327,5 @@ namespace Odin.Services.AppNotifications.WebSocket
 
             throw new OdinSecurityException("No token provided");
         }
-
-        //
-
-        private class ClientNotificationMessage
-        {
-            public required string Json { get; init; }
-        }
-
-        private class DriveNotificationMessage
-        {
-            public required ClientNotificationType NotificationType { get; init; }
-            public required InternalDriveFileId File { get; init; }
-            public required bool IsDeleteNotification { get; init; }
-            public required ServerFileHeader ServerFileHeader { get; init; }
-            public required ServerFileHeader? PreviousServerFileHeader { get; init; }
-        }
-
     }
 }
