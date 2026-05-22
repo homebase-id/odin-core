@@ -33,7 +33,7 @@ runs:
       shell: bash
       working-directory: ./client/chat-kmp
       run: |
-        ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache
+        ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache -PpublicPath=/apps/chat-wasm/
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
         mkdir -p ../../odin-core/src/apps/Odin.Hosting/client/apps
         mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
