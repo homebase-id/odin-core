@@ -427,10 +427,5 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             return existingFile;
         }
 
-        public async Task CleanupInboxFiles(InternalDriveFileId file, List<PayloadDescriptor> payloads, IOdinContext odinContext)
-        {
-            var fs = fileSystemResolver.ResolveFileSystem(FileSystemType.Standard);
-            await fs.Storage.CleanupInboxTemporaryFiles(file, payloads, odinContext);
-        }
     }
 }

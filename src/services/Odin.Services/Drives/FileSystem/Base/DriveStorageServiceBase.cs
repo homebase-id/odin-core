@@ -1417,13 +1417,12 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task CleanupInboxTemporaryFiles(InternalDriveFileId file, List<PayloadDescriptor> descriptors,
-            IOdinContext odinContext)
+        public async Task CleanupInboxTemporaryFiles(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             if (await CanWriteToDrive(file.DriveId, odinContext))
             {
-                await inboxStorageManager.CleanupInboxFiles(file, descriptors);
+                await inboxStorageManager.CleanupInboxFiles(file);
             }
         }
 
