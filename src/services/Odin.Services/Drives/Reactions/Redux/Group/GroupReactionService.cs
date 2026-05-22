@@ -46,16 +46,22 @@ public class GroupReactionService(
 
         var result = new AddReactionResult();
 
-        await reactionContentService.AddReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, null);
-
+        // Update the local-reactions cache BEFORE adding the reaction content. The reaction-content
+        // add raises statisticsChanged (via ReactionPreviewCalculator -> UpdateReactionSummary),
+        // whose header snapshot must already include this reaction in localReactions. The server is
+        // the source of truth for localReactions, so every emitted notification must be consistent;
+        // doing this after the add is what made statisticsChanged announce a reaction its own
+        // snapshot was missing.
         try
         {
             await UpdateLocalReactionListAsync(localFile, reaction, added: true, odinContext, fileSystemType);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to update local reaction list after adding reaction");
+            logger.LogWarning(ex, "Failed to update local reaction list before adding reaction");
         }
+
+        await reactionContentService.AddReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext, null);
 
         if (options?.Recipients?.Any() ?? false)
         {
@@ -84,17 +90,20 @@ public class GroupReactionService(
         odinContext.PermissionsContext.AssertHasDrivePermission(localFile.DriveId, DrivePermission.React);
 
         var result = new DeleteReactionResult();
-        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext,
-            markComplete: null);
 
+        // See AddReactionAsync: update the local-reactions cache before removing the reaction content
+        // so the statisticsChanged notification reflects the removal in its localReactions snapshot.
         try
         {
             await UpdateLocalReactionListAsync(localFile, reaction, added: false, odinContext, fileSystemType);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to update local reaction list after deleting reaction");
+            logger.LogWarning(ex, "Failed to update local reaction list before deleting reaction");
         }
+
+        await reactionContentService.DeleteReactionAsync(localFile, reaction, odinContext.GetCallerOdinIdOrFail(), odinContext,
+            markComplete: null);
 
         if (options?.Recipients?.Any() ?? false)
         {
