@@ -1407,6 +1407,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                         File = file,
                         ServerFileHeader = updatedHeader,
                         OdinContext = odinContext,
+                        // localReactions is only written in the group-reaction flow, which also raises
+                        // a ReactionPreviewUpdatedNotification (now a fileModified) carrying the full
+                        // fresh header. Suppress this redundant WS broadcast so a reaction sends the
+                        // header once; the MediatR event still fires for cache/feed handlers.
+                        IgnoreWebSocketNotification = true,
                     });
                 }
             }

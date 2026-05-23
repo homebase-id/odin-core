@@ -96,6 +96,37 @@ public class V2NotificationSocketControllerTests
         await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
     }
 
+    // Regression for the intermittent reconnect 401 ("Cannot reset auth context").
+    // GetAppPermissionContextAsync returns a token-keyed CACHED IOdinContext; the controller
+    // mutated it via SetAuthContext on each upgrade. The first connect set AuthContext on the
+    // cached instance; every subsequent connect for the same token (the reconnect path) then
+    // threw OdinSecurityException("Cannot reset auth context") -> 401, until the cache entry
+    // expired. A single-connect test never catches this — you must connect twice with the
+    // same token.
+    [Test]
+    public async Task Connect_TwiceWithSameAppToken_SecondUpgradeStillSucceeds()
+    {
+        var (testAppContext, deviceClientAuthToken, deviceSharedSecret) = await SetupAppAndDeviceAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+        // First connect — cache miss; works even with the bug present.
+        using (var socket1 = await ConnectAuthenticatedAsync(deviceClientAuthToken, cts.Token))
+        {
+            var r1 = await DoHandshakeAsync(socket1, deviceSharedSecret, [testAppContext.TargetDrive], cts.Token);
+            ClassicAssert.AreEqual(ClientNotificationType.DeviceHandshakeSuccess, r1.NotificationType);
+            await socket1.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+        }
+
+        // Second connect with the SAME token (cache hit) — the reconnect scenario that 401'd.
+        using var socket2 = await ConnectAuthenticatedAsync(deviceClientAuthToken, cts.Token);
+        ClassicAssert.AreEqual(NegotiatedSubProtocol, socket2.SubProtocol,
+            $"Reconnect upgrade must succeed; got HTTP {(int)socket2.HttpStatusCode}.");
+        var r2 = await DoHandshakeAsync(socket2, deviceSharedSecret, [testAppContext.TargetDrive], cts.Token);
+        ClassicAssert.AreEqual(ClientNotificationType.DeviceHandshakeSuccess, r2.NotificationType);
+        await socket2.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+    }
+
     [Test]
     public async Task Connect_WithValidAppToken_ReceivesFileAddedNotification()
     {
@@ -186,6 +217,39 @@ public class V2NotificationSocketControllerTests
 
     private static Uri BuildSocketUri(TestIdentity identity)
         => new($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{UnifiedApiRouteConstants.NotifySocket}");
+
+    private static Uri BuildSocketUriWasm(TestIdentity identity)
+        => new($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{UnifiedApiRouteConstants.NotifySocketWasm}");
+
+    // Reproduction probe for the intermittent native-client 401. The controller's own
+    // comment claims the [AcceptVerbs("GET","CONNECT")] route (ws-token-wasm now; and
+    // ws-token itself on pre-#1526 builds) "drops the bearer subprotocol value before
+    // the controller runs" for native HTTP/1.1 engines, yielding 401. A .NET
+    // ClientWebSocket performs an HTTP/1.1 GET+Upgrade just like Ktor CIO/OkHttp/Darwin,
+    // so if that claim is true in-process this test fails with 401. If it PASSES, the
+    // AcceptVerbs route is fine in-process and the production 401 is environmental
+    // (proxy/CDN mangling the upgrade, or a mixed/rolling deploy), not this code path.
+    [Test]
+    public async Task Connect_NativeHttp11_ToAcceptVerbsWasmRoute_WithValidAppToken_StillFindsBearerAndHandshakes()
+    {
+        var (testAppContext, deviceClientAuthToken, deviceSharedSecret) = await SetupAppAndDeviceAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+
+        using var socket = new ClientWebSocket();
+        socket.Options.CollectHttpResponseDetails = true;
+        socket.Options.AddSubProtocol(NegotiatedSubProtocol);
+        socket.Options.AddSubProtocol(BearerProtocolPrefix + ToBase64Url(deviceClientAuthToken.ToPortableBytes()));
+        await socket.ConnectAsync(BuildSocketUriWasm(TestIdentities.Samwise), cts.Token);
+
+        ClassicAssert.AreEqual(NegotiatedSubProtocol, socket.SubProtocol,
+            $"AcceptVerbs route must echo {NegotiatedSubProtocol}; got HTTP {(int)socket.HttpStatusCode}.");
+
+        var response = await DoHandshakeAsync(socket, deviceSharedSecret, [testAppContext.TargetDrive], cts.Token);
+        ClassicAssert.AreEqual(ClientNotificationType.DeviceHandshakeSuccess, response.NotificationType);
+
+        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+    }
 
     private async Task<ClientWebSocket> ConnectAuthenticatedAsync(
         Odin.Services.Authorization.ExchangeGrants.ClientAuthenticationToken deviceClientAuthToken,
