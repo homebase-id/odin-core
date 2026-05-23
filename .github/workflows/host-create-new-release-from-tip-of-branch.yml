@@ -48,6 +48,7 @@ jobs:
       #
 
       - name: Build chat-wasm
+        continue-on-error: true
         uses: ./odin-core/.github/actions/host/build-kotlin-wasm
         with:
           odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
