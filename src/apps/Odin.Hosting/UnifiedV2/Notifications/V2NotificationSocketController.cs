@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +18,8 @@ using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Peer.AppNotification;
+
+[assembly: InternalsVisibleTo("Odin.Hosting.Tests")]
 
 namespace Odin.Hosting.UnifiedV2.Notifications
 {
@@ -97,6 +100,21 @@ namespace Odin.Hosting.UnifiedV2.Notifications
 
             if (bearerProtocol == null)
             {
+                // Diagnostics for the intermittent native-client 401: log the wire
+                // protocol (HTTP/1.1 vs HTTP/2 Extended CONNECT — reveals a proxy
+                // forwarding the upgrade over h2) and the requested subprotocols
+                // MINUS the bearer (so we never log the credential). If this shows
+                // protocols=[odin.notify.v1] with the bearer absent, the bearer was
+                // stripped/reordered before reaching the controller (proxy/engine),
+                // not a client encoding bug.
+                _logger.LogWarning(
+                    "V2 WS upgrade rejected (401): no '{prefix}*' subprotocol present. " +
+                    "httpProtocol={protocol} isWebSocketRequest={isWs} nonBearerProtocols=[{protocols}]",
+                    BearerProtocolPrefix,
+                    HttpContext.Request.Protocol,
+                    HttpContext.WebSockets.IsWebSocketRequest,
+                    string.Join(", ", HttpContext.WebSockets.WebSocketRequestedProtocols
+                        .Where(p => !p.StartsWith(BearerProtocolPrefix, StringComparison.Ordinal))));
                 HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 return;
             }
@@ -113,13 +131,16 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             }
             catch (OdinSecurityException e)
             {
-                _logger.LogInformation("WS upgrade rejected: {error}", e.Message);
+                _logger.LogWarning("V2 WS upgrade rejected (401): token parsed but security check failed: {error} " +
+                                   "httpProtocol={protocol}", e.Message, HttpContext.Request.Protocol);
                 HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 return;
             }
 
             if (authenticatedContext == null)
             {
+                _logger.LogWarning("V2 WS upgrade rejected (401): app permission context resolved to null for a " +
+                                   "parsed token. httpProtocol={protocol}", HttpContext.Request.Protocol);
                 HttpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 return;
             }
@@ -171,11 +192,18 @@ namespace Odin.Hosting.UnifiedV2.Notifications
                     throw new OdinSecurityException("Invalid Client Token Type");
             }
 
-            ctx?.SetAuthContext(authContextName);
-            return ctx;
+            // GetAppPermissionContextAsync returns a token-keyed CACHED IOdinContext that is
+            // shared across requests. Calling SetAuthContext on it mutates that shared instance:
+            // the first WS upgrade for a token sets AuthContext, and every subsequent upgrade for
+            // the same token then throws OdinSecurityException("Cannot reset auth context") -> 401
+            // until the cache entry expires. That is the intermittent reconnect-401 flap. Clone
+            // first so the per-connection auth context never touches the cached entry.
+            var resolved = ctx?.Clone();
+            resolved?.SetAuthContext(authContextName);
+            return resolved;
         }
 
-        private static string Base64UrlToBase64(string base64Url)
+        internal static string Base64UrlToBase64(string base64Url)
         {
             var s = base64Url.Replace('-', '+').Replace('_', '/');
             var padLen = (4 - s.Length % 4) % 4;

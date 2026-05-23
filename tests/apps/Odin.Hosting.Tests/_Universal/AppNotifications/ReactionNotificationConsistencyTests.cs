@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core;
+using Odin.Core.Storage;
 using Odin.Hosting.Controllers.Base.Drive.GroupReactions;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._Universal.DriveTests;
@@ -14,19 +15,15 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._Universal.AppNotifications;
 
-// Verifies the server emits a CONSISTENT view of a file's reactions over the WebSocket.
-//
-// Adding/removing a reaction via the group reaction path (/drive/files/group/reactions ->
-// GroupReactionService) emits TWO notifications for one reaction, sharing the same versionTag:
-//   - statisticsChanged (ClientNotificationType.StatisticsChanged) from UpdateReactionSummary
-//   - fileModified      (ClientNotificationType.FileModified)      from UpdateLocalReactionsAsync
-//
-// The contract (decided): the SERVER is the source of truth for localReactions across devices,
-// so every emitted notification must carry a localReactions/updated snapshot consistent with the
-// server state at that event. Today statisticsChanged is built from a header read BEFORE the
-// local-reactions write and BEFORE the in-memory `updated` is refreshed, so it lags. Tests 1-4
-// pin that and FAIL until the server emits a consistent snapshot. Tests 5-8 are regression
-// guards for current/intended behavior and pass today.
+// A reaction (and a comment) emits a SINGLE full-header WebSocket notification, of type
+// fileModified. Mechanics:
+//   - The reaction summary update (ReactionPreviewUpdatedNotification) is surfaced to clients as
+//     fileModified (formerly statisticsChanged) and carries the fresh full header
+//     (reactionSummary + localReactions + updated).
+//   - The local-reactions DriveFileChangedNotification (also fileModified) is suppressed from the
+//     WS broadcast (IgnoreWebSocketNotification) so the header isn't sent twice; its MediatR event
+//     still fires for cache/feed.
+// So for a reaction the client receives exactly one fileModified and zero statisticsChanged.
 public class ReactionNotificationConsistencyTests
 {
     private WebScaffold _scaffold;
@@ -61,11 +58,11 @@ public class ReactionNotificationConsistencyTests
     public void TearDown() => _scaffold.AssertLogEvents();
 
     //
-    // Tests 1-4: pin the server inconsistency (statisticsChanged lags). RED until the fix.
+    // The single full-header fileModified per reaction, and its consistency.
     //
 
     [Test]
-    public async Task ReactionAdd_StatisticsChanged_AnnouncesItsOwnReaction()
+    public async Task ReactionAdd_EmitsExactlyOneFileModified_AndNoStatisticsChanged()
     {
         var f = await SetupFileAsync();
         var handler = new ReactionNotificationSocketHandler();
@@ -75,14 +72,14 @@ public class ReactionNotificationConsistencyTests
         {
             await AddReactionAsync(f, Reaction1);
 
-            var statisticsChanged = await handler.WaitForNotification(
-                ClientNotificationType.StatisticsChanged, f.Gtid, WaitTimeout);
-            ClassicAssert.IsNotNull(statisticsChanged, "No statisticsChanged notification arrived for the reaction add.");
+            var fileModified = await handler.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout);
+            ClassicAssert.IsNotNull(fileModified, "No fileModified notification arrived for the reaction add.");
+            await Task.Delay(SettleDelay);
 
-            var localReactions = statisticsChanged.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
-            CollectionAssert.Contains(localReactions, Reaction1,
-                "statisticsChanged must announce its own reaction in localReactions, but it carries a stale snapshot " +
-                "(written before the local-reactions update). Server is the source of truth; the snapshot must be consistent.");
+            ClassicAssert.AreEqual(1, handler.CountByType(ClientNotificationType.FileModified, f.Gtid),
+                "A reaction should send the full header exactly once (one fileModified).");
+            ClassicAssert.AreEqual(0, handler.CountByType(ClientNotificationType.StatisticsChanged, f.Gtid),
+                "statisticsChanged is retired; a reaction must not send it.");
         }
         finally
         {
@@ -91,7 +88,61 @@ public class ReactionNotificationConsistencyTests
     }
 
     [Test]
-    public async Task ReactionAdd_StatisticsChanged_UpdatedReflectsItsOwnWrite()
+    public async Task ReactionAdd_FileModified_AnnouncesItsOwnReaction()
+    {
+        var f = await SetupFileAsync();
+        var handler = new ReactionNotificationSocketHandler();
+        await handler.ConnectAsync(f.Owner, f.TargetDrive);
+
+        try
+        {
+            await AddReactionAsync(f, Reaction1);
+
+            var fileModified = await handler.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout);
+            ClassicAssert.IsNotNull(fileModified, "No fileModified notification arrived for the reaction add.");
+
+            var localReactions = fileModified.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
+            CollectionAssert.Contains(localReactions, Reaction1,
+                "The reaction's fileModified must carry localReactions including the reaction it announces.");
+        }
+        finally
+        {
+            await handler.DisconnectAsync();
+        }
+    }
+
+    [Test]
+    public async Task ReactionAdd_FileModified_CarriesUpdatedReactionSummary()
+    {
+        // The single fileModified must carry the UPDATED reactionSummary (statistics) including the
+        // new reaction, not the pre-reaction summary. The notification is built from a header
+        // re-read AFTER the summary is persisted (UpdateReactionSummary).
+        var f = await SetupFileAsync();
+        var handler = new ReactionNotificationSocketHandler();
+        await handler.ConnectAsync(f.Owner, f.TargetDrive);
+
+        try
+        {
+            await AddReactionAsync(f, Reaction1);
+
+            var fileModified = await handler.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout);
+            ClassicAssert.IsNotNull(fileModified, "No fileModified notification arrived for the reaction add.");
+
+            var preview = fileModified.Header.FileMetadata.ReactionPreview;
+            ClassicAssert.IsNotNull(preview, "fileModified header is missing the reactionSummary.");
+
+            var match = preview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == Reaction1);
+            ClassicAssert.IsNotNull(match, "fileModified must carry the updated reactionSummary including the new reaction.");
+            ClassicAssert.AreEqual(1, match.Count, "The updated reactionSummary should reflect the new reaction's count.");
+        }
+        finally
+        {
+            await handler.DisconnectAsync();
+        }
+    }
+
+    [Test]
+    public async Task ReactionAdd_FileModified_UpdatedReflectsItsOwnWrite()
     {
         var f = await SetupFileAsync();
 
@@ -105,26 +156,11 @@ public class ReactionNotificationConsistencyTests
         {
             await AddReactionAsync(f, Reaction1);
 
-            ClassicAssert.IsTrue(await handler.WaitForBoth(f.Gtid, WaitTimeout),
-                "Expected both statisticsChanged and fileModified for the reaction add.");
-
-            var statisticsChanged = handler.EventsFor(ClientNotificationType.StatisticsChanged, f.Gtid).Last();
-            var fileModified = handler.EventsFor(ClientNotificationType.FileModified, f.Gtid).Last();
-
-            ClassicAssert.Greater(statisticsChanged.Header.FileMetadata.Updated.milliseconds, beforeUpdated.milliseconds,
-                "statisticsChanged.updated must reflect its own write (advance past the pre-reaction timestamp), " +
-                "not carry the prior state's `updated`.");
+            var fileModified = await handler.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout);
+            ClassicAssert.IsNotNull(fileModified, "No fileModified notification arrived for the reaction add.");
 
             ClassicAssert.Greater(fileModified.Header.FileMetadata.Updated.milliseconds, beforeUpdated.milliseconds,
-                "fileModified.updated must also advance past the pre-reaction timestamp.");
-
-            // The two notifications share a versionTag, so the client cannot order them; they must
-            // therefore carry the SAME localReactions snapshot. A divergence here is what caused the
-            // client 'blink' (a stale statisticsChanged overwriting a fresh fileModified).
-            var scLocal = statisticsChanged.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
-            var fmLocal = fileModified.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
-            CollectionAssert.AreEquivalent(fmLocal, scLocal,
-                "statisticsChanged and fileModified must carry the same localReactions snapshot.");
+                "The reaction's fileModified must carry an `updated` that advanced past the pre-reaction timestamp.");
         }
         finally
         {
@@ -133,7 +169,7 @@ public class ReactionNotificationConsistencyTests
     }
 
     [Test]
-    public async Task SecondReaction_StatisticsChanged_IncludesBothReactions()
+    public async Task SecondReaction_FileModified_IncludesBothReactions()
     {
         var f = await SetupFileAsync();
         var handler = new ReactionNotificationSocketHandler();
@@ -142,18 +178,21 @@ public class ReactionNotificationConsistencyTests
         try
         {
             await AddReactionAsync(f, Reaction1);
-            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.StatisticsChanged, f.Gtid, 1, WaitTimeout));
+            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.FileModified, f.Gtid, 1, WaitTimeout));
 
             await AddReactionAsync(f, Reaction2);
-            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.StatisticsChanged, f.Gtid, 2, WaitTimeout),
-                "Expected a second statisticsChanged for the second reaction.");
+            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.FileModified, f.Gtid, 2, WaitTimeout),
+                "Expected a second fileModified for the second reaction.");
 
-            var second = handler.EventsFor(ClientNotificationType.StatisticsChanged, f.Gtid).Last();
+            var second = handler.EventsFor(ClientNotificationType.FileModified, f.Gtid).Last();
             var localReactions = second.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
 
-            CollectionAssert.Contains(localReactions, Reaction1, "second statisticsChanged is missing the first reaction.");
+            CollectionAssert.Contains(localReactions, Reaction1, "second fileModified is missing the first reaction.");
             CollectionAssert.Contains(localReactions, Reaction2,
-                "second statisticsChanged must include the reaction it announces; it carries a stale localReactions snapshot.");
+                "second fileModified must include the reaction it announces.");
+
+            ClassicAssert.AreEqual(0, handler.CountByType(ClientNotificationType.StatisticsChanged, f.Gtid),
+                "statisticsChanged is retired; reactions must not send it.");
         }
         finally
         {
@@ -162,7 +201,7 @@ public class ReactionNotificationConsistencyTests
     }
 
     [Test]
-    public async Task LastStatisticsChanged_LocalReactions_MatchAuthoritativeStore_AcrossAddAddDelete()
+    public async Task LastFileModified_LocalReactions_MatchAuthoritativeStore_AcrossAddAddDelete()
     {
         var f = await SetupFileAsync();
         var handler = new ReactionNotificationSocketHandler();
@@ -171,13 +210,12 @@ public class ReactionNotificationConsistencyTests
         try
         {
             await AddReactionAsync(f, Reaction1);
-            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.StatisticsChanged, f.Gtid, 1, WaitTimeout));
+            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.FileModified, f.Gtid, 1, WaitTimeout));
 
             await AddReactionAsync(f, Reaction2);
-            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.StatisticsChanged, f.Gtid, 2, WaitTimeout));
+            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.FileModified, f.Gtid, 2, WaitTimeout));
 
             await DeleteReactionAsync(f, Reaction1);
-            ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.StatisticsChanged, f.Gtid, 3, WaitTimeout));
             ClassicAssert.IsTrue(await handler.WaitForCount(ClientNotificationType.FileModified, f.Gtid, 3, WaitTimeout));
             await Task.Delay(SettleDelay);
 
@@ -186,54 +224,19 @@ public class ReactionNotificationConsistencyTests
             CollectionAssert.AreEquivalent(new[] { Reaction2 }, authoritative,
                 "Sanity: after add r1, add r2, delete r1 the authoritative store should be exactly {r2}.");
 
-            // The persisted header agrees with the authoritative store (this is correct today).
+            // The persisted header agrees with the authoritative store.
             var persisted = await f.Owner.DriveRedux.GetFileHeader(f.File);
             var persistedLocal = persisted.Content.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
             CollectionAssert.AreEquivalent(authoritative, persistedLocal, "Persisted header localReactions diverged from authoritative store.");
 
-            // The last fileModified is consistent (re-read after persisting) — correct today.
+            // The last fileModified must carry the consistent, current localReactions.
             var lastFileModified = handler.EventsFor(ClientNotificationType.FileModified, f.Gtid).Last();
-            var fmLocal = lastFileModified.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
-            CollectionAssert.AreEquivalent(authoritative, fmLocal, "fileModified localReactions diverged from authoritative store.");
+            var lastLocal = lastFileModified.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
+            CollectionAssert.AreEquivalent(authoritative, lastLocal,
+                "The last fileModified must carry localReactions consistent with the server's authoritative state.");
 
-            // The last statisticsChanged (for the delete) must also be consistent. It lags today.
-            var lastStatisticsChanged = handler.EventsFor(ClientNotificationType.StatisticsChanged, f.Gtid).Last();
-            var scLocal = lastStatisticsChanged.Header.FileMetadata.LocalAppData?.LocalReactions ?? new List<string>();
-            CollectionAssert.AreEquivalent(authoritative, scLocal,
-                "statisticsChanged must carry localReactions consistent with the server's authoritative state at emit time; " +
-                "today it carries a stale snapshot taken before the local-reactions write.");
-        }
-        finally
-        {
-            await handler.DisconnectAsync();
-        }
-    }
-
-    //
-    // Tests 5-8: regression guards for current/intended behavior. GREEN today.
-    //
-
-    [Test]
-    public async Task SingleReaction_OneSocket_EmitsExactlyOneStatisticsChanged_AndOneFileModified()
-    {
-        var f = await SetupFileAsync();
-        var handler = new ReactionNotificationSocketHandler();
-        await handler.ConnectAsync(f.Owner, f.TargetDrive);
-
-        try
-        {
-            await AddReactionAsync(f, Reaction1);
-
-            ClassicAssert.IsTrue(await handler.WaitForBoth(f.Gtid, WaitTimeout),
-                "Expected both statisticsChanged and fileModified for the reaction add.");
-            await Task.Delay(SettleDelay);
-
-            // Two DISTINCT events (one of each type) is the current design; the bug we already fixed
-            // was the same fileId being delivered once-per-connected-socket. Guard against that regressing.
-            ClassicAssert.AreEqual(1, handler.CountByType(ClientNotificationType.StatisticsChanged, f.Gtid),
-                "Exactly one statisticsChanged expected per reaction on a single socket.");
-            ClassicAssert.AreEqual(1, handler.CountByType(ClientNotificationType.FileModified, f.Gtid),
-                "Exactly one fileModified expected per reaction on a single socket.");
+            ClassicAssert.AreEqual(0, handler.CountByType(ClientNotificationType.StatisticsChanged, f.Gtid),
+                "statisticsChanged is retired; reactions must not send it.");
         }
         finally
         {
@@ -242,7 +245,7 @@ public class ReactionNotificationConsistencyTests
     }
 
     [Test]
-    public async Task ReactionAdd_BumpsFileModifiedTimestamp()
+    public async Task ReactionAdd_BumpsUpdatedTimestamp()
     {
         // Characterization: a reaction (a non-content change) bumps the file's `updated`/modified
         // timestamp. Documented so any future change to this behavior is deliberate.
@@ -297,10 +300,10 @@ public class ReactionNotificationConsistencyTests
     }
 
     [Test]
-    public async Task Reaction_TwoSockets_EachSocketGetsOneOfEachType()
+    public async Task Reaction_TwoSockets_EachSocketGetsOneFileModified_AndNoStatisticsChanged()
     {
-        // Guards the per-connection subscription fix: with two sockets on one identity, a single
-        // reaction must deliver exactly one statisticsChanged and one fileModified to EACH socket.
+        // Each connected socket on the identity receives exactly one fileModified (and no
+        // statisticsChanged) for a single reaction. Also guards the per-connection subscription fix.
         var f = await SetupFileAsync();
 
         var socketA = new ReactionNotificationSocketHandler();
@@ -312,22 +315,57 @@ public class ReactionNotificationConsistencyTests
         {
             await AddReactionAsync(f, Reaction1);
 
-            ClassicAssert.IsTrue(await socketA.WaitForBoth(f.Gtid, WaitTimeout), "Socket A did not receive both notifications.");
-            ClassicAssert.IsTrue(await socketB.WaitForBoth(f.Gtid, WaitTimeout), "Socket B did not receive both notifications.");
+            ClassicAssert.IsNotNull(await socketA.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout),
+                "Socket A did not receive a fileModified.");
+            ClassicAssert.IsNotNull(await socketB.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout),
+                "Socket B did not receive a fileModified.");
             await Task.Delay(SettleDelay);
 
             foreach (var (name, socket) in new[] { ("A", socketA), ("B", socketB) })
             {
-                ClassicAssert.AreEqual(1, socket.CountByType(ClientNotificationType.StatisticsChanged, f.Gtid),
-                    $"Socket {name} should receive exactly one statisticsChanged.");
                 ClassicAssert.AreEqual(1, socket.CountByType(ClientNotificationType.FileModified, f.Gtid),
                     $"Socket {name} should receive exactly one fileModified.");
+                ClassicAssert.AreEqual(0, socket.CountByType(ClientNotificationType.StatisticsChanged, f.Gtid),
+                    $"Socket {name} should receive zero statisticsChanged.");
             }
         }
         finally
         {
             await socketA.DisconnectAsync();
             await socketB.DisconnectAsync();
+        }
+    }
+
+    [Test]
+    public async Task Comment_EmitsFileModified_OnTargetFile_AndNoStatisticsChanged()
+    {
+        // A comment referencing a file updates the target's reaction preview, which the target file's
+        // owner receives as a single fileModified (was statisticsChanged) with no extra fileModified
+        // (comments never write localReactions).
+        var f = await SetupFileAsync();
+        var handler = new ReactionNotificationSocketHandler();
+        await handler.ConnectAsync(f.Owner, f.TargetDrive);
+
+        try
+        {
+            var commentMetadata = SampleMetadataData.Create(fileType: 1111);
+            commentMetadata.ReferencedFile = f.ReferencedFile;
+
+            var commentUpload = await f.Owner.DriveRedux.UploadNewMetadata(f.TargetDrive, commentMetadata, FileSystemType.Comment);
+            ClassicAssert.IsTrue(commentUpload.IsSuccessStatusCode, $"comment upload failed: {commentUpload.StatusCode}");
+
+            var fileModified = await handler.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout);
+            ClassicAssert.IsNotNull(fileModified, "Target file did not receive fileModified after a comment.");
+            await Task.Delay(SettleDelay);
+
+            ClassicAssert.AreEqual(1, handler.CountByType(ClientNotificationType.FileModified, f.Gtid),
+                "A comment should produce exactly one fileModified on the target file.");
+            ClassicAssert.AreEqual(0, handler.CountByType(ClientNotificationType.StatisticsChanged, f.Gtid),
+                "statisticsChanged is retired; a comment must not send it.");
+        }
+        finally
+        {
+            await handler.DisconnectAsync();
         }
     }
 
@@ -340,7 +378,8 @@ public class ReactionNotificationConsistencyTests
         TargetDrive TargetDrive,
         Guid Gtid,
         ExternalFileIdentifier File,
-        FileIdentifier GroupFile);
+        FileIdentifier GroupFile,
+        GlobalTransitIdFileIdentifier ReferencedFile);
 
     private async Task<ReactionTestFile> SetupFileAsync()
     {
@@ -358,7 +397,8 @@ public class ReactionNotificationConsistencyTests
             targetDrive,
             uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId,
             uploadResult.File,
-            uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier());
+            uploadResult.GlobalTransitIdFileIdentifier.ToFileIdentifier(),
+            uploadResult.GlobalTransitIdFileIdentifier);
     }
 
     private static async Task AddReactionAsync(ReactionTestFile f, string reaction)

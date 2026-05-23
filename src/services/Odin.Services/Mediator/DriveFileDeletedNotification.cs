@@ -21,4 +21,5 @@ public class DriveFileDeletedNotification : MediatorNotificationBase, IDriveNoti
 
     public bool IgnoreFeedDistribution { get; set; }
     public bool IgnoreReactionPreviewCalculation { get; set; }
+    public bool IgnoreWebSocketNotification { get; set; }
 }
