@@ -112,6 +112,36 @@ public class ReactionNotificationConsistencyTests
     }
 
     [Test]
+    public async Task ReactionAdd_FileModified_CarriesUpdatedReactionSummary()
+    {
+        // The single fileModified must carry the UPDATED reactionSummary (statistics) including the
+        // new reaction, not the pre-reaction summary. The notification is built from a header
+        // re-read AFTER the summary is persisted (UpdateReactionSummary).
+        var f = await SetupFileAsync();
+        var handler = new ReactionNotificationSocketHandler();
+        await handler.ConnectAsync(f.Owner, f.TargetDrive);
+
+        try
+        {
+            await AddReactionAsync(f, Reaction1);
+
+            var fileModified = await handler.WaitForNotification(ClientNotificationType.FileModified, f.Gtid, WaitTimeout);
+            ClassicAssert.IsNotNull(fileModified, "No fileModified notification arrived for the reaction add.");
+
+            var preview = fileModified.Header.FileMetadata.ReactionPreview;
+            ClassicAssert.IsNotNull(preview, "fileModified header is missing the reactionSummary.");
+
+            var match = preview.Reactions.Values.SingleOrDefault(r => r.ReactionContent == Reaction1);
+            ClassicAssert.IsNotNull(match, "fileModified must carry the updated reactionSummary including the new reaction.");
+            ClassicAssert.AreEqual(1, match.Count, "The updated reactionSummary should reflect the new reaction's count.");
+        }
+        finally
+        {
+            await handler.DisconnectAsync();
+        }
+    }
+
+    [Test]
     public async Task ReactionAdd_FileModified_UpdatedReflectsItsOwnWrite()
     {
         var f = await SetupFileAsync();
