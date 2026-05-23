@@ -54,7 +54,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
 
                 // added because this fails when new drives are added but clients are upgrading
                 var theDrive = await driveManager.GetDriveAsync(dg.PermissionedDrive.Drive.Alias, false);
-                if (theDrive != null)
+                if (theDrive is { AllowAnonymousReads: true })
                 {
                     if (null == confirmedCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
                     {
@@ -77,7 +77,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version3tov4
 
                 // added because this fails when new drives are added but clients are upgrading
                 var theDrive = await driveManager.GetDriveAsync(dg.PermissionedDrive.Drive.Alias, false);
-                if (theDrive != null)
+                if (theDrive is { AllowAnonymousReads: true })
                 {
                     if (null == autoCircle.DriveGrants.FirstOrDefault(cdg => cdg.PermissionedDrive == dg.PermissionedDrive))
                     {
