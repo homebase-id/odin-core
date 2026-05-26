@@ -78,7 +78,6 @@ public class TenantPathManager
         S3PayloadsEnabled = config.S3PayloadStorage.Enabled;
         S3InboxEnabled = config.S3InboxStorage.Enabled;
         var tenant = tenantId.ToString();
-        var tenantN = GuidToPathSafeString(tenantId);
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
@@ -98,11 +97,11 @@ public class TenantPathManager
 
         if (S3InboxEnabled)
         {
-            // Inbox on S3 is anchored at the tenant; the "inbox" bucket prefix is applied
-            // by S3AwsInboxStorage (S3InboxStorage:RootPath). Final key:
-            //   inbox/<tenantN>/drives/<drive>/<file>.<ext>
-            InboxPath = tenantN;
-            InboxDrivesPath = S3Path.Combine(tenantN, DrivesFolder);
+            // Inbox on S3 is anchored at the tenant (dashed, matching payloads); the "inbox"
+            // bucket prefix is applied by S3AwsInboxStorage (S3InboxStorage:RootPath). Final key:
+            //   inbox/<tenant>/drives/<drive>/<file>.<ext>
+            InboxPath = tenant;
+            InboxDrivesPath = S3Path.Combine(tenant, DrivesFolder);
         }
         else
         {

@@ -38,7 +38,7 @@ public class TenantPathManagerInboxTests
 
         Assert.That(tpm.S3InboxEnabled, Is.True);
         var path = tpm.GetDriveInboxFilePath(driveId, fileId, "metadata").Replace('\\', '/');
-        Assert.That(path, Is.EqualTo($"{tenantId:N}/drives/{driveId:N}/{fileId:N}.metadata"));
+        Assert.That(path, Is.EqualTo($"{tenantId}/drives/{driveId:N}/{fileId:N}.metadata"));
     }
 
     [Test]
@@ -50,6 +50,6 @@ public class TenantPathManagerInboxTests
         var tpm = new TenantPathManager(Config(s3Inbox: true), tenantId);
 
         var prefix = tpm.GetDriveInboxFilePrefix(driveId, fileId).Replace('\\', '/');
-        Assert.That(prefix, Is.EqualTo($"{tenantId:N}/drives/{driveId:N}/{fileId:N}."));
+        Assert.That(prefix, Is.EqualTo($"{tenantId}/drives/{driveId:N}/{fileId:N}."));
     }
 }
