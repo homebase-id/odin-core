@@ -18,7 +18,6 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
     private OdinConfiguration _config = null!;
     private TenantContext _tenantContext = null!;
     private TenantPathManager _tenantPathManager = null!;
-    private FileReaderWriter _fileReaderWriter = null!;
     private InboxStorageManager _sut = null!;
 
     [SetUp]
@@ -47,8 +46,9 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
             email: null);
         _tenantPathManager = _tenantContext.TenantPathManager;
 
-        _fileReaderWriter = new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object);
-        _sut = new InboxStorageManager(_fileReaderWriter, new Mock<ILogger<InboxStorageManager>>().Object, _tenantContext);
+        var fileReaderWriter = new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object);
+        var inboxReaderWriter = new InboxFileReaderWriter(fileReaderWriter);
+        _sut = new InboxStorageManager(inboxReaderWriter, new Mock<ILogger<InboxStorageManager>>().Object, _tenantContext);
     }
 
     [TearDown]
