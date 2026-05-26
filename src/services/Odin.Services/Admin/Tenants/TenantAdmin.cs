@@ -142,7 +142,7 @@ public class TenantAdmin(
                 if (config.S3PayloadStorage.Enabled)
                 {
                     result.PayloadPath = Path.Combine(
-                        config.S3PayloadStorage.ServiceUrl, config.S3PayloadStorage.BucketName, result.Id);
+                        config.S3Storage.ServiceUrl, config.S3PayloadStorage.BucketName, result.Id);
                 }
                 else
                 {
