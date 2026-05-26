@@ -373,6 +373,16 @@ public static class TenantServices
             cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
         }
 
+        // Inbox staging storage
+        if (odinConfig.S3InboxStorage.Enabled)
+        {
+            cb.RegisterType<InboxS3ReaderWriter>().As<IInboxReaderWriter>().SingleInstance();
+        }
+        else
+        {
+            cb.RegisterType<InboxFileReaderWriter>().As<IInboxReaderWriter>().SingleInstance();
+        }
+
         return cb;
     }
 

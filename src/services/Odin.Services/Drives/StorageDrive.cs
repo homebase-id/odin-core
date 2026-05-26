@@ -94,7 +94,10 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         }
 
         Directory.CreateDirectory(GetDriveUploadPath());
-        Directory.CreateDirectory(GetDriveInboxPath());
+        if (!tenantPathManager.S3InboxEnabled)
+        {
+            Directory.CreateDirectory(GetDriveInboxPath());
+        }
 
         if (!tenantPathManager.S3PayloadsEnabled && !string.IsNullOrEmpty(payloadDirectory))
         {
