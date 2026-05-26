@@ -269,6 +269,16 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
+
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+
+            // Inbox-staged reads must go through IInboxReaderWriter (disk or S3); the upload/direct-write
+            // staging area is always local disk and is read directly.
+            if (sourceFolderPath == drive.GetDriveInboxPath())
+            {
+                return await inboxStorageManager.GetAllInboxFileBytes(file, extension);
+            }
+
             var path = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(file.FileId, extension));
             return await fileReaderWriter.GetAllFileBytesAsync(path);
         }
