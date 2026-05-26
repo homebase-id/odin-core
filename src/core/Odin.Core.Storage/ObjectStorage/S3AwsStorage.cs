@@ -121,7 +121,7 @@ public class S3AwsStorage : IS3Storage
 
         try
         {
-            var transferUtility = new TransferUtility(_s3Client);
+            using var transferUtility = new TransferUtility(_s3Client);
             var request = new TransferUtilityUploadRequest
             {
                 BucketName = BucketName,
@@ -140,6 +140,8 @@ public class S3AwsStorage : IS3Storage
             throw CreateS3StorageException(ex, $"Failed to write stream '{key}' to bucket '{BucketName}'.");
         }
 
+        // Inbox staging streams are seekable with a known Length (asserted by the caller).
+        // TransferUtility handles multipart for large streams.
         return (uint)stream.Length;
     }
 
@@ -487,6 +489,12 @@ public class S3AwsStorage : IS3Storage
     // SEB:NOTE this will not delete versioned objects (if versioning is enabled on the bucket).
     public async Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            // Guard: an empty/whitespace prefix would match (and delete) everything under the root.
+            throw new S3StorageException("DeleteByPrefixAsync requires a non-empty prefix.");
+        }
+
         var fullPrefix = S3Path.Combine(_rootPath, prefix);
         if (string.IsNullOrWhiteSpace(fullPrefix))
         {
