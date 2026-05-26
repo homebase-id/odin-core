@@ -453,6 +453,15 @@ public static class HostExtensions
             payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
+        logger.LogInformation("S3InboxStorage enabled: {enabled}", config.S3InboxStorage.Enabled);
+        if (config.S3InboxStorage.Enabled)
+        {
+            logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
+                config.S3InboxStorage.BucketName, config.S3Storage.ServiceUrl);
+            var inboxBucket = services.GetRequiredService<IS3InboxStorage>();
+            inboxBucket.CreateBucketAsync().BlockingWait();
+        }
+
         // Sanity ping CDN
         if (config.Cdn.Enabled)
         {

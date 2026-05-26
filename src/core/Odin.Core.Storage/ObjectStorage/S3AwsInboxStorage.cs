@@ -29,7 +29,6 @@ public static class S3AwsInboxStorageExtensions
         string rootPath = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
-        ArgumentNullException.ThrowIfNull(rootPath, nameof(rootPath));
 
         services.AddSingleton<IS3InboxStorage>(sp =>
         {

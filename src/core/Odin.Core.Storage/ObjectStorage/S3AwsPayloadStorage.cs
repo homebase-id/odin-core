@@ -29,7 +29,6 @@ public static class S3AwsPayloadStorageExtensions
         string rootPath = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
-        ArgumentNullException.ThrowIfNull(rootPath, nameof(rootPath));
 
         services.AddSingleton<IS3PayloadStorage>(sp =>
         {
