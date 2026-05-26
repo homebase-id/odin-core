@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -57,8 +58,41 @@ public class InboxS3ReaderWriterTests
     [TearDown]
     public async Task TearDown()
     {
+        await DeleteAllObjectsAsync(_bucketName);
         await _s3Client.DeleteBucketAsync(new DeleteBucketRequest { BucketName = _bucketName });
         await _minioContainer.DisposeAsync();
+    }
+
+    // SEB:NOTE this will not delete versioned objects (if versioning is enabled on the bucket).
+    private async Task DeleteAllObjectsAsync(string bucketName)
+    {
+        string? continuationToken = null;
+
+        do
+        {
+            var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName            = bucketName,
+                ContinuationToken     = continuationToken,
+                MaxKeys               = 1000
+            });
+
+            if (listResponse.S3Objects is { Count: > 0 })
+            {
+                var deleteRequest = new DeleteObjectsRequest
+                {
+                    BucketName = bucketName,
+                    Objects    = listResponse.S3Objects
+                        .Select(o => new KeyVersion { Key = o.Key })
+                        .ToList()
+                };
+
+                await _s3Client.DeleteObjectsAsync(deleteRequest);
+            }
+
+            continuationToken = listResponse.NextContinuationToken;
+        }
+        while (continuationToken != null);
     }
 
     private InboxS3ReaderWriter CreateRw()
