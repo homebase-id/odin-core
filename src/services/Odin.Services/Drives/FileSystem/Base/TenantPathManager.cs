@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.ObjectStorage;
 using Odin.Core.Time;
 using Odin.Services.Configuration;
 using Odin.Services.Util;
@@ -68,13 +69,16 @@ public class TenantPathManager
     public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
 
     public bool S3PayloadsEnabled { get; }
+    public bool S3InboxEnabled { get; }
 
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(config.Host.TenantDataRootPath, nameof(config.Host.TenantDataRootPath));
 
         S3PayloadsEnabled = config.S3PayloadStorage.Enabled;
+        S3InboxEnabled = config.S3InboxStorage.Enabled;
         var tenant = tenantId.ToString();
+        var tenantN = GuidToPathSafeString(tenantId);
 
         RootPath = config.Host.TenantDataRootPath;
         RootRegistrationsPath = Path.Combine(RootPath, RegistrationsFolder);
@@ -91,8 +95,21 @@ public class TenantPathManager
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
-        InboxPath = Path.Combine(RegistrationPath, InboxFolder);
-        InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
+
+        if (S3InboxEnabled)
+        {
+            // Inbox on S3 is anchored at the tenant; the "inbox" bucket prefix is applied
+            // by S3AwsInboxStorage (S3InboxStorage:RootPath). Final key:
+            //   inbox/<tenantN>/drives/<drive>/<file>.<ext>
+            InboxPath = tenantN;
+            InboxDrivesPath = S3Path.Combine(tenantN, DrivesFolder);
+        }
+        else
+        {
+            InboxPath = Path.Combine(RegistrationPath, InboxFolder);
+            InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
+        }
+
         UploadPath = Path.Combine(RegistrationPath, TempFolder);
         UploadDrivesPath = Path.Combine(UploadPath, DrivesFolder);
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
@@ -132,6 +149,13 @@ public class TenantPathManager
     public string GetDriveInboxFilePath(Guid driveId, Guid fileId, string extension)
     {
         return Path.Combine(GetDriveInboxPath(driveId), GetFilename(fileId, extension));
+    }
+
+    // The path prefix shared by all staged parts of one inbox fileId: "<driveInboxPath>/<fileId:N>.".
+    // Disk globs "<fileId:N>.*"; S3 deletes by key prefix.
+    public string GetDriveInboxFilePrefix(Guid driveId, Guid fileId)
+    {
+        return Path.Combine(GetDriveInboxPath(driveId), GuidToPathSafeString(fileId) + ".");
     }
 
     // e.g. /data/tenants/registrations/<tenant-id>/temp/drives/<drive-id>/uploads/<file-id>.<extension>
