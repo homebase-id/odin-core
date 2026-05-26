@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Amazon.S3.Transfer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -106,6 +108,39 @@ public class S3AwsStorage : IS3Storage
         {
             await memoryStream.DisposeAsync();
         }
+    }
+
+    //
+
+    public async Task<uint> WriteStreamAsync(string path, Stream stream, CancellationToken cancellationToken = default)
+    {
+        _logger.LogTrace(nameof(WriteStreamAsync));
+
+        S3Path.AssertFileName(path);
+        var key = S3Path.Combine(_rootPath, path);
+
+        try
+        {
+            var transferUtility = new TransferUtility(_s3Client);
+            var request = new TransferUtilityUploadRequest
+            {
+                BucketName = BucketName,
+                Key = key,
+                InputStream = stream,
+                AutoCloseStream = false,
+                ContentType = "application/octet-stream",
+            };
+
+            var sw = Stopwatch.StartNew();
+            await transferUtility.UploadAsync(request, cancellationToken);
+            _logger.LogDebug("S3AwsStorage:WriteStreamAsync {elapsed}ms", sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed to write stream '{key}' to bucket '{BucketName}'.");
+        }
+
+        return (uint)stream.Length;
     }
 
     //
@@ -395,6 +430,104 @@ public class S3AwsStorage : IS3Storage
         catch (Exception ex)
         {
             throw CreateS3StorageException(ex, $"Failed to get file size of '{path}' in bucket '{BucketName}'.");
+        }
+    }
+
+    //
+
+    public async Task<IReadOnlyList<S3ObjectInfo>> ListAsync(string prefix, CancellationToken cancellationToken = default)
+    {
+        var fullPrefix = S3Path.Combine(_rootPath, prefix);
+        var results = new List<S3ObjectInfo>();
+
+        try
+        {
+            bool isTruncated;
+            string? continuationToken = null;
+            do
+            {
+                var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+                {
+                    BucketName = BucketName,
+                    ContinuationToken = continuationToken,
+                    MaxKeys = 1000,
+                    Prefix = fullPrefix,
+                }, cancellationToken);
+
+                if (listResponse.S3Objects != null)
+                {
+                    foreach (var o in listResponse.S3Objects)
+                    {
+                        // Strip the storage rootPath so callers see keys in their own namespace,
+                        // consistent with the paths they pass in.
+                        var key = string.IsNullOrEmpty(_rootPath)
+                            ? o.Key
+                            : o.Key.Substring(_rootPath.Length).TrimStart('/');
+                        results.Add(new S3ObjectInfo(key, o.LastModified ?? default, o.Size ?? 0));
+                    }
+                }
+
+                continuationToken = listResponse.NextContinuationToken;
+                isTruncated = listResponse.IsTruncated ?? false;
+            }
+            while (isTruncated);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed to list objects under '{fullPrefix}' in bucket '{BucketName}'.");
+        }
+
+        return results;
+    }
+
+    //
+
+    // Like DeleteDirectoryAsync, but the prefix need not be a folder (no trailing-slash requirement).
+    // Used to delete all parts of a single inbox fileId (prefix "<dir>/<fileId:N>.").
+    // SEB:NOTE this will not delete versioned objects (if versioning is enabled on the bucket).
+    public async Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
+    {
+        var fullPrefix = S3Path.Combine(_rootPath, prefix);
+        if (string.IsNullOrWhiteSpace(fullPrefix))
+        {
+            // Guard: an empty prefix would match (and delete) every object in the namespace.
+            throw new S3StorageException("DeleteByPrefixAsync requires a non-empty prefix.");
+        }
+
+        try
+        {
+            bool isTruncated;
+            string? continuationToken = null;
+            do
+            {
+                var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+                {
+                    BucketName = BucketName,
+                    ContinuationToken = continuationToken,
+                    MaxKeys = 1000,
+                    Prefix = fullPrefix,
+                }, cancellationToken);
+
+                if (listResponse.S3Objects?.Count > 0)
+                {
+                    var deleteRequest = new DeleteObjectsRequest
+                    {
+                        BucketName = BucketName,
+                        Objects = listResponse.S3Objects
+                            .Select(o => new KeyVersion { Key = o.Key })
+                            .ToList()
+                    };
+                    await _s3Client.DeleteObjectsAsync(deleteRequest, cancellationToken);
+                }
+
+                continuationToken = listResponse.NextContinuationToken;
+                isTruncated = listResponse.IsTruncated ?? false;
+            }
+            while (isTruncated);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed to delete objects under '{fullPrefix}' in bucket '{BucketName}'.");
         }
     }
 

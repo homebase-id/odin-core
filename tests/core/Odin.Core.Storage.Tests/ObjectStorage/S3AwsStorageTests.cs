@@ -8,6 +8,7 @@ using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Test.Helpers.Logging;
 using Odin.Test.Helpers.Secrets;
@@ -477,6 +478,73 @@ public class S3AwsStorageTests
         var exception = Assert.ThrowsAsync<S3StorageException>(() => bucket.FileLengthAsync(srcPath));
         var inner = exception!.InnerException as AmazonS3Exception;
         Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
+    }
+
+    //
+
+    [Test]
+    public async Task WriteStreamAsync_ShouldWriteStreamedObject()
+    {
+        var storage = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        var key = $"stream/{Guid.NewGuid():N}.bin";
+        var payload = new byte[256 * 1024];
+        new Random(42).NextBytes(payload);
+
+        using var ms = new MemoryStream(payload);
+        var written = await storage.WriteStreamAsync(key, ms);
+
+        Assert.That(written, Is.EqualTo((uint)payload.Length));
+        var roundTrip = await storage.ReadBytesAsync(key);
+        Assert.That(roundTrip, Is.EqualTo(payload));
+    }
+
+    //
+
+    [Test]
+    public async Task ListAsync_ShouldReturnObjectsUnderPrefix()
+    {
+        var storage = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        var prefix = $"list/{Guid.NewGuid():N}/";
+        await storage.WriteBytesAsync(prefix + "a.txt", "a".ToUtf8ByteArray());
+        await storage.WriteBytesAsync(prefix + "b.txt", "bb".ToUtf8ByteArray());
+        await storage.WriteBytesAsync($"other/{Guid.NewGuid():N}.txt", "x".ToUtf8ByteArray());
+
+        var results = await storage.ListAsync(prefix);
+
+        Assert.That(results.Count, Is.EqualTo(2));
+        Assert.That(results.Select(r => r.Key), Has.One.EndsWith("a.txt"));
+        Assert.That(results.Select(r => r.Key), Has.One.EndsWith("b.txt"));
+        Assert.That(results.First(r => r.Key.EndsWith("b.txt")).Size, Is.EqualTo(2));
+    }
+
+    //
+
+    [Test]
+    public async Task DeleteByPrefixAsync_ShouldDeleteOnlyMatchingObjects()
+    {
+        var storage = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        var dir = $"del/{Guid.NewGuid():N}/";
+        var fileId = Guid.NewGuid().ToString("N");
+
+        await storage.WriteBytesAsync(dir + fileId + ".metadata", "m".ToUtf8ByteArray());
+        await storage.WriteBytesAsync(dir + fileId + ".payload", "p".ToUtf8ByteArray());
+        var keep = dir + Guid.NewGuid().ToString("N") + ".metadata";
+        await storage.WriteBytesAsync(keep, "k".ToUtf8ByteArray());
+
+        await storage.DeleteByPrefixAsync(dir + fileId + ".");
+
+        Assert.That(await storage.FileExistsAsync(dir + fileId + ".metadata"), Is.False);
+        Assert.That(await storage.FileExistsAsync(dir + fileId + ".payload"), Is.False);
+        Assert.That(await storage.FileExistsAsync(keep), Is.True);
+    }
+
+    //
+
+    [Test]
+    public void DeleteByPrefixAsync_ShouldRejectEmptyPrefix()
+    {
+        var storage = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        Assert.ThrowsAsync<S3StorageException>(() => storage.DeleteByPrefixAsync("   "));
     }
 
     //
