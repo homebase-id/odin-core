@@ -71,6 +71,21 @@ public class InboxS3ReaderWriter(ILogger<InboxS3ReaderWriter> logger, IS3InboxSt
         }
     }
 
+    public async Task PromoteToAsync(string inboxRelativePath, string destResolvedKey, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await TryRetry(async () =>
+                await s3InboxStorage.CopyObjectAsync(
+                    s3InboxStorage.ResolveObjectKey(inboxRelativePath), destResolvedKey, cancellationToken),
+                cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new InboxReaderWriterException(e.Message, e);
+        }
+    }
+
     //
     // Copied verbatim from PayloadS3ReaderWriter.cs
     //

@@ -18,6 +18,9 @@ public interface IPayloadReaderWriter
     Task CopyPayloadFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default);
     Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default);
     Task<byte[]> GetFileBytesAsync(string filePath, long start, long length, CancellationToken cancellationToken = default);
+
+    // Resolves a store-relative path to its physical location: full S3 object key for S3, the path unchanged for disk.
+    string ResolveObjectKey(string path);
 }
 
 //

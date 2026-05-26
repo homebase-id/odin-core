@@ -23,6 +23,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     public class LongTermStorageManager(
         ILogger<LongTermStorageManager> logger,
         IPayloadReaderWriter payloadReaderWriter,
+        IInboxReaderWriter inboxReaderWriter,
         DriveQuery driveQuery,
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
@@ -371,7 +372,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Moves the specified <param name="sourceFile"></param> to long term storage.
         /// Returns the full path of the desitnation file.
         /// </summary>
-        public async Task CopyPayloadToLongTermAsync(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
+        public async Task CopyPayloadToLongTermAsync(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile, bool sourceIsInbox = false)
         {
             var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(
                 drive.Id,
@@ -379,14 +380,25 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 descriptor.Key,
                 descriptor.Uid);
 
-            await payloadReaderWriter.CopyPayloadFileAsync(sourceFile, destinationFile);
+            if (sourceIsInbox && _tenantPathManager.S3InboxEnabled)
+            {
+                // Inbox and payloads share one S3 bucket (enforced at startup): promote via server-side CopyObject.
+                // sourceFile is the inbox-relative key; destination resolves to the full payload key.
+                var destResolved = payloadReaderWriter.ResolveObjectKey(destinationFile);
+                await inboxReaderWriter.PromoteToAsync(sourceFile, destResolved);
+            }
+            else
+            {
+                await payloadReaderWriter.CopyPayloadFileAsync(sourceFile, destinationFile);
+            }
 
             logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
         }
-        
+
         public async Task CopyThumbnailToLongTermAsync(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
-            ThumbnailDescriptor thumbnailDescriptor)
+            ThumbnailDescriptor thumbnailDescriptor,
+            bool sourceIsInbox = false)
         {
             var payloadKey = payloadDescriptor.Key;
 
@@ -399,7 +411,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
                       throw new OdinSystemException("Destination folder was null");
             logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
 
-            await payloadReaderWriter.CopyPayloadFileAsync(sourceThumbnailFilePath, destinationFile);
+            if (sourceIsInbox && _tenantPathManager.S3InboxEnabled)
+            {
+                // Same-bucket server-side copy from inbox to payload long-term storage.
+                var destResolved = payloadReaderWriter.ResolveObjectKey(destinationFile);
+                await inboxReaderWriter.PromoteToAsync(sourceThumbnailFilePath, destResolved);
+            }
+            else
+            {
+                await payloadReaderWriter.CopyPayloadFileAsync(sourceThumbnailFilePath, destinationFile);
+            }
+
             logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                 sourceThumbnailFilePath, destinationFile);
 

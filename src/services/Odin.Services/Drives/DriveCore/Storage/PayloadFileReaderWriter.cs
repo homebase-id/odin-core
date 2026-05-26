@@ -153,6 +153,10 @@ public class PayloadFileReaderWriter(
 
     //
 
+    public string ResolveObjectKey(string path) => path;
+
+    //
+
     public async Task<byte[]> GetFileBytesAsync(
         string filePath,
         long start,

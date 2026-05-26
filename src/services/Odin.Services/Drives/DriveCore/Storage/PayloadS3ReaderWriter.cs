@@ -144,6 +144,10 @@ public class PayloadS3ReaderWriter(ILogger<PayloadS3ReaderWriter> logger, IS3Pay
 
     //
 
+    public string ResolveObjectKey(string path) => s3PayloadsStorage.ResolveObjectKey(path);
+
+    //
+
     private RetryBuilder CreateRetry(CancellationToken cancellationToken)
     {
         return Core.Util.TryRetry.Create()

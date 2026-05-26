@@ -22,6 +22,11 @@ public interface IInboxReaderWriter
     // Deletes every staged part for a single inbox fileId. pathPrefix is
     // "<driveInboxPath>/<fileId:N>." — disk globs "<fileId:N>.*", S3 deletes by key prefix.
     Task DeleteByPrefixAsync(string pathPrefix, CancellationToken cancellationToken = default);
+
+    // Promotes an inbox-staged object to a resolved destination (payload long-term storage).
+    // For S3 this is a same-bucket server-side CopyObject; for disk a file copy. Only invoked when
+    // the source is the inbox (caller gates on S3InboxEnabled for the S3 case).
+    Task PromoteToAsync(string inboxRelativePath, string destResolvedKey, CancellationToken cancellationToken = default);
 }
 
 public class InboxReaderWriterException : OdinSystemException

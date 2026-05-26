@@ -136,6 +136,31 @@ public class InboxS3ReaderWriterTests
         Assert.That(await rw.FileExistsAsync($"{dir}/{fileId}.payload"), Is.False);
         Assert.That(await rw.FileExistsAsync($"{dir}/{other}.metadata"), Is.True);
     }
+
+    [Test]
+    public async Task PromoteToAsync_ServerSideCopiesInboxObjectToResolvedDest()
+    {
+        var rw = CreateRw();
+        var inboxRel = $"tenant/drives/{Guid.NewGuid():N}/{Guid.NewGuid():N}.payload";
+        var bytes = "promote-me".ToUtf8ByteArray();
+        using (var ms = new MemoryStream(bytes))
+        {
+            await rw.WriteStreamAsync(inboxRel, ms);
+        }
+
+        // Resolved destination key in the same bucket (mimics payloadReaderWriter.ResolveObjectKey(...)).
+        var destKey = $"payloads/tenant/drives/{Guid.NewGuid():N}/dest.payload";
+        await rw.PromoteToAsync(inboxRel, destKey);
+
+        // Read the dest directly via the S3 client to confirm the server-side copy landed at the absolute key.
+        var resp = await _s3Client.GetObjectAsync(_bucketName, destKey);
+        using var r = new StreamReader(resp.ResponseStream);
+        var got = await r.ReadToEndAsync();
+        Assert.That(got, Is.EqualTo("promote-me"));
+
+        // Source still present (copy, not move).
+        Assert.That(await rw.FileExistsAsync(inboxRel), Is.True);
+    }
 }
 
 #endif

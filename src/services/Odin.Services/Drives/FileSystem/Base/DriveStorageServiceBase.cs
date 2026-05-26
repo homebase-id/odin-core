@@ -1749,13 +1749,15 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task CopyPayloadAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
             StorageDrive drive, PayloadDescriptor descriptor, string sourceFolderPath)
         {
+            var sourceIsInbox = sourceFolderPath == drive.GetDriveInboxPath();
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, payloadExtension));
             await longTermStorageManager.CopyPayloadToLongTermAsync(
                 drive,
                 targetFile.FileId,
                 descriptor,
-                sourceFilePath);
+                sourceFilePath,
+                sourceIsInbox);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
@@ -1764,7 +1766,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
                 var sourceThumbnail = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, thumbExt));
                 await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
-                    thumb);
+                    thumb, sourceIsInbox);
             }
         }
 

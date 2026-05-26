@@ -34,4 +34,10 @@ public class InboxFileReaderWriter(FileReaderWriter fileReaderWriter) : IInboxRe
         }
         return Task.CompletedTask;
     }
+
+    public Task PromoteToAsync(string inboxRelativePath, string destResolvedKey, CancellationToken cancellationToken = default)
+    {
+        fileReaderWriter.CopyPayloadFile(inboxRelativePath, destResolvedKey);
+        return Task.CompletedTask;
+    }
 }
