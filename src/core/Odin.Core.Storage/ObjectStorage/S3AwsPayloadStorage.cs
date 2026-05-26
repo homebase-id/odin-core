@@ -21,28 +21,15 @@ public sealed class S3AwsPayloadStorage(
 
 public static class S3AwsPayloadStorageExtensions
 {
+    // Registers IS3PayloadStorage over the shared IAmazonS3 singleton.
+    // The caller must have already registered IAmazonS3 via AddAmazonS3Client.
     public static IServiceCollection AddS3AwsPayloadStorage(
         this IServiceCollection services,
-        string accessKey,
-        string secretAccessKey,
-        string serviceUrl,
-        string region,
-        bool forcePathStyle,
         string bucketName,
         string rootPath = "")
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(accessKey, nameof(accessKey));
-        ArgumentException.ThrowIfNullOrWhiteSpace(secretAccessKey, nameof(secretAccessKey));
-        ArgumentException.ThrowIfNullOrWhiteSpace(serviceUrl, nameof(serviceUrl));
         ArgumentException.ThrowIfNullOrWhiteSpace(bucketName, nameof(bucketName));
         ArgumentNullException.ThrowIfNull(rootPath, nameof(rootPath));
-
-        services.AddAmazonS3Client(
-            accessKey,
-            secretAccessKey,
-            serviceUrl,
-            region,
-            forcePathStyle);
 
         services.AddSingleton<IS3PayloadStorage>(sp =>
         {
