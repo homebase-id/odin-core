@@ -275,6 +275,19 @@ public static class SystemServices
                     "S3 storage is enabled but S3Storage:AccessKey / SecretAccessKey / ServiceUrl are not configured.");
             }
 
+            if (s3InboxEnabled && !s3PayloadEnabled)
+            {
+                throw new OdinSystemException(
+                    "S3 inbox storage requires S3 payload storage to be enabled (inbox is promoted to payload long-term storage via a same-bucket server-side copy).");
+            }
+
+            if (s3InboxEnabled && !string.Equals(config.S3InboxStorage.BucketName, config.S3PayloadStorage.BucketName, StringComparison.Ordinal))
+            {
+                throw new OdinSystemException(
+                    "S3 inbox storage must use the same bucket as S3 payload storage (server-side copy is within a single bucket). " +
+                    $"Inbox bucket '{config.S3InboxStorage.BucketName}' != payload bucket '{config.S3PayloadStorage.BucketName}'.");
+            }
+
             services.AddAmazonS3Client(
                 config.S3Storage.AccessKey,
                 config.S3Storage.SecretAccessKey,

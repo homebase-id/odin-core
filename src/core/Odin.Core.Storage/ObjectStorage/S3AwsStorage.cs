@@ -347,6 +347,49 @@ public class S3AwsStorage : IS3Storage
 
     //
 
+    public string ResolveObjectKey(string path)
+    {
+        return S3Path.Combine(_rootPath, path);
+    }
+
+    //
+
+    public async Task CopyObjectAsync(string sourceObjectKey, string destObjectKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sourceObjectKey) || string.IsNullOrWhiteSpace(destObjectKey))
+        {
+            throw new S3StorageException("CopyObjectAsync requires non-empty source and destination keys.");
+        }
+
+        if (string.Equals(sourceObjectKey, destObjectKey, StringComparison.Ordinal))
+        {
+            throw new S3StorageException("CopyObjectAsync source and destination keys cannot be the same.");
+        }
+
+        try
+        {
+            var request = new CopyObjectRequest
+            {
+                SourceBucket = BucketName,
+                SourceKey = sourceObjectKey,
+                DestinationBucket = BucketName,
+                DestinationKey = destObjectKey,
+            };
+
+            var sw = Stopwatch.StartNew();
+            await _s3Client.CopyObjectAsync(request, cancellationToken);
+            _logger.LogDebug("S3AwsStorage:CopyObjectAsync {src} -> {dst} {elapsed}ms",
+                sourceObjectKey, destObjectKey, sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex,
+                $"Failed to server-side copy '{sourceObjectKey}' to '{destObjectKey}' in bucket '{BucketName}'.");
+        }
+    }
+
+    //
+
     public async Task MoveFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
     {
         await CopyFileAsync(srcPath, dstPath, cancellationToken);

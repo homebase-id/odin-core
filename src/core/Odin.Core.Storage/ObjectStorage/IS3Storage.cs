@@ -28,5 +28,12 @@ public interface IS3Storage
     Task<long> FileLengthAsync(string filePath, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<S3ObjectInfo>> ListAsync(string prefix, CancellationToken cancellationToken = default);
     Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default);
+
+    // Returns the full in-bucket object key for a store-relative path (applies this store's root prefix).
+    string ResolveObjectKey(string path);
+
+    // Server-side copy between two ALREADY-RESOLVED absolute object keys in THIS bucket (no root prefixing).
+    // Used to promote an inbox-staged object to payload long-term storage within one bucket.
+    Task CopyObjectAsync(string sourceObjectKey, string destObjectKey, CancellationToken cancellationToken = default);
 }
 

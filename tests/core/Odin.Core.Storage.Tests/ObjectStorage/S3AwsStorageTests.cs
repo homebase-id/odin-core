@@ -549,6 +549,40 @@ public class S3AwsStorageTests
 
     //
 
+    [Test]
+    public void ResolveObjectKey_AppliesRootPrefix()
+    {
+        var storage = new S3AwsStorage(_logger, _s3Client, _bucketName, "inbox");
+        Assert.That(storage.ResolveObjectKey("tenant/drives/a/b.payload"),
+            Is.EqualTo("inbox/tenant/drives/a/b.payload"));
+    }
+
+    [Test]
+    public async Task CopyObjectAsync_CopiesAcrossPrefixesWithinBucket()
+    {
+        var storage = new S3AwsStorage(_logger, _s3Client, _bucketName); // no root => raw keys
+        var srcKey = $"inbox/{Guid.NewGuid():N}.payload";
+        var dstKey = $"payloads/{Guid.NewGuid():N}.payload";
+        var bytes = "server-side-copy".ToUtf8ByteArray();
+
+        await storage.WriteBytesAsync(srcKey, bytes);
+        await storage.CopyObjectAsync(srcKey, dstKey);
+
+        Assert.That(await storage.FileExistsAsync(dstKey), Is.True);
+        Assert.That(await storage.ReadBytesAsync(dstKey), Is.EqualTo(bytes));
+        Assert.That(await storage.FileExistsAsync(srcKey), Is.True); // copy, not move
+    }
+
+    [Test]
+    public void CopyObjectAsync_RejectsSameOrEmptyKeys()
+    {
+        var storage = new S3AwsStorage(_logger, _s3Client, _bucketName);
+        Assert.ThrowsAsync<S3StorageException>(() => storage.CopyObjectAsync("a", "a"));
+        Assert.ThrowsAsync<S3StorageException>(() => storage.CopyObjectAsync("  ", "b"));
+    }
+
+    //
+
 }
 
 #endif
