@@ -95,6 +95,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
         //      covered it in a test" comment. Cover it with a test before relying on it.
         public async Task VerifyInboxEntiresIntegrity(Guid driveId, bool cleanup)
         {
+            if (_tenantPathManager.S3InboxEnabled)
+            {
+                // TODO(s3-inbox phase 2): inbox integrity verification reads the inbox staging dir from
+                // disk; not yet supported when inbox staging is on S3. Skip to avoid a misleading result.
+                logger.LogDebug("{m}: skipping inbox integrity check — not supported on S3 inbox storage", nameof(VerifyInboxEntiresIntegrity));
+                return;
+            }
+
             const string logPrefix = "INBOX-INTEGRITY";
             var validExtensions = new[] { ".metadata", ".transferkeyheader", ".payload", ".thumb" };
             var rootpath = _tenantPathManager.GetDriveInboxPath(driveId);
