@@ -68,6 +68,17 @@ public sealed class InboxOrphanScanBackgroundService(
         {
             logger.LogDebug("{service} is running", GetType().Name);
 
+            if (tenantContext.TenantPathManager.S3InboxEnabled)
+            {
+                // TODO(s3-inbox phase 2): migrate InboxOrphanScan to enumerate S3 via
+                // IS3InboxStorage.ListAsync (key + LastModified) instead of Directory.* APIs.
+                logger.LogDebug(
+                    "{service}: skipping — inbox orphan scan not yet supported on S3 inbox storage",
+                    GetType().Name);
+                await SleepAsync(ScanInterval, stoppingToken);
+                continue;
+            }
+
             try
             {
                 await InboxOrphanScan.ExecuteAsync(
