@@ -448,7 +448,7 @@ public static class HostExtensions
         if (config.S3PayloadStorage.Enabled)
         {
             logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
-                config.S3PayloadStorage.BucketName, config.S3PayloadStorage.ServiceUrl);
+                config.S3PayloadStorage.BucketName, config.S3Storage.ServiceUrl);
             var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
             payloadBucket.CreateBucketAsync().BlockingWait();
         }

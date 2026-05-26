@@ -262,17 +262,39 @@ public static class SystemServices
         // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
         services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(config.Host.DataProtectionKeyPath));
 
-        // Payload storage
-        if (config.S3PayloadStorage.Enabled)
+        // Object storage (payloads and/or inbox). Both share a single IAmazonS3 client.
+        var s3PayloadEnabled = config.S3PayloadStorage.Enabled;
+        var s3InboxEnabled = config.S3InboxStorage.Enabled;
+        if (s3PayloadEnabled || s3InboxEnabled)
         {
-            services.AddS3AwsPayloadStorage(
-                config.S3PayloadStorage.AccessKey,
-                config.S3PayloadStorage.SecretAccessKey,
-                config.S3PayloadStorage.ServiceUrl,
-                config.S3PayloadStorage.Region,
-                config.S3PayloadStorage.ForcePathStyle,
-                config.S3PayloadStorage.BucketName,
-                config.S3PayloadStorage.RootPath);
+            if (string.IsNullOrWhiteSpace(config.S3Storage.AccessKey) ||
+                string.IsNullOrWhiteSpace(config.S3Storage.SecretAccessKey) ||
+                string.IsNullOrWhiteSpace(config.S3Storage.ServiceUrl))
+            {
+                throw new OdinSystemException(
+                    "S3 storage is enabled but S3Storage:AccessKey / SecretAccessKey / ServiceUrl are not configured.");
+            }
+
+            services.AddAmazonS3Client(
+                config.S3Storage.AccessKey,
+                config.S3Storage.SecretAccessKey,
+                config.S3Storage.ServiceUrl,
+                config.S3Storage.Region,
+                config.S3Storage.ForcePathStyle);
+
+            if (s3PayloadEnabled)
+            {
+                services.AddS3AwsPayloadStorage(
+                    config.S3PayloadStorage.BucketName,
+                    config.S3PayloadStorage.RootPath);
+            }
+
+            if (s3InboxEnabled)
+            {
+                services.AddS3AwsInboxStorage(
+                    config.S3InboxStorage.BucketName,
+                    config.S3InboxStorage.RootPath);
+            }
         }
 
         return services;
