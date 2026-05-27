@@ -93,7 +93,11 @@ public class PayloadS3ReaderWriterTests : PayloadReaderWriterBaseTestFixture
             {
                 TenantDataRootPath = Path.Combine(TestRootPath, "tenants"),
             },
-            S3PayloadStorage = new OdinConfiguration.S3PayloadStorageSection
+            S3Storage = new OdinConfiguration.S3StorageSection
+            {
+                Enabled = true,
+            },
+            S3Payload = new OdinConfiguration.S3PayloadSection
             {
                 Enabled = true,
             }

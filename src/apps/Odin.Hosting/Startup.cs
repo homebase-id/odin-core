@@ -443,13 +443,23 @@ public static class HostExtensions
             throw new OdinSystemException("Cache sanity check failed");
         }
 
-        // Ensure S3 bucket exists
-        logger.LogInformation("S3PayloadStorage enabled: {enabled}", config.S3PayloadStorage.Enabled);
-        if (config.S3PayloadStorage.Enabled)
+        // Ensure S3 payload bucket exists
+        logger.LogInformation("S3Payload enabled: {enabled}", config.S3Payload.Enabled);
+        if (config.S3Payload.Enabled)
         {
-            logger.LogInformation("Creating S3 bucket '{BucketName}' at {ServiceUrl}",
-                config.S3PayloadStorage.BucketName, config.S3PayloadStorage.ServiceUrl);
+            logger.LogInformation("Creating S3 payload bucket '{BucketName}' at {ServiceUrl}",
+                config.S3Payload.BucketName, config.S3Storage.ServiceUrl);
             var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
+            payloadBucket.CreateBucketAsync().BlockingWait();
+        }
+
+        // Ensure S3 inbox bucket exists
+        logger.LogInformation("S3Inbox enabled: {enabled}", config.S3Inbox.Enabled);
+        if (config.S3Inbox.Enabled)
+        {
+            logger.LogInformation("Creating S3 inbox bucket '{BucketName}' at {ServiceUrl}",
+                config.S3Inbox.BucketName, config.S3Storage.ServiceUrl);
+            var payloadBucket = services.GetRequiredService<IS3InboxStorage>();
             payloadBucket.CreateBucketAsync().BlockingWait();
         }
 

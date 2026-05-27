@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
 using Odin.Core.Storage.Cache;
@@ -42,7 +41,10 @@ public class OdinConfiguration
     public RedisSection Redis { get; init; } = new();
     public CacheSection Cache { get; init; } = new();
 
-    public S3PayloadStorageSection S3PayloadStorage { get; init; } = new();
+    public S3StorageSection S3Storage { get; init; } = new();
+    public S3PayloadSection S3Payload { get; init; } = new();
+    public S3InboxSection S3Inbox { get; init; } = new();
+
     public CdnSection Cdn { get; init; } = new();
 
     public OdinConfiguration()
@@ -68,7 +70,9 @@ public class OdinConfiguration
         Database = new DatabaseSection(config);
         Redis = new RedisSection(config);
         Cache = new CacheSection(config);
-        S3PayloadStorage = new S3PayloadStorageSection(config);
+        S3Storage = new S3StorageSection(config);
+        S3Payload = new S3PayloadSection(config);
+        S3Inbox = new S3InboxSection(config);
         Cdn = new CdnSection(config);
     }
 
@@ -528,7 +532,7 @@ public class OdinConfiguration
 
     //
 
-    public class S3PayloadStorageSection
+    public class S3StorageSection
     {
         public bool Enabled { get; init; }
         public string AccessKey { get; init; } = "";
@@ -536,26 +540,78 @@ public class OdinConfiguration
         public string ServiceUrl { get; init; } = "";
         public string Region { get; init; } = "";
         public bool ForcePathStyle { get; init; }
-        public string BucketName { get; init; } = "";
-        public string RootPath { get; init; } = "";
 
-        public S3PayloadStorageSection()
+        public S3StorageSection()
         {
             // Mockable support
         }
 
-        public S3PayloadStorageSection(IConfiguration config)
+        public S3StorageSection(IConfiguration config)
         {
-            Enabled = config.GetOrDefault("S3PayloadStorage:Enabled", false);
+            Enabled = config.GetOrDefault("S3Storage:Enabled", false);
             if (Enabled)
             {
-                AccessKey = config.Required<string>("S3PayloadStorage:AccessKey");
-                SecretAccessKey = config.Required<string>("S3PayloadStorage:SecretAccessKey");
-                ServiceUrl = config.Required<string>("S3PayloadStorage:ServiceUrl");
-                Region = config.GetOrDefault("S3PayloadStorage:Region", "");
-                ForcePathStyle = config.GetOrDefault("S3PayloadStorage:ForcePathStyle", false);
-                BucketName = config.Required<string>("S3PayloadStorage:BucketName");
-                RootPath = config.GetOrDefault("S3PayloadStorage:RootPath", "payloads");
+                AccessKey = config.Required<string>("S3Storage:AccessKey");
+                SecretAccessKey = config.Required<string>("S3Storage:SecretAccessKey");
+                ServiceUrl = config.Required<string>("S3Storage:ServiceUrl");
+                Region = config.GetOrDefault("S3Storage:Region", "");
+                ForcePathStyle = config.GetOrDefault("S3Storage:ForcePathStyle", false);
+            }
+        }
+    }
+
+    //
+
+    public class S3PayloadSection
+    {
+        public bool Enabled { get; init; }
+        public string BucketName { get; init; } = "";
+        public string RootPath { get; init; } = "";
+
+        public S3PayloadSection()
+        {
+            // Mockable support
+        }
+
+        public S3PayloadSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("S3Payload:Enabled", false);
+            if (Enabled)
+            {
+                if (!config.GetOrDefault("S3Storage:Enabled", false))
+                {
+                    throw new OdinConfigException("S3Storage must be enabled if S3Payload is enabled");
+                }
+                BucketName = config.Required<string>("S3Payload:BucketName");
+                RootPath = config.GetOrDefault("S3Payload:RootPath", "payloads");
+            }
+        }
+    }
+
+    //
+
+    public class S3InboxSection
+    {
+        public bool Enabled { get; init; }
+        public string BucketName { get; init; } = "";
+        public string RootPath { get; init; } = "";
+
+        public S3InboxSection()
+        {
+            // Mockable support
+        }
+
+        public S3InboxSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("S3Inbox:Enabled", false);
+            if (Enabled)
+            {
+                if (!config.GetOrDefault("S3Storage:Enabled", false))
+                {
+                    throw new OdinConfigException("S3Storage must be enabled if S3Inbox is enabled");
+                }
+                BucketName = config.Required<string>("S3Inbox:BucketName");
+                RootPath = config.GetOrDefault("S3Inbox:RootPath", "inbox");
             }
         }
     }
