@@ -184,27 +184,31 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
         // It has to be async, or we risk serializing the startup of all background services.
         if (backgroundService == null)
         {
-            try
+            const int attempts = 30;
+            var attempt = 0;
+            while (backgroundService == null && attempt < attempts)
             {
-                await TryRetry.Create()
-                    .WithAttempts(30)
-                    .WithDelay(TimeSpan.FromSeconds(1))
-                    .WithCancellation(_stoppingCts.Token)
-                    .ExecuteAsync(async () =>
-                    {
-                        using (await _lock.ReaderLockAsync())
-                        {
-                            if (!_backgroundServices.TryGetValue(serviceIdentifier, out backgroundService))
-                            {
-                                throw new InvalidOperationException(
-                                    $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
-                            }
-                        }
-                    });
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                using (await _lock.ReaderLockAsync())
+                {
+                    _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
+                }
+
+                attempt++;
             }
-            catch (OperationCanceledException e) when (e.CancellationToken == _stoppingCts.Token)
+
+            if (backgroundService == null && !_stoppingCts.IsCancellationRequested)
             {
-                // ignore
+                throw new InvalidOperationException(
+                    $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
             }
         }
 
