@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
@@ -18,6 +19,7 @@ using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Apps;
+using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -52,6 +54,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     private readonly IDriveManager _driveManager;
     private readonly TenantConfigService _tenantConfigService;
     private readonly VersionUpgradeScheduler _versionUpgradeScheduler;
+    private readonly ILifetimeScope _lifetimeScope;
 
     /// <summary>
     /// Enables introducing identities to each other
@@ -69,7 +72,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         TenantContext tenantContext,
         TenantConfigService tenantConfigService,
         VersionUpgradeScheduler versionUpgradeScheduler,
-        IdentityDatabase db)
+        IdentityDatabase db,
+        ILifetimeScope lifetimeScope)
         : base(odinHttpClientFactory, circleNetworkService, fileSystemResolver, odinConfiguration)
     {
         _circleNetworkRequestService = circleNetworkRequestService;
@@ -82,6 +86,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         _tenantContext = tenantContext;
         _tenantConfigService = tenantConfigService;
         _versionUpgradeScheduler = versionUpgradeScheduler;
+        _lifetimeScope = lifetimeScope;
     }
 
     private const string ReceivedIntroductionContextKey = "f2f5c94c-c299-4122-8aa2-744d91f3b12f";
@@ -260,7 +265,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         try
         {
-            var clientAuthToken = await ResolveClientAccessTokenAsync(recipient, odinContext, failIfNotConnected: false);
+            // Each probe runs in parallel (see PreflightIntroductionsAsync), so it must use its own IOC
+            // scope. Resolving DB-touching services from the shared request scope would have multiple
+            // probes contend on the same ScopedConnectionFactory and trip its parallelism guard.
+            await using var childScope = _lifetimeScope.BeginLifetimeScope($"ProbeRecipient:{Guid.NewGuid()}");
+
+            var clientAuthToken = await ResolveClientAccessTokenScopedAsync(childScope, recipient, odinContext);
             if (clientAuthToken == null)
             {
                 status.Status = IntroductionPreflightStatus.NotConnected;
@@ -340,6 +350,30 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             status.Detail = ex.Message;
             return status;
         }
+    }
+
+    /// <summary>
+    /// Mirrors <see cref="PeerServiceBase.ResolveClientAccessTokenAsync"/> but resolves the
+    /// <see cref="CircleNetworkService"/> from the supplied child scope so parallel probes each
+    /// use their own ScopedConnectionFactory. Returns null when the recipient is not connected.
+    /// </summary>
+    private async Task<ClientAccessToken> ResolveClientAccessTokenScopedAsync(
+        ILifetimeScope childScope, OdinId recipient, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasAtLeastOnePermission(
+            PermissionKeys.UseTransitWrite,
+            PermissionKeys.UseTransitRead);
+
+        var circleNetworkService = childScope.Resolve<CircleNetworkService>();
+
+        // overrideHack: we already asserted UseTransitWrite or UseTransitRead above
+        var icr = await circleNetworkService.GetIcrAsync(recipient, odinContext, overrideHack: true);
+        if (icr.IsConnected() == false)
+        {
+            return null;
+        }
+
+        return icr.CreateClientAccessToken(odinContext.PermissionsContext.GetIcrKey());
     }
 
     /// <summary>

@@ -75,6 +75,18 @@ One tenant = one identity (domain). Tenant resolution happens from the HTTP host
 
 No ORM. Raw SQL with a code-first table definition pattern. Tables are classes with CRUD methods (e.g., `TableAppNotificationsCRUD.cs`). Database factories: `SqliteIdentityDbConnectionFactory` or `PgsqlIdentityDbConnectionFactory`. Migrations use `AbstractMigrator`. Both SQLite and PostgreSQL are tested in CI.
 
+**Scoped connections and parallelism.** `ScopedConnectionFactory` is registered per IOC lifetime scope and holds a single connection/transaction for that scope. It is **not** safe for concurrent use: if two tasks touch the DB through the same scope at once, it throws `OdinDatabaseException: "Parallelism detected (CreateScopedConnectionAsync)"`. The request scope is one such scope, so you cannot fan out DB work across `Task.WhenAll` / `Parallel.ForEach` / `Task.Run` while sharing the ambient services.
+
+When running DB work in parallel, give each parallel branch its own child scope and resolve the DB-touching services from it:
+
+```csharp
+await using var childScope = _lifetimeScope.BeginLifetimeScope($"MyWork:{Guid.NewGuid()}");
+var svc = childScope.Resolve<SomeDbService>();
+await svc.DoWorkAsync(...);
+```
+
+Inject `ILifetimeScope` to get the owning scope (Autofac supplies it automatically). Reference patterns: `PeerOutboxProcessorBackgroundService.ProcessItemThread` and `CircleNetworkIntroductionService.ProbeRecipientAsync`. `IOdinContext` is plain data and is safe to pass into a child scope; only resolved services are scope-bound. If parallelism isn't worth the scope plumbing, run the work sequentially instead.
+
 ### Authentication & API Versions
 
 Four auth schemes, each with its own controller directory:
