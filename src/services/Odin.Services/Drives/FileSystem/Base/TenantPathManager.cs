@@ -73,7 +73,7 @@ public class TenantPathManager
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(config.Host.TenantDataRootPath, nameof(config.Host.TenantDataRootPath));
 
-        S3PayloadsEnabled = config.S3PayloadStorage.Enabled;
+        S3PayloadsEnabled = config.S3Payload.Enabled;
         var tenant = tenantId.ToString();
 
         RootPath = config.Host.TenantDataRootPath;

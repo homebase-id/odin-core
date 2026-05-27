@@ -262,17 +262,35 @@ public static class SystemServices
         // We currently don't use asp.net data protection, but we need to configure it to avoid warnings
         services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(config.Host.DataProtectionKeyPath));
 
-        // Payload storage
-        if (config.S3PayloadStorage.Enabled)
+        // S3 storage
+        if (config.S3Storage.Enabled)
         {
-            services.AddS3AwsPayloadStorage(
-                config.S3PayloadStorage.AccessKey,
-                config.S3PayloadStorage.SecretAccessKey,
-                config.S3PayloadStorage.ServiceUrl,
-                config.S3PayloadStorage.Region,
-                config.S3PayloadStorage.ForcePathStyle,
-                config.S3PayloadStorage.BucketName,
-                config.S3PayloadStorage.RootPath);
+            services.AddAmazonS3Client(
+                config.S3Storage.AccessKey,
+                config.S3Storage.SecretAccessKey,
+                config.S3Storage.ServiceUrl,
+                config.S3Storage.Region,
+                config.S3Storage.ForcePathStyle);
+        }
+
+        // S3 Payload storage
+        if (config.S3Payload.Enabled)
+        {
+            if (!config.S3Storage.Enabled)
+            {
+                throw new OdinSystemException("S3Payload is enabled, but S3Storage is not enabled.");
+            }
+            services.AddS3AwsPayloadStorage(config.S3Payload.BucketName, config.S3Payload.RootPath);
+        }
+
+        // S3 Inbox storage
+        if (config.S3Inbox.Enabled)
+        {
+            if (!config.S3Storage.Enabled)
+            {
+                throw new OdinSystemException("S3Inbox is enabled, but S3Storage is not enabled.");
+            }
+            services.AddS3AwsInboxStorage(config.S3Inbox.BucketName, config.S3Inbox.RootPath);
         }
 
         return services;
