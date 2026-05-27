@@ -148,8 +148,8 @@ public class AdminControllerTest
         }
 
 #if RUN_S3_TESTS
-        var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
-        var bucketName = Environment.GetEnvironmentVariable("S3PayloadStorage__BucketName") ?? "";
+        var serviceUrl = Environment.GetEnvironmentVariable("S3Storage__ServiceUrl") ?? "";
+        var bucketName = Environment.GetEnvironmentVariable("S3Payload__BucketName") ?? "";
         Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
 #else
         Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
@@ -188,8 +188,8 @@ public class AdminControllerTest
         }
 
 #if RUN_S3_TESTS
-        var serviceUrl = Environment.GetEnvironmentVariable("S3PayloadStorage__ServiceUrl") ?? "";
-        var bucketName = Environment.GetEnvironmentVariable("S3PayloadStorage__BucketName") ?? "";
+        var serviceUrl = Environment.GetEnvironmentVariable("S3Storage__ServiceUrl") ?? "";
+        var bucketName = Environment.GetEnvironmentVariable("S3Payload__BucketName") ?? "";
         Assert.That(tenant.PayloadPath, Is.EqualTo(Path.Combine(serviceUrl, bucketName, tenant.Id)));
 #else
         Assert.That(tenant.PayloadPath, Is.EqualTo(pm.PayloadsPath));
