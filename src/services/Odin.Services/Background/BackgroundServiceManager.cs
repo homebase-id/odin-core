@@ -211,7 +211,7 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
         if (!_stoppingCts.IsCancellationRequested)
         {
-            backgroundService.BackgroundService.InternalNotifyWorkAvailable();
+            backgroundService?.BackgroundService.InternalNotifyWorkAvailable();
         }
     }
 
