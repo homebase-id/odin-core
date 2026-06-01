@@ -181,16 +181,32 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
 
         if (backgroundService == null)
         {
-            // Service isn't registered yet (startup race) or genuinely not running (test / dev
-            // mode). Either way: don't block. If the service starts later its own timer loop
-            // will pick up the queued work on the next tick; if it never starts, no notification
-            // we could deliver would have mattered. Previously this retried for 30s — too long
-            // for a startup race that resolves in ms, and a hang in any context that runs without
-            // background services.
-            _logger.LogDebug(
-                "NotifyWorkAvailableAsync: background service '{serviceIdentifier}' not registered; skipping wake-up.",
-                serviceIdentifier);
-            return;
+            const int attempts = 30;
+            var attempt = 0;
+            while (backgroundService == null && attempt < attempts)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), _stoppingCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                using (await _lock.ReaderLockAsync())
+                {
+                    _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
+                }
+
+                attempt++;
+            }
+
+            if (backgroundService == null && !_stoppingCts.IsCancellationRequested)
+            {
+                throw new InvalidOperationException(
+                    $"Background service '{serviceIdentifier}' not found. Did you forget to start it?");
+            }
         }
 
         if (!_stoppingCts.IsCancellationRequested)

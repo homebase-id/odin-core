@@ -139,10 +139,10 @@ public class TenantAdmin(
                 var driveMainIndex = tenantScope.Resolve<TableDriveMainIndexCached>();
                 var sizeAllDrives = await driveMainIndex.GetTotalSizeAllDrivesAsync();
 
-                if (config.S3PayloadStorage.Enabled)
+                if (config.S3Payload.Enabled)
                 {
                     result.PayloadPath = Path.Combine(
-                        config.S3PayloadStorage.ServiceUrl, config.S3PayloadStorage.BucketName, result.Id);
+                        config.S3Storage.ServiceUrl, config.S3Payload.BucketName, result.Id);
                 }
                 else
                 {

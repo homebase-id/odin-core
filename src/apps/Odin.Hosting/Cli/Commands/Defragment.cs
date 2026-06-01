@@ -16,9 +16,9 @@ public static class Defragment
     internal static async Task ExecuteAsync(IServiceProvider services, bool cleanup)
     {
         var config = services.GetRequiredService<OdinConfiguration>();
-        if (config.S3PayloadStorage.Enabled)
+        if (config.S3Payload.Enabled)
         {
-            throw new OdinSystemException("S3 defragmentation is not supported");
+            throw new OdinSystemException("S3 defragmentation is currently not supported");
         }
 
         var registry = services.GetRequiredService<IIdentityRegistry>();

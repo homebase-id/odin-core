@@ -147,14 +147,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         {
                             var drive = await driveManager.GetDriveAsync(_transferState.TransferInstructionSet.TargetDrive.Alias);
 
-                            // allow the shard recovery drive to use subscriptions
-                            if (drive.Id != SystemDriveConstants.ShardRecoveryDrive.Alias && !drive.AllowSubscriptions)
-                            {
-                                logger.LogDebug("Drive ({drive}) does not allow subscriptions", drive.Id);
-                                throw new OdinSecurityException(
-                                    "Attempt to distribute app notifications to drive which does not allow subscriptions");
-                            }
-
                             foreach (var recipient in notificationOptions.Recipients.Without(odinContext.Tenant))
                             {
                                 try

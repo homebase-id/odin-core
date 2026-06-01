@@ -233,7 +233,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         // SEB:TODO update for S3 payloads
-        if (_config.S3PayloadStorage.Enabled)
+        if (_config.S3Payload.Enabled)
         {
             throw new OdinSystemException("Copying registrations with S3 payloads is not supported yet.");
         }
@@ -425,7 +425,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     public async Task LoadRegistrations()
     {
         Directory.CreateDirectory(RegistrationRoot);
-        if (!_config.S3PayloadStorage.Enabled)
+        if (!_config.S3Payload.Enabled)
         {
             Directory.CreateDirectory(PayloadRoot);
         }
@@ -575,7 +575,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         return Task.Run(async () =>
         {
-            if (_config.S3PayloadStorage.Enabled)
+            if (_config.S3Payload.Enabled)
             {
                 _logger.LogInformation("Deleting S3 payload data for {identity.PrimaryDomainName}",
                     identity.PrimaryDomainName);

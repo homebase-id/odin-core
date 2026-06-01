@@ -371,7 +371,7 @@ public static class TenantServices
         cb.AddTenantPubSub(registration.Id.ToString(), odinConfig.Redis.Enabled);
 
         // Payload storage
-        if (odinConfig.S3PayloadStorage.Enabled)
+        if (odinConfig.S3Storage.Enabled)
         {
             cb.RegisterType<PayloadS3ReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
         }
