@@ -190,6 +190,11 @@ namespace Odin.Services.AppNotifications.WebSocket
         // Dst: PubSub queue (via the per-tenant dispatcher)
         public Task Handle(IDriveNotification notification, CancellationToken cancellationToken = default)
         {
+            if (notification.IgnoreWebSocketNotification)
+            {
+                return Task.CompletedTask;
+            }
+
             return _dispatcher.PublishDriveNotificationAsync(notification);
         }
 

@@ -146,7 +146,8 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Cache__Level2CacheType", "redis");
 #endif
 
-            Environment.SetEnvironmentVariable("S3PayloadStorage__Enabled", "false");
+            Environment.SetEnvironmentVariable("S3Storage__Enabled", "false");
+            Environment.SetEnvironmentVariable("S3Payload__Enabled", "false");
 #if RUN_S3_TESTS
             Logger.LogInformation("Starting Minio S3 container for tests");
             MinioContainer = new MinioBuilder()
@@ -155,13 +156,14 @@ namespace Odin.Hosting.Tests
                 .WithPassword("minioadmin123")
                 .Build();
             MinioContainer.StartAsync().GetAwaiter().GetResult();
-            Environment.SetEnvironmentVariable("S3PayloadStorage__Enabled", "true");
-            Environment.SetEnvironmentVariable("S3PayloadStorage__AccessKey", MinioContainer.GetAccessKey());
-            Environment.SetEnvironmentVariable("S3PayloadStorage__SecretAccessKey", MinioContainer.GetSecretKey());
-            Environment.SetEnvironmentVariable("S3PayloadStorage__ServiceUrl", MinioContainer.GetConnectionString());
-            Environment.SetEnvironmentVariable("S3PayloadStorage__Region", "meh");
-            Environment.SetEnvironmentVariable("S3PayloadStorage__ForcePathStyle", "true");
-            Environment.SetEnvironmentVariable("S3PayloadStorage__BucketName", "odin-payloads");
+            Environment.SetEnvironmentVariable("S3Storage__Enabled", "true");
+            Environment.SetEnvironmentVariable("S3Storage__AccessKey", MinioContainer.GetAccessKey());
+            Environment.SetEnvironmentVariable("S3Storage__SecretAccessKey", MinioContainer.GetSecretKey());
+            Environment.SetEnvironmentVariable("S3Storage__ServiceUrl", MinioContainer.GetConnectionString());
+            Environment.SetEnvironmentVariable("S3Storage__Region", "meh");
+            Environment.SetEnvironmentVariable("S3Storage__ForcePathStyle", "true");
+            Environment.SetEnvironmentVariable("S3Payload__Enabled", "true");
+            Environment.SetEnvironmentVariable("S3Payload__BucketName", "odin-payloads");
 #endif
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");

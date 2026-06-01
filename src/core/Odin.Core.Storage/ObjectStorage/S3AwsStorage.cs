@@ -110,6 +110,42 @@ public class S3AwsStorage : IS3Storage
 
     //
 
+    public async Task<long> WriteStreamAsync(string path, Stream stream, CancellationToken cancellationToken = default)
+    {
+        _logger.LogTrace(nameof(WriteStreamAsync));
+
+        S3Path.AssertFileName(path);
+        path = S3Path.Combine(_rootPath, path);
+
+        // The S3 SDK uploads the entire seekable stream (it rewinds to the start), so the
+        // bytes written equal the full stream length, regardless of the current position.
+        var bytesToWrite = stream.CanSeek ? stream.Length : 0;
+
+        try
+        {
+            var request = new PutObjectRequest
+            {
+                BucketName = BucketName,
+                Key = path,
+                InputStream = stream,
+                ContentType = "application/octet-stream",
+                AutoCloseStream = false, // the caller owns the stream
+            };
+
+            var sw = Stopwatch.StartNew();
+            await _s3Client.PutObjectAsync(request, cancellationToken);
+            _logger.LogDebug("S3AwsStorage:WriteStreamAsync {elapsed}ms", sw.ElapsedMilliseconds);
+
+            return bytesToWrite;
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed to write stream to object '{path}' in bucket '{BucketName}'.");
+        }
+    }
+
+    //
+
     public async Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(path);

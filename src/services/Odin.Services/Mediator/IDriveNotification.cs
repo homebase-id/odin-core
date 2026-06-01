@@ -21,8 +21,15 @@ public interface IDriveNotification : INotification
     /// Feed hack so I can ensure certain update events do not get distributed 
     /// </summary>
     public bool IgnoreFeedDistribution { get; set; }
-    
+
     public bool IgnoreReactionPreviewCalculation { get; set; }
+
+    /// <summary>
+    /// When true, this drive event is NOT broadcast to WebSocket clients. Other handlers
+    /// (cache invalidation, feed distribution, etc.) still run. Used to suppress the redundant
+    /// local-reactions fileModified so a reaction emits a single client notification.
+    /// </summary>
+    public bool IgnoreWebSocketNotification { get; set; }
 
 }
 
