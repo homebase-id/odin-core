@@ -20,6 +20,7 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Peer.AppNotification;
 
 [assembly: InternalsVisibleTo("Odin.Hosting.Tests")]
+[assembly: InternalsVisibleTo("Odin.Hosting.Tests.V2")]
 
 namespace Odin.Hosting.UnifiedV2.Notifications
 {

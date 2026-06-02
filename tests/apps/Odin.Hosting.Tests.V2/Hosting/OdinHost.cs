@@ -10,15 +10,24 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Odin.Hosting;
 using Autofac;
+using Autofac.Builder;
+using Odin.Core.Http;
 using Odin.Core.Identity;
 using Odin.Hosting.Authentication.Peer;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Services.Background;
 using Odin.Services.Base;
+using Odin.Services.Certificate;
+using Odin.Services.Configuration;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
+using Odin.Services.Registry;
+using Odin.Services.Tenant.Container;
 
 namespace Odin.Hosting.Tests.V2.Hosting;
 
@@ -118,6 +127,27 @@ public sealed partial class OdinHost : IAsyncDisposable
                         }
                     }
                 });
+
+                // Background services are wired into DI but never StartAsync'd here, so the real
+                // IBackgroundServiceManager.NotifyWorkAvailableAsync spins 30s and then throws
+                // "Background service not found" — which 500s peer-facing paths (e.g. receiving a
+                // connection request enqueues a push notification through the PeerOutbox). The manager
+                // lives in the per-tenant container, so it can't be overridden from the root scope;
+                // wrap the identity registry's tenant-builder delegate to decorate it per tenant.
+                services.Replace(ServiceDescriptor.Singleton<IIdentityRegistry>(sp =>
+                    new FileSystemIdentityRegistry(
+                        sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
+                        sp.GetRequiredService<ICertificateService>(),
+                        sp.GetRequiredService<IDynamicHttpClientFactory>(),
+                        sp.GetRequiredService<ISystemHttpClient>(),
+                        sp.GetRequiredService<IMultiTenantContainer>(),
+                        (cb, registration, cfg) =>
+                        {
+                            TenantServices.ConfigureTenantServices(cb, registration, cfg);
+                            cb.RegisterDecorator<NonNotifyingBackgroundServiceManager, IBackgroundServiceManager>();
+                            return cb;
+                        },
+                        sp.GetRequiredService<OdinConfiguration>())));
             })
             .ConfigureContainer<ContainerBuilder>(cb =>
             {
