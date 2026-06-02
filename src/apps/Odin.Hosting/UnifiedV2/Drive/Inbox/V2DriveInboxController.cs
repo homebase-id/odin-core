@@ -20,7 +20,8 @@ public class V2DriveInboxController(PeerInboxProcessor peerInboxProcessor) : Odi
     {
         var targetDrive = WebOdinContext.PermissionsContext.GetTargetDrive(driveId);
             
-        var result = await peerInboxProcessor.ProcessInboxAsync(targetDrive, WebOdinContext, batchSize);
+        var result = await peerInboxProcessor.ProcessInboxAsync(targetDrive, WebOdinContext, batchSize,
+            HttpContext.RequestAborted);
         return result;
     }
 }

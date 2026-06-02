@@ -6,7 +6,6 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
-using Moq;
 using NUnit.Framework;
 using Odin.Core.Storage.ObjectStorage;
 using Odin.Test.Helpers.Logging;
@@ -25,7 +24,7 @@ public class S3AwsStorageTests
     private string _testRootPath = "";
     private IAmazonS3 _s3Client = null!;
     private MinioContainer _minioContainer = null!;
-    private ILogger<S3AwsStorage> _logger = TestLogFactory.CreateConsoleLogger<S3AwsStorage>();
+    private readonly ILogger<S3AwsStorage> _logger = TestLogFactory.CreateConsoleLogger<S3AwsStorage>();
 
     [SetUp]
     public async Task SetUp()
@@ -178,6 +177,61 @@ public class S3AwsStorageTests
         // Read back from bucket
         var copy = await bucket.ReadBytesAsync(path);
         Assert.That(copy.ToStringFromUtf8Bytes(), Is.EqualTo(text));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldReadAndWriteStream()
+    {
+        const string path = "the-file";
+        const string text = "test";
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+
+        // Write to bucket from a stream
+        using var stream = new MemoryStream(bytes);
+        var bytesWritten = await bucket.WriteStreamAsync(path, stream);
+        Assert.That(bytesWritten, Is.EqualTo(bytes.Length));
+
+        // Read back from bucket
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy.ToStringFromUtf8Bytes(), Is.EqualTo(text));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldWriteEntireStreamRegardlessOfPosition()
+    {
+        const string path = "the-file";
+        var bytes = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+
+        // The S3 SDK rewinds the stream, so the whole object is written even when the
+        // position is advanced, and the returned count equals the full stream length.
+        using var stream = new MemoryStream(bytes);
+        stream.Position = 3;
+        var bytesWritten = await bucket.WriteStreamAsync(path, stream);
+        Assert.That(bytesWritten, Is.EqualTo(bytes.Length));
+
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy, Is.EqualTo(bytes));
+    }
+
+    //
+
+    [Test]
+    public void S3AwsStorage_ItShouldThrowWhenWritingStreamToFolder()
+    {
+        const string path = "the-file/";
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("test"));
+        Assert.ThrowsAsync<S3StorageException>(async () => await bucket.WriteStreamAsync(path, stream));
     }
 
     //
