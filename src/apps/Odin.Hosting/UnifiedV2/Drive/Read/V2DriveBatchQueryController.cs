@@ -35,7 +35,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             {
                 section.AssertIsValid();
 
-                await inboxDrainOnQuery.DrainIfReadyAsync(section.DriveId, WebOdinContext, HttpContext.RequestAborted);
+                await inboxDrainOnQuery.DrainIfReadyAsync(section.DriveId, WebOdinContext);
 
                 var theDrive = await driveManager.GetDriveAsync(section.DriveId);
                 var qp = section.QueryParams;
