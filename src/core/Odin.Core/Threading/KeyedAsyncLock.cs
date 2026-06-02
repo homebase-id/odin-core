@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+#nullable enable
+
 namespace Odin.Core.Threading;
 
 public sealed class KeyedAsyncLock
@@ -108,6 +110,64 @@ public sealed class KeyedAsyncLock
         {
             DecrementRefCount(key);
             throw;
+        }
+    }
+
+    //
+
+    /// <summary>
+    /// Non-blocking attempt to run <paramref name="action"/> under the lock for <paramref name="key"/>.
+    /// If the lock is free it is taken, the action runs, the lock is released, and this returns true.
+    /// If the lock is currently held (or has a waiter) the action does NOT run and this returns false.
+    /// Never waits for contention. An exception thrown by the action propagates after the lock is released.
+    /// </summary>
+    public async Task<bool> TryRunWithLockAsync(string key, Func<Task> action, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        var handle = TryAcquire(key, cancellationToken);
+        if (handle == null)
+        {
+            return false;
+        }
+
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            handle.Dispose();
+        }
+
+        return true;
+    }
+
+    //
+
+    // Non-blocking acquire. Returns a releaser if the lock was free (and is now held), else null.
+    // A dictionary entry exists iff the lock has a holder or a waiter (refCount >= 1), so its absence
+    // is exactly the "free" condition. Acquiring a brand-new AsyncLock completes synchronously, so
+    // GetResult() never blocks while holding _lock, and registering it only after we hold it keeps
+    // LockAsync/TryRunWithLockAsync mutually exclusive on the same key. Kept private: a nullable
+    // handle is a footgun on a public surface (composes unsafely with `using`), so callers get the
+    // callback form instead.
+    private IDisposable? TryAcquire(string key, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key, nameof(key));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_lock)
+        {
+            if (_refCountedLocks.ContainsKey(key))
+            {
+                return null;
+            }
+
+            var asyncLock = new AsyncLock();
+            var disposer = asyncLock.LockAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+            _refCountedLocks[key] = (asyncLock, 1);
+            return new Releaser(this, key, disposer);
         }
     }
 
