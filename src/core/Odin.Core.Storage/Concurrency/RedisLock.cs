@@ -62,9 +62,46 @@ public sealed class RedisLock(IConnectionMultiplexer connectionMultiplexer) : IN
 
         throw new RedisLockException($"Could not acquire lock '{redisKey}'. Timeout after {timeout?.TotalSeconds}s.");
     }
-    
+
     //
-    
+
+    public async Task<bool> TryRunWithLockAsync(
+        NodeLockKey key,
+        Func<Task> action,
+        TimeSpan? forcedRelease = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        forcedRelease ??= DefaultForcedRelease;
+
+        if (forcedRelease <= TimeSpan.Zero)
+        {
+            throw new RedisLockException($"{nameof(forcedRelease)} must be greater than zero");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var value = Guid.NewGuid().ToString();
+        var redis = _connectionMultiplexer.GetDatabase();
+        var redisKey = Prefix + key;
+
+        // Single, non-blocking attempt. No retry loop and no throw on contention:
+        // a miss means another holder has it, which the caller handles by skipping.
+        var didLock = await redis.StringSetAsync(redisKey, value, forcedRelease, When.NotExists);
+        if (!didLock)
+        {
+            return false;
+        }
+
+        // Hold the lock across the action; release (delete-if-still-ours) on the way out, even if it throws.
+        await using var releaser = new Releaser(this, redisKey, value);
+        await action();
+        return true;
+    }
+
+    //
+
     private class Releaser(RedisLock redisLock, string key, string value) : IAsyncDisposable
     {
         private bool _disposed;
