@@ -73,7 +73,24 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext,
             int batchSize = 1, CancellationToken cancellationToken = default)
         {
-            await using (await nodeLock.LockAsync(BuildBoxLockKey(targetDrive, odinContext), cancellationToken: cancellationToken))
+            IAsyncDisposable boxLock;
+            try
+            {
+                boxLock = await nodeLock.LockAsync(BuildBoxLockKey(targetDrive, odinContext), cancellationToken: cancellationToken);
+            }
+            catch (RedisLockException)
+            {
+                // Couldn't acquire the box lock within the timeout: another worker is already draining
+                // this box. Don't fail the caller -- report the current pending state and let the holder
+                // (or the background drainer) finish the work. OperationCanceledException is deliberately
+                // NOT caught here: a cancelled/aborted request must propagate, not degrade to "pending".
+                logger.LogDebug(
+                    "Processing Inbox -> box lock busy (acquire timed out) for drive {driveId}; returning pending status",
+                    targetDrive.Alias);
+                return await GetPendingCountAsync(targetDrive, targetDrive.Alias);
+            }
+
+            await using (boxLock)
             {
                 return await DrainInboxAsync(targetDrive, odinContext, batchSize, cancellationToken);
             }
