@@ -25,7 +25,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             OdinValidationUtils.AssertNotNull(request.QueryParams, "QueryParams");
             OdinValidationUtils.AssertNotNull(request.ResultOptionsRequest, "ResultOptionsRequest");
 
-            await inboxDrainOnQuery.DrainIfReadyAsync(driveId, WebOdinContext);
+            await inboxDrainOnQuery.DrainIfReadyAsync(driveId, WebOdinContext, HttpContext.RequestAborted);
 
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 
@@ -41,7 +41,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
         public async Task<QueryBatchResponse> QuerySmartBatch([FromRoute] Guid driveId, [FromBody] QueryBatchRequestV2 request)
         {
-            await inboxDrainOnQuery.DrainIfReadyAsync(driveId, WebOdinContext);
+            await inboxDrainOnQuery.DrainIfReadyAsync(driveId, WebOdinContext, HttpContext.RequestAborted);
 
             var fs = GetHttpFileSystemResolver().ResolveFileSystem();
 

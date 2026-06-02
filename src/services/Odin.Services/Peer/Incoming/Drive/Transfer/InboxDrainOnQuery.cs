@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Services.Background;
@@ -28,7 +29,7 @@ public sealed class InboxDrainOnQuery(
 {
     public const int InlineBatchLimit = 50;
 
-    public async Task DrainIfReadyAsync(Guid driveId, IOdinContext odinContext)
+    public async Task DrainIfReadyAsync(Guid driveId, IOdinContext odinContext, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -63,7 +64,15 @@ public sealed class InboxDrainOnQuery(
                 await peerInboxProcessorNotifier.NotifyWorkAvailableAsync();
             }
 
-            await peerInboxProcessor.ProcessInboxAsync(drive.TargetDriveInfo, odinContext, InlineBatchLimit);
+            // Best-effort: if a drain is already in progress for this box, skip rather than block the
+            // query response. The in-progress holder (or the background drainer) finishes the work.
+            await peerInboxProcessor.TryProcessInboxAsync(drive.TargetDriveInfo, odinContext, InlineBatchLimit, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Request aborted (or shutting down): propagate the cancellation rather than logging it as
+            // a drain failure.
+            throw;
         }
         catch (Exception e)
         {
