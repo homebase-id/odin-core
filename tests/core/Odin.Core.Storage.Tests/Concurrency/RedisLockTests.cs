@@ -214,6 +214,96 @@ public class RedisLockTests
 
     }
 
+    //
+
+    [Test]
+    public async Task TryRunWithLockAsync_RunsAction_WhenFree_AndReleases()
+    {
+        await RegisterServicesAsync();
+
+        var lockKey = NodeLockKey.Create("testlock1");
+        var redisKey = "odin:lock:" + lockKey;
+
+        var connectionMultiplexer = _services!.Resolve<IConnectionMultiplexer>();
+        var db = connectionMultiplexer.GetDatabase();
+        var redisLock = _services!.Resolve<INodeLock>();
+
+        var existedDuringAction = false;
+        var result = await redisLock.TryRunWithLockAsync(lockKey, async () =>
+        {
+            existedDuringAction = await db.KeyExistsAsync(redisKey);
+        });
+
+        Assert.That(result, Is.True, "Should acquire an uncontended lock and run the action.");
+        Assert.That(existedDuringAction, Is.True, "Lock key should exist while the action runs.");
+
+        await Task.Delay(50);
+        Assert.That(await db.KeyExistsAsync(redisKey), Is.False, "Lock key should be removed after release.");
+    }
+
+    //
+
+    [Test]
+    public async Task TryRunWithLockAsync_SkipsAction_WhenAlreadyHeld()
+    {
+        await RegisterServicesAsync();
+
+        var lockKey = NodeLockKey.Create("testlock1");
+        var redisLock = _services!.Resolve<INodeLock>();
+
+        await using (await redisLock.LockAsync(lockKey, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10)))
+        {
+            var ran = false;
+            var result = await redisLock.TryRunWithLockAsync(lockKey, () =>
+            {
+                ran = true;
+                return Task.CompletedTask;
+            });
+            Assert.That(result, Is.False, "Should not acquire a held lock (no wait, no throw).");
+            Assert.That(ran, Is.False, "Action must not run when the lock is held.");
+        }
+
+        await Task.Delay(50);
+
+        Assert.That(await redisLock.TryRunWithLockAsync(lockKey, () => Task.CompletedTask), Is.True,
+            "Should acquire again once the holder releases.");
+    }
+
+    //
+
+    [Test]
+    public async Task TryRunWithLockAsync_ActionThrows_PropagatesAndReleasesLock()
+    {
+        await RegisterServicesAsync();
+
+        var lockKey = NodeLockKey.Create("testlock1");
+        var redisKey = "odin:lock:" + lockKey;
+
+        var connectionMultiplexer = _services!.Resolve<IConnectionMultiplexer>();
+        var db = connectionMultiplexer.GetDatabase();
+        var redisLock = _services!.Resolve<INodeLock>();
+
+        Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await redisLock.TryRunWithLockAsync(lockKey, () => throw new InvalidOperationException("boom")));
+
+        await Task.Delay(50);
+        Assert.That(await db.KeyExistsAsync(redisKey), Is.False, "Lock should be released even when the action throws.");
+    }
+
+    //
+
+    [Test]
+    public async Task TryRunWithLockAsync_ThrowsOnBadForcedReleaseParam()
+    {
+        await RegisterServicesAsync();
+
+        var lockKey = NodeLockKey.Create("testlock1");
+        var redisLock = _services!.Resolve<INodeLock>();
+
+        var ex = Assert.ThrowsAsync<RedisLockException>(async () =>
+            await redisLock.TryRunWithLockAsync(lockKey, () => Task.CompletedTask, TimeSpan.FromSeconds(0)));
+        Assert.That(ex!.Message, Is.EqualTo("forcedRelease must be greater than zero"));
+    }
 
 }
 
