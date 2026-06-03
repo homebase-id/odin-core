@@ -29,7 +29,7 @@ public class ScheduledNotificationService(
     /// <returns>The id of the scheduled job, which can be used to cancel it.</returns>
     public async Task<Guid> ScheduleNotificationAsync(
         OdinId senderId,
-        AppNotificationOptions options,
+        AppNotificationOptions? options,
         UnixTimeUtc sendAt,
         IOdinContext odinContext)
     {

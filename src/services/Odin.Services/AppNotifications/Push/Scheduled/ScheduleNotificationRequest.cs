@@ -13,7 +13,7 @@ public class ScheduleNotificationRequest
     /// <summary>
     /// The notification to send.  Same shape accepted by the immediate /notify/push endpoint.
     /// </summary>
-    public AppNotificationOptions Options { get; set; }
+    public AppNotificationOptions? Options { get; set; }
 
     /// <summary>
     /// When to send the notification (UTC, milliseconds since epoch).  A time in the past sends ASAP.
