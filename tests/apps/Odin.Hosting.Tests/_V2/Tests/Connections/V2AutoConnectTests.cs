@@ -21,6 +21,14 @@ using Refit;
 
 namespace Odin.Hosting.Tests._V2.Tests.Connections;
 
+/// <summary>
+/// SUPERSEDED — ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Connections/AutoConnectTests.cs</c> on 2026-05-13.
+/// All 10 scenarios × 2 caller variants (Owner + App) are ported. The in-process port adds an
+/// explicit <c>[SetUp]</c> that resets <c>DisableAutoAcceptConnectionRequests</c> to "false"
+/// across all preconfigured identities, because the per-test DB restore does not refresh the
+/// in-memory <c>TenantContext.Settings</c>.
+/// </summary>
 public class V2AutoConnectTests
 {
     private WebScaffold _scaffold;

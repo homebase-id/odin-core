@@ -7,6 +7,11 @@ using Odin.Hosting.UnifiedV2;
 
 namespace Odin.Hosting.Tests._V2.Tests.Ping;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Ping/PingTests.cs</c>
+/// on 2026-05-13. Kept temporarily for cross-reference during the V2 framework migration; the
+/// fast-framework counterpart is the authoritative version. Slated for deletion in a follow-up.
+/// </summary>
 public class PingTests
 {
     private WebScaffold _scaffold;

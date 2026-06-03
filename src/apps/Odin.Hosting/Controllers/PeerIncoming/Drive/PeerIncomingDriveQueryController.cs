@@ -186,6 +186,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         /// Suppressing the existence bit here would only force a wasted round trip on the
         /// way to the same answer.
         ///
+        /// Anonymous-read drives collapse the tier. On a drive with
+        /// <c>AllowAnonymousReads = true</c> every connected caller has an implicit Read tier
+        /// regardless of any circle grant, so the Write-only-not-author branch is unreachable
+        /// — VersionTag is always surfaced. This matches the rest of the security model
+        /// (anonymous-read drives already leak headers via the regular peer-query endpoints)
+        /// but is non-obvious from the tier rules above. If you need the tier to actually
+        /// constrain VersionTag exposure, the drive must be created with
+        /// <c>AllowAnonymousReads = false</c>.
+        ///
         /// VersionTag is deliberately not a request parameter: the server returns the
         /// authoritative value (when the caller is entitled to it) and the caller does
         /// the comparison.

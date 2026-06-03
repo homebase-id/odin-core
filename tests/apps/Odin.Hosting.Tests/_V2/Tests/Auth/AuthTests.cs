@@ -13,6 +13,11 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests._V2.Tests.Auth;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Auth/AuthTests.cs</c>
+/// on 2026-05-13. Kept temporarily for cross-reference during the V2 framework migration; the
+/// fast-framework counterpart is the authoritative version. Slated for deletion in a follow-up.
+/// </summary>
 public class AuthTests
 {
     private WebScaffold _scaffold;
