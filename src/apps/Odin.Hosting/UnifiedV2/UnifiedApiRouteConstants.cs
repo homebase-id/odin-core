@@ -23,6 +23,13 @@ public static class UnifiedApiRouteConstants
     public const string PeerByOdinId = PeerRoot + "/{odinId}";
     public const string PeerByDriveId = PeerByOdinId + "/drives/{driveId:guid}";
     public const string PeerFilesRoot = PeerByDriveId + "/files";
+    public const string PeerByFileId = PeerFilesRoot + "/{fileId:guid}";
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
+
+    // Peer notifications (subscribe to live updates on a drive hosted by another identity)
+    public const string PeerNotifyRoot = PeerRoot + "/notify";
+    public const string PeerSubscriptions = PeerNotifyRoot + "/subscriptions";
+    public const string PeerNotifySocket = PeerNotifyRoot + "/ws-token";
+    public const string PeerNotifySocketWasm = PeerNotifyRoot + "/ws-token-wasm";
 }

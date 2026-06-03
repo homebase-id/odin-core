@@ -1,16 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Base;
+using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
 using Odin.Hosting.Authentication.YouAuth;
 using Odin.Hosting.Controllers.Base.Drive;
@@ -134,6 +138,50 @@ public abstract class OdinControllerBase : ControllerBase
     protected void AssertIsValidOdinId(string odinId, out OdinId id)
     {
         OdinValidationUtils.AssertIsValidOdinId(odinId, out id);
+    }
+
+    /// <summary>
+    /// Renders a payload stream retrieved from a peer identity as an HTTP response, populating the
+    /// shared-secret / content-type headers the client needs to decrypt the payload.
+    /// </summary>
+    protected IActionResult HandlePeerPayloadResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted,
+        PayloadStream payloadStream)
+    {
+        if (payloadStream == null)
+        {
+            return NotFound();
+        }
+
+        AddGuestApiCacheHeader();
+
+        HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+        HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
+        HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+        HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
+        HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
+        HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
+        return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
+    }
+
+    /// <summary>
+    /// Renders a thumbnail stream retrieved from a peer identity as an HTTP response, populating the
+    /// shared-secret / content-type headers the client needs to decrypt the thumbnail.
+    /// </summary>
+    protected IActionResult HandlePeerThumbnailResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted,
+        string decryptedContentType, UnixTimeUtc? lastModified, Stream thumb)
+    {
+        if (thumb == Stream.Null)
+        {
+            return NotFound();
+        }
+
+        AddGuestApiCacheHeader();
+
+        HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+        HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+        HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
+        HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
+        return new FileStreamResult(thumb, "application/octet-stream");
     }
 
     /// <summary>

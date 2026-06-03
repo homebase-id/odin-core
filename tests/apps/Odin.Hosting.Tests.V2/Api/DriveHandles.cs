@@ -16,6 +16,7 @@ public sealed class DriveHandles
     public DriveWriterV2Client Writer { get; }
     public DriveGroupReactionV2Client Reactions { get; }
     public DrivePeerReaderV2Client Peer { get; }
+    public DrivePeerWriterV2Client PeerWriter { get; }
 
     public DriveHandles(OdinId identity, IApiClientFactory factory, FileSystemType fileSystemType = FileSystemType.Standard)
     {
@@ -23,5 +24,6 @@ public sealed class DriveHandles
         Writer = new DriveWriterV2Client(identity, factory, fileSystemType);
         Reactions = new DriveGroupReactionV2Client(identity, factory);
         Peer = new DrivePeerReaderV2Client(identity, factory);
+        PeerWriter = new DrivePeerWriterV2Client(identity, factory, fileSystemType);
     }
 }

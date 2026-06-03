@@ -32,7 +32,8 @@ public sealed class PeerTestAppWebSocketListener
         }
     }
 
-    public async Task ConnectAsync(OdinId identity, ClientAccessToken token, EstablishConnectionOptions options)
+    public async Task ConnectAsync(OdinId identity, ClientAccessToken token, EstablishConnectionOptions options,
+        string pathOverride = null)
     {
         _token = token;
         // _clientWebSocket.Options.Cookies = new CookieContainer();
@@ -47,7 +48,8 @@ public sealed class PeerTestAppWebSocketListener
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{GuestApiPathConstantsV1.PeerNotificationsV1}/ws");
+        var path = pathOverride ?? (GuestApiPathConstantsV1.PeerNotificationsV1 + "/ws");
+        var uri = new Uri($"wss://{identity}:{WebScaffold.HttpsPort}{path}");
         await _clientWebSocket.ConnectAsync(uri, tokenSource.Token);
 
         var request = new SocketCommand
