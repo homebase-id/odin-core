@@ -25,6 +25,9 @@ public static class SwaggerInfo
     public const string FileTransfer = "File Transfer";
     
     public const string Connections = "Connection Operations";
-    
+
     public const string Links = "Links";
+
+    // Peer notification subscriptions (live updates on drives hosted by other identities)
+    public const string Notifications = "Notifications";
 }
