@@ -126,6 +126,10 @@ public static class TenantServices
             .AsSelf()
             .InstancePerLifetimeScope();
 
+        cb.RegisterType<Odin.Services.AppNotifications.Push.Scheduled.ScheduledNotificationService>()
+            .AsSelf()
+            .InstancePerLifetimeScope();
+
         cb.RegisterType<LinkMetaExtractor>().As<ILinkMetaExtractor>();
 
         cb.RegisterType<PushNotificationOutboxAdapter>()
