@@ -19,6 +19,13 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
+/// <summary>
+/// SUPERSEDED — ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/TransferHistoryTests.cs</c> on 2026-05-13. The
+/// in-process port covers the Owner caller (delivered status + nullable read-receipt timestamp).
+/// The App / Guest / CDN cases from the original caller matrix are not ported in this phase;
+/// CDN is deferred to phase 4 and App/Guest go with the Connections-style flows in a later pass.
+/// </summary>
 public class GetTransferHistoryTests
 {
     private WebScaffold _scaffold;

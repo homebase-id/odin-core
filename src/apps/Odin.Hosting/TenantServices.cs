@@ -179,7 +179,14 @@ public static class TenantServices
 
         cb.RegisterType<OdinContext>().As<IOdinContext>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<OdinContextCache>().SingleInstance();
-        cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
+        // PreserveExistingDefaults lets the V2 in-process test framework register its own
+        // IOdinHttpClientFactory at root scope (routes peer calls back to TestServer) without
+        // being shadowed by this tenant-scope registration. Production has no root registration,
+        // so this becomes the default as usual.
+        cb.RegisterType<OdinHttpClientFactory>()
+            .As<IOdinHttpClientFactory>()
+            .SingleInstance()
+            .PreserveExistingDefaults();
         cb.RegisterType<CapiCallbackSession>().As<ICapiCallbackSession>().SingleInstance();
 
         cb.RegisterType<HomeCachingService>()

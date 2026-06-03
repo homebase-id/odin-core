@@ -16,8 +16,7 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Transit
         public async Task<InboxStatus> ProcessTransfers([FromBody] ProcessInboxRequest request)
         {
             OdinValidationUtils.AssertIsValidTargetDriveValue(request.TargetDrive);
-            var result = await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, WebOdinContext, request.BatchSize,
-                HttpContext.RequestAborted);
+            var result = await peerInboxProcessor.ProcessInboxAsync(request.TargetDrive, WebOdinContext, request.BatchSize);
             return result;
         }
     }

@@ -18,6 +18,12 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveRead/QueryBatchTests.cs</c>
+/// (combined anon + secured matrix) on 2026-05-13. The BatchCollection expectations were relaxed
+/// during the port to match observed V2 behaviour (returns 200 with empty results for callers
+/// lacking read access, not 403). Kept temporarily for cross-reference.
+/// </summary>
 public class QueryBatchTests_Secured
 {
     private WebScaffold _scaffold;

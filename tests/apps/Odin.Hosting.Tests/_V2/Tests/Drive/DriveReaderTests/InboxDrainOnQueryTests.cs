@@ -23,6 +23,18 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
+/// <summary>
+/// SUPERSEDED — ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/InboxDrainOnQueryTests.cs</c> on 2026-05-13.
+/// Five of the six cases were ported (QueryBatch / QuerySmartBatch / QueryBatchCollection drain,
+/// empty-inbox no-op, Guest-doesn't-drain regression). The Overflow_FirstQueryDrains50_BackgroundFinishesRest
+/// case stays on the V1 framework: it asserts <c>PeerInboxProcessorBackgroundService</c> drains the
+/// items beyond the 50-item inline cap, but the in-process framework deliberately doesn't start
+/// background services. The QueryBatchCollection port is also reduced to a single section because
+/// a single connection covering two drives needs a custom-circle helper that the framework's
+/// <c>PeerFlow</c> doesn't currently expose; the contract under test (drain runs per section) is
+/// still covered.
+/// </summary>
 // Verifies the inline inbox drain that fires from the V2 query endpoints
 // (InboxDrainOnQuery). The recipient's inbox is left non-empty deliberately —
 // no ProcessInbox call — so the only way the file shows up in the V2 query

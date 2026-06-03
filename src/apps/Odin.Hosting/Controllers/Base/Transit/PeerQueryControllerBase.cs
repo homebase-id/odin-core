@@ -118,7 +118,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var (encryptedKeyHeader, isEncrypted, payloadStream) = await peerDriveQueryService.GetPayloadStreamAsync(id,
                 request.File, request.Key, request.Chunk, GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
-            return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
+            return HandlePeerPayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
@@ -166,7 +166,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
                     request.PayloadKey,
                     GetHttpFileSystemResolver().GetFileSystemType(), WebOdinContext);
 
-            return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
+            return HandlePeerThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
@@ -269,7 +269,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var (encryptedKeyHeader, isEncrypted, payloadStream) =
                 await peerDriveQueryService.GetPayloadByGlobalTransitIdAsync(id, file, key, chunk, fst, WebOdinContext);
 
-            return HandlePayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
+            return HandlePeerPayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
@@ -300,7 +300,7 @@ namespace Odin.Hosting.Controllers.Base.Transit
             var (encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb) =
                 await peerDriveQueryService.GetThumbnailByGlobalTransitIdAsync(id, file, payloadKey, width, height, directMatchOnly, fst, WebOdinContext);
 
-            return HandleThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
+            return HandlePeerThumbnailResponse(encryptedKeyHeader, isEncrypted, decryptedContentType, lastModified, thumb);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.PeerQuery })]
@@ -332,41 +332,6 @@ namespace Odin.Hosting.Controllers.Base.Transit
             }
 
             return new JsonResult(result);
-        }
-
-        private IActionResult HandleThumbnailResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted, string decryptedContentType,
-            UnixTimeUtc? lastModified, Stream thumb)
-        {
-            if (thumb == Stream.Null)
-            {
-                return NotFound();
-            }
-
-            AddGuestApiCacheHeader();
-
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
-            return new FileStreamResult(thumb, "application/octet-stream");
-        }
-
-        private IActionResult HandlePayloadResponse(EncryptedKeyHeader encryptedKeyHeader, bool isEncrypted, PayloadStream payloadStream)
-        {
-            if (payloadStream == null)
-            {
-                return NotFound();
-            }
-
-            AddGuestApiCacheHeader();
-
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadKey, payloadStream.Key);
-            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
-            HttpContext.Response.Headers.Append(HttpHeaderConstants.SharedSecretEncryptedKeyHeader64, encryptedKeyHeader.ToBase64());
-            HttpContext.Response.Headers.ContentLength = payloadStream.ContentLength;
-            return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
         }
     }
 }

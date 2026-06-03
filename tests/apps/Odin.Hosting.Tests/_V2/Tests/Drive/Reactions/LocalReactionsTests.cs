@@ -17,6 +17,10 @@ using Odin.Services.Drives.Reactions;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.Reactions;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Reactions/LocalReactionsTests.cs</c>.
+/// Kept temporarily for cross-reference; the fast-framework counterpart is authoritative.
+/// </summary>
 public class LocalReactionsTests
 {
     private WebScaffold _scaffold;

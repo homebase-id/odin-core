@@ -179,9 +179,6 @@ public sealed class BackgroundServiceManager(ILifetimeScope lifetimeScope, strin
             _backgroundServices.TryGetValue(serviceIdentifier, out backgroundService);
         }
 
-        // This fixes a race condition during startup where one background service can notify
-        // another background service that hasn't started yet.
-        // It has to be async, or we risk serializing the startup of all background services.
         if (backgroundService == null)
         {
             const int attempts = 30;
