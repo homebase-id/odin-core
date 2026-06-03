@@ -16,6 +16,10 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.PeerQueryTests;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/FileExistsTests.cs</c>
+/// on 2026-05-13.
+/// </summary>
 // Exercises the V2 peer "file-exists" endpoints:
 //   GET /api/v2/peer/{odinId}/drives/{driveId}/files/by-uid/{uid}/exists
 //   GET /api/v2/peer/{odinId}/drives/{driveId}/files/by-gtid/{gtid}/exists

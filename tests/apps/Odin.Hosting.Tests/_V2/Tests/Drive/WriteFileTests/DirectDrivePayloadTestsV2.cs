@@ -18,6 +18,10 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveWrite/PayloadTests.cs</c>
+/// on 2026-05-13. Kept temporarily for cross-reference; the fast-framework counterpart is authoritative.
+/// </summary>
 public class DirectDrivePayloadTestsV2
 {
     private WebScaffold _scaffold;

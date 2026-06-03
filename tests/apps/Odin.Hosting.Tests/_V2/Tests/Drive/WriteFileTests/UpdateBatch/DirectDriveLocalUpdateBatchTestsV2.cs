@@ -21,6 +21,13 @@ using Odin.Services.Drives.FileSystem.Base.Upload;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests.UpdateBatch;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveWrite/UpdateBatchTests.cs</c>
+/// on 2026-05-13. The <c>HandlesOrphanThumbnails</c> case is currently <c>[Ignore]</c>d in the new
+/// file (V2 endpoint no longer purges orphan thumbnails the way this test expects — divergence
+/// parked for a follow-up). The already-<c>[Ignore]</c>d "update by global transit id" case is not
+/// ported. Kept temporarily for cross-reference.
+/// </summary>
 public class DirectDriveLocalUpdateBatchTestsV2
 {
     private WebScaffold _scaffold;

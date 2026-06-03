@@ -16,6 +16,11 @@ using Odin.Services.Drives.FileSystem.Base.Update;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.LocalAppMetadata;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/LocalAppMetadata/ContentTests.cs</c>
+/// on 2026-05-13. The new port replaces the original's V1-prep / V2-act split with V2 endpoints
+/// throughout (owner.Drives.Writer is V2). Kept temporarily for cross-reference.
+/// </summary>
 public class LocalAppMetadataContentTests
 {
     private WebScaffold _scaffold;

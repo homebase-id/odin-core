@@ -19,6 +19,11 @@ using Odin.Services.Drives.FileSystem.Base.Update;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.LocalAppMetadata;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/LocalAppMetadata/TagTests.cs</c>
+/// on 2026-05-13. (Original class name is <c>LocalAppMetadataTests</c>; new file is named for clarity
+/// since this file is in the "Tag" folder by its concern.) Kept temporarily for cross-reference.
+/// </summary>
 public class LocalAppMetadataTests
 {
     private WebScaffold _scaffold;

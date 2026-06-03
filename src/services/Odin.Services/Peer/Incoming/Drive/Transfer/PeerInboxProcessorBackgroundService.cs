@@ -60,9 +60,7 @@ public class PeerInboxProcessorBackgroundService(
             var processor = childScope.Resolve<PeerInboxProcessor>();
             logger.LogDebug("PeerInboxProcessorBgService -> draining inbox for drive {drive} as caller {caller}",
                 drive.TargetDriveInfo, request.OdinContext.Caller?.OdinId);
-            // Blocking: the background service is the guaranteed-progress drainer, so it waits its turn
-            // for the box lock rather than skipping like the inline drain-on-query path does.
-            await processor.ProcessInboxAsync(drive.TargetDriveInfo, request.OdinContext, batchSize: 100, cancellationToken);
+            await processor.ProcessInboxAsync(drive.TargetDriveInfo, request.OdinContext, batchSize: 100);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

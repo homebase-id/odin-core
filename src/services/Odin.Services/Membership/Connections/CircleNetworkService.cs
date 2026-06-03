@@ -1058,13 +1058,36 @@ namespace Odin.Services.Membership.Connections
                 await this.UpdateCircleDefinitionAsync(def, odinContext);
             }
 
-            CircleDefinition confirmedCircle = await
+            // System circles may not exist yet — e.g. a tenant that creates a drive before
+            // /config/system/initialize has run. Skip with a warning instead of NRE-ing in
+            // GrantAnonymousRead. The drive is still inserted; it just won't get an
+            // anonymous-read grant on the (still-uncreated) system circles. Standard onboarding
+            // calls initialize before any drive create so this is an edge case.
+            var confirmedCircle = await
                 circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
-            await GrantAnonymousRead(confirmedCircle);
+            if (confirmedCircle != null)
+            {
+                await GrantAnonymousRead(confirmedCircle);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "HandleDriveAdded: ConfirmedConnections system circle missing — drive {drive} added without anonymous-read grant. Run /config/system/initialize to create system circles.",
+                    drive.TargetDriveInfo.Alias);
+            }
 
-            CircleDefinition autoConnectedCircle = await
+            var autoConnectedCircle = await
                 circleMembershipService.GetCircleAsync(SystemCircleConstants.AutoConnectionsCircleId, odinContext);
-            await GrantAnonymousRead(autoConnectedCircle);
+            if (autoConnectedCircle != null)
+            {
+                await GrantAnonymousRead(autoConnectedCircle);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "HandleDriveAdded: AutoConnections system circle missing — drive {drive} added without anonymous-read grant. Run /config/system/initialize to create system circles.",
+                    drive.TargetDriveInfo.Alias);
+            }
         }
 
 

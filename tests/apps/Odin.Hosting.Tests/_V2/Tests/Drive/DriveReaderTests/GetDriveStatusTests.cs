@@ -18,6 +18,12 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/Peer/DriveStatusTests.cs</c>
+/// on 2026-05-13. Owner caller covered (outbox empty after drain + bad-drive-id returns 400).
+/// App / Guest / CDN caller matrix not ported in this phase, same rationale as
+/// <c>GetTransferHistoryTests</c>.
+/// </summary>
 public class GetDriveStatusTests
 {
     private WebScaffold _scaffold;

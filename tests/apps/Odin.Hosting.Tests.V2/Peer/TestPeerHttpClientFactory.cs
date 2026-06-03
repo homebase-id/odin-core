@@ -1,0 +1,133 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.TestHost;
+using Odin.Core.Identity;
+using Odin.Core.Storage;
+using Odin.Hosting.Tests.V2.Hosting;
+using Odin.Services.Authentication.Owner;
+using Odin.Services.Authorization.Capi;
+using Odin.Services.Authorization.ExchangeGrants;
+using Odin.Services.Base;
+using Odin.Services.Registry.Registration;
+using Refit;
+
+namespace Odin.Hosting.Tests.V2.Peer;
+
+/// <summary>
+/// Test replacement for the production <see cref="OdinHttpClientFactory"/>. Outbound peer requests
+/// (Frodo → Sam) are routed back to the in-process <see cref="TestServer"/> via its
+/// <see cref="TestServer.CreateHandler"/> instead of going over the wire. Authentication on the
+/// receiving side is handled by <see cref="TestPeerCapiAuthenticationHandler"/>, which reads
+/// <see cref="TestPeerIdentityHeader"/> set below — no mTLS, no CAPI session callback dance.
+/// </summary>
+internal sealed class TestPeerHttpClientFactory : IOdinHttpClientFactory
+{
+    /// <summary>
+    /// Header carrying the calling identity. Set on every outbound peer request here and read
+    /// by <see cref="TestPeerCapiAuthenticationHandler"/> on the inbound side. The header name
+    /// is test-only — production code knows nothing about it.
+    /// </summary>
+    public const string TestPeerIdentityHeader = "X-Test-Peer-Identity";
+
+    private readonly TestServerHolder _serverHolder;
+    private readonly OdinIdentity _localIdentity;
+
+    // Cached handler so we don't orphan one per peer call. server.CreateHandler() returns a fresh
+    // instance each call; the handler just routes anything fed to it back into the TestServer, so
+    // sharing one across all clients (and disposeHandler: false on each HttpClient) is correct.
+    // Keyed by TestServer reference for the (unlikely) case of the holder swapping between tests.
+    private readonly object _handlerLock = new();
+    private TestServer? _cachedHandlerServer;
+    private HttpMessageHandler? _cachedHandler;
+
+    public TestPeerHttpClientFactory(TestServerHolder serverHolder, OdinIdentity localIdentity)
+    {
+        _serverHolder = serverHolder;
+        _localIdentity = localIdentity;
+    }
+
+    private HttpMessageHandler GetHandler(TestServer server)
+    {
+        if (ReferenceEquals(_cachedHandlerServer, server) && _cachedHandler != null)
+        {
+            return _cachedHandler;
+        }
+        lock (_handlerLock)
+        {
+            if (ReferenceEquals(_cachedHandlerServer, server) && _cachedHandler != null)
+            {
+                return _cachedHandler;
+            }
+            _cachedHandler = server.CreateHandler();
+            _cachedHandlerServer = server;
+            return _cachedHandler;
+        }
+    }
+
+    public Task<T> CreateClientUsingAccessTokenAsync<T>(
+        OdinId remoteOdinId,
+        ClientAuthenticationToken clientAuthenticationToken,
+        FileSystemType? fileSystemType = null)
+        => Task.FromResult(BuildClient<T>(remoteOdinId, clientAuthenticationToken, fileSystemType, headers: null));
+
+    public Task<T> CreateClientAsync<T>(
+        OdinId remoteOdinId,
+        FileSystemType? fileSystemType = null,
+        Dictionary<string, string>? headers = null)
+        => Task.FromResult(BuildClient<T>(remoteOdinId, clientAuthenticationToken: null, fileSystemType, headers));
+
+    private T BuildClient<T>(
+        OdinId remoteOdinId,
+        ClientAuthenticationToken? clientAuthenticationToken,
+        FileSystemType? fileSystemType,
+        Dictionary<string, string>? headers)
+    {
+        var server = _serverHolder.Server
+            ?? throw new InvalidOperationException(
+                "TestServer has not been wired into TestServerHolder yet — OdinHost must populate it after host.StartAsync.");
+
+        // Mirror the production factory's BaseAddress (capi.{remote}) so the multi-tenant middleware
+        // resolves the recipient tenant via the well-known "capi" prefix. disposeHandler: false —
+        // the handler is shared (see GetHandler) so HttpClient must not own it.
+        var client = new HttpClient(GetHandler(server), disposeHandler: false)
+        {
+            BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixCertApi}.{remoteOdinId}/"),
+        };
+
+        // Bypass header for PeerCapiAuthenticationHandler — see TestPeerIdentityHeader xmldoc above.
+        client.DefaultRequestHeaders.Add(TestPeerIdentityHeader, _localIdentity.PrimaryDomain);
+
+        // RedirectIfNotApexMiddleware redirects GETs to capi.* back to the apex unless
+        // X-CAPI-Session is present. The auth bypass above runs before the value is parsed, so
+        // the contents here don't matter — but the header has to exist.
+        client.DefaultRequestHeaders.Add(ICapiCallbackSession.SessionHttpHeaderName,
+            $"{_localIdentity.PrimaryDomain}~test-session");
+
+        if (fileSystemType.HasValue)
+        {
+            client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
+        }
+
+        if (clientAuthenticationToken != null)
+        {
+            client.DefaultRequestHeaders.Add(OdinHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
+        }
+
+        if (headers != null)
+        {
+            foreach (var (key, value) in headers)
+            {
+                if (!client.DefaultRequestHeaders.TryGetValues(key, out _))
+                {
+                    client.DefaultRequestHeaders.Add(key, value);
+                }
+            }
+        }
+
+        return RestService.For<T>(client);
+    }
+}
+

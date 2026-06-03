@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Bitcoin.BitcoinUtilities;
 using Microsoft.Extensions.Logging;
@@ -10,7 +9,6 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
-using Odin.Core.Storage.Concurrency;
 using Odin.Core.Util;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription;
@@ -58,76 +56,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
         IDriveManager driveManager,
         ReactionContentService reactionContentService,
         ICorrelationContext correlationContext,
-        FeedWriter feedWriter,
-        INodeLock nodeLock)
+        FeedWriter feedWriter)
     {
         private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "INBX");
 
         public const string ReadReceiptItemMarkedComplete = "ReadReceipt Marked As Complete";
 
-        // Drain this box's inbox, waiting our turn for the box lock. Used by the explicit "process my
-        // inbox" callers (the process-inbox endpoints and the websocket commands) and the background
-        // drainer: they all want the work done, so they block rather than skip. Serialization is per
-        // box (boxId == driveId today), which keeps FIFO-within-box processing intact and prevents the
-        // concurrent create/delete race that orphaned files.
-        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext,
-            int batchSize = 1, CancellationToken cancellationToken = default)
-        {
-            IAsyncDisposable boxLock;
-            try
-            {
-                boxLock = await nodeLock.LockAsync(BuildBoxLockKey(targetDrive, odinContext), cancellationToken: cancellationToken);
-            }
-            catch (RedisLockException)
-            {
-                // Couldn't acquire the box lock within the timeout: another worker is already draining
-                // this box. Don't fail the caller -- report the current pending state and let the holder
-                // (or the background drainer) finish the work. OperationCanceledException is deliberately
-                // NOT caught here: a cancelled/aborted request must propagate, not degrade to "pending".
-                logger.LogDebug(
-                    "Processing Inbox -> box lock busy (acquire timed out) for drive {driveId}; returning pending status",
-                    targetDrive.Alias);
-                return await GetPendingCountAsync(targetDrive, targetDrive.Alias);
-            }
-
-            await using (boxLock)
-            {
-                return await DrainInboxAsync(targetDrive, odinContext, batchSize, cancellationToken);
-            }
-        }
-
-        // Best-effort drain for incidental callers (the inline drain-on-query path). If another worker
-        // already holds the box lock, skip instead of blocking the request; the holder, or the
-        // background drainer, will process the items. Returns the current pending state when skipped.
-        public async Task<InboxStatus> TryProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext,
-            int batchSize = 1, CancellationToken cancellationToken = default)
-        {
-            InboxStatus status = null;
-            var drained = await nodeLock.TryRunWithLockAsync(
-                BuildBoxLockKey(targetDrive, odinContext),
-                async () => { status = await DrainInboxAsync(targetDrive, odinContext, batchSize, cancellationToken); },
-                cancellationToken: cancellationToken);
-
-            if (!drained)
-            {
-                logger.LogDebug(
-                    "Processing Inbox -> skipped; box lock held by another worker for drive {driveId}", targetDrive.Alias);
-                return await GetPendingCountAsync(targetDrive, targetDrive.Alias);
-            }
-
-            return status;
-        }
-
-        // The lock unit is the inbox box, not the drive: boxId is what PopSpecificBoxAsync filters and
-        // orders on (it equals driveId today, but the box is the real ordering unit). Tenant-qualified
-        // because INodeLock is a system-wide singleton and box ids are only unique within a tenant.
-        private static NodeLockKey BuildBoxLockKey(TargetDrive targetDrive, IOdinContext odinContext)
-        {
-            return NodeLockKey.Create("peer-inbox", odinContext.Tenant.DomainName, targetDrive.Alias.ToString());
-        }
-
-        private async Task<InboxStatus> DrainInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1,
-            CancellationToken cancellationToken = default)
+        public async Task<InboxStatus> ProcessInboxAsync(TargetDrive targetDrive, IOdinContext odinContext, int batchSize = 1)
         {
             int actualBatchSize = batchSize < 1 ? 1 : batchSize;
             var driveId = targetDrive.Alias;
@@ -143,11 +78,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             for (int i = 0; i < actualBatchSize; i++)
             {
-                // Stop draining between items if the caller (e.g. an aborted request, or shutdown for
-                // the background service) cancels. Items already marked complete stay done; the rest
-                // remain in the inbox for the next drain.
-                cancellationToken.ThrowIfCancellationRequested();
-
                 var items = await transitInboxBoxStorage.GetPendingItemsAsync(driveId, 1);
 
                 // if nothing comes back; exit
@@ -374,16 +304,6 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()),
                     Utilities.BytesToHexString(inboxItem.DriveId.ToByteArray()));
                 return (InboxReturnTypes.DeleteFromInbox, []);
-            }
-            catch (OperationCanceledException)
-            {
-                // Cancellation (aborted request or shutdown) is not a processing failure: keep the item
-                // for a later drain rather than dropping it (the catch-all below marks it complete), and
-                // let the cancellation stop the drain at the next loop iteration's cancellation check.
-                logger.LogDebug(
-                    "Processing Inbox -> cancelled while processing item; will retry later. gtid: {gtid}",
-                    inboxItem.GlobalTransitId);
-                return (InboxReturnTypes.TryAgainLater, []);
             }
             catch (Exception e)
             {
