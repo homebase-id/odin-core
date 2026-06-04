@@ -101,6 +101,15 @@ public static class SystemCircleConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
+                    Drive = SystemDriveConstants.MomentsDrive,
+                    Permission = DrivePermission.Write | DrivePermission.React
+                }
+            },
+
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
                     Drive = SystemDriveConstants.MailDrive,
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
