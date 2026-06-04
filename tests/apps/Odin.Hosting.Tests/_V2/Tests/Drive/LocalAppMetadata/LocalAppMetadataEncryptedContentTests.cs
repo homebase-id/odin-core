@@ -20,6 +20,13 @@ using Odin.Services.Peer.Encryption;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.LocalAppMetadata;
 
+/// <summary>
+/// SUPERSEDED — ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/LocalAppMetadata/EncryptedContentTests.cs</c> on
+/// 2026-05-13. The Guest caller case from the secondary <c>TestCasesReadWriteGuest</c> source is
+/// dropped in the new port (Guest tokens against the V1 encrypted-upload endpoint return 401, not
+/// the expected 200/403 from the fast-framework auth pipeline). Kept temporarily for cross-reference.
+/// </summary>
 public class LocalAppMetadataEncryptedContentTests
 {
     private WebScaffold _scaffold;

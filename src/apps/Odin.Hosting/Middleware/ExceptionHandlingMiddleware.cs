@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.WebSockets;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
@@ -86,7 +85,7 @@ namespace Odin.Hosting.Middleware
                 }
             };
 
-            if (IsCancellationException(exception))
+            if (IsCancellationException(exception, context.RequestAborted.IsCancellationRequested))
             {
                 problemDetails.Status = 499;
                 problemDetails.Title = "Operation was cancelled";
@@ -142,18 +141,19 @@ namespace Odin.Hosting.Middleware
         // This is a last resort exception filter.
         // Exceptions should be caught and handled as close to the source
         // as possible. Only rely on the below if there is no other way.
-        private static bool IsCancellationException(Exception ex)
+        private static bool IsCancellationException(Exception ex, bool requestAborted)
         {
             switch (ex)
             {
                 case ConnectionResetException:
+                case IOException when requestAborted:
                 case IOException when ex.Message == "The client reset the request stream.":
                 case IOException when ex.Message == "The request stream was aborted.":
                 case OperationCanceledException:
                 case WebSocketException when ex.Message == "The remote party closed the WebSocket connection without completing the close handshake.":
                     return true;
                 default:
-                    return ex is AggregateException aex && aex.InnerExceptions.All(IsCancellationException);
+                    return ex is AggregateException aex && aex.InnerExceptions.All(inner => IsCancellationException(inner, requestAborted));
             }
         }
     }

@@ -20,6 +20,13 @@ using Odin.Services.Peer.Encryption;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.WriteFileTests.UpdateBatch;
 
+/// <summary>
+/// SUPERSEDED — ported to <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveWrite/UpdateBatchTests.cs</c>
+/// on 2026-05-13 (the two encrypted-batch cases at the bottom of that file). The new port restricts
+/// the case source to Owner-only because the V1 encrypted-update endpoint rejects the Guest/App
+/// tokens issued by the fast framework's <see cref="Odin.Hosting.Tests.V2.Api.CallerSpec"/> — full
+/// caller matrix deferred. Kept temporarily for cross-reference.
+/// </summary>
 public class DirectDriveLocalUpdateBatchEncryptedTestsV2
 {
     private WebScaffold _scaffold;

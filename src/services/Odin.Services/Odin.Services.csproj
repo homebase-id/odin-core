@@ -28,4 +28,10 @@
     <ProjectReference Include="../../core/Odin.Core/Odin.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The V2 in-process test framework calls internal members for its test-only drain hooks
+         and replacement-factory wiring. Keep this list tight; production never relies on it. -->
+    <InternalsVisibleTo Include="Odin.Hosting.Tests.V2" />
+  </ItemGroup>
+
 </Project>

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -443,6 +444,68 @@ public class ExceptionHandlingMiddlewareTest
         loggerMock.Verify(x =>
                 x.Log(
                     LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task AbortedRequestIOExceptionIsTreatedAsCancellation()
+    {
+        // Reproduces correlation d5a4a902: a client reset the connection mid-upload, so the multipart
+        // reader threw an IOException with a message not in the cancellation allow-list. Because the
+        // request was aborted, it must be classified as a 499 (cancellation), not a 500.
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            ctx.RequestAborted = new CancellationToken(canceled: true);
+            throw new IOException(
+                "Unexpected end of Stream, the content may have already been read by another component.");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(499));
+
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => true),
+                    It.IsAny<Exception>(),
+                    It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task NonAbortedIOExceptionRemainsInternalServerError()
+    {
+        // Guards the gating: the same IOException message without an aborted request (e.g. a genuine
+        // server-side double-read of the body) must remain a 500, not be masked as a cancellation.
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
+        {
+            await Task.CompletedTask;
+            throw new IOException(
+                "Unexpected end of Stream, the content may have already been read by another component.");
+        });
+        var client = server.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+
+        // Assert
+        Assert.That((int)response.StatusCode, Is.EqualTo(500));
+
+        loggerMock.Verify(x =>
+                x.Log(
+                    LogLevel.Error,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) => true),
                     It.IsAny<Exception>(),

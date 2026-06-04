@@ -23,6 +23,14 @@ using Odin.Services.Peer.Outgoing.Drive;
 
 namespace Odin.Hosting.Tests._V2.Tests.Drive.DriveReaderTests;
 
+/// <summary>
+/// SUPERSEDED — ported to
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveRead/DriveReadTests.cs</c> (the two ByFileId
+/// cases) and
+/// <c>tests/apps/Odin.Hosting.Tests.V2/Ported/DriveRead/GetFileByUniqueIdTests.cs</c> (the three
+/// ByUniqueId cases) on 2026-05-13. Kept temporarily for cross-reference during the V2 framework
+/// migration; the fast-framework counterparts are the authoritative versions.
+/// </summary>
 public class GetFileTests
 {
     private WebScaffold _scaffold;
