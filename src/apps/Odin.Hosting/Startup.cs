@@ -322,6 +322,24 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     });
                 });
 
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat-wasm"),
+                chatWasmApp =>
+                {
+                    var chatWasmPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat-wasm");
+                    chatWasmApp.UseStaticFiles(new StaticFileOptions()
+                    {
+                        FileProvider = new PhysicalFileProvider(chatWasmPath),
+                        RequestPath = "/apps/chat-wasm"
+                    });
+
+                    chatWasmApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        await context.Response.SendFileAsync(Path.Combine(chatWasmPath, "index.html"));
+                        return;
+                    });
+                });
+
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
