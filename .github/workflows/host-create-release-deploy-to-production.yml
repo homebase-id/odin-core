@@ -10,6 +10,11 @@ on:
         options:
         - 'true'
         - 'false'
+      include_chat_wasm:
+        type: boolean
+        required: false
+        default: false
+        description: "Include chat-wasm in the build"
 
 env:
   REGISTRY: ghcr.io
@@ -66,6 +71,17 @@ jobs:
         with:
           odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      #
+      # Build Kotlin WASM (chat-kmp)
+      #
+
+      - name: Build chat-wasm
+        if: ${{ inputs.include_chat_wasm }}
+        continue-on-error: true
+        uses: ./odin-core/.github/actions/host/build-kotlin-wasm
+        with:
+          odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
 
       #
       # Build Docker image
