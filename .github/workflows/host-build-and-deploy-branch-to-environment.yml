@@ -14,15 +14,6 @@ on:
         description: "Frontend branch/commit to include"
         required: true
         default: "main"
-      kotlin_ref:
-        description: "chat-kmp branch/commit to include"
-        required: true
-        default: "main"
-      include_chat_wasm:
-        type: boolean
-        required: false
-        default: false
-        description: "Include chat-wasm in the build"
       start_choice:
         type: choice
         required: true
@@ -65,18 +56,6 @@ jobs:
           odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           git_ref: ${{ github.event.inputs.fe_ref }}
-
-      #
-      # Build Kotlin WASM (chat-kmp)
-      #
-
-      - name: Build chat-wasm
-        if: ${{ inputs.include_chat_wasm }}
-        continue-on-error: true
-        uses: ./odin-core/.github/actions/host/build-kotlin-wasm
-        with:
-          odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
-          git_ref: ${{ github.event.inputs.kotlin_ref }}
 
       #
       # Build docker image
