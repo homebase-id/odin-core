@@ -199,10 +199,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)));
 
-            ClassicAssert.IsNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
+            ClassicAssert.IsNotNull(autoConnectionsSystemCircle.DriveGrants.SingleOrDefault(
                 dg => dg.PermissionedDrive.Drive == SystemDriveConstants.MomentsDrive &&
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write | DrivePermission.React)),
-                "auto connections do not get access to moments");
+                "auto connections get write + react access to moments");
 
             ClassicAssert.IsTrue(!autoConnectionsSystemCircle.Permissions.Keys.Exists(k => k == PermissionKeys.AllowIntroductions));
 
