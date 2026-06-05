@@ -11,6 +11,11 @@ on:
         description: "chat-kmp branch/commit to include"
         required: true
         default: "main"
+      include_chat_wasm:
+        type: boolean
+        required: false
+        default: false
+        description: "Include chat-wasm in the build"
 
 env:
   REGISTRY: ghcr.io
@@ -52,6 +57,7 @@ jobs:
       #
 
       - name: Build chat-wasm
+        if: ${{ inputs.include_chat_wasm }}
         continue-on-error: true
         uses: ./odin-core/.github/actions/host/build-kotlin-wasm
         with:
