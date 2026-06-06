@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Storage.Database.System.Connection;
@@ -117,8 +118,10 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
             )
 
             -- ...and update it to preflight, while making sure nobody beat us to it.
+            -- We bump modified here because this raw UPDATE bypasses the CRUD audit hook;
+            -- LogOrphanedJobsAsync uses modified to detect stuck rows.
             UPDATE jobs
-            SET state = @preflight
+            SET state = @preflight, modified = @now
             WHERE Id = (SELECT Id FROM NextJob) AND state = @scheduled
             RETURNING *;
 
@@ -139,9 +142,11 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
                 FOR UPDATE SKIP LOCKED
             ),
             -- ...and update it to preflight, while making sure nobody beat us to it.
+            -- We bump modified here because this raw UPDATE bypasses the CRUD audit hook;
+            -- LogOrphanedJobsAsync uses modified to detect stuck rows.
             updated as (
                 UPDATE jobs
-                SET state = @preflight
+                SET state = @preflight, modified = @now
                 WHERE Id = (SELECT Id FROM NextJob) AND state = @scheduled
                 RETURNING *
             )
@@ -212,8 +217,72 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
         now.ParameterName = "@now";
         now.Value = UnixTimeUtc.Now().milliseconds;
         cmd.Parameters.Add(now);
-        
+
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    //
+
+    public async Task<List<JobsRecord>> GetAllJobsAsync()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM jobs ORDER BY nextRun;";
+
+        var result = new List<JobsRecord>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            result.Add(ReadRecordFromReaderAll(rdr));
+        }
+
+        return result;
+    }
+
+    //
+
+    // Returns jobs stuck mid-flight: in Preflight longer than the preflight cutoff, or in Running
+    // longer than the running cutoff (cutoffs are absolute millisecond timestamps). Used by
+    // JobManager.LogOrphanedJobsAsync.
+    public async Task<List<JobsRecord>> GetOrphanedJobsAsync(long preflightCutoffMs, long runningCutoffMs)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            """
+            SELECT * FROM jobs
+            WHERE (state = @preflight AND modified <= @preflightCutoff)
+               OR (state = @running   AND modified <= @runningCutoff)
+            """;
+
+        var preflight = cmd.CreateParameter();
+        preflight.ParameterName = "@preflight";
+        preflight.Value = (int)JobState.Preflight;
+        cmd.Parameters.Add(preflight);
+
+        var running = cmd.CreateParameter();
+        running.ParameterName = "@running";
+        running.Value = (int)JobState.Running;
+        cmd.Parameters.Add(running);
+
+        var preflightCutoff = cmd.CreateParameter();
+        preflightCutoff.ParameterName = "@preflightCutoff";
+        preflightCutoff.Value = preflightCutoffMs;
+        cmd.Parameters.Add(preflightCutoff);
+
+        var runningCutoff = cmd.CreateParameter();
+        runningCutoff.ParameterName = "@runningCutoff";
+        runningCutoff.Value = runningCutoffMs;
+        cmd.Parameters.Add(runningCutoff);
+
+        var result = new List<JobsRecord>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            result.Add(ReadRecordFromReaderAll(rdr));
+        }
+
+        return result;
     }
 
     //

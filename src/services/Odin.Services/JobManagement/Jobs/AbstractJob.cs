@@ -32,6 +32,11 @@ public abstract class AbstractJob : IDisposable
     // Last error
     public string? LastError => Record?.lastError;
 
+    // OverdueBy
+    public TimeSpan OverdueBy => Record == null
+        ? TimeSpan.Zero
+        : DateTimeOffset.Now - DateTimeOffset.FromUnixTimeMilliseconds(Record.nextRun.milliseconds);
+
     // JobType
     public abstract string JobType { get; }
 
@@ -55,9 +60,16 @@ public abstract class AbstractJob : IDisposable
         };
     }
     
+    // Override this to keep the job recurring after it reaches a terminal outcome (success, or
+    // failure after all attempts are exhausted). Return the next run time to reschedule the same
+    // job, or null to finalize it normally (honoring OnSuccessDeleteAfter / OnFailureDeleteAfter).
+    // Not called on retries, defers, or aborts. Job data mutated here is persisted on reschedule.
+    public virtual Task<DateTimeOffset?> OnCompletedAsync(JobCompletion completion)
+        => Task.FromResult<DateTimeOffset?>(null);
+
     // Low level database job record (read-only)
     public JobsRecord? Record { get; private set; }
-    
+
     public static AbstractJob CreateInstance(ILifetimeScope lifetimeScope, JobsRecord record)
     {
         ArgumentNullException.ThrowIfNull(lifetimeScope);

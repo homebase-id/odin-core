@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -21,11 +22,13 @@ public interface IJobManager
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
     Task<long> CountJobsAsync();
+    Task<IReadOnlyList<JobsRecord>> GetAllJobsAsync();
     Task<bool> DeleteJobByIdAsync(Guid jobId);
     Task<bool> DeleteJobByHashAsync(string jobHash);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
     Task DeleteExpiredJobsAsync();
+    Task<int> LogOrphanedJobsAsync();
 }
 
 //
@@ -235,7 +238,23 @@ public class JobManager(
             logger.LogInformation("JobManager completed job '{name}' id:{jobId} successfully",
                 record.name, record.id);
 
-            if (record.onSuccessDeleteAfter == 0)
+            var nextRun = await TryGetNextRunAsync(job, record,
+                new JobCompletion(RunResult.Success, null, record.runCount,
+                    DateTimeOffset.FromUnixTimeMilliseconds(record.nextRun.milliseconds)));
+
+            if (nextRun != null)
+            {
+                logger.LogInformation("JobManager rescheduling recurring job '{name}' id:{jobId} for {runat}",
+                    record.name, record.id, nextRun.Value.ToString("O"));
+                record.state = (int)JobState.Scheduled;
+                record.nextRun = nextRun.Value.ToUnixTimeMilliseconds();
+                record.runCount = 0;
+                record.expiresAt = null;
+                record.lastError = null;
+                record.jobData = job.SerializeJobData();
+                await UpdateAsync(record);
+            }
+            else if (record.onSuccessDeleteAfter == 0)
             {
                 logger.LogDebug("JobManager deleting successful job '{name}' id:{jobId}", record.name, record.id);
                 await DeleteAsync(record);
@@ -308,19 +327,40 @@ public class JobManager(
             }
             else
             {
-                logger.LogError(
-                    "JobManager giving up on unsuccessful job '{name}' id:{jobId} after {attempts} attempts. Error: {errorMessage}",
-                    record.name, record.id, record.runCount, record.lastError);
-                if (record.onFailureDeleteAfter == 0)
+                var nextRun = await TryGetNextRunAsync(job, record,
+                    new JobCompletion(RunResult.Fail, record.lastError, record.runCount,
+                        DateTimeOffset.FromUnixTimeMilliseconds(record.nextRun.milliseconds)));
+
+                if (nextRun != null)
                 {
-                    logger.LogDebug("JobManager deleting unsuccessful job '{name}' id:{jobId}", record.name, record.id);
-                    await DeleteAsync(record);
+                    // Recurring job: roll forward to the next occurrence instead of giving up.
+                    // Keep lastError so the failed run stays visible until the next run clears it.
+                    logger.LogInformation(
+                        "JobManager rescheduling recurring job '{name}' id:{jobId} for {runat} after terminal failure. Error: {errorMessage}",
+                        record.name, record.id, nextRun.Value.ToString("O"), record.lastError);
+                    record.state = (int)JobState.Scheduled;
+                    record.nextRun = nextRun.Value.ToUnixTimeMilliseconds();
+                    record.runCount = 0;
+                    record.expiresAt = null;
+                    record.jobData = job.SerializeJobData();
+                    await UpdateAsync(record);
                 }
                 else
                 {
-                    record.state = (int)JobState.Failed;
-                    record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
-                    await UpdateAsync(record);
+                    logger.LogError(
+                        "JobManager giving up on unsuccessful job '{name}' id:{jobId} after {attempts} attempts. Error: {errorMessage}",
+                        record.name, record.id, record.runCount, record.lastError);
+                    if (record.onFailureDeleteAfter == 0)
+                    {
+                        logger.LogDebug("JobManager deleting unsuccessful job '{name}' id:{jobId}", record.name, record.id);
+                        await DeleteAsync(record);
+                    }
+                    else
+                    {
+                        record.state = (int)JobState.Failed;
+                        record.expiresAt = UnixTimeUtc.Now().AddMilliseconds(record.onFailureDeleteAfter);
+                        await UpdateAsync(record);
+                    }
                 }
             }
         }
@@ -333,7 +373,34 @@ public class JobManager(
             throw new JobManagerException($"Invalid run result {result.Result}. Did you forget to set it?");
         }
     }
-    
+
+    //
+
+    // After a terminal outcome, ask the job whether it wants to recur. Returns the next run time
+    // (clamped to now so a past time can't cause a busy-loop), or null to finalize the job normally.
+    // OnCompletedAsync runs after the job's side effects are done, so a throw here must never lose
+    // the job: we log it and fall back to normal terminal handling.
+    private async Task<DateTimeOffset?> TryGetNextRunAsync(AbstractJob job, JobsRecord record, JobCompletion completion)
+    {
+        try
+        {
+            var nextRun = await job.OnCompletedAsync(completion);
+            if (nextRun == null)
+            {
+                return null;
+            }
+            var now = DateTimeOffset.Now;
+            return nextRun.Value > now ? nextRun.Value : now;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "JobManager OnCompletedAsync threw for job '{name}' id:{jobId}; finalizing normally. Message: {message}",
+                record.name, record.id, ex.Message);
+            return null;
+        }
+    }
+
     //
 
     public async Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob
@@ -367,6 +434,50 @@ public class JobManager(
     {
         var result = await tableJobs.GetCountAsync();
         return result;
+    }
+
+    //
+
+    public async Task<IReadOnlyList<JobsRecord>> GetAllJobsAsync()
+    {
+        return await tableJobs.GetAllJobsAsync();
+    }
+
+    //
+
+    // Surface jobs whose worker died mid-flight. A crash between GetNextScheduledJobAsync
+    // (state -> Preflight) and the end of ExecuteAsync leaves a row pinned in Preflight or Running
+    // forever — DeleteExpiredJobsAsync won't clean it up because expiresAt is only set on terminal
+    // states.
+    //
+    // We do NOT auto-retry: replaying an arbitrary job hours later can corrupt data if the job
+    // isn't idempotent. Log it and let a human decide.
+    public async Task<int> LogOrphanedJobsAsync()
+    {
+        // A job in Preflight should transition to Running within milliseconds. Anything still
+        // Preflight after this window is assumed orphaned.
+        var preflightOrphanTimeout = TimeSpan.FromMinutes(5);
+
+        // Running jobs can legitimately take a while. The threshold needs to be longer than any
+        // expected job duration to avoid false positives on still-live workers. Two hours is
+        // generous; tighten if job durations are known.
+        var runningOrphanTimeout = TimeSpan.FromHours(2);
+
+        var now = UnixTimeUtc.Now();
+        var preflightCutoff = now.AddMilliseconds(-(long)preflightOrphanTimeout.TotalMilliseconds);
+        var runningCutoff = now.AddMilliseconds(-(long)runningOrphanTimeout.TotalMilliseconds);
+
+        var orphans = await tableJobs.GetOrphanedJobsAsync(preflightCutoff.milliseconds, runningCutoff.milliseconds);
+
+        foreach (var job in orphans)
+        {
+            logger.LogError(
+                "JobManager orphaned job detected: '{name}' id:{jobId} state:{state} stuck since {modified}. Manual intervention required.",
+                job.name, job.id, (JobState)job.state,
+                DateTimeOffset.FromUnixTimeMilliseconds(job.modified.milliseconds).ToString("O"));
+        }
+
+        return orphans.Count;
     }
 
     //
