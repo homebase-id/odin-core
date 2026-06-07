@@ -354,6 +354,74 @@ public class TableAppNotificationsCachedTests : IocTestBase
 
     //
 
+    // Concurrency: multiple requests can hit the same identity's notification table at
+    // once. This fires concurrent bulk updates and deletes, each in its OWN lifetime
+    // scope (per CLAUDE.md a single scope's connection is not safe for concurrent use,
+    // so fanning out DB work requires a child scope per branch). It asserts the
+    // operations are concurrency-safe -- no "Parallelism detected", no lock errors --
+    // and that the final state is exactly consistent. The short per-statement write-lock
+    // hold time from the bulk change is what keeps this contention cheap; the
+    // round-trip-count tests above guard that property directly.
+    [Test]
+    public async Task BulkUpdateAndDeleteAreSafeUnderConcurrentScopes()
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+
+        // Seed 100 unread notifications.
+        List<Guid> allIds;
+        {
+            await using var seedScope = Services.BeginLifetimeScope();
+            var seedTable = seedScope.Resolve<TableAppNotificationsCached>();
+            allIds = await InsertUnreadAsync(seedTable, 100);
+        }
+
+        // 10 slices of 10. Slices 0-4 are marked read concurrently; slices 5-9 are
+        // bulk-deleted concurrently. Each task runs in its own child scope.
+        const int sliceSize = 10;
+        var tasks = new List<Task>();
+        for (var s = 0; s < 10; s++)
+        {
+            var slice = allIds.GetRange(s * sliceSize, sliceSize);
+            var markRead = s < 5;
+            tasks.Add(Task.Run(async () =>
+            {
+                await using var childScope = Services.BeginLifetimeScope();
+                var table = childScope.Resolve<TableAppNotificationsCached>();
+                if (markRead)
+                {
+                    await table.UpdateUnreadAsync(slice, unread: false);
+                }
+                else
+                {
+                    await table.DeleteListAsync(slice);
+                }
+            }));
+        }
+
+        // Must not throw.
+        await Task.WhenAll(tasks);
+
+        // Verify the final state is exactly consistent: 50 read survivors, 50 deleted.
+        await using var verifyScope = Services.BeginLifetimeScope();
+        var verifyTable = verifyScope.Resolve<TableAppNotificationsCached>();
+        var (records, _) = await verifyTable.PagingByCreatedAsync(int.MaxValue, null, TimeSpan.FromMilliseconds(2000));
+
+        Assert.That(records.Count, Is.EqualTo(50));
+        Assert.That(records.TrueForAll(r => r.unread == 0), Is.True, "all surviving notifications must be marked read");
+
+        var survivingIds = new HashSet<Guid>(records.ConvertAll(r => r.notificationId));
+        for (var i = 0; i < 50; i++)
+        {
+            Assert.That(survivingIds.Contains(allIds[i]), Is.True, $"read-slice id at index {i} should survive");
+        }
+        for (var i = 50; i < 100; i++)
+        {
+            Assert.That(survivingIds.Contains(allIds[i]), Is.False, $"deleted-slice id at index {i} should be gone");
+        }
+    }
+
+    //
+
 
 }
 
