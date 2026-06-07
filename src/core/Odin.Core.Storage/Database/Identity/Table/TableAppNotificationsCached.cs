@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Odin.Core.Storage.Database.Identity.Table;
@@ -73,6 +74,26 @@ public class TableAppNotificationsCached(TableAppNotifications table, IIdentityT
         var result = await table.UpdateAsync(item);
 
         await InvalidateAsync(item);
+
+        return result;
+    }
+
+    //
+
+    public async Task<int> UpdateUnreadAsync(List<Guid> notificationIds, bool unread)
+    {
+        if (notificationIds == null || notificationIds.Count == 0)
+            return 0;
+
+        var result = await table.UpdateUnreadAsync(notificationIds, unread);
+
+        // Invalidate each affected record key plus the paging cache, in a single pass.
+        var actions = notificationIds
+            .Distinct()
+            .Select(id => Cache.CreateRemoveByKeyAction(GetCacheKey(id)))
+            .ToList();
+        actions.Add(Cache.CreateRemoveByTagsAction(PagingByCreateTags));
+        await Cache.InvalidateAsync(actions);
 
         return result;
     }

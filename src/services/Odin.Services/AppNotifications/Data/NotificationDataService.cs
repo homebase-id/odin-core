@@ -134,16 +134,27 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
+        if (request.Updates == null || request.Updates.Count == 0)
+        {
+            return;
+        }
+
+        // Group by target state so the whole request collapses into at most two
+        // set-based UPDATEs, rather than a read-modify-write round-trip per row
+        // that holds the write lock for the duration of the loop.
+        var toUnread = request.Updates.Where(u => u.Unread).Select(u => u.Id).Distinct().ToList();
+        var toRead = request.Updates.Where(u => !u.Unread).Select(u => u.Id).Distinct().ToList();
+
         await using var trx = await db.BeginStackedTransactionAsync();
 
-        foreach (var update in request.Updates)
+        if (toRead.Count > 0)
         {
-            var record = await db.AppNotificationsCached.GetAsync(update.Id);
-            if (null != record)
-            {
-                record.unread = update.Unread ? 1 : 0;
-                await db.AppNotificationsCached.UpdateAsync(record);
-            }
+            await db.AppNotificationsCached.UpdateUnreadAsync(toRead, unread: false);
+        }
+
+        if (toUnread.Count > 0)
+        {
+            await db.AppNotificationsCached.UpdateUnreadAsync(toUnread, unread: true);
         }
 
         trx.Commit();
@@ -161,7 +172,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var request = new UpdateNotificationListRequest()
         {
-            Updates = allByApp.Results.Select(n => new UpdateNotificationRequest()
+            Updates = allByApp.Results.Where(n => n.Unread).Select(n => new UpdateNotificationRequest()
             {
                 Id = n.Id,
                 Unread = false
@@ -184,7 +195,7 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
 
         var request = new UpdateNotificationListRequest()
         {
-            Updates = allByAppAndType.Results.Select(n => new UpdateNotificationRequest()
+            Updates = allByAppAndType.Results.Where(n => n.Unread).Select(n => new UpdateNotificationRequest()
             {
                 Id = n.Id,
                 Unread = false
