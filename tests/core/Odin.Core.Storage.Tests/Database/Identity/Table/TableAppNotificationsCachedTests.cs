@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
+using Odin.Core.Storage.Database;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 
@@ -259,6 +260,96 @@ public class TableAppNotificationsCachedTests : IocTestBase
 
         Assert.That(await table.DeleteListAsync(new List<Guid>()), Is.EqualTo(0));
         Assert.That(await table.DeleteListAsync(null!), Is.EqualTo(0));
+    }
+
+    //
+
+    // Performance guard: this is the whole point of the bulk methods. We assert on the
+    // DatabaseCounters round-trip count (deterministic) rather than wall-clock time.
+    // The old per-row path issued 2N reader round-trips for an update (GetAsync +
+    // UpdateAsync-with-RETURNING) and N non-query round-trips for a delete, each under a
+    // held write lock. The bulk path must be one statement per BulkBatchSize chunk,
+    // independent of the item count.
+
+    private async Task<List<Guid>> InsertUnreadAsync(TableAppNotificationsCached table, int count)
+    {
+        var ids = new List<Guid>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var id = Guid.NewGuid();
+            ids.Add(id);
+            await table.InsertAsync(new AppNotificationsRecord
+            {
+                notificationId = id, senderId = "frodo.com", unread = 1, data = id.ToByteArray()
+            });
+        }
+        return ids;
+    }
+
+    [Test]
+    public async Task BulkUpdateUnreadIssuesOneRoundTripPerBatchRegardlessOfCount()
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await using var scope = Services.BeginLifetimeScope();
+        var table = scope.Resolve<TableAppNotificationsCached>();
+        var counters = scope.Resolve<DatabaseCounters>();
+
+        // 200 notifications -> within a single 500-id batch.
+        var ids = await InsertUnreadAsync(table, 200);
+
+        var nonQueryBefore = counters.NoDbExecuteNonQueryAsync;
+        var readerBefore = counters.NoDbExecuteReaderAsync;
+
+        var affected = await table.UpdateUnreadAsync(ids, unread: false);
+
+        Assert.That(affected, Is.EqualTo(200));
+        // Exactly one UPDATE statement, no per-row SELECTs -- the old path would have
+        // issued ~400 reader round-trips here.
+        Assert.That(counters.NoDbExecuteNonQueryAsync - nonQueryBefore, Is.EqualTo(1),
+            "bulk update must issue a single round-trip for a within-batch list");
+        Assert.That(counters.NoDbExecuteReaderAsync - readerBefore, Is.EqualTo(0),
+            "bulk update must not issue per-row SELECTs");
+    }
+
+    [Test]
+    public async Task BulkUpdateUnreadChunksLargeListsByBatchSize()
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await using var scope = Services.BeginLifetimeScope();
+        var table = scope.Resolve<TableAppNotificationsCached>();
+        var counters = scope.Resolve<DatabaseCounters>();
+
+        // 600 notifications -> two batches (500 + 100) at BulkBatchSize = 500.
+        var ids = await InsertUnreadAsync(table, 600);
+
+        var nonQueryBefore = counters.NoDbExecuteNonQueryAsync;
+
+        var affected = await table.UpdateUnreadAsync(ids, unread: false);
+
+        Assert.That(affected, Is.EqualTo(600));
+        // Bounded by ceil(N / batch) = 2, NOT by N.
+        Assert.That(counters.NoDbExecuteNonQueryAsync - nonQueryBefore, Is.EqualTo(2),
+            "bulk update must chunk a >batch-size list into ceil(N/batch) round-trips");
+    }
+
+    [Test]
+    public async Task BulkDeleteIssuesOneRoundTripPerBatchRegardlessOfCount()
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await using var scope = Services.BeginLifetimeScope();
+        var table = scope.Resolve<TableAppNotificationsCached>();
+        var counters = scope.Resolve<DatabaseCounters>();
+
+        var ids = await InsertUnreadAsync(table, 200);
+
+        var nonQueryBefore = counters.NoDbExecuteNonQueryAsync;
+
+        var affected = await table.DeleteListAsync(ids);
+
+        Assert.That(affected, Is.EqualTo(200));
+        // One DELETE statement vs the old path's 200 per-row deletes.
+        Assert.That(counters.NoDbExecuteNonQueryAsync - nonQueryBefore, Is.EqualTo(1),
+            "bulk delete must issue a single round-trip for a within-batch list");
     }
 
     //
