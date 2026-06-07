@@ -406,4 +406,116 @@ public class NotificationListTests
             ClassicAssert.IsTrue(results.All(n => n.Id != notificationId));
         }
     }
+
+    // Exercises a single Update request that both marks some notifications read and
+    // flips another back to unread -- i.e. the two set-based UPDATE branches
+    // (toRead / toUnread) and the multi-item IN (...) path.
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanUpdateMultipleNotificationsWithMixedReadStates(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
+
+        var appId = Guid.NewGuid();
+        AppNotificationOptions NewOptions() => new() { AppId = appId, TypeId = Guid.NewGuid(), TagId = Guid.NewGuid() };
+
+        var r1 = await ownerApiClient.AppNotifications.AddNotification(NewOptions());
+        var r2 = await ownerApiClient.AppNotifications.AddNotification(NewOptions());
+        var r3 = await ownerApiClient.AppNotifications.AddNotification(NewOptions());
+        ClassicAssert.IsTrue(r1.IsSuccessStatusCode && r2.IsSuccessStatusCode && r3.IsSuccessStatusCode);
+        var id1 = r1.Content.NotificationId;
+        var id2 = r2.Content.NotificationId;
+        var id3 = r3.Content.NotificationId;
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+
+        // Phase 1: mark all three read in one multi-item request (toRead branch, IN-list > 1)
+        var markAllRead = new List<UpdateNotificationRequest>
+        {
+            new() { Id = id1, Unread = false },
+            new() { Id = id2, Unread = false },
+            new() { Id = id3, Unread = false },
+        };
+        var response = await client.Update(markAllRead);
+
+        // Assert
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        if (expectedStatusCode != HttpStatusCode.OK)
+        {
+            return;
+        }
+
+        var afterPhase1 = (await ownerApiClient.AppNotifications.GetList(1000)).Content.Results;
+        ClassicAssert.IsFalse(afterPhase1.Single(n => n.Id == id1).Unread);
+        ClassicAssert.IsFalse(afterPhase1.Single(n => n.Id == id2).Unread);
+        ClassicAssert.IsFalse(afterPhase1.Single(n => n.Id == id3).Unread);
+
+        // Phase 2: one mixed request -- flip id1 back to unread (toUnread branch) and
+        // keep id2 read (toRead branch); id3 is not in the request and must be untouched.
+        var mixed = new List<UpdateNotificationRequest>
+        {
+            new() { Id = id1, Unread = true },
+            new() { Id = id2, Unread = false },
+        };
+        var mixedResponse = await client.Update(mixed);
+        ClassicAssert.IsTrue(mixedResponse.IsSuccessStatusCode);
+
+        var afterPhase2 = (await ownerApiClient.AppNotifications.GetList(1000)).Content.Results;
+        ClassicAssert.IsTrue(afterPhase2.Single(n => n.Id == id1).Unread, "id1 should have been flipped back to unread");
+        ClassicAssert.IsFalse(afterPhase2.Single(n => n.Id == id2).Unread, "id2 should remain read");
+        ClassicAssert.IsFalse(afterPhase2.Single(n => n.Id == id3).Unread, "id3 should be untouched");
+
+        // Cleanup
+        await ownerApiClient.AppNotifications.Delete([id1, id2, id3]);
+    }
+
+    // Exercises the bulk DELETE ... IN (...) path with more than one id in a single request.
+    [Test]
+    [TestCaseSource(nameof(TestCases))]
+    public async Task CanRemoveMultipleNotifications(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
+    {
+        // Setup
+        var identity = TestIdentities.Samwise;
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        await ownerApiClient.DriveManager.CreateDrive(callerContext.TargetDrive, "Test Drive", "", true);
+
+        var appId = Guid.NewGuid();
+        AppNotificationOptions NewOptions() => new() { AppId = appId, TypeId = Guid.NewGuid(), TagId = Guid.NewGuid() };
+
+        var r1 = await ownerApiClient.AppNotifications.AddNotification(NewOptions());
+        var r2 = await ownerApiClient.AppNotifications.AddNotification(NewOptions());
+        var r3 = await ownerApiClient.AppNotifications.AddNotification(NewOptions());
+        ClassicAssert.IsTrue(r1.IsSuccessStatusCode && r2.IsSuccessStatusCode && r3.IsSuccessStatusCode);
+        var id1 = r1.Content.NotificationId;
+        var id2 = r2.Content.NotificationId;
+        var id3 = r3.Content.NotificationId;
+
+        // Act
+        await callerContext.Initialize(ownerApiClient);
+        var client = new AppNotificationsApiClient(identity.OdinId, callerContext.GetFactory());
+
+        // Delete id1 and id2 in one multi-item request; id3 stays.
+        var response = await client.Delete([id1, id2]);
+
+        // Assert
+        ClassicAssert.IsTrue(response.StatusCode == expectedStatusCode, $"Expected {expectedStatusCode} but actual was {response.StatusCode}");
+
+        if (expectedStatusCode == HttpStatusCode.OK)
+        {
+            var results = (await ownerApiClient.AppNotifications.GetList(10000)).Content.Results;
+            ClassicAssert.IsNotNull(results);
+            ClassicAssert.IsTrue(results.All(n => n.Id != id1));
+            ClassicAssert.IsTrue(results.All(n => n.Id != id2));
+            ClassicAssert.IsNotNull(results.SingleOrDefault(n => n.Id == id3));
+
+            // Cleanup
+            await ownerApiClient.AppNotifications.Delete([id3]);
+        }
+    }
 }
