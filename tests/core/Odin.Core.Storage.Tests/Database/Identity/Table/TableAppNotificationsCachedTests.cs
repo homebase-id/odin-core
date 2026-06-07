@@ -204,6 +204,65 @@ public class TableAppNotificationsCachedTests : IocTestBase
 
     //
 
+    [Test]
+    [TestCase(false)]
+#if RUN_REDIS_TESTS
+    [TestCase(true)]
+#endif
+    public async Task ItShouldBulkDeleteAndInvalidateCaches(bool redisEnabled)
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite, redisEnabled: redisEnabled);
+        await using var scope = Services.BeginLifetimeScope();
+        var table = scope.Resolve<TableAppNotificationsCached>();
+
+        var id1 = Guid.Parse("11111111-AAAA-0000-0000-000000000000");
+        var id2 = Guid.Parse("22222222-AAAA-0000-0000-000000000000");
+        var id3 = Guid.Parse("33333333-AAAA-0000-0000-000000000000");
+
+        foreach (var id in new[] { id1, id2, id3 })
+        {
+            await table.InsertAsync(new AppNotificationsRecord
+            {
+                notificationId = id, senderId = "frodo.com", unread = 1, data = id.ToByteArray()
+            });
+        }
+
+        // Prime per-record and paging caches.
+        await table.GetAsync(id1, TimeSpan.FromMilliseconds(2000));
+        await table.PagingByCreatedAsync(int.MaxValue, null, TimeSpan.FromMilliseconds(2000));
+
+        // Bulk delete id1 and id2; id3 left intact. A missing id must not throw.
+        var affected = await table.DeleteListAsync(new List<Guid> { id1, id2, Guid.NewGuid() });
+        Assert.That(affected, Is.EqualTo(2));
+
+        if (redisEnabled) WipeL1();
+
+        // Deleted per-record keys were invalidated -> reads reflect the deletions.
+        Assert.That(await table.GetAsync(id1, TimeSpan.FromMilliseconds(2000)), Is.Null);
+        Assert.That(await table.GetAsync(id2, TimeSpan.FromMilliseconds(2000)), Is.Null);
+        Assert.That(await table.GetAsync(id3, TimeSpan.FromMilliseconds(2000)), Is.Not.Null);
+
+        // Paging cache was invalidated too -> the page reflects the deletions.
+        var (records, _) = await table.PagingByCreatedAsync(int.MaxValue, null, TimeSpan.FromMilliseconds(2000));
+        Assert.That(records.Count, Is.EqualTo(1));
+        Assert.That(records[0].notificationId, Is.EqualTo(id3));
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldReturnZeroForEmptyOrNullDeleteList()
+    {
+        await RegisterServicesAsync(DatabaseType.Sqlite);
+        await using var scope = Services.BeginLifetimeScope();
+        var table = scope.Resolve<TableAppNotificationsCached>();
+
+        Assert.That(await table.DeleteListAsync(new List<Guid>()), Is.EqualTo(0));
+        Assert.That(await table.DeleteListAsync(null!), Is.EqualTo(0));
+    }
+
+    //
+
 
 }
 

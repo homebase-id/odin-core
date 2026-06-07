@@ -130,4 +130,24 @@ public class TableAppNotificationsCached(TableAppNotifications table, IIdentityT
 
     //
 
+    public async Task<int> DeleteListAsync(List<Guid> notificationIds)
+    {
+        if (notificationIds == null || notificationIds.Count == 0)
+            return 0;
+
+        var result = await table.DeleteListAsync(notificationIds);
+
+        // Invalidate each deleted record key plus the paging cache, in a single pass.
+        var actions = notificationIds
+            .Distinct()
+            .Select(id => Cache.CreateRemoveByKeyAction(GetCacheKey(id)))
+            .ToList();
+        actions.Add(Cache.CreateRemoveByTagsAction(PagingByCreateTags));
+        await Cache.InvalidateAsync(actions);
+
+        return result;
+    }
+
+    //
+
 }

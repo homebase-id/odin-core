@@ -120,13 +120,15 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
 
-        await using var trx = await db.BeginStackedTransactionAsync();
-
-        foreach (var id in request.IdList)
+        if (request.IdList == null || request.IdList.Count == 0)
         {
-            await db.AppNotificationsCached.DeleteAsync(id);
+            return;
         }
 
+        // Single set-based DELETE rather than a round-trip per id holding the
+        // write lock for the duration of the loop.
+        await using var trx = await db.BeginStackedTransactionAsync();
+        await db.AppNotificationsCached.DeleteListAsync(request.IdList);
         trx.Commit();
     }
 
