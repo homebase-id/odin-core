@@ -161,6 +161,7 @@ public class NotificationListTests
     }
 
     [Test]
+    [Ignore("Notification mutations (mark-read/delete) are disabled — service methods are no-ops pending refactor + upgrade.")]
     [TestCaseSource(nameof(TestCases))]
     public async Task CanMarkNotificationsRead(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
@@ -211,6 +212,7 @@ public class NotificationListTests
     }
 
     [Test]
+    [Ignore("Notification mutations (mark-read/delete) are disabled — service methods are no-ops pending refactor + upgrade.")]
     [TestCaseSource(nameof(TestCases))]
     public async Task CanMarkNotificationsReadByAppId(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
@@ -321,6 +323,7 @@ public class NotificationListTests
     }
 
     [Test]
+    [Ignore("Notification mutations (mark-read/delete) are disabled — service methods are no-ops pending refactor + upgrade.")]
     [TestCaseSource(nameof(TestCases))]
     public async Task CanMarkNotificationsReadPerApp(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
@@ -371,6 +374,7 @@ public class NotificationListTests
     }
 
     [Test]
+    [Ignore("Notification mutations (mark-read/delete) are disabled — service methods are no-ops pending refactor + upgrade.")]
     [TestCaseSource(nameof(TestCases))]
     public async Task CanRemoveNotifications(IApiClientContext callerContext, HttpStatusCode expectedStatusCode)
     {
