@@ -1719,15 +1719,29 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task CopyPayloadsAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
             List<PayloadDescriptor> descriptors, StorageDrive drive, string sourceFolderPath)
         {
+            // [UploadTiming] Diagnostic: time the whole commit-to-long-term loop (payloads uploaded sequentially here).
+            var totalSw = System.Diagnostics.Stopwatch.StartNew();
+            var payloadCount = descriptors?.Count ?? 0;
+            var thumbnailCount = descriptors?.Sum(d => d.Thumbnails?.Count() ?? 0) ?? 0;
+            _logger.LogInformation(
+                "[UploadTiming] Commit-to-long-term START fileId:{fileId} payloads:{payloads} thumbnails:{thumbnails}",
+                targetFile.FileId, payloadCount, thumbnailCount);
             try
             {
                 foreach (var descriptor in descriptors)
                 {
                     await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor, sourceFolderPath);
                 }
+
+                _logger.LogInformation(
+                    "[UploadTiming] Commit-to-long-term DONE fileId:{fileId} payloads:{payloads} thumbnails:{thumbnails} totalMs:{totalMs}",
+                    targetFile.FileId, payloadCount, thumbnailCount, totalSw.ElapsedMilliseconds);
             }
             catch
             {
+                _logger.LogWarning(
+                    "[UploadTiming] Commit-to-long-term FAILED fileId:{fileId} totalMs:{totalMs}",
+                    targetFile.FileId, totalSw.ElapsedMilliseconds);
                 await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, descriptors);
                 throw;
             }
@@ -1741,11 +1755,17 @@ namespace Odin.Services.Drives.FileSystem.Base
         {
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
             var sourceFilePath = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, payloadExtension));
+
+            // [UploadTiming] Diagnostic: time this single payload's copy to long-term storage.
+            var payloadSw = System.Diagnostics.Stopwatch.StartNew();
             await longTermStorageManager.CopyPayloadToLongTermAsync(
                 drive,
                 targetFile.FileId,
                 descriptor,
                 sourceFilePath);
+            _logger.LogInformation(
+                "[UploadTiming] Payload copied to long-term fileId:{fileId} payloadKey:{key} elapsedMs:{elapsedMs}",
+                targetFile.FileId, descriptor.Key, payloadSw.ElapsedMilliseconds);
 
             foreach (var thumb in descriptor.Thumbnails ?? [])
             {
@@ -1753,8 +1773,13 @@ namespace Odin.Services.Drives.FileSystem.Base
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
                 var sourceThumbnail = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, thumbExt));
+                // [UploadTiming] Diagnostic: time this single thumbnail's copy to long-term storage.
+                var thumbSw = System.Diagnostics.Stopwatch.StartNew();
                 await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
                     thumb);
+                _logger.LogInformation(
+                    "[UploadTiming] Thumbnail copied to long-term fileId:{fileId} payloadKey:{key} {w}x{h} elapsedMs:{elapsedMs}",
+                    targetFile.FileId, descriptor.Key, thumb.PixelWidth, thumb.PixelHeight, thumbSw.ElapsedMilliseconds);
             }
         }
 

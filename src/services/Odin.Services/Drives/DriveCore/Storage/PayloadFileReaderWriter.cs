@@ -133,9 +133,14 @@ public class PayloadFileReaderWriter(
     public Task CopyPayloadFileAsync(string sourcePath, string targetPath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        // [UploadTiming] Diagnostic: time the LOCAL long-term copy (comparison baseline vs the S3 backend).
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             fileReaderWriter.CopyPayloadFile(sourcePath, targetPath);
+            _logger.LogInformation(
+                "[UploadTiming] LOCAL long-term copy src:{src} dst:{dst} elapsedMs:{elapsedMs}",
+                sourcePath, targetPath, sw.ElapsedMilliseconds);
             return Task.CompletedTask;
         }
         catch (Exception e) when (e is not OperationCanceledException)
