@@ -61,7 +61,18 @@ public sealed class JobExecutionResult
     private JobExecutionResult()
     {
     }
-    
+
     //
 }
+
+//
+
+// Passed to AbstractJob.OnCompletedAsync when a job reaches a terminal outcome: either success,
+// or failure after all attempts are exhausted. The job returns the next run time to keep recurring,
+// or null to finalize normally. Not produced on retries, defers, or aborts.
+public sealed record JobCompletion(
+    RunResult Result,             // Success or Fail
+    string? LastError,            // final error text on Fail, null on Success
+    int Attempts,                 // attempts made this occurrence
+    DateTimeOffset ScheduledFor); // the slot this occurrence ran for (use as the cadence anchor)
 

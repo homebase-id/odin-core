@@ -97,13 +97,29 @@ public class PayloadS3ReaderWriter(ILogger<PayloadS3ReaderWriter> logger, IS3Pay
 
     public async Task CopyPayloadFileAsync(string srcFilePath, string dstFilePath, CancellationToken cancellationToken = default)
     {
+        // [UploadTiming] Diagnostic: time the S3 upload INCLUDING retry/backoff (this is the suspected bottleneck).
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var attempts = 0;
         try
         {
             await TryRetry(async () =>
-                await s3PayloadsStorage.UploadFileAsync(srcFilePath, dstFilePath, cancellationToken), cancellationToken);
+            {
+                attempts++;
+                var attemptSw = System.Diagnostics.Stopwatch.StartNew();
+                await s3PayloadsStorage.UploadFileAsync(srcFilePath, dstFilePath, cancellationToken);
+                logger.LogInformation(
+                    "[UploadTiming] S3 upload attempt #{attempt} OK src:{src} dst:{dst} attemptMs:{attemptMs}",
+                    attempts, srcFilePath, dstFilePath, attemptSw.ElapsedMilliseconds);
+            }, cancellationToken);
+            logger.LogInformation(
+                "[UploadTiming] S3 upload TOTAL src:{src} dst:{dst} attempts:{attempts} totalMs:{totalMs}",
+                srcFilePath, dstFilePath, attempts, sw.ElapsedMilliseconds);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
+            logger.LogWarning(
+                "[UploadTiming] S3 upload FAILED src:{src} dst:{dst} attempts:{attempts} totalMs:{totalMs} error:{error}",
+                srcFilePath, dstFilePath, attempts, sw.ElapsedMilliseconds, e.Message);
             throw new PayloadReaderWriterException(e.Message, e);
         }
     }

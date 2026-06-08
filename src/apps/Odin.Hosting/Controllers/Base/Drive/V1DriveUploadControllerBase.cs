@@ -237,6 +237,9 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException($"JSON error: {e.Message}", e);
             }
 
+            // [UploadTiming] Diagnostic: time spent receiving + staging the multipart body vs the finalize/commit step.
+            var receiveSw = System.Diagnostics.Stopwatch.StartNew();
+
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
             logger.LogDebug("ReceiveFileStream: AddMetadata");
@@ -266,8 +269,17 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 section = await reader.ReadNextSectionAsync();
             }
 
+            logger.LogInformation(
+                "[UploadTiming] Multipart receive + local staging complete; receiveMs:{receiveMs}",
+                receiveSw.ElapsedMilliseconds);
+
             logger.LogDebug("ReceiveFileStream: FinalizeUploadAsync");
+            var finalizeSw = System.Diagnostics.Stopwatch.StartNew();
             var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext);
+            logger.LogInformation(
+                "[UploadTiming] Request totals: receiveMs:{receiveMs} finalizeMs:{finalizeMs} totalMs:{totalMs}",
+                receiveSw.ElapsedMilliseconds - finalizeSw.ElapsedMilliseconds, finalizeSw.ElapsedMilliseconds,
+                receiveSw.ElapsedMilliseconds);
             return status;
         }
 
