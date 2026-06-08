@@ -39,9 +39,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<uint> WriteUploadStream(InternalDriveFileId file, string extension, Stream stream)
         {
+            // [UploadTiming] Diagnostic: time the LOCAL staging write to prove local disk is fast vs S3 commit.
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             fileReaderWriter.CreateDirectory(_tenantPathManager.GetDriveUploadPath(file.DriveId));
             string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            return await fileReaderWriter.WriteStreamAsync(path, stream);
+            var bytesWritten = await fileReaderWriter.WriteStreamAsync(path, stream);
+            logger.LogInformation(
+                "[UploadTiming] LOCAL stage write fileId:{fileId} ext:{ext} bytes:{bytes} elapsedMs:{elapsedMs}",
+                file.FileId, extension, bytesWritten, sw.ElapsedMilliseconds);
+            return bytesWritten;
         }
 
         /// <summary>

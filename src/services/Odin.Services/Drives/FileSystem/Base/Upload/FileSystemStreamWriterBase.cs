@@ -187,11 +187,18 @@ public abstract class FileSystemStreamWriterBase
     /// </summary>
     public async Task<UploadResult> FinalizeUploadAsync(IOdinContext odinContext)
     {
+        // [UploadTiming] Diagnostic: phase breakdown of the finalize step (metadata -> commit -> transit enqueue).
+        var phaseSw = System.Diagnostics.Stopwatch.StartNew();
+
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(Package, odinContext);
 
         await this.ValidateUploadCoreAsync(Package, keyHeader, metadata, serverMetadata, odinContext);
 
         await this.ValidateUnpackedData(Package, keyHeader, metadata, serverMetadata, odinContext);
+
+        _logger.LogInformation(
+            "[UploadTiming] Finalize phase: metadata unpack + validation done fileId:{fileId} elapsedMs:{elapsedMs}",
+            Package.InternalFile.FileId, phaseSw.ElapsedMilliseconds);
 
         if (Package.IsUpdateOperation)
         {
@@ -258,7 +265,16 @@ public abstract class FileSystemStreamWriterBase
             await ProcessNewFileUpload(Package, keyHeader, metadata, serverMetadata, odinContext);
         }
 
+        // [UploadTiming] Diagnostic: time elapsed through the commit-to-storage phase (includes long-term/S3 copy).
+        _logger.LogInformation(
+            "[UploadTiming] Finalize phase: commit-to-storage done fileId:{fileId} cumulativeMs:{cumulativeMs}",
+            Package.InternalFile.FileId, phaseSw.ElapsedMilliseconds);
+
+        var transitSw = System.Diagnostics.Stopwatch.StartNew();
         Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(Package, odinContext);
+        _logger.LogInformation(
+            "[UploadTiming] Finalize phase: transit/outbox enqueue done fileId:{fileId} recipients:{recipients} transitMs:{transitMs} totalFinalizeMs:{totalFinalizeMs}",
+            Package.InternalFile.FileId, recipientStatus?.Count ?? 0, transitSw.ElapsedMilliseconds, phaseSw.ElapsedMilliseconds);
 
         var drive = await _driveManager.GetDriveAsync(Package.InternalFile.DriveId);
 
