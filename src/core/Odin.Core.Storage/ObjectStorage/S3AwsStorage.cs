@@ -96,7 +96,8 @@ public class S3AwsStorage : IS3Storage
 
             var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
-            _logger.LogDebug("S3AwsStorage:WriteBytesAsync {elapsed}ms", sw.ElapsedMilliseconds);
+            _logger.LogDebug("S3AwsStorage:WriteBytesAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
+                sw.ElapsedMilliseconds, bytes.Length, BytesPerSecond(bytes.Length, sw));
         }
         catch (Exception ex)
         {
@@ -134,7 +135,8 @@ public class S3AwsStorage : IS3Storage
 
             var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
-            _logger.LogDebug("S3AwsStorage:WriteStreamAsync {elapsed}ms", sw.ElapsedMilliseconds);
+            _logger.LogDebug("S3AwsStorage:WriteStreamAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
+                sw.ElapsedMilliseconds, bytesToWrite, BytesPerSecond(bytesToWrite, sw));
 
             return bytesToWrite;
         }
@@ -359,6 +361,8 @@ public class S3AwsStorage : IS3Storage
         S3Path.AssertFileName(dstPath);
         dstPath = S3Path.Combine(_rootPath, dstPath);
 
+        var bytesToWrite = new FileInfo(srcPath).Length;
+
         try
         {
             var request = new PutObjectRequest
@@ -371,7 +375,8 @@ public class S3AwsStorage : IS3Storage
 
             var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
-            _logger.LogDebug("S3AwsStorage:UploadFileAsync {elapsed}ms", sw.ElapsedMilliseconds);
+            _logger.LogDebug("S3AwsStorage:UploadFileAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
+                sw.ElapsedMilliseconds, bytesToWrite, BytesPerSecond(bytesToWrite, sw));
         }
         catch (Exception ex)
         {
@@ -432,6 +437,14 @@ public class S3AwsStorage : IS3Storage
         {
             throw CreateS3StorageException(ex, $"Failed to get file size of '{path}' in bucket '{BucketName}'.");
         }
+    }
+
+    //
+
+    private static double BytesPerSecond(long bytes, Stopwatch sw)
+    {
+        var seconds = sw.Elapsed.TotalSeconds;
+        return seconds > 0 ? bytes / seconds : 0;
     }
 
     //
