@@ -215,6 +215,29 @@ container — breaks odin-js's flat, odinId-keyed `ContactFile` compatibility.)
 
 ## Part D — Lock down direct writes to the ContactDrive
 
+### The problem
+Today the ContactDrive is a plain drive that **any client or app holding a Write grant can write to
+directly** — the owner app, ChatApp and MailApp all have `ReadWrite` (`SystemAppConstants`), and the
+owner additionally has `DrivePermission.All` on every drive via the master key. Writes go straight to
+the drive storage layer with no awareness of what a "contact" is.
+
+Everything this plan builds depends on the server being the single authority over contact data, and
+direct writes defeat that:
+- **No contract enforcement.** The dedupe key (`uniqueId = ToGuidId(odinId)`), `fileType=100`, the
+  camelCase content shape, `source` semantics, and the encrypted-at-rest format are only guaranteed if
+  writes go through `ContactService`. A client can write a malformed, mis-keyed, or plaintext file and
+  the server cannot stop it.
+- **Broken dedupe / duplicates.** Multiple independent writers (each client *plus* the new server-side
+  lifecycle handlers and enrichment job) racing on the same contact produce duplicate or divergent
+  files — exactly the "same file across the lifecycle" guarantee we just designed, silently undone.
+- **Relationship integrity.** The server composes `Relationship` from the connection registry and keeps
+  `source` in step via lifecycle events. A client writing `source`/odinId directly can contradict the
+  authoritative connection state.
+- **The new API is pointless if it can be bypassed.** CRUD, lifecycle, dedupe-detection, merge, and
+  enrichment only hold if *all* writes funnel through them.
+
+So the contact drive must become **service-managed**: writable only through the Contact API.
+
 **Goal:** the Contact API becomes the *only* writer of the ContactDrive. Direct drive writes from
 clients/apps (V1 + V2 upload, update, delete, payload) are rejected. **Read is left unchanged** for
 backwards compatibility (legacy clients keep reading contacts directly).
