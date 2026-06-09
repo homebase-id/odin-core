@@ -13,7 +13,7 @@
   the caller's shared secret, content left encrypted) and the client decrypts it, with the live relationship
   composed and attached server-side — the server never returns plaintext.
 - When the contact list is requested, it's cursor-paged and relationship-annotated, with filters for
-  `source`, `hasOdinId`, `search`, and `relationship` (e.g. connections-only) — relationship filters seed
+  `hasOdinId`, `search`, and `relationship` (e.g. connections-only) — relationship filters seed
   from the connection registry so pages stay full.
 - When a contact is **archived**, its connection and any requests stay intact and it's just hidden from
   default lists (reconcile honors the flag and won't resurrect it).
@@ -30,17 +30,19 @@
   composed live with priority connection-registry > pending request > introduction.
 
 **Lifecycle (connections & introductions)**
-- When an introduction is received, a stub contact (`source=public`) is upserted for each introduced identity.
-- When a connection request is received, a stub contact (`source=public`) is upserted for the sender.
+- When an introduction is received, a data-only stub contact is upserted for each introduced identity.
+- When a connection request is received, a data-only stub contact is upserted for the sender.
 - When a connection request is sent, a stub contact is upserted for the recipient.
-- When a connection request is accepted/finalized, the same contact file flips to `source=contact` and a
-  background enrichment job is scheduled.
-- When the enrichment job runs, it peer-queries the connection's profile and fills name/phone/email/location/
-  birthday/photo, merging into the contact.
-- When a connection is disconnected or blocked, the contact file is kept but `source` flips `contact`→`public`.
-- When a contact blocks or disconnects **us from their side**, nothing is pushed — the contact stays
-  `source=contact` (stale) until we next touch them (peer query / enrichment / `sync`); on detection the
-  platform revokes our ICR and the contact flips `source`→`public`, just like a local disconnect.
+- When a connection is accepted/finalized, the contact file is ensured and enrichment is scheduled to re-pull
+  the now-available **peer** data — no status is written to the file.
+- When the enrichment job runs, it loads data from the source dictated by **live** status — the **peer**
+  profile if connected, the **public** profile (`pub/profile`) if not — and merges name/phone/email/location/
+  birthday/photo into the contact.
+- When a connection is disconnected or blocked (by us or by them), **nothing is written to the file** — the
+  live `Relationship` from `CircleNetworkService` reports Blocked/None on the next read.
+- When a contact blocks or disconnects **us from their side**, nothing is pushed; our ICR stays stale until a
+  peer call (enrichment / `sync`) hits `403 + X-Remote-Server-Icr-Issue`, which revokes the ICR — after which
+  the live `Relationship` reports the severance (no stored status to update).
 - When reconcile (or `POST /sync`) runs, a contact file is ensured for every current relationship, backfilling
   any that are missing.
 
@@ -85,10 +87,14 @@ Constraints / decisions locked with the user:
   handled by capture-at-creation, duplicate *detection* (suggestions), explicit link, and a merge
   operation — **never a silent auto-merge** (see Part C).
 - **List always includes** non-connected (introduced/pending) identities.
-- **Relationship is composed live** from the connection registry/requests/introductions at read time
-  (authoritative, never stale). Stored content stays backwards-compatible with odin-js.
-- `ICR.OriginalContactData` is being removed → profile data comes from peer-querying the profile.
-- **Disconnect/Block**: keep file, flip `source` `contact`→`public`. **Auth**: `OwnerOrApp`.
+- **Relationship/status is composed live** from `CircleNetworkService` (+ requests/introductions) at read
+  time — connected/blocked/introduced/pending is **never stored on the contact file**.
+- **No `source` field.** The record holds only contact *data*; whether that data came from the peer
+  (connected) or the public profile (not connected) follows from live status, so `source` is dropped
+  (existing files keep theirs and stay readable; requires odin-js to read status from `Relationship`).
+- **Data origin follows live status**: connected → the peer's data; not connected → the identity's public
+  profile (`pub/profile`). `ICR.OriginalContactData` is being removed.
+- **Disconnect/Block**: keep the file, write nothing (status is live). **Auth**: `OwnerOrApp`.
   **Encrypted at rest**: yes. **Sync endpoint**: yes.
 
 ### The identity-keying insight (why "same file" works)
@@ -121,7 +127,7 @@ is **removed** from this JSON and stored as a payload instead. Exact shape:
 ```jsonc
 {
   "odinId": "frodo.dotyou.cloud",            // optional
-  "source": "contact" | "public" | "user",   // required
+  "source": "contact" | "public" | "user",   // LEGACY — server no longer writes this (see note)
   "name":     { "displayName": "…", "givenName": "…", "additionalName": "…", "surname": "…" },
   "location": { "city": "…", "country": "…" },
   "phone":    { "number": "…" },
@@ -132,12 +138,16 @@ is **removed** from this JSON and stored as a payload instead. Exact shape:
 **Profile image**: separate payload, key `prfl_pic` (`CONTACT_PROFILE_IMAGE_KEY`), with a generated
 `previewThumbnail` on the header. Never embedded in `Content`.
 
+**`source` is dropped going forward.** Existing files keep it and stay readable, but the server neither
+writes nor relies on it — connection status comes from the live `Relationship`, and data origin (peer vs.
+public profile) follows from that status. odin-js must migrate to read status from `Relationship`.
+
 ### Data structures — new `src/services/Odin.Services/Contacts/`
-`ContactContent` mirrors the JSON above 1:1 (serialized **camelCase**; `enum ContactSource { Contact,
-Public, User }` serialized as the lowercase strings): `ContactContent { OdinId?, Source, Name?,
+`ContactContent` is the contact **data** only (serialized **camelCase**): `ContactContent { OdinId?, Name?,
 Location?, Phone?, Email?, Birthday? }` with `ContactName { DisplayName, GivenName?, AdditionalName?,
 Surname? }`, `ContactLocation { City?, Country? }`, `ContactPhone { Number }`, `ContactEmail { Email }`,
-`ContactBirthday { Date }`. Pin camelCase explicitly on these DTOs (don't trust the serializer default).
+`ContactBirthday { Date }`. **No `source`** — connected/blocked status is the live `Relationship`, never
+stored. Pin camelCase explicitly on these DTOs (don't trust the serializer default).
 
 **Live-composed relationship** (NOT stored on the file):
 ```
@@ -201,9 +211,9 @@ Inputs: `UpsertContactRequest { Content, VersionTag? }`, `ContactListResult { Re
     relationship left, reconcile won't recreate it. A contact with **no** live relationship is just a plain
     `SoftDeleteLongTermFile`.
   - **Caveat:** the disconnect is **outward-facing** — it revokes the peer's access and fires
-    `ConnectionDeletedNotification` (whose handler flips `source`→`public`), so `DELETE` must require explicit
-    client confirmation, and the teardown runs **before** the file soft-delete so the end state is *deleted*,
-    not flipped-to-public-then-left. (Block stays a separate action: keeps the file, `source`→`public`.)
+    `ConnectionDeletedNotification`, so `DELETE` must require explicit client confirmation, and the teardown
+    runs **before** the file soft-delete so the end state is *deleted*, not resurrected by reconcile. (Block
+    stays a separate action: keeps the file; the live `Relationship` then reports Blocked.)
 - **Image (`prfl_pic`) — shared-secret-encrypted like content.** The payload is AES-encrypted with the file
   keyHeader; `GetImageAsync` serves the encrypted payload stream with the `SharedSecretEncryptedKeyHeader`
   header (and encrypted preview thumbnail) so the **client decrypts** — same as any drive payload, never
@@ -245,10 +255,9 @@ Contact creation (`POST /`) accepts an optional `content.odinId`; when present t
 `ToContactUniqueId(odinId)` immediately (Part C #1), so a later connection lands on the same file.
 
 **List paging & filtering.** Cursor-paged (`pageSize` + opaque `cursor`), default newest-first. Filters:
-`source` (contact/public/user), `hasOdinId`, `relationship` (`connected` | `introduced` | `pending` |
-`blocked` | `all`), and optional `search` (name/email/phone prefix). Two strategies, because relationship is
-**not** stored on the file:
-- **Content filters** (`source`, `hasOdinId`, `search`) are applied in the drive query / on tags, so paging
+`hasOdinId`, `relationship` (`connected` | `introduced` | `pending` | `blocked` | `all`), and optional
+`search` (name/email/phone prefix). Two strategies, because relationship is **not** stored on the file:
+- **Content filters** (`hasOdinId`, `search`) are applied in the drive query / on tags, so paging
   is over stored files and pages stay full.
 - **`relationship` filters** are served by seeding from the authoritative source — `connected`/`blocked` from
   the connection registry, `introduced` from introductions, `pending` from requests — then joining to the
@@ -260,50 +269,49 @@ Contact creation (`POST /`) accepts an optional `content.odinId`; when present t
 ## Part B — Lifecycle: events keep contact files in step with relationships
 
 ### `ContactLifecycleService` (`Odin.Services/Contacts/`) — MediatR handlers
-All these notifications are **awaited synchronously** on the connection hot path → handlers must be
-**fast & local** (upsert a stub, never peer I/O inline). Each ensures the odinId-keyed contact file
-exists and sets `source`:
-- `INotificationHandler<IntroductionsReceivedNotification>` → for each introduced `Identity`, upsert
-  stub `{ odinId, source: Public }`. (Notification carries `IntroducerOdinId` + identities.)
-- `INotificationHandler<ConnectionRequestReceivedNotification>` → upsert stub for `Sender`
-  `{ odinId, source: Public }`. (Origin/introducer are encrypted in the header but composed live later.)
-- `INotificationHandler<ConnectionFinalizedNotification>` → upsert same file → `source: Contact`,
-  then `IJobManager.ScheduleJobAsync(ContactEnrichmentJob{ Identity, TargetOdinId })` (`JobSchedule.Now`).
-- `INotificationHandler<ConnectionDeletedNotification|ConnectionBlockedNotification>` → load by
-  `ToContactUniqueId(odinId)`; if `source==Contact` flip to `Public`. Keep the file.
-- **Remote-initiated block/disconnect is silent** (no push, no background reconcile): our ICR stays
-  `Connected` until a peer call detects it. The enrichment/sync peer-query **is** such a call — if the peer
-  returns `403 + X-Remote-Server-Icr-Issue`, the platform auto-revokes our ICR and fires
-  `ConnectionDeletedNotification`, so the handler above flips the contact `source`→`public` (kept), converging
-  to the same state as a local disconnect. A bare 403 / other failure does **not** revoke — the job exits
-  gracefully and leaves the contact intact (no partial enrichment).
-- **Outgoing request**: confirm whether a "request sent" notification exists; if not, upsert the stub
+These notifications are **awaited synchronously** on the connection hot path → handlers must be
+**fast & local** (ensure the file exists, schedule enrichment; never peer I/O inline). Handlers write
+**only contact data**, never relationship status (status is the live `Relationship`):
+- `INotificationHandler<IntroductionsReceivedNotification>` → for each introduced `Identity`, ensure a
+  data-only stub `{ odinId }` and schedule enrichment (uses the **public** profile — not connected yet).
+- `INotificationHandler<ConnectionRequestReceivedNotification>` → ensure a data-only stub `{ odinId }` for
+  `Sender` and schedule enrichment (public profile).
+- `INotificationHandler<ConnectionFinalizedNotification>` → ensure the file and schedule enrichment to
+  re-pull the now-available **peer** data (`IJobManager.ScheduleJobAsync(ContactEnrichmentJob{ ... })`).
+- `INotificationHandler<ConnectionDeletedNotification|ConnectionBlockedNotification>` → **no file write**;
+  the live `Relationship` already reports None/Blocked. (Optionally schedule a re-enrich from the public
+  profile to refresh data that's no longer peer-available.)
+- **Remote-initiated block/disconnect is silent** (no push, no background reconcile): our ICR stays stale
+  until a peer call (enrichment / `sync`) hits `403 + X-Remote-Server-Icr-Issue`, which auto-revokes the ICR —
+  after which the live `Relationship` reports the severance, so **nothing on the file needs flipping**. A bare
+  403 / other failure does **not** revoke; the job exits gracefully without mutating the contact.
+- **Outgoing request**: confirm whether a "request sent" notification exists; if not, ensure the stub
   in the V2 send path (`V2ConnectionRequestsController`/send service) — see risk below.
 
 ### Reconcile (backfill + self-heal) — `ContactReconcileJob` / `POST /sync`
 A reconcile pass ensures a contact file exists for every current relationship: scan connected ICRs +
-pending + sent requests + received introductions, upsert any missing stub with the right `source`.
+pending + sent requests + received introductions, upsert any missing data-only stub (no status written).
 Backfills contacts for relationships that predate this feature and heals missed events.
 
 ### Profile enrichment — `ContactEnrichmentService` + `ContactEnrichmentJob`
-`EnrichFromConnectionAsync(OdinId, IOdinContext)`:
-1. Peer-query the connection's `ProfileDrive` via `PeerDriveQueryService.GetBatchAsync`
-   (`FileType=[77]`, `GroupId=[BuiltInAttribute GUIDs]`, `IncludeHeaderContent=true`). Needs
-   `UseTransitRead` + an ICR (present once connected).
-2. Map attribute `Data` → `ContactContent` (Name/Phone/Email/Address→Location/Birthday); port mapping
-   from odin-js `queryRemoteAttributes`. Add C# `BuiltInAttributes` GUID constants (not in C# today; port from TS).
-3. Fetch `prfl_pic` payload from the Photo attribute (`GetPayloadStreamAsync(...,"prfl_pic")`) → store
-   as contact image payload + preview thumbnail.
-4. `source=Contact`, odinId set → `ContactService.UpsertAsync` (merge).
-`ContactEnrichmentJob : AbstractJob` (template: `ExportTenantJob`; register in `JobExtensions.cs`):
+`EnrichAsync(OdinId, IOdinContext)` chooses the data source from **live** status (`CircleNetworkService`):
+- **Connected** → peer-query the identity's `ProfileDrive` via `PeerDriveQueryService.GetBatchAsync`
+  (`FileType=[77]`, `GroupId=[BuiltInAttribute GUIDs]`, `IncludeHeaderContent=true`; needs `UseTransitRead`
+  + an ICR) and fetch the `prfl_pic` payload (`GetPayloadStreamAsync(...,"prfl_pic")`).
+- **Not connected** → read the identity's **public profile** (`pub/profile`, anonymous) for name/photo/etc.
+
+Then map the result → `ContactContent` (Name/Phone/Email/Address→Location/Birthday; port the mapping from
+odin-js `queryRemoteAttributes`; add C# `BuiltInAttributes` GUID constants), store the image as the `prfl_pic`
+payload + preview thumbnail, and `ContactService.UpsertAsync` (merge, **data only**).
+`ContactEnrichmentJob : AbstractJob` (template: `ExportTenantJob`; register in `JobExtensions.cs`)
 reconstructs an owner/system `IOdinContext` w/ `UseTransitRead` (mirror
 `PeerOutboxProcessorBackgroundService.ProcessItemThread`), resolves the service from its own job scope
-(safe for DB), calls `EnrichFromConnectionAsync`; idempotent via uniqueId upsert. `POST /sync/{odinId}`
-calls the same method inline with the request's owner context.
-On a peer **403** the platform may revoke the ICR (→ `ConnectionDeleted` → contact `source`→`public`); on any
-other peer failure the job returns `Fail` **without mutating** the contact. Because remote severance is only
-discovered this way, `sync` doubles as the "verify + refresh" path — optionally have it call
-`CircleNetworkVerificationService.VerifyConnectionAsync` to detect a peer-side block proactively.
+(safe for DB), and calls `EnrichAsync`; idempotent via uniqueId upsert. `POST /sync/{odinId}` calls the same
+method inline with the request's owner context.
+On a peer **403** the platform may revoke the ICR (→ the live `Relationship` flips to severed; **no file
+write**); on any other peer failure the job returns `Fail` **without mutating** the contact. `sync` doubles as
+the "verify + refresh" path — optionally call `CircleNetworkVerificationService.VerifyConnectionAsync` to
+detect a peer-side block proactively.
 
 ---
 
@@ -329,8 +337,8 @@ The enrichment job (which already fetches the peer's email/phone/name) is the na
 suggestions for a newly-connected identity. Surfaced via `GET /duplicates`; the user/UI decides.
 
 **#4 — First-class merge operation.** `POST /contacts/merge { sourceUniqueId, targetUniqueId }`:
-union content (prefer the user-entered/manual fields, take the odinId + relationship from the
-connected one), keep the odinId-keyed file, soft-delete the other, re-point the image payload.
+union content (prefer the user-entered/manual fields, take the odinId from the odinId-keyed one),
+keep the odinId-keyed file, soft-delete the other, re-point the image payload.
 Duplicates are an accepted intermediate state; this is the clean resolution.
 
 **#5 — Explicit link.** `POST /contacts/{uniqueId}/link { odinId }`: set `content.odinId` and **re-key**
@@ -353,15 +361,14 @@ the drive storage layer with no awareness of what a "contact" is.
 Everything this plan builds depends on the server being the single authority over contact data, and
 direct writes defeat that:
 - **No contract enforcement.** The dedupe key (`uniqueId = ToGuidId(odinId)`), `fileType=100`, the
-  camelCase content shape, `source` semantics, and the encrypted-at-rest format are only guaranteed if
-  writes go through `ContactService`. A client can write a malformed, mis-keyed, or plaintext file and
-  the server cannot stop it.
+  camelCase content shape, and the encrypted-at-rest format are only guaranteed if writes go through
+  `ContactService`. A client can write a malformed, mis-keyed, or plaintext file and the server cannot stop it.
 - **Broken dedupe / duplicates.** Multiple independent writers (each client *plus* the new server-side
   lifecycle handlers and enrichment job) racing on the same contact produce duplicate or divergent
   files — exactly the "same file across the lifecycle" guarantee we just designed, silently undone.
-- **Relationship integrity.** The server composes `Relationship` from the connection registry and keeps
-  `source` in step via lifecycle events. A client writing `source`/odinId directly can contradict the
-  authoritative connection state.
+- **Data integrity.** A client writing directly can mis-key a contact (wrong/duplicate `uniqueId`) or write
+  malformed data, diverging from what the lifecycle/enrichment maintains. (Status itself is always live from
+  `CircleNetworkService`, so it can't be corrupted by a write — but the contact data can.)
 - **The new API is pointless if it can be bypassed.** CRUD, lifecycle, dedupe-detection, merge, and
   enrichment only hold if *all* writes funnel through them.
 
@@ -454,19 +461,21 @@ by every drive read — the Contact API returns contacts in this exact shape).
   (assert the server never emits plaintext content); an odin-js-written encrypted contact is returned in
   that same shape and decodes (camelCase); relationship composition priority (ICR > request > introduction).
 - **Integration** (`_Universal`, two identities, peer flow per CLAUDE.md):
-  - Frodo introduced to Sam → a `source=public`, `Relationship.State=Introduced`,
-    `ViaIntroduction=true`, `IntroducerOdinId=<introducer>` contact appears.
+  - Frodo introduced to Sam → a contact appears with `Relationship.State=Introduced`, `ViaIntroduction=true`,
+    `IntroducerOdinId=<introducer>`; enrichment fills name/photo from Sam's **public** profile (`pub/profile`).
   - Request pending → same file, `State=RequestIncoming/Outgoing`.
-  - Connect → **same file** flips `source=contact`, `State=Connected`, `Origin=Introduction` retained
-    via ICR; enrichment job fills name/photo. Assert no duplicate file.
-  - Disconnect → file kept, `source=public`, `State=None/Blocked`.
+  - Connect → **same file**, `State=Connected`, `Origin=Introduction` retained via ICR; enrichment re-pulls
+    name/photo from **peer** data. Assert no duplicate file and **no status written to the file**.
+  - Disconnect → file kept (no file write); the live `Relationship` reports `None/Blocked`.
+  - A stored contact record contains **no `source`/status field**; status appears only in the composed
+    `Relationship`.
   - Create with `content.odinId` set → keyed on `ToGuidId(odinId)`; later connect updates same file (#1).
   - Manual no-odinId contact + `POST /link` → re-keyed to `ToGuidId(odinId)` (routes to merge on collision).
   - Two contacts for the same person → `GET /duplicates` surfaces the pair (exact email/phone, fuzzy name);
     `POST /merge` collapses them; assert **no auto-merge** ever fires on its own.
   - List with mixed states returns all, correctly annotated.
   - Filtered list: `relationship=connected` returns only connected contacts (seeded from the registry);
-    `source`/`search` filters page over stored files with full pages and a working cursor.
+    `hasOdinId`/`search` filters page over stored files with full pages and a working cursor.
   - Concurrent client PUTs with a stale `versionTag` → the loser gets **409** carrying the current
     `versionTag`/header, re-fetches and succeeds; assert no lost update.
   - `DELETE` a connected contact → it disconnects (peer access revoked) and the contact stays deleted (not
@@ -485,6 +494,10 @@ by every drive read — the Contact API returns contacts in this exact shape).
   stub in the send path or rely on `ContactReconcileJob`/`/sync`.
 - Enrichment job must reconstruct an owner context with `UseTransitRead`/ICR access detached from a
   request — mirror `PeerOutboxProcessorBackgroundService`.
+- Enrichment branches on live status: **connected** → peer profile (transit); **not connected** → public
+  profile (`pub/profile`, anonymous). Confirm the exact server-side `pub/profile` fetch + field mapping.
+- Dropping `source` requires odin-js to read connection status from the composed `Relationship` rather than
+  the stored field — sequence with the client migration (same migration as the Part D write lockdown).
 - Re-key uniqueId via `OverwriteMetadata` on an existing fileId — confirm clientUniqueId can change and
   handle the collision/merge case.
 - `BuiltInAttributes` GUIDs only in TS today → port to C#. Pin DTO camelCase explicitly.
