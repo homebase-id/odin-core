@@ -1271,6 +1271,70 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
+        /// <summary>
+        /// Attempts to upgrade the identity's master-key store-key encryption if it still requires it
+        /// (i.e. the grant was established without the owner's master key). Returns true when the identity
+        /// no longer requires the upgrade and is therefore safe to (re)grant circles to. Returns false when
+        /// the upgrade could not be completed (e.g. the identity has no <see cref="IdentityConnectionRegistration.TempWeakKeyStoreKey"/>
+        /// to recover from), in which case the caller should skip it and retry once the identity is upgraded.
+        /// </summary>
+        public async Task<bool> TryUpgradeMasterKeyStoreKeyEncryptionAsync(IdentityConnectionRegistration identity,
+            IOdinContext odinContext)
+        {
+            if (!identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+            {
+                return true;
+            }
+
+            await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(identity, odinContext);
+
+            // The upgrade writes to the db, so refetch to determine whether it actually took effect.
+            var refreshed = await GetIdentityConnectionRegistrationInternalAsync(identity.OdinId);
+            return !refreshed.AccessGrant.RequiresMasterKeyEncryptionUpgrade();
+        }
+
+        /// <summary>
+        /// Iterates all connected identities and upgrades the master-key store-key encryption for any that
+        /// still require it (i.e. their grant was established without the owner's master key). Intended to be
+        /// run once before version migrations so downstream migration logic can assume identities are upgraded.
+        /// Identities that cannot be upgraded (e.g. no TempWeakKeyStoreKey to recover from) are left as-is and
+        /// self-heal later via the lazy circle-definition reconcile path. Returns the number of identities
+        /// upgraded and skipped so the caller can log a summary in its own trace.
+        /// </summary>
+        public async Task<(int upgraded, int skipped)> UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(
+            IOdinContext odinContext, CancellationToken cancellationToken)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var allIdentities = await GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
+
+            var upgraded = 0;
+            var skipped = 0;
+            foreach (var identity in allIdentities.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    continue;
+                }
+
+                if (await TryUpgradeMasterKeyStoreKeyEncryptionAsync(identity, odinContext))
+                {
+                    upgraded++;
+                }
+                else
+                {
+                    skipped++;
+                    logger.LogWarning(
+                        "Identity {odinId} still requires master key encryption upgrade after attempt; leaving for lazy reconcile",
+                        identity.OdinId);
+                }
+            }
+
+            return (upgraded, skipped);
+        }
+
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,
             IOdinContext odinContext)
         {
