@@ -13,8 +13,11 @@ introduction, who introduced them, connection status, pending state).
 Constraints / decisions locked with the user:
 - **A non-connected person is still a contact and MUST be stored as a file.** Introduced, pending,
   connected, and manually-added people all get a contact file. No "virtual" contacts.
-- **Same file across the lifecycle.** When I already have a contact and they later connect, the
-  *same* file is updated with the odinId — not a duplicate.
+- **Same file across the lifecycle.** Any contact that carries an odinId is keyed deterministically,
+  so introduced→pending→connected resolve to the *same* file, updated in place — no duplicate. A
+  contact typed in by hand with **no** odinId cannot be matched automatically (no shared key); it is
+  handled by capture-at-creation, duplicate *detection* (suggestions), explicit link, and a merge
+  operation — **never a silent auto-merge** (see Part C).
 - **List always includes** non-connected (introduced/pending) identities.
 - **Relationship is composed live** from the connection registry/requests/introductions at read time
   (authoritative, never stale). Stored content stays backwards-compatible with odin-js.
@@ -94,7 +97,12 @@ Modeled on `V2ConnectionRequestsController` (`[Route(UnifiedApiRouteConstants.Co
 | DELETE | `/{uniqueId:guid}` ; `/by-odin-id/{odinId}` | 204 |
 | GET/POST | `/{uniqueId:guid}/image` | image / 204 |
 | POST | `/sync/{odinId}` | `Contact` — enrich from peer profile inline (Part B) |
-| POST | `/{uniqueId:guid}/link` `{ odinId }` | `Contact` — attach odinId + re-key/merge (Part C) |
+| POST | `/{uniqueId:guid}/link` `{ odinId }` | `Contact` — attach odinId + re-key (Part C #5) |
+| POST | `/merge` `{ sourceUniqueId, targetUniqueId }` | `Contact` — explicit merge, never automatic (Part C #4) |
+| GET | `/duplicates` (or `/{uniqueId}/duplicate-suggestions`) | candidate dup pairs (Part C #3) |
+
+Contact creation (`POST /`) accepts an optional `content.odinId`; when present the file is keyed on
+`ToContactUniqueId(odinId)` immediately (Part C #1), so a later connection lands on the same file.
 
 ---
 
@@ -140,14 +148,36 @@ calls the same method inline with the request's owner context.
 
 ## Part C — Manual contact (no odinId) → later connects
 
-`POST /api/v2/contacts/{uniqueId}/link { odinId }` (and PUT setting `content.odinId` routes here):
-- Set `content.odinId`, then **re-key** the file's `uniqueId` to `ToContactUniqueId(odinId)` (overwrite
-  metadata on the same `fileId`) so future lifecycle events update this same file.
-- If a contact already exists under `ToContactUniqueId(odinId)` (e.g. a stub from a prior introduction),
-  **merge**: prefer the manual file's user-entered fields, copy over the stub's odinId/source, delete
-  the duplicate. Trigger enrichment if connected.
-This is the only path requiring explicit linking — every relationship-originated contact is already
-odinId-keyed and merges automatically.
+Every relationship-originated contact (introduction/request/connection) carries an odinId, so it is
+keyed on `ToContactUniqueId(odinId)` and updates in place automatically. The only unsolved case is a
+**hand-typed contact with no odinId** that later connects: there is no shared key, and the server has
+no reliable way to know they're the same person (`OriginalContactData` is going away; name/email
+matching is heuristic). **Guiding principle: auto-merge is never performed — a wrong merge is far
+worse than a duplicate.** We address it in layers:
+
+**#1 — Capture odinId at creation (prevent the problem).** `content.odinId` is a first-class optional
+field on create; when the user knows the Homebase ID, the contact is keyed on `ToContactUniqueId(odinId)`
+from the start and the whole problem collapses into the automatic path.
+
+**#3 — Detect potential duplicates (suggest, never act).** `ContactDuplicateDetector`
+(`Odin.Services/Contacts/`) finds candidate pairs between odinId-keyed contacts and no-odinId contacts
+using exact normalized **email/phone** (high confidence) and fuzzy **name** (low confidence). To make
+the scan cheap, `ContactService` stores normalized email/phone as additional **tags** on each contact
+(tags already exist in `AppFileMetadata`) — used **only** for candidate lookup, never to auto-merge.
+The enrichment job (which already fetches the peer's email/phone/name) is the natural place to compute
+suggestions for a newly-connected identity. Surfaced via `GET /duplicates`; the user/UI decides.
+
+**#4 — First-class merge operation.** `POST /contacts/merge { sourceUniqueId, targetUniqueId }`:
+union content (prefer the user-entered/manual fields, take the odinId + relationship from the
+connected one), keep the odinId-keyed file, soft-delete the other, re-point the image payload.
+Duplicates are an accepted intermediate state; this is the clean resolution.
+
+**#5 — Explicit link.** `POST /contacts/{uniqueId}/link { odinId }`: set `content.odinId` and **re-key**
+the file's `uniqueId` to `ToContactUniqueId(odinId)` on the same `fileId`, so all future lifecycle
+events land on it. If a contact already exists under that key, this routes into the `merge` path (#4).
+
+(Explicitly **rejected**: auto-merging on email/phone — too dangerous; and a multi-identity contact
+container — breaks odin-js's flat, odinId-keyed `ContactFile` compatibility.)
 
 ---
 
@@ -180,7 +210,10 @@ pending/sent getters; `CircleNetworkIntroductionService.GetReceivedIntroductions
   - Connect → **same file** flips `source=contact`, `State=Connected`, `Origin=Introduction` retained
     via ICR; enrichment job fills name/photo. Assert no duplicate file.
   - Disconnect → file kept, `source=public`, `State=None/Blocked`.
-  - Manual no-odinId contact + `POST /link` → re-keyed to `ToGuidId(odinId)`, merges any stub.
+  - Create with `content.odinId` set → keyed on `ToGuidId(odinId)`; later connect updates same file (#1).
+  - Manual no-odinId contact + `POST /link` → re-keyed to `ToGuidId(odinId)` (routes to merge on collision).
+  - Two contacts for the same person → `GET /duplicates` surfaces the pair (exact email/phone, fuzzy name);
+    `POST /merge` collapses them; assert **no auto-merge** ever fires on its own.
   - List with mixed states returns all, correctly annotated.
 - SQLite + PostgreSQL: `dotnet test ./odin-core.sln`.
 
