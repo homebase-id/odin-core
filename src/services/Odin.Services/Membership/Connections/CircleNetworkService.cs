@@ -1271,6 +1271,28 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
+        /// <summary>
+        /// Attempts to upgrade the identity's master-key store-key encryption if it still requires it
+        /// (i.e. the grant was established without the owner's master key). Returns true when the identity
+        /// no longer requires the upgrade and is therefore safe to (re)grant circles to. Returns false when
+        /// the upgrade could not be completed (e.g. the identity has no <see cref="IdentityConnectionRegistration.TempWeakKeyStoreKey"/>
+        /// to recover from), in which case the caller should skip it and retry once the identity is upgraded.
+        /// </summary>
+        public async Task<bool> TryUpgradeMasterKeyStoreKeyEncryptionAsync(IdentityConnectionRegistration identity,
+            IOdinContext odinContext)
+        {
+            if (!identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+            {
+                return true;
+            }
+
+            await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(identity, odinContext);
+
+            // The upgrade writes to the db, so refetch to determine whether it actually took effect.
+            var refreshed = await GetIdentityConnectionRegistrationInternalAsync(identity.OdinId);
+            return !refreshed.AccessGrant.RequiresMasterKeyEncryptionUpgrade();
+        }
+
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,
             IOdinContext odinContext)
         {
