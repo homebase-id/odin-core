@@ -338,6 +338,11 @@ public class HomebaseChannelContentService(
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Client disconnected (or the request timed out) mid-read; not a failure, don't try to recover.
+            throw;
+        }
         catch (Exception e)
         {
             // if incomplete and there is a payload try parsing that
