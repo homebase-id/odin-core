@@ -87,7 +87,12 @@ class ContactRelationship {
   UnixTimeUtc? RequestReceivedAt;        // pending/sent request timestamp
 }
 ```
-API response: `Contact { FileId, UniqueId, VersionTag, Created, Updated, HasImage, ContactContent Content, ContactRelationship Relationship }`.
+API response uses the **same shared-secret-encrypted file-header mechanism as every other drive read** —
+the standard `SharedSecretEncryptedFileHeader` (file metadata, `HasImage`, AES-encrypted `AppData.Content`,
+and the `SharedSecretEncryptedKeyHeader`) **plus** the live `ContactRelationship`. The server does **not**
+return plaintext; the **client** decrypts `Content` into `ContactContent` exactly as it does any drive file
+today. (`ContactContent` is the *decrypted* schema — used by the client after decryption and by the server
+internally for enrichment/merge — and is never sent in the clear.)
 Inputs: `UpsertContactRequest { Content, VersionTag? }`, `ContactListResult { Results, Cursor }`.
 
 ### `ContactService` (`Odin.Services/Contacts/ContactService.cs`)
@@ -97,11 +102,17 @@ Inputs: `UpsertContactRequest { Content, VersionTag? }`, `ContactListResult { Re
 - CRUD: `UpsertAsync`, `GetByOdinIdAsync`, `GetByUniqueIdAsync`, `GetByFileIdAsync`,
   `GetListAsync`, `DeleteBy{OdinId,UniqueId}Async` (`SoftDeleteLongTermFile`),
   `Get/SetImageAsync` (`prfl_pic` payload).
-- Encrypt-on-write / decrypt-on-read (verified): write → `keyHeader.EncryptDataAes(json)` base64,
-  `IsEncrypted=true`, `CreateServerFileHeader` (encrypts keyHeader w/ drive storage key),
-  `WriteNewFileHeader`/`UpdateActiveFileHeader`; read → `GetDriveStorageKey` →
-  `EncryptedKeyHeader.DecryptAesToKeyHeader` → `keyHeader.Decrypt(Content.FromBase64())`.
-  `ServerMetadata = OwnerOnly`; `tags=[uniqueId]` when odinId present. Default-payload spill fallback.
+- **Read = shared-secret-encrypted, never plaintext.** Reuse the standard drive query that returns a
+  `SharedSecretEncryptedFileHeader`: the per-file keyHeader is re-encrypted from the drive storage key to
+  the caller's shared secret (`DriveFileUtility`), and `AppData.Content` stays AES-encrypted — the **client**
+  decrypts, exactly as for any drive file today. The server decrypts content internally **only** when it
+  must mutate it (enrichment/merge), using the drive storage key.
+- **Write**: client-originated writes use the same shared-secret transfer-keyHeader mechanism as a drive
+  upload (client encrypts content and sends the keyHeader encrypted with the shared secret), so the server
+  never sees client plaintext. Server-originated writes (lifecycle/enrichment) generate a keyHeader →
+  `keyHeader.EncryptDataAes(json)` base64, `IsEncrypted=true`, `CreateServerFileHeader` (wraps keyHeader with
+  the drive storage key), `WriteNewFileHeader`/`UpdateActiveFileHeader`.
+  `ServerMetadata = OwnerOnly`; `tags=[uniqueId]` (+ normalized email/phone) when present. Default-payload spill fallback.
 - **Upsert/merge**: lookup via `GetFileByClientUniqueIdForWriting(ToContactUniqueId(odinId))`; if
   present preserve `fileId`/`versionTag` and **merge** new content over existing (don't clobber
   user-entered fields); else create. Retry once on versionTag conflict (client may write same uniqueId).
@@ -314,12 +325,15 @@ This lets read-compat and the new write path coexist during migration with no ha
 + `RedactedIdentityConnectionRegistration` (status/origin/introducer); `CircleNetworkRequestService`
 pending/sent getters; `CircleNetworkIntroductionService.GetReceivedIntroductionsAsync`; `IJobManager`/
 `AbstractJob` (`ExportTenantJob`); `PeerOutboxProcessorBackgroundService` (detached owner context);
-`KeyHeader`/`DriveStorageServiceBase` encrypt pattern (`FeedWriter`, `ShardRequestApprovalCollector`).
+`KeyHeader`/`DriveStorageServiceBase` encrypt pattern (`FeedWriter`, `ShardRequestApprovalCollector`);
+`DriveFileUtility` + `SharedSecretEncryptedFileHeader` (the shared-secret keyHeader re-encryption used
+by every drive read — the Contact API returns contacts in this exact shape).
 
 ## Verification
-- **Unit**: `ToContactUniqueId` parity vector vs odin-js `toGuidId`; CRUD encrypt/decrypt round-trip;
-  odin-js-written encrypted contact decodes (camelCase); relationship composition priority
-  (ICR > request > introduction).
+- **Unit**: `ToContactUniqueId` parity vector vs odin-js `toGuidId`; a contact written via the API is
+  returned as a `SharedSecretEncryptedFileHeader` and **decrypts client-side** with the shared secret
+  (assert the server never emits plaintext content); an odin-js-written encrypted contact is returned in
+  that same shape and decodes (camelCase); relationship composition priority (ICR > request > introduction).
 - **Integration** (`_Universal`, two identities, peer flow per CLAUDE.md):
   - Frodo introduced to Sam → a `source=public`, `Relationship.State=Introduced`,
     `ViaIntroduction=true`, `IntroducerOdinId=<introducer>` contact appears.
