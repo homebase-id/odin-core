@@ -1293,6 +1293,51 @@ namespace Odin.Services.Membership.Connections
             return !refreshed.AccessGrant.RequiresMasterKeyEncryptionUpgrade();
         }
 
+        /// <summary>
+        /// Iterates all connected identities and upgrades the master-key store-key encryption for any that
+        /// still require it (i.e. their grant was established without the owner's master key). Intended to be
+        /// run once before version migrations so downstream migration logic can assume identities are upgraded.
+        /// Identities that cannot be upgraded (e.g. no TempWeakKeyStoreKey to recover from) are left as-is and
+        /// self-heal later via the lazy circle-definition reconcile path.
+        /// </summary>
+        public async Task UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(IOdinContext odinContext,
+            CancellationToken cancellationToken)
+        {
+            odinContext.Caller.AssertHasMasterKey();
+
+            var allIdentities = await GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
+
+            var upgraded = 0;
+            var skipped = 0;
+            foreach (var identity in allIdentities.Results)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    continue;
+                }
+
+                if (await TryUpgradeMasterKeyStoreKeyEncryptionAsync(identity, odinContext))
+                {
+                    upgraded++;
+                }
+                else
+                {
+                    skipped++;
+                    logger.LogWarning(
+                        "Identity {odinId} still requires master key encryption upgrade after attempt; leaving for lazy reconcile",
+                        identity.OdinId);
+                }
+            }
+
+            if (upgraded > 0 || skipped > 0)
+            {
+                logger.LogInformation(
+                    "Master key encryption upgrade pass complete: {upgraded} upgraded, {skipped} skipped", upgraded, skipped);
+            }
+        }
+
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,
             IOdinContext odinContext)
         {

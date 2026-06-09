@@ -15,6 +15,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version4tov5;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
 using Odin.Services.Configuration.VersionUpgrade.Version7tov8;
+using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
 
@@ -31,6 +32,7 @@ public class VersionUpgradeService(
     V7ToV8VersionMigrationService v8,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
+    CircleNetworkService circleNetworkService,
     ILogger<VersionUpgradeService> logger)
 {
     private bool _isRunning;
@@ -63,6 +65,22 @@ public class VersionUpgradeService(
 
         try
         {
+            // Bring all connected identities up to the current master-key store-key encryption scheme
+            // before running any migration. Migrations that re-grant circles dereference the
+            // MasterKeyEncryptedKeyStoreKey, which is null on grants established without the owner's
+            // master key; upgrading up front lets the version ladder assume that invariant.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await using (var encTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
+            {
+                _isRunning = true;
+                await circleNetworkService.UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(odinContext, cancellationToken);
+                encTx.Commit();
+            }
+
             if (currentVersion == 0)
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
