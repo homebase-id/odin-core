@@ -36,10 +36,42 @@ uniqueId; linking it to an identity later is an explicit re-key (see Part C).
 
 ## Part A — Contact CRUD foundation
 
+### Existing odin-js contract — MUST match byte-for-byte (backwards compatibility)
+This is the authoritative shape already written to the drive by odin-js
+(`packages/libs/js-lib/src/network/contact/ContactTypes.ts` + `provider/contact/ContactProvider.ts`).
+The C# DTOs and write path must reproduce it exactly so existing files stay readable by both sides.
+
+**Drive & file identity** (`ContactConfig`):
+- ContactDrive: `alias = 2612429d1c3f037282b8d42fb2cc0499`, `type = 70e92f0f94d05f5c7dcd36466094f3a5`
+  (= `SystemDriveConstants.ContactDrive`).
+- `fileType = 100` (`ContactConfig.ContactFileType`). `dataType`/`groupId`: unset.
+- `uniqueId = toGuidId(odinId) = md5(odinId)`-as-Guid when an odinId exists; otherwise a random Guid.
+- `tags = [ toGuidId(odinId) ]` when an odinId exists; otherwise empty.
+- `isEncrypted = true`; `allowDistribution = false`.
+
+**`AppData.Content`** = the contact JSON, **camelCase**, AES-encrypted with the per-file KeyHeader then
+base64 (or spilled to the default payload when it exceeds the header content limit). The `image` field
+is **removed** from this JSON and stored as a payload instead. Exact shape:
+```jsonc
+{
+  "odinId": "frodo.dotyou.cloud",            // optional
+  "source": "contact" | "public" | "user",   // required
+  "name":     { "displayName": "…", "givenName": "…", "additionalName": "…", "surname": "…" },
+  "location": { "city": "…", "country": "…" },
+  "phone":    { "number": "…" },
+  "email":    { "email": "…" },
+  "birthday": { "date": "…" }                 // string, kept verbatim
+}
+```
+**Profile image**: separate payload, key `prfl_pic` (`CONTACT_PROFILE_IMAGE_KEY`), with a generated
+`previewThumbnail` on the header. Never embedded in `Content`.
+
 ### Data structures — new `src/services/Odin.Services/Contacts/`
-On-drive content (serialized **camelCase**, matches odin-js `ContactFile`):
-`ContactContent { OdinId?, Source, Name?, Location?, Phone?, Email?, Birthday? }` + sub-objects;
-`enum ContactSource { Contact, Public, User }` (lowercase).
+`ContactContent` mirrors the JSON above 1:1 (serialized **camelCase**; `enum ContactSource { Contact,
+Public, User }` serialized as the lowercase strings): `ContactContent { OdinId?, Source, Name?,
+Location?, Phone?, Email?, Birthday? }` with `ContactName { DisplayName, GivenName?, AdditionalName?,
+Surname? }`, `ContactLocation { City?, Country? }`, `ContactPhone { Number }`, `ContactEmail { Email }`,
+`ContactBirthday { Date }`. Pin camelCase explicitly on these DTOs (don't trust the serializer default).
 
 **Live-composed relationship** (NOT stored on the file):
 ```
