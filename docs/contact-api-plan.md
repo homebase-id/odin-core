@@ -213,6 +213,57 @@ container — breaks odin-js's flat, odinId-keyed `ContactFile` compatibility.)
 
 ---
 
+## Part D — Lock down direct writes to the ContactDrive
+
+**Goal:** the Contact API becomes the *only* writer of the ContactDrive. Direct drive writes from
+clients/apps (V1 + V2 upload, update, delete, payload) are rejected. **Read is left unchanged** for
+backwards compatibility (legacy clients keep reading contacts directly).
+
+### Why a permission-grant revoke is insufficient
+Every write path funnels through `DriveStorageServiceBase.AssertCanWriteToDrive(driveId, ctx)` →
+`PermissionContext.AssertCanWriteToDrive` (checks `HasDrivePermission(driveId, Write)`). But the
+**owner holds `DrivePermission.All` on every drive via the master key**
+(`OwnerAuthenticationService.GetPermissionContextAsync`), and `ContactService` runs under that same
+owner context — so removing grants either fails to stop the owner or also blocks our own service.
+The difference between "via Contact API" and "direct write" is the **call site**, not the permission.
+
+### Design — single chokepoint + explicit bypass
+1. **Managed-drive registry**: `SystemDriveConstants.ManagedWriteDrives = { ContactDrive }` (extensible).
+2. **Guard at the one chokepoint**: in `AssertCanWriteToDrive`, if `driveId ∈ ManagedWriteDrives` and the
+   call is **not** an authorized managed write → throw a client error (see semantics below). This single
+   assert is reached by create (`CommitNewFile`), update (`UpdateActiveFileHeaderInternal`), soft/hard
+   delete, and payload writes — so it covers **all V1 and V2 client write entry points** at once.
+3. **Authorized bypass for `ContactService` only**: `ContactService` is the lone caller permitted to
+   write a managed drive. Two implementation variants (recommend the first):
+   - **Explicit flag** — add `bool allowManagedDriveWrite = false` to `AssertCanWriteToDrive` and thread
+     it through the ~5 storage methods `ContactService` actually calls (`WriteNewFileHeader`,
+     `UpdateActiveFileHeader`, `OverwriteMetadata`, `SoftDeleteLongTermFile`, payload set). All other
+     callers keep the `false` default. Matches the existing `overrideHack` / `bypassCallerCheck` precedent.
+   - **Request-scoped marker** — a scoped `ManagedDriveWriteGuard` that `ContactService` flips on inside a
+     `using` block around its write; the assert consults it. Less signature churn, but ambient state.
+4. **Read untouched**: do not modify `AssertCanReadDrive`/read grants. Peer writes are already impossible
+   (ContactDrive is `OwnerOnly` + not distributed), so no peer path to guard.
+
+### Secondary (defense-in-depth, not the enforcement)
+Change `SystemAppConstants` ChatApp/MailApp ContactDrive grant from `ReadWrite` → `Read` for
+**newly registered** apps (least privilege). Existing installed apps keep their persisted `ReadWrite`
+grant, but the chokepoint blocks them anyway — so **no grant migration is required** and enforcement
+does not depend on it.
+
+### Error semantics
+The guard throws `OdinClientException` with a dedicated `OdinClientErrorCode` (e.g.
+`DirectContactDriveWriteNotAllowed`) → HTTP **403** with a message pointing clients to
+`POST /api/v2/contacts`. (A bare `OdinSecurityException` would read as an auth failure; we want a clear,
+actionable code.)
+
+### Rollout — this is a BREAKING change for current odin-js
+Existing odin-js writes contacts directly to the drive, so the lockdown must be sequenced:
+1. Ship the Contact API (Parts A–C).
+2. Migrate odin-js to write via `/api/v2/contacts`.
+3. **Gate the lockdown behind a `TenantConfigService` flag** (e.g. `ContactDriveWriteLockdown`),
+   default **off**; flip on per-tenant once clients have migrated; make it the default in a later release.
+This lets read-compat and the new write path coexist during migration with no hard cutover.
+
 ## Wiring (edits)
 - `UnifiedV2/UnifiedApiRouteConstants.cs` → `Contacts = BasePath + "/contacts"`.
 - `UnifiedV2/SwaggerInfo.cs` → `Contacts = "Contact Operations"`.
@@ -222,6 +273,9 @@ container — breaks odin-js's flat, odinId-keyed `ContactFile` compatibility.)
   .As<…ConnectionFinalized…>().As<…ConnectionDeleted…>().As<…ConnectionBlocked…>()`.
 - `JobExtensions.cs` → register `ContactEnrichmentJob` (+ `ContactReconcileJob` if used).
 - Promote `ToGuidId` → shared util; repoint `HomebaseChannelContentService.cs:423`.
+- Part D: `SystemDriveConstants.ManagedWriteDrives`; guard in `DriveStorageServiceBase.AssertCanWriteToDrive`
+  (+ bypass plumbing on the storage methods `ContactService` uses); new `OdinClientErrorCode`; optional
+  `TenantConfigService.ContactDriveWriteLockdown` flag; `SystemAppConstants` ChatApp/MailApp grant `ReadWrite`→`Read`.
 
 ## Reused existing code
 `PeerDriveQueryService.GetBatchAsync`/`GetPayloadStreamAsync`; `HomebaseProfileContentService`
@@ -247,6 +301,10 @@ pending/sent getters; `CircleNetworkIntroductionService.GetReceivedIntroductions
   - Two contacts for the same person → `GET /duplicates` surfaces the pair (exact email/phone, fuzzy name);
     `POST /merge` collapses them; assert **no auto-merge** ever fires on its own.
   - List with mixed states returns all, correctly annotated.
+- **Part D write lockdown** (with the flag on): direct V1 **and** V2 create/update/delete/payload to the
+  ContactDrive → 403 `DirectContactDriveWriteNotAllowed`; the same operations via `/api/v2/contacts`
+  succeed; **reads of the ContactDrive still succeed** (owner + app with read grant); flag off → direct
+  writes still work (compat). Confirm `ContactService` writes pass the guard.
 - SQLite + PostgreSQL: `dotnet test ./odin-core.sln`.
 
 ## Open implementation risks (resolve during build)
@@ -258,3 +316,6 @@ pending/sent getters; `CircleNetworkIntroductionService.GetReceivedIntroductions
   handle the collision/merge case.
 - `BuiltInAttributes` GUIDs only in TS today → port to C#. Pin DTO camelCase explicitly.
 - List relationship composition must use bulk-loaded maps (no per-contact connection queries).
+- Part D: confirm exactly which `DriveStorageServiceBase` methods call `AssertCanWriteToDrive` (e.g.
+  `WriteNewFileHeader` may not) so the bypass is plumbed only where `ContactService` actually hits it;
+  ensure the guard covers `OverwriteMetadata` used by the Part C re-key.
