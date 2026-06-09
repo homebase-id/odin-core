@@ -274,20 +274,6 @@ every write already passes through, plus a tightly-scoped bypass for `ContactSer
 4. **Read untouched.** Do not modify `AssertCanReadDrive`/read grants; `IsServiceManaged` gates *writes*
    only. Peer writes are already impossible (ContactDrive is `OwnerOnly` + not distributed).
 
-### Alternatives considered (not chosen)
-- **HTTP entry-point guards** (reject ContactDrive in each upload/update/delete controller). Viable
-  fallback if editing `AssertCanWriteToDrive` is deemed too risky, but enforcement is scattered across
-  every write controller — a missed/new controller is a hole. The chokepoint above is strictly stronger.
-- **Permission-context revocation** (grant the ContactDrive only `Read` when building owner/app contexts,
-  give `ContactService` an elevated system-writer context). Clean in theory, but the owner context grants
-  `DrivePermission.All` uniformly via the master key, so carving out one drive there is delicate and you
-  still need a guard to stop the master-key path — it converges with this design at higher auth-code risk.
-- **Soft enforcement / reconcile** (observe `DriveFileAddedNotification`, repair stray writes after the
-  fact). Not real enforcement, but a useful **transition aid** during client migration — log/repair direct
-  writes before the hard block is flipped on.
-- **Withhold the storage key** — rejected: reads need the key too (breaks read-compat) and the owner
-  re-derives it from the master key regardless.
-
 ### Secondary (defense-in-depth, not the enforcement)
 Change `SystemAppConstants` ChatApp/MailApp ContactDrive grant from `ReadWrite` → `Read` for
 **newly registered** apps (least privilege). Existing installed apps keep their persisted `ReadWrite`
