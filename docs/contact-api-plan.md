@@ -113,9 +113,27 @@ Inputs: `UpsertContactRequest { Content, VersionTag? }`, `ContactListResult { Re
   `keyHeader.EncryptDataAes(json)` base64, `IsEncrypted=true`, `CreateServerFileHeader` (wraps keyHeader with
   the drive storage key), `WriteNewFileHeader`/`UpdateActiveFileHeader`.
   `ServerMetadata = OwnerOnly`; `tags=[uniqueId]` (+ normalized email/phone) when present. Default-payload spill fallback.
-- **Upsert/merge**: lookup via `GetFileByClientUniqueIdForWriting(ToContactUniqueId(odinId))`; if
-  present preserve `fileId`/`versionTag` and **merge** new content over existing (don't clobber
-  user-entered fields); else create. Retry once on versionTag conflict (client may write same uniqueId).
+- **Upsert/merge**: lookup via `GetFileByClientUniqueIdForWriting(ToContactUniqueId(odinId))`; if present
+  preserve `fileId` and **merge** new content over existing (don't clobber user-entered fields); else create.
+- **Concurrency (optimistic, `versionTag`).** A client upsert/PUT carries the `versionTag` it last read; the
+  write asserts it still matches the stored file.
+  - *Client write with a stale versionTag* → **409 Conflict** whose body carries the current `versionTag` and
+    the current `SharedSecretEncryptedFileHeader`, so the client re-fetches, re-applies its edit, and retries.
+    We never silently overwrite — the client's change may be based on stale data.
+  - *Server-internal races* (a lifecycle handler and the enrichment job touching the same odinId-keyed file):
+    re-read + re-merge and retry once; if it still conflicts, drop it — the enrichment job is idempotent and
+    the reconcile pass converges the file later, so nothing is lost and nothing surfaces to a user.
+- **Delete = soft-delete** (`SoftDeleteLongTermFile`; recoverable tombstone). **Caveat:** a contact whose
+  identity is still connected/introduced/pending will be **re-created** by the lifecycle/reconcile pass (the
+  relationship still exists), so a plain delete is meaningful only for contacts with no live relationship. To
+  hide an *active* contact the user sets an **archived/hidden** flag (`archivalStatus`) that reconcile honors
+  instead of resurrecting (recommended), or must disconnect/block first.
+- **Image (`prfl_pic`) — shared-secret-encrypted like content.** The payload is AES-encrypted with the file
+  keyHeader; `GetImageAsync` serves the encrypted payload stream with the `SharedSecretEncryptedKeyHeader`
+  header (and encrypted preview thumbnail) so the **client decrypts** — same as any drive payload, never
+  plaintext. Client `SetImageAsync` uploads the image encrypted via the shared-secret transfer-keyHeader;
+  server-originated enrichment fetches the peer's `prfl_pic`, decrypts it internally, re-encrypts with the
+  contact file's keyHeader, and stores it as payload + thumbnail.
 
 ### Relationship composition — `ContactRelationshipResolver` (`Odin.Services/Contacts/`)
 - Single: compose from `CircleNetworkService.GetIcrAsync(odinId)` →
@@ -134,11 +152,11 @@ Modeled on `V2ConnectionRequestsController` (`[Route(UnifiedApiRouteConstants.Co
 
 | Verb | Route | Returns |
 |---|---|---|
-| GET | `/` (`pageSize`,`cursor`) | `ContactListResult` (every stored contact, relationship-annotated) |
+| GET | `/` (`pageSize`, `cursor`, filters) | `ContactListResult` (stored contacts, relationship-annotated) |
 | GET | `/{uniqueId:guid}` / `/by-odin-id/{odinId}` | `Contact` (content + live Relationship) / 404 |
 | POST | `/` ; PUT `/{uniqueId:guid}` | `Contact` |
 | DELETE | `/{uniqueId:guid}` ; `/by-odin-id/{odinId}` | 204 |
-| GET/POST | `/{uniqueId:guid}/image` | image / 204 |
+| GET/POST | `/{uniqueId:guid}/image` | encrypted image payload (shared-secret keyHeader) / 204 |
 | POST | `/sync/{odinId}` | `Contact` — enrich from peer profile inline (Part B) |
 | POST | `/{uniqueId:guid}/link` `{ odinId }` | `Contact` — attach odinId + re-key (Part C #5) |
 | POST | `/merge` `{ sourceUniqueId, targetUniqueId }` | `Contact` — explicit merge, never automatic (Part C #4) |
@@ -146,6 +164,17 @@ Modeled on `V2ConnectionRequestsController` (`[Route(UnifiedApiRouteConstants.Co
 
 Contact creation (`POST /`) accepts an optional `content.odinId`; when present the file is keyed on
 `ToContactUniqueId(odinId)` immediately (Part C #1), so a later connection lands on the same file.
+
+**List paging & filtering.** Cursor-paged (`pageSize` + opaque `cursor`), default newest-first. Filters:
+`source` (contact/public/user), `hasOdinId`, `relationship` (`connected` | `introduced` | `pending` |
+`blocked` | `all`), and optional `search` (name/email/phone prefix). Two strategies, because relationship is
+**not** stored on the file:
+- **Content filters** (`source`, `hasOdinId`, `search`) are applied in the drive query / on tags, so paging
+  is over stored files and pages stay full.
+- **`relationship` filters** are served by seeding from the authoritative source — `connected`/`blocked` from
+  the connection registry, `introduced` from introductions, `pending` from requests — then joining to the
+  contact files. This keeps pages full and avoids composing-then-discarding an entire page. `all` pages
+  straight over stored files with the relationship annotated per row.
 
 ---
 
@@ -346,6 +375,14 @@ by every drive read — the Contact API returns contacts in this exact shape).
   - Two contacts for the same person → `GET /duplicates` surfaces the pair (exact email/phone, fuzzy name);
     `POST /merge` collapses them; assert **no auto-merge** ever fires on its own.
   - List with mixed states returns all, correctly annotated.
+  - Filtered list: `relationship=connected` returns only connected contacts (seeded from the registry);
+    `source`/`search` filters page over stored files with full pages and a working cursor.
+  - Concurrent client PUTs with a stale `versionTag` → the loser gets **409** carrying the current
+    `versionTag`/header, re-fetches and succeeds; assert no lost update.
+  - Soft-delete a still-connected contact → reconcile/lifecycle **recreates** it; setting `archivalStatus`
+    (archive) hides it and reconcile leaves it archived rather than resurrecting.
+  - Contact image round-trips encrypted: `GET image` returns an encrypted payload + shared-secret keyHeader
+    that decrypts client-side; an enrichment-fetched `prfl_pic` is re-encrypted under the contact's keyHeader.
 - **Part D write lockdown** (with the flag on): direct V1 **and** V2 create/update/delete/payload to the
   ContactDrive → 403 `DirectContactDriveWriteNotAllowed`; the same operations via `/api/v2/contacts`
   succeed; **reads of the ContactDrive still succeed** (owner + app with read grant); flag off → direct
@@ -361,6 +398,10 @@ by every drive read — the Contact API returns contacts in this exact shape).
   handle the collision/merge case.
 - `BuiltInAttributes` GUIDs only in TS today → port to C#. Pin DTO camelCase explicitly.
 - List relationship composition must use bulk-loaded maps (no per-contact connection queries).
+- Archive vs. resurrection: confirm `archivalStatus` (or an equivalent flag) is queryable and that the
+  reconcile/lifecycle pass checks it before re-creating a soft-deleted contact for a live relationship.
+- Relationship-filtered paging seeds from the registry/introductions/requests and joins to files — confirm a
+  stable cursor across that join (vs. the plain drive-query cursor used for content filters).
 - Part D: confirm exactly which `DriveStorageServiceBase` methods call `AssertCanWriteToDrive` (e.g.
   `WriteNewFileHeader` may not) so the bypass is plumbed only where `ContactService` actually hits it;
   ensure the guard covers `OverwriteMetadata` used by the Part C re-key.
