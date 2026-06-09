@@ -430,6 +430,49 @@ Existing odin-js writes contacts directly to the drive, so the lockdown must be 
    default **off**; flip on per-tenant once clients have migrated; make it the default in a later release.
 This lets read-compat and the new write path coexist during migration with no hard cutover.
 
+## Concepts (deep dives)
+
+### Duplicate detection
+Solves the no-odinId case: a hand-typed contact (random uniqueId) and a separate odinId-keyed contact for the
+*same* person can coexist. It **finds candidate pairs and suggests — never auto-merges** (a wrong merge fuses
+two people and is hard to undo; a duplicate is harmless).
+1. **Hashed-identifier index (at write time).** Content is encrypted, so you can't query by email/phone inside
+   it. `ContactService` instead writes **hashed identifiers as metadata tags** (server-readable, unencrypted,
+   ≤50 Guids): `tag = ToGuidId(normalize(email))` and `tag = ToGuidId(normalize(phone))` (lowercase/trim email;
+   digits-only/E.164 phone). Hashed → enables exact-match lookup without leaking raw addresses.
+2. **Exact match = cheap indexed query.** Find duplicates by querying the drive on those tags
+   (`TagsMatchAtLeastOne`); a shared email/phone tag is a **high-confidence** candidate, no decryption needed.
+3. **Fuzzy name match (bounded).** Name isn't tag-able (fuzzy, lives in encrypted content), so name comparison
+   decrypts only the **small candidate set** server-side → **low-confidence** suggestions (normalized
+   displayName equality / token overlap).
+4. **When it runs.** Naturally inside the enrichment job — we already hold the contact's plaintext
+   email/phone/name there, so the tag query + name compare against no-odinId contacts is essentially free.
+5. **Output = pairs, never an action.** Emits `{ sourceUniqueId, targetUniqueId, reason, confidence }` via
+   `GET /duplicates`; the user/UI decides → `POST /merge` or dismiss.
+- *Limitation:* contacts with no email/phone are only name-matchable (weak) or not at all; `POST /link` covers those.
+
+### Background enrichment job
+`ConnectionFinalized` fires **synchronously on the accept hot path**, and enrichment does slow, failure-prone
+peer I/O — so it must not run inline. We schedule a job and return. Built on odin-core's `JobManager` (persistent
+`TableJobs` + `JobRunnerBackgroundService`), not Quartz.
+1. **Schedule.** The lifecycle handler calls `IJobManager.ScheduleJobAsync(new ContactEnrichmentJob{ tenant,
+   odinId }, JobSchedule.Now)` — persists a job row (survives restarts).
+2. **Job shape (`ContactEnrichmentJob : AbstractJob`).** `JobType` (stable Guid, registered in `JobExtensions`),
+   `SerializeJobData()`/`DeserializeJobData()` (params stored as JSON on the row), `Run(ct) → JobExecutionResult`.
+3. **Own DI scope.** The manager runs each job in its **own child lifetime scope**, so DB work is safe under the
+   `ScopedConnectionFactory` parallelism rule — it resolves `ContactEnrichmentService` from *its* scope.
+4. **Context reconstruction (tricky bit).** No ambient `IOdinContext`, so the job rebuilds an owner/system
+   context with `UseTransitRead` for the peer query — mirroring `PeerOutboxProcessorBackgroundService.ProcessItemThread`.
+5. **`Run` body.** `EnrichAsync(odinId, ctx)` → check live status → peer-query ProfileDrive (connected) or read
+   `pub/profile` (not connected) → map to `ContactContent` → fetch + re-encrypt photo → `UpsertAsync` (merge).
+6. **Idempotency + retries.** Upsert is uniqueId-keyed and merges, so re-running is harmless; transient peer
+   failure → `Fail` → manager retries per `MaxAttempts`/`RetryDelay`; a `403 + ICR-issue` lets the platform
+   revoke the ICR (contact left untouched); completed rows auto-clean via `OnSuccess/OnFailureDeleteAfter`.
+7. **Racing other writers.** Job vs. a client write on the same file → optimistic `versionTag`: retry once,
+   then drop (idempotent; reconcile re-converges).
+8. **`ContactReconcileJob`.** Same machinery, but sweeps **all** current relationships to ensure files exist and
+   enqueue enrichment for missing/stale ones — backfill + self-heal; also reachable via `POST /sync`.
+
 ## Wiring (edits)
 - `UnifiedV2/UnifiedApiRouteConstants.cs` → `Contacts = BasePath + "/contacts"`.
 - `UnifiedV2/SwaggerInfo.cs` → `Contacts = "Contact Operations"`.
