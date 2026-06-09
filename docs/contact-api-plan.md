@@ -250,22 +250,43 @@ Every write path funnels through `DriveStorageServiceBase.AssertCanWriteToDrive(
 owner context — so removing grants either fails to stop the owner or also blocks our own service.
 The difference between "via Contact API" and "direct write" is the **call site**, not the permission.
 
-### Design — single chokepoint + explicit bypass
-1. **Managed-drive registry**: `SystemDriveConstants.ManagedWriteDrives = { ContactDrive }` (extensible).
-2. **Guard at the one chokepoint**: in `AssertCanWriteToDrive`, if `driveId ∈ ManagedWriteDrives` and the
+### Candidate solution — declarative "service-managed" drive flag, enforced at the single chokepoint
+This combines a **drive-level flag** (declarative, reusable) with the **one permission chokepoint** that
+every write already passes through, plus a tightly-scoped bypass for `ContactService`.
+
+1. **Declarative drive flag.** Add `IsServiceManaged` (alongside the existing `IsReadonly` /
+   `OwnerOnly` flags on `StorageDrive` / `CreateDriveRequest`, or as a `BuiltInDriveAttributes` entry) and
+   set it on `SystemDriveConstants.CreateContactDriveRequest`. The intent lives **with the drive
+   definition**, so any drive (feed, profile, …) can become service-managed later with no new code —
+   not a hardcoded list.
+2. **Guard at the one chokepoint.** In `AssertCanWriteToDrive`, if the drive `IsServiceManaged` and the
    call is **not** an authorized managed write → throw a client error (see semantics below). This single
    assert is reached by create (`CommitNewFile`), update (`UpdateActiveFileHeaderInternal`), soft/hard
    delete, and payload writes — so it covers **all V1 and V2 client write entry points** at once.
-3. **Authorized bypass for `ContactService` only**: `ContactService` is the lone caller permitted to
-   write a managed drive. Two implementation variants (recommend the first):
+3. **Authorized bypass for `ContactService` only** — the lone caller permitted to write a managed drive.
+   Two implementation variants (recommend the first):
    - **Explicit flag** — add `bool allowManagedDriveWrite = false` to `AssertCanWriteToDrive` and thread
      it through the ~5 storage methods `ContactService` actually calls (`WriteNewFileHeader`,
      `UpdateActiveFileHeader`, `OverwriteMetadata`, `SoftDeleteLongTermFile`, payload set). All other
      callers keep the `false` default. Matches the existing `overrideHack` / `bypassCallerCheck` precedent.
    - **Request-scoped marker** — a scoped `ManagedDriveWriteGuard` that `ContactService` flips on inside a
      `using` block around its write; the assert consults it. Less signature churn, but ambient state.
-4. **Read untouched**: do not modify `AssertCanReadDrive`/read grants. Peer writes are already impossible
-   (ContactDrive is `OwnerOnly` + not distributed), so no peer path to guard.
+4. **Read untouched.** Do not modify `AssertCanReadDrive`/read grants; `IsServiceManaged` gates *writes*
+   only. Peer writes are already impossible (ContactDrive is `OwnerOnly` + not distributed).
+
+### Alternatives considered (not chosen)
+- **HTTP entry-point guards** (reject ContactDrive in each upload/update/delete controller). Viable
+  fallback if editing `AssertCanWriteToDrive` is deemed too risky, but enforcement is scattered across
+  every write controller — a missed/new controller is a hole. The chokepoint above is strictly stronger.
+- **Permission-context revocation** (grant the ContactDrive only `Read` when building owner/app contexts,
+  give `ContactService` an elevated system-writer context). Clean in theory, but the owner context grants
+  `DrivePermission.All` uniformly via the master key, so carving out one drive there is delicate and you
+  still need a guard to stop the master-key path — it converges with this design at higher auth-code risk.
+- **Soft enforcement / reconcile** (observe `DriveFileAddedNotification`, repair stray writes after the
+  fact). Not real enforcement, but a useful **transition aid** during client migration — log/repair direct
+  writes before the hard block is flipped on.
+- **Withhold the storage key** — rejected: reads need the key too (breaks read-compat) and the owner
+  re-derives it from the master key regardless.
 
 ### Secondary (defense-in-depth, not the enforcement)
 Change `SystemAppConstants` ChatApp/MailApp ContactDrive grant from `ReadWrite` → `Read` for
@@ -296,8 +317,9 @@ This lets read-compat and the new write path coexist during migration with no ha
   .As<…ConnectionFinalized…>().As<…ConnectionDeleted…>().As<…ConnectionBlocked…>()`.
 - `JobExtensions.cs` → register `ContactEnrichmentJob` (+ `ContactReconcileJob` if used).
 - Promote `ToGuidId` → shared util; repoint `HomebaseChannelContentService.cs:423`.
-- Part D: `SystemDriveConstants.ManagedWriteDrives`; guard in `DriveStorageServiceBase.AssertCanWriteToDrive`
-  (+ bypass plumbing on the storage methods `ContactService` uses); new `OdinClientErrorCode`; optional
+- Part D: `IsServiceManaged` drive flag on `StorageDrive`/`CreateDriveRequest` (set on
+  `CreateContactDriveRequest`); guard in `DriveStorageServiceBase.AssertCanWriteToDrive` (+ bypass plumbing
+  on the storage methods `ContactService` uses); new `OdinClientErrorCode`; optional
   `TenantConfigService.ContactDriveWriteLockdown` flag; `SystemAppConstants` ChatApp/MailApp grant `ReadWrite`→`Read`.
 
 ## Reused existing code
