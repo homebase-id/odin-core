@@ -15,8 +15,11 @@
 - When the contact list is requested, it's cursor-paged and relationship-annotated, with filters for
   `source`, `hasOdinId`, `search`, and `relationship` (e.g. connections-only) — relationship filters seed
   from the connection registry so pages stay full.
-- When a contact is deleted, it's soft-deleted, but a still-connected/introduced/pending contact is recreated
-  by the reconcile pass — to hide an active contact the user archives it (`archivalStatus`) instead.
+- When a contact is **archived**, its connection and any requests stay intact and it's just hidden from
+  default lists (reconcile honors the flag and won't resurrect it).
+- When a contact is **deleted**, the relationship is torn down first — disconnect if connected, cancel/reject
+  any pending outgoing/incoming request, drop any introduction — and then the file is soft-deleted, so it
+  stays gone rather than being recreated.
 - When a contact image is set or read, it's the `prfl_pic` payload, shared-secret-encrypted like content
   (client decrypts; enrichment re-encrypts the fetched photo under the file keyHeader).
 - When a client writes with a stale `versionTag`, it gets **409 Conflict** with the current versionTag/header
@@ -183,11 +186,21 @@ Inputs: `UpsertContactRequest { Content, VersionTag? }`, `ContactListResult { Re
   - *Server-internal races* (a lifecycle handler and the enrichment job touching the same odinId-keyed file):
     re-read + re-merge and retry once; if it still conflicts, drop it — the enrichment job is idempotent and
     the reconcile pass converges the file later, so nothing is lost and nothing surfaces to a user.
-- **Delete = soft-delete** (`SoftDeleteLongTermFile`; recoverable tombstone). **Caveat:** a contact whose
-  identity is still connected/introduced/pending will be **re-created** by the lifecycle/reconcile pass (the
-  relationship still exists), so a plain delete is meaningful only for contacts with no live relationship. To
-  hide an *active* contact the user sets an **archived/hidden** flag (`archivalStatus`) that reconcile honors
-  instead of resurrecting (recommended), or must disconnect/block first.
+- **Hide vs. remove — two distinct operations.** A bare file delete is incoherent while the relationship
+  lives (reconcile would resurrect it, and the person would stay connected). So:
+  - **Archive / hide** (`POST /contacts/{uniqueId}/archive { archived }`, sets `archivalStatus`): keeps the
+    connection and any requests **intact**, just drops the contact from default lists; reconcile honors the
+    flag rather than resurrecting. This is the "I don't want to see them" action.
+  - **Delete / remove person** (`DELETE /contacts/{uniqueId}`): **cascades the relationship teardown first,
+    then soft-deletes the file**, so it stays gone. Cascade = if connected → `CircleNetworkService.DisconnectAsync`;
+    if an outgoing request is pending → cancel it (`DeleteSentRequest`); if an incoming request is pending →
+    reject/delete it (`DeletePendingRequest`); if introduced → delete the introduction record(s). With no
+    relationship left, reconcile won't recreate it. A contact with **no** live relationship is just a plain
+    `SoftDeleteLongTermFile`.
+  - **Caveat:** the disconnect is **outward-facing** — it revokes the peer's access and fires
+    `ConnectionDeletedNotification` (whose handler flips `source`→`public`), so `DELETE` must require explicit
+    client confirmation, and the teardown runs **before** the file soft-delete so the end state is *deleted*,
+    not flipped-to-public-then-left. (Block stays a separate action: keeps the file, `source`→`public`.)
 - **Image (`prfl_pic`) — shared-secret-encrypted like content.** The payload is AES-encrypted with the file
   keyHeader; `GetImageAsync` serves the encrypted payload stream with the `SharedSecretEncryptedKeyHeader`
   header (and encrypted preview thumbnail) so the **client decrypts** — same as any drive payload, never
@@ -215,7 +228,8 @@ Modeled on `V2ConnectionRequestsController` (`[Route(UnifiedApiRouteConstants.Co
 | GET | `/` (`pageSize`, `cursor`, filters) | `ContactListResult` (stored contacts, relationship-annotated) |
 | GET | `/{uniqueId:guid}` / `/by-odin-id/{odinId}` | `Contact` (content + live Relationship) / 404 |
 | POST | `/` ; PUT `/{uniqueId:guid}` | `Contact` |
-| DELETE | `/{uniqueId:guid}` ; `/by-odin-id/{odinId}` | 204 |
+| DELETE | `/{uniqueId:guid}` ; `/by-odin-id/{odinId}` | 204 — **cascades** teardown (disconnect / cancel / reject / drop introduction) then soft-deletes |
+| POST | `/{uniqueId:guid}/archive` `{ archived }` | `Contact` — hide/unhide, relationship kept |
 | GET/POST | `/{uniqueId:guid}/image` | encrypted image payload (shared-secret keyHeader) / 204 |
 | POST | `/sync/{odinId}` | `Contact` — enrich from peer profile inline (Part B) |
 | POST | `/{uniqueId:guid}/link` `{ odinId }` | `Contact` — attach odinId + re-key (Part C #5) |
@@ -411,8 +425,9 @@ This lets read-compat and the new write path coexist during migration with no ha
 ## Reused existing code
 `PeerDriveQueryService.GetBatchAsync`/`GetPayloadStreamAsync`; `HomebaseProfileContentService`
 (attribute query shape, `AttributeFileType=77`, `ProfileBlock` parse); `CircleNetworkService.GetIcrAsync`
-+ `RedactedIdentityConnectionRegistration` (status/origin/introducer); `CircleNetworkRequestService`
-pending/sent getters; `CircleNetworkIntroductionService.GetReceivedIntroductionsAsync`; `IJobManager`/
++ `RedactedIdentityConnectionRegistration` (status/origin/introducer); `CircleNetworkService.DisconnectAsync`
+(delete cascade); `CircleNetworkRequestService` pending/sent getters **+ cancel/reject** (delete cascade);
+`CircleNetworkIntroductionService.GetReceivedIntroductionsAsync` **+ delete** (cascade); `IJobManager`/
 `AbstractJob` (`ExportTenantJob`); `PeerOutboxProcessorBackgroundService` (detached owner context);
 `KeyHeader`/`DriveStorageServiceBase` encrypt pattern (`FeedWriter`, `ShardRequestApprovalCollector`);
 `DriveFileUtility` + `SharedSecretEncryptedFileHeader` (the shared-secret keyHeader re-encryption used
@@ -439,8 +454,9 @@ by every drive read — the Contact API returns contacts in this exact shape).
     `source`/`search` filters page over stored files with full pages and a working cursor.
   - Concurrent client PUTs with a stale `versionTag` → the loser gets **409** carrying the current
     `versionTag`/header, re-fetches and succeeds; assert no lost update.
-  - Soft-delete a still-connected contact → reconcile/lifecycle **recreates** it; setting `archivalStatus`
-    (archive) hides it and reconcile leaves it archived rather than resurrecting.
+  - `DELETE` a connected contact → it disconnects (peer access revoked) and the contact stays deleted (not
+    resurrected); `DELETE` a contact with a pending outgoing/incoming request → the request is cancelled/rejected.
+  - `Archive` a connected contact → connection + requests intact, hidden from the default list, not resurrected.
   - Contact image round-trips encrypted: `GET image` returns an encrypted payload + shared-secret keyHeader
     that decrypts client-side; an enrichment-fetched `prfl_pic` is re-encrypted under the contact's keyHeader.
 - **Part D write lockdown** (with the flag on): direct V1 **and** V2 create/update/delete/payload to the
@@ -460,6 +476,9 @@ by every drive read — the Contact API returns contacts in this exact shape).
 - List relationship composition must use bulk-loaded maps (no per-contact connection queries).
 - Archive vs. resurrection: confirm `archivalStatus` (or an equivalent flag) is queryable and that the
   reconcile/lifecycle pass checks it before re-creating a soft-deleted contact for a live relationship.
+- Delete cascade: confirm the exact request cancel/reject + introduction-delete methods, run the teardown
+  **before** the file soft-delete (so the `ConnectionDeleted` handler doesn't leave a flipped-to-public file),
+  and require explicit client confirmation since disconnect is outward-facing.
 - Relationship-filtered paging seeds from the registry/introductions/requests and joins to files — confirm a
   stable cursor across that join (vs. the plain drive-query cursor used for content filters).
 - Part D: confirm exactly which `DriveStorageServiceBase` methods call `AssertCanWriteToDrive` (e.g.
