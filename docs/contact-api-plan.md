@@ -38,6 +38,9 @@
 - When the enrichment job runs, it peer-queries the connection's profile and fills name/phone/email/location/
   birthday/photo, merging into the contact.
 - When a connection is disconnected or blocked, the contact file is kept but `source` flips `contact`→`public`.
+- When a contact blocks or disconnects **us from their side**, nothing is pushed — the contact stays
+  `source=contact` (stale) until we next touch them (peer query / enrichment / `sync`); on detection the
+  platform revokes our ICR and the contact flips `source`→`public`, just like a local disconnect.
 - When reconcile (or `POST /sync`) runs, a contact file is ensured for every current relationship, backfilling
   any that are missing.
 
@@ -214,6 +217,8 @@ Inputs: `UpsertContactRequest { Content, VersionTag? }`, `ContactListResult { Re
   `CircleNetworkIntroductionService` introduction lookup. Priority: ICR(Connected/Blocked) > pending
   request > introduction > None. Origin/introducer/timestamps from whichever applies; note
   `IntroducerOdinId` survives on the ICR after the introduction record is deleted at finalize.
+  (`ConnectionStatus` reflects the **local** ICR, which can be stale if the peer severed us remotely — it's
+  refreshed only by a peer call / `sync`, see Part B.)
 - Bulk (for list): load once — connected/blocked ICRs, `GetPendingRequestsAsync`, sent requests,
   `GetReceivedIntroductionsAsync` — into odinId→info maps, join in memory (avoids N+1).
 - Needs `ReadConnections` + `ReadConnectionRequests` perms in context (owner has them; app must be granted).
@@ -266,6 +271,12 @@ exists and sets `source`:
   then `IJobManager.ScheduleJobAsync(ContactEnrichmentJob{ Identity, TargetOdinId })` (`JobSchedule.Now`).
 - `INotificationHandler<ConnectionDeletedNotification|ConnectionBlockedNotification>` → load by
   `ToContactUniqueId(odinId)`; if `source==Contact` flip to `Public`. Keep the file.
+- **Remote-initiated block/disconnect is silent** (no push, no background reconcile): our ICR stays
+  `Connected` until a peer call detects it. The enrichment/sync peer-query **is** such a call — if the peer
+  returns `403 + X-Remote-Server-Icr-Issue`, the platform auto-revokes our ICR and fires
+  `ConnectionDeletedNotification`, so the handler above flips the contact `source`→`public` (kept), converging
+  to the same state as a local disconnect. A bare 403 / other failure does **not** revoke — the job exits
+  gracefully and leaves the contact intact (no partial enrichment).
 - **Outgoing request**: confirm whether a "request sent" notification exists; if not, upsert the stub
   in the V2 send path (`V2ConnectionRequestsController`/send service) — see risk below.
 
@@ -289,6 +300,10 @@ reconstructs an owner/system `IOdinContext` w/ `UseTransitRead` (mirror
 `PeerOutboxProcessorBackgroundService.ProcessItemThread`), resolves the service from its own job scope
 (safe for DB), calls `EnrichFromConnectionAsync`; idempotent via uniqueId upsert. `POST /sync/{odinId}`
 calls the same method inline with the request's owner context.
+On a peer **403** the platform may revoke the ICR (→ `ConnectionDeleted` → contact `source`→`public`); on any
+other peer failure the job returns `Fail` **without mutating** the contact. Because remote severance is only
+discovered this way, `sync` doubles as the "verify + refresh" path — optionally have it call
+`CircleNetworkVerificationService.VerifyConnectionAsync` to detect a peer-side block proactively.
 
 ---
 
