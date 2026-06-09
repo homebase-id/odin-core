@@ -1298,10 +1298,11 @@ namespace Odin.Services.Membership.Connections
         /// still require it (i.e. their grant was established without the owner's master key). Intended to be
         /// run once before version migrations so downstream migration logic can assume identities are upgraded.
         /// Identities that cannot be upgraded (e.g. no TempWeakKeyStoreKey to recover from) are left as-is and
-        /// self-heal later via the lazy circle-definition reconcile path.
+        /// self-heal later via the lazy circle-definition reconcile path. Returns the number of identities
+        /// upgraded and skipped so the caller can log a summary in its own trace.
         /// </summary>
-        public async Task UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(IOdinContext odinContext,
-            CancellationToken cancellationToken)
+        public async Task<(int upgraded, int skipped)> UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(
+            IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
 
@@ -1331,11 +1332,7 @@ namespace Odin.Services.Membership.Connections
                 }
             }
 
-            if (upgraded > 0 || skipped > 0)
-            {
-                logger.LogInformation(
-                    "Master key encryption upgrade pass complete: {upgraded} upgraded, {skipped} skipped", upgraded, skipped);
-            }
+            return (upgraded, skipped);
         }
 
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,

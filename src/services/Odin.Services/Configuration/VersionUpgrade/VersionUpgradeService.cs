@@ -37,9 +37,12 @@ public class VersionUpgradeService(
 {
     private bool _isRunning;
 
+    // Prefix on every log line emitted by the upgrade flow so it can be traced through the log.
+    private const string LogTag = nameof(VersionUpgradeService) + ":";
+
     public async Task UpgradeAsync(VersionUpgradeJobData data, CancellationToken cancellationToken)
     {
-        logger.LogInformation($"Running Version Upgrade Process for {data.Tenant}");
+        logger.LogInformation(LogTag + " Running Version Upgrade Process for {tenant}", data.Tenant);
 
         var tokenBytes = AesCbc.Decrypt(data.EncryptedToken, tenantContext.TemporalEncryptionKey, data.Iv);
         var token = ClientAuthenticationToken.FromPortableBytes(tokenBytes);
@@ -77,8 +80,11 @@ public class VersionUpgradeService(
             await using (var encTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
             {
                 _isRunning = true;
-                await circleNetworkService.UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(odinContext, cancellationToken);
+                var (upgraded, skipped) =
+                    await circleNetworkService.UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(odinContext, cancellationToken);
                 encTx.Commit();
+                logger.LogInformation(
+                    LogTag + " Master key encryption pre-pass complete: {upgraded} upgraded, {skipped} skipped", upgraded, skipped);
             }
 
             if (currentVersion == 0)
@@ -86,7 +92,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v1.UpgradeAsync(odinContext, cancellationToken);
 
@@ -95,7 +101,7 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -109,7 +115,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v2.UpgradeAsync(odinContext, cancellationToken);
 
@@ -118,7 +124,7 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -132,7 +138,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v3.UpgradeAsync(odinContext, cancellationToken);
 
@@ -141,7 +147,7 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -155,7 +161,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v4.UpgradeAsync(odinContext, cancellationToken);
 
@@ -165,7 +171,7 @@ public class VersionUpgradeService(
              
                 tx.Commit();
                 
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             if (data.TestMode)
@@ -179,7 +185,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v5.UpgradeAsync(odinContext, cancellationToken);
 
@@ -188,7 +194,7 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             if (currentVersion == 5)
@@ -196,7 +202,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v6.UpgradeAsync(odinContext, cancellationToken);
 
@@ -205,7 +211,7 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -219,7 +225,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v7.UpgradeAsync(odinContext, cancellationToken);
 
@@ -228,7 +234,7 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -242,7 +248,7 @@ public class VersionUpgradeService(
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
 
                 _isRunning = true;
-                logger.LogInformation("Upgrading from v{currentVersion}", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
 
                 await v8.UpgradeAsync(odinContext, cancellationToken);
 
@@ -251,7 +257,7 @@ public class VersionUpgradeService(
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 
                 tx.Commit();
-                logger.LogInformation("Upgrading to v{currentVersion} successful", currentVersion);
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
             }
 
             // do this after each version upgrade
@@ -268,7 +274,7 @@ public class VersionUpgradeService(
         catch (Exception ex)
         {
             await tenantConfigService.SetVersionFailureInfoAsync(currentVersion + 1);
-            logger.LogError(ex, $"Upgrading from {currentVersion} failed.  Release Info: {Version.VersionText}");
+            logger.LogError(ex, LogTag + " Upgrading from v{currentVersion} failed. Release Info: {releaseInfo}", currentVersion, Version.VersionText);
         }
         finally
         {
