@@ -1,5 +1,65 @@
 # Server-side Contact API + full connection/introduction lifecycle
 
+## Scenarios (at a glance)
+
+**Contact CRUD & storage**
+- When a contact is created **with** an odinId, it's stored keyed on `ToGuidId(odinId)` so every later
+  relationship event lands on that same file.
+- When a contact is created **without** an odinId, it's stored under a random uniqueId and can only be tied
+  to an identity later by an explicit action.
+- When a contact is upserted and a file with the same uniqueId already exists, it's updated in place and the
+  new content is merged over it without clobbering user-entered fields.
+- When a contact is fetched, it's returned as a `SharedSecretEncryptedFileHeader` (keyHeader re-encrypted to
+  the caller's shared secret, content left encrypted) and the client decrypts it, with the live relationship
+  composed and attached server-side — the server never returns plaintext.
+- When the contact list is requested, it's cursor-paged and relationship-annotated, with filters for
+  `source`, `hasOdinId`, `search`, and `relationship` (e.g. connections-only) — relationship filters seed
+  from the connection registry so pages stay full.
+- When a contact is deleted, it's soft-deleted, but a still-connected/introduced/pending contact is recreated
+  by the reconcile pass — to hide an active contact the user archives it (`archivalStatus`) instead.
+- When a contact image is set or read, it's the `prfl_pic` payload, shared-secret-encrypted like content
+  (client decrypts; enrichment re-encrypts the fetched photo under the file keyHeader).
+- When a client writes with a stale `versionTag`, it gets **409 Conflict** with the current versionTag/header
+  to re-fetch and retry; server-internal write races retry once, then defer to the idempotent job/reconcile.
+
+**Relationship**
+- When any contact is read, its relationship (status, origin, via-introduction, introducer, timestamps) is
+  composed live with priority connection-registry > pending request > introduction.
+
+**Lifecycle (connections & introductions)**
+- When an introduction is received, a stub contact (`source=public`) is upserted for each introduced identity.
+- When a connection request is received, a stub contact (`source=public`) is upserted for the sender.
+- When a connection request is sent, a stub contact is upserted for the recipient.
+- When a connection request is accepted/finalized, the same contact file flips to `source=contact` and a
+  background enrichment job is scheduled.
+- When the enrichment job runs, it peer-queries the connection's profile and fills name/phone/email/location/
+  birthday/photo, merging into the contact.
+- When a connection is disconnected or blocked, the contact file is kept but `source` flips `contact`→`public`.
+- When reconcile (or `POST /sync`) runs, a contact file is ensured for every current relationship, backfilling
+  any that are missing.
+
+**Manual contact ↔ identity**
+- When a contact is created and the user already knows the Homebase ID, the odinId is captured up front so the
+  match-later problem never arises.
+- When two contacts look like the same person, the duplicate detector surfaces candidate pairs (exact
+  email/phone or fuzzy name) but never auto-merges.
+- When `POST /merge` is called, the two contacts are unioned into the odinId-keyed file and the other is
+  soft-deleted.
+- When `POST /link` is called, the odinId is attached and the file is re-keyed to `ToGuidId(odinId)` (routing
+  into merge if a file already exists under that key).
+- When a hand-typed no-odinId contact later connects without having been linked, a separate odinId-keyed file
+  is created and the duplicate is resolved only via detection/merge/link.
+
+**Write lockdown (Part D)**
+- When a client or app attempts a direct write to the ContactDrive with the lockdown on, it's rejected with
+  HTTP 403 `DirectContactDriveWriteNotAllowed`.
+- When a write goes through the Contact API, it's allowed via the scoped `ContactService` bypass.
+- When anyone reads the ContactDrive, it still works (read is unchanged for backwards compatibility).
+- When the lockdown flag is off, direct writes still work, so old and new clients coexist during migration.
+- When a peer attempts to write the ContactDrive, it's already impossible (owner-only, non-distributed).
+
+---
+
 ## Context
 
 Contacts live as files on `SystemDriveConstants.ContactDrive` (owner-only). Today all contact logic
