@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -14,6 +15,7 @@ using Odin.Services.Contacts;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Peer.Encryption;
 using Refit;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
@@ -223,6 +225,120 @@ public class ContactTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
     }
 
+    // -----------------------------------------------------------------------------------------
+    // merge log
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task NewContact_HasNoMergeLog()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        Assert.That(await HasMergeLogAsync(owner, create.Content!.UniqueId), Is.False,
+            "a freshly created contact has no merge log");
+    }
+
+    [Test]
+    public async Task FirstTimeFieldFill_DoesNotLog()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        // Filling a previously-empty field is not an overwrite → no log.
+        var fill = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Email = new ContactEmail { Email = "sam@shire.example" } }
+        });
+        Assert.That(fill.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        Assert.That(await HasMergeLogAsync(owner, uid), Is.False, "first-time fills must not be logged");
+    }
+
+    [Test, TestCaseSource(nameof(AllowedCallers))]
+    public async Task OverwritingField_AppendsMergeLogEntry(CallerKind kind)
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = await GetContactsClientAsync(owner, kind, PermissionKeyAllowance.Apps);
+
+        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var update = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Samwise Gamgee" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var log = await ReadMergeLogAsync(owner, uid);
+        Assert.That(log, Has.Count.EqualTo(1));
+        Assert.That(log[0].By, Is.EqualTo("api"));
+        Assert.That(log[0].Changes, Does.ContainKey("name.displayName"));
+        Assert.That(log[0].Changes["name.displayName"], Is.EqualTo("Sam"), "the log keeps the OLD value");
+        Assert.That(log[0].At, Is.GreaterThan(0));
+
+        // New value lives in Content; only the old value is in the log.
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise Gamgee"));
+    }
+
+    [Test]
+    public async Task SuccessiveOverwrites_AccumulateMergeLogEntries()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Name = new ContactName { DisplayName = "A" },
+                Email = new ContactEmail { Email = "a@shire.example" }
+            }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var first = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "B" } }
+        });
+        Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var second = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            VersionTag = first.Content!.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Email = new ContactEmail { Email = "b@shire.example" } }
+        });
+        Assert.That(second.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var log = await ReadMergeLogAsync(owner, uid);
+        Assert.That(log, Has.Count.EqualTo(2), "each overwrite appends an entry");
+        Assert.That(log[0].Changes["name.displayName"], Is.EqualTo("A"));
+        Assert.That(log[1].Changes["email.email"], Is.EqualTo("a@shire.example"));
+
+        // Still a single contact file; the log is a payload, not a new file.
+        Assert.That(await CountContactsAsync(owner), Is.EqualTo(1));
+    }
+
     [Test]
     public async Task Upsert_AppWithoutManageContacts_IsForbidden()
     {
@@ -295,5 +411,35 @@ public class ContactTests : V2Fixture
         var keyHeader = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
         var plain = keyHeader.Decrypt(Convert.FromBase64String(header.FileMetadata.AppData.Content));
         return JsonSerializer.Deserialize<ContactContent>(plain.ToStringFromUtf8Bytes())!;
+    }
+
+    private static async Task<bool> HasMergeLogAsync(OwnerSession owner, Guid uniqueId)
+    {
+        var header = await GetByUniqueIdAsync(owner, uniqueId);
+        return header?.FileMetadata.Payloads?.Any(p => p.Key == ContactMergeLog.PayloadKey) ?? false;
+    }
+
+    /// <summary>
+    /// Reads and decrypts the contact's <c>merge_log</c> payload. The payload is AES-encrypted with the
+    /// file key under its own IV (from the payload descriptor on the header).
+    /// </summary>
+    private static async Task<List<ContactMergeLogEntry>> ReadMergeLogAsync(OwnerSession owner, Guid uniqueId)
+    {
+        var header = await GetByUniqueIdAsync(owner, uniqueId);
+        var descriptor = header?.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactMergeLog.PayloadKey);
+        if (descriptor == null)
+        {
+            return new List<ContactMergeLogEntry>();
+        }
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetPayloadByUniqueIdAsync(uniqueId, ContactDriveId, ContactMergeLog.PayloadKey);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, "merge_log payload should be readable");
+        var cipher = await resp.Content!.ReadAsByteArrayAsync();
+
+        var sharedSecret = owner.SharedSecret;
+        var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+        var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
+        return JsonSerializer.Deserialize<List<ContactMergeLogEntry>>(plain.ToStringFromUtf8Bytes())!;
     }
 }

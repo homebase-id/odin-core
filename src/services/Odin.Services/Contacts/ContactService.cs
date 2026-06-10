@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -6,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -66,8 +70,14 @@ public class ContactService(
     /// </list>
     /// On update, the caller's <paramref name="versionTag"/> is checked for optimistic concurrency; a
     /// stale tag yields a non-success result carrying the current header for a 409 response.
+    ///
+    /// <para>
+    /// When an update overwrites existing non-empty field values, the old values are appended to the
+    /// contact's <c>merge_log</c> payload (tagged with <paramref name="source"/>).
+    /// </para>
     /// </summary>
-    public async Task<ContactUpsertResult> UpsertAsync(ContactContent content, Guid? versionTag, IOdinContext odinContext)
+    public async Task<ContactUpsertResult> UpsertAsync(ContactContent content, Guid? versionTag, IOdinContext odinContext,
+        ContactMergeSource source = ContactMergeSource.Api)
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
@@ -112,7 +122,7 @@ public class ContactService(
             };
         }
 
-        var newVersionTag = await OverwriteAsync(existing, content, writeContext);
+        var newVersionTag = await OverwriteAsync(existing, content, source, writeContext);
         return new ContactUpsertResult { Success = true, UniqueId = uniqueId, VersionTag = newVersionTag };
     }
 
@@ -218,20 +228,150 @@ public class ContactService(
         return (uniqueId, serverFileHeader.FileMetadata.VersionTag.GetValueOrDefault(versionTag));
     }
 
-    private async Task<Guid> OverwriteAsync(ServerFileHeader existing, ContactContent incoming, IOdinContext writeContext)
+    private async Task<Guid> OverwriteAsync(ServerFileHeader existing, ContactContent incoming, ContactMergeSource source,
+        IOdinContext writeContext)
     {
+        var file = existing.FileMetadata.File;
         var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
         var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
 
-        // Merge incoming over existing without clobbering fields the caller left null.
+        // Merge incoming over existing without clobbering fields the caller left null. Capture the set
+        // of overwritten field values for the merge log before we replace the content.
         var existingContent = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
+        var overwrites = ContactMergeLog.ComputeOverwrites(existingContent, incoming);
         var merged = Merge(existingContent, incoming);
 
-        existing.FileMetadata.AppData.Content = EncryptContent(keyHeader, merged);
-        existing.FileMetadata.AppData.Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), merged);
+        if (overwrites.Count == 0)
+        {
+            // Nothing to log (first-time fills / no-ops). Content-only update; no history to keep.
+            existing.FileMetadata.AppData.Content = EncryptContent(keyHeader, merged);
+            existing.FileMetadata.AppData.Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), merged);
+            await fileSystem.Storage.UpdateActiveFileHeader(file, existing, writeContext, raiseEvent: true);
+            return existing.FileMetadata.VersionTag.GetValueOrDefault();
+        }
 
-        await fileSystem.Storage.UpdateActiveFileHeader(existing.FileMetadata.File, existing, writeContext, raiseEvent: true);
-        return existing.FileMetadata.VersionTag.GetValueOrDefault();
+        // History to keep: write the merged content AND the appended merge_log payload in ONE
+        // transaction so the change and its history land together (or not at all).
+        var existingLog = await ReadMergeLogAsync(existing, keyHeader, writeContext);
+        return await WriteContentWithMergeLogAsync(existing, merged, keyHeader.AesKey, existingLog, overwrites, source,
+            existing.FileMetadata.VersionTag.GetValueOrDefault(), writeContext);
+    }
+
+    /// <summary>
+    /// Atomically writes the merged content and the appended <c>merge_log</c> payload via a single
+    /// <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit (one version-tag advance, one
+    /// change notification). The contact's AES key is reused; the content key-header IV is rotated (a
+    /// hard requirement for encrypted updates), and the merge_log payload gets its own IV.
+    /// </summary>
+    private async Task<Guid> WriteContentWithMergeLogAsync(ServerFileHeader existing, ContactContent merged,
+        SensitiveByteArray aesKey, List<ContactMergeLogEntry> existingLog, Dictionary<string, string> overwrites,
+        ContactMergeSource source, Guid currentVersionTag, IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+
+        // 1) Merged content, re-encrypted under a fresh content IV.
+        var contentIv = ByteArrayUtil.GetRndByteArray(16);
+        var contentKeyHeader = new KeyHeader { Iv = contentIv, AesKey = aesKey };
+        var contentBase64 = EncryptContent(contentKeyHeader, merged);
+
+        // 2) Appended + trimmed merge log, encrypted under its own IV, staged to the upload temp area.
+        var logBytes = ContactMergeLog.BuildUpdatedLog(existingLog, overwrites, source, UnixTimeUtc.Now());
+        var logIv = ByteArrayUtil.GetRndByteArray(16);
+        var logCipher = new KeyHeader { Iv = logIv, AesKey = aesKey }.EncryptDataAes(logBytes);
+
+        var uid = UnixTimeUtcUnique.Now();
+        var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(ContactMergeLog.PayloadKey, uid);
+        var bytesWritten = await fileSystem.Storage.WriteUploadStream(file, extension, new MemoryStream(logCipher), writeContext);
+
+        var mergeLogDescriptor = new PayloadDescriptor
+        {
+            Key = ContactMergeLog.PayloadKey,
+            Uid = uid,
+            Iv = logIv,
+            ContentType = ContactMergeLog.ContentType,
+            BytesWritten = bytesWritten,
+            LastModified = UnixTimeUtc.Now(),
+            Thumbnails = new List<ThumbnailDescriptor>()
+        };
+
+        // 3) New metadata: merged content + the merge_log descriptor. VersionTag carries the *current*
+        // tag (the optimistic-concurrency expectation); NewVersionTag is the tag after the write.
+        var newMetadata = new FileMetadata(file)
+        {
+            AppData = new AppFileMetaData
+            {
+                FileType = ContactFileType,
+                UniqueId = existing.FileMetadata.AppData.UniqueId,
+                Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), merged),
+                Content = contentBase64
+            },
+            IsEncrypted = true,
+            VersionTag = currentVersionTag,
+            Payloads = [mergeLogDescriptor]
+        };
+
+        var manifest = new BatchUpdateManifest
+        {
+            NewVersionTag = SequentialGuid.CreateGuid(),
+            KeyHeader = contentKeyHeader,
+            FileMetadata = newMetadata,
+            ServerMetadata = new ServerMetadata
+            {
+                AccessControlList = AccessControlList.OwnerOnly,
+                AllowDistribution = false
+            },
+            PayloadInstruction =
+            [
+                new PayloadInstruction
+                {
+                    Key = ContactMergeLog.PayloadKey,
+                    OperationType = PayloadUpdateOperationType.AppendOrOverwrite
+                }
+            ]
+        };
+
+        var descriptors = new List<PayloadDescriptor> { mergeLogDescriptor };
+        try
+        {
+            // Keeps existing payloads not named in the instructions (e.g. a future prfl_pic); commits
+            // the header (content) and the merge_log payload in a single transaction.
+            await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null);
+            return manifest.NewVersionTag;
+        }
+        finally
+        {
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, descriptors, writeContext);
+        }
+    }
+
+    private async Task<List<ContactMergeLogEntry>> ReadMergeLogAsync(ServerFileHeader header, KeyHeader keyHeader,
+        IOdinContext writeContext)
+    {
+        var descriptor = header.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(ContactMergeLog.PayloadKey));
+        if (descriptor == null)
+        {
+            return new List<ContactMergeLogEntry>();
+        }
+
+        using var stream = await fileSystem.Storage.GetPayloadStreamAsync(
+            header.FileMetadata.File, ContactMergeLog.PayloadKey, null, writeContext);
+        if (stream == null)
+        {
+            return new List<ContactMergeLogEntry>();
+        }
+
+        using var ms = new MemoryStream();
+        await stream.Stream.CopyToAsync(ms);
+        var cipher = ms.ToArray();
+        if (cipher.Length == 0)
+        {
+            return new List<ContactMergeLogEntry>();
+        }
+
+        // Payloads are encrypted with the file's AES key under their own per-payload IV.
+        var payloadKeyHeader = new KeyHeader { Iv = descriptor.Iv, AesKey = keyHeader.AesKey };
+        var plain = payloadKeyHeader.Decrypt(cipher);
+        return ContactMergeLog.Deserialize(plain);
     }
 
     private static System.Collections.Generic.List<Guid> BuildTags(Guid uniqueId, ContactContent content)
