@@ -9,9 +9,9 @@ using Odin.Hosting;
 namespace Odin.Hosting.Tests.V2.Hosting;
 
 /// <summary>
-/// Unit tests for <see cref="SpaFallback"/> — the shared deep-link fallback guard used by every
-/// statically-served front-end app (owner, feed, chat, mail, community, chat-wasm). These assert
-/// the rule that matters regardless of which app it is: a navigation gets the SPA shell, but an
+/// Unit tests for <see cref="SpaFallback"/> — the deep-link fallback guard used by the
+/// statically-served chat-wasm app. These assert
+/// the rule: a navigation gets the SPA shell, but an
 /// asset request gets a clean 404 instead of being masked as <c>200 index.html</c> (the masking
 /// that hid the chat-wasm blank-text bug, where Compose received index.html for its
 /// <c>strings.commonMain.cvr</c> string table). No host boot — pure logic, microseconds.

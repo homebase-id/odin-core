@@ -6,8 +6,7 @@ using Microsoft.AspNetCore.Http;
 namespace Odin.Hosting;
 
 /// <summary>
-/// Shared deep-link fallback for the statically-served single-page front-end apps
-/// (owner, feed, chat, mail, community, chat-wasm). Each app registers its own
+/// Deep-link fallback for the statically-served chat-wasm app. The app registers its own
 /// <c>UseStaticFiles</c> to serve real assets; whatever the static middleware does not
 /// match falls through to this terminal handler.
 ///
@@ -25,7 +24,7 @@ namespace Odin.Hosting;
 /// <c>fetch()</c>/XHR, all of which omit <c>text/html</c> from <c>Accept</c> — gets a clean
 /// <c>404</c> so a missing asset surfaces as a missing asset. Accept-based (rather than
 /// "does the path have a file extension") so that path-routed deep-links containing dots —
-/// e.g. <c>/owner/connections/frodo.dotyou.cloud</c> — still resolve to the shell.
+/// e.g. <c>/apps/chat-wasm/conversations/frodo.dotyou.cloud</c> — still resolve to the shell.
 /// </summary>
 public static class SpaFallback
 {

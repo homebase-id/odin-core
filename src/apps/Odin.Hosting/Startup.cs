@@ -267,8 +267,12 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         RequestPath = "/owner"
                     });
 
-                    ownerApp.Run(context =>
-                        SpaFallback.ServeShellOrNotFound(context, Path.Combine(ownerPath, "index.html")));
+                    ownerApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
+                        return;
+                    });
                 });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/feed"),
@@ -280,8 +284,12 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         FileProvider = new PhysicalFileProvider(feedPath),
                         RequestPath = "/apps/feed"
                     });
-                    feedApp.Run(context =>
-                        SpaFallback.ServeShellOrNotFound(context, Path.Combine(feedPath, "index.html")));
+                    feedApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        await context.Response.SendFileAsync(Path.Combine(feedPath, "index.html"));
+                        return;
+                    });
                 });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat"),
@@ -294,8 +302,12 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         RequestPath = "/apps/chat"
                     });
 
-                    chatApp.Run(context =>
-                        SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatPath, "index.html")));
+                    chatApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        await context.Response.SendFileAsync(Path.Combine(chatPath, "index.html"));
+                        return;
+                    });
                 });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/mail"),
@@ -308,8 +320,12 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         RequestPath = "/apps/mail"
                     });
 
-                    mailApp.Run(context =>
-                        SpaFallback.ServeShellOrNotFound(context, Path.Combine(mailPath, "index.html")));
+                    mailApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        await context.Response.SendFileAsync(Path.Combine(mailPath, "index.html"));
+                        return;
+                    });
                 });
 
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
@@ -322,8 +338,12 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         RequestPath = "/apps/community"
                     });
 
-                    communityApp.Run(context =>
-                        SpaFallback.ServeShellOrNotFound(context, Path.Combine(communityPath, "index.html")));
+                    communityApp.Run(async context =>
+                    {
+                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                        await context.Response.SendFileAsync(Path.Combine(communityPath, "index.html"));
+                        return;
+                    });
                 });
 
             var chatWasmPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat-wasm");
@@ -335,15 +355,18 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         chatWasmApp.UseStaticFiles(new StaticFileOptions()
                         {
                             FileProvider = new PhysicalFileProvider(chatWasmPath),
-                            RequestPath = "/apps/chat-wasm"
+                            RequestPath = "/apps/chat-wasm",
+                            // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
+                            // string table) have extensions Kestrel's content-type map doesn't know.
+                            // Without this, UseStaticFiles 404s them and the SPA fallback below returns
+                            // index.html instead, so Compose loads HTML as its string table and ALL text
+                            // renders blank. Serve unknown types as octet-stream (Compose reads raw bytes).
+                            ServeUnknownFileTypes = true,
+                            DefaultContentType = "application/octet-stream"
                         });
 
-                        chatWasmApp.Run(async context =>
-                        {
-                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(chatWasmPath, "index.html"));
-                            return;
-                        });
+                        chatWasmApp.Run(context =>
+                            SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
                     });
             }
             else
