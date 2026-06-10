@@ -288,6 +288,11 @@ public static class TenantServices
 
         cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<ContactEnrichmentService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ContactLifecycleService>()
+            .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<ConnectionRequestReceivedNotification>>()
+            .As<INotificationHandler<IntroductionsReceivedNotification>>()
+            .InstancePerLifetimeScope();
 
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
         cb.RegisterType<FollowerPerimeterService>().InstancePerLifetimeScope();

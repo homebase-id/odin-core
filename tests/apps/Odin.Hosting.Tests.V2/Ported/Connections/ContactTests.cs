@@ -419,6 +419,25 @@ public class ContactTests : V2Fixture
     }
 
     [Test]
+    public async Task AcceptingConnection_AutoCreatesContact_ViaLifecycle()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Sam requests; Frodo accepts → ConnectionFinalized fires under Frodo's (owner, master-key)
+        // context, so the lifecycle handler ensures a contact for Sam on Frodo's side.
+        Assert.That((await sam.Connections.SendConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await frodo.Connections.AcceptConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+
+        // No contact-API call was made; the contact exists purely from the lifecycle handler.
+        var uid = ContactService.ToContactUniqueId((OdinId)Identities.Sam);
+        var header = await GetByUniqueIdAsync(frodo, uid);
+        Assert.That(header, Is.Not.Null, "accepting a connection should auto-create the contact via the lifecycle handler");
+        Assert.That(header!.FileMetadata.AppData.FileType, Is.EqualTo(ContactService.ContactFileType));
+        Assert.That(header.FileMetadata.AppData.UniqueId, Is.EqualTo(uid));
+    }
+
+    [Test]
     public async Task Upsert_AppWithoutManageContacts_IsForbidden()
     {
         var owner = await LoginAsOwner(Identities.Frodo);

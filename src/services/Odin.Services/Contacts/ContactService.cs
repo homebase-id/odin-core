@@ -126,6 +126,27 @@ public class ContactService(
     }
 
     /// <summary>
+    /// Ensure a data-only contact file exists for <paramref name="odinId"/> (creates a <c>{ odinId }</c>
+    /// stub if absent; no-op if present). Used by the lifecycle handlers to materialize a contact the
+    /// moment a relationship appears, before any profile data is available. Fast + local (no peer I/O).
+    /// </summary>
+    public async Task EnsureExistsAsync(OdinId odinId, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        var uniqueId = ToContactUniqueId(odinId);
+        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+
+        var existing = await GetForWritingAsync(uniqueId, writeContext);
+        if (existing != null)
+        {
+            return;
+        }
+
+        await WriteNewAsync(uniqueId, new ContactContent { OdinId = odinId.DomainName }, writeContext);
+    }
+
+    /// <summary>
     /// Soft-delete the contact keyed on <paramref name="uniqueId"/>. Returns false if no such contact
     /// exists.
     /// </summary>
