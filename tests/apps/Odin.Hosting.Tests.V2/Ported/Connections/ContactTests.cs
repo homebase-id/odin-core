@@ -3,18 +3,26 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Contacts;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base.Upload;
+using Odin.Services.LinkPreview.Profile;
+using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Refit;
 
@@ -339,6 +347,77 @@ public class ContactTests : V2Fixture
         Assert.That(await CountContactsAsync(owner), Is.EqualTo(1));
     }
 
+    // -----------------------------------------------------------------------------------------
+    // enrichment / sync
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task Sync_EnrichesConnectedContact_FromPeerProfile_AndLogsAsEnrichment()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // 1) Seed Sam's profile: an anonymous Name attribute on his ProfileDrive, tagged with the
+        //    Name attribute type id (so the enrichment peer-query finds it).
+        var nameType = AttributeTypeId("name");
+        var attribute = new ProfileBlock
+        {
+            Type = nameType.ToString(),
+            Data = new Dictionary<string, object>
+            {
+                ["displayName"] = "Samwise Gamgee",
+                ["givenName"] = "Samwise"
+            }
+        };
+
+        var seed = await sam.Drives.Writer.CreateNewUnencryptedFile(
+            SystemDriveConstants.ProfileDrive.Alias,
+            new UploadFileMetadata
+            {
+                IsEncrypted = false,
+                AccessControlList = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Anonymous },
+                AppData = new UploadAppFileMetaData
+                {
+                    FileType = 77, // HomebaseProfileContentService.AttributeFileType
+                    Tags = [nameType],
+                    Content = OdinSystemSerializer.Serialize(attribute)
+                }
+            },
+            new UploadManifest(),
+            []);
+        Assert.That(seed.IsSuccessStatusCode, Is.True, "seeding Sam's profile attribute should succeed");
+
+        // 2) Connect Frodo <-> Sam so Frodo can peer-query Sam's ProfileDrive.
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+        var icr = await frodo.Connections.GetConnectionInfo(sam.Identity);
+        Assert.That(icr.Content!.Status, Is.EqualTo(ConnectionStatus.Connected));
+
+        // 3) Frodo creates a contact for Sam with a placeholder name.
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        // 4) Sync → enrichment peer-queries Sam's profile and merges the result.
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        // 5) The placeholder name was overwritten by Sam's profile name.
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, uid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise Gamgee"));
+        Assert.That(stored.Name.GivenName, Is.EqualTo("Samwise"));
+
+        // 6) The overwrite was recorded in the merge log, tagged as enrichment.
+        var log = await ReadMergeLogAsync(frodo, uid);
+        Assert.That(log, Has.Count.EqualTo(1));
+        Assert.That(log[0].By, Is.EqualTo("enrichment"));
+        Assert.That(log[0].Changes["name.displayName"], Is.EqualTo("Placeholder"));
+    }
+
     [Test]
     public async Task Upsert_AppWithoutManageContacts_IsForbidden()
     {
@@ -411,6 +490,14 @@ public class ContactTests : V2Fixture
         var keyHeader = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
         var plain = keyHeader.Decrypt(Convert.FromBase64String(header.FileMetadata.AppData.Content));
         return JsonSerializer.Deserialize<ContactContent>(plain.ToStringFromUtf8Bytes())!;
+    }
+
+    /// <summary>md5(typeName)-as-Guid — the profile attribute type id, matching odin-js toGuidId.</summary>
+    private static Guid AttributeTypeId(string typeName)
+    {
+        using var md5 = MD5.Create();
+        var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(typeName));
+        return new Guid(BitConverter.ToString(hash).Replace("-", "").ToLower());
     }
 
     private static async Task<bool> HasMergeLogAsync(OwnerSession owner, Guid uniqueId)
