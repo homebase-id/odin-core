@@ -287,6 +287,7 @@ public static class TenantServices
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ContactEnrichmentService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
         cb.RegisterType<FollowerPerimeterService>().InstancePerLifetimeScope();

@@ -18,7 +18,8 @@ namespace Odin.Hosting.UnifiedV2.Connections;
 [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2ContactsController(
-    ContactService contactService
+    ContactService contactService,
+    ContactEnrichmentService contactEnrichmentService
 ) : OdinControllerBase
 {
     // POST /api/v2/contacts
@@ -72,7 +73,8 @@ public class V2ContactsController(
     {
         AssertIsValidOdinId(odinId, out var id);
 
-        await contactService.SyncAsync(id, WebOdinContext);
+        // Inline re-enrichment from the identity's profile (best-effort; merges contact data only).
+        await contactEnrichmentService.EnrichAsync(id, WebOdinContext);
         return Accepted();
     }
 }

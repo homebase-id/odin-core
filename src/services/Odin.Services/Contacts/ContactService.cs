@@ -2,12 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
@@ -57,7 +56,7 @@ public class ContactService(
     /// </summary>
     public static Guid ToContactUniqueId(OdinId odinId)
     {
-        return ToGuidId(odinId.DomainName);
+        return ContactGuid.ToGuidId(odinId.DomainName);
     }
 
     /// <summary>
@@ -160,18 +159,47 @@ public class ContactService(
     }
 
     /// <summary>
-    /// Trigger re-enrichment of a contact from the peer (connected) or public (not connected) profile.
+    /// Server-internal create-or-merge for a contact that carries an odinId (used by enrichment and the
+    /// lifecycle handlers). Unlike the client <see cref="UpsertAsync"/>, this does <b>not</b> do
+    /// client-versionTag optimistic concurrency — it always merges over the current file, retrying once
+    /// if a concurrent write advances the version mid-merge (the merge is idempotent; reconcile
+    /// converges any straggler). Overwritten values are logged to <c>merge_log</c> tagged with
+    /// <paramref name="source"/>.
     /// </summary>
-    /// <remarks>
-    /// Enrichment (the peer/public profile pull + merge, and its background job) is a separate part of
-    /// the plan and is not yet built; this is the entry point the controller calls so the surface is in
-    /// place. It asserts the permission and exits.
-    /// </remarks>
-    public Task SyncAsync(OdinId odinId, IOdinContext odinContext)
+    public async Task<Guid> MergeAsync(ContactContent content, ContactMergeSource source, IOdinContext odinContext)
     {
+        OdinValidationUtils.AssertNotNull(content, nameof(content));
+        OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(content.OdinId), "MergeAsync requires content.OdinId");
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
-        logger.LogDebug("Contact sync requested for {odinId}; enrichment is not yet implemented (no-op).", odinId);
-        return Task.CompletedTask;
+
+        OdinValidationUtils.AssertIsValidOdinId(content.OdinId, out var odinId);
+        content.OdinId = odinId.DomainName;
+        var uniqueId = ToContactUniqueId(odinId);
+        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+
+        const int maxAttempts = 2;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var existing = await GetForWritingAsync(uniqueId, writeContext);
+            if (existing == null)
+            {
+                var (_, versionTag) = await WriteNewAsync(uniqueId, content, writeContext);
+                return versionTag;
+            }
+
+            try
+            {
+                return await OverwriteAsync(existing, content, source, writeContext);
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt < maxAttempts)
+            {
+                logger.LogDebug("Contact merge race for {odinId}; re-reading and retrying", odinId);
+            }
+        }
+
+        logger.LogWarning("Contact merge for {odinId} gave up after {attempts} attempts; reconcile will converge it",
+            odinId, maxAttempts);
+        return Guid.Empty;
     }
 
     private async Task<ServerFileHeader> GetForWritingAsync(Guid uniqueId, IOdinContext writeContext)
@@ -441,11 +469,4 @@ public class ContactService(
         };
     }
 
-    private static Guid ToGuidId(string input)
-    {
-        using var md5 = MD5.Create();
-        var hashBytes = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
-        var b = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
-        return new Guid(b);
-    }
 }

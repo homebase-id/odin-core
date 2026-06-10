@@ -231,18 +231,31 @@ Request/response DTOs:
   endpoint — clients read it as a normal drive payload. Enrichment fetches the peer's `prfl_pic`, decrypts it
   internally, re-encrypts with the contact file's keyHeader, and stores it as payload + preview thumbnail.
 
-### Merge log (`merge_log` payload) — in scope
+### Merge log (`merge_log` payload) — implemented
 Whenever a merge overwrites existing field values — both an **API upsert over an existing file** and
 **enrichment merging peer/public data over it** — the overwritten values are appended to an append-only log
 attached to the contact file. (Same idea as Outlook dumping conflicts into the long-description field.)
-- **Mechanism.** A dedicated **`merge_log` payload** on the contact file (separate from `Content` and
-  `prfl_pic`), encrypted at rest like content.
-- **Trigger.** Only fields whose prior value was non-empty and is being *replaced* by a different value;
-  no-op writes and first-time fills do not log.
-- **Entry format.** A JSON array; each entry `{ "at": <UnixTimeUtc>, "by": "api" | "enrichment",
-  "changes": { "<jsonPath>": <oldValue> } }` (old values only — the new value is in `Content`).
-- **Growth bound.** Cap the log (e.g. last N=100 entries or a byte ceiling); oldest entries are dropped when
-  the cap is exceeded, so the payload size stays bounded.
+Implemented in `ContactMergeLog` (`Odin.Services/Contacts/`) + `ContactService.OverwriteAsync`.
+- **Mechanism.** A dedicated **`merge_log` payload** (key `merge_log`; valid per `^[a-z0-9_]{8,10}$`) on the
+  contact file, separate from `Content` and `prfl_pic`. Encrypted at rest with the file's AES key under its
+  **own per-payload IV** (clients decrypt it like any drive payload).
+- **Lazy creation.** Not created on insert — a freshly created contact has **no** `merge_log` payload. It is
+  created on the **first** update that overwrites a field, and appended to thereafter.
+- **Trigger.** Only fields whose prior value was non-empty and is being *replaced* by a different non-empty
+  value; no-op writes and first-time fills do **not** log. (`ContactMergeLog.ComputeOverwrites`.) Field paths
+  are the dotted content paths: `odinId`, `name.displayName`, `name.givenName`, `name.additionalName`,
+  `name.surname`, `location.city`, `location.country`, `phone.number`, `email.email`, `birthday.date`.
+- **Entry format.** A JSON array (camelCase, oldest→newest); each entry
+  `{ "at": <UnixTimeUtc ms>, "by": "api" | "enrichment", "changes": { "<jsonPath>": "<oldValue>" } }` —
+  **old values only**; the new value is in `Content`. All fields changed in one write are grouped under a
+  single entry's `changes`.
+- **Atomic write.** The merged `Content` and the appended `merge_log` payload are committed in a **single
+  transaction** via `DriveStorageServiceBase.UpdateBatchAsync` — one `versionTag` advance, one
+  `DriveFileChangedNotification`, and the content key-header IV is rotated (required for encrypted updates).
+  The change and its history land together or not at all (a merge-log failure rolls back the whole upsert).
+  The no-overwrite path (first-time fills / no-ops) stays a content-only `UpdateActiveFileHeader` write.
+- **Growth bound.** Bounded to the last **`MaxEntries = 100`** entries; oldest dropped past the cap so the
+  payload size stays bounded. (Count-based only; no byte ceiling.)
 
 ### Controller — `src/apps/Odin.Hosting/UnifiedV2/Connections/V2ContactsController.cs`
 Modeled on `V2ConnectionRequestsController` (`[Route(UnifiedApiRouteConstants.Contacts)]`,
@@ -379,7 +392,10 @@ owner context); `KeyHeader` / `DriveStorageServiceBase` encrypt pattern (`FeedWr
 - `ManageContacts` permission: confirm the `ManageFeed` pattern (constant + `PermissionKeyAllowance.Apps` +
   service-side assert) is the complete set of touch points.
 - `BuiltInAttributes` GUIDs only in TS today → port to C#. Pin DTO camelCase explicitly.
-- `merge_log` payload: confirm payloads can be added/overwritten on the contact file alongside `Content` and
-  `prfl_pic` without disturbing the header content-vs-payload spill logic; settle the growth-bound policy.
+- `merge_log` payload: **resolved** — content + `merge_log` are written atomically via `UpdateBatchAsync`
+  (single transaction, single version-tag advance, content IV rotated), growth bound is count-based (100
+  entries). Still to confirm once `prfl_pic` exists: that an incremental `UpdateBatchAsync` touching only
+  `merge_log` leaves the `prfl_pic` payload intact (the `AppendOrOverwrite` instruction keeps unlisted
+  payloads, but it is untested until enrichment writes an image).
 - Delete cascade: confirm the exact request cancel/reject + introduction-delete methods, run the teardown
   **before** the file soft-delete, and require explicit client confirmation since disconnect is outward-facing.
