@@ -5,6 +5,7 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Contacts;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -72,6 +73,7 @@ using Odin.Services.Authorization.Capi;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
 using Odin.Services.Configuration.VersionUpgrade.Version7tov8;
+using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -284,6 +286,8 @@ public static class TenantServices
 
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
 
+        cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
+
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
         cb.RegisterType<FollowerPerimeterService>().InstancePerLifetimeScope();
 
@@ -341,6 +345,7 @@ public static class TenantServices
         cb.RegisterType<V5ToV6VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V6ToV7VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V7ToV8VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V8ToV9VersionMigrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();

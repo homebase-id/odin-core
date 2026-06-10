@@ -26,6 +26,8 @@ public static class SwaggerInfo
     
     public const string Connections = "Connection Operations";
 
+    public const string Contacts = "Contact Operations";
+
     public const string Links = "Links";
 
     // Peer notification subscriptions (live updates on drives hosted by other identities)
