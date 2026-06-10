@@ -148,6 +148,7 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("S3Storage__Enabled", "false");
             Environment.SetEnvironmentVariable("S3Payload__Enabled", "false");
+            Environment.SetEnvironmentVariable("S3Inbox__Enabled", "false");
 #if RUN_S3_TESTS
             Logger.LogInformation("Starting Minio S3 container for tests");
             MinioContainer = new MinioBuilder()

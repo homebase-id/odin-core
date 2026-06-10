@@ -70,9 +70,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId);
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, false,
-            odinContext, sourceFolderPath: drive.GetDriveUploadPath());
+            odinContext, sourceArea: StagingArea.Upload);
     }
 
     protected override async Task ProcessExistingFileUpload(FileUploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
@@ -96,7 +95,6 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            var drive = await _driveManager.GetDriveAsync(package.InternalFile.DriveId);
             await FileSystem.Storage.OverwriteFile(
                 originFile: package.InternalFile,
                 targetFile: targetFile,
@@ -106,7 +104,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 ignorePayload: false,
                 odinContext: odinContext,
                 markComplete: null,
-                sourceFolderPath: drive.GetDriveUploadPath());
+                sourceArea: StagingArea.Upload);
 
             return;
         }
