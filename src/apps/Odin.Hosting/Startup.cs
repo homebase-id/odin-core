@@ -477,8 +477,11 @@ public static class HostExtensions
         {
             logger.LogInformation("Creating S3 inbox bucket '{BucketName}' at {ServiceUrl}",
                 config.S3Inbox.BucketName, config.S3Storage.ServiceUrl);
-            var payloadBucket = services.GetRequiredService<IS3InboxStorage>();
-            payloadBucket.CreateBucketAsync().BlockingWait();
+            var inboxBucket = services.GetRequiredService<IS3InboxStorage>();
+            inboxBucket.CreateBucketAsync().BlockingWait();
+
+            logger.LogInformation("Reconciling S3 inbox expiration: {days} day(s)", config.S3Inbox.ExpirationDays);
+            inboxBucket.EnsureExpirationLifecycleAsync(config.S3Inbox.ExpirationDays).BlockingWait();
         }
 
         // Sanity ping CDN

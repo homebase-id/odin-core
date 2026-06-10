@@ -55,6 +55,9 @@ public class AutofacDiagnostics(IContainer root, ILogger logger)
         {typeof(Odin.Core.Storage.Database.TransactionalCacheStats), "e6f1c919"},
         {typeof(Odin.Core.Tasks.ForgottenTasks), "e6f1c919"},
         {typeof(Odin.Core.Storage.PubSub.ChannelPrefix), "ec4d8d30"},
+        {typeof(Odin.Services.Drives.DriveCore.Storage.UploadFileStore), "5b81378a"},
+        {typeof(Odin.Services.Drives.DriveCore.Storage.InboxFileStore), "5b81378a"},
+        {typeof(Odin.Services.Drives.DriveCore.Storage.LongTermPayloadStore), "5b81378a"},
     };
 
     //
