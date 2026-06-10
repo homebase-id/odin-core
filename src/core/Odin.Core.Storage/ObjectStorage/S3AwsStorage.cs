@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -96,7 +97,8 @@ public class S3AwsStorage : IS3Storage
 
             var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
-            _logger.LogDebug("S3AwsStorage:WriteBytesAsync {elapsed}ms", sw.ElapsedMilliseconds);
+            _logger.LogDebug("S3AwsStorage:WriteBytesAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
+                sw.ElapsedMilliseconds, bytes.Length, BytesPerSecond(bytes.Length, sw));
         }
         catch (Exception ex)
         {
@@ -115,11 +117,41 @@ public class S3AwsStorage : IS3Storage
         _logger.LogTrace(nameof(WriteStreamAsync));
 
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(_rootPath, path);
 
-        // The S3 SDK uploads the entire seekable stream (it rewinds to the start), so the
-        // bytes written equal the full stream length, regardless of the current position.
-        var bytesToWrite = stream.CanSeek ? stream.Length : 0;
+        // The AWS SDK's PutObject needs a known Content-Length. A NON-seekable stream (e.g. an
+        // ASP.NET MultipartReaderStream from an incoming request section) has no determinable
+        // length, and an InputStream-based PutObject fails with
+        // "content would exceed Content-Length". Spill such streams to a temp file and upload from
+        // the file (the SDK reads the length from the file via FilePath, exactly like
+        // UploadFileAsync). CopyToAsync is chunked, so this stays memory-bounded for large payloads.
+        if (!stream.CanSeek)
+        {
+            var tempFile = Path.Combine(Path.GetTempPath(), "s3-stream-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                long written;
+                await using (var fileStream = new FileStream(
+                                 tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await stream.CopyToAsync(fileStream, cancellationToken);
+                    written = fileStream.Length;
+                }
+
+                // UploadFileAsync applies _rootPath to the (raw) destination key itself, so pass `path` un-combined.
+                await UploadFileAsync(tempFile, path, cancellationToken);
+                return written;
+            }
+            finally
+            {
+                try { File.Delete(tempFile); }
+                catch (Exception ex) { _logger.LogDebug(ex, "Failed to delete temp file '{tempFile}'", tempFile); }
+            }
+        }
+
+        // Seekable stream: upload directly. The SDK reads the full stream and sets Content-Length
+        // from its length (the metadata/transferkeyheader MemoryStreams arrive at position 0).
+        path = S3Path.Combine(_rootPath, path);
+        var bytesToWrite = stream.Length;
 
         try
         {
@@ -134,7 +166,8 @@ public class S3AwsStorage : IS3Storage
 
             var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
-            _logger.LogDebug("S3AwsStorage:WriteStreamAsync {elapsed}ms", sw.ElapsedMilliseconds);
+            _logger.LogDebug("S3AwsStorage:WriteStreamAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
+                sw.ElapsedMilliseconds, bytesToWrite, BytesPerSecond(bytesToWrite, sw));
 
             return bytesToWrite;
         }
@@ -265,11 +298,22 @@ public class S3AwsStorage : IS3Storage
     // SEB:NOTE this will not delete versioned objects (if versioning is enabled on the bucket).
     public async Task DeleteDirectoryAsync(string path, CancellationToken cancellationToken = default)
     {
-        // S3 doesn't have directories, so we need to list and delete all objects with the given prefix (path)
-
         S3Path.AssertFolderName(path);
         path = S3Path.Combine(_rootPath, path);
+        await DeletePrefixInternalAsync(path, cancellationToken);
+    }
 
+    // Delete every object whose key starts with the given (non-folder) prefix.
+    // Used by inbox cleanup to remove all "{fileId:N}." staging objects for one fileId.
+    public async Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
+    {
+        prefix = S3Path.Combine(_rootPath, prefix);
+        await DeletePrefixInternalAsync(prefix, cancellationToken);
+    }
+
+    private async Task DeletePrefixInternalAsync(string prefix, CancellationToken cancellationToken)
+    {
+        // S3 doesn't have directories, so we list and delete all objects with the given prefix.
         try
         {
             bool isTruncated;
@@ -281,7 +325,7 @@ public class S3AwsStorage : IS3Storage
                     BucketName = BucketName,
                     ContinuationToken = continuationToken,
                     MaxKeys = 1000,
-                    Prefix = path,
+                    Prefix = prefix,
                 }, cancellationToken);
 
                 if (listResponse.S3Objects?.Count > 0)
@@ -303,10 +347,43 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex)
         {
-            throw CreateS3StorageException(ex, $"Failed delete all objects from '{path} in bucket '{BucketName}'.");
+            throw CreateS3StorageException(ex, $"Failed delete all objects from '{prefix}' in bucket '{BucketName}'.");
         }
     }
 
+
+    //
+
+    public string GetFullKey(string path) => S3Path.Combine(_rootPath, path);
+
+    //
+
+    public async Task CopyFromBucketAsync(string sourceBucket, string sourceKey, string destKey, CancellationToken cancellationToken = default)
+    {
+        S3Path.AssertFileName(destKey);
+        destKey = S3Path.Combine(_rootPath, destKey);
+
+        var request = new CopyObjectRequest
+        {
+            SourceBucket = sourceBucket,
+            SourceKey = sourceKey,   // RAW: caller already built the full source key
+            DestinationBucket = BucketName,
+            DestinationKey = destKey
+        };
+
+        try
+        {
+            var sw = Stopwatch.StartNew();
+            await _s3Client.CopyObjectAsync(request, cancellationToken);
+            _logger.LogDebug("S3AwsStorage:CopyFromBucketAsync {elapsed}ms src={sourceBucket}/{sourceKey} dst={BucketName}/{destKey}",
+                sw.ElapsedMilliseconds, sourceBucket, sourceKey, BucketName, destKey);
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex,
+                $"Failed to copy object from '{sourceBucket}/{sourceKey}' to '{BucketName}/{destKey}'.");
+        }
+    }
 
     //
 
@@ -359,6 +436,8 @@ public class S3AwsStorage : IS3Storage
         S3Path.AssertFileName(dstPath);
         dstPath = S3Path.Combine(_rootPath, dstPath);
 
+        var bytesToWrite = new FileInfo(srcPath).Length;
+
         try
         {
             var request = new PutObjectRequest
@@ -371,7 +450,8 @@ public class S3AwsStorage : IS3Storage
 
             var sw = Stopwatch.StartNew();
             await _s3Client.PutObjectAsync(request, cancellationToken);
-            _logger.LogDebug("S3AwsStorage:UploadFileAsync {elapsed}ms", sw.ElapsedMilliseconds);
+            _logger.LogDebug("S3AwsStorage:UploadFileAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
+                sw.ElapsedMilliseconds, bytesToWrite, BytesPerSecond(bytesToWrite, sw));
         }
         catch (Exception ex)
         {
@@ -431,6 +511,89 @@ public class S3AwsStorage : IS3Storage
         catch (Exception ex)
         {
             throw CreateS3StorageException(ex, $"Failed to get file size of '{path}' in bucket '{BucketName}'.");
+        }
+    }
+
+    //
+
+    private static double BytesPerSecond(long bytes, Stopwatch sw)
+    {
+        var seconds = sw.Elapsed.TotalSeconds;
+        return seconds > 0 ? bytes / seconds : 0;
+    }
+
+    //
+
+    private const string ExpirationLifecycleRuleId = "odin-inbox-expiration";
+
+    // Reconciles the S3 lifecycle rule that auto-expires objects under this storage's root prefix.
+    // S3 itself (not the app) deletes objects older than expirationDays, acting as a backstop so
+    // orphaned inbox items get cleaned up even if the normal delete path never runs.
+    //
+    //   expirationDays > 0  -> install/update an Enabled rule (id "odin-inbox-expiration") that
+    //                          expires objects under _rootPath after that many days.
+    //   expirationDays <= 0 -> remove our rule (turns expiration off).
+    //
+    // Idempotent: reads the current config, strips any previous copy of our rule, then re-adds the
+    // current one (if any). Rules owned by anyone else on the bucket are left in place. The whole
+    // lifecycle config is DELETEd only when our rule was the sole entry, and only if it actually
+    // existed, so a bucket that never had config is left untouched.
+    public async Task EnsureExpirationLifecycleAsync(int expirationDays, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            List<LifecycleRule> rules;
+            try
+            {
+                var existing = await _s3Client.GetLifecycleConfigurationAsync(
+                    new GetLifecycleConfigurationRequest { BucketName = BucketName }, cancellationToken);
+                rules = existing.Configuration?.Rules ?? new List<LifecycleRule>();
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                rules = new List<LifecycleRule>();
+            }
+
+            var hadOurRule = rules.Any(r => r.Id == ExpirationLifecycleRuleId);
+            rules = rules.Where(r => r.Id != ExpirationLifecycleRuleId).ToList();
+
+            if (expirationDays > 0)
+            {
+                var prefix = string.IsNullOrEmpty(_rootPath) ? "" : _rootPath + "/";
+                rules.Add(new LifecycleRule
+                {
+                    Id = ExpirationLifecycleRuleId,
+                    Status = LifecycleRuleStatus.Enabled,
+                    Filter = new LifecycleFilter
+                    {
+                        LifecycleFilterPredicate = new LifecyclePrefixPredicate { Prefix = prefix }
+                    },
+                    Expiration = new LifecycleRuleExpiration { Days = expirationDays }
+                });
+            }
+
+            if (rules.Count == 0)
+            {
+                // Only delete the whole config if there was actually something we removed.
+                if (hadOurRule)
+                {
+                    await _s3Client.DeleteLifecycleConfigurationAsync(
+                        new DeleteLifecycleConfigurationRequest { BucketName = BucketName }, cancellationToken);
+                }
+                // else: bucket already had no relevant config — nothing to do.
+            }
+            else
+            {
+                await _s3Client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
+                {
+                    BucketName = BucketName,
+                    Configuration = new LifecycleConfiguration { Rules = rules }
+                }, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            throw CreateS3StorageException(ex, $"Failed to reconcile expiration lifecycle on bucket '{BucketName}'.");
         }
     }
 

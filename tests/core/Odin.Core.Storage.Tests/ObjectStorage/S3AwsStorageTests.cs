@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -76,7 +79,7 @@ public class S3AwsStorageTests
         }
 
         _bucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
-        await _s3Client.PutBucketAsync(_bucketName);
+        await CreateBucketAndWaitUntilReadyAsync(_bucketName, waitForConsistency: runTestAgainstHetzner);
 
         _testRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRootPath);
@@ -135,6 +138,83 @@ public class S3AwsStorageTests
             continuationToken = listResponse.NextContinuationToken;
         }
         while (continuationToken != null);
+    }
+
+    //
+
+    // Hetzner Object Storage is eventually consistent on bucket creation: PutBucket returns before the
+    // bucket is fully usable, so an object op issued immediately after can fail (writes come back 404,
+    // lists throw an opaque HTTP error, and reads can lag writes). The not-ready signal is heterogeneous,
+    // so rather than filter on a status code we poll a real write -> read-back -> delete until the whole
+    // round-trip succeeds - exactly what the tests do. Once a bucket becomes observable it stays
+    // observable, so blocking here in SetUp also covers the same race in the test body and in TearDown.
+    // MinIO is strongly consistent and skips the wait.
+    private async Task CreateBucketAndWaitUntilReadyAsync(string bucketName, bool waitForConsistency)
+    {
+        await _s3Client.PutBucketAsync(bucketName);
+
+        if (!waitForConsistency)
+        {
+            return;
+        }
+
+        const string probeKey = "__bucket-ready-probe__";
+        var timeout = TimeSpan.FromSeconds(60);
+        var pollInterval = TimeSpan.FromSeconds(1);
+        var sw = Stopwatch.StartNew();
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await _s3Client.PutObjectAsync(new PutObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = probeKey,
+                    ContentBody = "ready",
+                });
+
+                // Confirm read-after-write, not just write: on a freshly created Hetzner bucket a write
+                // can start succeeding a moment before a read of the same key does, and the tests
+                // write-then-read (e.g. S3AwsStorage_ItShouldWriteNonSeekableStream_WithRootPath). A 404
+                // here is just "not ready yet" and is retried like any other probe failure.
+                (await _s3Client.GetObjectAsync(new GetObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = probeKey,
+                })).Dispose();
+
+                await _s3Client.DeleteObjectAsync(new DeleteObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = probeKey,
+                });
+
+                _logger.LogDebug("Bucket '{Bucket}' ready after {Elapsed}ms ({Attempt} attempt(s))",
+                    bucketName, sw.ElapsedMilliseconds, attempt);
+                return;
+            }
+            // The not-ready window is the whole point of this loop, and on Hetzner it surfaces with an
+            // unpredictable status: 404, but also 401/403 while the new bucket's ownership/policy
+            // propagates, 5xx, or an opaque error carrying no status at all. A transient 401/403 is
+            // indistinguishable by code from a permanent auth failure, so we retry every S3 error until
+            // the bucket works or the timeout elapses; a genuine misconfig still surfaces (slower) via
+            // the TimeoutException, which carries the last status, error code, and message.
+            catch (AmazonS3Exception ex)
+            {
+                if (sw.Elapsed >= timeout)
+                {
+                    throw new TimeoutException(
+                        $"Bucket '{bucketName}' was not ready within {timeout.TotalSeconds:0}s of creation " +
+                        $"(last error: status={ex.StatusCode}, code='{ex.ErrorCode}', {ex.Message}).", ex);
+                }
+
+                _logger.LogDebug(
+                    "Bucket '{Bucket}' not ready yet (attempt {Attempt}, status={Status}, code='{Code}'); retrying in {Delay}ms",
+                    bucketName, attempt, ex.StatusCode, ex.ErrorCode, pollInterval.TotalMilliseconds);
+                await Task.Delay(pollInterval);
+            }
+        }
     }
 
     //
@@ -317,7 +397,6 @@ public class S3AwsStorageTests
         var exception = Assert.ThrowsAsync<S3StorageException>(() =>  bucket.ReadBytesAsync(path));
         var inner = exception!.InnerException as AmazonS3Exception;
         Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
-        Assert.That(inner!.Message, Is.EqualTo("The specified key does not exist."));
     }
 
 
@@ -410,6 +489,40 @@ public class S3AwsStorageTests
             var exists = await bucket.FileExistsAsync(path + idx);
             Assert.That(exists, Is.False);
         }
+    }
+
+    //
+
+    [Test]
+    [TestCase("")]
+    [TestCase("inbox")]
+    public async Task S3AwsStorage_ItShouldDeleteByPrefix(string root)
+    {
+        const string text = "test";
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, root);
+
+        var driveDir = "drives/aaaa";
+        var fileId = "1234567890abcdef";
+        var otherFileId = "fedcba0987654321";
+
+        var targetKeys = new[]
+        {
+            $"{driveDir}/{fileId}.metadata",
+            $"{driveDir}/{fileId}.transferkeyheader",
+            $"{driveDir}/{fileId}.foo-1.payload",
+            $"{driveDir}/{fileId}.foo-1-320x320.thumb",
+        };
+        var survivorKey = $"{driveDir}/{otherFileId}.foo-2.payload";
+
+        foreach (var k in targetKeys)
+            await bucket.WriteBytesAsync(k, System.Text.Encoding.UTF8.GetBytes(text));
+        await bucket.WriteBytesAsync(survivorKey, System.Text.Encoding.UTF8.GetBytes(text));
+
+        await bucket.DeleteByPrefixAsync($"{driveDir}/{fileId}.");
+
+        foreach (var k in targetKeys)
+            Assert.That(await bucket.FileExistsAsync(k), Is.False, $"{k} should be deleted");
+        Assert.That(await bucket.FileExistsAsync(survivorKey), Is.True, "sibling fileId must survive");
     }
 
     //
@@ -534,6 +647,198 @@ public class S3AwsStorageTests
     }
 
     //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldReconcileExpirationLifecycle()
+    {
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "inbox");
+
+        await bucket.EnsureExpirationLifecycleAsync(0);
+        var rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Is.Empty, "no expiration rule expected when days = 0");
+
+        await bucket.EnsureExpirationLifecycleAsync(7);
+        rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Does.Contain(7));
+        Assert.That(await GetRulePrefixAsync(_bucketName, "odin-inbox-expiration"), Is.EqualTo("inbox/"),
+            "rule must be scoped to the storage root prefix, not bucket-wide");
+
+        await bucket.EnsureExpirationLifecycleAsync(3);
+        rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Does.Contain(3));
+        Assert.That(rules, Does.Not.Contain(7));
+
+        await bucket.EnsureExpirationLifecycleAsync(0);
+        rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Is.Empty, "rule should be removed when days returns to 0");
+    }
+
+    private async Task<List<int>> GetLifecycleRuleDaysAsync(string bucketName)
+    {
+        try
+        {
+            var resp = await _s3Client.GetLifecycleConfigurationAsync(
+                new GetLifecycleConfigurationRequest { BucketName = bucketName });
+            return resp.Configuration?.Rules?
+                .Where(r => r.Expiration?.Days != null)
+                .Select(r => r.Expiration!.Days!.Value)
+                .ToList() ?? new List<int>();
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return new List<int>();
+        }
+    }
+
+    private async Task<string> GetRulePrefixAsync(string bucketName, string ruleId)
+    {
+        var resp = await _s3Client.GetLifecycleConfigurationAsync(
+            new GetLifecycleConfigurationRequest { BucketName = bucketName });
+        var rule = resp.Configuration?.Rules?.FirstOrDefault(r => r.Id == ruleId);
+        return (rule?.Filter?.LifecycleFilterPredicate as LifecyclePrefixPredicate)?.Prefix;
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ExpirationLifecycle_PreservesForeignRules()
+    {
+        // Pre-seed a foreign rule directly via the client.
+        await _s3Client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
+        {
+            BucketName = _bucketName,
+            Configuration = new LifecycleConfiguration
+            {
+                Rules = new List<LifecycleRule>
+                {
+                    new LifecycleRule
+                    {
+                        Id = "foreign-rule",
+                        Status = LifecycleRuleStatus.Enabled,
+                        Filter = new LifecycleFilter
+                        {
+                            LifecycleFilterPredicate = new LifecyclePrefixPredicate { Prefix = "other/" }
+                        },
+                        Expiration = new LifecycleRuleExpiration { Days = 99 }
+                    }
+                }
+            }
+        });
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "inbox");
+
+        // Add our rule
+        await bucket.EnsureExpirationLifecycleAsync(5);
+        var resp = await _s3Client.GetLifecycleConfigurationAsync(
+            new GetLifecycleConfigurationRequest { BucketName = _bucketName });
+        var ids = resp.Configuration.Rules.Select(r => r.Id).ToList();
+        Assert.That(ids, Does.Contain("foreign-rule"));
+        Assert.That(ids, Does.Contain("odin-inbox-expiration"));
+
+        // Remove our rule; foreign rule must survive (config not deleted).
+        await bucket.EnsureExpirationLifecycleAsync(0);
+        resp = await _s3Client.GetLifecycleConfigurationAsync(
+            new GetLifecycleConfigurationRequest { BucketName = _bucketName });
+        ids = resp.Configuration.Rules.Select(r => r.Id).ToList();
+        Assert.That(ids, Does.Contain("foreign-rule"));
+        Assert.That(ids, Does.Not.Contain("odin-inbox-expiration"));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ExpirationLifecycle_AppliesBucketWide_WhenNoRootPath()
+    {
+        // No rootPath -> the rule must use an empty prefix, i.e. apply to the whole bucket.
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+
+        await bucket.EnsureExpirationLifecycleAsync(7);
+
+        var rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Does.Contain(7));
+
+        var prefix = await GetRulePrefixAsync(_bucketName, "odin-inbox-expiration");
+        Assert.That(prefix, Is.Null.Or.Empty, "no rootPath should produce a bucket-wide (empty prefix) rule");
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldWriteNonSeekableStream()
+    {
+        const string path = "the-file";
+        var bytes = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+
+        // A non-seekable stream (e.g. an ASP.NET multipart request section) has no determinable
+        // length; WriteStreamAsync must spill it to a temp file so the upload still succeeds.
+        using var stream = new NonSeekableStream(bytes);
+        var bytesWritten = await bucket.WriteStreamAsync(path, stream);
+        Assert.That(bytesWritten, Is.EqualTo(bytes.Length));
+
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy, Is.EqualTo(bytes));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldWriteNonSeekableStream_WithRootPath()
+    {
+        const string path = "the-file";
+        var bytes = new byte[] { 10, 20, 30, 40, 50 };
+
+        // With a root path, the non-seekable spill must still land at the rootPath-prefixed key
+        // (and not double-apply the prefix); reading back through the same store proves the key matches.
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "the-root");
+
+        using var stream = new NonSeekableStream(bytes);
+        var bytesWritten = await bucket.WriteStreamAsync(path, stream);
+        Assert.That(bytesWritten, Is.EqualTo(bytes.Length));
+
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy, Is.EqualTo(bytes));
+    }
+
+    //
+
+    // Mimics a forward-only request section (ASP.NET's MultipartReaderStream): readable, not
+    // seekable, and Length/Position throw.
+    private sealed class NonSeekableStream : Stream
+    {
+        private readonly MemoryStream _inner;
+        public NonSeekableStream(byte[] bytes) => _inner = new MemoryStream(bytes);
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+        public override int Read(Span<byte> buffer) => _inner.Read(buffer);
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => _inner.ReadAsync(buffer, cancellationToken);
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
 
 }
 

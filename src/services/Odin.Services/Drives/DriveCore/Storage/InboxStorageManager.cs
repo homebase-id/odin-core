@@ -9,9 +9,10 @@ namespace Odin.Services.Drives.DriveCore.Storage
 {
     /// <summary>
     /// Temporary storage for a given drive. Used to stage incoming file parts from peer transfers (inbox).
+    /// Backed by local disk or S3 depending on configuration, via <see cref="InboxFileStore"/>.
     /// </summary>
     public class InboxStorageManager(
-        FileReaderWriter fileReaderWriter,
+        InboxFileStore inboxFileStore,
         ILogger<InboxStorageManager> logger,
         TenantContext tenantContext)
     {
@@ -19,17 +20,17 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         public Task<bool> InboxFileExists(InternalDriveFileId file, string extension)
         {
-            string path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
-            return Task.FromResult(fileReaderWriter.FileExists(path));
+            var path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
+            return inboxFileStore.ExistsAsync(path);
         }
 
         /// <summary>
         /// Gets all bytes for the specified file
         /// </summary>
-        public async Task<byte[]> GetAllInboxFileBytes(InternalDriveFileId file, string extension)
+        public Task<byte[]> GetAllInboxFileBytes(InternalDriveFileId file, string extension)
         {
-            string path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
-            return await fileReaderWriter.GetAllFileBytesAsync(path);
+            var path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
+            return inboxFileStore.ReadAllBytesAsync(path);
         }
 
         /// <summary>
@@ -37,42 +38,28 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// </summary>
         public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            fileReaderWriter.CreateDirectory(_tenantPathManager.GetDriveInboxPath(file.DriveId));
-            string path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
-            return await fileReaderWriter.WriteStreamAsync(path, stream);
+            var driveDir = _tenantPathManager.GetDriveInboxPath(file.DriveId);
+            await inboxFileStore.EnsureDirectoryAsync(driveDir);
+            var path = _tenantPathManager.GetDriveInboxFilePath(file.DriveId, file.FileId, extension);
+            return await inboxFileStore.WriteStreamAsync(path, stream);
         }
 
-        // We used to take a List<PayloadDescriptor> and compute each .payload / .thumb path from
-        // it. That leaked staging files whenever the inbox processor caught an exception and
-        // returned an empty descriptor list (PeerInboxProcessor.ProcessInboxItemAsync's catch arms
-        // all return (DeleteFromInbox, [])): the row was MarkComplete'd and the metadata +
-        // transferkeyheader were deleted, but the .payload/.thumb files were left behind, surfacing
-        // later as inbox orphans. The drive inbox dir is a single-purpose staging area where every
-        // file is prefixed with "{fileId:N}." (see TenantPathManager.GetFilename), so a glob on that
-        // prefix is the authoritative way to remove everything for a given fileId — independent of
-        // whatever descriptors the in-flight processor managed to parse.
-        public Task CleanupInboxFiles(InternalDriveFileId file)
+        // The drive inbox dir is a single-purpose staging area where every file is prefixed with
+        // "{fileId:N}." (see TenantPathManager.GetFilename). Cleanup removes that whole set for the
+        // fileId — independent of whatever descriptors an in-flight processor managed to parse —
+        // which prevents the .payload/.thumb orphan leak that a descriptor-driven cleanup caused.
+        public async Task CleanupInboxFiles(InternalDriveFileId file)
         {
             logger.LogDebug("CleanupInboxFiles called - file: {file}", file);
-
             try
             {
-                var dir = _tenantPathManager.GetDriveInboxPath(file.DriveId);
-                if (!Directory.Exists(dir))
-                {
-                    return Task.CompletedTask;
-                }
-
-                var prefix = TenantPathManager.GuidToPathSafeString(file.FileId);
-                var matches = Directory.GetFiles(dir, prefix + ".*");
-                fileReaderWriter.DeleteFiles(matches);
+                var driveDir = _tenantPathManager.GetDriveInboxPath(file.DriveId);
+                await inboxFileStore.DeleteSetAsync(driveDir, file.FileId);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Failure while cleaning up inbox files for {file}", file);
             }
-
-            return Task.CompletedTask;
         }
     }
 }

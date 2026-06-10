@@ -139,6 +139,7 @@ public class JobManagerTests
         jobTypeRegistry.RegisterJobType<ChainedJobTest>(builder, ChainedJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<ScopedJobTest>(builder, ScopedJobTest.JobTypeId);
         jobTypeRegistry.RegisterJobType<RepeatingJobWithHashTest>(builder, RepeatingJobWithHashTest.JobTypeId);
+        jobTypeRegistry.RegisterJobType<RecurringJobTest>(builder, RecurringJobTest.JobTypeId);
 
         builder.AddDatabaseServices();
         switch (databaseType)
@@ -1294,6 +1295,165 @@ public class JobManagerTests
 
         await StopBackgroundServices();
         AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldCalculateOverdueBy(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+
+        var job = jobManager.NewJob<SimpleJobTest>();
+        var jobId = await jobManager.ScheduleJobAsync(job);
+        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
+
+        await Task.Delay(500);
+
+        var scheduledJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(scheduledJob, Is.Not.Null);
+        Assert.That(scheduledJob!.OverdueBy, Is.GreaterThan(TimeSpan.FromMilliseconds(300)));
+        Assert.That(scheduledJob.OverdueBy, Is.LessThan(TimeSpan.FromMilliseconds(2000)));
+
+        await StartBackgroundServices();
+        await WaitForJobStatus<SimpleJobTest>(jobManager, jobId, JobState.Succeeded, TimeSpan.FromSeconds(1));
+        await StopBackgroundServices();
+
+        AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldRescheduleSuccessfulJobViaOnCompleted(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+
+        var job = jobManager.NewJob<RecurringJobTest>();
+        job.JobData = new RecurringJobTestData { RepeatCount = 2, AlwaysFail = false };
+        var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            OnSuccessDeleteAfter = TimeSpan.FromDays(1),
+        });
+
+        // First two runs succeed and reschedule (OnCompletedCount 1 and 2 <= RepeatCount 2).
+        for (var run = 1; run <= 2; run++)
+        {
+            await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+            var recurring = await jobManager.GetJobAsync<RecurringJobTest>(jobId);
+            Assert.That(recurring, Is.Not.Null);
+            Assert.That(recurring!.State, Is.EqualTo(JobState.Scheduled));
+            Assert.That(recurring.JobData.RunCount, Is.EqualTo(run));
+            Assert.That(recurring.Record!.runCount, Is.EqualTo(0));
+            Assert.That(recurring.Record!.lastError, Is.Null);
+            Assert.That(recurring.Record!.expiresAt, Is.Null);
+        }
+
+        // Third run succeeds but OnCompletedCount (3) > RepeatCount (2), so it finalizes.
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+        var finalJob = await jobManager.GetJobAsync<RecurringJobTest>(jobId);
+        Assert.That(finalJob, Is.Not.Null);
+        Assert.That(finalJob!.State, Is.EqualTo(JobState.Succeeded));
+        Assert.That(finalJob.JobData.RunCount, Is.EqualTo(3));
+        Assert.That(finalJob.Record!.expiresAt, Is.Not.Null);
+
+        AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldRescheduleFailedJobViaOnCompleted(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+
+        var job = jobManager.NewJob<RecurringJobTest>();
+        job.JobData = new RecurringJobTestData { RepeatCount = 2, AlwaysFail = true };
+        var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            MaxAttempts = 1,
+            RetryDelay = TimeSpan.Zero,
+            OnFailureDeleteAfter = TimeSpan.FromDays(1),
+        });
+
+        // Each run fails terminally (MaxAttempts=1) but the job recurs instead of giving up.
+        for (var run = 1; run <= 2; run++)
+        {
+            await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+            var recurring = await jobManager.GetJobAsync<RecurringJobTest>(jobId);
+            Assert.That(recurring, Is.Not.Null);
+            Assert.That(recurring!.State, Is.EqualTo(JobState.Scheduled));
+            Assert.That(recurring.JobData.RunCount, Is.EqualTo(run));
+            Assert.That(recurring.Record!.runCount, Is.EqualTo(0));
+            // lastError stays visible across the failed-but-rescheduled occurrence.
+            Assert.That(recurring.Record!.lastError, Is.EqualTo("unspecified error"));
+            Assert.That(recurring.Record!.expiresAt, Is.Null);
+        }
+
+        // Third failure finalizes the job (OnCompletedCount 3 > RepeatCount 2).
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+        var finalJob = await jobManager.GetJobAsync<RecurringJobTest>(jobId);
+        Assert.That(finalJob, Is.Not.Null);
+        Assert.That(finalJob!.State, Is.EqualTo(JobState.Failed));
+        Assert.That(finalJob.JobData.RunCount, Is.EqualTo(3));
+        Assert.That(finalJob.Record!.lastError, Is.EqualTo("unspecified error"));
+        Assert.That(finalJob.Record!.expiresAt, Is.Not.Null);
+
+        // Only the final give-up logs an error; the recurring failures do not.
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldFinalizeWhenOnCompletedThrows(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+
+        var job = jobManager.NewJob<RecurringJobTest>();
+        job.JobData = new RecurringJobTestData { ThrowInOnCompleted = true };
+        var jobId = await jobManager.ScheduleJobAsync(job, new JobSchedule
+        {
+            OnSuccessDeleteAfter = TimeSpan.FromDays(1),
+        });
+
+        await jobManager.RunJobNowAsync(jobId, CancellationToken.None);
+
+        // A throwing OnCompletedAsync must not lose the job: it finalizes normally.
+        var finalJob = await jobManager.GetJobAsync<RecurringJobTest>(jobId);
+        Assert.That(finalJob, Is.Not.Null);
+        Assert.That(finalJob!.State, Is.EqualTo(JobState.Succeeded));
+        Assert.That(finalJob.JobData.RunCount, Is.EqualTo(1));
+        Assert.That(finalJob.Record!.expiresAt, Is.Not.Null);
+
+        // The swallowed exception is logged once at error level.
+        var logEvents = _container.Resolve<ILogEventMemoryStore>().GetLogEvents();
+        Assert.That(logEvents[LogEventLevel.Error].Count, Is.EqualTo(1), "Unexpected number of Error log events");
     }
 
     //

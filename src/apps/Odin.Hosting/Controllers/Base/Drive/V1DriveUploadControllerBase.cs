@@ -103,7 +103,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 var boundary = GetBoundary(HttpContext.Request.ContentType);
                 var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-                var section = await reader.ReadNextSectionAsync();
+                var section = await ReadNextMultipartSectionAsync(reader);
                 AssertIsPart(section, MultipartUploadParts.Instructions);
 
                 string json = await new StreamReader(section!.Body).ReadToEndAsync();
@@ -158,7 +158,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 //
                 // Firstly, collect everything and store in the temp drive
                 //
-                section = await reader.ReadNextSectionAsync();
+                section = await ReadNextMultipartSectionAsync(reader);
                 while (null != section)
                 {
                     if (IsMetadataPart(section))
@@ -180,7 +180,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                             WebOdinContext);
                     }
 
-                    section = await reader.ReadNextSectionAsync();
+                    section = await ReadNextMultipartSectionAsync(reader);
                 }
 
                 var result = await updateWriter.FinalizeFileUpdate(WebOdinContext);
@@ -206,7 +206,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
             FileSystemStreamWriterBase driveUploadService,
             Guid? driveIdForV2 = null)
         {
-            var section = await reader.ReadNextSectionAsync();
+            var section = await ReadNextMultipartSectionAsync(reader);
             AssertIsPart(section, MultipartUploadParts.Instructions);
             try
             {
@@ -237,13 +237,16 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 throw new OdinClientException($"JSON error: {e.Message}", e);
             }
 
-            section = await reader.ReadNextSectionAsync();
+            // [UploadTiming] Diagnostic: time spent receiving + staging the multipart body vs the finalize/commit step.
+            var receiveSw = System.Diagnostics.Stopwatch.StartNew();
+
+            section = await ReadNextMultipartSectionAsync(reader);
             AssertIsPart(section, MultipartUploadParts.Metadata);
             logger.LogDebug("ReceiveFileStream: AddMetadata");
             await driveUploadService.AddMetadata(section!.Body);
 
             //
-            section = await reader.ReadNextSectionAsync();
+            section = await ReadNextMultipartSectionAsync(reader);
             while (null != section)
             {
                 if (IsPayloadPart(section))
@@ -263,11 +266,20 @@ namespace Odin.Hosting.Controllers.Base.Drive
                         WebOdinContext);
                 }
 
-                section = await reader.ReadNextSectionAsync();
+                section = await ReadNextMultipartSectionAsync(reader);
             }
 
+            logger.LogInformation(
+                "[UploadTiming] Multipart receive + local staging complete; receiveMs:{receiveMs}",
+                receiveSw.ElapsedMilliseconds);
+
             logger.LogDebug("ReceiveFileStream: FinalizeUploadAsync");
+            var finalizeSw = System.Diagnostics.Stopwatch.StartNew();
             var status = await driveUploadService.FinalizeUploadAsync(WebOdinContext);
+            logger.LogInformation(
+                "[UploadTiming] Request totals: receiveMs:{receiveMs} finalizeMs:{finalizeMs} totalMs:{totalMs}",
+                receiveSw.ElapsedMilliseconds - finalizeSw.ElapsedMilliseconds, finalizeSw.ElapsedMilliseconds,
+                receiveSw.ElapsedMilliseconds);
             return status;
         }
 
@@ -289,13 +301,13 @@ namespace Odin.Hosting.Controllers.Base.Drive
 
             try
             {
-                var section = await reader.ReadNextSectionAsync();
+                var section = await ReadNextMultipartSectionAsync(reader);
                 AssertIsPart(section, MultipartUploadParts.PayloadUploadInstructions);
 
                 await writer.StartUpload(section!.Body, WebOdinContext);
 
                 //
-                section = await reader.ReadNextSectionAsync();
+                section = await ReadNextMultipartSectionAsync(reader);
                 while (null != section)
                 {
                     if (IsPayloadPart(section))
@@ -310,7 +322,7 @@ namespace Odin.Hosting.Controllers.Base.Drive
                         await writer.AddThumbnail(thumbnailUploadKey, contentType, fileSection.FileStream, WebOdinContext);
                     }
 
-                    section = await reader.ReadNextSectionAsync();
+                    section = await ReadNextMultipartSectionAsync(reader);
                 }
 
                 var status = await writer.FinalizeUpload(WebOdinContext);
@@ -326,6 +338,28 @@ namespace Odin.Hosting.Controllers.Base.Drive
                 {
                     logger.LogError(e, " Failure during file cleanup");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Reads the next multipart section, translating a malformed or truncated request body into a
+        /// 400 client error instead of a 500. <see cref="MultipartReader"/> throws
+        /// <see cref="IOException"/> ("Unexpected end of Stream, the content may have already been read
+        /// by another component.") when the body ends before the next boundary is found, which is the
+        /// caller's fault. Genuine client disconnects (request aborted) are left to propagate so the
+        /// exception pipeline treats them as cancellations rather than errors.
+        /// </summary>
+        private async Task<MultipartSection> ReadNextMultipartSectionAsync(MultipartReader reader)
+        {
+            try
+            {
+                return await reader.ReadNextSectionAsync(HttpContext.RequestAborted);
+            }
+            catch (IOException) when (!HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                throw new OdinClientException(
+                    "Malformed or truncated multipart request body.",
+                    OdinClientErrorCode.MissingUploadData);
             }
         }
 

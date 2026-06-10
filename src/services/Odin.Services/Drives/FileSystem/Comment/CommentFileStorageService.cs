@@ -21,9 +21,10 @@ public class CommentFileStorageService(
     LongTermStorageManager longTermStorageManager,
     UploadStorageManager uploadStorageManager,
     InboxStorageManager inboxStorageManager,
-    FileReaderWriter fileReaderWriter,
     // OrphanTestUtil orphanTestUtil,
-    IdentityDatabase db
+    IdentityDatabase db,
+    InboxFileStore inboxFileStore,
+    UploadFileStore uploadFileStore
 )
     : DriveStorageServiceBase(
         loggerFactory,
@@ -33,9 +34,10 @@ public class CommentFileStorageService(
         longTermStorageManager,
         uploadStorageManager,
         inboxStorageManager,
-        fileReaderWriter,
         // orphanTestUtil,
-        db)
+        db,
+        inboxFileStore,
+        uploadFileStore)
 {
     public override async Task AssertCanReadDriveAsync(Guid driveId, IOdinContext odinContext)
     {

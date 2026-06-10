@@ -31,7 +31,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete,
-            string sourceFolderPath)
+            StagingArea sourceArea)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
@@ -40,7 +40,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             logger.LogDebug("PeerFileUpdateWriter - UpsertFileAsync called file: {file}", file);
 
-            var incomingMetadata = await LoadMetadataFromTemp(file, fs, sourceFolderPath, odinContext);
+            var incomingMetadata = await LoadMetadataFromTemp(file, fs, sourceArea, odinContext);
 
             // Validations
             var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext);
@@ -78,9 +78,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                             serverMetadata,
                             ignorePayload: false,
                             odinContext,
+                            sourceArea: sourceArea,
                             useThisVersionTag: instructionSet.Request.NewVersionTag,
-                            markComplete,
-                            sourceFolderPath: sourceFolderPath);
+                            markComplete: markComplete);
                     });
 
                 logger.LogDebug("PeerFileUpdateWriter WriteNewFile - success: {success} committed payload count {pc}",
@@ -124,7 +124,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                     ServerMetadata = serverMetadata
                 };
 
-                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, targetFile.Value, manifest, odinContext, markComplete, sourceFolderPath: sourceFolderPath);
+                (success, payloads) = await fs.Storage.UpdateBatchAsync(file, targetFile.Value, manifest, odinContext, markComplete, sourceArea: sourceArea);
                 
                 logger.LogDebug("PeerFileUpdateWriter UpdateExistingFile - success: {success} committed payload count {pc}",
                     success,
@@ -140,14 +140,14 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         private async Task<FileMetadata> LoadMetadataFromTemp(
             InternalDriveFileId file,
             IDriveFileSystem fs,
-            string sourceFolderPath,
+            StagingArea sourceArea,
             IOdinContext odinContext)
         {
             FileMetadata incomingMetadata = default;
             var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
             {
                 var extension = MultipartHostTransferParts.Metadata.ToString().ToLower();
-                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file, extension, sourceFolderPath, odinContext);
+                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file, extension, sourceArea, odinContext);
 
                 if (bytes == null)
                 {
