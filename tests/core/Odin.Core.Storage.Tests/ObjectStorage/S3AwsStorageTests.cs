@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -684,6 +685,83 @@ public class S3AwsStorageTests
     }
 
     //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldWriteNonSeekableStream()
+    {
+        const string path = "the-file";
+        var bytes = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+
+        // A non-seekable stream (e.g. an ASP.NET multipart request section) has no determinable
+        // length; WriteStreamAsync must spill it to a temp file so the upload still succeeds.
+        using var stream = new NonSeekableStream(bytes);
+        var bytesWritten = await bucket.WriteStreamAsync(path, stream);
+        Assert.That(bytesWritten, Is.EqualTo(bytes.Length));
+
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy, Is.EqualTo(bytes));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldWriteNonSeekableStream_WithRootPath()
+    {
+        const string path = "the-file";
+        var bytes = new byte[] { 10, 20, 30, 40, 50 };
+
+        // With a root path, the non-seekable spill must still land at the rootPath-prefixed key
+        // (and not double-apply the prefix); reading back through the same store proves the key matches.
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "the-root");
+
+        using var stream = new NonSeekableStream(bytes);
+        var bytesWritten = await bucket.WriteStreamAsync(path, stream);
+        Assert.That(bytesWritten, Is.EqualTo(bytes.Length));
+
+        var copy = await bucket.ReadBytesAsync(path);
+        Assert.That(copy, Is.EqualTo(bytes));
+    }
+
+    //
+
+    // Mimics a forward-only request section (ASP.NET's MultipartReaderStream): readable, not
+    // seekable, and Length/Position throw.
+    private sealed class NonSeekableStream : Stream
+    {
+        private readonly MemoryStream _inner;
+        public NonSeekableStream(byte[] bytes) => _inner = new MemoryStream(bytes);
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+        public override int Read(Span<byte> buffer) => _inner.Read(buffer);
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => _inner.ReadAsync(buffer, cancellationToken);
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+    }
 
 }
 

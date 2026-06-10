@@ -117,11 +117,41 @@ public class S3AwsStorage : IS3Storage
         _logger.LogTrace(nameof(WriteStreamAsync));
 
         S3Path.AssertFileName(path);
-        path = S3Path.Combine(_rootPath, path);
 
-        // The S3 SDK uploads the entire seekable stream (it rewinds to the start), so the
-        // bytes written equal the full stream length, regardless of the current position.
-        var bytesToWrite = stream.CanSeek ? stream.Length : 0;
+        // The AWS SDK's PutObject needs a known Content-Length. A NON-seekable stream (e.g. an
+        // ASP.NET MultipartReaderStream from an incoming request section) has no determinable
+        // length, and an InputStream-based PutObject fails with
+        // "content would exceed Content-Length". Spill such streams to a temp file and upload from
+        // the file (the SDK reads the length from the file via FilePath, exactly like
+        // UploadFileAsync). CopyToAsync is chunked, so this stays memory-bounded for large payloads.
+        if (!stream.CanSeek)
+        {
+            var tempFile = Path.Combine(Path.GetTempPath(), "s3-stream-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                long written;
+                await using (var fileStream = new FileStream(
+                                 tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await stream.CopyToAsync(fileStream, cancellationToken);
+                    written = fileStream.Length;
+                }
+
+                // UploadFileAsync applies _rootPath to the (raw) destination key itself, so pass `path` un-combined.
+                await UploadFileAsync(tempFile, path, cancellationToken);
+                return written;
+            }
+            finally
+            {
+                try { File.Delete(tempFile); }
+                catch (Exception ex) { _logger.LogDebug(ex, "Failed to delete temp file '{tempFile}'", tempFile); }
+            }
+        }
+
+        // Seekable stream: upload directly. The SDK reads the full stream and sets Content-Length
+        // from its length (the metadata/transferkeyheader MemoryStreams arrive at position 0).
+        path = S3Path.Combine(_rootPath, path);
+        var bytesToWrite = stream.Length;
 
         try
         {
