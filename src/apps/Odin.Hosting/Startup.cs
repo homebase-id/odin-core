@@ -322,23 +322,30 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     });
                 });
 
-            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat-wasm"),
-                chatWasmApp =>
-                {
-                    var chatWasmPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat-wasm");
-                    chatWasmApp.UseStaticFiles(new StaticFileOptions()
+            var chatWasmPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat-wasm");
+            if (Directory.Exists(chatWasmPath))
+            {
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat-wasm"),
+                    chatWasmApp =>
                     {
-                        FileProvider = new PhysicalFileProvider(chatWasmPath),
-                        RequestPath = "/apps/chat-wasm"
-                    });
+                        chatWasmApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(chatWasmPath),
+                            RequestPath = "/apps/chat-wasm"
+                        });
 
-                    chatWasmApp.Run(async context =>
-                    {
-                        context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                        await context.Response.SendFileAsync(Path.Combine(chatWasmPath, "index.html"));
-                        return;
+                        chatWasmApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(chatWasmPath, "index.html"));
+                            return;
+                        });
                     });
-                });
+            }
+            else
+            {
+                logger.LogWarning("chat-wasm app directory not found at {Path}. Requests to /apps/chat-wasm will return 404.", chatWasmPath);
+            }
 
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
