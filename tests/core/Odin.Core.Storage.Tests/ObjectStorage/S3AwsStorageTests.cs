@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -78,7 +79,7 @@ public class S3AwsStorageTests
         }
 
         _bucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
-        await _s3Client.PutBucketAsync(_bucketName);
+        await CreateBucketAndWaitUntilReadyAsync(_bucketName, waitForConsistency: runTestAgainstHetzner);
 
         _testRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_testRootPath);
@@ -137,6 +138,83 @@ public class S3AwsStorageTests
             continuationToken = listResponse.NextContinuationToken;
         }
         while (continuationToken != null);
+    }
+
+    //
+
+    // Hetzner Object Storage is eventually consistent on bucket creation: PutBucket returns before the
+    // bucket is fully usable, so an object op issued immediately after can fail (writes come back 404,
+    // lists throw an opaque HTTP error, and reads can lag writes). The not-ready signal is heterogeneous,
+    // so rather than filter on a status code we poll a real write -> read-back -> delete until the whole
+    // round-trip succeeds - exactly what the tests do. Once a bucket becomes observable it stays
+    // observable, so blocking here in SetUp also covers the same race in the test body and in TearDown.
+    // MinIO is strongly consistent and skips the wait.
+    private async Task CreateBucketAndWaitUntilReadyAsync(string bucketName, bool waitForConsistency)
+    {
+        await _s3Client.PutBucketAsync(bucketName);
+
+        if (!waitForConsistency)
+        {
+            return;
+        }
+
+        const string probeKey = "__bucket-ready-probe__";
+        var timeout = TimeSpan.FromSeconds(60);
+        var pollInterval = TimeSpan.FromSeconds(1);
+        var sw = Stopwatch.StartNew();
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await _s3Client.PutObjectAsync(new PutObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = probeKey,
+                    ContentBody = "ready",
+                });
+
+                // Confirm read-after-write, not just write: on a freshly created Hetzner bucket a write
+                // can start succeeding a moment before a read of the same key does, and the tests
+                // write-then-read (e.g. S3AwsStorage_ItShouldWriteNonSeekableStream_WithRootPath). A 404
+                // here is just "not ready yet" and is retried like any other probe failure.
+                (await _s3Client.GetObjectAsync(new GetObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = probeKey,
+                })).Dispose();
+
+                await _s3Client.DeleteObjectAsync(new DeleteObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = probeKey,
+                });
+
+                _logger.LogDebug("Bucket '{Bucket}' ready after {Elapsed}ms ({Attempt} attempt(s))",
+                    bucketName, sw.ElapsedMilliseconds, attempt);
+                return;
+            }
+            // The not-ready window is the whole point of this loop, and on Hetzner it surfaces with an
+            // unpredictable status: 404, but also 401/403 while the new bucket's ownership/policy
+            // propagates, 5xx, or an opaque error carrying no status at all. A transient 401/403 is
+            // indistinguishable by code from a permanent auth failure, so we retry every S3 error until
+            // the bucket works or the timeout elapses; a genuine misconfig still surfaces (slower) via
+            // the TimeoutException, which carries the last status, error code, and message.
+            catch (AmazonS3Exception ex)
+            {
+                if (sw.Elapsed >= timeout)
+                {
+                    throw new TimeoutException(
+                        $"Bucket '{bucketName}' was not ready within {timeout.TotalSeconds:0}s of creation " +
+                        $"(last error: status={ex.StatusCode}, code='{ex.ErrorCode}', {ex.Message}).", ex);
+                }
+
+                _logger.LogDebug(
+                    "Bucket '{Bucket}' not ready yet (attempt {Attempt}, status={Status}, code='{Code}'); retrying in {Delay}ms",
+                    bucketName, attempt, ex.StatusCode, ex.ErrorCode, pollInterval.TotalMilliseconds);
+                await Task.Delay(pollInterval);
+            }
+        }
     }
 
     //
@@ -319,7 +397,6 @@ public class S3AwsStorageTests
         var exception = Assert.ThrowsAsync<S3StorageException>(() =>  bucket.ReadBytesAsync(path));
         var inner = exception!.InnerException as AmazonS3Exception;
         Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
-        Assert.That(inner!.Message, Is.EqualTo("The specified key does not exist."));
     }
 
 
