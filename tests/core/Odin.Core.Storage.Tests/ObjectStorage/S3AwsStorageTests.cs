@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -415,6 +416,40 @@ public class S3AwsStorageTests
     //
 
     [Test]
+    [TestCase("")]
+    [TestCase("inbox")]
+    public async Task S3AwsStorage_ItShouldDeleteByPrefix(string root)
+    {
+        const string text = "test";
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, root);
+
+        var driveDir = "drives/aaaa";
+        var fileId = "1234567890abcdef";
+        var otherFileId = "fedcba0987654321";
+
+        var targetKeys = new[]
+        {
+            $"{driveDir}/{fileId}.metadata",
+            $"{driveDir}/{fileId}.transferkeyheader",
+            $"{driveDir}/{fileId}.foo-1.payload",
+            $"{driveDir}/{fileId}.foo-1-320x320.thumb",
+        };
+        var survivorKey = $"{driveDir}/{otherFileId}.foo-2.payload";
+
+        foreach (var k in targetKeys)
+            await bucket.WriteBytesAsync(k, System.Text.Encoding.UTF8.GetBytes(text));
+        await bucket.WriteBytesAsync(survivorKey, System.Text.Encoding.UTF8.GetBytes(text));
+
+        await bucket.DeleteByPrefixAsync($"{driveDir}/{fileId}.");
+
+        foreach (var k in targetKeys)
+            Assert.That(await bucket.FileExistsAsync(k), Is.False, $"{k} should be deleted");
+        Assert.That(await bucket.FileExistsAsync(survivorKey), Is.True, "sibling fileId must survive");
+    }
+
+    //
+
+    [Test]
     public async Task S3AwsStorage_ItShouldCopyFile()
     {
         const string srcPath = "the-src-file";
@@ -531,6 +566,121 @@ public class S3AwsStorageTests
         var exception = Assert.ThrowsAsync<S3StorageException>(() => bucket.FileLengthAsync(srcPath));
         var inner = exception!.InnerException as AmazonS3Exception;
         Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ItShouldReconcileExpirationLifecycle()
+    {
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "inbox");
+
+        await bucket.EnsureExpirationLifecycleAsync(0);
+        var rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Is.Empty, "no expiration rule expected when days = 0");
+
+        await bucket.EnsureExpirationLifecycleAsync(7);
+        rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Does.Contain(7));
+        Assert.That(await GetRulePrefixAsync(_bucketName, "odin-inbox-expiration"), Is.EqualTo("inbox/"),
+            "rule must be scoped to the storage root prefix, not bucket-wide");
+
+        await bucket.EnsureExpirationLifecycleAsync(3);
+        rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Does.Contain(3));
+        Assert.That(rules, Does.Not.Contain(7));
+
+        await bucket.EnsureExpirationLifecycleAsync(0);
+        rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Is.Empty, "rule should be removed when days returns to 0");
+    }
+
+    private async Task<List<int>> GetLifecycleRuleDaysAsync(string bucketName)
+    {
+        try
+        {
+            var resp = await _s3Client.GetLifecycleConfigurationAsync(
+                new GetLifecycleConfigurationRequest { BucketName = bucketName });
+            return resp.Configuration?.Rules?
+                .Where(r => r.Expiration?.Days != null)
+                .Select(r => r.Expiration!.Days!.Value)
+                .ToList() ?? new List<int>();
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return new List<int>();
+        }
+    }
+
+    private async Task<string> GetRulePrefixAsync(string bucketName, string ruleId)
+    {
+        var resp = await _s3Client.GetLifecycleConfigurationAsync(
+            new GetLifecycleConfigurationRequest { BucketName = bucketName });
+        var rule = resp.Configuration?.Rules?.FirstOrDefault(r => r.Id == ruleId);
+        return (rule?.Filter?.LifecycleFilterPredicate as LifecyclePrefixPredicate)?.Prefix;
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ExpirationLifecycle_PreservesForeignRules()
+    {
+        // Pre-seed a foreign rule directly via the client.
+        await _s3Client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
+        {
+            BucketName = _bucketName,
+            Configuration = new LifecycleConfiguration
+            {
+                Rules = new List<LifecycleRule>
+                {
+                    new LifecycleRule
+                    {
+                        Id = "foreign-rule",
+                        Status = LifecycleRuleStatus.Enabled,
+                        Filter = new LifecycleFilter
+                        {
+                            LifecycleFilterPredicate = new LifecyclePrefixPredicate { Prefix = "other/" }
+                        },
+                        Expiration = new LifecycleRuleExpiration { Days = 99 }
+                    }
+                }
+            }
+        });
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "inbox");
+
+        // Add our rule
+        await bucket.EnsureExpirationLifecycleAsync(5);
+        var resp = await _s3Client.GetLifecycleConfigurationAsync(
+            new GetLifecycleConfigurationRequest { BucketName = _bucketName });
+        var ids = resp.Configuration.Rules.Select(r => r.Id).ToList();
+        Assert.That(ids, Does.Contain("foreign-rule"));
+        Assert.That(ids, Does.Contain("odin-inbox-expiration"));
+
+        // Remove our rule; foreign rule must survive (config not deleted).
+        await bucket.EnsureExpirationLifecycleAsync(0);
+        resp = await _s3Client.GetLifecycleConfigurationAsync(
+            new GetLifecycleConfigurationRequest { BucketName = _bucketName });
+        ids = resp.Configuration.Rules.Select(r => r.Id).ToList();
+        Assert.That(ids, Does.Contain("foreign-rule"));
+        Assert.That(ids, Does.Not.Contain("odin-inbox-expiration"));
+    }
+
+    //
+
+    [Test]
+    public async Task S3AwsStorage_ExpirationLifecycle_AppliesBucketWide_WhenNoRootPath()
+    {
+        // No rootPath -> the rule must use an empty prefix, i.e. apply to the whole bucket.
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
+
+        await bucket.EnsureExpirationLifecycleAsync(7);
+
+        var rules = await GetLifecycleRuleDaysAsync(_bucketName);
+        Assert.That(rules, Does.Contain(7));
+
+        var prefix = await GetRulePrefixAsync(_bucketName, "odin-inbox-expiration");
+        Assert.That(prefix, Is.Null.Or.Empty, "no rootPath should produce a bucket-wide (empty prefix) rule");
     }
 
     //
