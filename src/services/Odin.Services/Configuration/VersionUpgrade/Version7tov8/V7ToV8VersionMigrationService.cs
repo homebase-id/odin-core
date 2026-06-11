@@ -105,6 +105,24 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                // Identities whose access grant was established without the owner's master key
+                // (e.g. introduction-based connections) have no MasterKeyEncryptedKeyStoreKey, so
+                // re-granting would dereference a null key. We have the master key here, so attempt
+                // the same upgrade the circle-definition reconcile path performs. If it still can't be
+                // upgraded (e.g. no TempWeakKeyStoreKey to recover from), skip it rather than crash the
+                // batch; it will be reconciled later once the identity completes its upgrade.
+                if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    var upgraded = await circleNetworkService.TryUpgradeMasterKeyStoreKeyEncryptionAsync(identity, odinContext);
+                    if (!upgraded)
+                    {
+                        logger.LogWarning(
+                            "Skipping system circle reconciliation for Identity  {odinId}: access grant still requires master key encryption upgrade",
+                            identity.OdinId);
+                        continue;
+                    }
+                }
+
                 // Re-grant whichever system circles this identity is a member of so the new
                 // Moments drive grant is issued to confirmed and auto-connected identities alike
                 foreach (var circleId in SystemCircleConstants.AllSystemCircles)

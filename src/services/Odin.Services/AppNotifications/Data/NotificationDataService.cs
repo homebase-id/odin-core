@@ -116,81 +116,23 @@ public class NotificationListService(IdentityDatabase db, IMediator mediator)
         };
     }
 
-    public async Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext)
+    public Task Delete(DeleteNotificationsRequest request, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        await using var trx = await db.BeginStackedTransactionAsync();
-
-        foreach (var id in request.IdList)
-        {
-            await db.AppNotificationsCached.DeleteAsync(id);
-        }
-
-        trx.Commit();
+        return Task.CompletedTask;
     }
 
-    public async Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext)
+    public Task UpdateNotifications(UpdateNotificationListRequest request, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        await using var trx = await db.BeginStackedTransactionAsync();
-
-        foreach (var update in request.Updates)
-        {
-            var record = await db.AppNotificationsCached.GetAsync(update.Id);
-            if (null != record)
-            {
-                record.unread = update.Unread ? 1 : 0;
-                await db.AppNotificationsCached.UpdateAsync(record);
-            }
-        }
-
-        trx.Commit();
+        return Task.CompletedTask;
     }
 
-    public async Task MarkReadByApp(Guid appId, IOdinContext odinContext)
+    public Task MarkReadByApp(Guid appId, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        var allByApp = await this.GetList(new GetNotificationListRequest()
-        {
-            AppId = appId,
-            Count = int.MaxValue,
-        }, odinContext);
-
-        var request = new UpdateNotificationListRequest()
-        {
-            Updates = allByApp.Results.Select(n => new UpdateNotificationRequest()
-            {
-                Id = n.Id,
-                Unread = false
-            }).ToList()
-        };
-
-        await UpdateNotifications(request, odinContext);
+        return Task.CompletedTask;
     }
 
-    public async Task MarkReadByAppAndTypeId(Guid appId, Guid typeId, IOdinContext odinContext)
+    public Task MarkReadByAppAndTypeId(Guid appId, Guid typeId, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
-
-        var allByAppAndType = await this.GetList(new GetNotificationListRequest()
-        {
-            AppId = appId,
-            TypeId = typeId,
-            Count = int.MaxValue,
-        }, odinContext);
-
-        var request = new UpdateNotificationListRequest()
-        {
-            Updates = allByAppAndType.Results.Select(n => new UpdateNotificationRequest()
-            {
-                Id = n.Id,
-                Unread = false
-            }).ToList()
-        };
-
-        await UpdateNotifications(request, odinContext);
+        return Task.CompletedTask;
     }
 }

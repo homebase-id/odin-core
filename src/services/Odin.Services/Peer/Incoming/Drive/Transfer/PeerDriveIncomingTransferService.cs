@@ -378,7 +378,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 //S1110 - Write to disk and send notifications
                 await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                    odinContext, sourceFolderPath: stateItem.IsDirectWrite ? drive.GetDriveUploadPath() : drive.GetDriveInboxPath());
+                    odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox);
 
                 return true;
             }
@@ -394,7 +394,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     //S1205
                     await writer.HandleFile(stateItem.File, fileSystem, decryptedKeyHeader, sender, stateItem.TransferInstructionSet,
-                        odinContext, sourceFolderPath: stateItem.IsDirectWrite ? drive.GetDriveUploadPath() : drive.GetDriveInboxPath());
+                        odinContext, sourceArea: stateItem.IsDirectWrite ? StagingArea.Upload : StagingArea.Inbox);
                     return true;
                 }
 

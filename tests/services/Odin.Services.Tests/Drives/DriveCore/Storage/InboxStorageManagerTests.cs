@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -33,6 +35,7 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
                 TenantDataRootPath = Path.Combine(TestRootPath, "tenants"),
                 FileOperationRetryAttempts = 1,
                 FileOperationRetryDelayMs = TimeSpan.FromMilliseconds(1),
+                FileWriteChunkSizeInBytes = 4096,
             }
         };
 
@@ -48,7 +51,8 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
         _tenantPathManager = _tenantContext.TenantPathManager;
 
         _fileReaderWriter = new FileReaderWriter(_config, new Mock<ILogger<FileReaderWriter>>().Object);
-        _sut = new InboxStorageManager(_fileReaderWriter, new Mock<ILogger<InboxStorageManager>>().Object, _tenantContext);
+        var inboxFileStore = new InboxFileStore(new DiskFileStore(_fileReaderWriter));
+        _sut = new InboxStorageManager(inboxFileStore, new Mock<ILogger<InboxStorageManager>>().Object, _tenantContext);
     }
 
     [TearDown]
@@ -115,5 +119,43 @@ public class InboxStorageManagerTests : PayloadReaderWriterBaseTestFixture
         Assert.That(Directory.Exists(_tenantPathManager.GetDriveInboxPath(file.DriveId)), Is.False);
 
         await _sut.CleanupInboxFiles(file);
+    }
+
+    [Test]
+    public async Task WriteInboxStream_RoundTrips_Through_Exists_And_GetBytes()
+    {
+        var file = new InternalDriveFileId { DriveId = Guid.NewGuid(), FileId = Guid.NewGuid() };
+        var ext = TenantPathManager.MetadataExtension;
+        var bytes = Encoding.UTF8.GetBytes("hello inbox");
+
+        // Drive inbox dir intentionally not pre-created: WriteInboxStream must create it.
+        // The three methods must also agree on the path built from (DriveId, FileId, extension).
+        Assert.That(Directory.Exists(_tenantPathManager.GetDriveInboxPath(file.DriveId)), Is.False);
+        Assert.That(await _sut.InboxFileExists(file, ext), Is.False);
+
+        using var stream = new MemoryStream(bytes);
+        var written = await _sut.WriteInboxStream(file, ext, stream);
+
+        Assert.That(written, Is.EqualTo(bytes.Length));
+        Assert.That(await _sut.InboxFileExists(file, ext), Is.True);
+        Assert.That(await _sut.GetAllInboxFileBytes(file, ext), Is.EqualTo(bytes));
+    }
+
+    [Test]
+    public async Task CleanupInboxFiles_Swallows_ReaderException()
+    {
+        var innerStore = new Mock<IDriveFileStore>();
+        innerStore.Setup(x => x.DeleteSetAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DriveFileStoreException("boom"));
+        var inboxFileStore = new InboxFileStore(innerStore.Object);
+        var sut = new InboxStorageManager(inboxFileStore, new Mock<ILogger<InboxStorageManager>>().Object, _tenantContext);
+
+        var file = new InternalDriveFileId { DriveId = Guid.NewGuid(), FileId = Guid.NewGuid() };
+
+        // Best-effort cleanup: a failure in the underlying store must be swallowed, not propagated.
+        await sut.CleanupInboxFiles(file);
+
+        innerStore.Verify(x => x.DeleteSetAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

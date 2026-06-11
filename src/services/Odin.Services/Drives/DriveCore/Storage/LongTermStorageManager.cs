@@ -22,7 +22,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 {
     public class LongTermStorageManager(
         ILogger<LongTermStorageManager> logger,
-        IPayloadReaderWriter payloadReaderWriter,
+        LongTermPayloadStore longTermPayloadStore,
         DriveQuery driveQuery,
         ScopedIdentityTransactionFactory scopedIdentityTransactionFactory,
         TableDriveTransferHistory tableDriveTransferHistory,
@@ -201,9 +201,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
             
             var pathAndFilename = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid);
 
-            if (await payloadReaderWriter.FileExistsAsync(pathAndFilename))
+            if (await longTermPayloadStore.ExistsAsync(pathAndFilename))
             {
-                await payloadReaderWriter.DeleteFileAsync(pathAndFilename);
+                await longTermPayloadStore.DeleteAsync(pathAndFilename);
             }
             else
             {
@@ -217,9 +217,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 //var thumbnailFilenameAndPath = Path.Combine(dir, thumbnailFileName);
                 var thumbnailFilenameAndPath = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, payloadKey, payloadUid, thumbnail.PixelWidth, thumbnail.PixelHeight);
 
-                if (await payloadReaderWriter.FileExistsAsync(thumbnailFilenameAndPath))
+                if (await longTermPayloadStore.ExistsAsync(thumbnailFilenameAndPath))
                 {
-                    await payloadReaderWriter.DeleteFileAsync(thumbnailFilenameAndPath);
+                    await longTermPayloadStore.DeleteAsync(thumbnailFilenameAndPath);
                 }
                 else
                 {
@@ -267,14 +267,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<bool> PayloadExistsOnDiskAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
-            var exists = await payloadReaderWriter.FileExistsAsync(path);
+            var exists = await longTermPayloadStore.ExistsAsync(path);
             return exists;
         }
 
         public async Task<long> PayloadLengthAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor)
         {
             var path = _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid);
-            var bytes = await payloadReaderWriter.FileLengthAsync(path);
+            var bytes = await longTermPayloadStore.LengthAsync(path);
             return bytes;
         }
 
@@ -285,14 +285,14 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
-            return await payloadReaderWriter.FileExistsAsync(path);
+            return await longTermPayloadStore.ExistsAsync(path);
         }
 
         public async Task<long> ThumbnailLengthAsync(StorageDrive drive, Guid fileId, PayloadDescriptor descriptor, ThumbnailDescriptor thumbnailDescriptor)
         {
-            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid, 
+            var path = _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, fileId, descriptor.Key, descriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
-            var bytes = await payloadReaderWriter.FileLengthAsync(path);
+            var bytes = await longTermPayloadStore.LengthAsync(path);
             return bytes;
         }
 
@@ -303,13 +303,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
             if (chunk == null)
             {
                 logger.LogDebug("GetPayloadStreamAsync: {path}", path);
-                var bytes = await payloadReaderWriter.GetFileBytesAsync(path);
+                var bytes = await longTermPayloadStore.ReadAllBytesAsync(path);
                 return new MemoryStream(bytes);
             }
             else
             {
                 logger.LogDebug("GetPayloadStreamAsync: {path}, start={start}, length={length}", path, chunk.Start, chunk.Length);
-                var bytes = await payloadReaderWriter.GetFileBytesAsync(path, chunk.Start, chunk.Length);
+                var bytes = await longTermPayloadStore.ReadBytesAsync(path, chunk.Start, chunk.Length);
                 return new MemoryStream(bytes);
             }
         }
@@ -327,7 +327,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
             try
             {
-                var bytes = await payloadReaderWriter.GetFileBytesAsync(path);
+                var bytes = await longTermPayloadStore.ReadAllBytesAsync(path);
                 return new MemoryStream(bytes);
             }
             catch (Exception e)
@@ -371,7 +371,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// Moves the specified <param name="sourceFile"></param> to long term storage.
         /// Returns the full path of the desitnation file.
         /// </summary>
-        public async Task CopyPayloadToLongTermAsync(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile)
+        public async Task CopyPayloadToLongTermAsync(StorageDrive drive, Guid targetFileId, PayloadDescriptor descriptor, string sourceFile,
+            IDriveFileStore sourceStore)
         {
             var destinationFile = _tenantPathManager.GetPayloadDirectoryAndFileName(
                 drive.Id,
@@ -379,14 +380,15 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 descriptor.Key,
                 descriptor.Uid);
 
-            await payloadReaderWriter.CopyPayloadFileAsync(sourceFile, destinationFile);
+            await longTermPayloadStore.IngestFromAsync(sourceStore, sourceFile, destinationFile);
 
             logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
         }
-        
+
         public async Task CopyThumbnailToLongTermAsync(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
-            ThumbnailDescriptor thumbnailDescriptor)
+            ThumbnailDescriptor thumbnailDescriptor,
+            IDriveFileStore sourceStore)
         {
             var payloadKey = payloadDescriptor.Key;
 
@@ -395,11 +397,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 payloadDescriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
-            var dir = Path.GetDirectoryName(destinationFile) ??
-                      throw new OdinSystemException("Destination folder was null");
-            logger.LogInformation("Creating Directory for thumbnail: {dir}", dir);
-
-            await payloadReaderWriter.CopyPayloadFileAsync(sourceThumbnailFilePath, destinationFile);
+            await longTermPayloadStore.IngestFromAsync(sourceStore, sourceThumbnailFilePath, destinationFile);
             logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                 sourceThumbnailFilePath, destinationFile);
 

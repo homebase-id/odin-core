@@ -540,6 +540,8 @@ public class OdinConfiguration
         public string ServiceUrl { get; init; } = "";
         public string Region { get; init; } = "";
         public bool ForcePathStyle { get; init; }
+        public int RetryAttempts { get; init; } = 5;
+        public int RetryInitialBackoffMs { get; init; } = 5000;
 
         public S3StorageSection()
         {
@@ -556,6 +558,8 @@ public class OdinConfiguration
                 ServiceUrl = config.Required<string>("S3Storage:ServiceUrl");
                 Region = config.GetOrDefault("S3Storage:Region", "");
                 ForcePathStyle = config.GetOrDefault("S3Storage:ForcePathStyle", false);
+                RetryAttempts = config.GetOrDefault("S3Storage:RetryAttempts", 5);
+                RetryInitialBackoffMs = config.GetOrDefault("S3Storage:RetryInitialBackoffMs", 5000);
             }
         }
     }
@@ -595,6 +599,7 @@ public class OdinConfiguration
         public bool Enabled { get; init; }
         public string BucketName { get; init; } = "";
         public string RootPath { get; init; } = "";
+        public int ExpirationDays { get; init; }
 
         public S3InboxSection()
         {
@@ -612,6 +617,7 @@ public class OdinConfiguration
                 }
                 BucketName = config.Required<string>("S3Inbox:BucketName");
                 RootPath = config.GetOrDefault("S3Inbox:RootPath", "inbox");
+                ExpirationDays = config.GetOrDefault("S3Inbox:ExpirationDays", 0);
             }
         }
     }
