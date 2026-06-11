@@ -67,7 +67,7 @@ public class ContactTests : V2Fixture
             Email = new ContactEmail { Email = "sam@shire.example" }
         };
 
-        var response = await contacts.UpsertAsync(new UpsertContactRequest { Content = content });
+        var response = await contacts.CreateAsync(new CreateContactRequest { Content = content });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
 
         var expectedUid = ContactService.ToContactUniqueId((OdinId)Identities.Sam);
@@ -93,7 +93,7 @@ public class ContactTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = await GetContactsClientAsync(owner, kind, PermissionKeyAllowance.Apps);
 
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent
             {
@@ -106,7 +106,7 @@ public class ContactTests : V2Fixture
 
         // Update with the version tag we just read; only set a new field — the merge must keep the
         // existing givenName rather than clobber it.
-        var update = await contacts.UpsertAsync(new UpsertContactRequest
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
         {
             VersionTag = create.Content.VersionTag,
             Content = new ContactContent
@@ -134,7 +134,7 @@ public class ContactTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
 
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
@@ -142,7 +142,7 @@ public class ContactTests : V2Fixture
         var uid = create.Content!.UniqueId;
 
         // A stale version tag on an update to an existing contact is rejected (no silent overwrite).
-        var conflict = await contacts.UpsertAsync(new UpsertContactRequest
+        var conflict = await contacts.UpdateAsync(uid, new UpdateContactRequest
         {
             VersionTag = Guid.NewGuid(), // not the current tag
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Changed" } }
@@ -154,7 +154,7 @@ public class ContactTests : V2Fixture
         Assert.That(current!.FileMetadata.VersionTag, Is.EqualTo(create.Content.VersionTag),
             "the conflicting write must not have advanced the stored version");
 
-        var retry = await contacts.UpsertAsync(new UpsertContactRequest
+        var retry = await contacts.UpdateAsync(uid, new UpdateContactRequest
         {
             VersionTag = current.FileMetadata.VersionTag,
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Changed" } }
@@ -172,7 +172,7 @@ public class ContactTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = await GetContactsClientAsync(owner, kind, PermissionKeyAllowance.Apps);
 
-        var response = await contacts.UpsertAsync(new UpsertContactRequest
+        var response = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { Name = new ContactName { DisplayName = "Barliman Butterbur" } }
         });
@@ -190,13 +190,48 @@ public class ContactTests : V2Fixture
         Assert.That(stored.OdinId, Is.Null);
     }
 
+    [Test]
+    public async Task Create_ExistingOdinId_Returns409()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var first = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // A second create for the same odinId collides on the deterministic uniqueId → 409 (update it).
+        var dup = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam again" } }
+        });
+        Assert.That(dup.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+        Assert.That(await CountContactsAsync(owner), Is.EqualTo(1), "no duplicate file was created");
+    }
+
+    [Test]
+    public async Task Update_NonExistent_Returns404()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var update = await contacts.UpdateAsync(Guid.NewGuid(), new UpdateContactRequest
+        {
+            VersionTag = Guid.NewGuid(),
+            Content = new ContactContent { Name = new ContactName { DisplayName = "Nobody" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
     [Test, TestCaseSource(nameof(AllowedCallers))]
     public async Task Delete_RemovesContact(CallerKind kind)
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = await GetContactsClientAsync(owner, kind, PermissionKeyAllowance.Apps);
 
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
@@ -243,7 +278,7 @@ public class ContactTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
 
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
@@ -259,14 +294,14 @@ public class ContactTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
 
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
         var uid = create.Content!.UniqueId;
 
         // Filling a previously-empty field is not an overwrite → no log.
-        var fill = await contacts.UpsertAsync(new UpsertContactRequest
+        var fill = await contacts.UpdateAsync(uid, new UpdateContactRequest
         {
             VersionTag = create.Content.VersionTag,
             Content = new ContactContent { OdinId = Identities.Sam, Email = new ContactEmail { Email = "sam@shire.example" } }
@@ -276,19 +311,89 @@ public class ContactTests : V2Fixture
         Assert.That(await HasMergeLogAsync(owner, uid), Is.False, "first-time fills must not be logged");
     }
 
+    [Test]
+    public async Task Upsert_WithEmptyValueObjects_DoesNotClobberStoredValues()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Name = new ContactName { DisplayName = "Sam" },
+                Phone = new ContactPhone { Number = "555-0100" }
+            }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        // An empty value-object (phone:{}) and an empty string (displayName:"") mean "leave alone",
+        // not "clear" — neither may wipe the stored value.
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Name = new ContactName { DisplayName = "" },
+                Phone = new ContactPhone()
+            }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.Phone!.Number, Is.EqualTo("555-0100"), "an empty phone object must not wipe the stored number");
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Sam"), "an empty displayName must not wipe the stored name");
+    }
+
+    [Test]
+    public async Task FirstTimeFieldFill_RotatesContentIv()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        var ss1 = owner.SharedSecret;
+        var before = (await GetByUniqueIdAsync(owner, uid))!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss1);
+
+        // First-time fill: takes the no-merge-log update path, which must still rotate the IV.
+        var fill = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Email = new ContactEmail { Email = "sam@shire.example" } }
+        });
+        Assert.That(fill.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var ss2 = owner.SharedSecret;
+        var after = (await GetByUniqueIdAsync(owner, uid))!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss2);
+
+        Assert.That(ByteArrayUtil.EquiByteArrayCompare(before.AesKey.GetKey(), after.AesKey.GetKey()), Is.True,
+            "the contact's AES key is stable across updates");
+        Assert.That(ByteArrayUtil.EquiByteArrayCompare(before.Iv, after.Iv), Is.False,
+            "the content IV must rotate on every update — key+IV reuse across versions leaks plaintext structure");
+    }
+
     [Test, TestCaseSource(nameof(AllowedCallers))]
     public async Task OverwritingField_AppendsMergeLogEntry(CallerKind kind)
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = await GetContactsClientAsync(owner, kind, PermissionKeyAllowance.Apps);
 
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
         var uid = create.Content!.UniqueId;
 
-        var update = await contacts.UpsertAsync(new UpsertContactRequest
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
         {
             VersionTag = create.Content.VersionTag,
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Samwise Gamgee" } }
@@ -313,7 +418,7 @@ public class ContactTests : V2Fixture
         var owner = await LoginAsOwner(Identities.Frodo);
         var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
 
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent
             {
@@ -324,14 +429,14 @@ public class ContactTests : V2Fixture
         });
         var uid = create.Content!.UniqueId;
 
-        var first = await contacts.UpsertAsync(new UpsertContactRequest
+        var first = await contacts.UpdateAsync(uid, new UpdateContactRequest
         {
             VersionTag = create.Content.VersionTag,
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "B" } }
         });
         Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        var second = await contacts.UpsertAsync(new UpsertContactRequest
+        var second = await contacts.UpdateAsync(uid, new UpdateContactRequest
         {
             VersionTag = first.Content!.VersionTag,
             Content = new ContactContent { OdinId = Identities.Sam, Email = new ContactEmail { Email = "b@shire.example" } }
@@ -359,33 +464,7 @@ public class ContactTests : V2Fixture
 
         // 1) Seed Sam's profile: an anonymous Name attribute on his ProfileDrive, tagged with the
         //    Name attribute type id (so the enrichment peer-query finds it).
-        var nameType = AttributeTypeId("name");
-        var attribute = new ProfileBlock
-        {
-            Type = nameType.ToString(),
-            Data = new Dictionary<string, object>
-            {
-                ["displayName"] = "Samwise Gamgee",
-                ["givenName"] = "Samwise"
-            }
-        };
-
-        var seed = await sam.Drives.Writer.CreateNewUnencryptedFile(
-            SystemDriveConstants.ProfileDrive.Alias,
-            new UploadFileMetadata
-            {
-                IsEncrypted = false,
-                AccessControlList = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Anonymous },
-                AppData = new UploadAppFileMetaData
-                {
-                    FileType = 77, // HomebaseProfileContentService.AttributeFileType
-                    Tags = [nameType],
-                    Content = OdinSystemSerializer.Serialize(attribute)
-                }
-            },
-            new UploadManifest(),
-            []);
-        Assert.That(seed.IsSuccessStatusCode, Is.True, "seeding Sam's profile attribute should succeed");
+        await SeedProfileNameAsync(sam, "Samwise Gamgee", "Samwise");
 
         // 2) Connect Frodo <-> Sam so Frodo can peer-query Sam's ProfileDrive.
         Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
@@ -395,7 +474,7 @@ public class ContactTests : V2Fixture
 
         // 3) Frodo creates a contact for Sam with a placeholder name.
         var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
-        var create = await contacts.UpsertAsync(new UpsertContactRequest
+        var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
         });
@@ -419,20 +498,87 @@ public class ContactTests : V2Fixture
     }
 
     [Test]
-    public async Task AcceptingConnection_AutoCreatesContact_ViaLifecycle()
+    public async Task Sync_AppWithoutExplicitReadConnections_StillEnriches_ViaImpliedPermissions()
     {
         var sam = await LoginAsOwner(Identities.Sam);
         var frodo = await LoginAsOwner(Identities.Frodo);
 
-        // Sam requests; Frodo accepts → ConnectionFinalized fires under Frodo's (owner, master-key)
-        // context, so the lifecycle handler ensures a contact for Sam on Frodo's side.
-        Assert.That((await sam.Connections.SendConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
-        Assert.That((await frodo.Connections.AcceptConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        await SeedProfileNameAsync(sam, "Samwise Gamgee", "Samwise");
 
-        // No contact-API call was made; the contact exists purely from the lifecycle handler.
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        // The app does NOT request ReadConnections — ManageContacts implies it (plus
+        // ReadConnectionRequests/ReadCircleMembership) at permission-context creation. UseTransitRead
+        // is still needed for the peer profile query itself.
+        var contacts = await GetContactsClientAsync(frodo, CallerKind.App,
+            [PermissionKeys.ManageContacts, PermissionKeys.UseTransitRead]);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        // Without the implied ReadConnections, the connection check inside enrichment fails silently
+        // and the placeholder would survive.
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, uid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise Gamgee"),
+            "the app should resolve connection status via the implied ReadConnections and enrich from the peer profile");
+    }
+
+    [Test]
+    public async Task Sync_MultipleSameTypeAttributes_LowestPriorityNonEmptyWins()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Three Name attributes. The top-priority one is empty (must be skipped, not chosen as the
+        // winner), then the primary, then a lower-priority secondary. Selection is by authored
+        // Priority (lower wins), not query/created order.
+        await SeedProfileNameAsync(sam, displayName: "", priority: 0);
+        await SeedProfileNameAsync(sam, displayName: "Samwise Gamgee", priority: 1);
+        await SeedProfileNameAsync(sam, displayName: "Sam (secondary)", priority: 2);
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, uid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise Gamgee"),
+            "the lowest-priority-number non-empty attribute should win (empty higher-priority skipped)");
+    }
+
+    [Test]
+    public async Task Sync_CreatesContactStub_WhenNoneExists()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Phase 1: contacts are not auto-created on the connection lifecycle; the client drives it by
+        // calling /sync, which ensures the contact exists even before any profile data is available.
         var uid = ContactService.ToContactUniqueId((OdinId)Identities.Sam);
+        Assert.That(await GetByUniqueIdAsync(frodo, uid), Is.Null, "precondition: no contact yet");
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
         var header = await GetByUniqueIdAsync(frodo, uid);
-        Assert.That(header, Is.Not.Null, "accepting a connection should auto-create the contact via the lifecycle handler");
+        Assert.That(header, Is.Not.Null, "/sync should ensure the contact stub exists");
         Assert.That(header!.FileMetadata.AppData.FileType, Is.EqualTo(ContactService.ContactFileType));
         Assert.That(header.FileMetadata.AppData.UniqueId, Is.EqualTo(uid));
     }
@@ -444,7 +590,7 @@ public class ContactTests : V2Fixture
         // App granted no permission keys → ManageContacts assertion fails.
         var contacts = await GetContactsClientAsync(owner, CallerKind.App, permissionKeys: []);
 
-        var response = await contacts.UpsertAsync(new UpsertContactRequest
+        var response = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
@@ -475,6 +621,45 @@ public class ContactTests : V2Fixture
         // an ACL-bypass upgrade.
         var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read, permissionKeys);
         return new V2ContactsClient(app.Identity, app.Factory);
+    }
+
+    /// <summary>
+    /// Seeds an anonymous Name profile attribute on the identity's ProfileDrive, tagged with the Name
+    /// attribute type id (so the enrichment peer-query finds it).
+    /// </summary>
+    private static async Task SeedProfileNameAsync(OwnerSession identity, string displayName, string givenName = null,
+        int? priority = null)
+    {
+        var nameType = AttributeTypeId("name");
+        var data = new Dictionary<string, object> { ["displayName"] = displayName };
+        if (givenName != null)
+        {
+            data["givenName"] = givenName;
+        }
+
+        var attribute = new ProfileBlock
+        {
+            Type = nameType.ToString(),
+            Priority = priority,
+            Data = data
+        };
+
+        var seed = await identity.Drives.Writer.CreateNewUnencryptedFile(
+            SystemDriveConstants.ProfileDrive.Alias,
+            new UploadFileMetadata
+            {
+                IsEncrypted = false,
+                AccessControlList = new AccessControlList { RequiredSecurityGroup = SecurityGroupType.Anonymous },
+                AppData = new UploadAppFileMetaData
+                {
+                    FileType = ContactProfileAttributes.AttributeFileType,
+                    Tags = [nameType],
+                    Content = OdinSystemSerializer.Serialize(attribute)
+                }
+            },
+            new UploadManifest(),
+            []);
+        Assert.That(seed.IsSuccessStatusCode, Is.True, "seeding the profile attribute should succeed");
     }
 
     private static async Task<Odin.Services.Apps.SharedSecretEncryptedFileHeader> GetByUniqueIdAsync(

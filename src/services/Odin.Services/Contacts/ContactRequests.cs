@@ -4,27 +4,36 @@ using Odin.Services.Apps;
 namespace Odin.Services.Contacts;
 
 /// <summary>
-/// Upsert (create-or-update) a contact. The client sends plaintext <see cref="Content"/> over the
-/// normal shared-secret transport; the server encrypts it at rest with a per-file key header.
+/// Create a contact. The client sends plaintext <see cref="Content"/> over the normal shared-secret
+/// transport; the server encrypts it at rest with a per-file key header and assigns the unique id
+/// (deterministic from <c>Content.OdinId</c> if present, else random) returned in
+/// <see cref="ContactWriteResponse"/>. A create that collides with an existing contact is rejected
+/// with <b>409 Conflict</b> — update it instead.
 /// </summary>
-public class UpsertContactRequest
+public class CreateContactRequest
 {
     public ContactContent Content { get; set; }
-
-    /// <summary>
-    /// The version tag the client last read. Required when updating an existing contact; the write is
-    /// rejected with <b>409 Conflict</b> (carrying <see cref="ContactWriteConflict"/>) if it is stale.
-    /// Omit (null) when creating.
-    /// </summary>
-    public Guid? VersionTag { get; set; }
 }
 
 /// <summary>
-/// Returned on a successful upsert.
+/// Update an existing contact addressed by its unique id (in the route). Optimistic concurrency:
+/// <see cref="VersionTag"/> is required and the write is rejected with <b>409 Conflict</b> (carrying
+/// <see cref="ContactWriteConflict"/>) if it is stale, or <b>404</b> if no such contact exists.
 /// </summary>
-public class UpsertContactResponse
+public class UpdateContactRequest
 {
-    /// <summary>The unique id the contact was keyed on (deterministic from odinId, else random).</summary>
+    public ContactContent Content { get; set; }
+
+    /// <summary>The version tag the client last read; must match the stored contact's current tag.</summary>
+    public Guid VersionTag { get; set; }
+}
+
+/// <summary>
+/// Returned on a successful create or update.
+/// </summary>
+public class ContactWriteResponse
+{
+    /// <summary>The unique id the contact is keyed on (deterministic from odinId, else random).</summary>
     public Guid UniqueId { get; set; }
 
     /// <summary>The new version tag to carry on the next update.</summary>
@@ -32,8 +41,8 @@ public class UpsertContactResponse
 }
 
 /// <summary>
-/// Body returned with <b>409 Conflict</b> when an update is attempted with a stale version tag, so the
-/// client can re-fetch, re-apply its edit, and retry.
+/// Body returned with <b>409 Conflict</b> — a create against an existing contact, or an update with a
+/// stale version tag — so the client can re-fetch, re-apply its edit, and retry.
 /// </summary>
 public class ContactWriteConflict
 {
@@ -45,15 +54,33 @@ public class ContactWriteConflict
 }
 
 /// <summary>
-/// Outcome of <see cref="ContactService.UpsertAsync"/>: either a success or an optimistic-concurrency
-/// conflict carrying the current header for the controller to surface as 409.
+/// Outcome of a <see cref="ContactService"/> create/update.
 /// </summary>
-public class ContactUpsertResult
+public enum ContactWriteOutcome
 {
-    public bool Success { get; init; }
+    Created,
+    Updated,
+
+    /// <summary>Create collided with an existing contact (deterministic odinId key). → 409.</summary>
+    AlreadyExists,
+
+    /// <summary>Update target does not exist. → 404.</summary>
+    NotFound,
+
+    /// <summary>Update version tag was stale. → 409.</summary>
+    VersionConflict
+}
+
+/// <summary>
+/// Result of a <see cref="ContactService"/> create/update: the outcome plus the contact's id/tag and,
+/// for the conflict outcomes, the current header for the controller to surface as 409.
+/// </summary>
+public class ContactWriteResult
+{
+    public ContactWriteOutcome Outcome { get; init; }
     public Guid UniqueId { get; init; }
     public Guid VersionTag { get; init; }
 
-    /// <summary>Set only when <see cref="Success"/> is false.</summary>
+    /// <summary>Set only for <see cref="ContactWriteOutcome.AlreadyExists"/> / <see cref="ContactWriteOutcome.VersionConflict"/>.</summary>
     public SharedSecretEncryptedFileHeader CurrentOnConflict { get; init; }
 }

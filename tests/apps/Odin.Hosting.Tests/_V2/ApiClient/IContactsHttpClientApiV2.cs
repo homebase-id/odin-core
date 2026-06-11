@@ -12,7 +12,10 @@ public interface IContactsHttpClientApiV2
     private const string Root = UnifiedApiRouteConstants.Contacts;
 
     [Post(Root)]
-    Task<ApiResponse<UpsertContactResponse>> Upsert([Body] UpsertContactRequest request);
+    Task<ApiResponse<ContactWriteResponse>> Create([Body] CreateContactRequest request);
+
+    [Put(Root + "/{uniqueId}")]
+    Task<ApiResponse<ContactWriteResponse>> Update(Guid uniqueId, [Body] UpdateContactRequest request);
 
     [Delete(Root + "/{uniqueId}")]
     Task<ApiResponse<HttpContent>> Delete(Guid uniqueId);

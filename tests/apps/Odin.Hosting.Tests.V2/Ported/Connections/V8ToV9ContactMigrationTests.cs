@@ -104,6 +104,83 @@ public class V8ToV9ContactMigrationTests : V2Fixture
     }
 
     [Test]
+    public async Task V9_SkipsRevokedApp_AndPreservesRevocation()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appId = Guid.NewGuid();
+
+        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = SystemDriveConstants.ContactDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
+        });
+
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var ctx = await BuildOwnerContextAsync(scope, owner);
+        var apps = scope.Resolve<AppRegistrationService>();
+
+        await apps.RevokeAppAsync(appId, ctx);
+
+        var migration = scope.Resolve<V8ToV9VersionMigrationService>();
+        await migration.UpgradeAsync(ctx, CancellationToken.None);
+        await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
+
+        // Updating permissions rebuilds the exchange grant, which would reset IsRevoked — the
+        // migration must leave revoked apps untouched.
+        var after = await apps.GetAppRegistration(appId, ctx);
+        Assert.That(after!.IsRevoked, Is.True, "the migration must not un-revoke a revoked app");
+        Assert.That(after.Grant.PermissionSet.HasKey(PermissionKeys.ManageContacts), Is.False,
+            "a revoked app must not be granted ManageContacts");
+    }
+
+    [Test]
+    public async Task V9_GrantsManageContacts_ToAppWithNullPermissionSet()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appId = Guid.NewGuid();
+
+        // A drives-only registration: PermissionSet is never validated, so a stored null is legal
+        // and must not crash the migration.
+        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = SystemDriveConstants.ContactDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            },
+            PermissionSet = null
+        });
+
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var ctx = await BuildOwnerContextAsync(scope, owner);
+        var apps = scope.Resolve<AppRegistrationService>();
+
+        var migration = scope.Resolve<V8ToV9VersionMigrationService>();
+        await migration.UpgradeAsync(ctx, CancellationToken.None);
+        await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
+
+        var after = await apps.GetAppRegistration(appId, ctx);
+        Assert.That(after!.Grant.PermissionSet?.HasKey(PermissionKeys.ManageContacts), Is.True,
+            "a drives-only app with contact-drive write access should still be granted ManageContacts");
+    }
+
+    [Test]
     public async Task V9_IsIdempotent()
     {
         var owner = await LoginAsOwner(Identities.Frodo);

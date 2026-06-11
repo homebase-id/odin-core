@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -14,7 +15,6 @@ using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.LinkPreview.Profile;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Query;
@@ -111,7 +111,7 @@ public class ContactEnrichmentService(
             QueryParams = new FileQueryParamsV1
             {
                 TargetDrive = SystemDriveConstants.ProfileDrive,
-                FileType = [HomebaseProfileContentService.AttributeFileType],
+                FileType = [ContactProfileAttributes.AttributeFileType],
                 TagsMatchAtLeastOne = ContactProfileAttributes.TextTypes
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest
@@ -127,57 +127,91 @@ public class ContactEnrichmentService(
             return null;
         }
 
+        // A peer can publish several attributes of the same type (e.g. a primary and a secondary
+        // phone). Each carries an authored Priority (lower = preferred, matching odin-js); process in
+        // ascending Priority order and keep the first non-empty value per field, so a higher-priority
+        // attribute that happens to be empty never shadows a populated lower-priority one.
+        var attributes = result.SearchResults
+            .Select(h => (Tags: h.FileMetadata.AppData.Tags ?? new List<Guid>(), Block: TryGetAttributeBlock(h, odinContext)))
+            .Where(x => x.Block?.Data != null)
+            .OrderBy(x => x.Block.Priority ?? int.MaxValue)
+            .ToList();
+
         var content = new ContactContent();
         var found = false;
 
-        foreach (var header in result.SearchResults)
+        foreach (var (tags, block) in attributes)
         {
-            var data = TryGetAttributeData(header, odinContext);
-            if (data == null)
-            {
-                continue;
-            }
+            var data = block.Data;
 
-            var tags = header.FileMetadata.AppData.Tags ?? new List<Guid>();
-
-            if (tags.Contains(ContactProfileAttributes.Name))
+            if (content.Name == null && tags.Contains(ContactProfileAttributes.Name))
             {
-                content.Name = new ContactName
+                var name = new ContactName
                 {
                     DisplayName = Str(data, ContactProfileAttributes.DisplayName),
                     GivenName = Str(data, ContactProfileAttributes.GivenName),
                     AdditionalName = Str(data, ContactProfileAttributes.AdditionalName),
                     Surname = Str(data, ContactProfileAttributes.Surname)
                 };
-                found = true;
+                if (HasAnyValue(name))
+                {
+                    content.Name = name;
+                    found = true;
+                }
             }
-            else if (tags.Contains(ContactProfileAttributes.Address))
+            else if (content.Location == null && tags.Contains(ContactProfileAttributes.Address))
             {
-                content.Location = new ContactLocation
+                var location = new ContactLocation
                 {
                     City = Str(data, ContactProfileAttributes.City),
                     Country = Str(data, ContactProfileAttributes.Country)
                 };
-                found = true;
+                if (HasAnyValue(location))
+                {
+                    content.Location = location;
+                    found = true;
+                }
             }
-            else if (tags.Contains(ContactProfileAttributes.PhoneNumber))
+            else if (content.Phone == null && tags.Contains(ContactProfileAttributes.PhoneNumber))
             {
-                content.Phone = new ContactPhone { Number = Str(data, ContactProfileAttributes.PhoneNumberField) };
-                found = true;
+                var number = Str(data, ContactProfileAttributes.PhoneNumberField);
+                if (number != null)
+                {
+                    content.Phone = new ContactPhone { Number = number };
+                    found = true;
+                }
             }
-            else if (tags.Contains(ContactProfileAttributes.Email))
+            else if (content.Email == null && tags.Contains(ContactProfileAttributes.Email))
             {
-                content.Email = new ContactEmail { Email = Str(data, ContactProfileAttributes.EmailField) };
-                found = true;
+                var email = Str(data, ContactProfileAttributes.EmailField);
+                if (email != null)
+                {
+                    content.Email = new ContactEmail { Email = email };
+                    found = true;
+                }
             }
-            else if (tags.Contains(ContactProfileAttributes.Birthday))
+            else if (content.Birthday == null && tags.Contains(ContactProfileAttributes.Birthday))
             {
-                content.Birthday = new ContactBirthday { Date = Str(data, ContactProfileAttributes.BirthdayDate) };
-                found = true;
+                var date = Str(data, ContactProfileAttributes.BirthdayDate);
+                if (date != null)
+                {
+                    content.Birthday = new ContactBirthday { Date = date };
+                    found = true;
+                }
             }
         }
 
         return found ? content : null;
+    }
+
+    private static bool HasAnyValue(ContactName name)
+    {
+        return name.DisplayName != null || name.GivenName != null || name.AdditionalName != null || name.Surname != null;
+    }
+
+    private static bool HasAnyValue(ContactLocation location)
+    {
+        return location.City != null || location.Country != null;
     }
 
     /// <summary>
@@ -216,11 +250,11 @@ public class ContactEnrichmentService(
     }
 
     /// <summary>
-    /// Returns the attribute's <c>Data</c> dictionary, decrypting the header content when encrypted
+    /// Decrypts and parses a peer profile attribute header into the local <see cref="ProfileAttribute"/>
     /// (peer query re-encrypts the key header to our shared secret; unencrypted attributes come back as
-    /// plaintext).
+    /// plaintext). Returns null when the content is missing or unparseable.
     /// </summary>
-    private Dictionary<string, object> TryGetAttributeData(SharedSecretEncryptedFileHeader header, IOdinContext odinContext)
+    private ProfileAttribute TryGetAttributeBlock(SharedSecretEncryptedFileHeader header, IOdinContext odinContext)
     {
         var raw = header.FileMetadata.AppData.Content;
         if (string.IsNullOrEmpty(raw))
@@ -242,8 +276,7 @@ public class ContactEnrichmentService(
 
         try
         {
-            var block = OdinSystemSerializer.Deserialize<ProfileBlock>(json);
-            return block?.Data;
+            return OdinSystemSerializer.Deserialize<ProfileAttribute>(json);
         }
         catch (Exception e)
         {
@@ -261,6 +294,21 @@ public class ContactEnrichmentService(
 
         var s = Convert.ToString(value);
         return string.IsNullOrWhiteSpace(s) ? null : s;
+    }
+
+    /// <summary>
+    /// The subset of a peer profile attribute this service consumes. Deliberately owned by the Contacts
+    /// namespace — not shared with the SSR profile block — so the enrichment wire-mapping cannot drift
+    /// when unrelated profile code changes. Extra fields on the wire are ignored.
+    /// </summary>
+    private sealed class ProfileAttribute
+    {
+        /// <summary>Authored rank; lower is preferred. Null sorts last.</summary>
+        [JsonPropertyName("priority")]
+        public int? Priority { get; set; }
+
+        [JsonPropertyName("data")]
+        public Dictionary<string, object> Data { get; set; }
     }
 
     /// <summary>The public profile card served at <c>pub/profile</c> (odin-js <c>ProfileCard</c>).</summary>

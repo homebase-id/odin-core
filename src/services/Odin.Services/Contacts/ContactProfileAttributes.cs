@@ -6,11 +6,17 @@ namespace Odin.Services.Contacts;
 /// Profile attribute type ids and field keys used when enriching a contact from an identity's
 /// <c>ProfileDrive</c>. Ported from odin-js (`BuiltInAttributes` / `*Fields` in
 /// `profile/ProfileData/ProfileConfig.ts`); attribute files are tagged with these type ids
-/// (`tagsMatchAtLeastOne`) and carry a <see cref="Odin.Services.LinkPreview.Profile.ProfileBlock"/>
-/// whose <c>Data</c> holds the field values below.
+/// (`tagsMatchAtLeastOne`) and carry a JSON profile attribute whose <c>data</c> object holds the
+/// field values below.
 /// </summary>
 internal static class ContactProfileAttributes
 {
+    /// <summary>
+    /// File type of a profile attribute on the ProfileDrive. Owned here (rather than referenced from
+    /// the profile/SSR namespace) so the Contacts code does not depend on that service.
+    /// </summary>
+    public const int AttributeFileType = 77;
+
     // Attribute type ids (md5 of the type name), matching odin-js BuiltInAttributes.
     public static readonly Guid Name = ContactGuid.ToGuidId("name");
     public static readonly Guid PhoneNumber = ContactGuid.ToGuidId("phonenumber");

@@ -56,6 +56,40 @@ namespace Odin.Services.Authorization.Permissions
     }
 
     /// <summary>
+    /// Permission keys implied by holding another key. Expanded when a permission context is
+    /// created (<see cref="ExchangeGrants.ExchangeGrantService.CreatePermissionContext"/>), so a
+    /// grant never needs to list them explicitly.
+    /// </summary>
+    public static class PermissionKeyImplications
+    {
+        private static readonly IReadOnlyDictionary<int, int[]> Implications = new Dictionary<int, int[]>
+        {
+            // Managing contacts requires reading the relationship state contacts mirror
+            // (connection status, pending requests, circle membership).
+            [PermissionKeys.ManageContacts] =
+            [
+                PermissionKeys.ReadConnections,
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.ReadCircleMembership
+            ]
+        };
+
+        /// <summary>
+        /// Returns the keys implied by <paramref name="grantedKeys"/> that are not already granted.
+        /// </summary>
+        public static List<int> ResolveImpliedKeys(IEnumerable<int> grantedKeys)
+        {
+            var granted = new HashSet<int>(grantedKeys);
+            return Implications
+                .Where(pair => granted.Contains(pair.Key))
+                .SelectMany(pair => pair.Value)
+                .Where(key => !granted.Contains(key))
+                .Distinct()
+                .ToList();
+        }
+    }
+
+    /// <summary>
     /// Specifies the permissions allowed for each permission group type
     /// </summary>
     public static class PermissionKeyAllowance

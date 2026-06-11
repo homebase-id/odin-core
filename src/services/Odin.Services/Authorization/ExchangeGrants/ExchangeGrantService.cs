@@ -148,6 +148,15 @@ namespace Odin.Services.Authorization.ExchangeGrants
                     new PermissionGroup(new PermissionSet(additionalPermissionKeys), null, null, null));
             }
 
+            var grantedKeys = (grants?.Values.SelectMany(g => g.PermissionSet?.Keys ?? []) ?? [])
+                .Concat(additionalPermissionKeys ?? []);
+            var impliedKeys = PermissionKeyImplications.ResolveImpliedKeys(grantedKeys);
+            if (impliedKeys.Count > 0)
+            {
+                permissionGroupMap.Add("implied_permissions",
+                    new PermissionGroup(new PermissionSet(impliedKeys), null, null, null));
+            }
+
             var permissionCtx = new PermissionContext(
                 permissionGroupMap,
                 sharedSecretKey: sharedSecret

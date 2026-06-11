@@ -60,69 +60,109 @@ public class ContactService(
     }
 
     /// <summary>
-    /// Create-or-update a contact.
-    /// <list type="bullet">
-    /// <item>With an odinId → keyed on <see cref="ToContactUniqueId"/>; updates the same file in place,
-    /// merging new content over existing (does not clobber fields the caller left null).</item>
-    /// <item>Without an odinId → always creates a new file under a random unique id (no deterministic key
-    /// exists; resolving duplicates is deferred).</item>
-    /// </list>
-    /// On update, the caller's <paramref name="versionTag"/> is checked for optimistic concurrency; a
-    /// stale tag yields a non-success result carrying the current header for a 409 response.
-    ///
-    /// <para>
-    /// When an update overwrites existing non-empty field values, the old values are appended to the
-    /// contact's <c>merge_log</c> payload (tagged with <paramref name="source"/>).
-    /// </para>
+    /// Create a contact. The unique id is deterministic from <c>content.OdinId</c>
+    /// (<see cref="ToContactUniqueId"/>) when present, else random. If a contact with that id already
+    /// exists (an odinId collision), returns <see cref="ContactWriteOutcome.AlreadyExists"/> carrying
+    /// the current header — the caller should <see cref="UpdateAsync"/> instead. Associating an odinId
+    /// with an existing unlinked contact (re-keying) is a separate, deferred concern.
     /// </summary>
-    public async Task<ContactUpsertResult> UpsertAsync(ContactContent content, Guid? versionTag, IOdinContext odinContext,
-        ContactMergeSource source = ContactMergeSource.Api)
+    public async Task<ContactWriteResult> CreateAsync(ContactContent content, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
-        OdinId? odinId = null;
         Guid uniqueId;
+        bool deterministic;
         if (!string.IsNullOrWhiteSpace(content.OdinId))
         {
             // Any syntactically valid domain is accepted; no liveness check.
             OdinValidationUtils.AssertIsValidOdinId(content.OdinId, out var parsed);
-            odinId = parsed;
             content.OdinId = parsed.DomainName; // normalize
             uniqueId = ToContactUniqueId(parsed);
+            deterministic = true;
         }
         else
         {
             uniqueId = Guid.NewGuid();
+            deterministic = false;
         }
 
         var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
 
-        var existing = odinId.HasValue ? await GetForWritingAsync(uniqueId, writeContext) : null;
-        if (existing == null)
+        // A random id cannot collide; only the deterministic (odinId) key needs an existence check.
+        var existing = deterministic ? await GetForWritingAsync(uniqueId, writeContext) : null;
+        if (existing != null)
         {
-            var (createdUniqueId, createdVersionTag) = await WriteNewAsync(uniqueId, content, writeContext);
-            return new ContactUpsertResult { Success = true, UniqueId = createdUniqueId, VersionTag = createdVersionTag };
+            return new ContactWriteResult
+            {
+                Outcome = ContactWriteOutcome.AlreadyExists,
+                UniqueId = uniqueId,
+                VersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault(),
+                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
+            };
         }
 
-        // Optimistic concurrency: the caller must have read the current version.
-        var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
-        if (versionTag.GetValueOrDefault() != currentVersionTag)
+        var (createdUniqueId, createdVersionTag) = await WriteNewAsync(uniqueId, content, writeContext);
+        return new ContactWriteResult
         {
-            logger.LogDebug("Contact upsert version conflict for uid {uid} (caller {caller} vs current {current})",
+            Outcome = ContactWriteOutcome.Created,
+            UniqueId = createdUniqueId,
+            VersionTag = createdVersionTag
+        };
+    }
+
+    /// <summary>
+    /// Update the contact addressed by <paramref name="uniqueId"/>, merging new content over existing
+    /// (does not clobber fields the caller left null/empty). Optimistic concurrency: a stale
+    /// <paramref name="versionTag"/> yields <see cref="ContactWriteOutcome.VersionConflict"/> carrying
+    /// the current header; a missing contact yields <see cref="ContactWriteOutcome.NotFound"/>. The
+    /// route's <paramref name="uniqueId"/> identifies the file — this never re-keys (associating an
+    /// odinId with an unlinked contact is deferred). Overwritten non-empty values are appended to the
+    /// contact's <c>merge_log</c> payload.
+    /// </summary>
+    public async Task<ContactWriteResult> UpdateAsync(Guid uniqueId, ContactContent content, Guid versionTag,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotNull(content, nameof(content));
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        if (!string.IsNullOrWhiteSpace(content.OdinId))
+        {
+            OdinValidationUtils.AssertIsValidOdinId(content.OdinId, out var parsed);
+            content.OdinId = parsed.DomainName; // normalize
+        }
+
+        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+
+        var existing = await GetForWritingAsync(uniqueId, writeContext);
+        if (existing == null)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+        if (versionTag != currentVersionTag)
+        {
+            logger.LogDebug("Contact update version conflict for uid {uid} (caller {caller} vs current {current})",
                 uniqueId, versionTag, currentVersionTag);
 
-            return new ContactUpsertResult
+            return new ContactWriteResult
             {
-                Success = false,
+                Outcome = ContactWriteOutcome.VersionConflict,
                 UniqueId = uniqueId,
                 VersionTag = currentVersionTag,
                 CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
             };
         }
 
-        var newVersionTag = await OverwriteAsync(existing, content, source, writeContext);
-        return new ContactUpsertResult { Success = true, UniqueId = uniqueId, VersionTag = newVersionTag };
+        var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, writeContext);
+        return new ContactWriteResult
+        {
+            Outcome = ContactWriteOutcome.Updated,
+            UniqueId = uniqueId,
+            VersionTag = newVersionTag
+        };
     }
 
     /// <summary>
@@ -212,9 +252,9 @@ public class ContactService(
             {
                 return await OverwriteAsync(existing, content, source, writeContext);
             }
-            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch && attempt < maxAttempts)
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
             {
-                logger.LogDebug("Contact merge race for {odinId}; re-reading and retrying", odinId);
+                logger.LogDebug("Contact merge race for {odinId} (attempt {attempt}/{maxAttempts})", odinId, attempt, maxAttempts);
             }
         }
 
@@ -293,8 +333,13 @@ public class ContactService(
         if (overwrites.Count == 0)
         {
             // Nothing to log (first-time fills / no-ops). Content-only update; no history to keep.
-            existing.FileMetadata.AppData.Content = EncryptContent(keyHeader, merged);
+            // The content IV must still rotate — re-encrypting different plaintext under the same
+            // key+IV is forbidden (the same rule UpdateBatchAsync enforces) — so re-wrap the file's
+            // key header under the fresh IV.
+            var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = keyHeader.AesKey };
+            existing.FileMetadata.AppData.Content = EncryptContent(contentKeyHeader, merged);
             existing.FileMetadata.AppData.Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), merged);
+            existing.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(DriveId, contentKeyHeader, writeContext);
             await fileSystem.Storage.UpdateActiveFileHeader(file, existing, writeContext, raiseEvent: true);
             return existing.FileMetadata.VersionTag.GetValueOrDefault();
         }
@@ -457,13 +502,25 @@ public class ContactService(
 
         return new ContactContent
         {
-            OdinId = incoming.OdinId ?? existing.OdinId,
+            OdinId = Coalesce(incoming.OdinId, existing.OdinId),
             Name = MergeName(existing.Name, incoming.Name),
             Location = MergeLocation(existing.Location, incoming.Location),
-            Phone = incoming.Phone ?? existing.Phone,
-            Email = incoming.Email ?? existing.Email,
-            Birthday = incoming.Birthday ?? existing.Birthday
+            Phone = MergePhone(existing.Phone, incoming.Phone),
+            Email = MergeEmail(existing.Email, incoming.Email),
+            Birthday = MergeBirthday(existing.Birthday, incoming.Birthday)
         };
+    }
+
+    /// <summary>
+    /// Field merge rule shared by every contact field: an incoming value that is null or whitespace
+    /// means "leave the existing value alone", never "clear it". Returns null only when neither side
+    /// has a real value (so empty value-objects collapse away rather than being stored).
+    /// </summary>
+    private static string Coalesce(string incoming, string existing)
+    {
+        if (!string.IsNullOrWhiteSpace(incoming)) return incoming;
+        if (!string.IsNullOrWhiteSpace(existing)) return existing;
+        return null;
     }
 
     private static ContactName MergeName(ContactName existing, ContactName incoming)
@@ -472,10 +529,10 @@ public class ContactService(
         if (existing == null) return incoming;
         return new ContactName
         {
-            DisplayName = incoming.DisplayName ?? existing.DisplayName,
-            GivenName = incoming.GivenName ?? existing.GivenName,
-            AdditionalName = incoming.AdditionalName ?? existing.AdditionalName,
-            Surname = incoming.Surname ?? existing.Surname
+            DisplayName = Coalesce(incoming.DisplayName, existing.DisplayName),
+            GivenName = Coalesce(incoming.GivenName, existing.GivenName),
+            AdditionalName = Coalesce(incoming.AdditionalName, existing.AdditionalName),
+            Surname = Coalesce(incoming.Surname, existing.Surname)
         };
     }
 
@@ -485,9 +542,27 @@ public class ContactService(
         if (existing == null) return incoming;
         return new ContactLocation
         {
-            City = incoming.City ?? existing.City,
-            Country = incoming.Country ?? existing.Country
+            City = Coalesce(incoming.City, existing.City),
+            Country = Coalesce(incoming.Country, existing.Country)
         };
+    }
+
+    private static ContactPhone MergePhone(ContactPhone existing, ContactPhone incoming)
+    {
+        var number = Coalesce(incoming?.Number, existing?.Number);
+        return number == null ? null : new ContactPhone { Number = number };
+    }
+
+    private static ContactEmail MergeEmail(ContactEmail existing, ContactEmail incoming)
+    {
+        var email = Coalesce(incoming?.Email, existing?.Email);
+        return email == null ? null : new ContactEmail { Email = email };
+    }
+
+    private static ContactBirthday MergeBirthday(ContactBirthday existing, ContactBirthday incoming)
+    {
+        var date = Coalesce(incoming?.Date, existing?.Date);
+        return date == null ? null : new ContactBirthday { Date = date };
     }
 
 }

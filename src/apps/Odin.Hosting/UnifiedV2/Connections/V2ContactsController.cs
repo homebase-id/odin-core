@@ -22,32 +22,44 @@ public class V2ContactsController(
     ContactEnrichmentService contactEnrichmentService
 ) : OdinControllerBase
 {
-    // POST /api/v2/contacts
+    // POST /api/v2/contacts  — create (409 if it already exists; update it instead)
     [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
     [HttpPost]
-    [ProducesResponseType(typeof(UpsertContactResponse), 200)]
+    [ProducesResponseType(typeof(ContactWriteResponse), 200)]
     [ProducesResponseType(typeof(ContactWriteConflict), 409)]
-    public async Task<IActionResult> Upsert([FromBody] UpsertContactRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateContactRequest request)
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotNull(request.Content, nameof(request.Content));
 
-        var result = await contactService.UpsertAsync(request.Content, request.VersionTag, WebOdinContext);
-
-        if (!result.Success)
+        var result = await contactService.CreateAsync(request.Content, WebOdinContext);
+        if (result.Outcome == ContactWriteOutcome.AlreadyExists)
         {
-            return Conflict(new ContactWriteConflict
-            {
-                VersionTag = result.VersionTag,
-                Current = result.CurrentOnConflict
-            });
+            return Conflict(new ContactWriteConflict { VersionTag = result.VersionTag, Current = result.CurrentOnConflict });
         }
 
-        return Ok(new UpsertContactResponse
+        return Ok(new ContactWriteResponse { UniqueId = result.UniqueId, VersionTag = result.VersionTag });
+    }
+
+    // PUT /api/v2/contacts/{uniqueId}  — update (404 if missing, 409 on stale version tag)
+    [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
+    [HttpPut("{uniqueId:guid}")]
+    [ProducesResponseType(typeof(ContactWriteResponse), 200)]
+    [ProducesResponseType(typeof(ContactWriteConflict), 409)]
+    public async Task<IActionResult> Update(Guid uniqueId, [FromBody] UpdateContactRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotNull(request.Content, nameof(request.Content));
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+
+        var result = await contactService.UpdateAsync(uniqueId, request.Content, request.VersionTag, WebOdinContext);
+        return result.Outcome switch
         {
-            UniqueId = result.UniqueId,
-            VersionTag = result.VersionTag
-        });
+            ContactWriteOutcome.NotFound => NotFound(),
+            ContactWriteOutcome.VersionConflict =>
+                Conflict(new ContactWriteConflict { VersionTag = result.VersionTag, Current = result.CurrentOnConflict }),
+            _ => Ok(new ContactWriteResponse { UniqueId = result.UniqueId, VersionTag = result.VersionTag })
+        };
     }
 
     // DELETE /api/v2/contacts/{uniqueId}
@@ -73,7 +85,9 @@ public class V2ContactsController(
     {
         AssertIsValidOdinId(odinId, out var id);
 
-        // Inline re-enrichment from the identity's profile (best-effort; merges contact data only).
+        // Phase 1: enrichment is client-triggered. Ensure the contact exists, then enrich it inline
+        // from the identity's profile (best-effort; merges contact data only).
+        await contactService.EnsureExistsAsync(id, WebOdinContext);
         await contactEnrichmentService.EnrichAsync(id, WebOdinContext);
         return Accepted();
     }

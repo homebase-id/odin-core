@@ -44,7 +44,16 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                     continue;
                 }
 
-                if (app.Grant.PermissionSet.HasKey(PermissionKeys.ManageContacts))
+                // UpdateAppPermissionsAsync rebuilds the exchange grant, which would reset IsRevoked
+                // to false — never touch a revoked app.
+                if (app.IsRevoked)
+                {
+                    logger.LogDebug("App {appName} is revoked; skipping", app.Name);
+                    continue;
+                }
+
+                // PermissionSet can legally be null for drives-only registrations.
+                if (app.Grant.PermissionSet?.HasKey(PermissionKeys.ManageContacts) == true)
                 {
                     logger.LogDebug("App {appName} already has ManageContacts; skipping", app.Name);
                     continue;
@@ -54,7 +63,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
                     "Granting ManageContacts to app {appName} ({appId}) — it has write access to the ContactDrive",
                     app.Name, app.AppId);
 
-                var keys = new List<int>(app.Grant.PermissionSet.Keys ?? new List<int>())
+                var keys = new List<int>(app.Grant.PermissionSet?.Keys ?? new List<int>())
                 {
                     PermissionKeys.ManageContacts
                 };
@@ -82,12 +91,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!HasContactDriveWriteAccess(app))
+                if (!HasContactDriveWriteAccess(app) || app.IsRevoked)
                 {
                     continue;
                 }
 
-                if (!app.Grant.PermissionSet.HasKey(PermissionKeys.ManageContacts))
+                if (app.Grant.PermissionSet?.HasKey(PermissionKeys.ManageContacts) != true)
                 {
                     throw new OdinSystemException(
                         $"App {app.Name} ({app.AppId}) has ContactDrive write access but was not granted ManageContacts");
