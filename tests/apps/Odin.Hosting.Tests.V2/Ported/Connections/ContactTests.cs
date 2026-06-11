@@ -453,6 +453,176 @@ public class ContactTests : V2Fixture
     }
 
     // -----------------------------------------------------------------------------------------
+    // profile image
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task SetImage_StoresEncryptedImageAndThumbnail()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var (image, thumb) = await SetSampleImageAsync(contacts, uid, create.Content.VersionTag);
+
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var descriptor = header!.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactService.ProfileImagePayloadKey);
+        Assert.That(descriptor, Is.Not.Null, "image payload descriptor should be present");
+        Assert.That(descriptor!.ContentType, Is.EqualTo("image/jpeg"));
+        Assert.That(descriptor.Thumbnails, Has.Count.EqualTo(1));
+        Assert.That(descriptor.Thumbnails[0].PixelWidth, Is.EqualTo(32));
+
+        // Image bytes round-trip (decrypt with the payload IV + file key).
+        Assert.That(await ReadImagePayloadAsync(owner, uid), Is.EqualTo(image));
+
+        // Thumbnail round-trips under the SAME IV as the payload.
+        var ss = owner.SharedSecret;
+        var fileKey = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var tResp = await reader.GetThumbnailUniqueIdAsync(uid, ContactDriveId, 32, 32,
+            ContactService.ProfileImagePayloadKey, directMatchOnly: true);
+        Assert.That(tResp.IsSuccessStatusCode, Is.True, "thumbnail should be readable");
+        var tPlain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKey.AesKey }
+            .Decrypt(await tResp.Content!.ReadAsByteArrayAsync());
+        Assert.That(tPlain, Is.EqualTo(thumb.Content));
+
+        // The contact content is untouched.
+        Assert.That(DecryptContent(owner, header).Name!.DisplayName, Is.EqualTo("Sam"));
+    }
+
+    [Test]
+    public async Task UpdatingField_PreservesImage()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+        var (image, _) = await SetSampleImageAsync(contacts, uid, create.Content.VersionTag);
+
+        // Overwrite a field → writes a merge_log payload; the image payload must be carried forward.
+        var current = await GetByUniqueIdAsync(owner, uid);
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = current!.FileMetadata.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Samwise" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var keys = (header!.FileMetadata.Payloads ?? new List<PayloadDescriptor>()).Select(p => p.Key).ToList();
+        Assert.That(keys, Does.Contain(ContactService.ProfileImagePayloadKey), "image survives a field update");
+        Assert.That(keys, Does.Contain(ContactMergeLog.PayloadKey), "merge_log was written");
+        Assert.That(await ReadImagePayloadAsync(owner, uid), Is.EqualTo(image), "image bytes intact after field update");
+    }
+
+    [Test]
+    public async Task DeleteImage_RemovesPayload_KeepsContact()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+        await SetSampleImageAsync(contacts, uid, create.Content.VersionTag);
+
+        var current = await GetByUniqueIdAsync(owner, uid);
+        var del = await contacts.DeleteImageAsync(uid, current!.FileMetadata.VersionTag);
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var header = await GetByUniqueIdAsync(owner, uid);
+        Assert.That((header!.FileMetadata.Payloads ?? new List<PayloadDescriptor>())
+            .Any(p => p.Key == ContactService.ProfileImagePayloadKey), Is.False, "image payload should be gone");
+        Assert.That(DecryptContent(owner, header).Name!.DisplayName, Is.EqualTo("Sam"), "contact content preserved");
+
+        // Deleting an absent image → 404.
+        var current2 = await GetByUniqueIdAsync(owner, uid);
+        var delAgain = await contacts.DeleteImageAsync(uid, current2!.FileMetadata.VersionTag);
+        Assert.That(delAgain.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task SetImage_NonExistentContact_Returns404()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var resp = await contacts.SetImageAsync(Guid.NewGuid(), new SetContactImageRequest
+        {
+            VersionTag = Guid.NewGuid(), ContentType = "image/jpeg", Content = [1, 2, 3]
+        });
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task SetImage_StaleVersion_Returns409()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var resp = await contacts.SetImageAsync(uid, new SetContactImageRequest
+        {
+            VersionTag = Guid.NewGuid(), ContentType = "image/jpeg", Content = [1, 2, 3]
+        });
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+    }
+
+    private static async Task<(byte[] image, ContactImageThumbnail thumb)> SetSampleImageAsync(
+        V2ContactsClient contacts, Guid uid, Guid versionTag)
+    {
+        var image = Enumerable.Range(0, 64).Select(i => (byte)(i * 3 + 1)).ToArray();
+        var thumb = new ContactImageThumbnail
+        {
+            PixelWidth = 32,
+            PixelHeight = 32,
+            ContentType = "image/jpeg",
+            Content = Enumerable.Range(0, 16).Select(i => (byte)(i * 7 + 2)).ToArray()
+        };
+
+        var resp = await contacts.SetImageAsync(uid, new SetContactImageRequest
+        {
+            VersionTag = versionTag,
+            ContentType = "image/jpeg",
+            Content = image,
+            Thumbnails = [thumb]
+        });
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"set image: {resp.StatusCode}");
+        return (image, thumb);
+    }
+
+    private static async Task<byte[]> ReadImagePayloadAsync(OwnerSession owner, Guid uid)
+    {
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var descriptor = header!.FileMetadata.Payloads!.First(p => p.Key == ContactService.ProfileImagePayloadKey);
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetPayloadByUniqueIdAsync(uid, ContactDriveId, ContactService.ProfileImagePayloadKey);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, "image payload should be readable");
+        var cipher = await resp.Content!.ReadAsByteArrayAsync();
+
+        var ss = owner.SharedSecret;
+        var fileKey = header.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
+        return new KeyHeader { Iv = descriptor.Iv, AesKey = fileKey.AesKey }.Decrypt(cipher);
+    }
+
+    // -----------------------------------------------------------------------------------------
     // enrichment / sync
     // -----------------------------------------------------------------------------------------
 

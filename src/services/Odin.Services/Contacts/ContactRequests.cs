@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Odin.Services.Apps;
 
 namespace Odin.Services.Contacts;
@@ -26,6 +27,38 @@ public class UpdateContactRequest
 
     /// <summary>The version tag the client last read; must match the stored contact's current tag.</summary>
     public Guid VersionTag { get; set; }
+}
+
+/// <summary>
+/// Set a contact's profile image. The client sends <b>plaintext</b> image + thumbnail bytes over the
+/// shared-secret transport (the server is the at-rest encryption authority for the contact, so it
+/// encrypts them under the file key). Addressed by uniqueId in the route; version-tag gated.
+/// </summary>
+public class SetContactImageRequest
+{
+    /// <summary>The contact's current version tag (optimistic concurrency).</summary>
+    public Guid VersionTag { get; set; }
+
+    /// <summary>MIME type of the image, e.g. <c>image/jpeg</c>.</summary>
+    public string ContentType { get; set; }
+
+    /// <summary>Plaintext image bytes (serialized as base64).</summary>
+    public byte[] Content { get; set; }
+
+    /// <summary>Optional client-generated thumbnails (plaintext); the server encrypts them at rest.</summary>
+    public List<ContactImageThumbnail> Thumbnails { get; set; } = new();
+}
+
+/// <summary>
+/// A client-generated thumbnail for the contact image. Plaintext bytes; the server encrypts at rest
+/// under the same IV as the image payload.
+/// </summary>
+public class ContactImageThumbnail
+{
+    public int PixelWidth { get; set; }
+    public int PixelHeight { get; set; }
+    public string ContentType { get; set; }
+    public byte[] Content { get; set; }
 }
 
 /// <summary>

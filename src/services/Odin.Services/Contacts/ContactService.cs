@@ -40,6 +40,9 @@ public class ContactService(
 {
     public const int ContactFileType = 100;
 
+    /// <summary>Payload key for the contact's profile image (matches odin-js). Must satisfy <c>^[a-z0-9_]{8,10}$</c>.</summary>
+    public const string ProfileImagePayloadKey = "prfl_pic";
+
     private static readonly TargetDrive Drive = SystemDriveConstants.ContactDrive;
     private static Guid DriveId => Drive.Alias;
 
@@ -147,13 +150,7 @@ public class ContactService(
             logger.LogDebug("Contact update version conflict for uid {uid} (caller {caller} vs current {current})",
                 uniqueId, versionTag, currentVersionTag);
 
-            return new ContactWriteResult
-            {
-                Outcome = ContactWriteOutcome.VersionConflict,
-                UniqueId = uniqueId,
-                VersionTag = currentVersionTag,
-                CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
-            };
+            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
         }
 
         var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, writeContext);
@@ -217,6 +214,70 @@ public class ContactService(
     public Task<bool> DeleteByOdinIdAsync(OdinId odinId, IOdinContext odinContext)
     {
         return DeleteByUniqueIdAsync(ToContactUniqueId(odinId), odinContext);
+    }
+
+    /// <summary>
+    /// Set (create or replace) the contact's profile image. The client sends <b>plaintext</b> image +
+    /// thumbnail bytes over the shared-secret transport; the server encrypts them at rest under the
+    /// file's AES key (one fresh IV for the payload and its thumbnails) and stores them as the
+    /// <see cref="ProfileImagePayloadKey"/> payload. Version-tag gated (stale → conflict, missing →
+    /// not-found); the contact's content and any <c>merge_log</c> payload are preserved.
+    /// </summary>
+    public async Task<ContactWriteResult> SetImageAsync(Guid uniqueId, SetContactImageRequest request, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "image content is required");
+        OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "image contentType is required");
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var existing = await GetForWritingAsync(uniqueId, writeContext);
+        if (existing == null)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+        if (request.VersionTag != currentVersionTag)
+        {
+            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+        }
+
+        var newVersionTag = await WriteImagePayloadAsync(existing, request, writeContext);
+        return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
+    }
+
+    /// <summary>
+    /// Remove the contact's profile image payload. Version-tag gated; returns not-found if the contact
+    /// or its image is absent. Content and any <c>merge_log</c> payload are preserved.
+    /// </summary>
+    public async Task<ContactWriteResult> DeleteImageAsync(Guid uniqueId, Guid versionTag, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var existing = await GetForWritingAsync(uniqueId, writeContext);
+        if (existing == null)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+        if (versionTag != currentVersionTag)
+        {
+            return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
+        }
+
+        var hasImage = (existing.FileMetadata.Payloads ?? []).Any(p => p.KeyEquals(ProfileImagePayloadKey));
+        if (!hasImage)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        var newVersionTag = await RemoveImagePayloadAsync(existing, writeContext);
+        return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
     }
 
     /// <summary>
@@ -401,7 +462,9 @@ public class ContactService(
             },
             IsEncrypted = true,
             VersionTag = currentVersionTag,
-            Payloads = [mergeLogDescriptor]
+            // Carry forward other payloads (e.g. the profile image) — only merge_log is rewritten here;
+            // payloads not named in PayloadInstruction are preserved as-is.
+            Payloads = [.. CarryForwardPayloads(existing, ContactMergeLog.PayloadKey), mergeLogDescriptor]
         };
 
         var manifest = new BatchUpdateManifest
@@ -438,6 +501,153 @@ public class ContactService(
         {
             await fileSystem.Storage.CleanupUploadTemporaryFiles(file, descriptors, writeContext);
         }
+    }
+
+    /// <summary>
+    /// Encrypts the image + its thumbnails under one fresh payload IV (the file's AES key), stages them,
+    /// and commits the <see cref="ProfileImagePayloadKey"/> payload while preserving the contact's
+    /// content (re-encrypted under a fresh content IV) and any other payloads (e.g. merge_log).
+    /// </summary>
+    private async Task<Guid> WriteImagePayloadAsync(ServerFileHeader existing, SetContactImageRequest request,
+        IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
+        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+        var aesKey = keyHeader.AesKey;
+
+        // Preserve the existing content; the content IV must rotate on every update.
+        var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
+        var contentBase64 = EncryptContent(contentKeyHeader, content);
+
+        // Image payload + thumbnails share one IV (the at-rest convention for a payload's thumbnails).
+        var uid = UnixTimeUtcUnique.Now();
+        var imageKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
+
+        var imageExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(ProfileImagePayloadKey, uid);
+        var imageBytesWritten = await fileSystem.Storage.WriteUploadStream(file, imageExtension,
+            new MemoryStream(imageKeyHeader.EncryptDataAes(request.Content)), writeContext);
+
+        var thumbnailDescriptors = new List<ThumbnailDescriptor>();
+        foreach (var thumb in request.Thumbnails ?? [])
+        {
+            OdinValidationUtils.AssertIsTrue(thumb.Content is { Length: > 0 }, "thumbnail content is required");
+            OdinValidationUtils.AssertIsTrue(thumb.PixelWidth > 0 && thumb.PixelHeight > 0, "thumbnail dimensions are required");
+
+            var thumbExtension = TenantPathManager.GetThumbnailFileNameAndExtension(
+                ProfileImagePayloadKey, uid, thumb.PixelWidth, thumb.PixelHeight);
+            var thumbBytesWritten = await fileSystem.Storage.WriteUploadStream(file, thumbExtension,
+                new MemoryStream(imageKeyHeader.EncryptDataAes(thumb.Content)), writeContext);
+
+            thumbnailDescriptors.Add(new ThumbnailDescriptor
+            {
+                PixelWidth = thumb.PixelWidth,
+                PixelHeight = thumb.PixelHeight,
+                ContentType = thumb.ContentType,
+                BytesWritten = thumbBytesWritten
+            });
+        }
+
+        var imageDescriptor = new PayloadDescriptor
+        {
+            Key = ProfileImagePayloadKey,
+            Uid = uid,
+            Iv = imageKeyHeader.Iv,
+            ContentType = request.ContentType,
+            BytesWritten = imageBytesWritten,
+            LastModified = UnixTimeUtc.Now(),
+            Thumbnails = thumbnailDescriptors
+        };
+
+        var manifest = BuildContentManifest(existing, contentKeyHeader, contentBase64, content,
+            [.. CarryForwardPayloads(existing, ProfileImagePayloadKey), imageDescriptor],
+            [new PayloadInstruction { Key = ProfileImagePayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite }]);
+
+        var staged = new List<PayloadDescriptor> { imageDescriptor };
+        try
+        {
+            await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null,
+                sourceArea: StagingArea.Upload);
+            return manifest.NewVersionTag;
+        }
+        finally
+        {
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, staged, writeContext);
+        }
+    }
+
+    /// <summary>
+    /// Removes the <see cref="ProfileImagePayloadKey"/> payload, preserving content (re-encrypted under a
+    /// fresh content IV) and any other payloads.
+    /// </summary>
+    private async Task<Guid> RemoveImagePayloadAsync(ServerFileHeader existing, IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+        var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
+        var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+
+        var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = keyHeader.AesKey };
+        var contentBase64 = EncryptContent(contentKeyHeader, content);
+
+        var manifest = BuildContentManifest(existing, contentKeyHeader, contentBase64, content,
+            CarryForwardPayloads(existing, ProfileImagePayloadKey),
+            [new PayloadInstruction { Key = ProfileImagePayloadKey, OperationType = PayloadUpdateOperationType.DeletePayload }]);
+
+        await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null,
+            sourceArea: StagingArea.Upload);
+        return manifest.NewVersionTag;
+    }
+
+    /// <summary>
+    /// Builds a <see cref="BatchUpdateManifest"/> that rewrites the contact's content header (fresh
+    /// content IV / version tag) with the given payload set and instructions.
+    /// </summary>
+    private BatchUpdateManifest BuildContentManifest(ServerFileHeader existing, KeyHeader contentKeyHeader,
+        string contentBase64, ContactContent content, List<PayloadDescriptor> payloads,
+        List<PayloadInstruction> instructions)
+    {
+        var file = existing.FileMetadata.File;
+        return new BatchUpdateManifest
+        {
+            NewVersionTag = SequentialGuid.CreateGuid(),
+            KeyHeader = contentKeyHeader,
+            FileMetadata = new FileMetadata(file)
+            {
+                AppData = new AppFileMetaData
+                {
+                    FileType = ContactFileType,
+                    UniqueId = existing.FileMetadata.AppData.UniqueId,
+                    Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), content),
+                    Content = contentBase64
+                },
+                IsEncrypted = true,
+                VersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault(),
+                Payloads = payloads
+            },
+            ServerMetadata = new ServerMetadata { AccessControlList = AccessControlList.OwnerOnly, AllowDistribution = false },
+            PayloadInstruction = instructions
+        };
+    }
+
+    private static List<PayloadDescriptor> CarryForwardPayloads(ServerFileHeader existing, string excludeKey)
+    {
+        return (existing.FileMetadata.Payloads ?? new List<PayloadDescriptor>())
+            .Where(p => !p.KeyEquals(excludeKey))
+            .ToList();
+    }
+
+    private static ContactWriteResult VersionConflictResult(Guid uniqueId, ServerFileHeader existing,
+        Guid currentVersionTag, IOdinContext odinContext)
+    {
+        return new ContactWriteResult
+        {
+            Outcome = ContactWriteOutcome.VersionConflict,
+            UniqueId = uniqueId,
+            VersionTag = currentVersionTag,
+            CurrentOnConflict = DriveFileUtility.CreateClientFileHeader(existing, odinContext)
+        };
     }
 
     private async Task<List<ContactMergeLogEntry>> ReadMergeLogAsync(ServerFileHeader header, KeyHeader keyHeader,

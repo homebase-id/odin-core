@@ -17,6 +17,12 @@ public interface IContactsHttpClientApiV2
     [Put(Root + "/{uniqueId}")]
     Task<ApiResponse<ContactWriteResponse>> Update(Guid uniqueId, [Body] UpdateContactRequest request);
 
+    [Put(Root + "/{uniqueId}/image")]
+    Task<ApiResponse<ContactWriteResponse>> SetImage(Guid uniqueId, [Body] SetContactImageRequest request);
+
+    [Delete(Root + "/{uniqueId}/image")]
+    Task<ApiResponse<ContactWriteResponse>> DeleteImage(Guid uniqueId, Guid versionTag);
+
     [Delete(Root + "/{uniqueId}")]
     Task<ApiResponse<HttpContent>> Delete(Guid uniqueId);
 

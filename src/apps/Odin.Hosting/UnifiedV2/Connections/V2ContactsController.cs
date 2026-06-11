@@ -53,14 +53,43 @@ public class V2ContactsController(
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
 
         var result = await contactService.UpdateAsync(uniqueId, request.Content, request.VersionTag, WebOdinContext);
-        return result.Outcome switch
-        {
-            ContactWriteOutcome.NotFound => NotFound(),
-            ContactWriteOutcome.VersionConflict =>
-                Conflict(new ContactWriteConflict { VersionTag = result.VersionTag, Current = result.CurrentOnConflict }),
-            _ => Ok(new ContactWriteResponse { UniqueId = result.UniqueId, VersionTag = result.VersionTag })
-        };
+        return MapWrite(result);
     }
+
+    // PUT /api/v2/contacts/{uniqueId}/image  — set/replace the contact's profile image (404/409 like update)
+    [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
+    [HttpPut("{uniqueId:guid}/image")]
+    [ProducesResponseType(typeof(ContactWriteResponse), 200)]
+    [ProducesResponseType(typeof(ContactWriteConflict), 409)]
+    public async Task<IActionResult> SetImage(Guid uniqueId, [FromBody] SetContactImageRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+
+        var result = await contactService.SetImageAsync(uniqueId, request, WebOdinContext);
+        return MapWrite(result);
+    }
+
+    // DELETE /api/v2/contacts/{uniqueId}/image?versionTag=...  — remove the contact's profile image
+    [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
+    [HttpDelete("{uniqueId:guid}/image")]
+    [ProducesResponseType(typeof(ContactWriteResponse), 200)]
+    [ProducesResponseType(typeof(ContactWriteConflict), 409)]
+    public async Task<IActionResult> DeleteImage(Guid uniqueId, [FromQuery] Guid versionTag)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+
+        var result = await contactService.DeleteImageAsync(uniqueId, versionTag, WebOdinContext);
+        return MapWrite(result);
+    }
+
+    private IActionResult MapWrite(ContactWriteResult result) => result.Outcome switch
+    {
+        ContactWriteOutcome.NotFound => NotFound(),
+        ContactWriteOutcome.VersionConflict =>
+            Conflict(new ContactWriteConflict { VersionTag = result.VersionTag, Current = result.CurrentOnConflict }),
+        _ => Ok(new ContactWriteResponse { UniqueId = result.UniqueId, VersionTag = result.VersionTag })
+    };
 
     // DELETE /api/v2/contacts/{uniqueId}
     [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
