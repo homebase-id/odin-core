@@ -335,12 +335,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             var success = false;
             List<PayloadDescriptor> payloads = [];
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext);
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
             var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
             {
                 (success, payloads) = await writer.HandleFile(file, fs, decryptedKeyHeader, inboxItem.Sender,
                     inboxItem.TransferInstructionSet,
-                    odinContext, sourceFolderPath: drive.GetDriveInboxPath(), markComplete: markComplete);
+                    odinContext, sourceArea: StagingArea.Inbox, markComplete: markComplete);
             });
 
             logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
@@ -357,12 +356,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             bool success = false;
             List<PayloadDescriptor> payloads = [];
             var decryptedKeyHeader = await DecryptedKeyHeaderAsync(inboxItem.Sender, inboxItem.SharedSecretEncryptedKeyHeader, odinContext);
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
             var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
             {
                 (success, payloads) = await writer.HandleFile(file, fs, decryptedKeyHeader, inboxItem.Sender,
                     inboxItem.TransferInstructionSet,
-                    odinContext, sourceFolderPath: drive.GetDriveInboxPath(), markComplete: markComplete);
+                    odinContext, sourceArea: StagingArea.Inbox, markComplete: markComplete);
             });
 
             logger.LogDebug("ProcessFeedItemViaTransit -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
@@ -382,9 +380,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 inboxItem.Sender, updateInstructionSet.EncryptedKeyHeader, odinContext);
 
             logger.LogDebug("PeerFileUpdateWriter called. Sender: {sender} FileId: {file}", inboxItem.Sender, inboxItem.FileId);
-            var drive = await driveManager.GetDriveAsync(file.DriveId);
             return await writer.UpsertFileAsync(file, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext,
-                markComplete, sourceFolderPath: drive.GetDriveInboxPath());
+                markComplete, sourceArea: StagingArea.Inbox);
         }
 
         private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext,
@@ -449,12 +446,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 var feedPayload = OdinSystemSerializer.Deserialize<FeedItemPayload>(decryptedBytes.ToStringFromUtf8Bytes());
                 var decryptedKeyHeader = KeyHeader.FromCombinedBytes(feedPayload.KeyHeaderBytes);
 
-                var drive = await driveManager.GetDriveAsync(file.DriveId);
                 var handleFileMs = await Benchmark.MillisecondsAsync(async () =>
                 {
                     (success, payloads) = await writer.HandleFile(file, fs, decryptedKeyHeader, inboxItem.Sender,
                         inboxItem.TransferInstructionSet,
-                        odinContext, feedPayload.DriveOriginWasCollaborative, sourceFolderPath: drive.GetDriveInboxPath(), markComplete);
+                        odinContext, sourceArea: StagingArea.Inbox, driveOriginWasCollaborative: feedPayload.DriveOriginWasCollaborative, markComplete: markComplete);
                 });
 
                 logger.LogDebug("Processing Feed Inbox Item -> HandleFile Complete. Took {ms} ms", handleFileMs);

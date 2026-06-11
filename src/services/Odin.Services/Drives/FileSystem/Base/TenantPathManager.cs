@@ -61,19 +61,21 @@ public class TenantPathManager
     public readonly string HeadersPath;  // e.g. /data/tenants/registrations/<tenant-id>/headers
     public readonly string UploadPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp
     public readonly string UploadDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp/drives
-    public readonly string InboxPath;  // e.g. /data/tenants/registrations/<tenant-id>/temp  (same dir for now)
+    public readonly string InboxPath;  // e.g. /data/tenants/registrations/<tenant-id>/inbox
     public readonly string InboxDrivesPath;  // e.g. /data/tenants/registrations/<tenant-id>/inbox/drives
 
     public readonly string PayloadsPath;  // e.g. /data/tenants/payloads/<tenant-id>/
     public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
 
     public bool S3PayloadsEnabled { get; }
+    public bool S3InboxEnabled { get; }
 
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(config.Host.TenantDataRootPath, nameof(config.Host.TenantDataRootPath));
 
         S3PayloadsEnabled = config.S3Payload.Enabled;
+        S3InboxEnabled = config.S3Inbox.Enabled;
         var tenant = tenantId.ToString();
 
         RootPath = config.Host.TenantDataRootPath;
@@ -91,12 +93,23 @@ public class TenantPathManager
 
         RegistrationPath = Path.Combine(RootRegistrationsPath, tenant);
         HeadersPath = Path.Combine(RegistrationPath, HeadersFolder);
-        InboxPath = Path.Combine(RegistrationPath, InboxFolder);
-        InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
         UploadPath = Path.Combine(RegistrationPath, TempFolder);
         UploadDrivesPath = Path.Combine(UploadPath, DrivesFolder);
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
         PayloadsDrivesPath = Path.Combine(PayloadsPath, DrivesFolder);
+
+        if (S3InboxEnabled)
+        {
+            // Inbox on S3 is anchored to the root of the bucket, mirroring payloads: <tenant>/drives/...
+            // The "inbox" root folder is supplied by S3AwsInboxStorage's rootPath, so it must not appear here.
+            InboxPath = tenant;
+            InboxDrivesPath = Path.Combine(tenant, DrivesFolder);
+        }
+        else
+        {
+            InboxPath = Path.Combine(RegistrationPath, InboxFolder);
+            InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
+        }
     }
 
     //

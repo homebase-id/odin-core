@@ -13,6 +13,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// Temporary storage for a given drive. Used to stage incoming file parts from uploads.
     /// </summary>
     public class UploadStorageManager(
+        UploadFileStore uploadFileStore,
         FileReaderWriter fileReaderWriter,
         ILogger<UploadStorageManager> logger,
         TenantContext tenantContext)
@@ -22,7 +23,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public Task<bool> UploadFileExists(InternalDriveFileId file, string extension)
         {
             string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            return Task.FromResult(fileReaderWriter.FileExists(path));
+            return uploadFileStore.ExistsAsync(path);
         }
 
         /// <summary>
@@ -31,7 +32,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
         public async Task<byte[]> GetAllUploadFileBytes(InternalDriveFileId file, string extension)
         {
             string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            return await fileReaderWriter.GetAllFileBytesAsync(path);
+            return await uploadFileStore.ReadAllBytesAsync(path);
         }
 
         /// <summary>
@@ -41,9 +42,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
         {
             // [UploadTiming] Diagnostic: time the LOCAL staging write to prove local disk is fast vs S3 commit.
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            fileReaderWriter.CreateDirectory(_tenantPathManager.GetDriveUploadPath(file.DriveId));
+            await uploadFileStore.EnsureDirectoryAsync(_tenantPathManager.GetDriveUploadPath(file.DriveId));
             string path = _tenantPathManager.GetDriveUploadFilePath(file.DriveId, file.FileId, extension);
-            var bytesWritten = await fileReaderWriter.WriteStreamAsync(path, stream);
+            var bytesWritten = await uploadFileStore.WriteStreamAsync(path, stream);
             logger.LogInformation(
                 "[UploadTiming] LOCAL stage write fileId:{fileId} ext:{ext} bytes:{bytes} elapsedMs:{elapsedMs}",
                 file.FileId, extension, bytesWritten, sw.ElapsedMilliseconds);

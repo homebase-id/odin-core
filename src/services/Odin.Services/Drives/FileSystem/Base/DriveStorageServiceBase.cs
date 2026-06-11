@@ -35,12 +35,27 @@ namespace Odin.Services.Drives.FileSystem.Base
         LongTermStorageManager longTermStorageManager,
         UploadStorageManager uploadStorageManager,
         InboxStorageManager inboxStorageManager,
-        FileReaderWriter fileReaderWriter,
-        IdentityDatabase db) : RequirePermissionsBase
+        IdentityDatabase db,
+        InboxFileStore inboxFileStore,
+        UploadFileStore uploadFileStore) : RequirePermissionsBase
     {
         private readonly ILogger<DriveStorageServiceBase> _logger = loggerFactory.CreateLogger<DriveStorageServiceBase>();
 
         protected override IDriveManager DriveManager { get; } = driveManager;
+
+        private IDriveFileStore ResolveStore(StagingArea area) => area switch
+        {
+            StagingArea.Upload => uploadFileStore,
+            StagingArea.Inbox  => inboxFileStore,
+            _ => throw new ArgumentOutOfRangeException(nameof(area))
+        };
+
+        private static string StagingRoot(StagingArea area, StorageDrive drive) => area switch
+        {
+            StagingArea.Upload => drive.GetDriveUploadPath(),
+            StagingArea.Inbox  => drive.GetDriveInboxPath(),
+            _ => throw new ArgumentOutOfRangeException(nameof(area))
+        };
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> of which the inheriting class manages
@@ -265,12 +280,15 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         public async Task<byte[]> GetAllFileBytesFromTempFileForWriting(InternalDriveFileId file, string extension,
-            string sourceFolderPath, IOdinContext odinContext)
+            StagingArea sourceArea, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             await AssertCanWriteToDrive(file.DriveId, odinContext);
-            var path = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(file.FileId, extension));
-            return await fileReaderWriter.GetAllFileBytesAsync(path);
+
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            var store = ResolveStore(sourceArea);
+            var path = Path.Combine(StagingRoot(sourceArea, drive), TenantPathManager.GetFilename(file.FileId, extension));
+            return await store.ReadAllBytesAsync(path);
         }
 
         public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetThumbnailPayloadStreamAsync(InternalDriveFileId file,
@@ -534,8 +552,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         public async Task<(bool success, List<PayloadDescriptor> payloads)> CommitNewFile(
             InternalDriveFileId originFile, KeyHeader keyHeader,
             FileMetadata newMetadata, ServerMetadata serverMetadata,
-            bool? ignorePayload, IOdinContext odinContext, Guid? useThisVersionTag = null, WriteSecondDatabaseRowBase markComplete = null,
-            string sourceFolderPath = null)
+            bool? ignorePayload, IOdinContext odinContext, StagingArea sourceArea, Guid? useThisVersionTag = null, WriteSecondDatabaseRowBase markComplete = null)
         {
             await AssertDriveIsNotArchived(originFile.DriveId, odinContext);
             await AssertCanWriteToDrive(originFile.DriveId, odinContext);
@@ -550,8 +567,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             // First copy and prepare everything we need
             if (!ignorePayload.GetValueOrDefault(false))
             {
-                var src = sourceFolderPath ?? drive.GetDriveUploadPath();
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, newMetadata.Payloads ?? [], drive, src);
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, newMetadata.Payloads ?? [], drive, sourceArea);
             }
 
             // set the version tag null on a new file sine it will be handled by the
@@ -611,7 +627,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             InternalDriveFileId originFile, InternalDriveFileId targetFile,
             KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata, bool? ignorePayload, IOdinContext odinContext, WriteSecondDatabaseRowBase markComplete,
-            string sourceFolderPath = null)
+            StagingArea sourceArea)
         {
             await AssertDriveIsNotArchived(targetFile.DriveId, odinContext);
             await AssertCanWriteToDrive(targetFile.DriveId, odinContext);
@@ -654,8 +670,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             if (!ignorePayload.GetValueOrDefault(false))
             {
-                var src = sourceFolderPath ?? drive.GetDriveUploadPath();
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, src);
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, payloads, drive, sourceArea);
             }
 
             bool success = false;
@@ -754,7 +769,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 //Note: we do not delete existing payloads.  this feature adds or overwrites existing ones
                 await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, incomingPayloads, drive,
-                    drive.GetDriveUploadPath());
+                    StagingArea.Upload);
 
                 // get all the existing payloads that are not in the incoming list, we'll keep these
                 var payloadsToKeep = existingServerHeader.FileMetadata.Payloads.Where(
@@ -979,7 +994,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             BatchUpdateManifest manifest,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete,
-            string sourceFolderPath = null)
+            StagingArea sourceArea)
         {
             bool success = false;
 
@@ -995,7 +1010,7 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // First prepare by copying everything needed
             var (header, copiedPayloads, zombies) = await UpdateBatchCopyFilesAsync(originFile, targetFile, manifest, odinContext,
-                sourceFolderPath);
+                sourceArea);
             try
             {
                 await AssertPayloadsExistOnFileSystemAsync(header);
@@ -1075,7 +1090,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task<(ServerFileHeader success, List<PayloadDescriptor> copiedPayloads, List<PayloadDescriptor> zombies)>
             UpdateBatchCopyFilesAsync(InternalDriveFileId originFile,
                 InternalDriveFileId targetFile, BatchUpdateManifest manifest,
-                IOdinContext odinContext, string sourceFolderPath = null)
+                IOdinContext odinContext, StagingArea sourceArea)
         {
             List<PayloadDescriptor> copiedPayloads = new();
 
@@ -1134,8 +1149,7 @@ namespace Odin.Services.Drives.FileSystem.Base
                 }
 
                 // Copy all payload from the temp folder to the long term folder
-                var src = sourceFolderPath ?? storageDrive.GetDriveUploadPath();
-                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive, src);
+                await CopyPayloadsAndThumbnailsToLongTermStorage(originFile, targetFile, copiedPayloads, storageDrive, sourceArea);
 
                 return zombies;
             }
@@ -1717,7 +1731,7 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// </summary>
         /// <returns>List of all files copied (directory and filename)</returns>
         private async Task CopyPayloadsAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
-            List<PayloadDescriptor> descriptors, StorageDrive drive, string sourceFolderPath)
+            List<PayloadDescriptor> descriptors, StorageDrive drive, StagingArea sourceArea)
         {
             // [UploadTiming] Diagnostic: time the whole commit-to-long-term loop (payloads uploaded sequentially here).
             var totalSw = System.Diagnostics.Stopwatch.StartNew();
@@ -1730,7 +1744,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             {
                 foreach (var descriptor in descriptors)
                 {
-                    await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor, sourceFolderPath);
+                    await CopyPayloadAndThumbnailsToLongTermStorage(originFile, targetFile, drive, descriptor, sourceArea);
                 }
 
                 _logger.LogInformation(
@@ -1751,10 +1765,12 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// Copies payload and thumbs to long term storage
         /// </summary>
         private async Task CopyPayloadAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
-            StorageDrive drive, PayloadDescriptor descriptor, string sourceFolderPath)
+            StorageDrive drive, PayloadDescriptor descriptor, StagingArea sourceArea)
         {
+            var sourceStore = ResolveStore(sourceArea);
+
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);
-            var sourceFilePath = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, payloadExtension));
+            var sourceFilePath = Path.Combine(StagingRoot(sourceArea, drive), TenantPathManager.GetFilename(originFile.FileId, payloadExtension));
 
             // [UploadTiming] Diagnostic: time this single payload's copy to long-term storage.
             var payloadSw = System.Diagnostics.Stopwatch.StartNew();
@@ -1762,7 +1778,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 drive,
                 targetFile.FileId,
                 descriptor,
-                sourceFilePath);
+                sourceFilePath,
+                sourceStore);
             _logger.LogInformation(
                 "[UploadTiming] Payload copied to long-term fileId:{fileId} payloadKey:{key} elapsedMs:{elapsedMs}",
                 targetFile.FileId, descriptor.Key, payloadSw.ElapsedMilliseconds);
@@ -1772,11 +1789,11 @@ namespace Odin.Services.Drives.FileSystem.Base
                 var thumbExt = TenantPathManager.GetThumbnailFileNameAndExtension(
                     descriptor.Key, descriptor.Uid, thumb.PixelWidth, thumb.PixelHeight);
 
-                var sourceThumbnail = Path.Combine(sourceFolderPath, TenantPathManager.GetFilename(originFile.FileId, thumbExt));
+                var sourceThumbnail = Path.Combine(StagingRoot(sourceArea, drive), TenantPathManager.GetFilename(originFile.FileId, thumbExt));
                 // [UploadTiming] Diagnostic: time this single thumbnail's copy to long-term storage.
                 var thumbSw = System.Diagnostics.Stopwatch.StartNew();
                 await longTermStorageManager.CopyThumbnailToLongTermAsync(drive, targetFile.FileId, sourceThumbnail, descriptor,
-                    thumb);
+                    thumb, sourceStore);
                 _logger.LogInformation(
                     "[UploadTiming] Thumbnail copied to long-term fileId:{fileId} payloadKey:{key} {w}x{h} elapsedMs:{elapsedMs}",
                     targetFile.FileId, descriptor.Key, thumb.PixelWidth, thumb.PixelHeight, thumbSw.ElapsedMilliseconds);

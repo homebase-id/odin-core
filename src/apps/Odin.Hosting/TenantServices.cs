@@ -79,6 +79,8 @@ using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 using Odin.Services.Tenant.Container;
+using Microsoft.Extensions.Logging;
+using Odin.Core.Storage.ObjectStorage;
 
 namespace Odin.Hosting;
 
@@ -223,6 +225,24 @@ public static class TenantServices
         cb.RegisterType<OwnerSecurityHealthService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveManager>().AsSelf().As<IDriveManager>().InstancePerLifetimeScope();
+
+        // Upload: ALWAYS disk (uploads are never on S3).
+        cb.Register(c => new UploadFileStore(new DiskFileStore(c.Resolve<FileReaderWriter>())))
+            .AsSelf().SingleInstance();
+
+        // Inbox: S3 when S3Inbox enabled, else disk.
+        cb.Register(c => new InboxFileStore(
+                odinConfig.S3Inbox.Enabled
+                    ? new S3FileStore(c.Resolve<IS3InboxStorage>(), c.Resolve<ILogger<S3FileStore>>(), odinConfig)
+                    : new DiskFileStore(c.Resolve<FileReaderWriter>())))
+            .AsSelf().SingleInstance();
+
+        // Long-term payload: S3 when S3Payload enabled, else disk.
+        cb.Register(c => new LongTermPayloadStore(
+                odinConfig.S3Payload.Enabled
+                    ? new S3FileStore(c.Resolve<IS3PayloadStorage>(), c.Resolve<ILogger<S3FileStore>>(), odinConfig)
+                    : new DiskFileStore(c.Resolve<FileReaderWriter>())))
+            .AsSelf().SingleInstance();
 
         cb.RegisterType<LongTermStorageManager>().InstancePerLifetimeScope();
         cb.RegisterType<UploadStorageManager>().InstancePerLifetimeScope();
@@ -379,16 +399,6 @@ public static class TenantServices
 
         // Tenant PubSub services
         cb.AddTenantPubSub(registration.Id.ToString(), odinConfig.Redis.Enabled);
-
-        // Payload storage
-        if (odinConfig.S3Storage.Enabled)
-        {
-            cb.RegisterType<PayloadS3ReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
-        }
-        else
-        {
-            cb.RegisterType<PayloadFileReaderWriter>().As<IPayloadReaderWriter>().SingleInstance();
-        }
 
         return cb;
     }
