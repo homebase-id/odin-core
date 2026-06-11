@@ -428,8 +428,10 @@ public class ContactService(
         try
         {
             // Keeps existing payloads not named in the instructions (e.g. a future prfl_pic); commits
-            // the header (content) and the merge_log payload in a single transaction.
-            await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null);
+            // the header (content) and the merge_log payload in a single transaction. The merge_log
+            // payload was staged via WriteUploadStream, so it lives in the Upload staging area.
+            await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null,
+                sourceArea: StagingArea.Upload);
             return manifest.NewVersionTag;
         }
         finally
