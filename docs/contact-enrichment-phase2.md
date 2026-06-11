@@ -163,3 +163,38 @@ uniqueId + version tag. Two decisions to settle: (a) **precedence** when a canon
 exists — default to the user's hand-entered values winning, with old values logged to `merge_log`;
 (b) keep it **explicit/client-initiated** (matches the plan's "layered, no auto-merge" stance,
 `b18316d47`) — the server should not guess that "Barliman" is `barliman.dotyou.cloud`.
+
+---
+
+## Related: profile image (#1) — shipped, preview-thumbnail deferred
+
+**Shipped (phase 1):** the contact image is a payload (replace semantics), so it gets a dedicated
+sub-resource off the JSON merge/version path, version-tag gated like `update`:
+
+- `PUT /api/v2/contacts/{uniqueId}/image` — set/replace. Body
+  `SetContactImageRequest { versionTag, contentType, content, thumbnails[] }`. **200** + new tag,
+  **404** if the contact is missing, **409** (`ContactWriteConflict`) on a stale tag.
+- `DELETE /api/v2/contacts/{uniqueId}/image?versionTag=…` — remove it. **200/404/409**.
+
+Because this API is server-key-managed (the client never holds the file's AES key), the client sends
+**plaintext** image + thumbnail bytes over the shared-secret transport and the **server encrypts at
+rest** under the file key — one IV for the payload and all its thumbnails — stored as the
+`prfl_pic` payload (`ContactService.ProfileImagePayloadKey`). The client still *generates*
+thumbnails; only the encryption moved server-side. `SetImageAsync`/`DeleteImageAsync` reuse the
+merge-log `UpdateBatchAsync` + staging plumbing, preserving the contact content (re-encrypted under a
+rotated content IV) and the `merge_log` payload. (Fixed in passing: `WriteContentWithMergeLogAsync`
+now carries forward other payloads, so a field edit no longer drops the image.)
+
+**Deferred (phase 2):**
+- **Inline header preview-thumbnail.** The payload + its thumbnails have an independent IV and
+  survive content updates untouched, but `AppData.PreviewThumbnail` is encrypted with the *content*
+  key-header IV — so it would need decrypt+re-encrypt on **every** field update (content-IV rotation)
+  across all write paths. Left out for now; clients render avatars via `pub/image` or the payload
+  thumbnails. Add later with that re-encryption handled on each content write.
+- **Header-content overflow (`shouldEmbedInHeader`).** Large contact JSON should spill to a content
+  payload instead of `appData.content`; the server has the plaintext so it can decide this itself,
+  but the client reader must also read content back from the payload. Use the same
+  `MaxHeaderContentBytes` threshold as the client.
+- **The `source` field** (`'contact' | 'public' | 'user'`). The client persists it; the server's
+  `ContactContent` deliberately omits it, so it's dropped on write/merge. Decide: drop it
+  client-side, or add it back to `ContactContent` and round-trip it.
