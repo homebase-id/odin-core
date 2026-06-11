@@ -176,14 +176,15 @@ sub-resource off the JSON merge/version path, version-tag gated like `update`:
   **404** if the contact is missing, **409** (`ContactWriteConflict`) on a stale tag.
 - `DELETE /api/v2/contacts/{uniqueId}/image?versionTag=…` — remove it. **200/404/409**.
 
-Because this API is server-key-managed (the client never holds the file's AES key), the client sends
-**plaintext** image + thumbnail bytes over the shared-secret transport and the **server encrypts at
-rest** under the file key — one IV for the payload and all its thumbnails — stored as the
-`prfl_pic` payload (`ContactService.ProfileImagePayloadKey`). The client still *generates*
-thumbnails; only the encryption moved server-side. `SetImageAsync`/`DeleteImageAsync` reuse the
-merge-log `UpdateBatchAsync` + staging plumbing, preserving the contact content (re-encrypted under a
-rotated content IV) and the `merge_log` payload. (Fixed in passing: `WriteContentWithMergeLogAsync`
-now carries forward other payloads, so a field edit no longer drops the image.)
+The image is **client-encrypted** (like every other drive payload): the client reads the contact's
+`sharedSecretEncryptedKeyHeader`, decrypts it with the shared secret to get the file's AES key,
+encrypts the image + thumbnails under that key with a fresh IV, and sends the **ciphertext + IV**.
+The server stores the bytes verbatim as the `prfl_pic` payload (`ContactService.ProfileImagePayloadKey`)
+and records the IV in the descriptor — it never sees the plaintext image (one IV covers the payload
+and all its thumbnails). `SetImageAsync`/`DeleteImageAsync` reuse the merge-log `UpdateBatchAsync` +
+staging plumbing, preserving the contact content (re-encrypted under a rotated content IV) and the
+`merge_log` payload. (Fixed in passing: `WriteContentWithMergeLogAsync` now carries forward other
+payloads, so a field edit no longer drops the image.)
 
 **Deferred (phase 2):**
 - **Inline header preview-thumbnail.** The payload + its thumbnails have an independent IV and
@@ -195,6 +196,6 @@ now carries forward other payloads, so a field edit no longer drops the image.)
   payload instead of `appData.content`; the server has the plaintext so it can decide this itself,
   but the client reader must also read content back from the payload. Use the same
   `MaxHeaderContentBytes` threshold as the client.
-- **The `source` field** (`'contact' | 'public' | 'user'`). The client persists it; the server's
-  `ContactContent` deliberately omits it, so it's dropped on write/merge. Decide: drop it
-  client-side, or add it back to `ContactContent` and round-trip it.
+**Shipped:** the **`source` field** (`'contact' | 'public' | 'user'`) is back on `ContactContent`,
+round-tripped verbatim and coalesced on merge (an update that omits it preserves the stored value;
+enrichment leaves it untouched). It is not recorded in the merge log (origin metadata, not audited).

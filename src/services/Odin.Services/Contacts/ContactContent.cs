@@ -15,8 +15,8 @@ namespace Odin.Services.Contacts;
 ///
 /// <para>
 /// It holds contact data only — never connection status. Connected/blocked/introduced/pending is
-/// derived live by the client from <c>CircleNetworkService</c>; the legacy <c>source</c> field is
-/// tolerated on read but never emitted on write (see <see cref="ContactService"/>).
+/// derived live by the client from <c>CircleNetworkService</c>. The <see cref="Source"/> field marks
+/// the origin of the data (matching odin-js) and is round-tripped verbatim.
 /// </para>
 /// </summary>
 public class ContactContent
@@ -24,6 +24,10 @@ public class ContactContent
     /// <summary>Optional. A syntactically valid domain. No liveness check is performed.</summary>
     [JsonPropertyName("odinId")]
     public string OdinId { get; set; }
+
+    /// <summary>Origin of the contact data (odin-js): <c>contact</c> | <c>public</c> | <c>user</c>.</summary>
+    [JsonPropertyName("source")]
+    public string Source { get; set; }
 
     [JsonPropertyName("name")]
     public ContactName Name { get; set; }

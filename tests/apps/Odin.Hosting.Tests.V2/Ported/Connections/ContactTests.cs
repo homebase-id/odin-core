@@ -268,6 +268,44 @@ public class ContactTests : V2Fixture
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
     }
 
+    [Test]
+    public async Task Source_RoundTripsAndIsPreservedAcrossUpdate()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Source = "user",
+                Name = new ContactName { DisplayName = "Sam" }
+            }
+        });
+        var uid = create.Content!.UniqueId;
+        Assert.That(DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!).Source, Is.EqualTo("user"));
+
+        // An update that omits source must not clear it.
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Email = new ContactEmail { Email = "sam@shire.example" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!).Source, Is.EqualTo("user"), "source preserved");
+
+        // A later update can change it.
+        var current = await GetByUniqueIdAsync(owner, uid);
+        var update2 = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = current!.FileMetadata.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Source = "public" }
+        });
+        Assert.That(update2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!).Source, Is.EqualTo("public"));
+    }
+
     // -----------------------------------------------------------------------------------------
     // merge log
     // -----------------------------------------------------------------------------------------
@@ -468,7 +506,7 @@ public class ContactTests : V2Fixture
         });
         var uid = create.Content!.UniqueId;
 
-        var (image, thumb) = await SetSampleImageAsync(contacts, uid, create.Content.VersionTag);
+        var (image, thumb) = await SetSampleImageAsync(owner, contacts, uid, create.Content.VersionTag);
 
         var header = await GetByUniqueIdAsync(owner, uid);
         var descriptor = header!.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactService.ProfileImagePayloadKey);
@@ -489,7 +527,7 @@ public class ContactTests : V2Fixture
         Assert.That(tResp.IsSuccessStatusCode, Is.True, "thumbnail should be readable");
         var tPlain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKey.AesKey }
             .Decrypt(await tResp.Content!.ReadAsByteArrayAsync());
-        Assert.That(tPlain, Is.EqualTo(thumb.Content));
+        Assert.That(tPlain, Is.EqualTo(thumb));
 
         // The contact content is untouched.
         Assert.That(DecryptContent(owner, header).Name!.DisplayName, Is.EqualTo("Sam"));
@@ -506,7 +544,7 @@ public class ContactTests : V2Fixture
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
         var uid = create.Content!.UniqueId;
-        var (image, _) = await SetSampleImageAsync(contacts, uid, create.Content.VersionTag);
+        var (image, _) = await SetSampleImageAsync(owner, contacts, uid, create.Content.VersionTag);
 
         // Overwrite a field → writes a merge_log payload; the image payload must be carried forward.
         var current = await GetByUniqueIdAsync(owner, uid);
@@ -535,7 +573,7 @@ public class ContactTests : V2Fixture
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
         });
         var uid = create.Content!.UniqueId;
-        await SetSampleImageAsync(contacts, uid, create.Content.VersionTag);
+        await SetSampleImageAsync(owner, contacts, uid, create.Content.VersionTag);
 
         var current = await GetByUniqueIdAsync(owner, uid);
         var del = await contacts.DeleteImageAsync(uid, current!.FileMetadata.VersionTag);
@@ -560,7 +598,7 @@ public class ContactTests : V2Fixture
 
         var resp = await contacts.SetImageAsync(Guid.NewGuid(), new SetContactImageRequest
         {
-            VersionTag = Guid.NewGuid(), ContentType = "image/jpeg", Content = [1, 2, 3]
+            VersionTag = Guid.NewGuid(), ContentType = "image/jpeg", Iv = new byte[16], Content = [1, 2, 3]
         });
         Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
@@ -579,32 +617,45 @@ public class ContactTests : V2Fixture
 
         var resp = await contacts.SetImageAsync(uid, new SetContactImageRequest
         {
-            VersionTag = Guid.NewGuid(), ContentType = "image/jpeg", Content = [1, 2, 3]
+            VersionTag = Guid.NewGuid(), ContentType = "image/jpeg", Iv = new byte[16], Content = [1, 2, 3]
         });
         Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
     }
 
-    private static async Task<(byte[] image, ContactImageThumbnail thumb)> SetSampleImageAsync(
-        V2ContactsClient contacts, Guid uid, Guid versionTag)
+    private static async Task<(byte[] image, byte[] thumb)> SetSampleImageAsync(
+        OwnerSession owner, V2ContactsClient contacts, Guid uid, Guid versionTag)
     {
-        var image = Enumerable.Range(0, 64).Select(i => (byte)(i * 3 + 1)).ToArray();
-        var thumb = new ContactImageThumbnail
-        {
-            PixelWidth = 32,
-            PixelHeight = 32,
-            ContentType = "image/jpeg",
-            Content = Enumerable.Range(0, 16).Select(i => (byte)(i * 7 + 2)).ToArray()
-        };
+        // Client-side encryption: read the contact's file AES key from its header, then encrypt the
+        // image + thumbnail under it with a fresh payload IV (the server stores the ciphertext as-is).
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var ss = owner.SharedSecret;
+        var fileKey = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
+
+        var imagePlain = Enumerable.Range(0, 64).Select(i => (byte)(i * 3 + 1)).ToArray();
+        var thumbPlain = Enumerable.Range(0, 16).Select(i => (byte)(i * 7 + 2)).ToArray();
+
+        var iv = ByteArrayUtil.GetRndByteArray(16);
+        var payloadKeyHeader = new KeyHeader { Iv = iv, AesKey = fileKey.AesKey };
 
         var resp = await contacts.SetImageAsync(uid, new SetContactImageRequest
         {
             VersionTag = versionTag,
             ContentType = "image/jpeg",
-            Content = image,
-            Thumbnails = [thumb]
+            Iv = iv,
+            Content = payloadKeyHeader.EncryptDataAes(imagePlain),
+            Thumbnails =
+            [
+                new ContactImageThumbnail
+                {
+                    PixelWidth = 32,
+                    PixelHeight = 32,
+                    ContentType = "image/jpeg",
+                    Content = payloadKeyHeader.EncryptDataAes(thumbPlain)
+                }
+            ]
         });
         Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"set image: {resp.StatusCode}");
-        return (image, thumb);
+        return (imagePlain, thumbPlain);
     }
 
     private static async Task<byte[]> ReadImagePayloadAsync(OwnerSession owner, Guid uid)

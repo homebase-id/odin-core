@@ -228,6 +228,7 @@ public class ContactService(
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "image content is required");
+        OdinValidationUtils.AssertIsTrue(request.Iv is { Length: 16 }, "a 16-byte image iv is required");
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "image contentType is required");
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
@@ -521,13 +522,13 @@ public class ContactService(
         var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
         var contentBase64 = EncryptContent(contentKeyHeader, content);
 
-        // Image payload + thumbnails share one IV (the at-rest convention for a payload's thumbnails).
+        // The image + thumbnails arrive already encrypted by the client (under the file's AES key and
+        // request.Iv); the server stores the ciphertext verbatim and records the IV for later decryption.
         var uid = UnixTimeUtcUnique.Now();
-        var imageKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
 
         var imageExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(ProfileImagePayloadKey, uid);
         var imageBytesWritten = await fileSystem.Storage.WriteUploadStream(file, imageExtension,
-            new MemoryStream(imageKeyHeader.EncryptDataAes(request.Content)), writeContext);
+            new MemoryStream(request.Content), writeContext);
 
         var thumbnailDescriptors = new List<ThumbnailDescriptor>();
         foreach (var thumb in request.Thumbnails ?? [])
@@ -538,7 +539,7 @@ public class ContactService(
             var thumbExtension = TenantPathManager.GetThumbnailFileNameAndExtension(
                 ProfileImagePayloadKey, uid, thumb.PixelWidth, thumb.PixelHeight);
             var thumbBytesWritten = await fileSystem.Storage.WriteUploadStream(file, thumbExtension,
-                new MemoryStream(imageKeyHeader.EncryptDataAes(thumb.Content)), writeContext);
+                new MemoryStream(thumb.Content), writeContext);
 
             thumbnailDescriptors.Add(new ThumbnailDescriptor
             {
@@ -553,7 +554,7 @@ public class ContactService(
         {
             Key = ProfileImagePayloadKey,
             Uid = uid,
-            Iv = imageKeyHeader.Iv,
+            Iv = request.Iv,
             ContentType = request.ContentType,
             BytesWritten = imageBytesWritten,
             LastModified = UnixTimeUtc.Now(),
@@ -715,6 +716,7 @@ public class ContactService(
         return new ContactContent
         {
             OdinId = Coalesce(incoming.OdinId, existing.OdinId),
+            Source = Coalesce(incoming.Source, existing.Source),
             Name = MergeName(existing.Name, incoming.Name),
             Location = MergeLocation(existing.Location, incoming.Location),
             Phone = MergePhone(existing.Phone, incoming.Phone),

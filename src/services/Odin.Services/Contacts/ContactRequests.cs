@@ -30,9 +30,10 @@ public class UpdateContactRequest
 }
 
 /// <summary>
-/// Set a contact's profile image. The client sends <b>plaintext</b> image + thumbnail bytes over the
-/// shared-secret transport (the server is the at-rest encryption authority for the contact, so it
-/// encrypts them under the file key). Addressed by uniqueId in the route; version-tag gated.
+/// Set a contact's profile image. The client encrypts the image + thumbnails itself (AES under the
+/// contact file's AES key — read from the file's <c>sharedSecretEncryptedKeyHeader</c> — and the
+/// supplied <see cref="Iv"/>) and sends the <b>ciphertext</b>; the server stores it verbatim as the
+/// <c>prfl_pic</c> payload. Addressed by uniqueId in the route; version-tag gated.
 /// </summary>
 public class SetContactImageRequest
 {
@@ -42,22 +43,27 @@ public class SetContactImageRequest
     /// <summary>MIME type of the image, e.g. <c>image/jpeg</c>.</summary>
     public string ContentType { get; set; }
 
-    /// <summary>Plaintext image bytes (serialized as base64).</summary>
+    /// <summary>The 16-byte IV the client used to encrypt the image and all its thumbnails.</summary>
+    public byte[] Iv { get; set; }
+
+    /// <summary>Encrypted image bytes (base64 on the wire).</summary>
     public byte[] Content { get; set; }
 
-    /// <summary>Optional client-generated thumbnails (plaintext); the server encrypts them at rest.</summary>
+    /// <summary>Client-generated thumbnails, each already encrypted under <see cref="Iv"/>.</summary>
     public List<ContactImageThumbnail> Thumbnails { get; set; } = new();
 }
 
 /// <summary>
-/// A client-generated thumbnail for the contact image. Plaintext bytes; the server encrypts at rest
-/// under the same IV as the image payload.
+/// A client-generated, client-encrypted thumbnail for the contact image (encrypted under the same IV
+/// as the image payload).
 /// </summary>
 public class ContactImageThumbnail
 {
     public int PixelWidth { get; set; }
     public int PixelHeight { get; set; }
     public string ContentType { get; set; }
+
+    /// <summary>Encrypted thumbnail bytes (base64 on the wire).</summary>
     public byte[] Content { get; set; }
 }
 
