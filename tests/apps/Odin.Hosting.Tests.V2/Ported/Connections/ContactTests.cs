@@ -11,6 +11,8 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Hosting.Controllers.OwnerToken.Cdn;
+using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
@@ -806,13 +808,8 @@ public class ContactTests : V2Fixture
         //    Name attribute type id (so the enrichment peer-query finds it).
         await SeedProfileNameAsync(sam, "Samwise Gamgee", "Samwise");
 
-        // 2) Connect Frodo <-> Sam so Frodo can peer-query Sam's ProfileDrive.
-        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
-        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
-        var icr = await frodo.Connections.GetConnectionInfo(sam.Identity);
-        Assert.That(icr.Content!.Status, Is.EqualTo(ConnectionStatus.Connected));
-
-        // 3) Frodo creates a contact for Sam with a placeholder name.
+        // 2) Frodo creates a placeholder contact for Sam — BEFORE connecting, because the send hook
+        //    upserts a stub for the recipient (a CreateAsync after connecting would 409).
         var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
         var create = await contacts.CreateAsync(new CreateContactRequest
         {
@@ -820,6 +817,12 @@ public class ContactTests : V2Fixture
         });
         Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var uid = create.Content!.UniqueId;
+
+        // 3) Connect Frodo <-> Sam so Frodo can peer-query Sam's ProfileDrive.
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+        var icr = await frodo.Connections.GetConnectionInfo(sam.Identity);
+        Assert.That(icr.Content!.Status, Is.EqualTo(ConnectionStatus.Connected));
 
         // 4) Sync → enrichment peer-queries Sam's profile and merges the result.
         var sync = await contacts.SyncAsync(Identities.Sam);
@@ -845,21 +848,22 @@ public class ContactTests : V2Fixture
 
         await SeedProfileNameAsync(sam, "Samwise Gamgee", "Samwise");
 
-        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
-        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
-
         // The app does NOT request ReadConnections — ManageContacts implies it (plus
         // ReadConnectionRequests/ReadCircleMembership) at permission-context creation. UseTransitRead
         // is still needed for the peer profile query itself.
         var contacts = await GetContactsClientAsync(frodo, CallerKind.App,
             [PermissionKeys.ManageContacts, PermissionKeys.UseTransitRead]);
 
+        // Create the placeholder BEFORE connecting (the send hook upserts a stub; a later create 409s).
         var create = await contacts.CreateAsync(new CreateContactRequest
         {
             Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
         });
         Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var uid = create.Content!.UniqueId;
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
 
         var sync = await contacts.SyncAsync(Identities.Sam);
         Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
@@ -884,9 +888,6 @@ public class ContactTests : V2Fixture
         await SeedProfileNameAsync(sam, displayName: "Samwise Gamgee", priority: 1);
         await SeedProfileNameAsync(sam, displayName: "Sam (secondary)", priority: 2);
 
-        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
-        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
-
         var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
         var create = await contacts.CreateAsync(new CreateContactRequest
         {
@@ -894,6 +895,9 @@ public class ContactTests : V2Fixture
         });
         Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         var uid = create.Content!.UniqueId;
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
 
         var sync = await contacts.SyncAsync(Identities.Sam);
         Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
@@ -936,6 +940,88 @@ public class ContactTests : V2Fixture
         });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // connection lifecycle (contact created on send + accept)
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task ConnectionFlow_CreatesContacts_OnSendAndAccept()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // Sending a request stubs a contact for the recipient on the sender's drive.
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+
+        var samUid = ContactService.ToContactUniqueId((OdinId)Identities.Sam);
+        var frodoSideSam = await GetByUniqueIdAsync(frodo, samUid);
+        Assert.That(frodoSideSam, Is.Not.Null, "sending a request should stub a contact for the recipient");
+        Assert.That(DecryptContent(frodo, frodoSideSam!).Source, Is.EqualTo("contact"));
+
+        // Accepting creates a contact for the sender, named from the card they sent ("Test Test").
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var frodoUid = ContactService.ToContactUniqueId((OdinId)Identities.Frodo);
+        var samSideFrodo = await GetByUniqueIdAsync(sam, frodoUid);
+        Assert.That(samSideFrodo, Is.Not.Null, "accepting a request should create a contact for the sender");
+        var stored = DecryptContent(sam, samSideFrodo!);
+        Assert.That(stored.OdinId, Is.EqualTo(Identities.Frodo));
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Test Test"));
+        Assert.That(stored.Source, Is.EqualTo("contact"));
+    }
+
+    [Test]
+    public async Task Send_NamesContact_FromRecipientPublicCard()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // Sam publishes a public profile card (served at pub/profile); the recipient returns it on the
+        // DeliverConnectionRequest response, so the sender names the contact in the same round-trip.
+        var samStatic = new UniversalStaticFileApiClient(sam.Identity, sam.Factory);
+        var publish = await samStatic.PublishPublicProfileCard(new PublishPublicProfileCardRequest
+        {
+            ProfileCardJson = "{\"name\":\"Samwise Gamgee\"}"
+        });
+        Assert.That(publish.IsSuccessStatusCode, Is.True, "publishing the public profile card should succeed");
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+
+        var samUid = ContactService.ToContactUniqueId((OdinId)Identities.Sam);
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, samUid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise Gamgee"),
+            "the recipient's public card returned on delivery names the contact");
+        Assert.That(stored.Source, Is.EqualTo("contact"));
+    }
+
+    [Test]
+    public async Task Accept_CreatesRichContact_FromSentCard()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // Frodo shares a full contact card on the request; Sam's accepted contact is built from it.
+        var frodosCard = new ContactContent
+        {
+            Source = "user",
+            Name = new ContactName { DisplayName = "Frodo Baggins", GivenName = "Frodo", Surname = "Baggins" },
+            Location = new ContactLocation { City = "Hobbiton", Country = "The Shire" },
+            Email = new ContactEmail { Email = "frodo@shire.example" }
+        };
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity, contactCard: frodosCard)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var frodoUid = ContactService.ToContactUniqueId((OdinId)Identities.Frodo);
+        var stored = DecryptContent(sam, (await GetByUniqueIdAsync(sam, frodoUid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Frodo Baggins"));
+        Assert.That(stored.Name.Surname, Is.EqualTo("Baggins"));
+        Assert.That(stored.Location!.City, Is.EqualTo("Hobbiton"));
+        Assert.That(stored.Email!.Email, Is.EqualTo("frodo@shire.example"));
+        Assert.That(stored.OdinId, Is.EqualTo(Identities.Frodo));
+        Assert.That(stored.Source, Is.EqualTo("contact"), "connection-derived source overrides the card's own source");
     }
 
     // -----------------------------------------------------------------------------------------
