@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Peer;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Write;
@@ -18,4 +19,8 @@ public class CreateFileResult
     /// </summary>
     public Guid NewVersionTag { get; init; }
 
+    /// <summary>
+    /// One entry per payload uploaded in this request; values match the stored file header
+    /// </summary>
+    public List<PayloadUploadReceipt> Payloads { get; init; } = new();
 }

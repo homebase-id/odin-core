@@ -241,7 +241,7 @@ public abstract class FileSystemUpdateWriterBase
                 throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
-            await ProcessExistingFileUploadAsync(Package, keyHeader, metadata, serverMetadata, odinContext);
+            var uploadedPayloads = await ProcessExistingFileUploadAsync(Package, keyHeader, metadata, serverMetadata, odinContext);
 
             var existingHeader = await FileSystem.Storage.GetServerFileHeader(Package.InternalFile, odinContext);
 
@@ -264,6 +264,7 @@ public abstract class FileSystemUpdateWriterBase
                 GlobalTransitId = metadata.GlobalTransitId,
                 NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
                 RecipientStatus = recipientStatus,
+                Payloads = (uploadedPayloads ?? []).Select(PayloadUploadReceipt.From).ToList()
             };
         }
 
@@ -299,6 +300,8 @@ public abstract class FileSystemUpdateWriterBase
                 },
                 GlobalTransitId = metadata.GlobalTransitId,
                 NewVersionTag = Package.NewVersionTag,
+                // Note: no local header exists for peer updates; these are the descriptors sent to recipients
+                Payloads = (metadata.Payloads ?? []).Select(PayloadUploadReceipt.From).ToList(),
                 RecipientStatus = recipientStatus
             };
         }
@@ -314,9 +317,10 @@ public abstract class FileSystemUpdateWriterBase
     protected abstract Task ValidateUploadDescriptor(UpdateFileDescriptor updateDescriptor);
 
     /// <summary>
-    /// Called when then uploaded file exists on disk.  This is called after core validations are complete
+    /// Called when then uploaded file exists on disk.  This is called after core validations are complete.
+    /// Returns the payload descriptors written to the file header by this update (append/overwrite operations).
     /// </summary>
-    protected virtual async Task ProcessExistingFileUploadAsync(FileUpdatePackage package, KeyHeader keyHeader,
+    protected virtual async Task<List<PayloadDescriptor>> ProcessExistingFileUploadAsync(FileUpdatePackage package, KeyHeader keyHeader,
         FileMetadata metadata,
         ServerMetadata serverMetadata,
         IOdinContext odinContext)
@@ -341,6 +345,8 @@ public abstract class FileSystemUpdateWriterBase
 
         if (success == false)
             throw new OdinClientException("No, I couldn't do it, success is false");
+
+        return payloads;
     }
 
     /// <summary>
