@@ -51,7 +51,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 DriveId = v1Result.File.TargetDrive.Alias.Value,
                 GlobalTransitId = v1Result.GlobalTransitId,
                 RecipientStatus = v1Result.RecipientStatus,
-                NewVersionTag = v1Result.NewVersionTag
+                NewVersionTag = v1Result.NewVersionTag,
+                Payloads = v1Result.Payloads
             };
         }
         
@@ -85,7 +86,8 @@ namespace Odin.Hosting.UnifiedV2.Drive.Write
                 DriveId = v1Result.File.TargetDrive.Alias.Value,
                 GlobalTransitId = v1Result.GlobalTransitId,
                 RecipientStatus = v1Result.RecipientStatus,
-                NewVersionTag = v1Result.NewVersionTag
+                NewVersionTag = v1Result.NewVersionTag,
+                Payloads = v1Result.Payloads
             };
         }
     }

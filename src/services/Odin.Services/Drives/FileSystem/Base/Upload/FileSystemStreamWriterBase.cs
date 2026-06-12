@@ -287,7 +287,8 @@ public abstract class FileSystemStreamWriterBase
                 FileId = Package.InternalFile.FileId
             },
             GlobalTransitId = metadata.GlobalTransitId,
-            RecipientStatus = recipientStatus
+            RecipientStatus = recipientStatus,
+            Payloads = (metadata.Payloads ?? []).Select(PayloadUploadReceipt.From).ToList()
         };
 
         _logger.LogDebug("Leaving FinalizeUploadAsync");
