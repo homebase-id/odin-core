@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -16,7 +15,6 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Membership.Connections;
-using Odin.Services.Peer.Encryption;
 using Odin.Services.Peer.Outgoing.Drive.Query;
 
 namespace Odin.Services.Contacts;
@@ -301,20 +299,22 @@ public class ContactEnrichmentService(
     /// namespace — not shared with the SSR profile block — so the enrichment wire-mapping cannot drift
     /// when unrelated profile code changes. Extra fields on the wire are ignored.
     /// </summary>
+    // ReSharper disable once ClassNeverInstantiated.Local
     private sealed class ProfileAttribute
     {
         /// <summary>Authored rank; lower is preferred. Null sorts last.</summary>
         [JsonPropertyName("priority")]
-        public int? Priority { get; set; }
+        public int? Priority { get; init; }
 
         [JsonPropertyName("data")]
-        public Dictionary<string, object> Data { get; set; }
+        public Dictionary<string, object> Data { get; init; }
     }
 
     /// <summary>The public profile card served at <c>pub/profile</c> (odin-js <c>ProfileCard</c>).</summary>
+    // ReSharper disable once ClassNeverInstantiated.Local
     private sealed class PublicProfileCard
     {
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string Name { get; init; }
     }
 }

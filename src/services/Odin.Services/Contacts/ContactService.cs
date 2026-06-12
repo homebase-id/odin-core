@@ -62,6 +62,14 @@ public class ContactService(
         return ContactGuid.ToGuidId(odinId.DomainName);
     }
 
+    // Grant ONLY Write here, not ReadWrite: the caller's real Read grant on the ContactDrive supplies
+    // the storage key (and read access), so the bypass just needs to add the missing Write permission.
+    // This keeps it least-privilege and correct once apps are locked to Read on the drive (phase 2).
+    private static IOdinContext GetWriteContext(IOdinContext odinContext)
+    {
+        return OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.Write, odinContext);
+    }
+
     /// <summary>
     /// Create a contact. The unique id is deterministic from <c>content.OdinId</c>
     /// (<see cref="ToContactUniqueId"/>) when present, else random. If a contact with that id already
@@ -90,7 +98,7 @@ public class ContactService(
             deterministic = false;
         }
 
-        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var writeContext = GetWriteContext(odinContext);
 
         // A random id cannot collide; only the deterministic (odinId) key needs an existence check.
         var existing = deterministic ? await GetForWritingAsync(uniqueId, writeContext) : null;
@@ -136,7 +144,7 @@ public class ContactService(
             content.OdinId = parsed.DomainName; // normalize
         }
 
-        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var writeContext = GetWriteContext(odinContext);
 
         var existing = await GetForWritingAsync(uniqueId, writeContext);
         if (existing == null)
@@ -172,7 +180,7 @@ public class ContactService(
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         var uniqueId = ToContactUniqueId(odinId);
-        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var writeContext = GetWriteContext(odinContext);
 
         var existing = await GetForWritingAsync(uniqueId, writeContext);
         if (existing != null)
@@ -197,7 +205,7 @@ public class ContactService(
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
-        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var writeContext = GetWriteContext(odinContext);
         var existing = await GetForWritingAsync(uniqueId, writeContext);
         if (existing == null)
         {
@@ -232,7 +240,7 @@ public class ContactService(
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "image contentType is required");
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
-        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var writeContext = GetWriteContext(odinContext);
         var existing = await GetForWritingAsync(uniqueId, writeContext);
         if (existing == null)
         {
@@ -258,7 +266,7 @@ public class ContactService(
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
-        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var writeContext = GetWriteContext(odinContext);
         var existing = await GetForWritingAsync(uniqueId, writeContext);
         if (existing == null)
         {
@@ -283,7 +291,7 @@ public class ContactService(
 
     /// <summary>
     /// Server-internal create-or-merge for a contact that carries an odinId (used by enrichment and the
-    /// lifecycle handlers). Unlike the client <see cref="UpsertAsync"/>, this does <b>not</b> do
+    /// lifecycle handlers). Unlike the client <see cref="CreateAsync"/> / <see cref="UpdateAsync"/>, this does <b>not</b> do
     /// client-versionTag optimistic concurrency — it always merges over the current file, retrying once
     /// if a concurrent write advances the version mid-merge (the merge is idempotent; reconcile
     /// converges any straggler). Overwritten values are logged to <c>merge_log</c> tagged with
@@ -298,7 +306,7 @@ public class ContactService(
         OdinValidationUtils.AssertIsValidOdinId(content.OdinId, out var odinId);
         content.OdinId = odinId.DomainName;
         var uniqueId = ToContactUniqueId(odinId);
-        var writeContext = OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.ReadWrite, odinContext);
+        var writeContext = GetWriteContext(odinContext);
 
         const int maxAttempts = 2;
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
@@ -681,7 +689,7 @@ public class ContactService(
         return ContactMergeLog.Deserialize(plain);
     }
 
-    private static System.Collections.Generic.List<Guid> BuildTags(Guid uniqueId, ContactContent content)
+    private static List<Guid> BuildTags(Guid uniqueId, ContactContent content)
     {
         // Matches odin-js: tag the file with the identity key so it can be found by odinId.
         return string.IsNullOrWhiteSpace(content.OdinId)
