@@ -699,6 +699,14 @@ public class ContactService(
 
     private static string EncryptContent(KeyHeader keyHeader, ContactContent content)
     {
+        // odin-js contract / byte-compat: the value-objects are always present (rendered as {} when
+        // empty), so a contact never loses a key across create/update/merge regardless of which fields
+        // are set. Reads are unaffected; existing data gains the objects on its next write.
+        content.Location ??= new ContactLocation();
+        content.Phone ??= new ContactPhone();
+        content.Email ??= new ContactEmail();
+        content.Birthday ??= new ContactBirthday();
+
         var json = JsonSerializer.Serialize(content, ContentSerializerOptions);
         var cipher = keyHeader.EncryptDataAes(json.ToUtf8ByteArray());
         return cipher.ToBase64();

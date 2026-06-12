@@ -307,6 +307,125 @@ public class ContactTests : V2Fixture
     }
 
     // -----------------------------------------------------------------------------------------
+    // serialized shape (odin-js byte-compat)
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task Contact_FullProductionShape_RoundTrips()
+    {
+        // Mirrors real production data (Michael Tefo) — every field populated must round-trip.
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = "id.example.com",
+                Source = "contact",
+                Name = new ContactName { DisplayName = "Michael Tefo", GivenName = "Michael", Surname = "Tefo" },
+                Location = new ContactLocation { City = "Vegas", Country = "Denmark" },
+                Phone = new ContactPhone { Number = "+45 11 11 11 11" },
+                Email = new ContactEmail { Email = "tefo@example.com" },
+                Birthday = new ContactBirthday { Date = "2025-02-20" }
+            }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, create.Content!.UniqueId))!);
+        Assert.That(stored.OdinId, Is.EqualTo("id.example.com"));
+        Assert.That(stored.Source, Is.EqualTo("contact"));
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Michael Tefo"));
+        Assert.That(stored.Name.GivenName, Is.EqualTo("Michael"));
+        Assert.That(stored.Name.Surname, Is.EqualTo("Tefo"));
+        Assert.That(stored.Location!.City, Is.EqualTo("Vegas"));
+        Assert.That(stored.Location.Country, Is.EqualTo("Denmark"));
+        Assert.That(stored.Phone!.Number, Is.EqualTo("+45 11 11 11 11"));
+        Assert.That(stored.Email!.Email, Is.EqualTo("tefo@example.com"));
+        Assert.That(stored.Birthday!.Date, Is.EqualTo("2025-02-20"));
+    }
+
+    [Test]
+    public async Task Contact_EmptyValueObjects_AlwaysEmitted_AcrossCreateAndUpdate()
+    {
+        // Mirrors real production data (Peter Parker): location/phone/email/birthday are present even
+        // when empty. We create WITHOUT them and they must still be emitted, and survive an update.
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = "peter.parker.demo.rocks",
+                Source = "contact",
+                Name = new ContactName { DisplayName = "Peter Parker", GivenName = "Peter", Surname = "Parker" }
+            }
+        });
+        var uid = create.Content!.UniqueId;
+        AssertFourEmitted(DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!));
+
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = "peter.parker.demo.rocks", Name = new ContactName { DisplayName = "Spider-Man" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        AssertFourEmitted(stored);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Spider-Man"));
+    }
+
+    [Test]
+    public async Task Contact_Update_PreservesFullData()
+    {
+        // Existing full-data contact must not lose fields when only one is updated.
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = "id.example.com",
+                Source = "contact",
+                Name = new ContactName { DisplayName = "Michael Tefo", GivenName = "Michael", Surname = "Tefo" },
+                Location = new ContactLocation { City = "Vegas", Country = "Denmark" },
+                Phone = new ContactPhone { Number = "+45 11 11 11 11" },
+                Email = new ContactEmail { Email = "tefo@example.com" },
+                Birthday = new ContactBirthday { Date = "2025-02-20" }
+            }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = "id.example.com", Name = new ContactName { DisplayName = "Mike Tefo" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        AssertFourEmitted(stored);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Mike Tefo"), "updated field");
+        Assert.That(stored.Name.GivenName, Is.EqualTo("Michael"), "untouched name sub-field preserved");
+        Assert.That(stored.Location!.City, Is.EqualTo("Vegas"));
+        Assert.That(stored.Location.Country, Is.EqualTo("Denmark"));
+        Assert.That(stored.Phone!.Number, Is.EqualTo("+45 11 11 11 11"));
+        Assert.That(stored.Email!.Email, Is.EqualTo("tefo@example.com"));
+        Assert.That(stored.Birthday!.Date, Is.EqualTo("2025-02-20"));
+    }
+
+    private static void AssertFourEmitted(ContactContent c)
+    {
+        Assert.That(c.Location, Is.Not.Null, "location must be emitted (even when empty)");
+        Assert.That(c.Phone, Is.Not.Null, "phone must be emitted (even when empty)");
+        Assert.That(c.Email, Is.Not.Null, "email must be emitted (even when empty)");
+        Assert.That(c.Birthday, Is.Not.Null, "birthday must be emitted (even when empty)");
+    }
+
+    // -----------------------------------------------------------------------------------------
     // merge log
     // -----------------------------------------------------------------------------------------
 

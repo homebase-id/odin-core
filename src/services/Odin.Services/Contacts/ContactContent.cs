@@ -25,12 +25,13 @@ public class ContactContent
     [JsonPropertyName("odinId")]
     public string OdinId { get; set; }
 
-    /// <summary>Origin of the contact data (odin-js): <c>contact</c> | <c>public</c> | <c>user</c>.</summary>
-    [JsonPropertyName("source")]
-    public string Source { get; set; }
-
     [JsonPropertyName("name")]
     public ContactName Name { get; set; }
+
+    /// <summary>Origin of the contact data (odin-js): <c>contact</c> | <c>public</c> | <c>user</c>.</summary>
+    /// <remarks>Declared after Name to match the odin-js field order (odinId, name, source, …).</remarks>
+    [JsonPropertyName("source")]
+    public string Source { get; set; }
 
     [JsonPropertyName("location")]
     public ContactLocation Location { get; set; }
