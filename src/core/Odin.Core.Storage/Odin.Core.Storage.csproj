@@ -9,6 +9,8 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="16.1.1" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.17" />
+    <!-- Direct reference to override the vulnerable transitive 3.0.308 from FusionCache (GHSA-hv8m-jj95-wg3x) -->
+    <PackageReference Include="MessagePack" Version="3.1.7" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
     <!-- Pin MessagePack to a patched version; FusionCache.Serialization.NeueccMessagePack 2.1.0

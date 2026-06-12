@@ -36,6 +36,10 @@ namespace Odin.Services.Drives.FileSystem.Base.Upload
         /// The version tag that resulted as of this upload
         /// </summary>
         public Guid NewVersionTag { get; set; }
-        
+
+        /// <summary>
+        /// One entry per payload uploaded in this request; values match the stored file header
+        /// </summary>
+        public List<PayloadUploadReceipt> Payloads { get; set; } = new();
     }
 }
