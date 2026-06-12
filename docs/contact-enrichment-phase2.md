@@ -111,6 +111,31 @@ These are intact and are the Phase 2 building blocks:
 
 ---
 
+## Shipped: contacts on connection send/accept — and the introduction gap
+
+The connection flow now creates a contact for the peer (best-effort, gated on the ContactDrive
+storage key so it never breaks the connection):
+
+- **Owner send** → recipient's contact, named from the public card the recipient returns on the
+  `DeliverConnectionRequest` response (`ConnectionRequestReceipt`); falls back to the keyless
+  `pub/profile` fetch when no card comes back.
+- **Owner accept** → sender's contact, from the full `ContactContent` card they shared on the request
+  (`ContactRequestData.Contact`, else their `Name`).
+
+The gap — **introduction-driven send / auto-accept**:
+- Runs in an upgraded **non-owner** context with **no ContactDrive storage key**.
+- The contact write is gated on that key, so it **skips silently** — no contact, no error, the
+  connection still completes.
+- So introduced identities get **no contact** at that time, and the recipient's card from the deliver
+  receipt is **discarded** (we have it, but no key to persist it).
+- **Fallback today:** the contact materializes only when an owner-keyed **`/sync`**
+  (`POST /api/v2/contacts/sync/{odinId}`) runs — ensure-exists + enrich.
+- **Phase-2 fix:** the deferred owner-keyed write / reconcile job below, so these don't depend on a
+  manual `/sync`.
+- **Decision:** ship as-is (rely on `/sync`) vs. build the deferred path now.
+
+---
+
 ## What Phase 2 needs to build
 
 1. **A deferred, owner-keyed write path.** Because the peer-context events can't write, capture the
