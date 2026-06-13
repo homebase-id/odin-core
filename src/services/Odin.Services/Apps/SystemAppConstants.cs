@@ -98,7 +98,10 @@ public static class SystemAppConstants
             PermissionKeys.ReadConnectionRequests,
             PermissionKeys.SendIntroductions,
             PermissionKeys.UseTransitRead,
-            PermissionKeys.UseTransitWrite)
+            PermissionKeys.UseTransitWrite,
+            // Writes to the ContactDrive funnel through the Contact API (/api/v2/contacts), which
+            // requires ManageContacts. Granted by default so the Chat app can manage contacts.
+            PermissionKeys.ManageContacts)
     };
 
 
@@ -158,6 +161,9 @@ public static class SystemAppConstants
             PermissionKeys.SendPushNotifications,
             PermissionKeys.ReadConnectionRequests,
             PermissionKeys.SendIntroductions,
-            PermissionKeys.UseTransitWrite)
+            PermissionKeys.UseTransitWrite,
+            // Writes to the ContactDrive funnel through the Contact API (/api/v2/contacts), which
+            // requires ManageContacts. Granted by default so the Mail app can manage contacts.
+            PermissionKeys.ManageContacts)
     };
 }

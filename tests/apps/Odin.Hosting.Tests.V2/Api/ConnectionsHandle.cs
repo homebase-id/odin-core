@@ -8,6 +8,7 @@ using Odin.Core.Identity;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Services.Contacts;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Refit;
@@ -54,8 +55,9 @@ public sealed class ConnectionsHandle
     // V1 helpers (test setup + assertions)
     // -----------------------------------------------------------------------------------------
 
-    public Task<ApiResponse<HttpContent>> SendConnectionRequest(OdinId recipient, IEnumerable<GuidId>? circlesGrantedToRecipient = null)
-        => _requests.SendConnectionRequest(recipient, circlesGrantedToRecipient);
+    public Task<ApiResponse<HttpContent>> SendConnectionRequest(OdinId recipient,
+        IEnumerable<GuidId>? circlesGrantedToRecipient = null, ContactContent? contactCard = null)
+        => _requests.SendConnectionRequest(recipient, circlesGrantedToRecipient, contactCard);
 
     public Task<ApiResponse<HttpContent>> AcceptConnectionRequest(OdinId sender, IEnumerable<GuidId>? circleIdsGrantedToSender = null)
         => _requests.AcceptConnectionRequest(sender, circleIdsGrantedToSender);

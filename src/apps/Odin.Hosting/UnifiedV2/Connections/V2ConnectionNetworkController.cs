@@ -9,6 +9,8 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Membership.CircleMembership;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Membership.Connections.Verification;
@@ -22,6 +24,7 @@ namespace Odin.Hosting.UnifiedV2.Connections;
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2ConnectionNetworkController(
     CircleNetworkService circleNetwork,
+    CircleMembershipService circleMembership,
     CircleNetworkVerificationService verificationService
 ) : OdinControllerBase
 {
@@ -117,6 +120,25 @@ public class V2ConnectionNetworkController(
         return result;
     }
 
+    [HttpGet("circles/with-members")]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "List all circles and their members")]
+    public async Task<IEnumerable<CircleWithMembers>> GetCirclesWithMembers([FromQuery] bool includeSystemCircle = true)
+    {
+        var circles = await circleMembership.GetCircleDefinitions(includeSystemCircle, WebOdinContext);
+
+        var result = new List<CircleWithMembers>();
+        foreach (var circle in circles)
+        {
+            // Sequential by design: the request scope holds a single DB connection (not safe for
+            // concurrent use), so we don't fan these out.
+            var members = await circleNetwork.GetCircleMembersAsync(circle.Id, WebOdinContext);
+            result.Add(new CircleWithMembers { Circle = circle.Redacted(), Members = members.ToList() });
+        }
+
+        return result;
+    }
+
     [HttpPost("circles/add")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Add an identity to a circle")]
     public async Task<IActionResult> GrantCircle([FromBody] AddCircleMembershipRequest request)
@@ -132,4 +154,11 @@ public class V2ConnectionNetworkController(
         await circleNetwork.RevokeCircleAccessAsync(request.CircleId, new OdinId(request.OdinId), WebOdinContext);
         return Ok();
     }
+}
+
+/// <summary>A circle definition (permission set redacted) together with its member identities.</summary>
+public class CircleWithMembers
+{
+    public RedactedCircleDefinition Circle { get; set; }
+    public List<OdinId> Members { get; set; }
 }

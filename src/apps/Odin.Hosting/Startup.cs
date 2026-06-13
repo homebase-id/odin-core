@@ -367,6 +367,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
 
                         chatWasmApp.Run(context =>
                             SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
+                        });
                     });
             }
             else
