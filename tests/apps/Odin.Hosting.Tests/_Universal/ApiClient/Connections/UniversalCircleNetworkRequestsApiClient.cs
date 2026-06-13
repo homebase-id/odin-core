@@ -10,6 +10,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Services.Base;
+using Odin.Services.Contacts;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections.Requests;
 using Refit;
@@ -87,7 +88,7 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
     }
 
     public async Task<ApiResponse<HttpContent>> SendConnectionRequest(OdinId recipient,
-        IEnumerable<GuidId> circlesGrantedToRecipient = null)
+        IEnumerable<GuidId> circlesGrantedToRecipient = null, ContactContent contactCard = null)
     {
         // Send the request
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
@@ -103,7 +104,8 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
                 Message = "Please add me",
                 ContactData = new ContactRequestData()
                 {
-                    Name = "Test Test"
+                    Name = "Test Test",
+                    Contact = contactCard
                 },
                 CircleIds = circlesGrantedToRecipient?.ToList()
             };
