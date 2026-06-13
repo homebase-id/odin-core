@@ -243,8 +243,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         DefaultContentType = "application/octet-stream"
                     });
 
-                    chatWasmApp.Run(context =>
-                        SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
+                    chatWasmApp.Run(context => SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
                 });
 
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
@@ -365,14 +364,13 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                             DefaultContentType = "application/octet-stream"
                         });
 
-                        chatWasmApp.Run(context =>
-                            SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
-                        });
+                        chatWasmApp.Run(context => SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
                     });
             }
             else
             {
-                logger.LogWarning("chat-wasm app directory not found at {Path}. Requests to /apps/chat-wasm will return 404.", chatWasmPath);
+                logger.LogWarning("chat-wasm app directory not found at {Path}. Requests to /apps/chat-wasm will return 404.",
+                    chatWasmPath);
             }
 
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
