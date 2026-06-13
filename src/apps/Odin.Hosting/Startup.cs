@@ -223,6 +223,30 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
+            // chat-wasm is a static Kotlin/WASM bundle, not a Vite dev app — serve it from
+            // client/apps/chat-wasm via Kestrel static files in dev too (mirrors the production
+            // route below), otherwise the catch-all proxy swallows it into the owner-app Vite server.
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat-wasm"),
+                chatWasmApp =>
+                {
+                    var chatWasmPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat-wasm");
+                    chatWasmApp.UseStaticFiles(new StaticFileOptions()
+                    {
+                        FileProvider = new PhysicalFileProvider(chatWasmPath),
+                        RequestPath = "/apps/chat-wasm",
+                        // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
+                        // string table) have extensions Kestrel's content-type map doesn't know.
+                        // Without this, UseStaticFiles 404s them and the SPA fallback below returns
+                        // index.html instead, so Compose loads HTML as its string table and ALL text
+                        // renders blank. Serve unknown types as octet-stream (Compose reads raw bytes).
+                        ServeUnknownFileTypes = true,
+                        DefaultContentType = "application/octet-stream"
+                    });
+
+                    chatWasmApp.Run(context =>
+                        SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
+                });
+
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
@@ -331,15 +355,18 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         chatWasmApp.UseStaticFiles(new StaticFileOptions()
                         {
                             FileProvider = new PhysicalFileProvider(chatWasmPath),
-                            RequestPath = "/apps/chat-wasm"
+                            RequestPath = "/apps/chat-wasm",
+                            // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
+                            // string table) have extensions Kestrel's content-type map doesn't know.
+                            // Without this, UseStaticFiles 404s them and the SPA fallback below returns
+                            // index.html instead, so Compose loads HTML as its string table and ALL text
+                            // renders blank. Serve unknown types as octet-stream (Compose reads raw bytes).
+                            ServeUnknownFileTypes = true,
+                            DefaultContentType = "application/octet-stream"
                         });
 
-                        chatWasmApp.Run(async context =>
-                        {
-                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(chatWasmPath, "index.html"));
-                            return;
-                        });
+                        chatWasmApp.Run(context =>
+                            SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
                     });
             }
             else
