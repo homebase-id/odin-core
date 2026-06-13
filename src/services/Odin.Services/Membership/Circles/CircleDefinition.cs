@@ -59,5 +59,33 @@ namespace Odin.Services.Membership.Circles
             return !DriveGrants.Except(otherDriveGrants).Any() &&
                    !otherDriveGrants.Except(DriveGrants).Any();
         }
+
+        /// <summary>Client-safe view: the permission set is redacted (keys only).</summary>
+        public RedactedCircleDefinition Redacted()
+        {
+            return new RedactedCircleDefinition
+            {
+                Id = Id,
+                Created = Created,
+                LastUpdated = LastUpdated,
+                Name = Name,
+                Description = Description,
+                Disabled = Disabled,
+                DriveGrants = DriveGrants,
+                Permissions = Permissions?.Redacted()
+            };
+        }
+    }
+
+    public class RedactedCircleDefinition
+    {
+        public GuidId Id { get; set; }
+        public UnixTimeUtc Created { get; set; }
+        public UnixTimeUtc LastUpdated { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public bool Disabled { get; set; }
+        public IEnumerable<DriveGrantRequest> DriveGrants { get; set; }
+        public RedactedPermissionSet Permissions { get; set; }
     }
 }
