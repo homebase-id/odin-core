@@ -114,6 +114,14 @@ public static class SystemAppConstants
                     Drive = SystemDriveConstants.StickerDrive,
                     Permission = DrivePermission.ReadWrite
                 }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.LocationDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
             }
         ],
         PermissionSet = new PermissionSet(

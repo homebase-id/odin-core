@@ -26,9 +26,10 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
     /// (today: the Chat and Mail apps), so existing installs keep working after the API ships.
     ///
     /// <para>
-    /// v9 also adds two new system drives. The <see cref="SystemDriveConstants.StickerDrive"/> gets an
+    /// v9 also adds new system drives. The <see cref="SystemDriveConstants.StickerDrive"/> gets an
     /// app-level <see cref="DrivePermission.ReadWrite"/> grant on the system apps that ship with it
-    /// (Chat, Feed, Mail). The <see cref="SystemDriveConstants.ListsDrive"/> is granted exactly like the
+    /// (Chat, Feed, Mail). The <see cref="SystemDriveConstants.LocationDrive"/> gets app-level ReadWrite
+    /// on the Chat app. The <see cref="SystemDriveConstants.ListsDrive"/> is granted exactly like the
     /// ChatDrive: app-level ReadWrite on the Chat app, and Write+React to members of the system
     /// connection circles. This migration backfills those grants onto existing installs.
     /// </para>
@@ -263,7 +264,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version8tov9
         {
             if (app.AppId == SystemAppConstants.ChatAppId)
             {
-                return [SystemDriveConstants.StickerDrive, SystemDriveConstants.ListsDrive];
+                return [SystemDriveConstants.StickerDrive, SystemDriveConstants.ListsDrive, SystemDriveConstants.LocationDrive];
             }
 
             if (app.AppId == SystemAppConstants.FeedAppId || app.AppId == SystemAppConstants.MailAppId)

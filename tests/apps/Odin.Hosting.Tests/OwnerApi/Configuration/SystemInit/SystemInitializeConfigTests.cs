@@ -9,6 +9,7 @@ using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Configuration;
+using Odin.Services.Apps;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.Membership.Circles;
@@ -237,18 +238,24 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                       dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)));
 
 
-            // System apps should be in place
             //
-            // var samOwnerClient = _scaffold.CreateOwnerApiClient(identity);
-            // var feedAppReg = await samOwnerClient.Apps.GetAppRegistration(SystemAppConstants.FeedAppId);
-            // ClassicAssert.IsNotNull(feedAppReg, "feed app was not found");
-            // ClassicAssert.IsFalse(feedAppReg.AuthorizedCircles.Any(), "Feed app should have no authorized circles");
-            // ClassicAssert.IsTrue(feedAppReg.AppId == SystemAppConstants.FeedAppId.Value);
-            // ClassicAssert.IsFalse(feedAppReg.Grant.PermissionSet.Keys?.Any() ?? false, "feed app should have no permissions");
-            // ClassicAssert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive));
-            // ClassicAssert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.Write), "feed app should be able to write to feed drive");
-            // ClassicAssert.IsFalse(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.Read), "feed app should not be able to read feed drive");
-            // ClassicAssert.IsFalse(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.All), "feed app should not not have all permission to feed drive");
+            // The Chat app should be registered with ReadWrite access to its app-level drives
+            //
+            var chatAppReg = await ownerClient.Apps.GetAppRegistration(SystemAppConstants.ChatAppId);
+            ClassicAssert.IsNotNull(chatAppReg, "chat app was not found");
+
+            void AssertChatAppReadWrite(TargetDrive drive)
+            {
+                ClassicAssert.IsNotNull(chatAppReg.Grant.DriveGrants.SingleOrDefault(dg =>
+                        dg.PermissionedDrive.Drive == drive &&
+                        dg.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite)),
+                    $"chat app should have ReadWrite on drive [{drive}]");
+            }
+
+            AssertChatAppReadWrite(SystemDriveConstants.ChatDrive);
+            AssertChatAppReadWrite(SystemDriveConstants.ListsDrive);
+            AssertChatAppReadWrite(SystemDriveConstants.StickerDrive);
+            AssertChatAppReadWrite(SystemDriveConstants.LocationDrive);
         }
 
         [Test]

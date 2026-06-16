@@ -260,6 +260,7 @@ public class TenantConfigService(
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateStickerDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateLocationDriveRequest, odinContext);
 
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
