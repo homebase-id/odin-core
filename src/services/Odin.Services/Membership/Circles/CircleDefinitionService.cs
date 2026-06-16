@@ -46,7 +46,10 @@ namespace Odin.Services.Membership.Circles
             {
                 if (SystemCircleConstants.ConfirmedConnectionsDefinition != confirmedCircleDefinition)
                 {
-                    await this.UpdateAsync(SystemCircleConstants.ConfirmedConnectionsDefinition);
+                    // System circle definitions are trusted constants whose drive grants reference system
+                    // drives guaranteed to exist via EnsureSystemDrivesExist. Skip validation so the reconcile
+                    // doesn't deadlock during initial setup, where circles are created before system drives.
+                    await this.UpdateAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, skipValidation: true);
                 }
             }
 
@@ -67,14 +70,17 @@ namespace Odin.Services.Membership.Circles
             {
                 if (SystemCircleConstants.AutoConnectionsSystemCircleDefinition != autoCircleDef)
                 {
-                    await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition);
+                    await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition, skipValidation: true);
                 }
             }
         }
 
-        public async Task UpdateAsync(CircleDefinition newCircleDefinition)
+        public async Task UpdateAsync(CircleDefinition newCircleDefinition, bool skipValidation = false)
         {
-            await AssertValidAsync(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+            if (!skipValidation)
+            {
+                await AssertValidAsync(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+            }
 
             var existingCircle = await GetCircleAsync(newCircleDefinition.Id);
 

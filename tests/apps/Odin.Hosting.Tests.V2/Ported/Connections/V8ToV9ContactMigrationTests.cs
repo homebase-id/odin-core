@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Apps;
 using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -214,6 +216,93 @@ public class V8ToV9ContactMigrationTests : V2Fixture
 
         var after = await apps.GetAppRegistration(appId, ctx);
         Assert.That(after!.Grant.PermissionSet.HasKey(PermissionKeys.ManageContacts), Is.True);
+    }
+
+    [Test]
+    public async Task V9_GrantsStickerDriveReadWrite_ToSystemApp()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+
+        // A system app (Chat) that predates the app-level StickerDrive grant. It holds an unrelated
+        // drive but no StickerDrive grant.
+        await owner.Admin.RegisterApp(SystemAppConstants.ChatAppId, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = SystemDriveConstants.ChatDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
+        });
+
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var ctx = await BuildOwnerContextAsync(scope, owner);
+        var apps = scope.Resolve<AppRegistrationService>();
+
+        var before = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
+        Assert.That(HasStickerDriveReadWrite(before!), Is.False,
+            "precondition: app should not yet have the StickerDrive grant");
+
+        var migration = scope.Resolve<V8ToV9VersionMigrationService>();
+        await migration.UpgradeAsync(ctx, CancellationToken.None);
+        await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
+
+        var after = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
+        Assert.That(HasStickerDriveReadWrite(after!), Is.True,
+            "migration should grant StickerDrive ReadWrite to a system app that ships with it");
+        // Existing drive grants are preserved.
+        Assert.That(after!.Grant.DriveGrants.Any(g =>
+            g.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive), Is.True);
+    }
+
+    [Test]
+    public async Task V9_LeavesNonSystemApp_WithoutStickerDriveGrant()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appId = Guid.NewGuid();
+
+        // A non-system app must not receive the StickerDrive grant, even with contact-drive write
+        // access (which only earns ManageContacts).
+        await owner.Admin.RegisterApp(appId, new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive
+                    {
+                        Drive = SystemDriveConstants.ContactDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
+        });
+
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var ctx = await BuildOwnerContextAsync(scope, owner);
+        var apps = scope.Resolve<AppRegistrationService>();
+
+        var migration = scope.Resolve<V8ToV9VersionMigrationService>();
+        await migration.UpgradeAsync(ctx, CancellationToken.None);
+        await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
+
+        var after = await apps.GetAppRegistration(appId, ctx);
+        Assert.That(HasStickerDriveReadWrite(after!), Is.False,
+            "a non-system app must not be granted the StickerDrive");
+    }
+
+    private static bool HasStickerDriveReadWrite(RedactedAppRegistration app)
+    {
+        return app.Grant?.DriveGrants?.Any(g =>
+            g.PermissionedDrive.Drive == SystemDriveConstants.StickerDrive &&
+            g.PermissionedDrive.Permission.HasFlag(DrivePermission.ReadWrite)) ?? false;
     }
 
     /// <summary>

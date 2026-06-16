@@ -89,6 +89,23 @@ public class VersionUpgradeService(
                     LogTag + " Master key encryption pre-pass complete: {upgraded} upgraded, {skipped} skipped", upgraded, skipped);
             }
 
+            // Ensure every system drive exists before running any migration. EnsureSystemDrivesExist is
+            // idempotent and version-independent, so a single up-front pass lets the version ladder assume
+            // the invariant — migrations that grant a (possibly newly-introduced) system drive no longer
+            // each need to create it first. New drives are added by appending to EnsureSystemDrivesExist.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await using (var drivesTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
+            {
+                _isRunning = true;
+                logger.LogDebug(LogTag + " Ensuring system drives exist on identity: [{identity}]", odinContext.Tenant);
+                await tenantConfigService.EnsureSystemDrivesExist(odinContext);
+                drivesTx.Commit();
+            }
+
             if (currentVersion == 0)
             {
                 await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);

@@ -83,6 +83,19 @@ public static class SystemDriveConstants
         Type = ChannelDriveType
     };
 
+
+    public static readonly TargetDrive StickerDrive = new()
+    {
+        Alias = Guid.Parse("3b9c5f2e-7a41-4d6b-9e0c-8f1a2b3c4d5e"),
+        Type = Guid.Parse("a8c64b10-7434-494b-8b8c-a2284bd643c8")
+    };
+
+    public static readonly TargetDrive ListsDrive = new()
+    {
+        Alias = Guid.Parse("a44e7a2651f44a26ad125d7627b35d0e"),
+        Type = Guid.Parse("4338d7d2f217486a8790a4982644c15f")
+    };
+
     public static readonly List<TargetDrive> SystemDrives =
     [
         TransientTempDrive,
@@ -95,7 +108,9 @@ public static class SystemDriveConstants
         MailDrive,
         PublicPostsChannelDrive,
         ShardRecoveryDrive,
-        MomentsDrive
+        MomentsDrive,
+        StickerDrive,
+        ListsDrive
     ];
     
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
@@ -178,6 +193,28 @@ public static class SystemDriveConstants
         Metadata = "",
         TargetDrive = MomentsDrive,
         OwnerOnly = false
+    };
+
+    public static readonly CreateDriveRequest CreateStickerDriveRequest = new()
+    {
+        Name = "Sticker Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = StickerDrive,
+        OwnerOnly = false
+    };
+
+    public static readonly CreateDriveRequest CreateListsDriveRequest = new()
+    {
+        Name = "Lists",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = ListsDrive,
+        OwnerOnly = false,
+        Attributes = new Dictionary<string, string>
+        {
+            { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString }
+        }
     };
 
     public static readonly CreateDriveRequest CreateShardRecoveryDriveRequest = new()
