@@ -230,20 +230,28 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                 chatWasmApp =>
                 {
                     var chatWasmPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat-wasm");
-                    chatWasmApp.UseStaticFiles(new StaticFileOptions()
+                    if (Directory.Exists(chatWasmPath))
                     {
-                        FileProvider = new PhysicalFileProvider(chatWasmPath),
-                        RequestPath = "/apps/chat-wasm",
-                        // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
-                        // string table) have extensions Kestrel's content-type map doesn't know.
-                        // Without this, UseStaticFiles 404s them and the SPA fallback below returns
-                        // index.html instead, so Compose loads HTML as its string table and ALL text
-                        // renders blank. Serve unknown types as octet-stream (Compose reads raw bytes).
-                        ServeUnknownFileTypes = true,
-                        DefaultContentType = "application/octet-stream"
-                    });
+                        chatWasmApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(chatWasmPath),
+                            RequestPath = "/apps/chat-wasm",
+                            // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
+                            // string table) have extensions Kestrel's content-type map doesn't know.
+                            // Without this, UseStaticFiles 404s them and the SPA fallback below returns
+                            // index.html instead, so Compose loads HTML as its string table and ALL text
+                            // renders blank. Serve unknown types as octet-stream (Compose reads raw bytes).
+                            ServeUnknownFileTypes = true,
+                            DefaultContentType = "application/octet-stream"
+                        });
 
-                    chatWasmApp.Run(context => SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
+                        chatWasmApp.Run(context => SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
+                    }
+                    else
+                    {
+                        logger.LogWarning("chat-wasm app directory not found at {Path}. Requests to /apps/chat-wasm will return 404.",
+                            chatWasmPath);
+                    }
                 });
 
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
