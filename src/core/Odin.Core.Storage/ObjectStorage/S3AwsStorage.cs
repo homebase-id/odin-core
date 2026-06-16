@@ -22,6 +22,119 @@ namespace Odin.Core.Storage.ObjectStorage;
 // Can be overridden by configuring the AmazonS3Config when creating the client.
 //
 
+// ============================================================================
+// SEB:TODO #1: VPS temp -> INBOX upload (large videos, 5GB+) via TransferUtility
+// ============================================================================
+// Scope: local-file -> INBOX only. TransferUtility is an upload/download helper;
+// it does multipart automatically on upload, so the 5GB single-PUT limit is a
+// non-issue here. It does NOT perform server-side bucket-to-bucket copy --
+// INBOX->DRIVE promotion is TODO #2 below (UploadPartCopy loop), not this path.
+//
+// Credentials: this path uses the INGEST key (INBOX read/write, NO access to
+// DRIVE). Keep it distinct from the promotion key so a compromised/buggy ingest
+// path physically cannot touch DRIVE.
+//
+//   [ ] Build TransferUtilityUploadRequest:
+//         FilePath   = VPS temp path
+//         BucketName = INBOX
+//         Key        = object key
+//         ContentType = correct MIME (video/mp4 etc.) so DRIVE serves it right
+//                       later WITHOUT a metadata-fix re-copy.
+//   [ ] Set PartSize explicitly (e.g. 16-64MB) rather than relying on the SDK
+//       default. For 5GB+ files the small default inflates part/request count;
+//       larger parts = fewer requests = less overhead. Stay within 10,000 parts.
+//   [ ] Compute SHA-256 of the file during/before upload and stash it in object
+//       Metadata (e.g. x-amz-meta-sha256). This is the integrity source of truth
+//       for TODO #2's verify-gate. The bytes are already on the VPS here, so this
+//       is the cheap place to hash. Do NOT rely on multipart ETag downstream:
+//       its formula isn't a whole-object MD5 and differs across providers.
+//   [ ] try/catch: on failure the SDK aborts its own multipart upload, BUT
+//       confirm no orphaned parts remain in INBOX (failed/aborted parts still
+//       bill as storage). Reconcile via ListMultipartUploads if a failure path
+//       is suspected. (See housekeeping in TODO #2 -- same orphaned-parts issue.)
+//   [ ] Verify-then-clean: HeadObject on INBOX, assert ContentLength == local
+//       file size, THEN delete the VPS temp file. Never delete temp on a bare
+//       upload-returned success without the Head confirmation.
+//   [ ] Bound concurrency if multiple uploads run in parallel (VPS memory/NIC
+//       are the ceiling once bytes are proxied through the box).
+//   [ ] Provider note: TransferUtility multipart upload works on the AWS S3
+//       baseline; all three (Hetzner/Vultr/Linode) support multipart upload.
+//       No provider-specific risk on THIS path (the risk is on copy, TODO #2).
+//
+// ============================================================================
+// SEB:TODO #2: INBOX -> DRIVE promotion (server-side multipart copy + gated delete)
+// ============================================================================
+// Scope: promote a verified object from INBOX to DRIVE without routing bytes
+// through the VPS. Server-side copy keeps data inside the provider network (same
+// region as the VPS and both buckets -> no internet egress, near-zero cost).
+// TransferUtility CANNOT do this -- it has no server-side copy. Use the low-level
+// multipart-copy API (CopyObject for <=5GB, UploadPartCopy loop for >5GB).
+//
+// INVARIANT: DRIVE is the system of record. A bad or partial copy must NEVER be
+// followed by an INBOX delete. The two-bucket split exists so an INBOX mistake
+// can't wipe DRIVE -- preserve that property in code, not just in bucket layout.
+//
+// Credentials: this path uses the PROMOTION key (INBOX read, DRIVE write, but
+// NO DRIVE delete). Source deletion uses the ingest key's delete-on-INBOX right.
+// Splitting these means neither path can both write-garbage-to and delete-from
+// the same bucket.
+//
+//   --- Preconditions ---
+//   [ ] HeadObject on INBOX -> source size (drives part planning) + read back the
+//       x-amz-meta-sha256 written in TODO #1.
+//   [ ] Branch: size <= 5GB -> single CopyObjectAsync. size > 5GB -> multipart.
+//   [ ] Idempotency claim: take a per-key lock/claim so two workers can't both
+//       promote (double copy + double delete race).
+//
+//   --- Multipart server-side copy (size > 5GB) ---
+//   [ ] InitiateMultipartUpload on DRIVE -> capture UploadId.
+//   [ ] Plan ranges: fixed part size (e.g. 1GB) -> partCount = ceil(size/part);
+//       enforce <= 10,000 parts; each part <= 5GB.
+//   [ ] Per part i: CopyPartRequest { SourceBucket=INBOX, SourceKey,
+//       FirstByte/LastByte = range, PartNumber=i, UploadId }. Collect (PartNumber,
+//       ETag) from each response.
+//   [ ] Bounded parallelism (SemaphoreSlim, 4-8) -- respect per-bucket request
+//       rate limits; back off on 503 (esp. Hetzner NBG documented throttling).
+//   [ ] On ANY part failure after retries: AbortMultipartUpload(DRIVE, UploadId),
+//       then BAIL without touching INBOX. Surface for retry.
+//   [ ] CompleteMultipartUpload with the ordered (PartNumber, ETag) list.
+//
+//   --- Verification gate (MUST pass before any source delete) ---
+//   [ ] HeadObject on DRIVE -> assert ContentLength == source size EXACTLY.
+//   [ ] Integrity check independent of ETag: recompute/confirm SHA-256 on the
+//       DRIVE object vs. the metadata value from TODO #1. (Multipart ETags are
+//       not comparable across buckets/providers -- do not use them here.) If a
+//       whole-object checksum can't be obtained server-side, fail CLOSED.
+//   [ ] Only if size AND checksum match -> mark promoted. Otherwise treat as
+//       failed promotion, leave INBOX intact, alert.
+//
+//   --- Source cleanup (only after the gate passes) ---
+//   [ ] DeleteObject on INBOX.
+//   [ ] Crash-idempotency: a re-run after a crash between Complete and Delete
+//       must detect a valid DRIVE object and skip straight to delete -- never
+//       re-copy a successfully-promoted object.
+//
+//   --- Housekeeping (orphaned parts + versioning cost storage until cleaned) ---
+//   [ ] Aborted/failed multipart copies leave parts that bill as storage on both
+//       buckets. Provider-dependent cleanup:
+//         - Hetzner / Linode: lifecycle rule to auto-abort incomplete multipart
+//           uploads after N days -> configure it.
+//         - Vultr: NO lifecycle support -> periodic job: ListMultipartUploads on
+//           INBOX + DRIVE, AbortMultipartUpload on stale ones. Manual toil.
+//   [ ] If DRIVE versioning is enabled (recommended -- a bad delete writes a
+//       delete-marker instead of destroying bytes), note there's no auto-expiry
+//       of noncurrent versions on Vultr -> periodic prune job. Hetzner/Linode can
+//       express this via lifecycle.
+//
+//   --- Edge cases ---
+//   [ ] Source already promoted / missing -> treat as success (idempotent).
+//   [ ] Concurrent promotion of same key -> covered by the claim/lock above.
+//   [ ] VERIFY BEFORE PROD: UploadPartCopy support + same-region copy billing on
+//       Vultr and Linode specifically. Confirmed on the AWS S3 baseline; Hetzner
+//       documents free in-zone traffic + no S3 API request charges. Vultr/Linode
+//       same-region copy cost is UNCONFIRMED here -- check provider docs.
+
+
 public class S3AwsStorage : IS3Storage
 {
     private readonly ILogger<S3AwsStorage> _logger;
