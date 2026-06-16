@@ -159,7 +159,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
             var info = await this.GetIcrAsync(odinId, odinContext);
             if (info is { Status: ConnectionStatus.Connected })
@@ -183,11 +183,18 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task<bool> BlockAsync(OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
             var info = await this.GetIcrAsync(odinId, odinContext);
 
-            //TODO: when you block a connection, you must also destroy exchange grant
+            // NOTE: blocking intentionally retains the AccessGrant rather than destroying it.
+            // A blocked identity is already denied everywhere because every auth path gates on
+            // connection status, not merely on token/grant validity: peer/transit via
+            // CreateTransitPermissionContextAsync's IsConnected() check, and guest/YouAuth via
+            // TryCreateConnectedYouAuthContextAsync (explicit Blocked short-circuit) and
+            // HomeAuthenticatorService's isConnected gate. Keeping the grant intact is what lets
+            // UnblockAsync restore the prior connection without a fresh connection request; revoking
+            // it here would force unblock to always fall through to ConnectionStatus.None.
 
             if (info.Status == ConnectionStatus.Connected)
             {
@@ -248,7 +255,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task<bool> UnblockAsync(OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
             var info = await this.GetIcrAsync(odinId, odinContext);
             if (info.Status == ConnectionStatus.Blocked)
