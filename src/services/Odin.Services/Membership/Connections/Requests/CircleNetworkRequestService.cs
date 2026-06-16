@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -24,8 +25,10 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Configuration.VersionUpgrade;
+using Odin.Services.Contacts;
 using Odin.Services.DataSubscription.Follower;
 using Odin.Services.Drives;
+using Odin.Services.Optimization.Cdn;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections.Verification;
@@ -56,6 +59,9 @@ namespace Odin.Services.Membership.Connections.Requests
         TableKeyThreeValueCached tblKeyThreeValue,
         ITenantLevel2Cache<CircleNetworkRequestService> cache,
         TenantConfigService tenantConfigService,
+        ContactService contactService,
+        ContactEnrichmentService contactEnrichmentService,
+        StaticFileContentService staticFileContentService,
         VersionUpgradeScheduler versionUpgradeScheduler)
         : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {
@@ -493,8 +499,8 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// Stores a new pending/incoming request that is not yet accepted.
         /// </summary>
-        public async Task ReceiveConnectionRequestAsync(EccEncryptedPayload payload, CancellationToken cancellationToken,
-            IOdinContext odinContext)
+        public async Task<ConnectionRequestReceipt> ReceiveConnectionRequestAsync(EccEncryptedPayload payload,
+            CancellationToken cancellationToken, IOdinContext odinContext)
         {
             odinContext.Caller.AssertCallerIsAuthenticated();
 
@@ -593,6 +599,25 @@ namespace Odin.Services.Membership.Connections.Requests
 
                 throw;
             }
+
+            // Success: hand the sender our public profile card so they can name our contact in this
+            // same round-trip. Best-effort — never fail the receipt over a missing/unreadable card.
+            var receipt = new ConnectionRequestReceipt();
+            try
+            {
+                var (_, exists, bytes) = await staticFileContentService.GetStaticFileStreamAsync(
+                    StaticFileConstants.PublicProfileCardFileName);
+                if (exists && bytes is { Length: > 0 })
+                {
+                    receipt.RecipientPublicCardJson = bytes.ToStringFromUtf8Bytes();
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Could not read public profile card for the connection-request receipt");
+            }
+
+            return receipt;
         }
 
         /// <summary>
@@ -852,6 +877,10 @@ namespace Odin.Services.Membership.Connections.Requests
 
             await this.DeleteSentRequestInternalAsync(senderOdinId);
             await this.DeletePendingRequestInternal(senderOdinId);
+
+            // Materialize a contact for the now-connected sender from the card they sent (best-effort).
+            await TryUpsertConnectionContactAsync(senderOdinId, CardFromRequestData(incomingRequest.ContactData),
+                odinContext, enrichFromPublicIfNoName: false);
 
             try
             {
@@ -1125,6 +1154,83 @@ namespace Odin.Services.Membership.Connections.Requests
             return new Guid(bytes);
         }
 
+        /// <summary>
+        /// Best-effort: upsert a contact for <paramref name="odinId"/> from the connection-flow contact
+        /// data (the peer's full <see cref="ContactContent"/> card when present, else their name) and,
+        /// when <paramref name="enrichFromProfile"/> is set, fill it from the peer's profile — on send
+        /// that's their <b>public</b> profile (keyless), so the contact always gets a real name rather
+        /// than an empty record. Skips silently when the context lacks the ContactDrive storage key
+        /// (peer/introduction) and never throws into the connection flow.
+        /// </summary>
+        private async Task TryUpsertConnectionContactAsync(OdinId odinId, ContactContent card,
+            IOdinContext odinContext, bool enrichFromPublicIfNoName)
+        {
+            try
+            {
+                if (!odinContext.PermissionsContext.TryGetDriveStorageKey(SystemDriveConstants.ContactDrive.Alias, out _))
+                {
+                    // No ContactDrive storage key here (peer/introduction context). The peer's card is
+                    // preserved on the ICR; an owner-keyed /sync can materialize the contact later.
+                    return;
+                }
+
+                var content = card ?? new ContactContent();
+                content.OdinId = odinId.DomainName;   // authoritative identity for the contact
+                content.Source = "contact";           // connection-derived
+
+                await contactService.MergeAsync(content, ContactMergeSource.Api, odinContext);
+
+                if (enrichFromPublicIfNoName && string.IsNullOrWhiteSpace(content.Name?.DisplayName))
+                {
+                    // No name from the delivery receipt — pull the peer's public profile (keyless).
+                    await contactEnrichmentService.EnrichAsync(odinId, odinContext);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogDebug(e, "Connection-flow contact upsert for {odinId} failed; ignoring", odinId);
+            }
+        }
+
+        /// <summary>Builds a contact card from the peer's request data — their full shared card, else their name.</summary>
+        private static ContactContent CardFromRequestData(ContactRequestData data)
+        {
+            if (data?.Contact != null)
+            {
+                return data.Contact;
+            }
+
+            return string.IsNullOrWhiteSpace(data?.Name)
+                ? null
+                : new ContactContent { Name = new ContactName { DisplayName = data.Name } };
+        }
+
+        /// <summary>Builds a contact card from the recipient's public profile card returned on delivery.</summary>
+        private static ContactContent CardFromReceipt(ConnectionRequestReceipt receipt)
+        {
+            if (string.IsNullOrWhiteSpace(receipt?.RecipientPublicCardJson))
+            {
+                return null;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(receipt.RecipientPublicCardJson);
+                if (doc.RootElement.TryGetProperty("name", out var name) &&
+                    name.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(name.GetString()))
+                {
+                    return new ContactContent { Name = new ContactName { DisplayName = name.GetString() } };
+                }
+            }
+            catch
+            {
+                // malformed card — fall back to the public-profile fetch
+            }
+
+            return null;
+        }
+
         private async Task HandleConnectionRequestInternalForIdentityOwnerAsync(ConnectionRequestHeader header, IOdinContext odinContext)
         {
             odinContext.AssertCanManageConnections();
@@ -1371,9 +1477,17 @@ namespace Odin.Services.Membership.Connections.Requests
                 clientAccessToken.SharedSecret.Wipe();
                 clientAccessToken.AccessTokenHalfKey.Wipe();
 
-                if (!await TrySendRequestInternalAsync((OdinId)header.Recipient, outgoingRequest, timestamp))
+                var (sendSucceeded, receipt) = await TrySendRequestInternalAsync((OdinId)header.Recipient, outgoingRequest, timestamp);
+                if (!sendSucceeded)
                 {
                     await DeleteSentRequestInternalAsync(recipient);
+                }
+                else
+                {
+                    // Name the recipient's contact from the public card they returned on delivery; fall
+                    // back to a keyless pub/profile fetch if the card wasn't provided. Best-effort.
+                    await TryUpsertConnectionContactAsync(recipient, CardFromReceipt(receipt), odinContext,
+                        enrichFromPublicIfNoName: true);
                 }
             }
             finally
@@ -1414,11 +1528,12 @@ namespace Odin.Services.Membership.Connections.Requests
             return (clientAccessToken, grant);
         }
 
-        private async Task<bool> TrySendRequestInternalAsync(OdinId recipient, ConnectionRequest request, Guid timestamp)
+        private async Task<(bool success, ConnectionRequestReceipt receipt)> TrySendRequestInternalAsync(
+            OdinId recipient, ConnectionRequest request, Guid timestamp)
         {
             var keyType = GetPublicPrivateKeyType(request.ConnectionRequestOrigin);
 
-            async Task<(bool encryptionSucceeded, ApiResponse<HttpContent> deliveryResponse)> Send()
+            async Task<(bool encryptionSucceeded, ApiResponse<ConnectionRequestReceipt> deliveryResponse)> Send()
             {
                 EccEncryptedPayload eccEncryptedPayload;
                 try
@@ -1461,7 +1576,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     var code = sendResult1.deliveryResponse.Error.ParseProblemDetails();
                     if (code == OdinClientErrorCode.IntroductoryRequestAlreadySent)
                     {
-                        return false;
+                        return (false, null);
                         // there was already a request sent, bubble this up
                         // throw new OdinClientException("Remote server already sent a request",
                         //     OdinClientErrorCode.IntroductoryRequestAlreadySent);
@@ -1515,9 +1630,11 @@ namespace Odin.Services.Membership.Connections.Requests
                 {
                     throw new OdinClientException("Failed to establish connection request");
                 }
+
+                return (true, sendResult2.deliveryResponse.Content);
             }
 
-            return true;
+            return (true, sendResult1.deliveryResponse.Content);
         }
 
         private PublicPrivateKeyType GetPublicPrivateKeyType(ConnectionRequestOrigin origin)

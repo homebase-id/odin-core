@@ -1,4 +1,5 @@
 using System;
+using Odin.Services.Contacts;
 using Odin.Services.Util;
 
 namespace Odin.Services.Membership.Connections.Requests;
@@ -18,4 +19,11 @@ public class ContactRequestData
     /// </summary>
     public Guid ImageId { get; set; }
 
+    /// <summary>
+    /// The full contact card (name/location/phone/email/birthday/source) shared with the peer.
+    /// Optional and additive for backward compatibility: older peers send only <see cref="Name"/>,
+    /// and the contact is then created from that. The receiving side can materialize a rich contact
+    /// from it when it holds the ContactDrive storage key.
+    /// </summary>
+    public ContactContent Contact { get; set; }
 }

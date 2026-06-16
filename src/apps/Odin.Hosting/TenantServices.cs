@@ -5,6 +5,7 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Contacts;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -303,6 +304,11 @@ public static class TenantServices
             .InstancePerLifetimeScope();
 
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
+
+        cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ContactEnrichmentService>().AsSelf().InstancePerLifetimeScope();
+        // Enrichment is client-driven via POST /api/v2/contacts/sync (phase 1). Automatic
+        // lifecycle-driven enrichment is deferred — see docs/contact-enrichment-phase2.md.
 
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
         cb.RegisterType<FollowerPerimeterService>().InstancePerLifetimeScope();
