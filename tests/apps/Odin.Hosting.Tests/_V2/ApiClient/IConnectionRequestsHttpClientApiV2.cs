@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
 using Odin.Services.Membership.Connections.Requests;
@@ -11,4 +12,7 @@ public interface IConnectionRequestsHttpClientApiV2
 
     [Post(Root + "/requests/auto-connect")]
     Task<ApiResponse<ConnectionRequestResult>> AutoConnect([Body] ConnectionRequestHeader header);
+
+    [Delete(Root + "/requests/outgoing/{recipientId}")]
+    Task<ApiResponse<HttpContent>> CancelOutgoingRequest(string recipientId);
 }

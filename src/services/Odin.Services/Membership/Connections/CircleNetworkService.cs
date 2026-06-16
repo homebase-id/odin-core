@@ -159,7 +159,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
             var info = await this.GetIcrAsync(odinId, odinContext);
             if (info is { Status: ConnectionStatus.Connected })
@@ -183,7 +183,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task<bool> BlockAsync(OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
             var info = await this.GetIcrAsync(odinId, odinContext);
 
@@ -248,7 +248,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task<bool> UnblockAsync(OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
             var info = await this.GetIcrAsync(odinId, odinContext);
             if (info.Status == ConnectionStatus.Blocked)

@@ -639,7 +639,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public Task DeleteSentRequest(OdinId recipient, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
             return DeleteSentRequestInternalAsync(recipient);
         }
 
@@ -1067,7 +1067,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// </summary>
         public Task DeletePendingRequest(OdinId sender, IOdinContext odinContext)
         {
-            odinContext.AssertCanManageConnections();
+            odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
             return DeletePendingRequestInternal(sender);
         }
 
