@@ -11,6 +11,7 @@ public static class SystemCircleConstants
 {
     public static readonly GuidId ConfirmedConnectionsCircleId = Guid.Parse("bb2683fa402aff866e771a6495765a15");
     public static readonly GuidId AutoConnectionsCircleId = Guid.Parse("9e22b42952f74d2580e11250b651d343");
+    public static readonly GuidId EmergencyLocationAccessCircleId = Guid.Parse("8b5383a5927246f8a666f4f3fcb7392b");
 
     public static bool IsSystemCircle(Guid circleId)
     {
@@ -20,7 +21,8 @@ public static class SystemCircleConstants
     public static readonly List<GuidId> AllSystemCircles =
     [
         ConfirmedConnectionsCircleId,
-        AutoConnectionsCircleId
+        AutoConnectionsCircleId,
+        EmergencyLocationAccessCircleId
     ];
 
     public static readonly CircleDefinition ConfirmedConnectionsDefinition = new()
@@ -140,6 +142,28 @@ public static class SystemCircleConstants
                     Permission = DrivePermission.Write | DrivePermission.React
                 }
             }
+        ],
+        Permissions = new PermissionSet()
+        {
+            Keys = []
+        }
+    };
+
+    public static readonly CircleDefinition EmergencyLocationAccessDefinition = new()
+    {
+        Id = EmergencyLocationAccessCircleId.Value,
+        Name = "Emergency Location Access",
+        Description = "Contains identities granted read access to your location in an emergency",
+        DriveGrants =
+        [
+            new DriveGrantRequest()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.LocationDrive,
+                    Permission = DrivePermission.Read
+                }
+            },
         ],
         Permissions = new PermissionSet()
         {

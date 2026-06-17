@@ -73,6 +73,27 @@ namespace Odin.Services.Membership.Circles
                     await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition, skipValidation: true);
                 }
             }
+
+            var emergencyLocationAccessDef = await GetCircleAsync(SystemCircleConstants.EmergencyLocationAccessCircleId);
+            if (null == emergencyLocationAccessDef)
+            {
+                var def = SystemCircleConstants.EmergencyLocationAccessDefinition;
+                await CreateCircleInternalAsync(new CreateCircleRequest
+                {
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions
+                }, skipValidation: true);
+            }
+            else
+            {
+                if (SystemCircleConstants.EmergencyLocationAccessDefinition != emergencyLocationAccessDef)
+                {
+                    await this.UpdateAsync(SystemCircleConstants.EmergencyLocationAccessDefinition, skipValidation: true);
+                }
+            }
         }
 
         public async Task UpdateAsync(CircleDefinition newCircleDefinition, bool skipValidation = false)
