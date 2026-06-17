@@ -14,18 +14,19 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace Odin.Hosting.UnifiedV2.Drive.Read
 {
     /// <summary>
-    /// Temporal (time-boxed / "emergency") read of a drive hosted by another (peer) identity. The caller's
-    /// access derives from <c>DrivePermission.ConditionalTemporalRead</c> granted via a circle; the remote
-    /// clamps every read to a recent window and notifies its owner. Includes a lightweight <c>verify</c>
-    /// preflight so an app can show a live "you have access" indicator without reading data.
+    /// Drive-scoped temporal (time-boxed / "emergency") read operations against a drive hosted by another
+    /// (peer) identity: the access <c>verify</c> preflight and the time-clamped <c>query-batch</c>. The
+    /// caller's access derives from <c>DrivePermission.ConditionalTemporalRead</c> granted via a circle;
+    /// the remote clamps every read to a recent window and notifies its owner. The <c>verify</c> preflight
+    /// lets an app show a live "you have access" indicator without reading data.
     /// </summary>
     [ApiController]
-    [Route(UnifiedApiRouteConstants.PeerByDriveId)]
+    [Route(UnifiedApiRouteConstants.PeerTemporalRoot)]
     [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DrivePeerTemporalController(PeerDriveQueryService peerDriveQueryService) : OdinControllerBase
     {
-        [HttpPost("temporal/verify")]
+        [HttpPost("verify")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
         public async Task<TemporalAccessStatus> VerifyTemporalAccess(
             [FromRoute] string odinId,
@@ -36,7 +37,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return await peerDriveQueryService.VerifyTemporalAccessAsync(id, ToTargetDrive(driveId), fst, WebOdinContext);
         }
 
-        [HttpPost("temporal/query-batch")]
+        [HttpPost("query-batch")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
         public async Task<QueryBatchResponse> TemporalQueryBatch(
             [FromRoute] string odinId,
@@ -60,7 +61,46 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return QueryBatchResponse.FromResult(batch);
         }
 
-        [HttpGet("temporal/files/{fileId:guid}/header")]
+        private static TargetDrive ToTargetDrive(Guid driveId)
+        {
+            return new TargetDrive { Alias = driveId, Type = Guid.Empty };
+        }
+
+        private static FileQueryParamsV1 ToV1QueryParams(FileQueryParams p, Guid driveId)
+        {
+            return new FileQueryParamsV1
+            {
+                TargetDrive = new TargetDrive { Alias = driveId, Type = Guid.Empty },
+                FileType = p.FileType,
+                FileState = p.FileState,
+                DataType = p.DataType,
+                ArchivalStatus = p.ArchivalStatus,
+                Sender = p.Sender,
+                GroupId = p.GroupId,
+                UserDate = p.UserDate,
+                ClientUniqueIdAtLeastOne = p.ClientUniqueIdAtLeastOne,
+                TagsMatchAtLeastOne = p.TagsMatchAtLeastOne,
+                TagsMatchAll = p.TagsMatchAll,
+                LocalTagsMatchAtLeastOne = p.LocalTagsMatchAtLeastOne,
+                LocalTagsMatchAll = p.LocalTagsMatchAll,
+                GlobalTransitId = p.GlobalTransitId
+            };
+        }
+    }
+
+    /// <summary>
+    /// File-scoped temporal (time-boxed) reads of a single file's header, payload, and thumbnails on a
+    /// drive hosted by another (peer) identity. The remote clamps every read to the resolved
+    /// <c>DrivePermission.ConditionalTemporalRead</c> window and notifies its owner. Action templates
+    /// mirror <see cref="V2DrivePeerFileReadonlyController"/>; only the route base (temporal) differs.
+    /// </summary>
+    [ApiController]
+    [Route(UnifiedApiRouteConstants.PeerTemporalByFileId)]
+    [UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
+    [ApiExplorerSettings(GroupName = "v2")]
+    public class V2DrivePeerTemporalFileController(PeerDriveQueryService peerDriveQueryService) : OdinControllerBase
+    {
+        [HttpGet("header")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         public async Task<IActionResult> TemporalGetFileHeader(
             [FromRoute] string odinId,
@@ -79,7 +119,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return new JsonResult(result);
         }
 
-        [HttpGet("temporal/files/{fileId:guid}/payload/{payloadKey}")]
+        [HttpGet("payload/{payloadKey}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
@@ -92,7 +132,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return TemporalGetPayloadInternal(odinId, driveId, fileId, payloadKey, GetChunk(null, null));
         }
 
-        [HttpGet("temporal/files/{fileId:guid}/payload/{payloadKey}/{start:int}/{length:int}")]
+        [HttpGet("payload/{payloadKey}/{start:int}/{length:int}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
@@ -107,7 +147,7 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return TemporalGetPayloadInternal(odinId, driveId, fileId, payloadKey, GetChunk(start, length));
         }
 
-        [HttpGet("temporal/files/{fileId:guid}/payload/{payloadKey}/thumb/{width}/{height}")]
+        [HttpGet("payload/{payloadKey}/thumb/{width}/{height}")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileRead])]
         [NoSharedSecretOnRequest]
         [NoSharedSecretOnResponse]
@@ -140,11 +180,6 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             return HandlePeerPayloadResponse(encryptedKeyHeader, isEncrypted, payloadStream);
         }
 
-        private static TargetDrive ToTargetDrive(Guid driveId)
-        {
-            return new TargetDrive { Alias = driveId, Type = Guid.Empty };
-        }
-
         // The remote resolves the drive by alias (matching the peer "exists" endpoints), so Type is left empty.
         private static ExternalFileIdentifier ToExternalFile(Guid driveId, Guid fileId)
         {
@@ -152,27 +187,6 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
             {
                 FileId = fileId,
                 TargetDrive = new TargetDrive { Alias = driveId, Type = Guid.Empty }
-            };
-        }
-
-        private static FileQueryParamsV1 ToV1QueryParams(FileQueryParams p, Guid driveId)
-        {
-            return new FileQueryParamsV1
-            {
-                TargetDrive = new TargetDrive { Alias = driveId, Type = Guid.Empty },
-                FileType = p.FileType,
-                FileState = p.FileState,
-                DataType = p.DataType,
-                ArchivalStatus = p.ArchivalStatus,
-                Sender = p.Sender,
-                GroupId = p.GroupId,
-                UserDate = p.UserDate,
-                ClientUniqueIdAtLeastOne = p.ClientUniqueIdAtLeastOne,
-                TagsMatchAtLeastOne = p.TagsMatchAtLeastOne,
-                TagsMatchAll = p.TagsMatchAll,
-                LocalTagsMatchAtLeastOne = p.LocalTagsMatchAtLeastOne,
-                LocalTagsMatchAll = p.LocalTagsMatchAll,
-                GlobalTransitId = p.GlobalTransitId
             };
         }
     }
