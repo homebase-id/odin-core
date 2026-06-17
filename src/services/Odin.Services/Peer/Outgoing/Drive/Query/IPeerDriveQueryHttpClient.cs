@@ -44,6 +44,28 @@ namespace Odin.Services.Peer.Outgoing.Drive.Query
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request,
             CancellationToken cancellationToken = default);
 
+        // --- Temporal (time-boxed) read API ---
+
+        [Post(DriveRoot + "/temporal/verify")]
+        Task<ApiResponse<TemporalAccessStatus>> VerifyTemporalAccess([Body] TargetDrive targetDrive,
+            CancellationToken cancellationToken = default);
+
+        [Post(DriveRoot + "/temporal/querybatch")]
+        Task<ApiResponse<QueryBatchResponse>> TemporalQueryBatch([Body] QueryBatchRequest request,
+            CancellationToken cancellationToken = default);
+
+        [Post(DriveRoot + "/temporal/header")]
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> TemporalGetFileHeader([Body] ExternalFileIdentifier file,
+            CancellationToken cancellationToken = default);
+
+        [Post(DriveRoot + "/temporal/thumb")]
+        Task<ApiResponse<HttpContent>> TemporalGetThumbnailStream([Body] GetThumbnailRequest request,
+            CancellationToken cancellationToken = default);
+
+        [Post(DriveRoot + "/temporal/payload")]
+        Task<ApiResponse<HttpContent>> TemporalGetPayloadStream([Body] GetPayloadRequest request,
+            CancellationToken cancellationToken = default);
+
         [Get(PeerApiPathConstants.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext(CancellationToken cancellationToken = default);
 

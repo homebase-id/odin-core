@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
+using Odin.Core.Storage.Cache;
 using Odin.Services.Apps;
 using Odin.Services.Base;
 using Odin.Services.Base.SharedTypes;
@@ -30,7 +32,10 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
     [Route(PeerApiPathConstants.DriveV1)]
     [Authorize(Policy = PeerPerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PeerAuthConstants.TransitCapiAuthScheme)]
     [ApiExplorerSettings(GroupName = "peer-v1")]
-    public class PeerIncomingDriveQueryController(IDriveManager driveManager) : OdinControllerBase
+    public class PeerIncomingDriveQueryController(
+        IDriveManager driveManager,
+        IMediator mediator,
+        ITenantLevel2Cache<PeerTemporalDriveQueryService> temporalCache) : OdinControllerBase
     {
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
@@ -149,6 +154,86 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
 
             var drives = await perimeterService.GetDrivesAsync(request.DriveType, WebOdinContext);
             return drives;
+        }
+
+        // =====================================================================================
+        // Temporal (time-boxed) read perimeter. Honors DrivePermission.ConditionalTemporalRead and
+        // clamps results to a recent window. The normal endpoints above reject the temporal flag.
+        // =====================================================================================
+
+        [HttpPost("temporal/verify")]
+        public async Task<TemporalAccessStatus> VerifyTemporalAccess([FromBody] TargetDrive targetDrive)
+        {
+            return await GetTemporalPerimeterService().VerifyAccessAsync(targetDrive, WebOdinContext);
+        }
+
+        [HttpPost("temporal/querybatch")]
+        public async Task<QueryBatchResponse> TemporalQueryBatch([FromBody] QueryBatchRequest request)
+        {
+            var options = request.ResultOptionsRequest ?? QueryBatchResultOptionsRequest.Default;
+            var batch = await GetTemporalPerimeterService().QueryBatch(request.QueryParams, options.ToQueryBatchResultOptions(),
+                WebOdinContext);
+            return QueryBatchResponse.FromResult(batch);
+        }
+
+        [HttpPost("temporal/header")]
+        public async Task<IActionResult> TemporalGetFileHeader([FromBody] ExternalFileIdentifier request)
+        {
+            var result = await GetTemporalPerimeterService().GetFileHeader(request.TargetDrive, request.FileId, WebOdinContext);
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
+
+        [HttpPost("temporal/payload")]
+        public async Task<IActionResult> TemporalGetPayloadStream([FromBody] GetPayloadRequest request)
+        {
+            var (encryptedKeyHeader64, isEncrypted, _, payloadStream) = await GetTemporalPerimeterService().GetPayloadStreamAsync(
+                request.File.TargetDrive,
+                request.File.FileId,
+                request.Key,
+                request.Chunk,
+                WebOdinContext);
+
+            if (payloadStream == null)
+            {
+                return NotFound();
+            }
+
+            if (payloadStream.Stream == Stream.Null)
+            {
+                return StatusCode((int)HttpStatusCode.Gone);
+            }
+
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(payloadStream.LastModified);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, payloadStream.ContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.ContentLength = payloadStream.Stream.Length;
+
+            return new FileStreamResult(payloadStream.Stream, "application/octet-stream");
+        }
+
+        [HttpPost("temporal/thumb")]
+        public async Task<IActionResult> TemporalGetThumbnail([FromBody] GetThumbnailRequest request)
+        {
+            var (encryptedKeyHeader64, isEncrypted, _, decryptedContentType, lastModified, thumb) =
+                await GetTemporalPerimeterService().GetThumbnailAsync(request.File.TargetDrive, request.File.FileId, request.Height,
+                    request.Width, request.PayloadKey, WebOdinContext);
+
+            if (thumb == null)
+            {
+                return NotFound();
+            }
+
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.PayloadEncrypted, isEncrypted.ToString());
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Append(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.LastModified = DriveFileUtility.GetLastModifiedHeaderValue(lastModified);
+            return new FileStreamResult(thumb, "application/octet-stream");
         }
         
         /// <summary>
@@ -396,6 +481,12 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Drive
         {
             var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
             return new Odin.Services.Peer.Incoming.Drive.Query.PeerDriveQueryService(driveManager, fileSystem);
+        }
+
+        private PeerTemporalDriveQueryService GetTemporalPerimeterService()
+        {
+            var fileSystem = GetHttpFileSystemResolver().ResolveFileSystem();
+            return new PeerTemporalDriveQueryService(driveManager, fileSystem, mediator, temporalCache);
         }
     }
 }

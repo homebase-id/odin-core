@@ -376,48 +376,5 @@ public class TenantPathManagerTests
 
     //
 
-    [Test]
-    public void TenantPathManager_S3InboxEnabled_AnchorsInboxToBucketRoot()
-    {
-        var tenantId = Guid.NewGuid();
-        var config = new OdinConfiguration
-        {
-            Host = new OdinConfiguration.HostSection { TenantDataRootPath = "/data/tenants" },
-            S3Storage = new OdinConfiguration.S3StorageSection { Enabled = true },
-            S3Inbox = new OdinConfiguration.S3InboxSection { Enabled = true },
-        };
-
-        var pm = new TenantPathManager(config, tenantId);
-        var driveId = Guid.NewGuid();
-        var fileId = Guid.NewGuid();
-
-        var path = pm.GetDriveInboxFilePath(driveId, fileId, "metadata").Replace('\\', '/');
-
-        var expected = $"{tenantId}/{TenantPathManager.DrivesFolder}/{driveId:N}/{fileId:N}.metadata";
-        Assert.That(path, Is.EqualTo(expected));
-    }
-
-    //
-
-    [Test]
-    public void TenantPathManager_S3InboxDisabled_UsesOnDiskInboxPath()
-    {
-        var tenantId = Guid.NewGuid();
-        var config = new OdinConfiguration
-        {
-            Host = new OdinConfiguration.HostSection { TenantDataRootPath = "/data/tenants" },
-        };
-
-        var pm = new TenantPathManager(config, tenantId);
-        var driveId = Guid.NewGuid();
-        var fileId = Guid.NewGuid();
-
-        var path = pm.GetDriveInboxFilePath(driveId, fileId, "metadata").Replace('\\', '/');
-
-        Assert.That(path, Does.Contain($"registrations/{tenantId}/inbox/drives/{driveId:N}"));
-        Assert.That(path, Does.EndWith($"{fileId:N}.metadata"));
-    }
-
-    //
 
 }

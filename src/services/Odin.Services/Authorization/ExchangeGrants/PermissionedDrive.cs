@@ -19,12 +19,21 @@ public class PermissionedDrive : IEquatable<PermissionedDrive>, IGenericCloneabl
     /// </summary>
     public DrivePermission Permission { get; set; }
 
+    /// <summary>
+    /// Optional per-grant override (in seconds) for the <see cref="DrivePermission.ConditionalTemporalRead"/>
+    /// lookback window. When set, the effective window is the smaller of this value and the drive-level
+    /// ceiling (see <see cref="Odin.Services.Drives.TemporalRead"/>). Null falls back to the default window.
+    /// Ignored for non-temporal grants.
+    /// </summary>
+    public long? TemporalReadWindowSeconds { get; set; }
+
     public PermissionedDrive Clone()
     {
         return new PermissionedDrive
         {
             Drive = Drive.Clone(),
-            Permission = Permission
+            Permission = Permission,
+            TemporalReadWindowSeconds = TemporalReadWindowSeconds
         };
     }
 
@@ -35,7 +44,8 @@ public class PermissionedDrive : IEquatable<PermissionedDrive>, IGenericCloneabl
             return true;
         }
 
-        return pd1?.Drive == pd2?.Drive && pd1?.Permission == pd2?.Permission;
+        return pd1?.Drive == pd2?.Drive && pd1?.Permission == pd2?.Permission &&
+               pd1?.TemporalReadWindowSeconds == pd2?.TemporalReadWindowSeconds;
     }
 
     public static bool operator !=(PermissionedDrive pd1, PermissionedDrive pd2)
@@ -60,7 +70,7 @@ public class PermissionedDrive : IEquatable<PermissionedDrive>, IGenericCloneabl
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Drive, (int)Permission);
+        return HashCode.Combine(Drive, (int)Permission, TemporalReadWindowSeconds);
     }
     
     public override string ToString()

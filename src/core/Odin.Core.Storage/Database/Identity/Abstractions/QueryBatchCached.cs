@@ -65,6 +65,7 @@ public class QueryBatchCached : AbstractTableCaching
         List<Guid>? tagsAllOf = null,
         List<Guid>? localTagsAnyOf = null,
         List<Guid>? localTagsAllOf = null,
+        UnixTimeUtc? modifiedAfter = null,
         TimeSpan? cacheTtl = null)
     {
         var cacheKey = "QueryBatchAsync:" + driveId + ":" + HashParameters.Calculate(
@@ -88,7 +89,8 @@ public class QueryBatchCached : AbstractTableCaching
             tagsAnyOf,
             tagsAllOf,
             localTagsAnyOf,
-            localTagsAllOf);
+            localTagsAllOf,
+            modifiedAfter?.milliseconds);
 
         var query = async () =>
         {
@@ -113,7 +115,8 @@ public class QueryBatchCached : AbstractTableCaching
                 tagsAnyOf,
                 tagsAllOf,
                 localTagsAnyOf,
-                localTagsAllOf);
+                localTagsAllOf,
+                modifiedAfter);
             return new QueryBatchCachedResult(records, moreRows, c);
         };
 

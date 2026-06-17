@@ -214,7 +214,8 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null,
             List<Guid> localTagsAnyOf = null,
-            List<Guid> localTagsAllOf = null)
+            List<Guid> localTagsAllOf = null,
+            UnixTimeUtc? modifiedAfter = null)
         {
             if (null == fileSystemType)
             {
@@ -334,6 +335,13 @@ namespace Odin.Core.Storage.Database.Identity.Abstractions
             if (IsSet(fileStateAnyOf))
             {
                 listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
+            }
+
+            if (modifiedAfter != null)
+            {
+                // Server-enforced lower bound on the (server-set) modified timestamp. Used by the temporal
+                // read API to clamp results to a recent window. Inclusive boundary.
+                listWhereAnd.Add($"(modified >= {modifiedAfter.Value.milliseconds})");
             }
 
             string leftJoin = SharedWhereAnd(listWhereAnd, requiredSecurityGroup, aclAnyOf, filetypesAnyOf, datatypesAnyOf, globalTransitIdAnyOf,

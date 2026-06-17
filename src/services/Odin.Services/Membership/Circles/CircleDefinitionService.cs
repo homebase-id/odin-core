@@ -46,7 +46,10 @@ namespace Odin.Services.Membership.Circles
             {
                 if (SystemCircleConstants.ConfirmedConnectionsDefinition != confirmedCircleDefinition)
                 {
-                    await this.UpdateAsync(SystemCircleConstants.ConfirmedConnectionsDefinition);
+                    // System circle definitions are trusted constants whose drive grants reference system
+                    // drives guaranteed to exist via EnsureSystemDrivesExist. Skip validation so the reconcile
+                    // doesn't deadlock during initial setup, where circles are created before system drives.
+                    await this.UpdateAsync(SystemCircleConstants.ConfirmedConnectionsDefinition, skipValidation: true);
                 }
             }
 
@@ -67,14 +70,47 @@ namespace Odin.Services.Membership.Circles
             {
                 if (SystemCircleConstants.AutoConnectionsSystemCircleDefinition != autoCircleDef)
                 {
-                    await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition);
+                    await this.UpdateAsync(SystemCircleConstants.AutoConnectionsSystemCircleDefinition, skipValidation: true);
+                }
+            }
+
+            await EnsureBuiltInCirclesExistAsync();
+        }
+
+        /// <summary>
+        /// Provisions the built-in circles that ship with every identity. Unlike system circles, these
+        /// behave as normal owner-managed circles once created (see <see cref="BuiltInCircleConstants"/>).
+        /// </summary>
+        public async Task EnsureBuiltInCirclesExistAsync()
+        {
+            var emergencyLocationAccessDef = await GetCircleAsync(BuiltInCircleConstants.EmergencyLocationAccessCircleId);
+            if (null == emergencyLocationAccessDef)
+            {
+                var def = BuiltInCircleConstants.EmergencyLocationAccessDefinition;
+                await CreateCircleInternalAsync(new CreateCircleRequest
+                {
+                    Id = def.Id,
+                    Name = def.Name,
+                    Description = def.Description,
+                    DriveGrants = def.DriveGrants,
+                    Permissions = def.Permissions
+                }, skipValidation: true);
+            }
+            else
+            {
+                if (BuiltInCircleConstants.EmergencyLocationAccessDefinition != emergencyLocationAccessDef)
+                {
+                    await this.UpdateAsync(BuiltInCircleConstants.EmergencyLocationAccessDefinition, skipValidation: true);
                 }
             }
         }
 
-        public async Task UpdateAsync(CircleDefinition newCircleDefinition)
+        public async Task UpdateAsync(CircleDefinition newCircleDefinition, bool skipValidation = false)
         {
-            await AssertValidAsync(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+            if (!skipValidation)
+            {
+                await AssertValidAsync(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+            }
 
             var existingCircle = await GetCircleAsync(newCircleDefinition.Id);
 
