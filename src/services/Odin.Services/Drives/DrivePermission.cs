@@ -29,6 +29,15 @@ namespace Odin.Services.Drives
         Comment = 8,
 
         /// <summary>
+        /// Time-boxed read. Grants the ability to read files whose modified date falls within a
+        /// configured recent window (see <see cref="Odin.Services.Drives.TemporalRead"/>), but ONLY
+        /// through the dedicated temporal read API. Deliberately a separate bit from <see cref="Read"/>:
+        /// it does not satisfy a normal read check, so existing read endpoints reject a caller that
+        /// holds only this flag. Intentionally excluded from <see cref="ReadWrite"/>/<see cref="All"/>.
+        /// </summary>
+        ConditionalTemporalRead = 16,
+
+        /// <summary>
         /// Write comments and reactions
         /// </summary>
         WriteReactionsAndComments = React | Comment,
