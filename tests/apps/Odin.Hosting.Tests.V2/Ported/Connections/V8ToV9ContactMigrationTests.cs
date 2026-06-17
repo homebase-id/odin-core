@@ -14,6 +14,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Drives;
+using Odin.Services.Membership.Circles;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
 
@@ -296,6 +297,80 @@ public class V8ToV9ContactMigrationTests : V2Fixture
         var after = await apps.GetAppRegistration(appId, ctx);
         Assert.That(HasStickerDriveReadWrite(after!), Is.False,
             "a non-system app must not be granted the StickerDrive");
+    }
+
+    [Test]
+    public async Task V9_BackfillsListsDriveCircleMemberGrant_OnChatApp()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+
+        // A v8-era Chat app: its circle-member grant covers the ChatDrive but predates the v9 ListsDrive
+        // grant that a fresh v9 install ships with (see SystemAppConstants.ChatAppRegistrationRequest).
+        await owner.Admin.RegisterApp(
+            SystemAppConstants.ChatAppId,
+            new PermissionSetGrantRequest
+            {
+                Drives = new List<DriveGrantRequest>
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive
+                        {
+                            Drive = SystemDriveConstants.ChatDrive,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    }
+                },
+                PermissionSet = new PermissionSet(PermissionKeys.ReadConnections)
+            },
+            authorizedCircles: new List<Guid>
+            {
+                SystemCircleConstants.ConfirmedConnectionsCircleId,
+                SystemCircleConstants.AutoConnectionsCircleId
+            },
+            circleMemberGrantRequest: new PermissionSetGrantRequest
+            {
+                Drives = new List<DriveGrantRequest>
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive
+                        {
+                            Drive = SystemDriveConstants.ChatDrive,
+                            Permission = DrivePermission.Write | DrivePermission.React
+                        }
+                    }
+                },
+                PermissionSet = new PermissionSet()
+            });
+
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var ctx = await BuildOwnerContextAsync(scope, owner);
+        var apps = scope.Resolve<AppRegistrationService>();
+
+        var before = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
+        Assert.That(HasListsDriveCircleMemberGrant(before!), Is.False,
+            "precondition: chat app circle-member grant should not yet include ListsDrive");
+
+        var migration = scope.Resolve<V8ToV9VersionMigrationService>();
+        await migration.UpgradeAsync(ctx, CancellationToken.None);
+        await migration.ValidateUpgradeAsync(ctx, CancellationToken.None);
+
+        var after = await apps.GetAppRegistration(SystemAppConstants.ChatAppId, ctx);
+        Assert.That(HasListsDriveCircleMemberGrant(after!), Is.True,
+            "migration should backfill the ListsDrive Write+React circle-member grant onto the chat app");
+        // Pre-existing circle-member grants are preserved.
+        Assert.That(after!.CircleMemberPermissionSetGrantRequest.Drives.Any(g =>
+            g.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive), Is.True,
+            "the existing ChatDrive circle-member grant must be preserved");
+    }
+
+    private static bool HasListsDriveCircleMemberGrant(RedactedAppRegistration app)
+    {
+        return app.CircleMemberPermissionSetGrantRequest?.Drives?.Any(g =>
+            g.PermissionedDrive.Drive == SystemDriveConstants.ListsDrive &&
+            g.PermissionedDrive.Permission.HasFlag(DrivePermission.Write) &&
+            g.PermissionedDrive.Permission.HasFlag(DrivePermission.React)) ?? false;
     }
 
     private static bool HasStickerDriveReadWrite(RedactedAppRegistration app)
