@@ -28,10 +28,6 @@ public interface IS3Storage
     Task DownloadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default);
     Task<long> FileLengthAsync(string filePath, CancellationToken cancellationToken = default);
 
-    // Ensure (days > 0) or remove (days <= 0) an S3 lifecycle expiration rule scoped to this
-    // storage's root prefix. Idempotent.
-    Task EnsureExpirationLifecycleAsync(int expirationDays, CancellationToken cancellationToken = default);
-
     /// Returns the full S3 key (rootPath + path) for a relative path, without touching S3.
     string GetFullKey(string path);
 

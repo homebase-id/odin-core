@@ -229,11 +229,8 @@ public static class TenantServices
         cb.Register(c => new UploadFileStore(new DiskFileStore(c.Resolve<FileReaderWriter>())))
             .AsSelf().SingleInstance();
 
-        // Inbox: S3 when S3Inbox enabled, else disk.
-        cb.Register(c => new InboxFileStore(
-                odinConfig.S3Inbox.Enabled
-                    ? new S3FileStore(c.Resolve<IS3InboxStorage>(), c.Resolve<ILogger<S3FileStore>>(), odinConfig)
-                    : new DiskFileStore(c.Resolve<FileReaderWriter>())))
+        // Inbox: ALWAYS disk (we're going to nuke the inbox-on-disk shortly).
+        cb.Register(c => new InboxFileStore(new DiskFileStore(c.Resolve<FileReaderWriter>())))
             .AsSelf().SingleInstance();
 
         // Long-term payload: S3 when S3Payload enabled, else disk.
