@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -36,7 +37,8 @@ namespace Odin.Services.Drives.DriveCore.Query
             IOdinContext odinContext,
             FileSystemType fileSystemType,
             FileQueryParams qp,
-            QueryBatchResultOptions options);
+            QueryBatchResultOptions options,
+            UnixTimeUtc? modifiedAfter = null);
 
         /// <summary>
         /// Saves the file to the database

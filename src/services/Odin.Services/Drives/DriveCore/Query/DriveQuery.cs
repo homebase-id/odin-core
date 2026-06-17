@@ -117,7 +117,8 @@ public class DriveQuery(
         IOdinContext odinContext,
         FileSystemType fileSystemType,
         FileQueryParams qp,
-        QueryBatchResultOptions options)
+        QueryBatchResultOptions options,
+        UnixTimeUtc? modifiedAfter = null)
     {
         var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
         var aclList = GetAcl(odinContext);
@@ -144,7 +145,8 @@ public class DriveQuery(
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus?.ToList(),
             localTagsAllOf: qp.LocalTagsMatchAll?.ToList(),
-            localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList());
+            localTagsAnyOf: qp.LocalTagsMatchAtLeastOne?.ToList(),
+            modifiedAfter: modifiedAfter);
 
         return (cursor, results, moreRows);
     }

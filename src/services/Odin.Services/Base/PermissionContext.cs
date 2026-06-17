@@ -208,6 +208,41 @@ namespace Odin.Services.Base
             }
         }
 
+        /// <summary>
+        /// Asserts the caller may read the drive via the temporal-read API: either full <see cref="DrivePermission.Read"/>
+        /// or <see cref="DrivePermission.ConditionalTemporalRead"/>. Used only by the dedicated temporal endpoints;
+        /// the normal read gates intentionally do NOT accept the temporal flag.
+        /// </summary>
+        public void AssertCanConditionalTemporalReadDrive(Guid driveId)
+        {
+            if (!this.HasDrivePermission(driveId, DrivePermission.Read) &&
+                !this.HasDrivePermission(driveId, DrivePermission.ConditionalTemporalRead))
+            {
+                throw new OdinSecurityException($"Unauthorized to temporally read drive [{driveId}]");
+            }
+        }
+
+        /// <summary>
+        /// Returns the resolved circle-level <see cref="DrivePermission.ConditionalTemporalRead"/> window (seconds)
+        /// across all permission groups, or null when no group grants temporal read for the drive. The most
+        /// permissive (largest) window wins; the drive-level ceiling is applied separately in
+        /// <see cref="Odin.Services.Drives.TemporalReadPolicy"/>.
+        /// </summary>
+        public long? GetTemporalCircleWindowSeconds(Guid driveId)
+        {
+            long? max = null;
+            foreach (var key in PermissionGroups.Keys)
+            {
+                var w = PermissionGroups[key].GetTemporalReadWindowSeconds(driveId);
+                if (w.HasValue && (max == null || w.Value > max.Value))
+                {
+                    max = w.Value;
+                }
+            }
+
+            return max;
+        }
+
         public TargetDrive GetTargetDrive(Guid driveId)
         {
             foreach (var key in PermissionGroups.Keys)

@@ -35,6 +35,19 @@ public interface IDrivePeerQueryHttpClientApiV2
         [AliasAs("driveId:guid")] Guid driveId,
         [AliasAs("fileId:guid")] Guid fileId);
 
+    // --- Temporal (time-boxed) read API ---
+
+    [Post(UnifiedApiRouteConstants.PeerTemporalRoot + "/verify")]
+    Task<ApiResponse<TemporalAccessStatus>> VerifyTemporalAccess(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId);
+
+    [Get(UnifiedApiRouteConstants.PeerTemporalByFileId + "/header")]
+    Task<ApiResponse<SharedSecretEncryptedFileHeader>> TemporalGetFileHeader(
+        [AliasAs("odinId")] string odinId,
+        [AliasAs("driveId:guid")] Guid driveId,
+        [AliasAs("fileId:guid")] Guid fileId);
+
     [Get(UnifiedApiRouteConstants.PeerByFileId + "/payload/{payloadKey}")]
     Task<ApiResponse<HttpContent>> GetPayload(
         [AliasAs("odinId")] string odinId,

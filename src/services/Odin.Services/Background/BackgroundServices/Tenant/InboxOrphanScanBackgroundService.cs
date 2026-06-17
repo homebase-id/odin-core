@@ -61,18 +61,6 @@ public sealed class InboxOrphanScanBackgroundService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // This is a disk-only sweep: it walks the on-disk inbox staging dirs. When inbox staging
-        // is backed by S3, InboxDrivesPath is an object-key prefix (not a local path) and there is
-        // nothing on disk to scan, so the scanner is meaningless. The S3 backstop for orphaned
-        // staging is the S3Inbox:ExpirationDays lifecycle rule (off by default — operators opt in).
-        if (tenantContext.TenantPathManager.S3InboxEnabled)
-        {
-            logger.LogDebug(
-                "{service}: S3 inbox is enabled; skipping disk orphan scan (S3Inbox:ExpirationDays is the backstop)",
-                GetType().Name);
-            return;
-        }
-
         // Stagger initial run across tenants to avoid simultaneous IO storms.
         await SleepAsync(TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(120), stoppingToken);
 

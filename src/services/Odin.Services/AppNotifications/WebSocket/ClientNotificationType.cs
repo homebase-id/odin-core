@@ -25,6 +25,10 @@ public enum ClientNotificationType
     IntroductionAccepted = 4002,
     ConnectionFinalized = 4003,
     /// <summary>
+    /// A connected identity read a drive via the temporal (time-boxed) read API.
+    /// </summary>
+    TemporalDriveAccessed = 5001,
+    /// <summary>
     /// Indicates the notification doesnt need this value.  Note: this implies we might be able to dorp this field all together
     /// </summary>
     Unused = 8001,

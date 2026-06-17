@@ -50,7 +50,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
                     var driveId = req.PermissionedDrive.Drive.Alias;
                     var drive = await _driveManager.GetDriveAsync(driveId, true);
 
-                    var driveGrant = CreateDriveGrant(drive, req.PermissionedDrive.Permission, keyStoreKey, masterKey);
+                    var driveGrant = CreateDriveGrant(drive, req.PermissionedDrive.Permission, keyStoreKey, masterKey,
+                        req.PermissionedDrive.TemporalReadWindowSeconds);
                     driveGrants.Add(driveGrant);
                 }
             }
@@ -179,13 +180,16 @@ namespace Odin.Services.Authorization.ExchangeGrants
         //
 
         private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey,
-            SensitiveByteArray? masterKey)
+            SensitiveByteArray? masterKey, long? temporalReadWindowSeconds = null)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey);
 
             SymmetricKeyEncryptedAes? keyStoreKeyEncryptedStorageKey = null;
 
-            bool shouldGetStorageKey = permission.HasFlag(DrivePermission.Read);
+            // ConditionalTemporalRead also needs the storage key escrowed so the grantee can decrypt
+            // in-window files while the owner is offline; the temporal API enforces the time clamp.
+            bool shouldGetStorageKey = permission.HasFlag(DrivePermission.Read) ||
+                                       permission.HasFlag(DrivePermission.ConditionalTemporalRead);
             if (shouldGetStorageKey && storageKey != null && grantKeyStoreKey != null)
             {
                 keyStoreKeyEncryptedStorageKey = new SymmetricKeyEncryptedAes(grantKeyStoreKey, storageKey);
@@ -198,7 +202,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = drive.TargetDriveInfo,
-                    Permission = permission
+                    Permission = permission,
+                    TemporalReadWindowSeconds = temporalReadWindowSeconds
                 }
             };
 

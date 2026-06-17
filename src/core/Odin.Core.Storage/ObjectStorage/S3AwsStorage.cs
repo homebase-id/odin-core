@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Amazon.S3.Transfer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -17,129 +18,28 @@ namespace Odin.Core.Storage.ObjectStorage;
 
 //
 // SEB:NOTE
-// There is not TryRetry here because S3 SDK already has retry logic built-in.
+// There is no TryRetry here because S3 SDK already has retry logic built-in.
 // It defaults to 3 retries with exponential backoff.
 // Can be overridden by configuring the AmazonS3Config when creating the client.
 //
-
-// ============================================================================
-// SEB:TODO #1: VPS temp -> INBOX upload (large videos, 5GB+) via TransferUtility
-// ============================================================================
-// Scope: local-file -> INBOX only. TransferUtility is an upload/download helper;
-// it does multipart automatically on upload, so the 5GB single-PUT limit is a
-// non-issue here. It does NOT perform server-side bucket-to-bucket copy --
-// INBOX->DRIVE promotion is TODO #2 below (UploadPartCopy loop), not this path.
-//
-// Credentials: this path uses the INGEST key (INBOX read/write, NO access to
-// DRIVE). Keep it distinct from the promotion key so a compromised/buggy ingest
-// path physically cannot touch DRIVE.
-//
-//   [ ] Build TransferUtilityUploadRequest:
-//         FilePath   = VPS temp path
-//         BucketName = INBOX
-//         Key        = object key
-//         ContentType = correct MIME (video/mp4 etc.) so DRIVE serves it right
-//                       later WITHOUT a metadata-fix re-copy.
-//   [ ] Set PartSize explicitly (e.g. 16-64MB) rather than relying on the SDK
-//       default. For 5GB+ files the small default inflates part/request count;
-//       larger parts = fewer requests = less overhead. Stay within 10,000 parts.
-//   [ ] Compute SHA-256 of the file during/before upload and stash it in object
-//       Metadata (e.g. x-amz-meta-sha256). This is the integrity source of truth
-//       for TODO #2's verify-gate. The bytes are already on the VPS here, so this
-//       is the cheap place to hash. Do NOT rely on multipart ETag downstream:
-//       its formula isn't a whole-object MD5 and differs across providers.
-//   [ ] try/catch: on failure the SDK aborts its own multipart upload, BUT
-//       confirm no orphaned parts remain in INBOX (failed/aborted parts still
-//       bill as storage). Reconcile via ListMultipartUploads if a failure path
-//       is suspected. (See housekeeping in TODO #2 -- same orphaned-parts issue.)
-//   [ ] Verify-then-clean: HeadObject on INBOX, assert ContentLength == local
-//       file size, THEN delete the VPS temp file. Never delete temp on a bare
-//       upload-returned success without the Head confirmation.
-//   [ ] Bound concurrency if multiple uploads run in parallel (VPS memory/NIC
-//       are the ceiling once bytes are proxied through the box).
-//   [ ] Provider note: TransferUtility multipart upload works on the AWS S3
-//       baseline; all three (Hetzner/Vultr/Linode) support multipart upload.
-//       No provider-specific risk on THIS path (the risk is on copy, TODO #2).
-//
-// ============================================================================
-// SEB:TODO #2: INBOX -> DRIVE promotion (server-side multipart copy + gated delete)
-// ============================================================================
-// Scope: promote a verified object from INBOX to DRIVE without routing bytes
-// through the VPS. Server-side copy keeps data inside the provider network (same
-// region as the VPS and both buckets -> no internet egress, near-zero cost).
-// TransferUtility CANNOT do this -- it has no server-side copy. Use the low-level
-// multipart-copy API (CopyObject for <=5GB, UploadPartCopy loop for >5GB).
-//
-// INVARIANT: DRIVE is the system of record. A bad or partial copy must NEVER be
-// followed by an INBOX delete. The two-bucket split exists so an INBOX mistake
-// can't wipe DRIVE -- preserve that property in code, not just in bucket layout.
-//
-// Credentials: this path uses the PROMOTION key (INBOX read, DRIVE write, but
-// NO DRIVE delete). Source deletion uses the ingest key's delete-on-INBOX right.
-// Splitting these means neither path can both write-garbage-to and delete-from
-// the same bucket.
-//
-//   --- Preconditions ---
-//   [ ] HeadObject on INBOX -> source size (drives part planning) + read back the
-//       x-amz-meta-sha256 written in TODO #1.
-//   [ ] Branch: size <= 5GB -> single CopyObjectAsync. size > 5GB -> multipart.
-//   [ ] Idempotency claim: take a per-key lock/claim so two workers can't both
-//       promote (double copy + double delete race).
-//
-//   --- Multipart server-side copy (size > 5GB) ---
-//   [ ] InitiateMultipartUpload on DRIVE -> capture UploadId.
-//   [ ] Plan ranges: fixed part size (e.g. 1GB) -> partCount = ceil(size/part);
-//       enforce <= 10,000 parts; each part <= 5GB.
-//   [ ] Per part i: CopyPartRequest { SourceBucket=INBOX, SourceKey,
-//       FirstByte/LastByte = range, PartNumber=i, UploadId }. Collect (PartNumber,
-//       ETag) from each response.
-//   [ ] Bounded parallelism (SemaphoreSlim, 4-8) -- respect per-bucket request
-//       rate limits; back off on 503 (esp. Hetzner NBG documented throttling).
-//   [ ] On ANY part failure after retries: AbortMultipartUpload(DRIVE, UploadId),
-//       then BAIL without touching INBOX. Surface for retry.
-//   [ ] CompleteMultipartUpload with the ordered (PartNumber, ETag) list.
-//
-//   --- Verification gate (MUST pass before any source delete) ---
-//   [ ] HeadObject on DRIVE -> assert ContentLength == source size EXACTLY.
-//   [ ] Integrity check independent of ETag: recompute/confirm SHA-256 on the
-//       DRIVE object vs. the metadata value from TODO #1. (Multipart ETags are
-//       not comparable across buckets/providers -- do not use them here.) If a
-//       whole-object checksum can't be obtained server-side, fail CLOSED.
-//   [ ] Only if size AND checksum match -> mark promoted. Otherwise treat as
-//       failed promotion, leave INBOX intact, alert.
-//
-//   --- Source cleanup (only after the gate passes) ---
-//   [ ] DeleteObject on INBOX.
-//   [ ] Crash-idempotency: a re-run after a crash between Complete and Delete
-//       must detect a valid DRIVE object and skip straight to delete -- never
-//       re-copy a successfully-promoted object.
-//
-//   --- Housekeeping (orphaned parts + versioning cost storage until cleaned) ---
-//   [ ] Aborted/failed multipart copies leave parts that bill as storage on both
-//       buckets. Provider-dependent cleanup:
-//         - Hetzner / Linode: lifecycle rule to auto-abort incomplete multipart
-//           uploads after N days -> configure it.
-//         - Vultr: NO lifecycle support -> periodic job: ListMultipartUploads on
-//           INBOX + DRIVE, AbortMultipartUpload on stale ones. Manual toil.
-//   [ ] If DRIVE versioning is enabled (recommended -- a bad delete writes a
-//       delete-marker instead of destroying bytes), note there's no auto-expiry
-//       of noncurrent versions on Vultr -> periodic prune job. Hetzner/Linode can
-//       express this via lifecycle.
-//
-//   --- Edge cases ---
-//   [ ] Source already promoted / missing -> treat as success (idempotent).
-//   [ ] Concurrent promotion of same key -> covered by the claim/lock above.
-//   [ ] VERIFY BEFORE PROD: UploadPartCopy support + same-region copy billing on
-//       Vultr and Linode specifically. Confirmed on the AWS S3 baseline; Hetzner
-//       documents free in-zone traffic + no S3 API request charges. Vultr/Linode
-//       same-region copy cost is UNCONFIRMED here -- check provider docs.
-
 
 public class S3AwsStorage : IS3Storage
 {
     private readonly ILogger<S3AwsStorage> _logger;
     private readonly IAmazonS3 _s3Client;
     private readonly string _rootPath;
+
+    // Multipart part size for TransferUtility file uploads (16 MB).
+    // AWSSDK.S3 4.0.17's default part size is 5 MB, which inflates the part/request count for the
+    // 5GB+ files this path targets (TODO #1). 16 MB = fewer requests while staying well under the
+    // 10,000-part ceiling (16 MB * 10,000 ~= 160 GB before the cap bites) and each part is <= 5 GB.
+    // Tune per provider / object-size profile.
+    private const long UploadPartSizeBytes = 16L * 1024 * 1024;
+
+    // Max concurrent part uploads for TransferUtility. Matches the SDK
+    // default of 10. On a VPS that proxies the bytes, NIC/memory is the real ceiling; lower this if
+    // concurrent uploads contend for bandwidth.
+    private const int UploadConcurrencyLimit = 10;
 
     public string BucketName { get; }
 
@@ -158,18 +58,36 @@ public class S3AwsStorage : IS3Storage
 
     public async Task CreateBucketAsync(CancellationToken cancellationToken = default)
     {
-        if (await BucketExistsAsync(cancellationToken))
+        if (!await BucketExistsAsync(cancellationToken))
         {
-            return;
+            try
+            {
+                await _s3Client.PutBucketAsync(BucketName, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                throw CreateS3StorageException(ex, $"Create bucket '{BucketName} failed'.");
+            }
         }
 
+        // Every bucket gets the abort-incomplete-multipart backstop: S3 reaps crash-orphaned upload
+        // parts (process died before CompleteMultipartUpload, so no in-process abort ran). Reconciled
+        // on every call -- not only first creation -- so pre-existing buckets pick it up on restart.
+        // Best-effort: some providers reject this (Vultr has no lifecycle; MinIO refuses bucket-level
+        // abort rules by design and purges stale uploads globally instead). They must NOT fail bucket
+        // creation over a cost-hygiene rule, so log and continue. Cancellation still propagates.
         try
         {
-            await _s3Client.PutBucketAsync(BucketName, cancellationToken);
+            await EnsureAbortIncompleteMultipartLifecycleAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            throw CreateS3StorageException(ex, $"Create bucket '{BucketName} failed'.");
+            // Log ex.Message (not ex) so this stays a single line: this is the expected outcome on
+            // providers that reject bucket-level abort rules (MinIO purges stale uploads globally;
+            // Vultr needs a manual sweep), not a failure worth a stack trace.
+            _logger.LogWarning(
+                "Could not install the abort-incomplete-multipart lifecycle rule on bucket '{BucketName}': " +
+                "{Error}. Continuing (expected on MinIO/Vultr).", BucketName, ex.Message);
         }
     }
 
@@ -261,24 +179,33 @@ public class S3AwsStorage : IS3Storage
             }
         }
 
-        // Seekable stream: upload directly. The SDK reads the full stream and sets Content-Length
-        // from its length (the metadata/transferkeyheader MemoryStreams arrive at position 0).
+        // Seekable stream: upload via TransferUtility so a stream over the 5 GB single-PUT limit goes
+        // multipart instead of failing. For a seekable stream the SDK reads it in part-sized chunks
+        // rather than buffering the whole object wholesale (only the unseekable/unknown-length case
+        // above gets fully buffered), so this stays memory-bounded. Below MinSizeBeforePartUpload
+        // (16 MB) it falls back to a single PUT. AutoResetStreamPosition (default true, set
+        // explicitly) rewinds to 0 so the whole object is written regardless of the caller's stream
+        // position; AutoCloseStream=false keeps the stream owned by the caller.
         path = S3Path.Combine(_rootPath, path);
         var bytesToWrite = stream.Length;
 
         try
         {
-            var request = new PutObjectRequest
+            using var transferUtility = CreateTransferUtility();
+
+            var request = new TransferUtilityUploadRequest
             {
+                InputStream = stream,
                 BucketName = BucketName,
                 Key = path,
-                InputStream = stream,
+                PartSize = UploadPartSizeBytes,
                 ContentType = "application/octet-stream",
-                AutoCloseStream = false, // the caller owns the stream
+                AutoCloseStream = false,        // the caller owns the stream
+                AutoResetStreamPosition = true, // write the whole object regardless of position
             };
 
             var sw = Stopwatch.StartNew();
-            await _s3Client.PutObjectAsync(request, cancellationToken);
+            await transferUtility.UploadAsync(request, cancellationToken);
             _logger.LogDebug("S3AwsStorage:WriteStreamAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
                 sw.ElapsedMilliseconds, bytesToWrite, BytesPerSecond(bytesToWrite, sw));
 
@@ -544,6 +471,23 @@ public class S3AwsStorage : IS3Storage
 
     //
 
+    // Builds a TransferUtility wired with the flagged upload defaults (concurrency lives here; the
+    // per-request PartSize is set at each call site). TransferUtility does multipart automatically
+    // once the payload exceeds MinSizeBeforePartUpload (SDK default 16 MB), so callers are NOT bound
+    // by the 5 GB single-PUT limit; smaller payloads fall back to a single PUT.
+    // NOTE: a TransferUtility built from an injected IAmazonS3 does NOT dispose that client on its
+    // own Dispose, so wrapping the returned instance in `using` is safe for the shared singleton.
+    private TransferUtility CreateTransferUtility()
+    {
+        return new TransferUtility(_s3Client, new TransferUtilityConfig
+        {
+            ConcurrentServiceRequests = UploadConcurrencyLimit,
+            // MinSizeBeforePartUpload left at the SDK default (16 MB).
+        });
+    }
+
+    //
+
     public async Task UploadFileAsync(string srcPath, string dstPath, CancellationToken cancellationToken = default)
     {
         S3Path.AssertFileName(dstPath);
@@ -553,16 +497,22 @@ public class S3AwsStorage : IS3Storage
 
         try
         {
-            var request = new PutObjectRequest
+            // Multipart-on-demand handles the 5GB+ video case; the 5 GB single-PUT limit
+            // does not apply here. On a thrown exception the SDK aborts the multipart upload it
+            // started (the crash-not-exception orphaned-parts case is still open).
+            using var transferUtility = CreateTransferUtility();
+
+            var request = new TransferUtilityUploadRequest
             {
+                FilePath = srcPath,
                 BucketName = BucketName,
                 Key = dstPath,
-                FilePath = srcPath,
-                ContentType = "application/octet-stream"
+                PartSize = UploadPartSizeBytes,
+                ContentType = "application/octet-stream" // correct: opaque/encrypted bytes; real type served from PayloadDescriptor, not S3
             };
 
             var sw = Stopwatch.StartNew();
-            await _s3Client.PutObjectAsync(request, cancellationToken);
+            await transferUtility.UploadAsync(request, cancellationToken);
             _logger.LogDebug("S3AwsStorage:UploadFileAsync {elapsed}ms {bytes} bytes {throughput:N0} bytes/sec",
                 sw.ElapsedMilliseconds, bytesToWrite, BytesPerSecond(bytesToWrite, sw));
         }
@@ -637,77 +587,64 @@ public class S3AwsStorage : IS3Storage
 
     //
 
-    private const string ExpirationLifecycleRuleId = "odin-inbox-expiration";
+    private const string AbortIncompleteMultipartRuleId = "odin-abort-incomplete-multipart";
 
-    // Reconciles the S3 lifecycle rule that auto-expires objects under this storage's root prefix.
-    // S3 itself (not the app) deletes objects older than expirationDays, acting as a backstop so
-    // orphaned inbox items get cleaned up even if the normal delete path never runs.
-    //
-    //   expirationDays > 0  -> install/update an Enabled rule (id "odin-inbox-expiration") that
-    //                          expires objects under _rootPath after that many days.
-    //   expirationDays <= 0 -> remove our rule (turns expiration off).
-    //
-    // Idempotent: reads the current config, strips any previous copy of our rule, then re-adds the
-    // current one (if any). Rules owned by anyone else on the bucket are left in place. The whole
-    // lifecycle config is DELETEd only when our rule was the sole entry, and only if it actually
-    // existed, so a bucket that never had config is left untouched.
-    public async Task EnsureExpirationLifecycleAsync(int expirationDays, CancellationToken cancellationToken = default)
+    // Days after which S3 auto-aborts an incomplete multipart upload: a
+    // crash-orphaned set of parts that bills as storage but is invisible as an object. Must exceed
+    // the longest legitimate upload; a single upload (even 5GB+) finishes in minutes, so 7 days is
+    // comfortably safe and the conventional default (min is 1; S3 sweeps ~once/day). Installed on
+    // every bucket by CreateBucketAsync (best-effort). Provider support varies: AWS S3 / Hetzner /
+    // Linode honor it; Vultr has no lifecycle (needs a manual sweep); MinIO rejects bucket-level
+    // abort rules by design and purges stale uploads globally (api stale_uploads_expiry) instead --
+    // so the install is allowed to fail without breaking startup.
+    private const int AbortIncompleteMultipartUploadDays = 7;
+
+    // Always-on backstop installed on every bucket by CreateBucketAsync: S3 auto-aborts incomplete
+    // multipart uploads older than AbortIncompleteMultipartUploadDays, reaping parts left behind when
+    // a process dies mid-upload (no in-process abort ran). Scoped to this storage's root prefix.
+    private Task EnsureAbortIncompleteMultipartLifecycleAsync(CancellationToken cancellationToken)
     {
+        var prefix = string.IsNullOrEmpty(_rootPath) ? "" : _rootPath + "/";
+        var rule = new LifecycleRule
+        {
+            Id = AbortIncompleteMultipartRuleId,
+            Status = LifecycleRuleStatus.Enabled,
+            Filter = new LifecycleFilter
+            {
+                LifecycleFilterPredicate = new LifecyclePrefixPredicate { Prefix = prefix }
+            },
+            AbortIncompleteMultipartUpload = new LifecycleRuleAbortIncompleteMultipartUpload
+            {
+                DaysAfterInitiation = AbortIncompleteMultipartUploadDays
+            }
+        };
+        return ReconcileLifecycleRuleAsync(AbortIncompleteMultipartRuleId, rule, cancellationToken);
+    }
+
+    // Idempotently upserts a single lifecycle rule by id, leaving every foreign rule in place.
+    private async Task ReconcileLifecycleRuleAsync(string ruleId, LifecycleRule rule, CancellationToken cancellationToken)
+    {
+        List<LifecycleRule> rules;
         try
         {
-            List<LifecycleRule> rules;
-            try
-            {
-                var existing = await _s3Client.GetLifecycleConfigurationAsync(
-                    new GetLifecycleConfigurationRequest { BucketName = BucketName }, cancellationToken);
-                rules = existing.Configuration?.Rules ?? new List<LifecycleRule>();
-            }
-            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                rules = new List<LifecycleRule>();
-            }
-
-            var hadOurRule = rules.Any(r => r.Id == ExpirationLifecycleRuleId);
-            rules = rules.Where(r => r.Id != ExpirationLifecycleRuleId).ToList();
-
-            if (expirationDays > 0)
-            {
-                var prefix = string.IsNullOrEmpty(_rootPath) ? "" : _rootPath + "/";
-                rules.Add(new LifecycleRule
-                {
-                    Id = ExpirationLifecycleRuleId,
-                    Status = LifecycleRuleStatus.Enabled,
-                    Filter = new LifecycleFilter
-                    {
-                        LifecycleFilterPredicate = new LifecyclePrefixPredicate { Prefix = prefix }
-                    },
-                    Expiration = new LifecycleRuleExpiration { Days = expirationDays }
-                });
-            }
-
-            if (rules.Count == 0)
-            {
-                // Only delete the whole config if there was actually something we removed.
-                if (hadOurRule)
-                {
-                    await _s3Client.DeleteLifecycleConfigurationAsync(
-                        new DeleteLifecycleConfigurationRequest { BucketName = BucketName }, cancellationToken);
-                }
-                // else: bucket already had no relevant config — nothing to do.
-            }
-            else
-            {
-                await _s3Client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
-                {
-                    BucketName = BucketName,
-                    Configuration = new LifecycleConfiguration { Rules = rules }
-                }, cancellationToken);
-            }
+            var existing = await _s3Client.GetLifecycleConfigurationAsync(
+                new GetLifecycleConfigurationRequest { BucketName = BucketName }, cancellationToken);
+            rules = existing.Configuration?.Rules ?? new List<LifecycleRule>();
         }
-        catch (Exception ex)
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            throw CreateS3StorageException(ex, $"Failed to reconcile expiration lifecycle on bucket '{BucketName}'.");
+            rules = new List<LifecycleRule>();
         }
+
+        // Replace any previous copy of our rule; foreign rules are left untouched.
+        rules = rules.Where(r => r.Id != ruleId).ToList();
+        rules.Add(rule);
+
+        await _s3Client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
+        {
+            BucketName = BucketName,
+            Configuration = new LifecycleConfiguration { Rules = rules }
+        }, cancellationToken);
     }
 
     //
