@@ -89,6 +89,24 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata);
         }
 
+        /// <summary>
+        /// Temporal (time-boxed) batch query. The ONLY query path that honors
+        /// <see cref="DrivePermission.ConditionalTemporalRead"/>: it asserts the temporal flag (not Read)
+        /// and clamps results to files whose server-set modified date is within the resolved window.
+        /// </summary>
+        public async Task<QueryBatchResult> GetTemporalBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
+            IOdinContext odinContext,
+            bool forceIncludeServerMetadata = false)
+        {
+            await AssertDriveIsValidAndActive(driveId, odinContext);
+            odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(driveId);
+
+            var drive = await DriveManager.GetDriveAsync(driveId, failIfInvalid: true);
+            var modifiedAfter = TemporalReadPolicy.ResolveCutoff(odinContext, drive);
+
+            return await GetBatchInternal(driveId, qp, options, odinContext, forceIncludeServerMetadata, modifiedAfter);
+        }
+
         public async Task<QueryBatchResult> GetSmartBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
             IOdinContext odinContext,
             bool forceIncludeServerMetadata = false)
@@ -467,7 +485,8 @@ namespace Odin.Services.Drives.FileSystem.Base
         /// <returns>The fileId; otherwise null if the file does not exist</returns>
         private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
             IOdinContext odinContext,
-            bool forceIncludeServerMetadata = false)
+            bool forceIncludeServerMetadata = false,
+            UnixTimeUtc? modifiedAfter = null)
         {
             var drive = await DriveManager.GetDriveAsync(driveId);
             var (cursor, fileIdList, hasMoreRows) = await _driveQuery.GetBatchCoreAsync(
@@ -475,7 +494,8 @@ namespace Odin.Services.Drives.FileSystem.Base
                 odinContext,
                 GetFileSystemType(),
                 qp,
-                options);
+                options,
+                modifiedAfter);
 
             var (headers, _) = await CreateClientFileHeadersAsync(driveId, fileIdList, options, odinContext, forceIncludeServerMetadata);
 

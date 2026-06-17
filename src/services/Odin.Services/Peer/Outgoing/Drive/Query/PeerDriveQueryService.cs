@@ -249,6 +249,161 @@ public class PeerDriveQueryService(
         }
     }
 
+    // =====================================================================================
+    // Temporal (time-boxed) read API — calls the remote peer's temporal endpoints, which assert
+    // DrivePermission.ConditionalTemporalRead and clamp results to a recent window.
+    // =====================================================================================
+
+    public async Task<TemporalAccessStatus> VerifyTemporalAccessAsync(OdinId odinId, TargetDrive targetDrive,
+        FileSystemType fileSystemType, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+
+        var (_, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
+        try
+        {
+            ApiResponse<TemporalAccessStatus> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.VerifyTemporalAccess(targetDrive); });
+
+            await HandleInvalidResponseAsync(odinId, response, odinContext);
+            return response.Content;
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
+    public async Task<QueryBatchResult> GetTemporalBatchAsync(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType,
+        IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
+
+        try
+        {
+            ApiResponse<QueryBatchResponse> queryBatchResponse = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .WithLogging(logger)
+                .ExecuteAsync(async () => { queryBatchResponse = await httpClient.TemporalQueryBatch(request); });
+
+            await HandleInvalidResponseAsync(odinId, queryBatchResponse, odinContext);
+
+            var batch = queryBatchResponse.Content;
+            return new QueryBatchResult
+            {
+                QueryTime = batch.QueryTime,
+                SearchResults = TransformSharedSecret(batch.SearchResults, icr, odinContext),
+                Cursor = new QueryBatchCursor(batch.CursorState),
+                IncludeMetadataHeader = batch.IncludeMetadataHeader
+            };
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
+    public async Task<SharedSecretEncryptedFileHeader> GetTemporalFileHeaderAsync(OdinId odinId, ExternalFileIdentifier file,
+        FileSystemType fileSystemType, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
+
+        try
+        {
+            ApiResponse<SharedSecretEncryptedFileHeader> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () => { response = await httpClient.TemporalGetFileHeader(file); });
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            await HandleInvalidResponseAsync(odinId, response, odinContext);
+            return TransformSharedSecret(response.Content, icr, odinContext);
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
+    public async Task<(EncryptedKeyHeader encryptedKeyHeader, bool payloadIsEncrypted, PayloadStream payloadStream)>
+        GetTemporalPayloadStreamAsync(OdinId odinId, ExternalFileIdentifier file, string key, FileChunk chunk,
+            FileSystemType fileSystemType, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
+
+        try
+        {
+            ApiResponse<HttpContent> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () =>
+                {
+                    response = await httpClient.TemporalGetPayloadStream(new GetPayloadRequest { File = file, Key = key, Chunk = chunk });
+                });
+
+            return await HandlePayloadResponseAsync(odinId, icr, key, response, odinContext);
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
+    public async Task<(
+        EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader,
+        bool payloadIsEncrypted,
+        string decryptedContentType,
+        UnixTimeUtc? lastModified,
+        Stream thumbnail)> GetTemporalThumbnailAsync(OdinId odinId, ExternalFileIdentifier file, int width, int height, string payloadKey,
+        FileSystemType fileSystemType, IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.UseTransitRead);
+        var (icr, httpClient) = await CreateClientAsync(odinId, fileSystemType, odinContext);
+
+        try
+        {
+            ApiResponse<HttpContent> response = null;
+            await TryRetry.Create()
+                .WithAttempts(odinConfiguration.Host.PeerOperationMaxAttempts)
+                .WithDelay(odinConfiguration.Host.PeerOperationDelayMs)
+                .ExecuteAsync(async () =>
+                {
+                    response = await httpClient.TemporalGetThumbnailStream(new GetThumbnailRequest
+                    {
+                        File = file,
+                        Width = width,
+                        Height = height,
+                        PayloadKey = payloadKey
+                    });
+                });
+
+            return await HandleThumbnailResponseAsync(odinId, icr, response, odinContext);
+        }
+        catch (TryRetryException t)
+        {
+            HandleTryRetryException(t, odinId);
+            throw;
+        }
+    }
+
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByTypeAsync(OdinId odinId, Guid driveType, FileSystemType fileSystemType,
         IOdinContext odinContext)
     {

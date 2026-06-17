@@ -64,6 +64,34 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
     }
 
     /// <summary>
+    /// Returns the resolved <see cref="DrivePermission.ConditionalTemporalRead"/> window (seconds) granted
+    /// by this group for the drive, or null when this group has no temporal-read grant for it. A grant with
+    /// no explicit window contributes <see cref="TemporalRead.DefaultWindowSeconds"/>; across multiple
+    /// matching grants the most permissive (largest) window wins (the drive ceiling caps it elsewhere).
+    /// </summary>
+    public long? GetTemporalReadWindowSeconds(Guid driveId)
+    {
+        if (null == _driveGrants)
+        {
+            return null;
+        }
+
+        long? max = null;
+        foreach (var g in _driveGrants.Where(g =>
+                     g.DriveId == driveId &&
+                     g.PermissionedDrive.Permission.HasFlag(DrivePermission.ConditionalTemporalRead)))
+        {
+            var w = g.PermissionedDrive.TemporalReadWindowSeconds ?? TemporalRead.DefaultWindowSeconds;
+            if (max == null || w > max.Value)
+            {
+                max = w;
+            }
+        }
+
+        return max;
+    }
+
+    /// <summary>
     /// Returns the encryption key specific to this app.  This is only available
     /// when the owner is making an HttpRequest.
     /// </summary>

@@ -28,6 +28,12 @@ public static class UnifiedApiRouteConstants
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
 
+    // Temporal (time-boxed) read of a drive hosted by another identity. Parallels the peer file-read
+    // chain above so temporal actions share the same templates as their non-temporal twins.
+    public const string PeerTemporalRoot = PeerByDriveId + "/temporal";
+    public const string PeerTemporalFilesRoot = PeerTemporalRoot + "/files";
+    public const string PeerTemporalByFileId = PeerTemporalFilesRoot + "/{fileId:guid}";
+
     // Peer notifications (subscribe to live updates on a drive hosted by another identity)
     public const string PeerNotifyRoot = PeerRoot + "/notify";
     public const string PeerSubscriptions = PeerNotifyRoot + "/subscriptions";
