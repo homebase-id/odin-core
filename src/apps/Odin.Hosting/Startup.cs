@@ -512,19 +512,6 @@ public static class HostExtensions
             payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
-        // Ensure S3 inbox bucket exists
-        logger.LogInformation("S3Inbox enabled: {enabled}", config.S3Inbox.Enabled);
-        if (config.S3Inbox.Enabled)
-        {
-            logger.LogInformation("Creating S3 inbox bucket '{BucketName}' at {ServiceUrl}",
-                config.S3Inbox.BucketName, config.S3Storage.ServiceUrl);
-            var inboxBucket = services.GetRequiredService<IS3InboxStorage>();
-            inboxBucket.CreateBucketAsync().BlockingWait();
-
-            logger.LogInformation("Reconciling S3 inbox expiration: {days} day(s)", config.S3Inbox.ExpirationDays);
-            inboxBucket.EnsureExpirationLifecycleAsync(config.S3Inbox.ExpirationDays).BlockingWait();
-        }
-
         // Sanity ping CDN
         if (config.Cdn.Enabled)
         {
