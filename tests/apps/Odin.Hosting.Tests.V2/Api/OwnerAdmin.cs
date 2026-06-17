@@ -71,7 +71,7 @@ public sealed partial class OwnerAdmin
         bool allowAnonymousReads = true,
         bool ownerOnly = false,
         bool allowSubscriptions = false,
-        System.Collections.Generic.Dictionary<string, string> attributes = null)
+        System.Collections.Generic.Dictionary<string, string>? attributes = null)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
