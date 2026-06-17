@@ -68,14 +68,12 @@ public class TenantPathManager
     public readonly string PayloadsDrivesPath;  // e.g. /data/tenants/payloads/<tenant-id>/drives OR <tenant-id>/drives if S3 is enabled
 
     public bool S3PayloadsEnabled { get; }
-    public bool S3InboxEnabled { get; }
 
     public TenantPathManager(OdinConfiguration config, Guid tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(config.Host.TenantDataRootPath, nameof(config.Host.TenantDataRootPath));
 
         S3PayloadsEnabled = config.S3Payload.Enabled;
-        S3InboxEnabled = config.S3Inbox.Enabled;
         var tenant = tenantId.ToString();
 
         RootPath = config.Host.TenantDataRootPath;
@@ -97,19 +95,8 @@ public class TenantPathManager
         UploadDrivesPath = Path.Combine(UploadPath, DrivesFolder);
         PayloadsPath = Path.Combine(RootPayloadsPath, tenant);
         PayloadsDrivesPath = Path.Combine(PayloadsPath, DrivesFolder);
-
-        if (S3InboxEnabled)
-        {
-            // Inbox on S3 is anchored to the root of the bucket, mirroring payloads: <tenant>/drives/...
-            // The "inbox" root folder is supplied by S3AwsInboxStorage's rootPath, so it must not appear here.
-            InboxPath = tenant;
-            InboxDrivesPath = Path.Combine(tenant, DrivesFolder);
-        }
-        else
-        {
-            InboxPath = Path.Combine(RegistrationPath, InboxFolder);
-            InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
-        }
+        InboxPath = Path.Combine(RegistrationPath, InboxFolder);
+        InboxDrivesPath = Path.Combine(InboxPath, DrivesFolder);
     }
 
     //

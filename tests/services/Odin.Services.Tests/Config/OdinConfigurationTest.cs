@@ -115,85 +115,6 @@ public class OdinConfigurationTest
         Assert.That(section.RootPath, Is.EqualTo("custom-payloads"));
     }
 
-    // --- S3InboxSection (independent toggle: S3Inbox:Enabled, requires S3Storage:Enabled) ---
-
-    [Test]
-    public void S3InboxSection_NotEnabled_ByDefault()
-    {
-        var config = BuildConfig(new Dictionary<string, string?>
-        {
-            ["S3Storage:Enabled"] = "true",
-            // S3Inbox:Enabled omitted -> defaults false (inbox stays on disk)
-        });
-
-        var section = new OdinConfiguration.S3InboxSection(config);
-
-        Assert.That(section.Enabled, Is.False);
-        Assert.That(section.BucketName, Is.EqualTo(""));
-    }
-
-    [Test]
-    public void S3InboxSection_Enabled_WithoutS3Storage_Throws()
-    {
-        var config = BuildConfig(new Dictionary<string, string?>
-        {
-            ["S3Inbox:Enabled"] = "true",
-            ["S3Storage:Enabled"] = "false",
-            ["S3Inbox:BucketName"] = "my-inbox-bucket",
-        });
-
-        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.S3InboxSection(config));
-    }
-
-    [Test]
-    public void S3InboxSection_Enabled_BucketMissing_Throws()
-    {
-        var config = BuildConfig(new Dictionary<string, string?>
-        {
-            ["S3Inbox:Enabled"] = "true",
-            ["S3Storage:Enabled"] = "true",
-            // S3Inbox:BucketName deliberately omitted
-        });
-
-        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.S3InboxSection(config));
-    }
-
-    [Test]
-    public void S3InboxSection_Enabled_BucketPresent_EnabledTrueWithDefaults()
-    {
-        var config = BuildConfig(new Dictionary<string, string?>
-        {
-            ["S3Inbox:Enabled"] = "true",
-            ["S3Storage:Enabled"] = "true",
-            ["S3Inbox:BucketName"] = "my-inbox-bucket",
-        });
-
-        var section = new OdinConfiguration.S3InboxSection(config);
-
-        Assert.That(section.Enabled, Is.True);
-        Assert.That(section.BucketName, Is.EqualTo("my-inbox-bucket"));
-        Assert.That(section.RootPath, Is.EqualTo("inbox"));
-        Assert.That(section.ExpirationDays, Is.EqualTo(0));
-    }
-
-    [Test]
-    public void S3InboxSection_Enabled_RootPathAndExpirationRead()
-    {
-        var config = BuildConfig(new Dictionary<string, string?>
-        {
-            ["S3Inbox:Enabled"] = "true",
-            ["S3Storage:Enabled"] = "true",
-            ["S3Inbox:BucketName"] = "my-inbox-bucket",
-            ["S3Inbox:RootPath"] = "custom-inbox",
-            ["S3Inbox:ExpirationDays"] = "7",
-        });
-
-        var section = new OdinConfiguration.S3InboxSection(config);
-
-        Assert.That(section.RootPath, Is.EqualTo("custom-inbox"));
-        Assert.That(section.ExpirationDays, Is.EqualTo(7));
-    }
-
     [Test]
     public void S3StorageSection_Enabled_RetryDefaultsAndOverrides()
     {
@@ -218,49 +139,6 @@ public class OdinConfigurationTest
         }));
         Assert.That(custom.RetryAttempts, Is.EqualTo(3));
         Assert.That(custom.RetryInitialBackoffMs, Is.EqualTo(1000));
-    }
-
-    // --- Independent toggling (payload and inbox switch separately) ---
-
-    [Test]
-    public void Sections_ToggleIndependently_PayloadOnInboxOff()
-    {
-        // The combination we want during testing: payload on S3, inbox on disk.
-        var config = BuildConfig(new Dictionary<string, string?>
-        {
-            ["S3Storage:Enabled"] = "true",
-            ["S3Payload:Enabled"] = "true",
-            ["S3Payload:BucketName"] = "payload-bucket",
-            ["S3Inbox:Enabled"] = "false",
-        });
-
-        var payload = new OdinConfiguration.S3PayloadSection(config);
-        var inbox = new OdinConfiguration.S3InboxSection(config);
-
-        Assert.That(payload.Enabled, Is.True, "payload should be on S3");
-        Assert.That(payload.BucketName, Is.EqualTo("payload-bucket"));
-        Assert.That(inbox.Enabled, Is.False, "inbox should stay on disk");
-    }
-
-    [Test]
-    public void BothSections_BothEnabled_WithCorrectBuckets()
-    {
-        var config = BuildConfig(new Dictionary<string, string?>
-        {
-            ["S3Storage:Enabled"] = "true",
-            ["S3Payload:Enabled"] = "true",
-            ["S3Payload:BucketName"] = "payload-bucket",
-            ["S3Inbox:Enabled"] = "true",
-            ["S3Inbox:BucketName"] = "inbox-bucket",
-        });
-
-        var payload = new OdinConfiguration.S3PayloadSection(config);
-        var inbox = new OdinConfiguration.S3InboxSection(config);
-
-        Assert.That(payload.Enabled, Is.True);
-        Assert.That(payload.BucketName, Is.EqualTo("payload-bucket"));
-        Assert.That(inbox.Enabled, Is.True);
-        Assert.That(inbox.BucketName, Is.EqualTo("inbox-bucket"));
     }
 
     private class OdinConfigurationConsumer
