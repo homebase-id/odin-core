@@ -157,7 +157,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var circleDefs = getCircleDefinitionsResponse.Content?.ToList();
             ClassicAssert.IsNotNull(circleDefs);
 
-            ClassicAssert.IsTrue(circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count, "not all system circles were created");
+            ClassicAssert.IsTrue(
+                circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count + BuiltInCircleConstants.AllBuiltInCircles.Count,
+                "not all system and built-in circles were created");
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));

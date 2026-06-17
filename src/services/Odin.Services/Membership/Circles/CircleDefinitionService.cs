@@ -74,10 +74,19 @@ namespace Odin.Services.Membership.Circles
                 }
             }
 
-            var emergencyLocationAccessDef = await GetCircleAsync(SystemCircleConstants.EmergencyLocationAccessCircleId);
+            await EnsureBuiltInCirclesExistAsync();
+        }
+
+        /// <summary>
+        /// Provisions the built-in circles that ship with every identity. Unlike system circles, these
+        /// behave as normal owner-managed circles once created (see <see cref="BuiltInCircleConstants"/>).
+        /// </summary>
+        public async Task EnsureBuiltInCirclesExistAsync()
+        {
+            var emergencyLocationAccessDef = await GetCircleAsync(BuiltInCircleConstants.EmergencyLocationAccessCircleId);
             if (null == emergencyLocationAccessDef)
             {
-                var def = SystemCircleConstants.EmergencyLocationAccessDefinition;
+                var def = BuiltInCircleConstants.EmergencyLocationAccessDefinition;
                 await CreateCircleInternalAsync(new CreateCircleRequest
                 {
                     Id = def.Id,
@@ -89,9 +98,9 @@ namespace Odin.Services.Membership.Circles
             }
             else
             {
-                if (SystemCircleConstants.EmergencyLocationAccessDefinition != emergencyLocationAccessDef)
+                if (BuiltInCircleConstants.EmergencyLocationAccessDefinition != emergencyLocationAccessDef)
                 {
-                    await this.UpdateAsync(SystemCircleConstants.EmergencyLocationAccessDefinition, skipValidation: true);
+                    await this.UpdateAsync(BuiltInCircleConstants.EmergencyLocationAccessDefinition, skipValidation: true);
                 }
             }
         }
