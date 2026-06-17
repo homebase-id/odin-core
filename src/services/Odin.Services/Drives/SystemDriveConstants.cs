@@ -83,6 +83,25 @@ public static class SystemDriveConstants
         Type = ChannelDriveType
     };
 
+
+    public static readonly TargetDrive StickerDrive = new()
+    {
+        Alias = Guid.Parse("3b9c5f2e-7a41-4d6b-9e0c-8f1a2b3c4d5e"),
+        Type = Guid.Parse("a8c64b10-7434-494b-8b8c-a2284bd643c8")
+    };
+
+    public static readonly TargetDrive ListsDrive = new()
+    {
+        Alias = Guid.Parse("a44e7a2651f44a26ad125d7627b35d0e"),
+        Type = Guid.Parse("4338d7d2f217486a8790a4982644c15f")
+    };
+
+    public static readonly TargetDrive LocationDrive = new()
+    {
+        Alias = Guid.Parse("2e191a14-8640-4ebc-b0c8-aaac913f6fa8"),
+        Type = Guid.Parse("9dbc3bf5-ca24-4d7d-98ca-6933af0ad491")
+    };
+
     public static readonly List<TargetDrive> SystemDrives =
     [
         TransientTempDrive,
@@ -95,7 +114,10 @@ public static class SystemDriveConstants
         MailDrive,
         PublicPostsChannelDrive,
         ShardRecoveryDrive,
-        MomentsDrive
+        MomentsDrive,
+        StickerDrive,
+        ListsDrive,
+        LocationDrive
     ];
     
     public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
@@ -177,6 +199,37 @@ public static class SystemDriveConstants
         AllowAnonymousReads = false,
         Metadata = "",
         TargetDrive = MomentsDrive,
+        OwnerOnly = false
+    };
+
+    public static readonly CreateDriveRequest CreateStickerDriveRequest = new()
+    {
+        Name = "Sticker Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = StickerDrive,
+        OwnerOnly = false
+    };
+
+    public static readonly CreateDriveRequest CreateListsDriveRequest = new()
+    {
+        Name = "Lists Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = ListsDrive,
+        OwnerOnly = false,
+        Attributes = new Dictionary<string, string>
+        {
+            { BuiltInDriveAttributes.IsCollaborativeChannel, bool.TrueString }
+        }
+    };
+
+    public static readonly CreateDriveRequest CreateLocationDriveRequest = new()
+    {
+        Name = "Location Drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = LocationDrive,
         OwnerOnly = false
     };
 

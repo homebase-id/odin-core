@@ -128,7 +128,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var definitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(definitionList);
 
-                var circle = definitionList.Single();
+                var circle = definitionList.Single(c => c.Id == request.Id);
                 ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
 
                 //Add an owner-only drive
@@ -166,7 +166,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(updatedDefinitionList);
 
-                var circle2 = updatedDefinitionList.Single();
+                var circle2 = updatedDefinitionList.Single(c => c.Id == request.Id);
 
 
                 ClassicAssert.AreNotEqual(circle.Name, circle2.Name);
@@ -275,7 +275,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var definitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(definitionList);
 
-                var circle = definitionList.Single();
+                var circle = definitionList.Single(c => c.Id == request.Id);
 
                 // ClassicAssert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr1.Drive.Alias && d.Drive.Type == dgr1.Drive.Type && d.Permission == dgr1.Permission));
                 // ClassicAssert.IsNotNull(circle.DrivesGrants.SingleOrDefault(d => d.Drive.Alias == dgr2.Drive.Alias && d.Drive.Type == dgr2.Drive.Type && d.Permission == dgr2.Permission));
@@ -334,7 +334,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                     ClassicAssert.IsNotNull(getCircleDefinitionsResponse.Content);
                     var definitionList = getCircleDefinitionsResponse.Content.ToList();
 
-                    ClassicAssert.IsTrue(definitionList.Count() == 2);
+                    // The owner's circle list now also includes the built-in circles (e.g. Emergency Location Access).
+                    ClassicAssert.IsTrue(definitionList.Count == 2 + BuiltInCircleConstants.AllBuiltInCircles.Count);
 
                     var circle1 = definitionList.Single(x => x.Name == request1.Name);
                     ClassicAssert.AreEqual(request1.Name, circle1.Name);
@@ -383,7 +384,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var definitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(definitionList);
 
-                var circle = definitionList.Single();
+                var circle = definitionList.Single(c => c.Id == request.Id);
                 ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
 
 
@@ -405,7 +406,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(updatedDefinitionList);
 
-                var circle2 = updatedDefinitionList.Single();
+                var circle2 = updatedDefinitionList.Single(c => c.Id == request.Id);
 
 
                 ClassicAssert.AreEqual(circle.Name, circle2.Name);
@@ -444,7 +445,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var definitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(definitionList);
 
-                var circle = definitionList.Single();
+                var circle = definitionList.Single(c => c.Id == request.Id);
                 ClassicAssert.IsTrue(circle.Permissions.HasKey(PermissionKeys.ReadCircleMembership));
 
 
@@ -457,7 +458,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var updatedDefinitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(updatedDefinitionList);
 
-                var updatedCircle = updatedDefinitionList.Single();
+                var updatedCircle = updatedDefinitionList.Single(c => c.Id == request.Id);
 
                 ClassicAssert.AreEqual(updatedCircle.Disabled, true);
 
@@ -497,7 +498,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var definitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(definitionList);
 
-                var circle = definitionList.Single();
+                var circle = definitionList.Single(c => c.Id == request.Id);
 
                 //
 
@@ -542,16 +543,17 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 var definitionList = getCircleDefinitionsResponse.Content;
                 ClassicAssert.IsNotNull(definitionList);
 
-                var id = definitionList.Single().Id;
+                var id = definitionList.Single(c => c.Id == request.Id).Id;
                 var deleteCircleResponse = await svc.DeleteCircleDefinition(id);
                 ClassicAssert.IsTrue(deleteCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {deleteCircleResponse.StatusCode}");
 
                 var secondGetCircleDefinitionsResponse = await svc.GetCircleDefinitions();
                 ClassicAssert.IsTrue(secondGetCircleDefinitionsResponse.IsSuccessStatusCode,
                     $"Failed.  Actual response {secondGetCircleDefinitionsResponse.StatusCode}");
-                var emptyDefinitionList = secondGetCircleDefinitionsResponse.Content;
-                ClassicAssert.IsNotNull(emptyDefinitionList);
-                ClassicAssert.IsTrue(!emptyDefinitionList.Any());
+                var remainingDefinitionList = secondGetCircleDefinitionsResponse.Content;
+                ClassicAssert.IsNotNull(remainingDefinitionList);
+                // The deleted user circle is gone; only built-in circles remain.
+                ClassicAssert.IsFalse(remainingDefinitionList.Any(c => c.Id == request.Id));
             }
         }
     }
