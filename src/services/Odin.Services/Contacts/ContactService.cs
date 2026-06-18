@@ -225,11 +225,12 @@ public class ContactService(
     }
 
     /// <summary>
-    /// Set (create or replace) the contact's profile image. The client sends <b>plaintext</b> image +
-    /// thumbnail bytes over the shared-secret transport; the server encrypts them at rest under the
-    /// file's AES key (one fresh IV for the payload and its thumbnails) and stores them as the
-    /// <see cref="ProfileImagePayloadKey"/> payload. Version-tag gated (stale → conflict, missing →
-    /// not-found); the contact's content and any <c>merge_log</c> payload are preserved.
+    /// Set (create or replace) the contact's profile image. The client sends the image + thumbnail bytes
+    /// <b>already encrypted</b> under the contact file's AES key with the request's 16-byte IV (one IV
+    /// shared by the image and its thumbnails) over the shared-secret transport; the server stores that
+    /// ciphertext <b>verbatim</b> as the <see cref="ProfileImagePayloadKey"/> payload and records the IV
+    /// for later decryption. Version-tag gated (stale → conflict, missing → not-found); the contact's
+    /// content (re-encrypted under a fresh content IV) and any <c>merge_log</c> payload are preserved.
     /// </summary>
     public async Task<ContactWriteResult> SetImageAsync(Guid uniqueId, SetContactImageRequest request, IOdinContext odinContext)
     {
