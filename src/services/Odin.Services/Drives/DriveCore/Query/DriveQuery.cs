@@ -469,6 +469,11 @@ public class DriveQuery(
         return (count, size);
     }
 
+    public async Task<long> GetNewestModifiedAsync(Guid driveId, int fileSystemType)
+    {
+        return await tblDriveMainIndex.GetNewestModifiedAsync(driveId, fileSystemType);
+    }
+
     public async Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId)
     {
         var record = await tblDriveMainIndex.GetByGlobalTransitIdAsync(driveId, globalTransitId);
