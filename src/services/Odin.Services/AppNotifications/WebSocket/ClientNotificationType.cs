@@ -29,6 +29,14 @@ public enum ClientNotificationType
     /// </summary>
     TemporalDriveAccessed = 5001,
     /// <summary>
+    /// An existing connection's state changed (disconnect/block/unblock) or a circle was granted/revoked to it.
+    /// </summary>
+    ConnectionChanged = 5002,
+    /// <summary>
+    /// A circle definition was created, updated, deleted, enabled, or disabled.
+    /// </summary>
+    CircleDefinitionChanged = 5003,
+    /// <summary>
     /// Indicates the notification doesnt need this value.  Note: this implies we might be able to dorp this field all together
     /// </summary>
     Unused = 8001,

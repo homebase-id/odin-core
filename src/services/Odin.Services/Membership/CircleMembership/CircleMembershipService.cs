@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -11,6 +12,7 @@ using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -30,6 +32,7 @@ public class CircleMembershipService(
     CircleDefinitionService circleDefinitionService,
     ExchangeGrantService exchangeGrantService,
     ILogger<CircleMembershipService> logger,
+    IMediator mediator,
     IdentityDatabase db)
 {
     public async Task Temp_ReconcileCircleAndAppGrants()
@@ -290,6 +293,13 @@ public class CircleMembershipService(
     {
         odinContext.Caller.AssertHasMasterKey();
         await circleDefinitionService.CreateAsync(request);
+
+        await mediator.Publish(new CircleDefinitionChangedNotification
+        {
+            OdinContext = odinContext,
+            CircleId = request.Id,
+            Change = CircleDefinitionChangeType.Created,
+        });
     }
 
     /// <summary>
@@ -343,6 +353,13 @@ public class CircleMembershipService(
         circle.Disabled = true;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
         await circleDefinitionService.UpdateAsync(circle);
+
+        await mediator.Publish(new CircleDefinitionChangedNotification
+        {
+            OdinContext = odinContext,
+            CircleId = circleId.Value,
+            Change = CircleDefinitionChangeType.Disabled,
+        });
     }
 
     /// <summary>
@@ -356,6 +373,13 @@ public class CircleMembershipService(
         circle.Disabled = false;
         circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
         await circleDefinitionService.UpdateAsync(circle);
+
+        await mediator.Publish(new CircleDefinitionChangedNotification
+        {
+            OdinContext = odinContext,
+            CircleId = circleId.Value,
+            Change = CircleDefinitionChangeType.Enabled,
+        });
     }
 
     /// <summary>
