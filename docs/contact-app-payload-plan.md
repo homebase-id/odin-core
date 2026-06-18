@@ -4,7 +4,7 @@
 - One payload slot per **app** per contact, keyed by a server-derived short key from the app id; the key is internal and never seen by clients.
 - App addresses its slot by `(contactUniqueId, authenticated appId)`; appId comes from the token, so apps are isolated and can't spoof each other.
 - Writes/deletes are **whole-file version-tag gated** (same model as `UpdateAsync`/`SetImageAsync`): a stale tag → `409` with the current contact; the app must re-read the whole contact and retry. This enforces "the app always holds the latest contact."
-- Payload is **server-side encrypted** (the `merge_log` pattern), so the app sends/receives plaintext bytes and never deals with keys/IVs.
+- Payload is **client-side encrypted** (the contact-image pattern): the app encrypts the bytes under the contact file's AES key with its own 16-byte IV and sends ciphertext + IV; the server stores it verbatim and never sees the plaintext. The app derives the per-contact AES key from the file's `SharedSecretEncryptedKeyHeader` — which it already reads to get the `versionTag` for the gate, so it's free (no extra round trip).
 - Read is explicit-demand only (excluded from default contact `QueryBatch`).
 
 ---
@@ -49,7 +49,8 @@ Resolves from the **token** (`AccessRegistrationId → AppClientRegistration.App
 
 ```csharp
 // All gated on the whole-file version tag; return ContactWriteResult (reuses existing outcomes).
-Task<ContactWriteResult> SetAppPayloadAsync(Guid uniqueId, Guid appId, byte[] content, string contentType, Guid versionTag, IOdinContext ctx);
+// `content` is ciphertext the app already encrypted under the contact file's AES key with `iv`.
+Task<ContactWriteResult> SetAppPayloadAsync(Guid uniqueId, Guid appId, byte[] content, byte[] iv, string contentType, Guid versionTag, IOdinContext ctx);
 Task<ContactAppPayloadReadResult> GetAppPayloadAsync(Guid uniqueId, Guid appId, IOdinContext ctx);
 Task<ContactWriteResult> DeleteAppPayloadAsync(Guid uniqueId, Guid appId, Guid versionTag, IOdinContext ctx);
 ```
@@ -60,24 +61,24 @@ Task<ContactWriteResult> DeleteAppPayloadAsync(Guid uniqueId, Guid appId, Guid v
 3. `existing.VersionTag != versionTag` → `VersionConflictResult(...)` (returns current tag + contact).
 4. `appKey = ContactAppPayloadKey.Derive(appId)`.
 5. **Collision guard:** if `existing` already has a payload with `appKey` whose `DescriptorContent != appId` → throw/log (astronomically rare; detectable because we record the owner).
-6. Encrypt `content` server-side under the file AES key + fresh IV; stage via `WriteUploadStream`.
-7. Build descriptor: `{ Key=appKey, Uid, Iv, ContentType=contentType, BytesWritten, DescriptorContent = appId.ToString(), LastModified }`.
+6. Validate `iv` is 16 bytes; stage the client-provided ciphertext (`content`) **verbatim** via `WriteUploadStream` — the app already encrypted it under the contact file's AES key + `iv` (image pattern; the server never sees the app-payload plaintext).
+7. Build descriptor: `{ Key=appKey, Uid, Iv=iv, ContentType=contentType, BytesWritten, DescriptorContent = appId.ToString(), LastModified }`.
 8. `manifest = BuildContentManifest(existing, freshContentKeyHeader, contentBase64, content, [..CarryForwardPayloads(existing, appKey), descriptor], [AppendOrOverwrite appKey])` → `UpdateBatchAsync` → cleanup → return `Updated` + new version tag.
 
-This reuses `BuildContentManifest` / `CarryForwardPayloads` verbatim, so content + `merge_log` + `prfl_pic` + **other apps' slots** are all preserved, and the content IV rotates as required.
+This reuses `BuildContentManifest` / `CarryForwardPayloads` verbatim, so the contact content + `merge_log` + `prfl_pic` + **other apps' slots** are all preserved, and the contact content IV rotates as required. (Note: only the *contact content* is re-encrypted server-side here — exactly as `WriteImagePayloadAsync` does; the app-payload bytes themselves are stored verbatim.)
 
-**`GetAppPayloadAsync`** (mirror `ReadMergeLogAsync`):
+**`GetAppPayloadAsync`** (mirror the image read):
 - Load header; `appKey = Derive(appId)`; find descriptor; absent → not-found.
-- `GetPayloadStreamAsync(file, appKey, …)`, decrypt with `{ Iv=descriptor.Iv, AesKey }`.
-- Return `{ Content (plaintext), ContentType = descriptor.ContentType, VersionTag = header.VersionTag }`.
+- `GetPayloadStreamAsync(file, appKey, …)` → return the **ciphertext verbatim** (no server-side decrypt).
+- Return `{ Content (ciphertext), Iv = descriptor.Iv, ContentType = descriptor.ContentType, VersionTag = header.VersionTag }`. The app decrypts client-side with the per-contact file AES key.
 
 **`DeleteAppPayloadAsync`** (mirror `RemoveImagePayloadAsync`): version-gate → manifest with `DeletePayload` instruction → return new tag.
 
 ## 4. DTOs — `ContactRequests.cs`
 ```csharp
-public class SetContactAppPayloadRequest { public byte[] Content; public string ContentType; public Guid VersionTag; }
-public class ContactAppPayloadReadResult { public byte[] Content; public string ContentType; public Guid VersionTag; } // service-internal
-public class ContactAppPayloadResponse { public string Content /*base64*/; public string ContentType; public Guid VersionTag; }
+public class SetContactAppPayloadRequest { public byte[] Content /*ciphertext*/; public byte[] Iv /*16 bytes*/; public string ContentType; public Guid VersionTag; }
+public class ContactAppPayloadReadResult { public byte[] Content /*ciphertext*/; public byte[] Iv; public string ContentType; public Guid VersionTag; } // service-internal
+public class ContactAppPayloadResponse { public string Content /*ciphertext, base64*/; public string Iv /*base64*/; public string ContentType; public Guid VersionTag; }
 ```
 Reuse existing `ContactWriteResponse` / `ContactWriteConflict` for write/delete responses. (No new outcome values needed — `Updated`/`NotFound`/`VersionConflict` cover it.)
 
@@ -91,7 +92,7 @@ Already `[UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]` on `/api/v2/contacts`
 Each: resolve `appId = await appRegistrationService.GetCallingAppIdAsync(WebOdinContext)` (rejects owner/guest tokens → enforces app-only), call the service, then reuse `MapWrite(result)` for PUT/DELETE; GET returns `ContactAppPayloadResponse` (or `NotFound()`). The dedicated GET is **required** because clients can't use the generic drive-payload endpoint — they don't know the key.
 
 ## Encryption, authorization, concurrency (consolidated)
-- **Encryption:** server-side, file AES key + per-payload IV (identical to `merge_log`). Server sees plaintext app data — consistent with the trust model (the server already handles contact content plaintext; ContactDrive is `OwnerOnly`).
+- **Encryption:** client-side, identical to the contact image. The app encrypts the payload under the contact file's AES key with its own 16-byte IV and sends ciphertext; the server stores it verbatim and records the IV — the server never sees the app-payload plaintext. The app derives the per-contact AES key from the file's `SharedSecretEncryptedKeyHeader` (decrypted with its shared secret) returned on the read it already does for the `versionTag`. Transit is still shared-secret + TLS; this is defense-in-depth, **not** zero-knowledge — the owner's server still holds the drive storage key and *could* decrypt.
 - **Authorization:** caller must present an **App** token (resolver rejects others) and have ContactDrive access (the existing bypass-write upgrade already presumes a read grant; `GetDriveStorageKey` fails otherwise).
 - **Concurrency:** whole-file version-tag gate; background enrichment bumping the version will surface as `409` and the app re-reads + retries — intended.
 
@@ -102,7 +103,7 @@ Each: resolve `appId = await appRegistrationService.GetCallingAppIdAsync(WebOdin
 **Unit** (`Odin.Services.Tests` or `Odin.Core.Tests`): `ContactAppPayloadKey.Derive` is deterministic, matches `^[a-z0-9_]{8,10}$`, starts with `a`, and two distinct app ids → distinct keys.
 
 **Integration** (`Odin.Hosting.Tests`, app-token client — mirror the existing V2 contacts test setup): new `ContactAppPayloadTests`:
-- Write then read back round-trips (plaintext + contentType).
+- Write then read back round-trips (ciphertext + IV + contentType come back unchanged; bytes are opaque to the server).
 - Stale `versionTag` → `409`/`VersionConflict` carrying current contact.
 - Successful write advances the contact version tag.
 - **Carry-forward:** app payload survives a subsequent contact content update / image write / enrichment merge.
@@ -118,5 +119,5 @@ Each: resolve `appId = await appRegistrationService.GetCallingAppIdAsync(WebOdin
 - Multiple named slots per app — would change the key to `Derive(appId, subName)`; not in this version.
 
 ## Two micro-decisions (defaults unless overridden)
-1. **GET response shape** — JSON `{ content: base64, contentType, versionTag }` (simple, fine for small app metadata) vs. a streamed `FileContentResult` + version-tag header (better for large blobs). **Default: JSON.**
+1. **GET response shape** — JSON `{ content: base64 (ciphertext), iv: base64, contentType, versionTag }` (simple, fine for small app metadata) vs. a streamed `FileContentResult` + IV/version-tag headers (better for large blobs). **Default: JSON.**
 2. **Permission floor** — require only App-token + ContactDrive access (app-owned slot), vs. also asserting `ManageContacts` for parity with the other contact writes. **Default: do not require `ManageContacts`.**
