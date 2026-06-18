@@ -74,6 +74,12 @@ namespace Odin.Services.Drives.DriveCore.Query
 
         Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive);
 
+        /// <summary>
+        /// Returns the newest server-set modified timestamp (ms) of an active file on the drive for the given
+        /// file system type, or 0 when the drive has no such files.
+        /// </summary>
+        Task<long> GetNewestModifiedAsync(Guid driveId, int fileSystemType);
+
         Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId);
 
         Task<DriveMainIndexRecord> GetByClientUniqueIdAsync(Guid driveId, Guid uniqueId);
