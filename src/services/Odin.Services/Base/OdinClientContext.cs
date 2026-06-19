@@ -16,6 +16,12 @@ public class OdinClientContext : IGenericCloneable<OdinClientContext>
     /// </summary>
     public GuidId AccessRegistrationId { get; init; }
 
+    /// <summary>
+    /// The id of the app the caller is acting as, if the caller authenticated with an app token.
+    /// Null for owner/guest callers. Used to route app-scoped live data to the correct app's sockets.
+    /// </summary>
+    public GuidId AppId { get; init; }
+
     public Guid? DevicePushNotificationKey { get; init; }
 
     public string ClientIdOrDomain { get; set; }
@@ -26,6 +32,7 @@ public class OdinClientContext : IGenericCloneable<OdinClientContext>
         {
             CorsHostName = CorsHostName,
             AccessRegistrationId = AccessRegistrationId?.Clone(),
+            AppId = AppId?.Clone(),
             DevicePushNotificationKey = DevicePushNotificationKey,
             ClientIdOrDomain = ClientIdOrDomain
         };

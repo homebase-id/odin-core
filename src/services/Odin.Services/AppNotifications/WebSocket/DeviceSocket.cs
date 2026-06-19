@@ -25,6 +25,13 @@ public class DeviceSocket
     public Guid Key { get; init; }
     public System.Net.WebSockets.WebSocket? Socket { get; init; }
     public IOdinContext? DeviceOdinContext { get; set; }
+
+    /// <summary>
+    /// The app this socket is authenticated as, if any. Used to deliver app-scoped notifications
+    /// (e.g. live relay data) only to sockets belonging to the matching app.
+    /// </summary>
+    public Guid? AppId { get; set; }
+
     public List<Guid> Drives { get; set; } = [];
     public TimeSpan Timeout { get; init; } = DefaultTimeout;
 
