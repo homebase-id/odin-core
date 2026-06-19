@@ -69,7 +69,7 @@ adds **no extra DB read**.
 
 | Type | Path | Role |
 |---|---|---|
-| `AppLiveRelayController` | `Controllers/ClientToken/App/Notifications/AppLiveRelayController.cs` | HOP 1 ingress. `[AuthorizeValidAppToken]`, `[HttpPost("relay")]`. Mirror `AppPeerNotificationController`. |
+| `V2LiveRelayController` | `UnifiedV2/LiveRelay/V2LiveRelayController.cs` | HOP 1 ingress (V2 REST). `[UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]`, `[HttpPost]` at `/api/v2/live-relay`. |
 | `LiveRelayRequest` | `src/services/Odin.Services/LiveRelay/` | DTO: `Guid ChannelKey`, `List<string> Recipients`, `string Blob` (opaque base64). **No AppId** — inferred server-side. |
 | `LiveRelayService` | `src/services/Odin.Services/LiveRelay/LiveRelayService.cs` | Sender fan-out. Extends `PeerServiceBase`; inject `ILifetimeScope`. Asserts `UseTransitWrite`; reads AppId from caller context. |
 | `ILiveRelayHttpClient` | `src/services/Odin.Services/LiveRelay/ILiveRelayHttpClient.cs` | Refit client for HOP 2. Mirror `IPeerAppNotificationHttpClient` in `IPeerReactionHttpClient.cs`. |
@@ -154,7 +154,7 @@ snapshot value** that we can read whole.
 
 ### End-to-end flow (one packet)
 
-1. App POSTs `/api/apps/v1/notify/liverelay/relay` (app token) → `AppLiveRelayController` →
+1. App POSTs `/api/v2/live-relay` (V2 REST, app token) → `V2LiveRelayController` →
    `LiveRelayService.RelayAsync`. Assert `UseTransitWrite`; **read `appId` from
    `ctx.Caller.OdinClientContext.AppId`**; validate channel + recipients.
 2. **Fan-out:** per recipient,
