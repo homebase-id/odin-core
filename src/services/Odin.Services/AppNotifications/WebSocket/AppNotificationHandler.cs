@@ -9,10 +9,13 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Serialization;
+using Odin.Core.Time;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Base;
 using Odin.Services.Drives;
+using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -38,15 +41,18 @@ namespace Odin.Services.AppNotifications.WebSocket
         private readonly ILogger<AppNotificationHandler> _logger;
         private readonly AppNotificationDispatcher _dispatcher;
         private readonly PeerInboxProcessor _peerInboxProcessor;
+        private readonly LiveRelayRetainedStore _liveRelayRetainedStore;
 
         public AppNotificationHandler(
             ILogger<AppNotificationHandler> logger,
             AppNotificationDispatcher dispatcher,
-            PeerInboxProcessor peerInboxProcessor)
+            PeerInboxProcessor peerInboxProcessor,
+            LiveRelayRetainedStore liveRelayRetainedStore)
         {
             _logger = logger;
             _dispatcher = dispatcher;
             _peerInboxProcessor = peerInboxProcessor;
+            _liveRelayRetainedStore = liveRelayRetainedStore;
         }
 
         //
@@ -257,6 +263,9 @@ namespace Odin.Services.AppNotifications.WebSocket
 
                         deviceSocket.DeviceOdinContext = odinContext.Clone();
                         deviceSocket.Drives = drives;
+                        // Capture the app this socket is authenticated as, so app-scoped
+                        // notifications (e.g. live relay) are delivered only to its sockets.
+                        deviceSocket.AppId = odinContext.Caller.OdinClientContext?.AppId?.Value;
                     }
                     catch (OdinSecurityException e)
                     {
@@ -276,6 +285,11 @@ namespace Odin.Services.AppNotifications.WebSocket
                         OdinSystemSerializer.Serialize(response),
                         encrypt: true,
                         cancellationToken);
+
+                    // Hydrate the freshly-connected socket with the last live-relay data point from
+                    // every sender for this app, so a (re)connecting/foregrounding client immediately
+                    // sees current state without asking for anything.
+                    await FlushRetainedLiveRelayAsync(deviceSocket, cancellationToken);
                     break;
 
                 case SocketCommandType.ProcessTransitInstructions:
@@ -314,6 +328,40 @@ namespace Odin.Services.AppNotifications.WebSocket
                 NotificationType = notificationType,
                 Data = message,
             });
+        }
+
+        //
+
+        private async Task FlushRetainedLiveRelayAsync(DeviceSocket deviceSocket, CancellationToken cancellationToken)
+        {
+            var appId = deviceSocket.AppId;
+            if (!appId.HasValue)
+            {
+                return;
+            }
+
+            try
+            {
+                var entries = await _liveRelayRetainedStore.GetAllForAppAsync(appId.Value, cancellationToken);
+                foreach (var entry in entries)
+                {
+                    var notification = new LiveRelayNotification
+                    {
+                        SenderOdinId = new OdinId(entry.SenderDomain),
+                        ChannelKey = entry.ChannelKey,
+                        Blob = entry.Blob,
+                        ReceivedAt = new UnixTimeUtc(entry.ReceivedAtMs),
+                        TargetAppId = appId.Value
+                    };
+
+                    await _dispatcher.SendClientNotificationToSocketAsync(deviceSocket, notification, cancellationToken);
+                }
+            }
+            catch (Exception e)
+            {
+                // Hydration is best-effort; never let it break the socket handshake.
+                _logger.LogInformation(e, "Live relay flush-on-connect failed: {error}", e.Message);
+            }
         }
     }
 }

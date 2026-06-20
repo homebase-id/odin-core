@@ -28,6 +28,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Statistics;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
@@ -117,6 +118,12 @@ public static class TenantServices
         cb.RegisterType<AppNotificationDispatcher>().AsSelf().SingleInstance();
         cb.RegisterType<PeerAppNotificationDispatcher>().AsSelf().SingleInstance();
 
+        // Per-tenant singleton: holds the per-app async locks that serialize the snapshot
+        // read-modify-write; state itself lives in the (Redis-backed) layer-2 cache.
+        cb.RegisterType<LiveRelayRetainedStore>().AsSelf().SingleInstance();
+        cb.RegisterType<LiveRelayService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<PeerLiveRelayReceiverService>().AsSelf().InstancePerLifetimeScope();
+
         cb.RegisterType<ClientRegistrationStorage>().InstancePerLifetimeScope();
 
         cb.RegisterType<DriveQuery>().InstancePerLifetimeScope();
@@ -160,6 +167,7 @@ public static class TenantServices
             .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
             .As<INotificationHandler<AppNotificationAddedNotification>>()
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<LiveRelayNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
 
