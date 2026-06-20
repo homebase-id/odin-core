@@ -1,167 +1,191 @@
-# Revised plan: contact large-field overflow + per-app contact data
+# Plan: per-app contact data — the list-vs-detail rule
 
-> **Refinement of [`contact-app-payload-plan.md`](./contact-app-payload-plan.md) (PR #1571).**
-> Incorporates owner feedback: drops the per-app payload + key-derivation + client-side-encryption
-> approach in favor of one general large-field overflow mechanism shared by core and app data.
+> **Refinement of [`contact-app-payload-plan.md`](./contact-app-payload-plan.md) (PR #1571), and an
+> alternative to [`contact-app-data-separate-file-plan.md`](./contact-app-data-separate-file-plan.md).**
+> One HomebaseFile per contact. Size-capped fields (core + a small per-app blob) live in the contact
+> JSON; bulk, on-demand data lives in a payload. No per-app payloads, no key derivation, no
+> calling-app resolver, no client-side encryption, no preview/chop split.
 
-## Context
+## The governing principle
 
-PR #1571 (`docs/contact-app-payload-plan.md`, by todd) proposes letting an app store its own
-payload on a contact file. The author's plan gives **each app its own payload**, addressed by a
-**server-derived short hash of the appId**, **client-side encrypted**, and read through a **new
-dedicated GET endpoint** (because clients can't recompute the derived key).
+> **List/display reads never touch payloads; opening a single contact may.**
 
-The owner's feedback rejects that framing. The real problem is narrower and more general:
+Apps load **all** contacts into memory at startup and render/filter the list from that. A spinner to
+pull a 20 KB bio for *one* contact the user explicitly opened is fine; N spinners to draw the list is
+not. This is the litmus test for every "where does this field go?" decision:
 
-- A contact's inline JSON (`AppData.Content`) is capped at **10 KB**
-  (`AppFileMetaData.MaxAppDataContentLength`). Once a contact accumulates more than ~7 KB of data,
-  the overflow must live in a payload.
-- This is **not app-specific**. A contact's *own* fields (Bio, memo/description, audit-log) can be
-  unbounded too. Large-field overflow should be **one general mechanism shared by core contact data
-  and app data alike** — not a bolt-on app feature.
-- App data is just *more contact data*, namespaced by the calling appId. Stamping the appId from the
-  token is **convenience, not security** — it stops App A from *accidentally* clobbering App B's
-  slice. It is not an isolation boundary: an app that funnels through the contact write can already
-  nuke a core field (e.g. `name`) today, so this adds no new exposure. The value is avoiding nasty
-  future pitfalls by keeping each app confined to its own JSON.
+- **Needed to render/filter the list** → a **size-capped field in the contact JSON** (`AppData.Content`).
+- **Only needed when a single contact is opened** → a **payload** (one network load, on demand).
 
-**Intended outcome:** a single, general "small-inline + full-in-payload" mechanism. Core fields and
-per-app data both get the *option* of a short/"chopped" preview inline (returned cheaply with the
-normal contact query) plus the full value in **one shared, server-encrypted overflow payload**, read
-on demand exactly like every other payload (the `../chat-kmp/` generic payload read).
+Everything below follows from this one rule.
 
----
+## Why the JSON is the only home for list data
 
-## Why several decisions in the old plan are not great
-
-1. **One payload per app → hits a hard ceiling.** `FileMetadata.MaxPayloadsCount = 25`, and
-   `prfl_pic` + `merge_log` already consume 2. One-per-app caps a contact at ~23 apps and is exactly
-   the "limited number of payloads" problem. → **A single shared overflow payload** (app-namespaced
-   *inside*, like `merge_log`) removes the ceiling entirely.
-
-2. **Key derivation (`SHA256(appId)` → 10-char base36) exists only to dodge the payload-key regex**
-   (`^[a-z0-9_]{8,10}$`). It drags in: a custom base36 encoder, ~46-bit collision risk needing a
-   collision-guard stored in `DescriptorContent`, and a server-internal key the client can't address
-   — which is *why* the old plan needs a custom GET. All of it disappears with **one fixed,
-   well-known key** (e.g. `ext_data`). No derivation, no collision guard, no ownership bookkeeping.
-
-3. **A new "calling-app resolver" abstraction for reads is unnecessary.** With a fixed key the read
-   is the generic payload GET the client already uses for everything else
-   (`chat-kmp/.../DriveFileHttpProvider` → `GET /drives/{drive}/files/{file}/payload/{key}` +
-   `KeyHeader` decrypt). The server needs the appId only on **writes**, and that's the existing
-   3-line lookup `AccessRegistrationId → AppClientRegistration.AppId` (see
-   `AppRegistrationService.DeleteCurrentAppClientAsync`) — not a new concept.
-
-4. **Client-side encryption of the payload is inconsistent with the rest of the contact file.** The
-   contact JSON and `merge_log` are **server-encrypted** under the file's AES key (per-payload IV).
-   The old plan's image-style client-side encryption forces the client to decrypt the file's
-   `SharedSecretEncryptedKeyHeader`, derive the per-contact AES key, and encrypt the payload itself —
-   extra client crypto for no security gain (the server holds the storage key regardless; the old
-   plan admits it isn't zero-knowledge). → **Server-side encryption** (point 3): the client sends
-   plaintext JSON over the existing shared-secret transport, identical to `UpdateAsync`.
-
-5. **Framing it as an app-only "slot."** Large-field overflow is general; modeling it as a shared
-   core+app mechanism is simpler and also solves the contact's own large fields.
+- Contact content **rides inline in the file header and never spills to a payload** (verified in
+  `chat-kmp .../contacts/Contact.kt`). The list `QueryBatch` returns that content and nothing else —
+  so anything *not* in the contact JSON is invisible to the list.
+- To show data stored elsewhere (a payload, or a separate file), the app must fetch it **per contact
+  record** — a network load each on cold start (unless cached). That is exactly the fan-out the
+  principle forbids.
+- Because content is always inline and never overflows gracefully, **every JSON field must be
+  individually size-capped.** A 7 KB display name would bloat every contact in the list query. Caps
+  keep the whole list loadable in one cheap batch.
 
 ---
 
-## Revised design
+## Why not the prior approaches
 
-### Storage shape
+### The original per-app-payload plan (PR #1571)
 
-- **Inline** (`AppData.Content`, returned by the normal `QueryBatch` read): `ContactContent`,
-  extended with large-capable core fields (e.g. `bio`) holding the **chopped/optional preview**, and
-  an `appData` map (`appId → small JSON`, per-app inline budget ~200 B).
-- **Overflow** (one new payload `ext_data`, on demand): a `ContactExtendedContent` JSON holding the
-  **full** values of any chopped core fields plus `appData` (`appId → full JSON`). Server-encrypted
-  under the file's AES key with its own IV, written atomically with the content — **the `merge_log`
-  pattern applied to a second payload**. Carried forward unchanged on every other write.
+1. **One payload per app → a hard ceiling.** `FileMetadata.MaxPayloadsCount = 25`, and `prfl_pic` +
+   `merge_log` already consume 2. One-per-app caps a contact at ~23 apps.
+2. **Key derivation (`SHA256(appId)` → 10-char base36)** exists only to dodge the payload-key regex
+   (`^[a-z0-9_]{8,10}$`). It drags in a custom base36 encoder, ~46-bit collision risk needing a
+   collision-guard in `DescriptorContent`, and a server-internal key the client can't address — which
+   is *why* it then needs a custom GET.
+3. **A "calling-app resolver" abstraction for reads is unnecessary.** The server needs the appId only
+   on **writes**, via the existing `AccessRegistrationId → AppClientRegistration.AppId` lookup (see
+   `AppRegistrationService.DeleteCurrentAppClientAsync`).
+4. **Client-side payload encryption is inconsistent** with the contact JSON and `merge_log`, which are
+   **server-encrypted** under the file AES key. It forces extra client crypto for no security gain
+   (the server holds the storage key regardless; not zero-knowledge either way).
 
-A field (core or app) may be: small-only (inline), or chopped-inline + full-in-`ext_data`. The client
-chooses what to chop.
+### The separate-file plan ([`…-separate-file-plan.md`](./contact-app-data-separate-file-plan.md))
 
-**Sensitive-field guidance (document this for app developers):** the shared `ext_data` payload (and
-the inline content) are encrypted under the file's AES key, so they are readable by *any* app with
-read access to the contact drive — there is no per-app field isolation (consistent with the
-convenience-not-security stance above). If an app deems a particular field genuinely sensitive, it
-should either **not store it on the contact record at all**, or **apply its own app-level encryption**
-to that value before sending it — so the data is doubly encrypted and opaque to other apps. The server
-stores whatever bytes it is given verbatim within the JSON, so app-level encryption is transparent to
-this design.
+Separate files (`FileType=389`, one per app+contact) are a reasonable instinct, but they solve
+problems we don't have and not the one we do:
+
+- **They don't solve what's blocking us.** App data in a `389` file isn't in the contacts list query,
+  so to render it the app fetches **per contact record** on cold start — the forbidden fan-out, just
+  relocated.
+- **They lose atomicity.** Contact and app-data become separate files that sync independently →
+  partial sync, "didn't get all the data," orphaned `389` files whose contact is gone. ("Too risky if
+  a file goes missing.")
+- **Cleanup becomes best-effort** — sweep-queries by `groupId`/`appId` tag plus a periodic reconcile
+  backstop for orphans. A single file deletes its data for free.
+- **More moving IDs** — `md5(appId+odinId)`, `md5(odinId)`, an `appId` tag to keep consistent.
+- **It doesn't even remove the overflow it targets** — each `389` file still hits the same 10 KB cap;
+  a 20 KB blob still needs payloads on its own file.
+- **The "write contention" it relieves isn't real** — one app on one phone plus occasional
+  server-side enrichment, all handled by the version-tag + merge-retry already in the code
+  (`MergeAsync`). The only genuine case (same app, two devices) needs a version tag under *either*
+  design.
+
+| Concern (under "load all contacts at startup") | Separate file (`389`) | Single HomebaseFile + payload |
+|---|---|---|
+| List/display fields available in memory | ✗ fetched per contact record (a load each, cold) | ✅ already in the contacts query |
+| Atomic contact + app data | ✗ independent files, can desync | ✅ one file, one version tag |
+| "File went missing" / orphans | ✗ N sidecar files, each can orphan | ✅ nothing to lose separately |
+| Cleanup on contact/app delete | ✗ sweep queries + reconcile backstop | ✅ delete the file, done |
+| Derived IDs to manage | ✗ three keys | ✅ contact id + `appId` from token |
+| 10 KB overflow | ✗ still hit per file | bulk goes to a payload (on demand) |
+| Unblocks the emergency feature now | ✗ | ✅ one JSON field |
+
+---
+
+## The model
+
+### Two buckets
+
+- **Contact JSON** (`AppData.Content`, in every list query): core contact fields, **each individually
+  size-capped** (a display name is ≤ a couple hundred chars — no 7 KB names), plus a per-app
+  **opaque blob capped at ~N bytes** (~200). The server stores the blob **verbatim** and never parses
+  it; it is keyed by the `appId` resolved from the token. This is the only tier the emergency/location
+  feature needs.
+- **Payload** (on demand, per contact): anything bigger — a 20 KB bio, an app's bulk data. Read only
+  when a single contact is opened, via the existing generic payload endpoint. A field is either small
+  enough for its JSON cap **or** it lives wholesale in a payload — never split across both.
+
+> The exact **bulk-payload shape** is the one genuinely open question and does **not** block the
+> emergency feature. Recommended: a single shared, server-encrypted `ext_data` payload, app-namespaced
+> inside (the `merge_log` pattern), to avoid the per-app `MaxPayloadsCount=25` ceiling. Settle this
+> increment separately.
+
+### appId stamp = convenience, not security
+
+Stamping the appId from the token stops App A from *accidentally* clobbering App B's blob. It is **not**
+an isolation boundary: an app that funnels through the contact write can already nuke a core field
+(e.g. `name`), so this adds no new exposure. The value is keeping each app confined to its own JSON to
+avoid future pitfalls — no token-isolation machinery beyond the stamp is warranted.
+
+### Sensitive-field guidance (document for app developers)
+
+The contact JSON and any payload are encrypted under the file's AES key, so they are readable by *any*
+app with read access to the contact drive — there is no per-app field isolation (and it is not
+zero-knowledge: the owner's server holds the storage key). If an app deems a value genuinely
+sensitive, it should either **not store it on the contact record**, or **apply its own app-level
+encryption** before sending it (doubly encrypted, opaque to other apps). The server stores the bytes
+verbatim, so app-level encryption is transparent to this design.
+
+### Encryption — server-side
+
+The client sends **plaintext** JSON over the existing shared-secret transport; the server encrypts at
+rest under the file AES key — identical to `ContactService.EncryptContent` and the `merge_log`
+payload. No client-side crypto, no key derivation.
 
 ### Reads — nothing new
 
-Inline content arrives with the existing client-side contact `QueryBatch`. The full data is fetched
-on demand via the **existing generic payload endpoint** by the fixed key `ext_data`; the response's
-`SharedSecretEncryptedKeyHeader64` carries the file AES key + payload IV, and the client decrypts with
-`KeyHeader(iv, aesKey)` — the same flow `chat-kmp` already uses for every payload. No new read
-endpoint, no resolver, no derivation.
+The list is the existing client-side contact `QueryBatch` (core fields + per-app blobs ride inline).
+Bulk data is the existing generic payload GET, on demand, decrypted with the file key header
+(`KeyHeader(iv, aesKey)`) — the same flow `chat-kmp` already uses for every payload.
 
 ### Writes
 
-- **Core contact write** — extend the existing `PUT /api/v2/contacts/{uniqueId}` (owner,
-  `ManageContacts`). `UpdateContactRequest`/`CreateContactRequest` gain an optional
-  `ContactExtendedContent Extended`. When present, the server writes/rewrites the `ext_data` payload
-  in the **same `UpdateBatchAsync` transaction** as the content (extend `BuildContentManifest` /
-  `WriteContentWithMergeLogAsync` to include the `ext_data` descriptor alongside `merge_log`).
-  Existing version-tag gating is unchanged.
-- **App contact write** — new `PUT /api/v2/contacts/{uniqueId}/app-data` (+ `DELETE` to clear the
-  slice). The server resolves the appId from the token and merges **only** `appData[appId]` inline
-  (≤ ~200 B; reject over-cap with a clear error) and `ext_data.appData[appId]` (full), leaving core
-  fields and other apps' slices untouched. This is a convenience guard against accidental cross-app
-  overwrite (see Context) — not a security boundary — so no token-isolation machinery beyond the
-  appId stamp is warranted. Use the **`MergeAsync`-style** server-side merge
-  (read-modify-write with retry-on-`VersionTagMismatch`), not whole-file client gating: app slices
-  are isolated and can't clobber core fields, so this avoids the spurious 409s the old plan
-  acknowledged under concurrent enrichment.
-
-### Files to change
-
-- `src/services/Odin.Services/Contacts/ContactContent.cs` — add large-capable core field(s) (`bio`,
-  …) + `appData` map; add `ContactExtendedContent` (full values + `appData`).
-- `src/services/Odin.Services/Contacts/ContactRequests.cs` — add optional `Extended` to
-  create/update requests; add `SetContactAppDataRequest`.
-- `src/services/Odin.Services/Contacts/ContactService.cs` — add `ExtendedContentPayloadKey =
-  "ext_data"`; a `WriteExtendedPayloadAsync` + `ReadExtendedAsync` mirroring the `merge_log`
-  helpers (`WriteContentWithMergeLogAsync` / `ReadMergeLogAsync`); thread `ext_data` through
-  `OverwriteAsync` / `BuildContentManifest` / `CarryForwardPayloads`; add `SetAppDataAsync` /
-  `DeleteAppDataAsync` (namespaced merge resolving appId).
-- `src/apps/Odin.Hosting/UnifiedV2/Connections/V2ContactsController.cs` — extend the PUT body; add
-  `PUT`/`DELETE .../app-data`; inject `AppRegistrationService` and resolve the appId via the existing
-  `AccessRegistrationId → AppClientRegistration.AppId` lookup (a thin helper, not a new abstraction).
-
-### Reuse (do not reinvent)
-
-`merge_log` write/read (`ContactService.WriteContentWithMergeLogAsync`, `ReadMergeLogAsync`),
-`BuildContentManifest`, `CarryForwardPayloads`, `UpdateBatchAsync` + `PayloadInstruction` /
-`PayloadUpdateOperationType`, `MergeAsync` retry pattern, `KeyHeader.EncryptDataAes`/`Decrypt`.
+- **Core contact write** — the existing `PUT /api/v2/contacts/{uniqueId}` (owner, `ManageContacts`),
+  version-tag gated as today. Enforce per-field size caps.
+- **App blob write** — `PUT /api/v2/contacts/{uniqueId}/app-data` (+ `DELETE`). The server resolves
+  the appId from the token and merges **only** `appData[appId]` (≤ ~N bytes; reject over-cap with a
+  clear error), leaving core fields and other apps' blobs untouched. Use the **`MergeAsync`-style**
+  server-side namespaced merge (read-modify-write, retry on `VersionTagMismatch`) so an app write
+  never spuriously conflicts with enrichment or core edits.
 
 ---
 
-## Open decisions (recommendations; finalize in implementation)
+## Files to change
 
-- **Overflow doc shape** — `ContactExtendedContent { bio…, appData }` as above (recommended), vs. a
-  generic `fieldPath → fullValue` map. Recommend the typed shape for core fields + an `appData` map
-  for free-form app data.
-- **App-data concurrency** — server-side namespaced merge with retry (recommended) vs. whole-file
-  version-tag gate. Recommend the merge to avoid spurious conflicts.
-- **Per-app inline cap** — default ~200 B, configurable; over-cap write rejected with guidance to use
-  `ext_data`.
+- `src/services/Odin.Services/Contacts/ContactContent.cs` — add an `appData` map
+  (`appId → opaque JSON string`, per-entry size-capped); enforce per-field size caps on core fields.
+- `src/services/Odin.Services/Contacts/ContactRequests.cs` — `SetContactAppDataRequest { string Content; Guid VersionTag }`;
+  reuse `ContactWriteResponse` / `ContactWriteConflict`.
+- `src/services/Odin.Services/Contacts/ContactService.cs` — `SetAppDataAsync` / `DeleteAppDataAsync`
+  (namespaced merge resolving appId, `MergeAsync` retry pattern); per-field + per-blob size validation.
+- `src/apps/Odin.Hosting/UnifiedV2/Connections/V2ContactsController.cs` — add `PUT`/`DELETE .../app-data`;
+  inject `AppRegistrationService` and resolve the appId via the existing
+  `AccessRegistrationId → AppClientRegistration.AppId` lookup (a thin helper, not a new abstraction).
+- *(Bulk-payload tier, separate increment)* — `ext_data` write/read mirroring the `merge_log` helpers
+  (`WriteContentWithMergeLogAsync` / `ReadMergeLogAsync`), threaded through `BuildContentManifest` /
+  `CarryForwardPayloads`.
+
+## Reuse (do not reinvent)
+
+`ContactService.GetWriteContext`, `GetForWritingAsync`, `EncryptContent`/`DecryptContent`, the
+`MergeAsync` retry pattern, the `merge_log` payload mechanics (`WriteContentWithMergeLogAsync` /
+`ReadMergeLogAsync`, `BuildContentManifest`, `CarryForwardPayloads`, `UpdateBatchAsync` +
+`PayloadInstruction`), the `AppRegistrationService` access-reg → appId lookup.
+
+---
+
+## Open decisions
+
+- **Per-app blob cap / per-field caps** — default ~200 B per app blob; sensible per-field caps on core
+  fields (e.g. display name ≤ 256 chars). Configurable; over-cap writes rejected with guidance to use
+  a payload.
+- **Bulk-payload shape** — recommended single shared `ext_data` (app-namespaced, server-encrypted) to
+  dodge the 25-payload ceiling. Separate increment; does not block the JSON tier.
 
 ---
 
 ## Verification
 
-- **Unit** (`Odin.Services.Tests`): `ext_data` round-trips full values; chopping a core field keeps
-  the preview inline and the full value in `ext_data`; per-app inline cap is enforced.
+- **Unit** (`Odin.Services.Tests`): per-field and per-blob size caps are enforced; an app blob
+  round-trips verbatim; the appId stamp routes a write to the right `appData[appId]` slot.
 - **Integration** (`Odin.Hosting.Tests`, app-token client; mirror the existing V2 contacts setup):
-  - Core write with `Extended` → inline content + `ext_data` payload both present and decryptable.
-  - App writes its `appData[appId]`; a **different app** never sees/overwrites it; core fields and
-    `merge_log` / `prfl_pic` survive (carry-forward).
-  - `ext_data` read via the **generic** payload endpoint (no contact-specific endpoint) decrypts with
-    the file key header.
-  - `ext_data` is absent from a default contact `QueryBatch` (on-demand only).
-  - App-data delete clears only that app's slice.
+  - App writes its `appData[appId]`; it comes back in the default contact `QueryBatch` (list-visible,
+    no payload load); a **different app** never sees/overwrites it; core fields, `merge_log`,
+    `prfl_pic` survive.
+  - An over-cap app blob (or core field) is rejected with a clear error.
+  - App-data delete clears only that app's blob.
+  - *(Bulk tier)* a 20 KB value is absent from the list `QueryBatch` and fetched only via the generic
+    payload endpoint.
 - **Build/regression:** `dotnet build ./odin-core.sln`; `dotnet test` the contacts + V2 contacts
   suites on SQLite (and PostgreSQL via `docker/start-dev-servers.sh`).
-</content>
