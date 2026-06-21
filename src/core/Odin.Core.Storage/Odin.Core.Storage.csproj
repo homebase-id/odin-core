@@ -9,7 +9,12 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="16.1.1" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.17" />
+    <!-- Direct reference to override the vulnerable transitive 3.0.308 from FusionCache (GHSA-hv8m-jj95-wg3x) -->
+    <PackageReference Include="MessagePack" Version="3.1.7" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
+    <!-- Direct reference to override the vulnerable transitive 2.1.10 from Microsoft.Data.Sqlite (GHSA-2m69-gcr7-jv3q).
+         The entire 2.1.x line is affected with no patch; the fix ships in the 3.x series. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
     <PackageReference Include="Npgsql" Version="9.0.2" />
     <PackageReference Include="System.Runtime.Caching" Version="9.0.2" />

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Threading;
@@ -133,9 +134,32 @@ namespace Odin.Services.AppNotifications.WebSocket
             {
                 ShouldEncrypt = shouldEncrypt,
                 Json = json,
+                // App-targeted notifications are delivered only to sockets of the matching app;
+                // null means broadcast to all sockets (existing behaviour).
+                TargetAppId = (notification as IAppTargetedClientNotification)?.TargetAppId,
             };
 
             await _pubSub.PublishAsync(NotificationChannel, JsonEnvelope.Create(message));
+        }
+
+        //
+
+        /// <summary>
+        /// Serializes and sends a single client notification directly to one socket (bypassing
+        /// pub/sub). Used to flush retained state to a socket as it (re)connects.
+        /// </summary>
+        public Task SendClientNotificationToSocketAsync(
+            DeviceSocket deviceSocket,
+            IClientNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            var json = OdinSystemSerializer.Serialize(new
+            {
+                notification.NotificationType,
+                Data = notification.GetClientData()
+            });
+
+            return SendMessageAsync(deviceSocket, json, encrypt: true, cancellationToken);
         }
 
         //
@@ -144,7 +168,14 @@ namespace Odin.Services.AppNotifications.WebSocket
         // Dst: WebSocket
         private async Task WsPublishAsync(ClientNotificationMessage notification)
         {
-            var sockets = _deviceSocketCollection.GetAll().Values;
+            IEnumerable<DeviceSocket> sockets = _deviceSocketCollection.GetAll().Values;
+
+            // App-targeted notifications only reach sockets authenticated as that app.
+            if (notification.TargetAppId.HasValue)
+            {
+                sockets = sockets.Where(ds => ds.AppId == notification.TargetAppId.Value);
+            }
+
             foreach (var deviceSocket in sockets)
             {
                 await SendMessageAsync(
@@ -438,6 +469,9 @@ namespace Odin.Services.AppNotifications.WebSocket
         {
             public required bool ShouldEncrypt { get; init; }
             public required string Json { get; init; }
+
+            // When set, deliver only to sockets authenticated as this app; null = broadcast to all.
+            public Guid? TargetAppId { get; init; }
         }
 
         private class DriveNotificationMessage

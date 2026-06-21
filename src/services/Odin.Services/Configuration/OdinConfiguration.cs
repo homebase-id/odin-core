@@ -43,7 +43,6 @@ public class OdinConfiguration
 
     public S3StorageSection S3Storage { get; init; } = new();
     public S3PayloadSection S3Payload { get; init; } = new();
-    public S3InboxSection S3Inbox { get; init; } = new();
 
     public CdnSection Cdn { get; init; } = new();
 
@@ -72,7 +71,6 @@ public class OdinConfiguration
         Cache = new CacheSection(config);
         S3Storage = new S3StorageSection(config);
         S3Payload = new S3PayloadSection(config);
-        S3Inbox = new S3InboxSection(config);
         Cdn = new CdnSection(config);
     }
 
@@ -588,36 +586,6 @@ public class OdinConfiguration
                 }
                 BucketName = config.Required<string>("S3Payload:BucketName");
                 RootPath = config.GetOrDefault("S3Payload:RootPath", "payloads");
-            }
-        }
-    }
-
-    //
-
-    public class S3InboxSection
-    {
-        public bool Enabled { get; init; }
-        public string BucketName { get; init; } = "";
-        public string RootPath { get; init; } = "";
-        public int ExpirationDays { get; init; }
-
-        public S3InboxSection()
-        {
-            // Mockable support
-        }
-
-        public S3InboxSection(IConfiguration config)
-        {
-            Enabled = config.GetOrDefault("S3Inbox:Enabled", false);
-            if (Enabled)
-            {
-                if (!config.GetOrDefault("S3Storage:Enabled", false))
-                {
-                    throw new OdinConfigException("S3Storage must be enabled if S3Inbox is enabled");
-                }
-                BucketName = config.Required<string>("S3Inbox:BucketName");
-                RootPath = config.GetOrDefault("S3Inbox:RootPath", "inbox");
-                ExpirationDays = config.GetOrDefault("S3Inbox:ExpirationDays", 0);
             }
         }
     }

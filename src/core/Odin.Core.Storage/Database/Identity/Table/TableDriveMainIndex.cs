@@ -226,6 +226,39 @@ public class TableDriveMainIndex(
         return (-1, -1);
     }
 
+    // FileState.Active (the enum lives in Odin.Services, which this layer cannot reference upward).
+    private const int ActiveFileState = 1;
+
+    internal async Task<long> GetNewestModifiedAsync(Guid driveId, int fileSystemType)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        // Newest server-set modified timestamp of an active file on the drive (0 when the drive has none).
+        cmd.CommandText =
+            """
+            SELECT CAST(COALESCE(MAX(modified), 0) AS BIGINT)
+            FROM drivemainindex
+            WHERE identityId=@identityId AND driveId=@driveId AND fileSystemType=@fileSystemType AND fileState=@fileState;
+            """;
+
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@driveId", DbType.Binary, driveId);
+        cmd.AddParameter("@fileSystemType", DbType.Int32, fileSystemType);
+        cmd.AddParameter("@fileState", DbType.Int32, ActiveFileState);
+
+        var modified = 0L;
+        await using (var rdr = await cmd.ExecuteReaderAsync())
+        {
+            if (await rdr.ReadAsync())
+            {
+                modified = rdr[0] == DBNull.Value ? 0 : (long)rdr[0];
+            }
+        }
+
+        return modified;
+    }
+
     internal async Task<long> GetTotalSizeAllDrivesAsync()
     {
         await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();

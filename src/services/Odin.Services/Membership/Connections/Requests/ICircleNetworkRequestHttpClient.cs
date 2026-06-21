@@ -17,7 +17,7 @@ namespace Odin.Services.Membership.Connections.Requests
         private const string RootPath = PeerApiPathConstants.InvitationsV1;
 
         [Post(RootPath + "/connect")]
-        Task<ApiResponse<HttpContent>> DeliverConnectionRequest([Body] EccEncryptedPayload request, CancellationToken cancellationToken = default);
+        Task<ApiResponse<ConnectionRequestReceipt>> DeliverConnectionRequest([Body] EccEncryptedPayload request, CancellationToken cancellationToken = default);
 
         [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply, CancellationToken cancellationToken = default);

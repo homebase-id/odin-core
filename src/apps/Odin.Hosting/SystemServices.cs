@@ -283,16 +283,6 @@ public static class SystemServices
             services.AddS3AwsPayloadStorage(config.S3Payload.BucketName, config.S3Payload.RootPath);
         }
 
-        // S3 Inbox storage
-        if (config.S3Inbox.Enabled)
-        {
-            if (!config.S3Storage.Enabled)
-            {
-                throw new OdinSystemException("S3Inbox is enabled, but S3Storage is not enabled.");
-            }
-            services.AddS3AwsInboxStorage(config.S3Inbox.BucketName, config.S3Inbox.RootPath);
-        }
-
         return services;
     }
 

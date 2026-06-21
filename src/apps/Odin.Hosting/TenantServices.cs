@@ -5,6 +5,7 @@ using Odin.Core.Identity;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Services.AppNotifications.ClientNotifications;
+using Odin.Services.Contacts;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -27,6 +28,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Statistics;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
@@ -72,6 +74,7 @@ using Odin.Services.Authorization.Capi;
 using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
 using Odin.Services.Configuration.VersionUpgrade.Version7tov8;
+using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -114,6 +117,12 @@ public static class TenantServices
         // AppNotificationHandler / PeerAppNotificationHandler below.
         cb.RegisterType<AppNotificationDispatcher>().AsSelf().SingleInstance();
         cb.RegisterType<PeerAppNotificationDispatcher>().AsSelf().SingleInstance();
+
+        // Per-tenant singleton: holds the per-app async locks that serialize the snapshot
+        // read-modify-write; state itself lives in the (Redis-backed) layer-2 cache.
+        cb.RegisterType<LiveRelayRetainedStore>().AsSelf().SingleInstance();
+        cb.RegisterType<LiveRelayService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<PeerLiveRelayReceiverService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<ClientRegistrationStorage>().InstancePerLifetimeScope();
 
@@ -158,6 +167,7 @@ public static class TenantServices
             .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
             .As<INotificationHandler<AppNotificationAddedNotification>>()
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<LiveRelayNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
 
@@ -228,11 +238,8 @@ public static class TenantServices
         cb.Register(c => new UploadFileStore(new DiskFileStore(c.Resolve<FileReaderWriter>())))
             .AsSelf().SingleInstance();
 
-        // Inbox: S3 when S3Inbox enabled, else disk.
-        cb.Register(c => new InboxFileStore(
-                odinConfig.S3Inbox.Enabled
-                    ? new S3FileStore(c.Resolve<IS3InboxStorage>(), c.Resolve<ILogger<S3FileStore>>(), odinConfig)
-                    : new DiskFileStore(c.Resolve<FileReaderWriter>())))
+        // Inbox: ALWAYS disk (we're going to nuke the inbox-on-disk shortly).
+        cb.Register(c => new InboxFileStore(new DiskFileStore(c.Resolve<FileReaderWriter>())))
             .AsSelf().SingleInstance();
 
         // Long-term payload: S3 when S3Payload enabled, else disk.
@@ -304,6 +311,11 @@ public static class TenantServices
 
         cb.RegisterType<CircleNetworkVerificationService>().InstancePerLifetimeScope();
 
+        cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ContactEnrichmentService>().AsSelf().InstancePerLifetimeScope();
+        // Enrichment is client-driven via POST /api/v2/contacts/sync (phase 1). Automatic
+        // lifecycle-driven enrichment is deferred — see docs/contact-enrichment-phase2.md.
+
         cb.RegisterType<FollowerService>().InstancePerLifetimeScope();
         cb.RegisterType<FollowerPerimeterService>().InstancePerLifetimeScope();
 
@@ -361,6 +373,7 @@ public static class TenantServices
         cb.RegisterType<V5ToV6VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V6ToV7VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V7ToV8VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V8ToV9VersionMigrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();

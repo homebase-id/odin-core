@@ -223,6 +223,37 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
             app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/community"),
                 homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3006/"); }); });
 
+            // chat-wasm is a static Kotlin/WASM bundle, not a Vite dev app — serve it from
+            // client/apps/chat-wasm via Kestrel static files in dev too (mirrors the production
+            // route below), otherwise the catch-all proxy swallows it into the owner-app Vite server.
+            app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/apps/chat-wasm"),
+                chatWasmApp =>
+                {
+                    var chatWasmPath = Path.Combine(env.ContentRootPath, "client", "apps", "chat-wasm");
+                    if (Directory.Exists(chatWasmPath))
+                    {
+                        chatWasmApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(chatWasmPath),
+                            RequestPath = "/apps/chat-wasm",
+                            // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
+                            // string table) have extensions Kestrel's content-type map doesn't know.
+                            // Without this, UseStaticFiles 404s them and the SPA fallback below returns
+                            // index.html instead, so Compose loads HTML as its string table and ALL text
+                            // renders blank. Serve unknown types as octet-stream (Compose reads raw bytes).
+                            ServeUnknownFileTypes = true,
+                            DefaultContentType = "application/octet-stream"
+                        });
+
+                        chatWasmApp.Run(context => SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
+                    }
+                    else
+                    {
+                        logger.LogWarning("chat-wasm app directory not found at {Path}. Requests to /apps/chat-wasm will return 404.",
+                            chatWasmPath);
+                    }
+                });
+
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
                 homeApp =>
                 {
@@ -331,20 +362,23 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                         chatWasmApp.UseStaticFiles(new StaticFileOptions()
                         {
                             FileProvider = new PhysicalFileProvider(chatWasmPath),
-                            RequestPath = "/apps/chat-wasm"
+                            RequestPath = "/apps/chat-wasm",
+                            // Compose Multiplatform resource files (e.g. strings.commonMain.cvr — the
+                            // string table) have extensions Kestrel's content-type map doesn't know.
+                            // Without this, UseStaticFiles 404s them and the SPA fallback below returns
+                            // index.html instead, so Compose loads HTML as its string table and ALL text
+                            // renders blank. Serve unknown types as octet-stream (Compose reads raw bytes).
+                            ServeUnknownFileTypes = true,
+                            DefaultContentType = "application/octet-stream"
                         });
 
-                        chatWasmApp.Run(async context =>
-                        {
-                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(chatWasmPath, "index.html"));
-                            return;
-                        });
+                        chatWasmApp.Run(context => SpaFallback.ServeShellOrNotFound(context, Path.Combine(chatWasmPath, "index.html")));
                     });
             }
             else
             {
-                logger.LogWarning("chat-wasm app directory not found at {Path}. Requests to /apps/chat-wasm will return 404.", chatWasmPath);
+                logger.LogWarning("chat-wasm app directory not found at {Path}. Requests to /apps/chat-wasm will return 404.",
+                    chatWasmPath);
             }
 
             app.MapWhen(ctx => !ctx.Request.Path.Value?.StartsWith("/api/") ?? true,
@@ -476,19 +510,6 @@ public static class HostExtensions
                 config.S3Payload.BucketName, config.S3Storage.ServiceUrl);
             var payloadBucket = services.GetRequiredService<IS3PayloadStorage>();
             payloadBucket.CreateBucketAsync().BlockingWait();
-        }
-
-        // Ensure S3 inbox bucket exists
-        logger.LogInformation("S3Inbox enabled: {enabled}", config.S3Inbox.Enabled);
-        if (config.S3Inbox.Enabled)
-        {
-            logger.LogInformation("Creating S3 inbox bucket '{BucketName}' at {ServiceUrl}",
-                config.S3Inbox.BucketName, config.S3Storage.ServiceUrl);
-            var inboxBucket = services.GetRequiredService<IS3InboxStorage>();
-            inboxBucket.CreateBucketAsync().BlockingWait();
-
-            logger.LogInformation("Reconciling S3 inbox expiration: {days} day(s)", config.S3Inbox.ExpirationDays);
-            inboxBucket.EnsureExpirationLifecycleAsync(config.S3Inbox.ExpirationDays).BlockingWait();
         }
 
         // Sanity ping CDN

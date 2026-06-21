@@ -7,7 +7,6 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Services.Apps;
@@ -39,8 +38,8 @@ namespace Odin.Services.Authorization.Apps
 
         private static readonly ThreeKeyValueStorage AppRegistrationValueStorage =
             TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(AppRegContextKey));
-        
-        
+
+
         public async Task<RedactedAppRegistration> RegisterAppAsync(AppRegistrationRequest request, IOdinContext odinContext)
         {
             odinContext.Caller.AssertHasMasterKey();
@@ -167,6 +166,14 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
+            if (request.AppId == SystemAppConstants.FeedAppId)
+            {
+                foreach (var cid in SystemAppConstants.FeedAppRegistrationRequest.AuthorizedCircles)
+                {
+                    request.AuthorizedCircles.EnsureItem(cid);
+                }
+            }
+
             var updatedAppReg = new AppRegistration()
             {
                 AppId = oldRegistration.AppId,
@@ -255,6 +262,7 @@ namespace Odin.Services.Authorization.Apps
                             ClientIdOrDomain = appReg.Name,
                             CorsHostName = appReg.CorsHostName,
                             AccessRegistrationId = accessReg.Id,
+                            AppId = appReg.AppId,
                             DevicePushNotificationKey = null
                         })
                 };

@@ -55,7 +55,8 @@ public class PushNotificationService(
         INotificationHandler<ConnectionRequestReceivedNotification>,
         INotificationHandler<ShamirPasswordRecoverySufficientShardsCollectedNotification>,
         INotificationHandler<ShamirPasswordRecoveryShardCollectedNotification>,
-        INotificationHandler<ShamirPasswordRecoveryShardRequestedNotification>
+        INotificationHandler<ShamirPasswordRecoveryShardRequestedNotification>,
+        INotificationHandler<TemporalDriveAccessedNotification>
 {
     const string DeviceStorageContextKey = "9a9cacb4-b76a-4ad4-8340-e681691a2ce4";
     const string DeviceStorageDataTypeKey = "1026f96f-f85f-42ed-9462-a18b23327a33";
@@ -150,6 +151,19 @@ public class PushNotificationService(
                 TypeId = notification.NotificationTypeId,
                 TagId = notification.Sender.ToHashId(),
                 Silent = false
+            },
+            notification.OdinContext);
+    }
+
+    public async Task Handle(TemporalDriveAccessedNotification notification, CancellationToken cancellationToken)
+    {
+        await this.EnqueueNotificationInternalAsync(notification.Accessor, new AppNotificationOptions()
+            {
+                AppId = SystemAppConstants.OwnerAppId,
+                TypeId = notification.NotificationTypeId,
+                TagId = notification.Accessor.ToHashId(),
+                Silent = false,
+                UnEncryptedMessage = $"{notification.Accessor.DomainName} accessed your location"
             },
             notification.OdinContext);
     }

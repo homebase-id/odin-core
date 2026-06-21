@@ -64,4 +64,22 @@ public class DrivePeerReaderV2Client(OdinId identity, IApiClientFactory factory)
         var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
         return await svc.GetThumbnail(peer.DomainName, driveId, fileId, payloadKey, width, height);
     }
+
+    // --- Temporal (time-boxed) read API ---
+
+    public async Task<ApiResponse<TemporalAccessStatus>> VerifyTemporalAccessAsync(OdinId peer, Guid driveId,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.VerifyTemporalAccess(peer.DomainName, driveId);
+    }
+
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> TemporalGetFileHeaderAsync(OdinId peer, Guid driveId, Guid fileId,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.TemporalGetFileHeader(peer.DomainName, driveId, fileId);
+    }
 }

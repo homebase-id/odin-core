@@ -42,6 +42,14 @@ public static class SystemAppConstants
                 {
                     PermissionedDrive = new PermissionedDrive()
                     {
+                        Drive = SystemDriveConstants.ListsDrive,
+                        Permission = DrivePermission.Write | DrivePermission.React
+                    }
+                },
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
                         Drive = SystemDriveConstants.MomentsDrive,
                         Permission = DrivePermission.Write | DrivePermission.React
                     }
@@ -71,6 +79,14 @@ public static class SystemAppConstants
             {
                 PermissionedDrive = new PermissionedDrive()
                 {
+                    Drive = SystemDriveConstants.ListsDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
                     Drive = SystemDriveConstants.ContactDrive,
                     Permission = DrivePermission.ReadWrite
                 }
@@ -91,6 +107,22 @@ public static class SystemAppConstants
                     Permission = DrivePermission.ReadWrite
                 }
             },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.StickerDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.LocationDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            }
         ],
         PermissionSet = new PermissionSet(
             PermissionKeys.ReadConnections,
@@ -98,7 +130,82 @@ public static class SystemAppConstants
             PermissionKeys.ReadConnectionRequests,
             PermissionKeys.SendIntroductions,
             PermissionKeys.UseTransitRead,
-            PermissionKeys.UseTransitWrite)
+            PermissionKeys.UseTransitWrite,
+            // Writes to the ContactDrive funnel through the Contact API (/api/v2/contacts), which
+            // requires ManageContacts. Granted by default so the Chat app can manage contacts.
+            PermissionKeys.ManageContacts)
+    };
+
+    public static readonly AppRegistrationRequest FeedAppRegistrationRequest = new()
+    {
+        AppId = FeedAppId,
+        Name = "Homebase - Feed",
+        AuthorizedCircles = [],
+        Drives =
+        [new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.StickerDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.FeedDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                // Standard profile Info
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.ProfileDrive,
+                    Permission = DrivePermission.Read
+                }
+            },
+            new()
+            {
+                // Homepage Drive
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.HomePageConfigDrive,
+                    Permission = DrivePermission.Read
+                }
+            },
+            new()
+            {
+                // Contact Drive
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.ContactDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+            new()
+            {
+                // Public posts
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.PublicPostsChannelDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
+            },
+        ],
+        PermissionSet = new PermissionSet(
+            PermissionKeys.ReadConnections,
+            PermissionKeys.ReadConnectionRequests,
+            PermissionKeys.ReadCircleMembership,
+            PermissionKeys.ReadWhoIFollow,
+            PermissionKeys.ReadMyFollowers,
+            PermissionKeys.ManageFeed,
+            PermissionKeys.UseTransitWrite,
+            PermissionKeys.UseTransitRead,
+            PermissionKeys.PublishStaticContent,
+            PermissionKeys.SendPushNotifications)
     };
 
 
@@ -151,6 +258,14 @@ public static class SystemAppConstants
                     Drive = SystemDriveConstants.ProfileDrive,
                     Permission = DrivePermission.Read
                 }
+            },
+            new()
+            {
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = SystemDriveConstants.StickerDrive,
+                    Permission = DrivePermission.ReadWrite
+                }
             }
         ],
         PermissionSet = new PermissionSet(
@@ -158,6 +273,9 @@ public static class SystemAppConstants
             PermissionKeys.SendPushNotifications,
             PermissionKeys.ReadConnectionRequests,
             PermissionKeys.SendIntroductions,
-            PermissionKeys.UseTransitWrite)
+            PermissionKeys.UseTransitWrite,
+            // Writes to the ContactDrive funnel through the Contact API (/api/v2/contacts), which
+            // requires ManageContacts. Granted by default so the Mail app can manage contacts.
+            PermissionKeys.ManageContacts)
     };
 }

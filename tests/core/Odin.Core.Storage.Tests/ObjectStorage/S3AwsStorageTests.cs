@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.Runtime;
@@ -224,6 +225,11 @@ public class S3AwsStorageTests
     {
         var someOtherBucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
         var bucket = new S3AwsStorage(_logger, _s3Client, someOtherBucketName);
+        // CreateBucketAsync also best-effort installs the abort-incomplete-multipart lifecycle rule.
+        // MinIO (the CI backend) rejects bucket-level abort rules by design (it purges stale uploads
+        // globally), so the rule won't be stored here -- we only assert that creation still succeeds,
+        // i.e. the best-effort path swallows the unsupported-lifecycle error. Rule installation is
+        // exercised against providers that support it (AWS/Hetzner/Linode), not against MinIO.
         await bucket.CreateBucketAsync();
         var bucketExists = await bucket.BucketExistsAsync();
         await _s3Client.DeleteBucketAsync(new DeleteBucketRequest { BucketName = someOtherBucketName });
@@ -617,6 +623,67 @@ public class S3AwsStorageTests
     //
 
     [Test]
+    [Explicit("Round-trips an 8GB file (multipart upload + download). Slow and needs ~16GB free disk; run on demand only.")]
+    public async Task S3AwsStorage_ItShouldRoundTripALargeMultipartFile()
+    {
+        const long fileSize = 8L * 1024 * 1024 * 1024; // 8 GiB -> far past the 5GB single-PUT limit, forces multipart
+        const int blockSize = 64 * 1024 * 1024;        // 64 MiB; 128 blocks == 8 GiB exactly
+        const string key = "big-object.bin";
+
+        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "bigfile");
+        var srcPath = Path.Combine(_testRootPath, "big-src.bin");
+        var dstPath = Path.Combine(_testRootPath, "big-dst.bin");
+
+        try
+        {
+            // Write 8 GiB to disk without buffering it in memory, hashing as we go. Each 64 MiB block
+            // carries its index in the first 8 bytes so blocks differ (a misassembled object fails the hash).
+            var block = new byte[blockSize];
+            new Random(0xC0FFEE).NextBytes(block);
+
+            byte[] srcHash;
+            using (var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+            {
+                await using var fs = new FileStream(
+                    srcPath, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 20, FileOptions.Asynchronous);
+                for (long i = 0; i < fileSize / blockSize; i++)
+                {
+                    BitConverter.TryWriteBytes(block, i);
+                    await fs.WriteAsync(block.AsMemory(0, blockSize));
+                    hasher.AppendData(block, 0, blockSize);
+                }
+                srcHash = hasher.GetHashAndReset();
+            }
+            Assert.That(new FileInfo(srcPath).Length, Is.EqualTo(fileSize), "source file should be exactly 8 GiB");
+
+            // Upload (multipart via TransferUtility) and download again.
+            await bucket.UploadFileAsync(srcPath, key);
+            Assert.That(await bucket.FileLengthAsync(key), Is.EqualTo(fileSize), "stored object size must match");
+
+            await bucket.DownloadFileAsync(key, dstPath);
+            Assert.That(new FileInfo(dstPath).Length, Is.EqualTo(fileSize), "downloaded file size must match");
+
+            byte[] dstHash;
+            await using (var fs = new FileStream(
+                             dstPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 20, FileOptions.Asynchronous))
+            {
+                dstHash = await SHA256.HashDataAsync(fs);
+            }
+
+            Assert.That(Convert.ToHexString(dstHash), Is.EqualTo(Convert.ToHexString(srcHash)),
+                "round-tripped 8GB object must be byte-identical");
+        }
+        finally
+        {
+            await bucket.DeleteFileAsync(key);
+            if (File.Exists(srcPath)) File.Delete(srcPath);
+            if (File.Exists(dstPath)) File.Delete(dstPath);
+        }
+    }
+
+    //
+
+    [Test]
     public async Task S3AwsStorage_ItShouldGetTheFileSize()
     {
         const string srcPath = "the-src-file";
@@ -644,121 +711,6 @@ public class S3AwsStorageTests
         var exception = Assert.ThrowsAsync<S3StorageException>(() => bucket.FileLengthAsync(srcPath));
         var inner = exception!.InnerException as AmazonS3Exception;
         Assert.That(inner!.StatusCode, Is.EqualTo(System.Net.HttpStatusCode.NotFound));
-    }
-
-    //
-
-    [Test]
-    public async Task S3AwsStorage_ItShouldReconcileExpirationLifecycle()
-    {
-        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "inbox");
-
-        await bucket.EnsureExpirationLifecycleAsync(0);
-        var rules = await GetLifecycleRuleDaysAsync(_bucketName);
-        Assert.That(rules, Is.Empty, "no expiration rule expected when days = 0");
-
-        await bucket.EnsureExpirationLifecycleAsync(7);
-        rules = await GetLifecycleRuleDaysAsync(_bucketName);
-        Assert.That(rules, Does.Contain(7));
-        Assert.That(await GetRulePrefixAsync(_bucketName, "odin-inbox-expiration"), Is.EqualTo("inbox/"),
-            "rule must be scoped to the storage root prefix, not bucket-wide");
-
-        await bucket.EnsureExpirationLifecycleAsync(3);
-        rules = await GetLifecycleRuleDaysAsync(_bucketName);
-        Assert.That(rules, Does.Contain(3));
-        Assert.That(rules, Does.Not.Contain(7));
-
-        await bucket.EnsureExpirationLifecycleAsync(0);
-        rules = await GetLifecycleRuleDaysAsync(_bucketName);
-        Assert.That(rules, Is.Empty, "rule should be removed when days returns to 0");
-    }
-
-    private async Task<List<int>> GetLifecycleRuleDaysAsync(string bucketName)
-    {
-        try
-        {
-            var resp = await _s3Client.GetLifecycleConfigurationAsync(
-                new GetLifecycleConfigurationRequest { BucketName = bucketName });
-            return resp.Configuration?.Rules?
-                .Where(r => r.Expiration?.Days != null)
-                .Select(r => r.Expiration!.Days!.Value)
-                .ToList() ?? new List<int>();
-        }
-        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            return new List<int>();
-        }
-    }
-
-    private async Task<string> GetRulePrefixAsync(string bucketName, string ruleId)
-    {
-        var resp = await _s3Client.GetLifecycleConfigurationAsync(
-            new GetLifecycleConfigurationRequest { BucketName = bucketName });
-        var rule = resp.Configuration?.Rules?.FirstOrDefault(r => r.Id == ruleId);
-        return (rule?.Filter?.LifecycleFilterPredicate as LifecyclePrefixPredicate)?.Prefix;
-    }
-
-    //
-
-    [Test]
-    public async Task S3AwsStorage_ExpirationLifecycle_PreservesForeignRules()
-    {
-        // Pre-seed a foreign rule directly via the client.
-        await _s3Client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
-        {
-            BucketName = _bucketName,
-            Configuration = new LifecycleConfiguration
-            {
-                Rules = new List<LifecycleRule>
-                {
-                    new LifecycleRule
-                    {
-                        Id = "foreign-rule",
-                        Status = LifecycleRuleStatus.Enabled,
-                        Filter = new LifecycleFilter
-                        {
-                            LifecycleFilterPredicate = new LifecyclePrefixPredicate { Prefix = "other/" }
-                        },
-                        Expiration = new LifecycleRuleExpiration { Days = 99 }
-                    }
-                }
-            }
-        });
-
-        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName, "inbox");
-
-        // Add our rule
-        await bucket.EnsureExpirationLifecycleAsync(5);
-        var resp = await _s3Client.GetLifecycleConfigurationAsync(
-            new GetLifecycleConfigurationRequest { BucketName = _bucketName });
-        var ids = resp.Configuration.Rules.Select(r => r.Id).ToList();
-        Assert.That(ids, Does.Contain("foreign-rule"));
-        Assert.That(ids, Does.Contain("odin-inbox-expiration"));
-
-        // Remove our rule; foreign rule must survive (config not deleted).
-        await bucket.EnsureExpirationLifecycleAsync(0);
-        resp = await _s3Client.GetLifecycleConfigurationAsync(
-            new GetLifecycleConfigurationRequest { BucketName = _bucketName });
-        ids = resp.Configuration.Rules.Select(r => r.Id).ToList();
-        Assert.That(ids, Does.Contain("foreign-rule"));
-        Assert.That(ids, Does.Not.Contain("odin-inbox-expiration"));
-    }
-
-    //
-
-    [Test]
-    public async Task S3AwsStorage_ExpirationLifecycle_AppliesBucketWide_WhenNoRootPath()
-    {
-        // No rootPath -> the rule must use an empty prefix, i.e. apply to the whole bucket.
-        var bucket = new S3AwsStorage(_logger, _s3Client, _bucketName);
-
-        await bucket.EnsureExpirationLifecycleAsync(7);
-
-        var rules = await GetLifecycleRuleDaysAsync(_bucketName);
-        Assert.That(rules, Does.Contain(7));
-
-        var prefix = await GetRulePrefixAsync(_bucketName, "odin-inbox-expiration");
-        Assert.That(prefix, Is.Null.Or.Empty, "no rootPath should produce a bucket-wide (empty prefix) rule");
     }
 
     //

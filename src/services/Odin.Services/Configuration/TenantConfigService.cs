@@ -4,13 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core.Exceptions;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Apps;
-using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration.Eula;
@@ -255,8 +253,14 @@ public class TenantConfigService(
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMomentsDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateMailDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateFeedDriveRequest, odinContext);
+        // ListsDrive is granted to the system connection circles, so it must exist before any
+        // anonymous-read drive below — creating an anonymous drive re-validates every system circle
+        // drive grant, which would fail on a not-yet-created ListsDrive.
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateListsDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateHomePageConfigDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreatePublicPostsChannelDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateStickerDriveRequest, odinContext);
+        await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateLocationDriveRequest, odinContext);
 
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateContactDriveRequest, odinContext);
         await CreateDriveIfNotExistsAsync(SystemDriveConstants.CreateProfileDriveRequest, odinContext);
@@ -333,7 +337,7 @@ public class TenantConfigService(
             case TenantConfigFlagNames.SendMonthlySecurityHealthReport:
                 cfg.SendMonthlySecurityHealthReport = bool.Parse(request.Value);
                 break;
-            
+
 
             default:
                 throw new OdinClientException("Flag name is valid but not handled", OdinClientErrorCode.UnknownFlagName);
@@ -396,68 +400,7 @@ public class TenantConfigService(
 
     private async Task RegisterFeedApp(IOdinContext odinContext)
     {
-        var request = new AppRegistrationRequest()
-        {
-            AppId = SystemAppConstants.FeedAppId,
-            Name = "Homebase - Feed",
-            AuthorizedCircles = new List<Guid>(),
-            CircleMemberPermissionGrant = null,
-            Drives =
-            [
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.FeedDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ContactDrive,
-                        Permission = DrivePermission.ReadWrite
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.ProfileDrive,
-                        Permission = DrivePermission.Read
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.HomePageConfigDrive,
-                        Permission = DrivePermission.Read
-                    }
-                },
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.PublicPostsChannelDrive,
-                        Permission = DrivePermission.All
-                    }
-                }
-            ],
-            PermissionSet = new PermissionSet(
-                PermissionKeys.ReadConnections,
-                PermissionKeys.ReadCircleMembership,
-                PermissionKeys.SendPushNotifications,
-                PermissionKeys.ReadWhoIFollow,
-                PermissionKeys.ReadMyFollowers,
-                PermissionKeys.ManageFeed,
-                PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.UseTransitRead,
-                PermissionKeys.PublishStaticContent,
-                PermissionKeys.UseTransitWrite)
-        };
-
+        var request = SystemAppConstants.FeedAppRegistrationRequest;
         var existingApp = await appRegistrationService.GetAppRegistration(request.AppId, odinContext);
         if (existingApp == null)
         {

@@ -28,8 +28,8 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] EccEncryptedPayload payload)
         {
-            await circleNetworkRequestService.ReceiveConnectionRequestAsync(payload, HttpContext.RequestAborted, WebOdinContext);
-            return Ok();
+            var receipt = await circleNetworkRequestService.ReceiveConnectionRequestAsync(payload, HttpContext.RequestAborted, WebOdinContext);
+            return Ok(receipt);
         }
 
 

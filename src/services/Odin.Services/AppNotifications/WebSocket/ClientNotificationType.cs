@@ -25,6 +25,15 @@ public enum ClientNotificationType
     IntroductionAccepted = 4002,
     ConnectionFinalized = 4003,
     /// <summary>
+    /// A connected identity read a drive via the temporal (time-boxed) read API.
+    /// </summary>
+    TemporalDriveAccessed = 5001,
+    /// <summary>
+    /// An opaque live-relay data point (e.g. live GPS) pushed by a connected identity to an app.
+    /// Carries the sending identity, a channel key, the opaque blob, and the server-received time.
+    /// </summary>
+    LiveRelay = 6001,
+    /// <summary>
     /// Indicates the notification doesnt need this value.  Note: this implies we might be able to dorp this field all together
     /// </summary>
     Unused = 8001,

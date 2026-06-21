@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Table;
+using Odin.Core.Time;
 using Odin.Services.Base;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Peer.Incoming.Drive.Transfer;
@@ -36,7 +37,8 @@ namespace Odin.Services.Drives.DriveCore.Query
             IOdinContext odinContext,
             FileSystemType fileSystemType,
             FileQueryParams qp,
-            QueryBatchResultOptions options);
+            QueryBatchResultOptions options,
+            UnixTimeUtc? modifiedAfter = null);
 
         /// <summary>
         /// Saves the file to the database
@@ -71,6 +73,12 @@ namespace Odin.Services.Drives.DriveCore.Query
         Task<(List<Reaction>, Int32? cursor)> GetReactionsByFileAsync(StorageDrive drive, int maxCount, int cursor, Guid fileId);
 
         Task<(Int64 fileCount, Int64 byteSize)> GetDriveSizeInfoAsync(StorageDrive drive);
+
+        /// <summary>
+        /// Returns the newest server-set modified timestamp (ms) of an active file on the drive for the given
+        /// file system type, or 0 when the drive has no such files.
+        /// </summary>
+        Task<long> GetNewestModifiedAsync(Guid driveId, int fileSystemType);
 
         Task<DriveMainIndexRecord> GetByGlobalTransitIdAsync(Guid driveId, Guid globalTransitId);
 

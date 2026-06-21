@@ -106,6 +106,168 @@ namespace Odin.Services.Drives.FileSystem.Base
             return (serverFileHeader, payloadDescriptor, payloadEncryptedKeyHeader, true);
         }
 
+        // =====================================================================================
+        // Temporal (time-boxed) read API.
+        //
+        // These methods are the ONLY read path that honors DrivePermission.ConditionalTemporalRead.
+        // They assert the temporal flag (NOT Read) and drop any file whose server-set modified date is
+        // older than the resolved window cutoff. The normal read methods above intentionally reject the
+        // temporal flag, so a caller holding only that flag can read exclusively through here.
+        // =====================================================================================
+
+        private async Task<ServerFileHeader> GetTemporalServerFileHeader(InternalDriveFileId file, IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(file.DriveId);
+
+            // GetServerFileHeaderInternal enforces the per-file ACL.
+            var header = await GetServerFileHeaderInternal(file, odinContext);
+            if (header == null)
+            {
+                return null;
+            }
+
+            AssertValidFileSystemType(header.ServerMetadata);
+
+            // Time-window clamp on the server-set modified timestamp (FileMetadata.Updated). Out-of-window
+            // files are reported as missing (null -> 404) with no distinguishable signal.
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            var cutoff = TemporalReadPolicy.ResolveCutoff(odinContext, drive);
+            if (cutoff != null && header.FileMetadata.Updated < cutoff.Value)
+            {
+                return null;
+            }
+
+            return header;
+        }
+
+        public async Task<SharedSecretEncryptedFileHeader> GetTemporalSharedSecretEncryptedHeader(InternalDriveFileId file,
+            IOdinContext odinContext)
+        {
+            var serverFileHeader = await this.GetTemporalServerFileHeader(file, odinContext);
+            if (serverFileHeader == null)
+            {
+                return null;
+            }
+
+            return DriveFileUtility.CreateClientFileHeader(serverFileHeader, odinContext);
+        }
+
+        public async Task<(ServerFileHeader header, PayloadDescriptor payloadDescriptor, EncryptedKeyHeader encryptedKeyHeader, bool
+                fileExists)>
+            GetTemporalPayloadSharedSecretEncryptedKeyHeaderAsync(InternalDriveFileId file, string payloadKey, IOdinContext odinContext)
+        {
+            var serverFileHeader = await this.GetTemporalServerFileHeader(file, odinContext);
+            if (serverFileHeader == null)
+            {
+                return (null, null, null, false);
+            }
+
+            var payloadDescriptor = serverFileHeader.FileMetadata.GetPayloadDescriptor(payloadKey);
+            if (null == payloadDescriptor)
+            {
+                return (null, null, null, false);
+            }
+
+            EncryptedKeyHeader payloadEncryptedKeyHeader = odinContext.Caller.ClientTokenType == ClientTokenType.Cdn
+                ? null
+                : DriveFileUtility.GetPayloadEncryptedKeyHeader(serverFileHeader, payloadDescriptor, odinContext);
+
+            return (serverFileHeader, payloadDescriptor, payloadEncryptedKeyHeader, true);
+        }
+
+        public async Task<PayloadStream> GetTemporalPayloadStreamAsync(InternalDriveFileId file, string key, FileChunk chunk,
+            IOdinContext odinContext)
+        {
+            TenantPathManager.AssertValidPayloadKey(key);
+
+            // Asserts the temporal flag + applies the window clamp before any payload bytes are read.
+            var header = await GetTemporalServerFileHeader(file, odinContext);
+            if (header == null)
+            {
+                return null;
+            }
+
+            var descriptor = header.FileMetadata.GetPayloadDescriptor(key);
+            if (descriptor == null)
+            {
+                return null;
+            }
+
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            try
+            {
+                var stream = await longTermStorageManager.GetPayloadStreamAsync(drive, file.FileId, descriptor, chunk);
+                return new PayloadStream(descriptor, stream.Length, stream);
+            }
+            catch (OdinFileHeaderHasCorruptPayloadException)
+            {
+                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                {
+                    return null;
+                }
+
+                throw;
+            }
+        }
+
+        public async Task<(Stream stream, ThumbnailDescriptor thumbnail)> GetTemporalThumbnailPayloadStreamAsync(
+            InternalDriveFileId file, int width, int height, string payloadKey, UnixTimeUtcUnique payloadUid, IOdinContext odinContext,
+            bool directMatchOnly = false)
+        {
+            TenantPathManager.AssertValidPayloadKey(payloadKey);
+
+            var header = await GetTemporalServerFileHeader(file, odinContext);
+            var thumbs = header?.FileMetadata.GetPayloadDescriptor(payloadKey)?.Thumbnails?.ToList();
+            if (null == thumbs || !thumbs.Any())
+            {
+                return (Stream.Null, null);
+            }
+
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
+            if (null != directMatchingThumb)
+            {
+                try
+                {
+                    var s = await longTermStorageManager.GetThumbnailStreamAsync(drive, file.FileId, width, height, payloadKey, payloadUid);
+                    return (s, directMatchingThumb);
+                }
+                catch (Exception)
+                {
+                    if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                    {
+                        return (Stream.Null, directMatchingThumb);
+                    }
+
+                    throw;
+                }
+            }
+
+            var nextSizeUp = DriveFileUtility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly);
+            if (null == nextSizeUp)
+            {
+                return (Stream.Null, null);
+            }
+
+            try
+            {
+                var stream = await longTermStorageManager.GetThumbnailStreamAsync(
+                    drive, file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight, payloadKey, payloadUid);
+                return (stream, nextSizeUp);
+            }
+            catch (Exception)
+            {
+                if (drive.TargetDriveInfo == SystemDriveConstants.FeedDrive)
+                {
+                    return (Stream.Null, nextSizeUp);
+                }
+
+                throw;
+            }
+        }
+
         public async Task<InternalDriveFileId> CreateInternalFileId(Guid driveId, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(driveId, odinContext);

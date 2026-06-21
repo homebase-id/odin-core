@@ -28,4 +28,9 @@ public class FileUpdateResult
     /// The version tag to be set on all recipients when they receive and store the file
     /// </summary>
     public Guid NewVersionTag { get; init; }
+
+    /// <summary>
+    /// One entry per payload uploaded in this request (append/overwrite operations); values match the stored file header
+    /// </summary>
+    public List<PayloadUploadReceipt> Payloads { get; init; } = new();
 }
