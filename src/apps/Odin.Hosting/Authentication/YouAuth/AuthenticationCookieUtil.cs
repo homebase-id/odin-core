@@ -6,10 +6,9 @@ namespace Odin.Hosting.Authentication.YouAuth;
 
 internal static class AuthenticationCookieUtil
 {
-    public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken)
+    public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken,
+        SameSiteMode ssm = SameSiteMode.Strict)
     {
-        SameSiteMode ssm = SameSiteMode.Strict;
-        
         var options = new CookieOptions()
         {
             HttpOnly = true,
@@ -18,11 +17,13 @@ internal static class AuthenticationCookieUtil
             SameSite = ssm,
             Expires = DateTime.UtcNow.AddMonths(6),
         };
-        //
-        // if (ssm == SameSiteMode.None)
-        // {
-        //     options.Path = "/; Partitioned";
-        // }
+
+        // SameSite=None cookies are only sent cross-site when partitioned (CHIPS); required so
+        // apps hosted on a different site than the identity can carry the cookie on the WS upgrade.
+        if (ssm == SameSiteMode.None)
+        {
+            options.Extensions.Add("Partitioned");
+        }
 
         response.Cookies.Append(cookieName, authToken.ToString(), options);
     }

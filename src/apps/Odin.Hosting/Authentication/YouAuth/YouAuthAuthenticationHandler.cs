@@ -106,10 +106,13 @@ namespace Odin.Hosting.Authentication.YouAuth
                 new(OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
             };
 
-            // Steal this path from the http controller because here we have the client auth token
+            // Steal this path from the http controller because here we have the client auth token.
+            // SameSite=None (+ Partitioned) so apps served on a different site than the identity
+            // (e.g. journal.cloudx.run) still send this cookie on the cross-site /notify/ws upgrade.
             if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstantsV1.NotificationsV1}/preauth"))
             {
-                AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.AppCookieName, authToken);
+                AuthenticationCookieUtil.SetCookie(Response, YouAuthConstants.AppCookieName, authToken,
+                    SameSiteMode.None);
             }
 
             return CreateAuthenticationResult(claims, YouAuthConstants.AppSchemeName);
