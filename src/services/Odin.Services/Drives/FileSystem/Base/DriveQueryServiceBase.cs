@@ -56,6 +56,18 @@ namespace Odin.Services.Drives.FileSystem.Base
             };
         }
 
+        /// <summary>
+        /// Returns the newest server-set modified timestamp (ms) of an active file on the drive, or 0 when the
+        /// drive has no files. Intentionally NOT clamped to the temporal window — it's a single status timestamp
+        /// (never content) so a caller can detect e.g. that data updates have stopped. Requires temporal-or-full read.
+        /// </summary>
+        public async Task<long> GetNewestFileModified(Guid driveId, IOdinContext odinContext)
+        {
+            await AssertDriveIsValidAndActive(driveId, odinContext);
+            odinContext.PermissionsContext.AssertCanConditionalTemporalReadDrive(driveId);
+            return await _driveQuery.GetNewestModifiedAsync(driveId, (int)GetFileSystemType());
+        }
+
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParamsV1 qp, QueryModifiedResultOptions options,
             IOdinContext odinContext)
         {
