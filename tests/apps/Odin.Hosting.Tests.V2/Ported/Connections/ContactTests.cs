@@ -1115,6 +1115,191 @@ public class ContactTests : V2Fixture
     }
 
     // -----------------------------------------------------------------------------------------
+    // per-app data (appData[appId]) — the JSON-tier app blob
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task AppData_AppWritesBlob_RidesInlineInContent_NotAPayload()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        const string blob = "{\"loc\":\"shire\"}";
+        var set = await contacts.SetAppDataAsync(uid, new SetContactAppDataRequest
+        {
+            Content = blob,
+            VersionTag = create.Content.VersionTag
+        });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(set.Content!.VersionTag, Is.Not.EqualTo(create.Content.VersionTag), "the write advances the version tag");
+
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var stored = DecryptContent(owner, header!);
+        Assert.That(stored.AppData, Is.Not.Null);
+        Assert.That(stored.AppData![app.AppId.ToString()], Is.EqualTo(blob), "the app's blob rides inline in the content");
+
+        // The governing rule: list/display reads never touch payloads — app data is in the content JSON.
+        Assert.That(header!.FileMetadata.Payloads ?? new List<PayloadDescriptor>(), Is.Empty,
+            "app data must ride inline in the content JSON, not as a payload");
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Sam"), "core field preserved");
+    }
+
+    [Test]
+    public async Task AppData_DifferentApp_NeitherSeesNorOverwritesTheOther()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var setA = await contactsA.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"A\"", VersionTag = create.Content!.VersionTag });
+        Assert.That(setA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var setB = await contactsB.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"B\"", VersionTag = setA.Content!.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.AppData![appA.AppId.ToString()], Is.EqualTo("\"A\""), "app A's blob is intact after app B writes");
+        Assert.That(stored.AppData![appB.AppId.ToString()], Is.EqualTo("\"B\""), "app B writes its own slot");
+        Assert.That(stored.AppData.Count, Is.EqualTo(2), "each app keeps a distinct slot");
+    }
+
+    [Test]
+    public async Task AppData_CoreUpdate_PreservesAppBlob()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appContacts = new V2ContactsClient(app.Identity, app.Factory);
+        var ownerContacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await ownerContacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var set = await appContacts.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"keep\"", VersionTag = create.Content!.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // An owner core update carries no appData; the merge must preserve the app blob untouched.
+        var current = await GetByUniqueIdAsync(owner, uid);
+        var update = await ownerContacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = current!.FileMetadata.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Samwise" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise"), "core field updated");
+        Assert.That(stored.AppData![app.AppId.ToString()], Is.EqualTo("\"keep\""), "core update preserves the app blob");
+    }
+
+    [Test]
+    public async Task AppData_Delete_ClearsOnlyThatAppsBlob()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+        await contactsA.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"A\"", VersionTag = create.Content!.VersionTag });
+        var setB = await contactsB.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"B\"", VersionTag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var del = await contactsA.DeleteAppDataAsync(uid, setB.Content!.VersionTag);
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.AppData!.ContainsKey(appA.AppId.ToString()), Is.False, "app A's blob is gone");
+        Assert.That(stored.AppData![appB.AppId.ToString()], Is.EqualTo("\"B\""), "app B's blob is untouched");
+
+        // Deleting an absent blob → 404.
+        var afterDelTag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag;
+        var delAgain = await contactsA.DeleteAppDataAsync(uid, afterDelTag);
+        Assert.That(delAgain.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task AppData_OverCap_Rejected()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var tooBig = "\"" + new string('x', ContactService.AppDataBlobMaxBytes + 1) + "\"";
+        var set = await contacts.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = tooBig, VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an over-cap blob is rejected; use a payload for bulk data");
+    }
+
+    [Test]
+    public async Task AppData_OwnerToken_IsBadRequest_NoAppToStamp()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        // The owner console is not an app client, so there is no appId to stamp the blob with.
+        var set = await contacts.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"x\"", VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task CoreField_OverCap_Rejected()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Name = new ContactName { DisplayName = new string('a', 257) } // > 256-char cap
+            }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an over-cap core field is rejected");
+    }
+
+    // -----------------------------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------------------------
 
