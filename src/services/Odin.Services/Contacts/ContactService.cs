@@ -49,6 +49,14 @@ public class ContactService(
     /// </summary>
     public const int AppDataBlobMaxBytes = 200;
 
+    /// <summary>
+    /// Max size (UTF-8 bytes) of a single app's <b>bulk</b> blob in the <c>appextdata</c> payload
+    /// (<see cref="ContactAppData"/>). Generous — this tier exists for data too large for the inline
+    /// <see cref="AppDataBlobMaxBytes"/> slot (e.g. a 20 KB bio) — but bounded to keep one contact's
+    /// payload sane.
+    /// </summary>
+    public const int AppExtDataBlobMaxBytes = 256 * 1024;
+
     /// <summary>Generic per-field character cap for core contact text fields (keeps the list query cheap).</summary>
     private const int MaxContactFieldChars = 256;
 
@@ -432,6 +440,190 @@ public class ContactService(
         existing.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(DriveId, contentKeyHeader, writeContext);
         await fileSystem.Storage.UpdateActiveFileHeader(file, existing, writeContext, raiseEvent: true);
         return existing.FileMetadata.VersionTag.GetValueOrDefault();
+    }
+
+    /// <summary>
+    /// Set (create or replace) the calling app's <b>bulk</b> blob in the contact's <c>appextdata</c>
+    /// payload (<see cref="ContactAppData"/>). For data too large for the inline
+    /// <see cref="SetAppDataAsync"/> slot; merges <b>only</b> this app's entry, leaving core fields, other
+    /// apps' bulk blobs, and every other payload (image, merge_log, ext_data) untouched.
+    ///
+    /// <para>
+    /// Same read-modify-write/retry semantics as <see cref="SetAppDataAsync"/>: a concurrent
+    /// core/enrichment/other-app write is absorbed rather than surfaced as a conflict. Returns not-found
+    /// if the contact is missing. <paramref name="content"/> must be ≤ <see cref="AppExtDataBlobMaxBytes"/>
+    /// bytes and is stored verbatim.
+    /// </para>
+    /// </summary>
+    public async Task<ContactWriteResult> SetAppExtDataAsync(Guid uniqueId, Guid appId, string content,
+        Guid expectedVersionTag, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        OdinValidationUtils.AssertNotNullOrEmpty(content, nameof(content), "use DELETE to clear an app's bulk blob");
+        AssertAppExtBlobWithinCap(content);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppExtDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData[appId.ToString()] = content);
+    }
+
+    /// <summary>
+    /// Remove the calling app's bulk blob from the contact's <c>appextdata</c> payload. Same semantics as
+    /// <see cref="DeleteAppDataAsync"/>; an emptied payload is dropped entirely. Returns not-found if the
+    /// contact, or this app's bulk blob, is absent.
+    /// </summary>
+    public async Task<ContactWriteResult> DeleteAppExtDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppExtDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData.Remove(appId.ToString()), requireExistingBlob: true);
+    }
+
+    /// <summary>
+    /// Shared read-modify-write loop for the <c>appextdata</c> payload: reads the current payload, applies
+    /// <paramref name="mutate"/> to its app map, and rewrites it (dropping it when emptied) — retrying over
+    /// the latest on a version race so concurrent core/enrichment writes never surface as a conflict.
+    /// </summary>
+    private async Task<ContactWriteResult> MutateAppExtDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext, Action<Dictionary<string, string>> mutate, bool requireExistingBlob = false)
+    {
+        var writeContext = GetWriteContext(odinContext);
+        var appKey = appId.ToString();
+
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var existing = await GetForWritingAsync(uniqueId, writeContext);
+            if (existing == null)
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
+            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var appExtData = await ReadAppExtDataAsync(existing, keyHeader, writeContext) ?? new ContactAppData();
+
+            if (requireExistingBlob && (appExtData.AppData == null || !appExtData.AppData.ContainsKey(appKey)))
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            appExtData.AppData ??= new Dictionary<string, string>();
+            mutate(appExtData.AppData);
+
+            var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+            var expected = attempt == 1 && expectedVersionTag != Guid.Empty ? expectedVersionTag : currentVersionTag;
+
+            try
+            {
+                var newVersionTag = await WriteAppExtDataPayloadAsync(existing, keyHeader, appExtData, expected, writeContext);
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+            {
+                logger.LogDebug("Contact app-ext-data write race for uid {uid} app {appId} (attempt {attempt}/{maxAttempts})",
+                    uniqueId, appId, attempt, maxAttempts);
+            }
+        }
+
+        var latest = await GetForWritingAsync(uniqueId, writeContext);
+        if (latest == null)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+    }
+
+    /// <summary>
+    /// Atomically rewrites the contact's content header (fresh content IV, same plaintext) together with
+    /// the <c>appextdata</c> payload — staged + AppendOrOverwrite when non-empty, or DeletePayload when the
+    /// merge emptied it — in a single <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit, gated
+    /// on <paramref name="expectedVersionTag"/>. Every other payload (image, merge_log, ext_data) is
+    /// carried forward unchanged.
+    /// </summary>
+    private async Task<Guid> WriteAppExtDataPayloadAsync(ServerFileHeader existing, KeyHeader keyHeader,
+        ContactAppData appExtData, Guid expectedVersionTag, IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+        existing.FileMetadata.VersionTag = expectedVersionTag;
+
+        // Content is unchanged, but UpdateBatchAsync rewrites the header, so re-encrypt under a fresh IV
+        // (key+IV reuse across versions is forbidden).
+        var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = keyHeader.AesKey };
+        var contentBase64 = EncryptContent(contentKeyHeader, content);
+
+        List<PayloadDescriptor> payloads;
+        List<PayloadInstruction> instructions;
+        var staged = new List<PayloadDescriptor>();
+
+        if (appExtData.IsEmpty)
+        {
+            // The merge cleared this contact's last bulk blob → drop the payload entirely.
+            payloads = CarryForwardPayloads(existing, ContactAppData.PayloadKey);
+            instructions =
+                [new PayloadInstruction { Key = ContactAppData.PayloadKey, OperationType = PayloadUpdateOperationType.DeletePayload }];
+        }
+        else
+        {
+            var descriptor = await StagePayloadAsync(file, ContactAppData.PayloadKey, ContactAppData.ContentType,
+                appExtData.Serialize(), keyHeader.AesKey, writeContext);
+            staged.Add(descriptor);
+            payloads = [.. CarryForwardPayloads(existing, ContactAppData.PayloadKey), descriptor];
+            instructions =
+                [new PayloadInstruction { Key = ContactAppData.PayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite }];
+        }
+
+        var manifest = BuildContentManifest(existing, contentKeyHeader, contentBase64, content, payloads, instructions);
+
+        try
+        {
+            await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null,
+                sourceArea: StagingArea.Upload);
+            return manifest.NewVersionTag;
+        }
+        finally
+        {
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, staged, writeContext);
+        }
+    }
+
+    /// <summary>
+    /// Reads and decrypts the contact's <c>appextdata</c> payload (file AES key under the descriptor's
+    /// per-payload IV). Returns null when the payload is absent.
+    /// </summary>
+    private async Task<ContactAppData> ReadAppExtDataAsync(ServerFileHeader header, KeyHeader keyHeader,
+        IOdinContext writeContext)
+    {
+        var descriptor = header.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(ContactAppData.PayloadKey));
+        if (descriptor == null)
+        {
+            return null;
+        }
+
+        using var stream = await fileSystem.Storage.GetPayloadStreamAsync(
+            header.FileMetadata.File, ContactAppData.PayloadKey, null, writeContext);
+        if (stream == null)
+        {
+            return null;
+        }
+
+        using var ms = new MemoryStream();
+        await stream.Stream.CopyToAsync(ms);
+        var cipher = ms.ToArray();
+        if (cipher.Length == 0)
+        {
+            return null;
+        }
+
+        var payloadKeyHeader = new KeyHeader { Iv = descriptor.Iv, AesKey = keyHeader.AesKey };
+        return ContactAppData.Deserialize(payloadKeyHeader.Decrypt(cipher));
     }
 
     /// <summary>
@@ -950,6 +1142,13 @@ public class ContactService(
         var bytes = content == null ? 0 : System.Text.Encoding.UTF8.GetByteCount(content);
         OdinValidationUtils.AssertIsTrue(bytes <= AppDataBlobMaxBytes,
             $"App data blob exceeds the {AppDataBlobMaxBytes}-byte cap; use a payload for bulk data");
+    }
+
+    private static void AssertAppExtBlobWithinCap(string content)
+    {
+        var bytes = content == null ? 0 : System.Text.Encoding.UTF8.GetByteCount(content);
+        OdinValidationUtils.AssertIsTrue(bytes <= AppExtDataBlobMaxBytes,
+            $"App ext-data blob exceeds the {AppExtDataBlobMaxBytes}-byte cap");
     }
 
     private static string EncryptContent(KeyHeader keyHeader, ContactContent content)

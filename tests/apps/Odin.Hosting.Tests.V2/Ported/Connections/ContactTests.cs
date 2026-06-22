@@ -1300,6 +1300,163 @@ public class ContactTests : V2Fixture
     }
 
     // -----------------------------------------------------------------------------------------
+    // per-app bulk data (appextdata payload) — the on-demand tier
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task AppExtData_AppWritesBulkBlob_StoredAsPayload_NotInContent()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        // A blob far larger than the inline AppDataBlobMaxBytes cap → belongs in the bulk payload.
+        var bulk = "\"" + new string('b', ContactService.AppDataBlobMaxBytes * 10) + "\"";
+        var set = await contacts.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest
+        {
+            Content = bulk,
+            VersionTag = create.Content.VersionTag
+        });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var header = await GetByUniqueIdAsync(owner, uid);
+        Assert.That(header!.FileMetadata.Payloads?.Any(p => p.Key == ContactAppData.PayloadKey), Is.True,
+            "bulk data is stored as the appextdata payload");
+
+        // The governing rule: bulk data is NOT in the list/display content — it's fetched on demand.
+        var content = DecryptContent(owner, header);
+        Assert.That(content.AppData, Is.Null, "bulk data must not ride inline in the contact content");
+
+        // The payload decrypts to this app's slot, verbatim.
+        var appExt = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(appExt!.AppData![app.AppId.ToString()], Is.EqualTo(bulk));
+    }
+
+    [Test]
+    public async Task AppExtData_DifferentApp_NeitherSeesNorOverwritesTheOther()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var setA = await contactsA.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"A-bulk\"", VersionTag = create.Content.VersionTag });
+        Assert.That(setA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var setB = await contactsB.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"B-bulk\"", VersionTag = setA.Content!.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var appExt = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(appExt!.AppData![appA.AppId.ToString()], Is.EqualTo("\"A-bulk\""), "app A's bulk blob is intact");
+        Assert.That(appExt.AppData![appB.AppId.ToString()], Is.EqualTo("\"B-bulk\""), "app B has its own bulk slot");
+        Assert.That(appExt.AppData.Count, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task AppExtData_CoreUpdate_PreservesBulkPayload()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appContacts = new V2ContactsClient(app.Identity, app.Factory);
+        var ownerContacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await ownerContacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var set = await appContacts.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"keep-bulk\"", VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // An owner core update (which writes the merge_log payload) must carry the appextdata forward.
+        var current = await GetByUniqueIdAsync(owner, uid);
+        var update = await ownerContacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = current!.FileMetadata.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Samwise" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var appExt = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(appExt!.AppData![app.AppId.ToString()], Is.EqualTo("\"keep-bulk\""), "core update preserves the bulk payload");
+    }
+
+    [Test]
+    public async Task AppExtData_Delete_DropsPayloadWhenEmpty_KeepsOtherApp()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+        await contactsA.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"A\"", VersionTag = create.Content.VersionTag });
+        var setB = await contactsB.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"B\"", VersionTag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag });
+
+        // Deleting A's slot keeps the payload (B remains).
+        var delA = await contactsA.DeleteAppExtDataAsync(uid, setB.Content!.VersionTag);
+        Assert.That(delA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var afterA = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(afterA!.AppData!.ContainsKey(appA.AppId.ToString()), Is.False, "A's bulk blob is gone");
+        Assert.That(afterA.AppData![appB.AppId.ToString()], Is.EqualTo("\"B\""), "B's bulk blob is untouched");
+
+        // Deleting B's slot empties the map → the payload is dropped entirely.
+        var afterATag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag;
+        var delB = await contactsB.DeleteAppExtDataAsync(uid, afterATag);
+        Assert.That(delB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var header = await GetByUniqueIdAsync(owner, uid);
+        Assert.That(header!.FileMetadata.Payloads?.Any(p => p.Key == ContactAppData.PayloadKey) ?? false, Is.False,
+            "an emptied appextdata payload is dropped");
+
+        // Deleting again → 404.
+        var delAgain = await contactsB.DeleteAppExtDataAsync(uid, header.FileMetadata.VersionTag);
+        Assert.That(delAgain.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task AppExtData_OverCap_Rejected()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var tooBig = "\"" + new string('x', ContactService.AppExtDataBlobMaxBytes + 1) + "\"";
+        var set = await contacts.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = tooBig, VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an over-cap bulk blob is rejected");
+    }
+
+    // -----------------------------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------------------------
 
@@ -1467,6 +1624,30 @@ public class ContactTests : V2Fixture
         var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
         var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
         return ContactExtData.Deserialize(plain);
+    }
+
+    /// <summary>
+    /// Reads and decrypts the contact's <c>appextdata</c> payload (AES-encrypted with the file key under
+    /// its own IV from the payload descriptor). Returns null when the payload is absent.
+    /// </summary>
+    private static async Task<ContactAppData> ReadAppExtDataAsync(OwnerSession owner, Guid uniqueId)
+    {
+        var header = await GetByUniqueIdAsync(owner, uniqueId);
+        var descriptor = header?.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactAppData.PayloadKey);
+        if (descriptor == null)
+        {
+            return null;
+        }
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetPayloadByUniqueIdAsync(uniqueId, ContactDriveId, ContactAppData.PayloadKey);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, "appextdata payload should be readable");
+        var cipher = await resp.Content!.ReadAsByteArrayAsync();
+
+        var sharedSecret = owner.SharedSecret;
+        var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+        var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
+        return ContactAppData.Deserialize(plain);
     }
 
     // -------------------------------------------------------------------------------------------------

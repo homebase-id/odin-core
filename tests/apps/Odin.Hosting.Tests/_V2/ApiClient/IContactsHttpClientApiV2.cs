@@ -29,6 +29,12 @@ public interface IContactsHttpClientApiV2
     [Delete(Root + "/{uniqueId}/app-data")]
     Task<ApiResponse<ContactWriteResponse>> DeleteAppData(Guid uniqueId, Guid versionTag);
 
+    [Put(Root + "/{uniqueId}/app-ext-data")]
+    Task<ApiResponse<ContactWriteResponse>> SetAppExtData(Guid uniqueId, [Body] SetContactAppExtDataRequest request);
+
+    [Delete(Root + "/{uniqueId}/app-ext-data")]
+    Task<ApiResponse<ContactWriteResponse>> DeleteAppExtData(Guid uniqueId, Guid versionTag);
+
     [Delete(Root + "/{uniqueId}")]
     Task<ApiResponse<HttpContent>> Delete(Guid uniqueId);
 

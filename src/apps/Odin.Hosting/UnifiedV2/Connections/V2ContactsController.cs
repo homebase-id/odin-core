@@ -124,6 +124,45 @@ public class V2ContactsController(
         return MapWrite(result);
     }
 
+    // PUT /api/v2/contacts/{uniqueId}/app-ext-data  — set/replace the calling app's bulk blob (appextdata payload)
+    [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
+    [HttpPut("{uniqueId:guid}/app-ext-data")]
+    [ProducesResponseType(typeof(ContactWriteResponse), 200)]
+    [ProducesResponseType(typeof(ContactWriteConflict), 409)]
+    public async Task<IActionResult> SetAppExtData(Guid uniqueId, [FromBody] SetContactAppExtDataRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+
+        var appId = await ResolveCallingAppIdAsync();
+        if (appId == null)
+        {
+            return BadRequest("app-data writes require an app token");
+        }
+
+        var result = await contactService.SetAppExtDataAsync(uniqueId, appId.Value, request.Content, request.VersionTag, WebOdinContext);
+        return MapWrite(result);
+    }
+
+    // DELETE /api/v2/contacts/{uniqueId}/app-ext-data?versionTag=...  — remove the calling app's bulk blob
+    [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
+    [HttpDelete("{uniqueId:guid}/app-ext-data")]
+    [ProducesResponseType(typeof(ContactWriteResponse), 200)]
+    [ProducesResponseType(typeof(ContactWriteConflict), 409)]
+    public async Task<IActionResult> DeleteAppExtData(Guid uniqueId, [FromQuery] Guid versionTag)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+
+        var appId = await ResolveCallingAppIdAsync();
+        if (appId == null)
+        {
+            return BadRequest("app-data writes require an app token");
+        }
+
+        var result = await contactService.DeleteAppExtDataAsync(uniqueId, appId.Value, versionTag, WebOdinContext);
+        return MapWrite(result);
+    }
+
     // Resolves the appId from the caller's token via the existing access-reg → AppClientRegistration
     // lookup. Null when the caller is not an app client (e.g. the owner console).
     private async Task<Guid?> ResolveCallingAppIdAsync()

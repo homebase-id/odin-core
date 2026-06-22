@@ -52,6 +52,20 @@ public class V2ContactsClient(OdinId identity, IApiClientFactory factory)
         return await svc.DeleteAppData(uniqueId, versionTag);
     }
 
+    public async Task<ApiResponse<ContactWriteResponse>> SetAppExtDataAsync(Guid uniqueId, SetContactAppExtDataRequest request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IContactsHttpClientApiV2>(client, sharedSecret);
+        return await svc.SetAppExtData(uniqueId, request);
+    }
+
+    public async Task<ApiResponse<ContactWriteResponse>> DeleteAppExtDataAsync(Guid uniqueId, Guid versionTag)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IContactsHttpClientApiV2>(client, sharedSecret);
+        return await svc.DeleteAppExtData(uniqueId, versionTag);
+    }
+
     public async Task<ApiResponse<HttpContent>> DeleteAsync(Guid uniqueId)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
