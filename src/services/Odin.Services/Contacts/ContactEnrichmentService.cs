@@ -66,20 +66,25 @@ public class ContactEnrichmentService(
             return;
         }
 
+        logger.LogInformation("[contact-enrich] {odinId}: connected={connected}", odinId, connected);
+
         PeerContactContent content;
         ContactExtData extData = null;
+        var source = "none";
         if (connected)
         {
             try
             {
                 (content, extData) = await BuildFromPeerProfileAsync(odinId, odinContext);
+                source = "peer-profile-drive";
             }
             catch (OdinSecurityException)
             {
                 // Connected, but no access to their ProfileDrive (403) — or the ICR was just revoked
                 // due to an ICR-issue. Either way, fall back to the public profile.
-                logger.LogDebug("Enrich: 403 querying {odinId} ProfileDrive; falling back to public profile", odinId);
+                logger.LogInformation("[contact-enrich] {odinId}: ProfileDrive query 403 → public-card fallback", odinId);
                 content = await TryBuildFromPublicProfileAsync(odinId);
+                source = "public-card (403 fallback)";
             }
             catch (Exception e)
             {
@@ -92,9 +97,19 @@ public class ContactEnrichmentService(
         else
         {
             content = await TryBuildFromPublicProfileAsync(odinId);
+            source = "public-card (not connected)";
         }
 
         var hasExtData = extData is { IsEmpty: false };
+
+        logger.LogInformation(
+            "[contact-enrich] {odinId}: path={source} → name={name} email={email} phone={phone} status={status} " +
+            "nickname={nick} link={link} social={socialCount} extData={extData}",
+            odinId, source,
+            content?.Name?.DisplayName != null, content?.Email?.Email != null, content?.Phone?.Number != null,
+            content?.Status != null, content?.Nickname != null, content?.Link != null,
+            content?.Social?.Count ?? 0, hasExtData);
+
         if (content == null && !hasExtData)
         {
             logger.LogDebug("Enrich: no profile data found for {odinId}; nothing to merge", odinId);
@@ -127,6 +142,10 @@ public class ContactEnrichmentService(
         };
 
         var result = await peerDriveQueryService.GetBatchAsync(odinId, request, FileSystemType.Standard, odinContext);
+
+        logger.LogInformation("[contact-enrich] {odinId}: peer query asked for {askedCount} types, got {resultCount} file(s)",
+            odinId, ContactProfileAttributes.QueryTypes.Length, result?.SearchResults?.Count() ?? 0);
+
         if (result?.SearchResults == null)
         {
             return (null, null);
@@ -141,6 +160,17 @@ public class ContactEnrichmentService(
             .Where(x => x.Block?.Data != null)
             .OrderBy(x => x.Block.Priority ?? int.MaxValue)
             .ToList();
+
+        // Per-attribute trace: tags (no-dash, as they appear in the data) + data keys. Lets us see whether
+        // social/email attributes came back and whether their type tag is one we match on.
+        foreach (var (tags, block) in attributes)
+        {
+            logger.LogInformation("[contact-enrich] {odinId}: attr tags=[{tags}] dataKeys=[{keys}] priority={priority}",
+                odinId,
+                string.Join(",", tags.Select(t => t.ToString("N"))),
+                string.Join(",", block.Data?.Keys ?? Enumerable.Empty<string>()),
+                block.Priority);
+        }
 
         var content = new PeerContactContent();
         ContactExtData extData = null;
