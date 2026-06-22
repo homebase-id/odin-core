@@ -300,8 +300,14 @@ public class ContactEnrichmentService(
 
     /// <summary>
     /// Best-effort anonymous fetch of the identity's public profile card (<c>https://{odinId}/pub/profile</c>),
-    /// yielding the display name. Returns null on any failure (offline, no card, non-OK). Image is not
-    /// fetched here (follow-up).
+    /// used when the peer's ProfileDrive isn't reachable (not connected, or a 403). Pulls the clean scalar
+    /// fields the card carries: name (display/given/surname), status, and the short bio.
+    /// <para>
+    /// <b>Not</b> reconstructed here: social handles and links. The card stores those lossily — full URLs
+    /// keyed by network short-code — whereas <see cref="ContactContent.Social"/> is keyed by attribute type
+    /// id with the raw handle. Those enrich only via the connected peer-ProfileDrive path. Image is also a
+    /// follow-up. Returns null when the card has nothing usable (or on any failure).
+    /// </para>
     /// </summary>
     private async Task<PeerContactContent> TryBuildFromPublicProfileAsync(OdinId odinId)
     {
@@ -319,12 +325,34 @@ public class ContactEnrichmentService(
 
             var json = await response.Content.ReadAsStringAsync();
             var card = OdinSystemSerializer.Deserialize<PublicProfileCard>(json);
-            if (string.IsNullOrWhiteSpace(card?.Name))
+            if (card == null)
             {
                 return null;
             }
 
-            return new PeerContactContent { Name = new ContactName { DisplayName = card.Name } };
+            var content = new PeerContactContent();
+
+            var name = new ContactName
+            {
+                DisplayName = Blank(card.Name),
+                GivenName = Blank(card.GivenName),
+                Surname = Blank(card.FamilyName)
+            };
+            if (HasAnyValue(name))
+            {
+                content.Name = name;
+            }
+
+            content.Status = Blank(card.Status);
+            content.ShortBio = Blank(card.BioSummary);
+
+            // Nothing usable on the card → leave the contact untouched.
+            if (content.Name == null && content.Status == null && content.ShortBio == null)
+            {
+                return null;
+            }
+
+            return content;
         }
         catch (Exception e)
         {
@@ -380,6 +408,9 @@ public class ContactEnrichmentService(
         return string.IsNullOrWhiteSpace(s) ? null : s;
     }
 
+    /// <summary>Returns null for a null/whitespace string, the value otherwise (the field-merge convention).</summary>
+    private static string Blank(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
     /// <summary>
     /// The first non-empty value in a social attribute's data object (its single <c>{ network: handle }</c>
     /// pair, mirroring odin-js <c>Object.values(data)[0]</c>). Returns null when there is no usable handle.
@@ -419,11 +450,28 @@ public class ContactEnrichmentService(
         public Dictionary<string, object> Data { get; init; }
     }
 
-    /// <summary>The public profile card served at <c>pub/profile</c> (odin-js <c>ProfileCard</c>).</summary>
+    /// <summary>
+    /// The public profile card served at <c>pub/profile</c> (odin-js <c>ProfileCard</c>). Only the clean
+    /// scalar fields are mapped; social/link arrays on the card are intentionally not consumed (see
+    /// <see cref="TryBuildFromPublicProfileAsync"/>). Extra fields on the wire are ignored.
+    /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Local
     private sealed class PublicProfileCard
     {
         [JsonPropertyName("name")]
         public string Name { get; init; }
+
+        [JsonPropertyName("givenName")]
+        public string GivenName { get; init; }
+
+        [JsonPropertyName("familyName")]
+        public string FamilyName { get; init; }
+
+        [JsonPropertyName("status")]
+        public string Status { get; init; }
+
+        /// <summary>The short bio / tagline (odin-js card <c>bioSummary</c>), mapped to Content.ShortBio.</summary>
+        [JsonPropertyName("bioSummary")]
+        public string BioSummary { get; init; }
     }
 }
