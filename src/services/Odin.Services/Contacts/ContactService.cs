@@ -43,6 +43,18 @@ public class ContactService(
     /// <summary>Payload key for the contact's profile image (matches odin-js). Must satisfy <c>^[a-z0-9_]{8,10}$</c>.</summary>
     public const string ProfileImagePayloadKey = "prfl_pic";
 
+    /// <summary>
+    /// Max size (UTF-8 bytes) of a single per-app data blob (<c>appData[appId]</c>). The blob rides inline
+    /// in the contact JSON returned by every list query, so it is kept small; bulk data belongs in a payload.
+    /// </summary>
+    public const int AppDataBlobMaxBytes = 200;
+
+    /// <summary>Generic per-field character cap for core contact text fields (keeps the list query cheap).</summary>
+    private const int MaxContactFieldChars = 256;
+
+    /// <summary>Larger cap for the short bio / tagline (still small enough to ride inline).</summary>
+    private const int MaxShortBioChars = 1024;
+
     private static readonly TargetDrive Drive = SystemDriveConstants.ContactDrive;
     private static Guid DriveId => Drive.Alias;
 
@@ -80,6 +92,7 @@ public class ContactService(
     public async Task<ContactWriteResult> CreateAsync(ContactContent content, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
+        AssertContentWithinCaps(content);
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         Guid uniqueId;
@@ -136,6 +149,7 @@ public class ContactService(
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        AssertContentWithinCaps(content);
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         if (!string.IsNullOrWhiteSpace(content.OdinId))
@@ -289,6 +303,135 @@ public class ContactService(
 
         var newVersionTag = await RemoveImagePayloadAsync(existing, writeContext);
         return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
+    }
+
+    /// <summary>
+    /// Set (create or replace) the calling app's per-app data blob on the contact addressed by
+    /// <paramref name="uniqueId"/>. Merges <b>only</b> <c>appData[appId]</c> into the contact JSON,
+    /// leaving core fields and every other app's blob untouched; <paramref name="content"/> is stored
+    /// verbatim (server never parses it) and must be ≤ <see cref="AppDataBlobMaxBytes"/> bytes.
+    ///
+    /// <para>
+    /// Read-modify-write with retry: the first attempt writes against the caller's
+    /// <paramref name="expectedVersionTag"/>; on a version race (a concurrent core/enrichment/other-app
+    /// write) it re-reads and re-applies the blob over the latest content, so such edits are absorbed
+    /// rather than surfaced as a conflict. Same-app/other-device writes are last-write-wins. Returns
+    /// not-found if the contact is missing.
+    /// </para>
+    /// </summary>
+    public async Task<ContactWriteResult> SetAppDataAsync(Guid uniqueId, Guid appId, string content, Guid expectedVersionTag,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        OdinValidationUtils.AssertNotNullOrEmpty(content, nameof(content), "use DELETE to clear an app's blob");
+        AssertAppBlobWithinCap(content);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData[appId.ToString()] = content);
+    }
+
+    /// <summary>
+    /// Remove the calling app's per-app data blob (<c>appData[appId]</c>) from the contact. Same
+    /// read-modify-write/retry semantics as <see cref="SetAppDataAsync"/>; core fields and other apps'
+    /// blobs are preserved. Returns not-found if the contact, or this app's blob, is absent.
+    /// </summary>
+    public async Task<ContactWriteResult> DeleteAppDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData.Remove(appId.ToString()), requireExistingBlob: true);
+    }
+
+    /// <summary>
+    /// Shared read-modify-write loop for the per-app data slot: decrypts the contact content, applies
+    /// <paramref name="mutate"/> to the (always-present) <c>appData</c> map, and rewrites the content-only
+    /// header — retrying over the latest on a version race so concurrent core/enrichment writes never
+    /// surface as a conflict. Collapses an emptied map back to <c>null</c> so the field is omitted.
+    /// </summary>
+    private async Task<ContactWriteResult> MutateAppDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext, Action<Dictionary<string, string>> mutate, bool requireExistingBlob = false)
+    {
+        var writeContext = GetWriteContext(odinContext);
+        var appKey = appId.ToString();
+
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var existing = await GetForWritingAsync(uniqueId, writeContext);
+            if (existing == null)
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
+            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
+
+            if (requireExistingBlob && (content.AppData == null || !content.AppData.ContainsKey(appKey)))
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            content.AppData ??= new Dictionary<string, string>();
+            mutate(content.AppData);
+            if (content.AppData.Count == 0)
+            {
+                content.AppData = null;
+            }
+
+            // Attempt 1 gates on the caller's optimistic base; later attempts (after a concurrent write
+            // advanced the tag) write over the freshly-read latest, absorbing the unrelated edit.
+            var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+            var expected = attempt == 1 && expectedVersionTag != Guid.Empty ? expectedVersionTag : currentVersionTag;
+
+            try
+            {
+                var newVersionTag = await WriteContentOnlyAsync(existing, content, keyHeader.AesKey, expected, writeContext);
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+            {
+                logger.LogDebug("Contact app-data write race for uid {uid} app {appId} (attempt {attempt}/{maxAttempts})",
+                    uniqueId, appId, attempt, maxAttempts);
+            }
+        }
+
+        // Could not converge after retries (sustained contention): surface the current header so the
+        // client can re-fetch and retry.
+        var latest = await GetForWritingAsync(uniqueId, writeContext);
+        if (latest == null)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+    }
+
+    /// <summary>
+    /// Rewrites the contact's content header (and its tags) under a fresh content IV, preserving every
+    /// payload, gated on <paramref name="expectedVersionTag"/> for optimistic concurrency. Used by the
+    /// per-app-data merge, which changes only the JSON content (appData rides inline, not in a payload).
+    /// </summary>
+    private async Task<Guid> WriteContentOnlyAsync(ServerFileHeader existing, ContactContent merged, SensitiveByteArray aesKey,
+        Guid expectedVersionTag, IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+
+        // The content IV must rotate on every encrypted update (re-encrypting different plaintext under
+        // the same key+IV is forbidden), so re-wrap the file's key header under a fresh IV.
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
+        existing.FileMetadata.AppData.Content = EncryptContent(contentKeyHeader, merged);
+        existing.FileMetadata.AppData.Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), merged);
+        existing.FileMetadata.VersionTag = expectedVersionTag;
+        existing.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(DriveId, contentKeyHeader, writeContext);
+        await fileSystem.Storage.UpdateActiveFileHeader(file, existing, writeContext, raiseEvent: true);
+        return existing.FileMetadata.VersionTag.GetValueOrDefault();
     }
 
     /// <summary>
@@ -750,6 +893,65 @@ public class ContactService(
             : [uniqueId];
     }
 
+    /// <summary>
+    /// Enforces the JSON-tier size caps on an owner/app contact write: every core text field is bounded
+    /// (so the list query stays cheap) and each per-app blob is bounded by
+    /// <see cref="AppDataBlobMaxBytes"/>. Peer/enrichment writes are best-effort and not validated here.
+    /// Over-cap values are rejected with a clear <see cref="OdinClientException"/>.
+    /// </summary>
+    private static void AssertContentWithinCaps(ContactContent content)
+    {
+        if (content == null)
+        {
+            return;
+        }
+
+        if (content.Name != null)
+        {
+            AssertFieldWithinCap(content.Name.DisplayName, "name.displayName", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Name.GivenName, "name.givenName", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Name.AdditionalName, "name.additionalName", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Name.Surname, "name.surname", MaxContactFieldChars);
+        }
+
+        if (content.Location != null)
+        {
+            AssertFieldWithinCap(content.Location.City, "location.city", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Location.Country, "location.country", MaxContactFieldChars);
+        }
+
+        AssertFieldWithinCap(content.Phone?.Number, "phone.number", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Email?.Email, "email.email", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Birthday?.Date, "birthday.date", MaxContactFieldChars);
+        AssertFieldWithinCap(content.ShortBio, "shortBio", MaxShortBioChars);
+        AssertFieldWithinCap(content.Nickname, "nickname", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Status, "status", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Link, "link", MaxContactFieldChars);
+
+        foreach (var (key, value) in content.Social ?? new Dictionary<string, string>())
+        {
+            AssertFieldWithinCap(value, $"social[{key}]", MaxContactFieldChars);
+        }
+
+        foreach (var (_, value) in content.AppData ?? new Dictionary<string, string>())
+        {
+            AssertAppBlobWithinCap(value);
+        }
+    }
+
+    private static void AssertFieldWithinCap(string value, string field, int maxChars)
+    {
+        OdinValidationUtils.AssertIsTrue(value == null || value.Length <= maxChars,
+            $"Contact field '{field}' exceeds the {maxChars}-character cap");
+    }
+
+    private static void AssertAppBlobWithinCap(string content)
+    {
+        var bytes = content == null ? 0 : System.Text.Encoding.UTF8.GetByteCount(content);
+        OdinValidationUtils.AssertIsTrue(bytes <= AppDataBlobMaxBytes,
+            $"App data blob exceeds the {AppDataBlobMaxBytes}-byte cap; use a payload for bulk data");
+    }
+
     private static string EncryptContent(KeyHeader keyHeader, ContactContent content)
     {
         // odin-js contract / byte-compat: the value-objects are always present (rendered as {} when
@@ -800,7 +1002,13 @@ public class ContactService(
             // Owner-owned fields: preserved by default. A peer/enrichment write supplies a plain
             // PeerContactContent, which by construction carries none of these — so it can never
             // overwrite them. Only the owner API path passes a full ContactContent and may change them.
-            IsEmergencyContact = existing.IsEmergencyContact
+            IsEmergencyContact = existing.IsEmergencyContact,
+
+            // Per-app blobs are always preserved here: neither a peer/enrichment write nor a core
+            // contact write may touch them. They are mutated only via SetAppDataAsync/DeleteAppDataAsync,
+            // which merge a single app's slot. (A full ContactContent on the owner path carries no
+            // appData by contract; we ignore it if present so a core edit can't clobber another app.)
+            AppData = existing.AppData
         };
 
         if (incoming is ContactContent owner)

@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -16,8 +17,10 @@ using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
 using Odin.Services.Contacts;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -1279,5 +1282,108 @@ public class ContactTests : V2Fixture
         var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
         var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
         return ContactExtData.Deserialize(plain);
+    }
+
+    // -------------------------------------------------------------------------------------------------
+    // IsEmergencyContact — an owner-owned flag. The owner sets it via the API; the peer/enrichment merge
+    // must never overwrite it. Protection is structural: the peer path can only hand the server a
+    // PeerContactContent, which has no such field, and the merge preserves the stored value.
+    // -------------------------------------------------------------------------------------------------
+
+    [Test, TestCaseSource(nameof(AllowedCallers))]
+    public async Task IsEmergencyContact_OwnerCanSetThenClearIt(CallerKind kind)
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = await GetContactsClientAsync(owner, kind, PermissionKeyAllowance.Apps);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Name = new ContactName { DisplayName = "Sam" },
+                IsEmergencyContact = true
+            }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        var afterCreate = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(afterCreate.IsEmergencyContact, Is.True, "owner create should set the flag");
+
+        // Owner clears it back to false.
+        var update = await contacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = create.Content.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, IsEmergencyContact = false }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var afterUpdate = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(afterUpdate.IsEmergencyContact, Is.False, "owner update should clear the flag");
+    }
+
+    [Test]
+    public async Task IsEmergencyContact_PeerEnrichmentMerge_DoesNotOverwriteIt()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = await GetContactsClientAsync(owner, CallerKind.Owner, PermissionKeyAllowance.Apps);
+
+        // Owner flags Sam as an emergency contact.
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Name = new ContactName { DisplayName = "Sam" },
+                IsEmergencyContact = true
+            }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        // Drive the enrichment/peer-sync path: it can only supply a PeerContactContent (no owner fields).
+        // Run the merge directly out of the tenant scope, exactly as ContactEnrichmentService.EnrichAsync
+        // does, bringing a richer name from the peer's profile.
+        var scope = Host.GetTenantScope(owner.Identity.DomainName);
+        var ctx = await BuildOwnerContextAsync(scope, owner);
+        var contactService = scope.Resolve<ContactService>();
+
+        var peerUpdate = new PeerContactContent
+        {
+            OdinId = Identities.Sam,
+            Name = new ContactName { DisplayName = "Samwise Gamgee" },
+            Source = "public"
+        };
+        var newVersionTag = await contactService.MergeAsync(peerUpdate, ContactMergeSource.Enrichment, ctx);
+        Assert.That(newVersionTag, Is.Not.EqualTo(Guid.Empty), "the merge should have committed");
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise Gamgee"),
+            "the peer merge should apply peer-owned fields");
+        Assert.That(stored.IsEmergencyContact, Is.True,
+            "the peer merge must NOT overwrite the owner-owned emergency flag");
+    }
+
+    /// <summary>
+    /// Builds a real master-key owner <see cref="IOdinContext"/> from the owner session, so server-side
+    /// services (e.g. <see cref="ContactService"/>) can be driven directly out of the tenant scope —
+    /// mirroring how the enrichment/lifecycle code invokes them in production.
+    /// </summary>
+    private static async Task<IOdinContext> BuildOwnerContextAsync(ILifetimeScope scope, OwnerSession owner)
+    {
+        var authService = scope.Resolve<OwnerAuthenticationService>();
+        var odinContext = new OdinContext { Tenant = default, AuthTokenCreated = null, Caller = null };
+        var clientContext = new OdinClientContext
+        {
+            CorsHostName = null,
+            AccessRegistrationId = null,
+            DevicePushNotificationKey = null,
+            ClientIdOrDomain = null
+        };
+
+        await authService.UpdateOdinContextAsync(owner.Token, clientContext, odinContext);
+        odinContext.Caller.AssertHasMasterKey();
+        return odinContext;
     }
 }

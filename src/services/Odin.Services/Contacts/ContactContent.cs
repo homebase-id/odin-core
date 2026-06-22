@@ -100,6 +100,18 @@ public class ContactContent : PeerContactContent
     /// </summary>
     [JsonPropertyName("isEmergencyContact")]
     public bool IsEmergencyContact { get; set; }
+
+    /// <summary>
+    /// Per-app opaque data blobs, keyed by the calling app's id (GUID string). Each value is a small,
+    /// app-authored JSON string stored <b>verbatim</b> — the server never parses it. <b>Owner/app-owned</b>
+    /// and never sourced from a peer: enrichment and the connection flow operate on
+    /// <see cref="PeerContactContent"/>, which cannot carry this, so a sync can never overwrite it. Written
+    /// only via the dedicated app-data endpoint (one app's slot at a time, resolved from the token); the
+    /// core contact write preserves it untouched. Each entry is size-capped
+    /// (<see cref="ContactService.AppDataBlobMaxBytes"/>); bulk data belongs in a payload, not here.
+    /// </summary>
+    [JsonPropertyName("appData")]
+    public Dictionary<string, string> AppData { get; set; }
 }
 
 public class ContactName

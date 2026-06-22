@@ -68,6 +68,26 @@ public class ContactImageThumbnail
 }
 
 /// <summary>
+/// Set (or replace) the calling app's per-app data blob on a contact. The server resolves the appId
+/// from the caller's token and merges <b>only</b> that app's slot (<c>appData[appId]</c>) into the
+/// contact JSON, leaving core fields and every other app's blob untouched. <see cref="Content"/> is a
+/// small, opaque, app-authored JSON string (≤ <see cref="ContactService.AppDataBlobMaxBytes"/> bytes)
+/// stored verbatim. Addressed by uniqueId in the route.
+/// </summary>
+public class SetContactAppDataRequest
+{
+    /// <summary>The app's opaque blob (verbatim JSON string). Over-cap writes are rejected.</summary>
+    public string Content { get; set; }
+
+    /// <summary>
+    /// The caller's last-seen version tag (optimistic base). The namespaced merge applies the blob over
+    /// the latest content and retries on a concurrent write, so a core/enrichment/other-app edit never
+    /// surfaces as a conflict; same-app/other-device writes are last-write-wins.
+    /// </summary>
+    public Guid VersionTag { get; set; }
+}
+
+/// <summary>
 /// Returned on a successful create or update.
 /// </summary>
 public class ContactWriteResponse

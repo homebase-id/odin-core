@@ -23,6 +23,12 @@ public interface IContactsHttpClientApiV2
     [Delete(Root + "/{uniqueId}/image")]
     Task<ApiResponse<ContactWriteResponse>> DeleteImage(Guid uniqueId, Guid versionTag);
 
+    [Put(Root + "/{uniqueId}/app-data")]
+    Task<ApiResponse<ContactWriteResponse>> SetAppData(Guid uniqueId, [Body] SetContactAppDataRequest request);
+
+    [Delete(Root + "/{uniqueId}/app-data")]
+    Task<ApiResponse<ContactWriteResponse>> DeleteAppData(Guid uniqueId, Guid versionTag);
+
     [Delete(Root + "/{uniqueId}")]
     Task<ApiResponse<HttpContent>> Delete(Guid uniqueId);
 
