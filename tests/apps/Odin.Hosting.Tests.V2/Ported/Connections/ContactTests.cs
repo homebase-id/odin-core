@@ -844,7 +844,7 @@ public class ContactTests : V2Fixture
     }
 
     [Test]
-    public async Task Sync_EnrichesSocialAndLink_FromPeerProfile_KeyedByTypeId()
+    public async Task Sync_EnrichesSocialLinkAndStatus_FromPeerProfile_KeyedByTypeId()
     {
         var sam = await LoginAsOwner(Identities.Sam);
         var frodo = await LoginAsOwner(Identities.Frodo);
@@ -859,6 +859,8 @@ public class ContactTests : V2Fixture
             new Dictionary<string, object> { ["steam"] = "gardener" }, priority: 1002);
         await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Link,
             new Dictionary<string, object> { ["link_text"] = "My site", ["link_target"] = "https://sam.shire" }, priority: 1003);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Status,
+            new Dictionary<string, object> { ["status"] = "I am da man" }, priority: 1004);
 
         var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
         var create = await contacts.CreateAsync(new CreateContactRequest
@@ -884,6 +886,9 @@ public class ContactTests : V2Fixture
 
         // The personal link flattens to its target URL.
         Assert.That(stored.Link, Is.EqualTo("https://sam.shire"));
+
+        // Status flattens into Content.Status.
+        Assert.That(stored.Status, Is.EqualTo("I am da man"));
     }
 
     [Test]

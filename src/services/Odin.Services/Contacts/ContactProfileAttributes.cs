@@ -39,6 +39,10 @@ internal static class ContactProfileAttributes
     public static readonly Guid ShortBioType = BuiltInProfileAttributes.BioSummary;
     public const string ShortBioField = "short_bio";
 
+    /// <summary>The "Status" attribute — a short current-status string flattened into Content.Status.</summary>
+    public static readonly Guid Status = BuiltInProfileAttributes.Status;
+    public const string StatusField = "status";
+
     /// <summary>A single personal link / website attribute (its target URL is flattened into Content.Link).</summary>
     public static readonly Guid Link = BuiltInProfileAttributes.Link;
 
@@ -53,7 +57,7 @@ internal static class ContactProfileAttributes
         .ToArray();
 
     /// <summary>The text attribute types enrichment flattens into the contact content blob.</summary>
-    public static readonly Guid[] TextTypes = [Name, PhoneNumber, Email, Address, Birthday, ShortBioType];
+    public static readonly Guid[] TextTypes = [Name, PhoneNumber, Email, Address, Birthday, ShortBioType, Status];
 
     /// <summary>Attribute types stored verbatim (keyed by type id) in the ext_data payload.</summary>
     public static readonly Guid[] ExtDataTypes = [Experience, Bio];

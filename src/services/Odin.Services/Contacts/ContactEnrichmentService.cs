@@ -265,6 +265,15 @@ public class ContactEnrichmentService(
                     found = true;
                 }
             }
+            else if (content.Status == null && tags.Contains(ContactProfileAttributes.Status))
+            {
+                var status = Str(data, ContactProfileAttributes.StatusField);
+                if (status != null)
+                {
+                    content.Status = status;
+                    found = true;
+                }
+            }
         }
 
         return (found ? content : null, extData);
