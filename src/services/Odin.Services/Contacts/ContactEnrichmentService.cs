@@ -274,6 +274,15 @@ public class ContactEnrichmentService(
                     found = true;
                 }
             }
+            else if (content.Nickname == null && tags.Contains(ContactProfileAttributes.Nickname))
+            {
+                var nickname = Str(data, ContactProfileAttributes.NicknameField);
+                if (nickname != null)
+                {
+                    content.Nickname = nickname;
+                    found = true;
+                }
+            }
         }
 
         return (found ? content : null, extData);

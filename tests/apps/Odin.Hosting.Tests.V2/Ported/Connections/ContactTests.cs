@@ -853,6 +853,8 @@ public class ContactTests : V2Fixture
         // pair), a game handle, and a personal link.
         await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Twitter,
             new Dictionary<string, object> { ["twitter"] = "@samwise" }, priority: 1000);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Instagram,
+            new Dictionary<string, object> { ["instagram"] = "eerr33" }, priority: 999); // exact real-data shape
         await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Github,
             new Dictionary<string, object> { ["github"] = "samwiseg" }, priority: 1001);
         await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Steam,
@@ -861,6 +863,8 @@ public class ContactTests : V2Fixture
             new Dictionary<string, object> { ["link_text"] = "My site", ["link_target"] = "https://sam.shire" }, priority: 1003);
         await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Status,
             new Dictionary<string, object> { ["status"] = "I am da man" }, priority: 1004);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Nickname,
+            new Dictionary<string, object> { ["nickName"] = "Sam" }, priority: 1005);
 
         var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
         var create = await contacts.CreateAsync(new CreateContactRequest
@@ -881,14 +885,16 @@ public class ContactTests : V2Fixture
         // Social/game handles are keyed by the attribute TYPE ID in the data's no-dash form, value = handle.
         Assert.That(stored.Social, Is.Not.Null);
         Assert.That(stored.Social![BuiltInProfileAttributes.Twitter.ToString("N")], Is.EqualTo("@samwise"));
+        Assert.That(stored.Social!["345fef7bada5b100001e4c78111c86de"], Is.EqualTo("eerr33"), "instagram, exact real-data type id");
         Assert.That(stored.Social![BuiltInProfileAttributes.Github.ToString("N")], Is.EqualTo("samwiseg"));
         Assert.That(stored.Social![BuiltInProfileAttributes.Steam.ToString("N")], Is.EqualTo("gardener"), "game handles ride in social too");
 
         // The personal link flattens to its target URL.
         Assert.That(stored.Link, Is.EqualTo("https://sam.shire"));
 
-        // Status flattens into Content.Status.
+        // Status / nickname flatten into their content fields.
         Assert.That(stored.Status, Is.EqualTo("I am da man"));
+        Assert.That(stored.Nickname, Is.EqualTo("Sam"));
     }
 
     [Test]
