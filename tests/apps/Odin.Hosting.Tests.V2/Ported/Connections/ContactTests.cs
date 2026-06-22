@@ -841,6 +841,93 @@ public class ContactTests : V2Fixture
     }
 
     [Test]
+    public async Task Sync_EnrichesExtData_FromPeerBioAttributes_RoundTrips()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Seed Sam's profile with the three bio-family attributes:
+        //  - "Short bio" (1d89f51a…): a plain string ≤160 chars → flattened into the contact CONTENT header.
+        //  - "Experience" (md5 full_bio) and "Bio" (md5 short_bio): rich-text → carried VERBATIM in ext_data.
+        var experienceData = new Dictionary<string, object>
+        {
+            ["short_bio"] = "experience-title",
+            ["full_bio"] = new object[]
+            {
+                new Dictionary<string, object>
+                {
+                    ["children"] = new object[] { new Dictionary<string, object> { ["text"] = "experience description" } },
+                    ["type"] = "p",
+                    ["id"] = "NF4tmpq6sK"
+                }
+            },
+            ["experience_link"] = "https://experince.link",
+            ["experience_image"] = "xprnc_key"
+        };
+        var bioData = new Dictionary<string, object>
+        {
+            ["short_bio"] = new object[]
+            {
+                new Dictionary<string, object>
+                {
+                    ["type"] = "paragraph",
+                    ["children"] = new object[] { new Dictionary<string, object> { ["text"] = "born born" } },
+                    ["id"] = "NXHtACYXHc"
+                }
+            }
+        };
+
+        await SeedProfileAttributeAsync(sam, ContactProfileAttributes.Experience, experienceData, priority: 11000);
+        await SeedProfileAttributeAsync(sam, ContactProfileAttributes.Bio, bioData, priority: 10000);
+        await SeedProfileAttributeAsync(sam, ContactProfileAttributes.ShortBioType,
+            new Dictionary<string, object> { ["short_bio"] = "a short bio yo" }, priority: 12000);
+
+        // Placeholder contact + connect + sync (same pattern as the other enrichment tests).
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        // 1) The small "Short bio" string flattened into the content header (not ext_data).
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, uid))!);
+        Assert.That(stored.ShortBio, Is.EqualTo("a short bio yo"));
+
+        // 2) ext_data payload carries Experience + Bio verbatim, keyed by type id (no-dash form).
+        var extData = await ReadExtDataAsync(frodo, uid);
+        Assert.That(extData, Is.Not.Null, "ext_data payload should be present");
+        Assert.That(extData!.Attributes, Is.Not.Null);
+
+        var expKey = ContactProfileAttributes.Experience.ToString("N");
+        var bioKey = ContactProfileAttributes.Bio.ToString("N");
+        Assert.That(extData.Attributes.ContainsKey(expKey), Is.True, "Experience should be in ext_data");
+        Assert.That(extData.Attributes.ContainsKey(bioKey), Is.True, "Bio should be in ext_data");
+        Assert.That(extData.Attributes.ContainsKey(ContactProfileAttributes.ShortBioType.ToString("N")), Is.False,
+            "the plain-string Short bio belongs in the content header, not ext_data");
+
+        // Rich text round-trips verbatim (structure and values preserved).
+        var exp = extData.Attributes[expKey];
+        Assert.That(exp.GetProperty("short_bio").GetString(), Is.EqualTo("experience-title"));
+        Assert.That(exp.GetProperty("experience_link").GetString(), Is.EqualTo("https://experince.link"));
+        var expText = exp.GetProperty("full_bio").EnumerateArray().First()
+            .GetProperty("children").EnumerateArray().First().GetProperty("text").GetString();
+        Assert.That(expText, Is.EqualTo("experience description"));
+
+        var bio = extData.Attributes[bioKey];
+        var bioText = bio.GetProperty("short_bio").EnumerateArray().First()
+            .GetProperty("children").EnumerateArray().First().GetProperty("text").GetString();
+        Assert.That(bioText, Is.EqualTo("born born"));
+    }
+
+    [Test]
     public async Task Sync_AppWithoutExplicitReadConnections_StillEnriches_ViaImpliedPermissions()
     {
         var sam = await LoginAsOwner(Identities.Sam);
@@ -1053,19 +1140,29 @@ public class ContactTests : V2Fixture
     /// Seeds an anonymous Name profile attribute on the identity's ProfileDrive, tagged with the Name
     /// attribute type id (so the enrichment peer-query finds it).
     /// </summary>
-    private static async Task SeedProfileNameAsync(OwnerSession identity, string displayName, string givenName = null,
+    private static Task SeedProfileNameAsync(OwnerSession identity, string displayName, string givenName = null,
         int? priority = null)
     {
-        var nameType = AttributeTypeId("name");
         var data = new Dictionary<string, object> { ["displayName"] = displayName };
         if (givenName != null)
         {
             data["givenName"] = givenName;
         }
 
+        return SeedProfileAttributeAsync(identity, AttributeTypeId("name"), data, priority);
+    }
+
+    /// <summary>
+    /// Seeds an anonymous profile attribute of the given type on the identity's ProfileDrive, tagged with
+    /// its type id (so the enrichment peer-query finds it). <paramref name="data"/> is the attribute's
+    /// <c>data</c> object (values may be nested arrays/objects, e.g. rich text).
+    /// </summary>
+    private static async Task SeedProfileAttributeAsync(OwnerSession identity, Guid type,
+        Dictionary<string, object> data, int? priority = null)
+    {
         var attribute = new ProfileBlock
         {
-            Type = nameType.ToString(),
+            Type = type.ToString(),
             Priority = priority,
             Data = data
         };
@@ -1079,7 +1176,7 @@ public class ContactTests : V2Fixture
                 AppData = new UploadAppFileMetaData
                 {
                     FileType = ContactProfileAttributes.AttributeFileType,
-                    Tags = [nameType],
+                    Tags = [type],
                     Content = OdinSystemSerializer.Serialize(attribute)
                 }
             },
@@ -1158,5 +1255,29 @@ public class ContactTests : V2Fixture
         var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
         var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
         return JsonSerializer.Deserialize<List<ContactMergeLogEntry>>(plain.ToStringFromUtf8Bytes())!;
+    }
+
+    /// <summary>
+    /// Reads and decrypts the contact's <c>ext_data</c> payload (AES-encrypted with the file key under its
+    /// own IV from the payload descriptor). Returns null when the payload is absent.
+    /// </summary>
+    private static async Task<ContactExtData> ReadExtDataAsync(OwnerSession owner, Guid uniqueId)
+    {
+        var header = await GetByUniqueIdAsync(owner, uniqueId);
+        var descriptor = header?.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactExtData.PayloadKey);
+        if (descriptor == null)
+        {
+            return null;
+        }
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetPayloadByUniqueIdAsync(uniqueId, ContactDriveId, ContactExtData.PayloadKey);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, "ext_data payload should be readable");
+        var cipher = await resp.Content!.ReadAsByteArrayAsync();
+
+        var sharedSecret = owner.SharedSecret;
+        var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+        var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
+        return ContactExtData.Deserialize(plain);
     }
 }

@@ -161,7 +161,8 @@ public class ContactService(
             return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
         }
 
-        var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, writeContext);
+        // Owner edits never touch ext_data (peer-only); pass null so any stored ext_data is preserved.
+        var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, null, writeContext);
         return new ContactWriteResult
         {
             Outcome = ContactWriteOutcome.Updated,
@@ -298,7 +299,8 @@ public class ContactService(
     /// converges any straggler). Overwritten values are logged to <c>merge_log</c> tagged with
     /// <paramref name="source"/>.
     /// </summary>
-    public async Task<Guid> MergeAsync(ContactContent content, ContactMergeSource source, IOdinContext odinContext)
+    public async Task<Guid> MergeAsync(PeerContactContent content, ContactMergeSource source, IOdinContext odinContext,
+        ContactExtData extData = null)
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(content.OdinId), "MergeAsync requires content.OdinId");
@@ -315,13 +317,30 @@ public class ContactService(
             var existing = await GetForWritingAsync(uniqueId, writeContext);
             if (existing == null)
             {
-                var (_, versionTag) = await WriteNewAsync(uniqueId, content, writeContext);
+                // First write for this odinId. Project the peer-sourced fields onto a fresh
+                // ContactContent (owner-owned fields stay unset) before persisting.
+                var created = Merge(new ContactContent(), content);
+                var (_, versionTag) = await WriteNewAsync(uniqueId, created, writeContext);
+
+                // The create path writes content only; if the peer also brought ext_data, persist it in
+                // a follow-up write now that the file exists (rare: a brand-new contact that already
+                // carries bios). Content is unchanged on this second pass, so only the ext_data payload
+                // is added.
+                if (extData is { IsEmpty: false })
+                {
+                    var fresh = await GetForWritingAsync(uniqueId, writeContext);
+                    if (fresh != null)
+                    {
+                        versionTag = await OverwriteAsync(fresh, content, source, extData, writeContext);
+                    }
+                }
+
                 return versionTag;
             }
 
             try
             {
-                return await OverwriteAsync(existing, content, source, writeContext);
+                return await OverwriteAsync(existing, content, source, extData, writeContext);
             }
             catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
             {
@@ -388,8 +407,8 @@ public class ContactService(
         return (uniqueId, serverFileHeader.FileMetadata.VersionTag.GetValueOrDefault(versionTag));
     }
 
-    private async Task<Guid> OverwriteAsync(ServerFileHeader existing, ContactContent incoming, ContactMergeSource source,
-        IOdinContext writeContext)
+    private async Task<Guid> OverwriteAsync(ServerFileHeader existing, PeerContactContent incoming, ContactMergeSource source,
+        ContactExtData extData, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
         var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
@@ -401,9 +420,13 @@ public class ContactService(
         var overwrites = ContactMergeLog.ComputeOverwrites(existingContent, incoming);
         var merged = Merge(existingContent, incoming);
 
-        if (overwrites.Count == 0)
+        // ext_data is peer-only and replaced wholesale: write it when the peer supplied non-empty
+        // extended data; otherwise the stored ext_data payload (if any) is carried forward untouched.
+        var writeExtData = extData is { IsEmpty: false };
+
+        if (overwrites.Count == 0 && !writeExtData)
         {
-            // Nothing to log (first-time fills / no-ops). Content-only update; no history to keep.
+            // Nothing to log (first-time fills / no-ops) and no ext_data change. Content-only update.
             // The content IV must still rotate — re-encrypting different plaintext under the same
             // key+IV is forbidden (the same rule UpdateBatchAsync enforces) — so re-wrap the file's
             // key header under the fresh IV.
@@ -415,52 +438,65 @@ public class ContactService(
             return existing.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        // History to keep: write the merged content AND the appended merge_log payload in ONE
-        // transaction so the change and its history land together (or not at all).
-        var existingLog = await ReadMergeLogAsync(existing, keyHeader, writeContext);
-        return await WriteContentWithMergeLogAsync(existing, merged, keyHeader.AesKey, existingLog, overwrites, source,
+        // A payload changed (merge_log to append and/or ext_data to replace): write the merged content
+        // AND the affected payload(s) in ONE transaction so the change and its history land together (or
+        // not at all). The merge_log is only read when there's an overwrite to append to it.
+        var existingLog = overwrites.Count > 0
+            ? await ReadMergeLogAsync(existing, keyHeader, writeContext)
+            : null;
+        return await WriteMergedAsync(existing, merged, keyHeader.AesKey, existingLog, overwrites, source, extData,
             existing.FileMetadata.VersionTag.GetValueOrDefault(), writeContext);
     }
 
     /// <summary>
-    /// Atomically writes the merged content and the appended <c>merge_log</c> payload via a single
-    /// <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit (one version-tag advance, one
-    /// change notification). The contact's AES key is reused; the content key-header IV is rotated (a
-    /// hard requirement for encrypted updates), and the merge_log payload gets its own IV.
+    /// Atomically writes the merged content and—when present—the appended <c>merge_log</c> and/or the
+    /// wholesale-replaced <c>ext_data</c> payload via a single
+    /// <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit (one version-tag advance, one change
+    /// notification). The contact's AES key is reused; the content key-header IV is rotated (a hard
+    /// requirement for encrypted updates), and each rewritten payload gets its own IV. Payloads this
+    /// write doesn't touch (the profile image, and whichever of merge_log/ext_data isn't being written)
+    /// are carried forward unchanged.
     /// </summary>
-    private async Task<Guid> WriteContentWithMergeLogAsync(ServerFileHeader existing, ContactContent merged,
+    private async Task<Guid> WriteMergedAsync(ServerFileHeader existing, ContactContent merged,
         SensitiveByteArray aesKey, List<ContactMergeLogEntry> existingLog, Dictionary<string, string> overwrites,
-        ContactMergeSource source, Guid currentVersionTag, IOdinContext writeContext)
+        ContactMergeSource source, ContactExtData extData, Guid currentVersionTag, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
 
         // 1) Merged content, re-encrypted under a fresh content IV.
-        var contentIv = ByteArrayUtil.GetRndByteArray(16);
-        var contentKeyHeader = new KeyHeader { Iv = contentIv, AesKey = aesKey };
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
         var contentBase64 = EncryptContent(contentKeyHeader, merged);
 
-        // 2) Appended + trimmed merge log, encrypted under its own IV, staged to the upload temp area.
-        var logBytes = ContactMergeLog.BuildUpdatedLog(existingLog, overwrites, source, UnixTimeUtc.Now());
-        var logIv = ByteArrayUtil.GetRndByteArray(16);
-        var logCipher = new KeyHeader { Iv = logIv, AesKey = aesKey }.EncryptDataAes(logBytes);
+        var rewritten = new List<PayloadDescriptor>();
+        var instructions = new List<PayloadInstruction>();
 
-        var uid = UnixTimeUtcUnique.Now();
-        var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(ContactMergeLog.PayloadKey, uid);
-        var bytesWritten = await fileSystem.Storage.WriteUploadStream(file, extension, new MemoryStream(logCipher), writeContext);
-
-        var mergeLogDescriptor = new PayloadDescriptor
+        // 2) merge_log: appended + trimmed, when this merge overwrote a prior value.
+        if (overwrites is { Count: > 0 })
         {
-            Key = ContactMergeLog.PayloadKey,
-            Uid = uid,
-            Iv = logIv,
-            ContentType = ContactMergeLog.ContentType,
-            BytesWritten = bytesWritten,
-            LastModified = UnixTimeUtc.Now(),
-            Thumbnails = new List<ThumbnailDescriptor>()
-        };
+            var logBytes = ContactMergeLog.BuildUpdatedLog(existingLog, overwrites, source, UnixTimeUtc.Now());
+            rewritten.Add(await StagePayloadAsync(file, ContactMergeLog.PayloadKey, ContactMergeLog.ContentType,
+                logBytes, aesKey, writeContext));
+            instructions.Add(new PayloadInstruction
+                { Key = ContactMergeLog.PayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite });
+        }
 
-        // 3) New metadata: merged content + the merge_log descriptor. VersionTag carries the *current*
-        // tag (the optimistic-concurrency expectation); NewVersionTag is the tag after the write.
+        // 3) ext_data: peer-only, replaced wholesale, when the peer brought non-empty extended data.
+        if (extData is { IsEmpty: false })
+        {
+            rewritten.Add(await StagePayloadAsync(file, ContactExtData.PayloadKey, ContactExtData.ContentType,
+                extData.Serialize(), aesKey, writeContext));
+            instructions.Add(new PayloadInstruction
+                { Key = ContactExtData.PayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite });
+        }
+
+        // Carry forward every payload this write isn't rewriting (e.g. the profile image, and whichever
+        // of merge_log/ext_data wasn't touched). Payloads not named in PayloadInstruction are preserved.
+        var carried = (existing.FileMetadata.Payloads ?? new List<PayloadDescriptor>())
+            .Where(p => !rewritten.Any(r => p.KeyEquals(r.Key)))
+            .ToList();
+
+        // New metadata: merged content + the rewritten payload descriptors. VersionTag carries the
+        // *current* tag (the optimistic-concurrency expectation); NewVersionTag is the tag after the write.
         var newMetadata = new FileMetadata(file)
         {
             AppData = new AppFileMetaData
@@ -472,9 +508,7 @@ public class ContactService(
             },
             IsEncrypted = true,
             VersionTag = currentVersionTag,
-            // Carry forward other payloads (e.g. the profile image) — only merge_log is rewritten here;
-            // payloads not named in PayloadInstruction are preserved as-is.
-            Payloads = [.. CarryForwardPayloads(existing, ContactMergeLog.PayloadKey), mergeLogDescriptor]
+            Payloads = [.. carried, .. rewritten]
         };
 
         var manifest = new BatchUpdateManifest
@@ -487,30 +521,48 @@ public class ContactService(
                 AccessControlList = AccessControlList.OwnerOnly,
                 AllowDistribution = false
             },
-            PayloadInstruction =
-            [
-                new PayloadInstruction
-                {
-                    Key = ContactMergeLog.PayloadKey,
-                    OperationType = PayloadUpdateOperationType.AppendOrOverwrite
-                }
-            ]
+            PayloadInstruction = instructions
         };
 
-        var descriptors = new List<PayloadDescriptor> { mergeLogDescriptor };
         try
         {
-            // Keeps existing payloads not named in the instructions (e.g. a future prfl_pic); commits
-            // the header (content) and the merge_log payload in a single transaction. The merge_log
-            // payload was staged via WriteUploadStream, so it lives in the Upload staging area.
+            // Commits the header (content) and the staged payload(s) in a single transaction; payloads
+            // were staged via WriteUploadStream, so they live in the Upload staging area.
             await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null,
                 sourceArea: StagingArea.Upload);
             return manifest.NewVersionTag;
         }
         finally
         {
-            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, descriptors, writeContext);
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, rewritten, writeContext);
         }
+    }
+
+    /// <summary>
+    /// Encrypts <paramref name="plain"/> under the file AES key with a fresh per-payload IV, stages the
+    /// ciphertext to the upload temp area, and returns its descriptor (ready for an AppendOrOverwrite
+    /// instruction).
+    /// </summary>
+    private async Task<PayloadDescriptor> StagePayloadAsync(InternalDriveFileId file, string key, string contentType,
+        byte[] plain, SensitiveByteArray aesKey, IOdinContext writeContext)
+    {
+        var iv = ByteArrayUtil.GetRndByteArray(16);
+        var cipher = new KeyHeader { Iv = iv, AesKey = aesKey }.EncryptDataAes(plain);
+
+        var uid = UnixTimeUtcUnique.Now();
+        var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, uid);
+        var bytesWritten = await fileSystem.Storage.WriteUploadStream(file, extension, new MemoryStream(cipher), writeContext);
+
+        return new PayloadDescriptor
+        {
+            Key = key,
+            Uid = uid,
+            Iv = iv,
+            ContentType = contentType,
+            BytesWritten = bytesWritten,
+            LastModified = UnixTimeUtc.Now(),
+            Thumbnails = new List<ThumbnailDescriptor>()
+        };
     }
 
     /// <summary>
@@ -725,12 +777,12 @@ public class ContactService(
                ?? new ContactContent();
     }
 
-    private static ContactContent Merge(ContactContent existing, ContactContent incoming)
+    private static ContactContent Merge(ContactContent existing, PeerContactContent incoming)
     {
         existing ??= new ContactContent();
-        incoming ??= new ContactContent();
+        incoming ??= new PeerContactContent();
 
-        return new ContactContent
+        var merged = new ContactContent
         {
             OdinId = Coalesce(incoming.OdinId, existing.OdinId),
             Source = Coalesce(incoming.Source, existing.Source),
@@ -738,8 +790,25 @@ public class ContactService(
             Location = MergeLocation(existing.Location, incoming.Location),
             Phone = MergePhone(existing.Phone, incoming.Phone),
             Email = MergeEmail(existing.Email, incoming.Email),
-            Birthday = MergeBirthday(existing.Birthday, incoming.Birthday)
+            Birthday = MergeBirthday(existing.Birthday, incoming.Birthday),
+            ShortBio = Coalesce(incoming.ShortBio, existing.ShortBio),
+            Nickname = Coalesce(incoming.Nickname, existing.Nickname),
+            Status = Coalesce(incoming.Status, existing.Status),
+            Link = Coalesce(incoming.Link, existing.Link),
+            Social = MergeSocial(existing.Social, incoming.Social),
+
+            // Owner-owned fields: preserved by default. A peer/enrichment write supplies a plain
+            // PeerContactContent, which by construction carries none of these — so it can never
+            // overwrite them. Only the owner API path passes a full ContactContent and may change them.
+            IsEmergencyContact = existing.IsEmergencyContact
         };
+
+        if (incoming is ContactContent owner)
+        {
+            merged.IsEmergencyContact = owner.IsEmergencyContact;
+        }
+
+        return merged;
     }
 
     /// <summary>
@@ -794,6 +863,29 @@ public class ContactService(
     {
         var date = Coalesce(incoming?.Date, existing?.Date);
         return date == null ? null : new ContactBirthday { Date = date };
+    }
+
+    /// <summary>
+    /// Key-wise union of the GUID-keyed social/game handles: incoming wins per key, an empty incoming
+    /// value leaves the existing one alone (matching the <see cref="Coalesce"/> rule), and the result
+    /// collapses to null when nothing remains so the field is omitted rather than stored as {}.
+    /// </summary>
+    private static Dictionary<string, string> MergeSocial(
+        Dictionary<string, string> existing, Dictionary<string, string> incoming)
+    {
+        if (incoming == null) return existing;
+        if (existing == null) return incoming;
+
+        var merged = new Dictionary<string, string>(existing);
+        foreach (var (key, value) in incoming)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                merged[key] = value;
+            }
+        }
+
+        return merged.Count == 0 ? null : merged;
     }
 
 }

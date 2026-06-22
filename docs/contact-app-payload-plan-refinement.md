@@ -97,9 +97,12 @@ problems we don't have and not the one we do:
   enough for its JSON cap **or** it lives wholesale in a payload — never split across both.
 
 > The exact **bulk-payload shape** is the one genuinely open question and does **not** block the
-> emergency feature. Recommended: a single shared, server-encrypted `ext_data` payload, app-namespaced
-> inside (the `merge_log` pattern), to avoid the per-app `MaxPayloadsCount=25` ceiling. Settle this
-> increment separately.
+> emergency feature. Recommended: a single shared, server-encrypted **`appextdata`** payload,
+> app-namespaced inside (the `merge_log` pattern), to avoid the per-app `MaxPayloadsCount=25` ceiling.
+> This is a **dedicated app payload — not `ext_data`**: `ext_data` is peer-owned and replaced
+> wholesale on every enrichment/merge, so app-owned data parked there would be clobbered by the next
+> peer publish. `appextdata` is merged per-app (read-modify-write) and carried forward untouched on
+> peer/core writes. Settle this increment separately.
 
 ### appId stamp = convenience, not security
 
@@ -152,9 +155,12 @@ Bulk data is the existing generic payload GET, on demand, decrypted with the fil
 - `src/apps/Odin.Hosting/UnifiedV2/Connections/V2ContactsController.cs` — add `PUT`/`DELETE .../app-data`;
   inject `AppRegistrationService` and resolve the appId via the existing
   `AccessRegistrationId → AppClientRegistration.AppId` lookup (a thin helper, not a new abstraction).
-- *(Bulk-payload tier, separate increment)* — `ext_data` write/read mirroring the `merge_log` helpers
-  (`WriteContentWithMergeLogAsync` / `ReadMergeLogAsync`), threaded through `BuildContentManifest` /
-  `CarryForwardPayloads`.
+- *(Bulk-payload tier, separate increment)* — a dedicated, app-namespaced **`appextdata`** payload
+  (a new `ContactAppData` type mirroring `ContactExtData`/`ContactMergeLog`), write/read mirroring the
+  `merge_log` helpers (`WriteContentWithMergeLogAsync` / `ReadMergeLogAsync`) but with **per-app
+  read-modify-write merge** (merge only `appData[appId]`, never wholesale-replace), threaded through
+  `BuildContentManifest` / `CarryForwardPayloads` so it is carried forward untouched on peer
+  enrichment and core writes. **Not `ext_data`** — that payload is peer-owned and replaced wholesale.
 
 ## Reuse (do not reinvent)
 
@@ -170,8 +176,10 @@ Bulk data is the existing generic payload GET, on demand, decrypted with the fil
 - **Per-app blob cap / per-field caps** — default ~200 B per app blob; sensible per-field caps on core
   fields (e.g. display name ≤ 256 chars). Configurable; over-cap writes rejected with guidance to use
   a payload.
-- **Bulk-payload shape** — recommended single shared `ext_data` (app-namespaced, server-encrypted) to
-  dodge the 25-payload ceiling. Separate increment; does not block the JSON tier.
+- **Bulk-payload shape** — recommended single shared, dedicated **`appextdata`** payload
+  (app-namespaced, server-encrypted, per-app read-modify-write) to dodge the 25-payload ceiling.
+  Explicitly **not `ext_data`**, which is peer-owned and replaced wholesale. Separate increment; does
+  not block the JSON tier.
 
 ---
 

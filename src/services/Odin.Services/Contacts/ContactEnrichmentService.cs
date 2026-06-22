@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -65,12 +66,13 @@ public class ContactEnrichmentService(
             return;
         }
 
-        ContactContent content;
+        PeerContactContent content;
+        ContactExtData extData = null;
         if (connected)
         {
             try
             {
-                content = await BuildFromPeerProfileAsync(odinId, odinContext);
+                (content, extData) = await BuildFromPeerProfileAsync(odinId, odinContext);
             }
             catch (OdinSecurityException)
             {
@@ -92,17 +94,22 @@ public class ContactEnrichmentService(
             content = await TryBuildFromPublicProfileAsync(odinId);
         }
 
-        if (content == null)
+        var hasExtData = extData is { IsEmpty: false };
+        if (content == null && !hasExtData)
         {
             logger.LogDebug("Enrich: no profile data found for {odinId}; nothing to merge", odinId);
             return;
         }
 
+        // ext_data may be present even when no flat content fields were found; merge it onto a (possibly
+        // bare) content carrying just the odinId.
+        content ??= new PeerContactContent();
         content.OdinId = odinId.DomainName;
-        await contactService.MergeAsync(content, ContactMergeSource.Enrichment, odinContext);
+        await contactService.MergeAsync(content, ContactMergeSource.Enrichment, odinContext, extData);
     }
 
-    private async Task<ContactContent> BuildFromPeerProfileAsync(OdinId odinId, IOdinContext odinContext)
+    private async Task<(PeerContactContent content, ContactExtData extData)> BuildFromPeerProfileAsync(
+        OdinId odinId, IOdinContext odinContext)
     {
         var request = new QueryBatchRequest
         {
@@ -110,7 +117,7 @@ public class ContactEnrichmentService(
             {
                 TargetDrive = SystemDriveConstants.ProfileDrive,
                 FileType = [ContactProfileAttributes.AttributeFileType],
-                TagsMatchAtLeastOne = ContactProfileAttributes.TextTypes
+                TagsMatchAtLeastOne = ContactProfileAttributes.QueryTypes
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest
             {
@@ -122,7 +129,7 @@ public class ContactEnrichmentService(
         var result = await peerDriveQueryService.GetBatchAsync(odinId, request, FileSystemType.Standard, odinContext);
         if (result?.SearchResults == null)
         {
-            return null;
+            return (null, null);
         }
 
         // A peer can publish several attributes of the same type (e.g. a primary and a secondary
@@ -135,12 +142,27 @@ public class ContactEnrichmentService(
             .OrderBy(x => x.Block.Priority ?? int.MaxValue)
             .ToList();
 
-        var content = new ContactContent();
+        var content = new PeerContactContent();
+        ContactExtData extData = null;
         var found = false;
 
         foreach (var (tags, block) in attributes)
         {
             var data = block.Data;
+
+            // ext_data attributes (Experience/Bio, …) are stored verbatim, keyed by type id — the server
+            // never parses their data. First (highest-priority) wins per type, mirroring the flat fields.
+            var extType = ContactProfileAttributes.ExtDataTypes.FirstOrDefault(tags.Contains);
+            if (extType != Guid.Empty)
+            {
+                if (data is { Count: > 0 })
+                {
+                    extData ??= new ContactExtData { Attributes = new Dictionary<string, JsonElement>() };
+                    extData.Attributes.TryAdd(extType.ToString("N"), JsonSerializer.SerializeToElement(data));
+                }
+
+                continue;
+            }
 
             if (content.Name == null && tags.Contains(ContactProfileAttributes.Name))
             {
@@ -197,9 +219,20 @@ public class ContactEnrichmentService(
                     found = true;
                 }
             }
+            else if (content.ShortBio == null && tags.Contains(ContactProfileAttributes.ShortBioType))
+            {
+                // The "Short bio" attribute's data.short_bio is a plain string (≤160 chars) — distinct
+                // from the rich-text short_bio in the "Bio" attribute, which is handled by ext_data above.
+                var shortBio = Str(data, ContactProfileAttributes.ShortBioField);
+                if (shortBio != null)
+                {
+                    content.ShortBio = shortBio;
+                    found = true;
+                }
+            }
         }
 
-        return found ? content : null;
+        return (found ? content : null, extData);
     }
 
     private static bool HasAnyValue(ContactName name)
@@ -217,7 +250,7 @@ public class ContactEnrichmentService(
     /// yielding the display name. Returns null on any failure (offline, no card, non-OK). Image is not
     /// fetched here (follow-up).
     /// </summary>
-    private async Task<ContactContent> TryBuildFromPublicProfileAsync(OdinId odinId)
+    private async Task<PeerContactContent> TryBuildFromPublicProfileAsync(OdinId odinId)
     {
         try
         {
@@ -238,7 +271,7 @@ public class ContactEnrichmentService(
                 return null;
             }
 
-            return new ContactContent { Name = new ContactName { DisplayName = card.Name } };
+            return new PeerContactContent { Name = new ContactName { DisplayName = card.Name } };
         }
         catch (Exception e)
         {
