@@ -844,6 +844,49 @@ public class ContactTests : V2Fixture
     }
 
     [Test]
+    public async Task Sync_EnrichesSocialAndLink_FromPeerProfile_KeyedByTypeId()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Seed Sam's profile with two social handles (one per network — data is a single {network: handle}
+        // pair), a game handle, and a personal link.
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Twitter,
+            new Dictionary<string, object> { ["twitter"] = "@samwise" }, priority: 1000);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Github,
+            new Dictionary<string, object> { ["github"] = "samwiseg" }, priority: 1001);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Steam,
+            new Dictionary<string, object> { ["steam"] = "gardener" }, priority: 1002);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Link,
+            new Dictionary<string, object> { ["link_text"] = "My site", ["link_target"] = "https://sam.shire" }, priority: 1003);
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, uid))!);
+
+        // Social/game handles are keyed by the attribute TYPE ID in the data's no-dash form, value = handle.
+        Assert.That(stored.Social, Is.Not.Null);
+        Assert.That(stored.Social![BuiltInProfileAttributes.Twitter.ToString("N")], Is.EqualTo("@samwise"));
+        Assert.That(stored.Social![BuiltInProfileAttributes.Github.ToString("N")], Is.EqualTo("samwiseg"));
+        Assert.That(stored.Social![BuiltInProfileAttributes.Steam.ToString("N")], Is.EqualTo("gardener"), "game handles ride in social too");
+
+        // The personal link flattens to its target URL.
+        Assert.That(stored.Link, Is.EqualTo("https://sam.shire"));
+    }
+
+    [Test]
     public async Task Sync_EnrichesExtData_FromPeerBioAttributes_RoundTrips()
     {
         var sam = await LoginAsOwner(Identities.Sam);

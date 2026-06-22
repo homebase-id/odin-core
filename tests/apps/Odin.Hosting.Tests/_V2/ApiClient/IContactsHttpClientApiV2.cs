@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
@@ -37,6 +38,9 @@ public interface IContactsHttpClientApiV2
 
     [Delete(Root + "/{uniqueId}")]
     Task<ApiResponse<HttpContent>> Delete(Guid uniqueId);
+
+    [Get(Root + "/attribute-types")]
+    Task<ApiResponse<List<ProfileAttributeType>>> GetAttributeTypes();
 
     [Post(Root + "/sync/{odinId}")]
     Task<ApiResponse<HttpContent>> Sync(string odinId);

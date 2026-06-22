@@ -164,6 +164,41 @@ public class ContactEnrichmentService(
                 continue;
             }
 
+            // Social/game handles: keyed verbatim by the attribute's type id (the chosen GUID keying),
+            // value is the handle (a social attribute's data is a single { "<network>": "<handle>" } pair,
+            // e.g. data["twitter"] = "@frodo"). Different networks accumulate; the first (highest-priority)
+            // attribute of a given type wins, mirroring the flat fields.
+            var socialType = ContactProfileAttributes.SocialTypes.FirstOrDefault(tags.Contains);
+            if (socialType != Guid.Empty)
+            {
+                var handle = FirstValue(data);
+                if (handle != null)
+                {
+                    content.Social ??= new Dictionary<string, string>();
+                    // Key by the type id in the data's no-dash form (toGuidId / ToString("N")), matching
+                    // ext_data and what clients compare against.
+                    if (content.Social.TryAdd(socialType.ToString("N"), handle))
+                    {
+                        found = true;
+                    }
+                }
+
+                continue;
+            }
+
+            // Link: a single personal link / website — keep the first (highest-priority) target URL.
+            if (content.Link == null && tags.Contains(ContactProfileAttributes.Link))
+            {
+                var target = Str(data, ContactProfileAttributes.LinkTargetField);
+                if (target != null)
+                {
+                    content.Link = target;
+                    found = true;
+                }
+
+                continue;
+            }
+
             if (content.Name == null && tags.Contains(ContactProfileAttributes.Name))
             {
                 var name = new ContactName
@@ -325,6 +360,29 @@ public class ContactEnrichmentService(
 
         var s = Convert.ToString(value);
         return string.IsNullOrWhiteSpace(s) ? null : s;
+    }
+
+    /// <summary>
+    /// The first non-empty value in a social attribute's data object (its single <c>{ network: handle }</c>
+    /// pair, mirroring odin-js <c>Object.values(data)[0]</c>). Returns null when there is no usable handle.
+    /// </summary>
+    private static string FirstValue(Dictionary<string, object> data)
+    {
+        if (data == null)
+        {
+            return null;
+        }
+
+        foreach (var value in data.Values)
+        {
+            var s = value == null ? null : Convert.ToString(value);
+            if (!string.IsNullOrWhiteSpace(s))
+            {
+                return s;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

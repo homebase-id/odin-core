@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
@@ -193,6 +194,17 @@ public class V2ContactsController(
         }
 
         return NoContent();
+    }
+
+    // GET /api/v2/contacts/attribute-types  — the canonical built-in profile attribute type registry
+    // (literal GUIDs that match the data) so clients map a contact's social/profile attribute ids to a
+    // known key without recomputing anything. Static built-ins; same OwnerOrApp auth as the rest.
+    [SwaggerOperation(Tags = [SwaggerInfo.Contacts])]
+    [HttpGet("attribute-types")]
+    [ProducesResponseType(typeof(IReadOnlyList<ProfileAttributeType>), 200)]
+    public IActionResult GetAttributeTypes()
+    {
+        return Ok(BuiltInProfileAttributes.All);
     }
 
     // POST /api/v2/contacts/sync/{odinId}
