@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
+using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -70,11 +72,47 @@ namespace Odin.Core.Storage.Tests.Database.Identity.Abstractions
             ClassicAssert.AreEqual(3, fromM1.Count);
         }
 
+        [Test]
+        [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+        [TestCase(DatabaseType.Postgres)]
+#endif
+        public async Task GetNewestModified_ReturnsMaxModified_OrZeroWhenEmpty(DatabaseType databaseType)
+        {
+            await RegisterServicesAsync(databaseType);
+            await using var scope = Services.BeginLifetimeScope();
+            var metaIndex = scope.Resolve<MainIndexMeta>();
+            var tbl = scope.Resolve<TableDriveMainIndex>();
+
+            var driveId = Guid.NewGuid();
+            var fst = (int)FileSystemType.Standard;
+            var sender = SequentialGuid.CreateGuid().ToString();
+            var tag = SequentialGuid.CreateGuid();
+
+            // Empty drive -> 0.
+            ClassicAssert.AreEqual(0, await tbl.GetNewestModifiedAsync(driveId, fst));
+
+            var (_, m1) = await AddAsync(metaIndex, driveId, SequentialGuid.CreateGuid(), sender, tag);
+            await Task.Delay(8);
+            var (_, m2) = await AddAsync(metaIndex, driveId, SequentialGuid.CreateGuid(), sender, tag);
+
+            // Returns the newest modified.
+            ClassicAssert.AreEqual(m2.milliseconds, await tbl.GetNewestModifiedAsync(driveId, fst));
+            ClassicAssert.IsTrue(m2.milliseconds > m1.milliseconds);
+
+            // Different file system type on this drive -> 0 (no Comment files inserted).
+            ClassicAssert.AreEqual(0, await tbl.GetNewestModifiedAsync(driveId, (int)FileSystemType.Comment));
+
+            // Different drive -> 0.
+            ClassicAssert.AreEqual(0, await tbl.GetNewestModifiedAsync(Guid.NewGuid(), fst));
+        }
+
         private async Task<(UnixTimeUtc created, UnixTimeUtc modified)> AddAsync(MainIndexMeta metaIndex, Guid driveId, Guid fileId,
             string sender, Guid tag)
         {
             return await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, fileId, Guid.NewGuid(), 1, 1, sender, tag, null, 42,
-                userDate: new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: null, tagIdList: null, byteCount: 1);
+                userDate: new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: null, tagIdList: null, byteCount: 1,
+                fileState: 1); // Active
         }
 
         private async Task<List<Guid>> QueryAsync(QueryBatch queryBatch, Guid driveId,

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
@@ -23,8 +24,23 @@ public interface IContactsHttpClientApiV2
     [Delete(Root + "/{uniqueId}/image")]
     Task<ApiResponse<ContactWriteResponse>> DeleteImage(Guid uniqueId, Guid versionTag);
 
+    [Put(Root + "/{uniqueId}/app-data")]
+    Task<ApiResponse<ContactWriteResponse>> SetAppData(Guid uniqueId, [Body] SetContactAppDataRequest request);
+
+    [Delete(Root + "/{uniqueId}/app-data")]
+    Task<ApiResponse<ContactWriteResponse>> DeleteAppData(Guid uniqueId, Guid versionTag);
+
+    [Put(Root + "/{uniqueId}/app-ext-data")]
+    Task<ApiResponse<ContactWriteResponse>> SetAppExtData(Guid uniqueId, [Body] SetContactAppExtDataRequest request);
+
+    [Delete(Root + "/{uniqueId}/app-ext-data")]
+    Task<ApiResponse<ContactWriteResponse>> DeleteAppExtData(Guid uniqueId, Guid versionTag);
+
     [Delete(Root + "/{uniqueId}")]
     Task<ApiResponse<HttpContent>> Delete(Guid uniqueId);
+
+    [Get(Root + "/attribute-types")]
+    Task<ApiResponse<List<ProfileAttributeType>>> GetAttributeTypes();
 
     [Post(Root + "/sync/{odinId}")]
     Task<ApiResponse<HttpContent>> Sync(string odinId);

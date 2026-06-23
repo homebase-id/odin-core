@@ -41,13 +41,17 @@ public class TemporalReadTests : V2Fixture
         // Upload an "old" file, wait past the window, then a "fresh" file.
         var oldFileId = await UploadLocalAsync(frodo, drive, "old location");
         await Task.Delay((WindowSeconds + 3) * 1000);
+        var beforeFresh = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var freshFileId = await UploadLocalAsync(frodo, drive, "fresh location");
 
-        // verify: Sam has temporal access; the reported window matches the drive ceiling.
+        // verify: Sam has temporal access; the reported window matches the drive ceiling, and the newest-file
+        // timestamp reflects the most recent upload (unclamped — it's the "last data update" signal).
         var verify = await sam.Drives.Peer.VerifyTemporalAccessAsync(frodo.Identity, drive.Alias);
         Assert.That(verify.IsSuccessStatusCode, Is.True, $"verify failed: {verify.StatusCode}");
         Assert.That(verify.Content!.HasAccess, Is.True);
         Assert.That(verify.Content.WindowSeconds, Is.EqualTo(WindowSeconds));
+        Assert.That(verify.Content.NewestFileModified.milliseconds, Is.GreaterThanOrEqualTo(beforeFresh - 2000),
+            "newest-file timestamp should reflect the most recent upload");
 
         // Temporal read of the fresh file succeeds...
         var fresh = await sam.Drives.Peer.TemporalGetFileHeaderAsync(frodo.Identity, drive.Alias, freshFileId);

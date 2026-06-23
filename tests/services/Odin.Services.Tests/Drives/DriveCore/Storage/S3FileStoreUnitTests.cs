@@ -413,7 +413,7 @@ public class S3FileStoreUnitTests
         storage.VerifyNoOtherCalls();
     }
 
-    // --- IngestFromAsync ---
+    // --- CopyFromAsync ---
 
     // A minimal fake IDriveFileStore whose only purpose is to report a Backend value.
     private sealed class FakeStore(StorageBackendType backend, (string bucket, string fullKey)? s3Location = null) : IDriveFileStore
@@ -428,7 +428,7 @@ public class S3FileStoreUnitTests
         public Task DeleteAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteSetAsync(string d, Guid fileId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task EnsureDirectoryAsync(string d, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task IngestFromAsync(IDriveFileStore source, string src, string dst, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task CopyFromAsync(IDriveFileStore source, string src, string dst, CancellationToken ct = default) => throw new NotImplementedException();
         public (string bucket, string fullKey)? GetS3Location(string relativePath) => s3Location;
     }
 
@@ -440,7 +440,7 @@ public class S3FileStoreUnitTests
             .Returns(Task.CompletedTask);
 
         var diskSource = new FakeStore(StorageBackendType.Disk);
-        await Sut(storage.Object).IngestFromAsync(diskSource, "/tmp/src.bin", "dest/key.bin");
+        await Sut(storage.Object).CopyFromAsync(diskSource, "/tmp/src.bin", "dest/key.bin");
 
         storage.Verify(x => x.UploadFileAsync("/tmp/src.bin", "dest/key.bin", It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -464,7 +464,7 @@ public class S3FileStoreUnitTests
 
         var s3Source = new FakeStore(StorageBackendType.S3, (sourceBucket, sourceFullKey));
 
-        await Sut(storage.Object).IngestFromAsync(s3Source, "drives/xyz/abc123.payload", destRelPath);
+        await Sut(storage.Object).CopyFromAsync(s3Source, "drives/xyz/abc123.payload", destRelPath);
 
         // Verify the full source key (including source rootPath) was passed through, not just the relative path.
         storage.Verify(x => x.CopyFromBucketAsync(
@@ -478,7 +478,7 @@ public class S3FileStoreUnitTests
         var storage = new Mock<IS3Storage>(MockBehavior.Strict);
         var s3Source = new FakeStore(StorageBackendType.S3, s3Location: null);
 
-        var caught = await Capture(() => Sut(storage.Object).IngestFromAsync(s3Source, "src/key", "dst/key"));
+        var caught = await Capture(() => Sut(storage.Object).CopyFromAsync(s3Source, "src/key", "dst/key"));
 
         Assert.That(caught, Is.InstanceOf<DriveFileStoreException>());
         // Storage must not be touched.
@@ -494,7 +494,7 @@ public class S3FileStoreUnitTests
             .ThrowsAsync(failure);
 
         var diskSource = new FakeStore(StorageBackendType.Disk);
-        var caught = await Capture(() => Sut(storage.Object).IngestFromAsync(diskSource, "/tmp/f", "k"));
+        var caught = await Capture(() => Sut(storage.Object).CopyFromAsync(diskSource, "/tmp/f", "k"));
 
         Assert.That(caught, Is.InstanceOf<DriveFileStoreException>());
         Assert.That(caught!.InnerException, Is.SameAs(failure));
@@ -717,7 +717,7 @@ public class S3FileStoreTests : PayloadReaderWriterBaseTestFixture
     }
 
     [Test]
-    public async Task IngestFromAsync_Disk_To_S3_UploadsFile()
+    public async Task CopyFromAsync_Disk_To_S3_UploadsFile()
     {
         var sut = CreateSut();
         var content = "disk to s3 ingest".ToUtf8ByteArray();
@@ -731,7 +731,7 @@ public class S3FileStoreTests : PayloadReaderWriterBaseTestFixture
         diskSource.SetupGet(x => x.Backend).Returns(StorageBackendType.Disk);
         diskSource.Setup(x => x.GetS3Location(It.IsAny<string>())).Returns((string _) => null);
 
-        await sut.IngestFromAsync(diskSource.Object, srcFile, destKey);
+        await sut.CopyFromAsync(diskSource.Object, srcFile, destKey);
         await Task.Delay(100);
 
         Assert.That(await sut.ExistsAsync(destKey), Is.True);
@@ -750,7 +750,7 @@ public class S3FileStoreTests : PayloadReaderWriterBaseTestFixture
     // Source: bucket A, rootPath "inbox".  Dest: bucket B, rootPath "payloads".
     // Verifies that the full source key (inbox/...) is used, not just the relative path.
     [Test]
-    public async Task IngestFromAsync_S3_To_S3_CrossBucket_CopiesObject()
+    public async Task CopyFromAsync_S3_To_S3_CrossBucket_CopiesObject()
     {
         // Create a second bucket for the destination.
         var destBucketName = $"zz-ci-dest-{Guid.NewGuid():N}";
@@ -789,7 +789,7 @@ public class S3FileStoreTests : PayloadReaderWriterBaseTestFixture
             Assert.That(await srcStore.ExistsAsync(relKey), Is.True, "Source object should exist before copy");
 
             // Perform cross-bucket S3->S3 ingest.
-            await dstStore.IngestFromAsync(srcStore, relKey, relKey);
+            await dstStore.CopyFromAsync(srcStore, relKey, relKey);
             await Task.Delay(100);
 
             // Object must now exist in dest bucket at rootPath "payloads" + relKey.
@@ -808,7 +808,7 @@ public class S3FileStoreTests : PayloadReaderWriterBaseTestFixture
 }
 
 // Regression test for the S3-inbox promote bug:
-// When the inbox is on S3, CopyPayloadToLongTermAsync must dispatch through IngestFromAsync
+// When the inbox is on S3, CopyPayloadToLongTermAsync must dispatch through CopyFromAsync
 // (source-backend aware), not through a local-disk read. This test exercises the
 // InboxFileStore -> LongTermPayloadStore (S3->S3 cross-bucket) promote path end-to-end
 // at the store level.

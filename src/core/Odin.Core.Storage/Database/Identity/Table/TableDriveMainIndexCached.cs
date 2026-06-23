@@ -191,6 +191,17 @@ public class TableDriveMainIndexCached : AbstractTableCaching
             GetDriveIdTags(driveId));
     }
 
+    public async Task<long> GetNewestModifiedAsync(Guid driveId, int fileSystemType, TimeSpan? ttl = null)
+    {
+        // Cached with the drive's tags, so an upload (which invalidates them) keeps this fresh.
+        return await Cache.GetOrSetAsync(
+            $"NewestModified:{driveId}:{fileSystemType}",
+            _ => _table.GetNewestModifiedAsync(driveId, fileSystemType),
+            ttl ?? DefaultTtl,
+            DefaultEntrySize,
+            GetDriveIdTags(driveId));
+    }
+
     //
 
     public async Task<long> GetTotalSizeAllDrivesAsync(TimeSpan? ttl = null)

@@ -65,6 +65,37 @@ public class DrivePeerReaderV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetThumbnail(peer.DomainName, driveId, fileId, payloadKey, width, height);
     }
 
+    // --- Read by GlobalTransitId ---
+
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderByGtidAsync(OdinId peer, Guid driveId, Guid gtid,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetFileHeaderByGtid(peer.DomainName, driveId, gtid);
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetPayloadByGtidAsync(OdinId peer, Guid driveId, Guid gtid, string payloadKey,
+        FileChunk chunk = null, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        if (chunk == null)
+        {
+            return await svc.GetPayloadByGtid(peer.DomainName, driveId, gtid, payloadKey);
+        }
+
+        return await svc.GetPayloadByGtid(peer.DomainName, driveId, gtid, payloadKey, chunk.Start, chunk.Length);
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetThumbnailByGtidAsync(OdinId peer, Guid driveId, Guid gtid, string payloadKey,
+        int width, int height, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret, fileSystemType);
+        var svc = RefitCreator.RestServiceFor<IDrivePeerQueryHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetThumbnailByGtid(peer.DomainName, driveId, gtid, payloadKey, width, height);
+    }
+
     // --- Temporal (time-boxed) read API ---
 
     public async Task<ApiResponse<TemporalAccessStatus>> VerifyTemporalAccessAsync(OdinId peer, Guid driveId,

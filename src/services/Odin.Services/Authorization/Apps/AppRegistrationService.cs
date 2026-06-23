@@ -262,6 +262,7 @@ namespace Odin.Services.Authorization.Apps
                             ClientIdOrDomain = appReg.Name,
                             CorsHostName = appReg.CorsHostName,
                             AccessRegistrationId = accessReg.Id,
+                            AppId = appReg.AppId,
                             DevicePushNotificationKey = null
                         })
                 };
@@ -336,6 +337,18 @@ namespace Odin.Services.Authorization.Apps
             await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
 
             await ResetAppPermissionContextCacheAsync();
+        }
+
+        public async Task<GuidId?> GetCallingAppIdAsync(IOdinContext odinContext)
+        {
+            var accessRegistrationId = odinContext.Caller.OdinClientContext?.AccessRegistrationId;
+            if (accessRegistrationId == null)
+            {
+                return null;
+            }
+
+            var client = await clientRegistrationStorage.GetAsync<AppClientRegistration>(accessRegistrationId);
+            return client?.AppId;
         }
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext)

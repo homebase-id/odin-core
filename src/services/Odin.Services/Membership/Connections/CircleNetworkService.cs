@@ -13,6 +13,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Storage.Concurrency;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Util;
+using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.AppNotifications.SystemNotifications;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Apps;
@@ -172,6 +173,13 @@ namespace Odin.Services.Membership.Connections
                     OdinId = odinId,
                 });
 
+                await mediator.Publish(new ConnectionChangedNotification
+                {
+                    OdinContext = odinContext,
+                    OdinId = odinId,
+                    Change = ConnectionChangeType.Disconnected,
+                });
+
                 return true;
             }
 
@@ -208,6 +216,13 @@ namespace Odin.Services.Membership.Connections
                     OdinId = odinId,
                 });
 
+                await mediator.Publish(new ConnectionChangedNotification
+                {
+                    OdinContext = odinContext,
+                    OdinId = odinId,
+                    Change = ConnectionChangeType.Blocked,
+                });
+
                 return true;
             }
 
@@ -224,6 +239,12 @@ namespace Odin.Services.Membership.Connections
                     OdinId = odinId,
                 });
 
+                await mediator.Publish(new ConnectionChangedNotification
+                {
+                    OdinContext = odinContext,
+                    OdinId = odinId,
+                    Change = ConnectionChangeType.Blocked,
+                });
 
                 return true;
             }
@@ -262,15 +283,16 @@ namespace Odin.Services.Membership.Connections
             {
                 bool isValid = info.AccessGrant?.IsValid() ?? false;
 
-                if (isValid)
-                {
-                    info.Status = ConnectionStatus.Connected;
-                    await this.SaveIcrAsync(info, odinContext);
-                    return true;
-                }
-
-                info.Status = ConnectionStatus.None;
+                info.Status = isValid ? ConnectionStatus.Connected : ConnectionStatus.None;
                 await this.SaveIcrAsync(info, odinContext);
+
+                await mediator.Publish(new ConnectionChangedNotification
+                {
+                    OdinContext = odinContext,
+                    OdinId = odinId,
+                    Change = ConnectionChangeType.Unblocked,
+                });
+
                 return true;
             }
 
@@ -453,6 +475,14 @@ namespace Odin.Services.Membership.Connections
 
             keyStoreKey.Wipe();
             await this.SaveIcrAsync(icr, odinContext);
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                CircleId = circleId.Value,
+                Change = ConnectionChangeType.CircleGranted,
+            });
         }
 
         /// <summary>
@@ -483,6 +513,14 @@ namespace Odin.Services.Membership.Connections
             }
 
             await this.SaveIcrAsync(icr, odinContext);
+
+            await mediator.Publish(new ConnectionChangedNotification
+            {
+                OdinContext = odinContext,
+                OdinId = odinId,
+                CircleId = circleId.Value,
+                Change = ConnectionChangeType.CircleRevoked,
+            });
         }
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantListWithSystemCircle(
@@ -591,6 +629,13 @@ namespace Odin.Services.Membership.Connections
 
             await circleMembershipService.UpdateAsync(circleDef, odinContext);
 
+            await mediator.Publish(new CircleDefinitionChangedNotification
+            {
+                OdinContext = odinContext,
+                CircleId = circleDef.Id.Value,
+                Change = CircleDefinitionChangeType.Updated,
+            });
+
             //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
         }
 
@@ -628,6 +673,13 @@ namespace Odin.Services.Membership.Connections
             }
 
             await circleMembershipService.DeleteAsync(circleId, odinContext);
+
+            await mediator.Publish(new CircleDefinitionChangedNotification
+            {
+                OdinContext = odinContext,
+                CircleId = circleId.Value,
+                Change = CircleDefinitionChangeType.Deleted,
+            });
         }
 
         public async Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)

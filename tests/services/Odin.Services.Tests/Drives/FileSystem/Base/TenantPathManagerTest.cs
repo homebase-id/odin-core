@@ -376,5 +376,49 @@ public class TenantPathManagerTests
 
     //
 
+    // The incoming-transfer receive path is handed the staging-style `extension` for each payload
+    // and thumbnail (e.g. "key-0.payload", "key-0-10x20.thumb"). When we write that stream straight
+    // to long-term storage (skipping the inbox folder), we must derive the SAME path the canonical
+    // readers (GetPayloadDirectoryAndFileName / GetThumbnailDirectoryAndFileName) will later use.
+    // The staging filename uses a '.' between fileId and extension; the long-term filename uses '-'.
+    // These two tests pin that equivalence so a future change to either naming scheme can't silently
+    // make written payloads unreadable.
+
+    [Test]
+    public void GetLongTermPayloadPathFromExtension_MatchesCanonicalPayloadPath()
+    {
+        var tenantId = Guid.NewGuid();
+        var tenantPathManager = new TenantPathManager(_config, tenantId);
+        var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
+        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-1111111111ab");
+        var uid = UnixTimeUtcUnique.ZeroTime;
+
+        var stagingExtension = TenantPathManager.GetBasePayloadFileNameAndExtension("key", uid);
+
+        Assert.That(
+            tenantPathManager.GetLongTermPayloadDirectoryAndFileNameFromExtension(driveId, fileId, stagingExtension),
+            Is.EqualTo(tenantPathManager.GetPayloadDirectoryAndFileName(driveId, fileId, "key", uid)));
+    }
+
+    //
+
+    [Test]
+    public void GetLongTermPayloadPathFromExtension_MatchesCanonicalThumbnailPath()
+    {
+        var tenantId = Guid.NewGuid();
+        var tenantPathManager = new TenantPathManager(_config, tenantId);
+        var driveId = Guid.Parse("11111111-abcd-ABCD-1111-111111111111");
+        var fileId = Guid.Parse("21111111-abcd-ABCD-1111-1111111111ab");
+        var uid = UnixTimeUtcUnique.ZeroTime;
+
+        var stagingExtension = TenantPathManager.GetThumbnailFileNameAndExtension("key", uid, 10, 20);
+
+        Assert.That(
+            tenantPathManager.GetLongTermPayloadDirectoryAndFileNameFromExtension(driveId, fileId, stagingExtension),
+            Is.EqualTo(tenantPathManager.GetThumbnailDirectoryAndFileName(driveId, fileId, "key", uid, 10, 20)));
+    }
+
+    //
+
 
 }

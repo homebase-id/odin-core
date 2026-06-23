@@ -55,7 +55,7 @@ public static class ContactMergeLog
     /// Returns the fields being overwritten: keys present and non-empty in <b>both</b> existing and
     /// incoming where the values differ (jsonPath → old value). An empty result means "nothing to log".
     /// </summary>
-    public static Dictionary<string, string> ComputeOverwrites(ContactContent existing, ContactContent incoming)
+    public static Dictionary<string, string> ComputeOverwrites(PeerContactContent existing, PeerContactContent incoming)
     {
         var ex = Flatten(existing);
         var inc = Flatten(incoming);
@@ -115,7 +115,7 @@ public static class ContactMergeLog
     /// <summary>
     /// Flattens a contact into <c>jsonPath → value</c>, dropping null/empty leaves.
     /// </summary>
-    private static Dictionary<string, string> Flatten(ContactContent c)
+    private static Dictionary<string, string> Flatten(PeerContactContent c)
     {
         var d = new Dictionary<string, string>();
         if (c == null)
@@ -143,23 +143,42 @@ public static class ContactMergeLog
 
         if (c.Location != null)
         {
+            Put("location.label", c.Location.Label);
+            Put("location.addressLine1", c.Location.AddressLine1);
+            Put("location.addressLine2", c.Location.AddressLine2);
+            Put("location.postcode", c.Location.Postcode);
             Put("location.city", c.Location.City);
             Put("location.country", c.Location.Country);
         }
 
         if (c.Phone != null)
         {
+            Put("phone.label", c.Phone.Label);
             Put("phone.number", c.Phone.Number);
         }
 
         if (c.Email != null)
         {
+            Put("email.label", c.Email.Label);
             Put("email.email", c.Email.Email);
         }
 
         if (c.Birthday != null)
         {
             Put("birthday.date", c.Birthday.Date);
+        }
+
+        Put("shortBio", c.ShortBio);
+        Put("nickname", c.Nickname);
+        Put("status", c.Status);
+        Put("link", c.Link);
+
+        if (c.Social != null)
+        {
+            foreach (var (key, value) in c.Social)
+            {
+                Put($"social.{key}", value);
+            }
         }
 
         return d;

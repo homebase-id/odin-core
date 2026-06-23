@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -65,12 +66,13 @@ public class ContactEnrichmentService(
             return;
         }
 
-        ContactContent content;
+        PeerContactContent content;
+        ContactExtData extData = null;
         if (connected)
         {
             try
             {
-                content = await BuildFromPeerProfileAsync(odinId, odinContext);
+                (content, extData) = await BuildFromPeerProfileAsync(odinId, odinContext);
             }
             catch (OdinSecurityException)
             {
@@ -92,17 +94,22 @@ public class ContactEnrichmentService(
             content = await TryBuildFromPublicProfileAsync(odinId);
         }
 
-        if (content == null)
+        var hasExtData = extData is { IsEmpty: false };
+        if (content == null && !hasExtData)
         {
             logger.LogDebug("Enrich: no profile data found for {odinId}; nothing to merge", odinId);
             return;
         }
 
+        // ext_data may be present even when no flat content fields were found; merge it onto a (possibly
+        // bare) content carrying just the odinId.
+        content ??= new PeerContactContent();
         content.OdinId = odinId.DomainName;
-        await contactService.MergeAsync(content, ContactMergeSource.Enrichment, odinContext);
+        await contactService.MergeAsync(content, ContactMergeSource.Enrichment, odinContext, extData);
     }
 
-    private async Task<ContactContent> BuildFromPeerProfileAsync(OdinId odinId, IOdinContext odinContext)
+    private async Task<(PeerContactContent content, ContactExtData extData)> BuildFromPeerProfileAsync(
+        OdinId odinId, IOdinContext odinContext)
     {
         var request = new QueryBatchRequest
         {
@@ -110,7 +117,7 @@ public class ContactEnrichmentService(
             {
                 TargetDrive = SystemDriveConstants.ProfileDrive,
                 FileType = [ContactProfileAttributes.AttributeFileType],
-                TagsMatchAtLeastOne = ContactProfileAttributes.TextTypes
+                TagsMatchAtLeastOne = ContactProfileAttributes.QueryTypes
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest
             {
@@ -122,7 +129,7 @@ public class ContactEnrichmentService(
         var result = await peerDriveQueryService.GetBatchAsync(odinId, request, FileSystemType.Standard, odinContext);
         if (result?.SearchResults == null)
         {
-            return null;
+            return (null, null);
         }
 
         // A peer can publish several attributes of the same type (e.g. a primary and a secondary
@@ -135,12 +142,62 @@ public class ContactEnrichmentService(
             .OrderBy(x => x.Block.Priority ?? int.MaxValue)
             .ToList();
 
-        var content = new ContactContent();
+        var content = new PeerContactContent();
+        ContactExtData extData = null;
         var found = false;
 
         foreach (var (tags, block) in attributes)
         {
             var data = block.Data;
+
+            // ext_data attributes (Experience/Bio, …) are stored verbatim, keyed by type id — the server
+            // never parses their data. First (highest-priority) wins per type, mirroring the flat fields.
+            var extType = ContactProfileAttributes.ExtDataTypes.FirstOrDefault(tags.Contains);
+            if (extType != Guid.Empty)
+            {
+                if (data is { Count: > 0 })
+                {
+                    extData ??= new ContactExtData { Attributes = new Dictionary<string, JsonElement>() };
+                    extData.Attributes.TryAdd(extType.ToString("N"), JsonSerializer.SerializeToElement(data));
+                }
+
+                continue;
+            }
+
+            // Social/game handles: keyed verbatim by the attribute's type id (the chosen GUID keying),
+            // value is the handle (a social attribute's data is a single { "<network>": "<handle>" } pair,
+            // e.g. data["twitter"] = "@frodo"). Different networks accumulate; the first (highest-priority)
+            // attribute of a given type wins, mirroring the flat fields.
+            var socialType = ContactProfileAttributes.SocialTypes.FirstOrDefault(tags.Contains);
+            if (socialType != Guid.Empty)
+            {
+                var handle = FirstValue(data);
+                if (handle != null)
+                {
+                    content.Social ??= new Dictionary<string, string>();
+                    // Key by the type id in the data's no-dash form (toGuidId / ToString("N")), matching
+                    // ext_data and what clients compare against.
+                    if (content.Social.TryAdd(socialType.ToString("N"), handle))
+                    {
+                        found = true;
+                    }
+                }
+
+                continue;
+            }
+
+            // Link: a single personal link / website — keep the first (highest-priority) target URL.
+            if (content.Link == null && tags.Contains(ContactProfileAttributes.Link))
+            {
+                var target = Str(data, ContactProfileAttributes.LinkTargetField);
+                if (target != null)
+                {
+                    content.Link = target;
+                    found = true;
+                }
+
+                continue;
+            }
 
             if (content.Name == null && tags.Contains(ContactProfileAttributes.Name))
             {
@@ -161,6 +218,10 @@ public class ContactEnrichmentService(
             {
                 var location = new ContactLocation
                 {
+                    Label = Str(data, ContactProfileAttributes.Label),
+                    AddressLine1 = Str(data, ContactProfileAttributes.AddressLine1),
+                    AddressLine2 = Str(data, ContactProfileAttributes.AddressLine2),
+                    Postcode = Str(data, ContactProfileAttributes.Postcode),
                     City = Str(data, ContactProfileAttributes.City),
                     Country = Str(data, ContactProfileAttributes.Country)
                 };
@@ -175,7 +236,7 @@ public class ContactEnrichmentService(
                 var number = Str(data, ContactProfileAttributes.PhoneNumberField);
                 if (number != null)
                 {
-                    content.Phone = new ContactPhone { Number = number };
+                    content.Phone = new ContactPhone { Number = number, Label = Str(data, ContactProfileAttributes.Label) };
                     found = true;
                 }
             }
@@ -184,7 +245,7 @@ public class ContactEnrichmentService(
                 var email = Str(data, ContactProfileAttributes.EmailField);
                 if (email != null)
                 {
-                    content.Email = new ContactEmail { Email = email };
+                    content.Email = new ContactEmail { Email = email, Label = Str(data, ContactProfileAttributes.Label) };
                     found = true;
                 }
             }
@@ -197,9 +258,38 @@ public class ContactEnrichmentService(
                     found = true;
                 }
             }
+            else if (content.ShortBio == null && tags.Contains(ContactProfileAttributes.ShortBioType))
+            {
+                // The "Short bio" attribute's data.short_bio is a plain string (≤160 chars) — distinct
+                // from the rich-text short_bio in the "Bio" attribute, which is handled by ext_data above.
+                var shortBio = Str(data, ContactProfileAttributes.ShortBioField);
+                if (shortBio != null)
+                {
+                    content.ShortBio = shortBio;
+                    found = true;
+                }
+            }
+            else if (content.Status == null && tags.Contains(ContactProfileAttributes.Status))
+            {
+                var status = Str(data, ContactProfileAttributes.StatusField);
+                if (status != null)
+                {
+                    content.Status = status;
+                    found = true;
+                }
+            }
+            else if (content.Nickname == null && tags.Contains(ContactProfileAttributes.Nickname))
+            {
+                var nickname = Str(data, ContactProfileAttributes.NicknameField);
+                if (nickname != null)
+                {
+                    content.Nickname = nickname;
+                    found = true;
+                }
+            }
         }
 
-        return found ? content : null;
+        return (found ? content : null, extData);
     }
 
     private static bool HasAnyValue(ContactName name)
@@ -209,15 +299,22 @@ public class ContactEnrichmentService(
 
     private static bool HasAnyValue(ContactLocation location)
     {
-        return location.City != null || location.Country != null;
+        return location.Label != null || location.AddressLine1 != null || location.AddressLine2 != null
+               || location.Postcode != null || location.City != null || location.Country != null;
     }
 
     /// <summary>
     /// Best-effort anonymous fetch of the identity's public profile card (<c>https://{odinId}/pub/profile</c>),
-    /// yielding the display name. Returns null on any failure (offline, no card, non-OK). Image is not
-    /// fetched here (follow-up).
+    /// used when the peer's ProfileDrive isn't reachable (not connected, or a 403). Pulls the clean scalar
+    /// fields the card carries: name (display/given/surname), status, and the short bio.
+    /// <para>
+    /// <b>Not</b> reconstructed here: social handles and links. The card stores those lossily — full URLs
+    /// keyed by network short-code — whereas <see cref="ContactContent.Social"/> is keyed by attribute type
+    /// id with the raw handle. Those enrich only via the connected peer-ProfileDrive path. Image is also a
+    /// follow-up. Returns null when the card has nothing usable (or on any failure).
+    /// </para>
     /// </summary>
-    private async Task<ContactContent> TryBuildFromPublicProfileAsync(OdinId odinId)
+    private async Task<PeerContactContent> TryBuildFromPublicProfileAsync(OdinId odinId)
     {
         try
         {
@@ -233,12 +330,34 @@ public class ContactEnrichmentService(
 
             var json = await response.Content.ReadAsStringAsync();
             var card = OdinSystemSerializer.Deserialize<PublicProfileCard>(json);
-            if (string.IsNullOrWhiteSpace(card?.Name))
+            if (card == null)
             {
                 return null;
             }
 
-            return new ContactContent { Name = new ContactName { DisplayName = card.Name } };
+            var content = new PeerContactContent();
+
+            var name = new ContactName
+            {
+                DisplayName = Blank(card.Name),
+                GivenName = Blank(card.GivenName),
+                Surname = Blank(card.FamilyName)
+            };
+            if (HasAnyValue(name))
+            {
+                content.Name = name;
+            }
+
+            content.Status = Blank(card.Status);
+            content.ShortBio = Blank(card.BioSummary);
+
+            // Nothing usable on the card → leave the contact untouched.
+            if (content.Name == null && content.Status == null && content.ShortBio == null)
+            {
+                return null;
+            }
+
+            return content;
         }
         catch (Exception e)
         {
@@ -294,6 +413,32 @@ public class ContactEnrichmentService(
         return string.IsNullOrWhiteSpace(s) ? null : s;
     }
 
+    /// <summary>Returns null for a null/whitespace string, the value otherwise (the field-merge convention).</summary>
+    private static string Blank(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    /// <summary>
+    /// The first non-empty value in a social attribute's data object (its single <c>{ network: handle }</c>
+    /// pair, mirroring odin-js <c>Object.values(data)[0]</c>). Returns null when there is no usable handle.
+    /// </summary>
+    private static string FirstValue(Dictionary<string, object> data)
+    {
+        if (data == null)
+        {
+            return null;
+        }
+
+        foreach (var value in data.Values)
+        {
+            var s = value == null ? null : Convert.ToString(value);
+            if (!string.IsNullOrWhiteSpace(s))
+            {
+                return s;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// The subset of a peer profile attribute this service consumes. Deliberately owned by the Contacts
     /// namespace — not shared with the SSR profile block — so the enrichment wire-mapping cannot drift
@@ -310,11 +455,28 @@ public class ContactEnrichmentService(
         public Dictionary<string, object> Data { get; init; }
     }
 
-    /// <summary>The public profile card served at <c>pub/profile</c> (odin-js <c>ProfileCard</c>).</summary>
+    /// <summary>
+    /// The public profile card served at <c>pub/profile</c> (odin-js <c>ProfileCard</c>). Only the clean
+    /// scalar fields are mapped; social/link arrays on the card are intentionally not consumed (see
+    /// <see cref="TryBuildFromPublicProfileAsync"/>). Extra fields on the wire are ignored.
+    /// </summary>
     // ReSharper disable once ClassNeverInstantiated.Local
     private sealed class PublicProfileCard
     {
         [JsonPropertyName("name")]
         public string Name { get; init; }
+
+        [JsonPropertyName("givenName")]
+        public string GivenName { get; init; }
+
+        [JsonPropertyName("familyName")]
+        public string FamilyName { get; init; }
+
+        [JsonPropertyName("status")]
+        public string Status { get; init; }
+
+        /// <summary>The short bio / tagline (odin-js card <c>bioSummary</c>), mapped to Content.ShortBio.</summary>
+        [JsonPropertyName("bioSummary")]
+        public string BioSummary { get; init; }
     }
 }

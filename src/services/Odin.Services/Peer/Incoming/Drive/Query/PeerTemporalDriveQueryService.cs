@@ -49,11 +49,21 @@ namespace Odin.Services.Peer.Incoming.Drive.Query
             var hasAccess = perms.HasDrivePermission(driveId, DrivePermission.Read) ||
                             perms.HasDrivePermission(driveId, DrivePermission.ConditionalTemporalRead);
 
+            long? windowSeconds = null;
+            long newestFileModified = 0;
+            if (hasAccess)
+            {
+                windowSeconds = TemporalReadPolicy.ResolveWindowSeconds(odinContext, drive);
+                // Newest update on the drive so a caller can spot that data has stopped flowing (e.g. location off).
+                newestFileModified = await fileSystem.Query.GetNewestFileModified(driveId, odinContext);
+            }
+
             return new TemporalAccessStatus
             {
                 HasAccess = hasAccess,
                 TargetDrive = drive.TargetDriveInfo,
-                WindowSeconds = hasAccess ? TemporalReadPolicy.ResolveWindowSeconds(odinContext, drive) : null
+                WindowSeconds = windowSeconds,
+                NewestFileModified = new UnixTimeUtc(newestFileModified)
             };
         }
 

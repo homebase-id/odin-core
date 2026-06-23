@@ -43,6 +43,26 @@ public class ContactService(
     /// <summary>Payload key for the contact's profile image (matches odin-js). Must satisfy <c>^[a-z0-9_]{8,10}$</c>.</summary>
     public const string ProfileImagePayloadKey = "prfl_pic";
 
+    /// <summary>
+    /// Max size (UTF-8 bytes) of a single per-app data blob (<c>appData[appId]</c>). The blob rides inline
+    /// in the contact JSON returned by every list query, so it is kept small; bulk data belongs in a payload.
+    /// </summary>
+    public const int AppDataBlobMaxBytes = 200;
+
+    /// <summary>
+    /// Max size (UTF-8 bytes) of a single app's <b>bulk</b> blob in the <c>appextdata</c> payload
+    /// (<see cref="ContactAppData"/>). Generous — this tier exists for data too large for the inline
+    /// <see cref="AppDataBlobMaxBytes"/> slot (e.g. a 20 KB bio) — but bounded to keep one contact's
+    /// payload sane.
+    /// </summary>
+    public const int AppExtDataBlobMaxBytes = 256 * 1024;
+
+    /// <summary>Generic per-field character cap for core contact text fields (keeps the list query cheap).</summary>
+    private const int MaxContactFieldChars = 256;
+
+    /// <summary>Larger cap for the short bio / tagline (still small enough to ride inline).</summary>
+    private const int MaxShortBioChars = 1024;
+
     private static readonly TargetDrive Drive = SystemDriveConstants.ContactDrive;
     private static Guid DriveId => Drive.Alias;
 
@@ -80,6 +100,7 @@ public class ContactService(
     public async Task<ContactWriteResult> CreateAsync(ContactContent content, IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
+        AssertContentWithinCaps(content);
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         Guid uniqueId;
@@ -136,6 +157,7 @@ public class ContactService(
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
         OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        AssertContentWithinCaps(content);
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
 
         if (!string.IsNullOrWhiteSpace(content.OdinId))
@@ -161,7 +183,8 @@ public class ContactService(
             return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
         }
 
-        var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, writeContext);
+        // Owner edits never touch ext_data (peer-only); pass null so any stored ext_data is preserved.
+        var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, null, writeContext);
         return new ContactWriteResult
         {
             Outcome = ContactWriteOutcome.Updated,
@@ -225,11 +248,12 @@ public class ContactService(
     }
 
     /// <summary>
-    /// Set (create or replace) the contact's profile image. The client sends <b>plaintext</b> image +
-    /// thumbnail bytes over the shared-secret transport; the server encrypts them at rest under the
-    /// file's AES key (one fresh IV for the payload and its thumbnails) and stores them as the
-    /// <see cref="ProfileImagePayloadKey"/> payload. Version-tag gated (stale → conflict, missing →
-    /// not-found); the contact's content and any <c>merge_log</c> payload are preserved.
+    /// Set (create or replace) the contact's profile image. The client sends the image + thumbnail bytes
+    /// <b>already encrypted</b> under the contact file's AES key with the request's 16-byte IV (one IV
+    /// shared by the image and its thumbnails) over the shared-secret transport; the server stores that
+    /// ciphertext <b>verbatim</b> as the <see cref="ProfileImagePayloadKey"/> payload and records the IV
+    /// for later decryption. Version-tag gated (stale → conflict, missing → not-found); the contact's
+    /// content (re-encrypted under a fresh content IV) and any <c>merge_log</c> payload are preserved.
     /// </summary>
     public async Task<ContactWriteResult> SetImageAsync(Guid uniqueId, SetContactImageRequest request, IOdinContext odinContext)
     {
@@ -290,6 +314,319 @@ public class ContactService(
     }
 
     /// <summary>
+    /// Set (create or replace) the calling app's per-app data blob on the contact addressed by
+    /// <paramref name="uniqueId"/>. Merges <b>only</b> <c>appData[appId]</c> into the contact JSON,
+    /// leaving core fields and every other app's blob untouched; <paramref name="content"/> is stored
+    /// verbatim (server never parses it) and must be ≤ <see cref="AppDataBlobMaxBytes"/> bytes.
+    ///
+    /// <para>
+    /// Read-modify-write with retry: the first attempt writes against the caller's
+    /// <paramref name="expectedVersionTag"/>; on a version race (a concurrent core/enrichment/other-app
+    /// write) it re-reads and re-applies the blob over the latest content, so such edits are absorbed
+    /// rather than surfaced as a conflict. Same-app/other-device writes are last-write-wins. Returns
+    /// not-found if the contact is missing.
+    /// </para>
+    /// </summary>
+    public async Task<ContactWriteResult> SetAppDataAsync(Guid uniqueId, Guid appId, string content, Guid expectedVersionTag,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        OdinValidationUtils.AssertNotNullOrEmpty(content, nameof(content), "use DELETE to clear an app's blob");
+        AssertAppBlobWithinCap(content);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData[appId.ToString()] = content);
+    }
+
+    /// <summary>
+    /// Remove the calling app's per-app data blob (<c>appData[appId]</c>) from the contact. Same
+    /// read-modify-write/retry semantics as <see cref="SetAppDataAsync"/>; core fields and other apps'
+    /// blobs are preserved. Returns not-found if the contact, or this app's blob, is absent.
+    /// </summary>
+    public async Task<ContactWriteResult> DeleteAppDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData.Remove(appId.ToString()), requireExistingBlob: true);
+    }
+
+    /// <summary>
+    /// Shared read-modify-write loop for the per-app data slot: decrypts the contact content, applies
+    /// <paramref name="mutate"/> to the (always-present) <c>appData</c> map, and rewrites the content-only
+    /// header — retrying over the latest on a version race so concurrent core/enrichment writes never
+    /// surface as a conflict. Collapses an emptied map back to <c>null</c> so the field is omitted.
+    /// </summary>
+    private async Task<ContactWriteResult> MutateAppDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext, Action<Dictionary<string, string>> mutate, bool requireExistingBlob = false)
+    {
+        var writeContext = GetWriteContext(odinContext);
+        var appKey = appId.ToString();
+
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var existing = await GetForWritingAsync(uniqueId, writeContext);
+            if (existing == null)
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
+            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
+
+            if (requireExistingBlob && (content.AppData == null || !content.AppData.ContainsKey(appKey)))
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            content.AppData ??= new Dictionary<string, string>();
+            mutate(content.AppData);
+            if (content.AppData.Count == 0)
+            {
+                content.AppData = null;
+            }
+
+            // Attempt 1 gates on the caller's optimistic base; later attempts (after a concurrent write
+            // advanced the tag) write over the freshly-read latest, absorbing the unrelated edit.
+            var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+            var expected = attempt == 1 && expectedVersionTag != Guid.Empty ? expectedVersionTag : currentVersionTag;
+
+            try
+            {
+                var newVersionTag = await WriteContentOnlyAsync(existing, content, keyHeader.AesKey, expected, writeContext);
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+            {
+                logger.LogDebug("Contact app-data write race for uid {uid} app {appId} (attempt {attempt}/{maxAttempts})",
+                    uniqueId, appId, attempt, maxAttempts);
+            }
+        }
+
+        // Could not converge after retries (sustained contention): surface the current header so the
+        // client can re-fetch and retry.
+        var latest = await GetForWritingAsync(uniqueId, writeContext);
+        if (latest == null)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+    }
+
+    /// <summary>
+    /// Rewrites the contact's content header (and its tags) under a fresh content IV, preserving every
+    /// payload, gated on <paramref name="expectedVersionTag"/> for optimistic concurrency. Used by the
+    /// per-app-data merge, which changes only the JSON content (appData rides inline, not in a payload).
+    /// </summary>
+    private async Task<Guid> WriteContentOnlyAsync(ServerFileHeader existing, ContactContent merged, SensitiveByteArray aesKey,
+        Guid expectedVersionTag, IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+
+        // The content IV must rotate on every encrypted update (re-encrypting different plaintext under
+        // the same key+IV is forbidden), so re-wrap the file's key header under a fresh IV.
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
+        existing.FileMetadata.AppData.Content = EncryptContent(contentKeyHeader, merged);
+        existing.FileMetadata.AppData.Tags = BuildTags(existing.FileMetadata.AppData.UniqueId.GetValueOrDefault(), merged);
+        existing.FileMetadata.VersionTag = expectedVersionTag;
+        existing.EncryptedKeyHeader = await fileSystem.Storage.EncryptKeyHeader(DriveId, contentKeyHeader, writeContext);
+        await fileSystem.Storage.UpdateActiveFileHeader(file, existing, writeContext, raiseEvent: true);
+        return existing.FileMetadata.VersionTag.GetValueOrDefault();
+    }
+
+    /// <summary>
+    /// Set (create or replace) the calling app's <b>bulk</b> blob in the contact's <c>appextdata</c>
+    /// payload (<see cref="ContactAppData"/>). For data too large for the inline
+    /// <see cref="SetAppDataAsync"/> slot; merges <b>only</b> this app's entry, leaving core fields, other
+    /// apps' bulk blobs, and every other payload (image, merge_log, ext_data) untouched.
+    ///
+    /// <para>
+    /// Same read-modify-write/retry semantics as <see cref="SetAppDataAsync"/>: a concurrent
+    /// core/enrichment/other-app write is absorbed rather than surfaced as a conflict. Returns not-found
+    /// if the contact is missing. <paramref name="content"/> must be ≤ <see cref="AppExtDataBlobMaxBytes"/>
+    /// bytes and is stored verbatim.
+    /// </para>
+    /// </summary>
+    public async Task<ContactWriteResult> SetAppExtDataAsync(Guid uniqueId, Guid appId, string content,
+        Guid expectedVersionTag, IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        OdinValidationUtils.AssertNotNullOrEmpty(content, nameof(content), "use DELETE to clear an app's bulk blob");
+        AssertAppExtBlobWithinCap(content);
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppExtDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData[appId.ToString()] = content);
+    }
+
+    /// <summary>
+    /// Remove the calling app's bulk blob from the contact's <c>appextdata</c> payload. Same semantics as
+    /// <see cref="DeleteAppDataAsync"/>; an emptied payload is dropped entirely. Returns not-found if the
+    /// contact, or this app's bulk blob, is absent.
+    /// </summary>
+    public async Task<ContactWriteResult> DeleteAppExtDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotEmptyGuid(uniqueId, nameof(uniqueId));
+        OdinValidationUtils.AssertNotEmptyGuid(appId, nameof(appId));
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
+        return await MutateAppExtDataAsync(uniqueId, appId, expectedVersionTag, odinContext,
+            appData => appData.Remove(appId.ToString()), requireExistingBlob: true);
+    }
+
+    /// <summary>
+    /// Shared read-modify-write loop for the <c>appextdata</c> payload: reads the current payload, applies
+    /// <paramref name="mutate"/> to its app map, and rewrites it (dropping it when emptied) — retrying over
+    /// the latest on a version race so concurrent core/enrichment writes never surface as a conflict.
+    /// </summary>
+    private async Task<ContactWriteResult> MutateAppExtDataAsync(Guid uniqueId, Guid appId, Guid expectedVersionTag,
+        IOdinContext odinContext, Action<Dictionary<string, string>> mutate, bool requireExistingBlob = false)
+    {
+        var writeContext = GetWriteContext(odinContext);
+        var appKey = appId.ToString();
+
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var existing = await GetForWritingAsync(uniqueId, writeContext);
+            if (existing == null)
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
+            var keyHeader = existing.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+            var appExtData = await ReadAppExtDataAsync(existing, keyHeader, writeContext) ?? new ContactAppData();
+
+            if (requireExistingBlob && (appExtData.AppData == null || !appExtData.AppData.ContainsKey(appKey)))
+            {
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+            }
+
+            appExtData.AppData ??= new Dictionary<string, string>();
+            mutate(appExtData.AppData);
+
+            var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+            var expected = attempt == 1 && expectedVersionTag != Guid.Empty ? expectedVersionTag : currentVersionTag;
+
+            try
+            {
+                var newVersionTag = await WriteAppExtDataPayloadAsync(existing, keyHeader, appExtData, expected, writeContext);
+                return new ContactWriteResult { Outcome = ContactWriteOutcome.Updated, UniqueId = uniqueId, VersionTag = newVersionTag };
+            }
+            catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
+            {
+                logger.LogDebug("Contact app-ext-data write race for uid {uid} app {appId} (attempt {attempt}/{maxAttempts})",
+                    uniqueId, appId, attempt, maxAttempts);
+            }
+        }
+
+        var latest = await GetForWritingAsync(uniqueId, writeContext);
+        if (latest == null)
+        {
+            return new ContactWriteResult { Outcome = ContactWriteOutcome.NotFound, UniqueId = uniqueId };
+        }
+
+        return VersionConflictResult(uniqueId, latest, latest.FileMetadata.VersionTag.GetValueOrDefault(), odinContext);
+    }
+
+    /// <summary>
+    /// Atomically rewrites the contact's content header (fresh content IV, same plaintext) together with
+    /// the <c>appextdata</c> payload — staged + AppendOrOverwrite when non-empty, or DeletePayload when the
+    /// merge emptied it — in a single <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit, gated
+    /// on <paramref name="expectedVersionTag"/>. Every other payload (image, merge_log, ext_data) is
+    /// carried forward unchanged.
+    /// </summary>
+    private async Task<Guid> WriteAppExtDataPayloadAsync(ServerFileHeader existing, KeyHeader keyHeader,
+        ContactAppData appExtData, Guid expectedVersionTag, IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+        existing.FileMetadata.VersionTag = expectedVersionTag;
+
+        // Content is unchanged, but UpdateBatchAsync rewrites the header, so re-encrypt under a fresh IV
+        // (key+IV reuse across versions is forbidden).
+        var content = DecryptContent(keyHeader, existing.FileMetadata.AppData.Content);
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = keyHeader.AesKey };
+        var contentBase64 = EncryptContent(contentKeyHeader, content);
+
+        List<PayloadDescriptor> payloads;
+        List<PayloadInstruction> instructions;
+        var staged = new List<PayloadDescriptor>();
+
+        if (appExtData.IsEmpty)
+        {
+            // The merge cleared this contact's last bulk blob → drop the payload entirely.
+            payloads = CarryForwardPayloads(existing, ContactAppData.PayloadKey);
+            instructions =
+                [new PayloadInstruction { Key = ContactAppData.PayloadKey, OperationType = PayloadUpdateOperationType.DeletePayload }];
+        }
+        else
+        {
+            var descriptor = await StagePayloadAsync(file, ContactAppData.PayloadKey, ContactAppData.ContentType,
+                appExtData.Serialize(), keyHeader.AesKey, writeContext);
+            staged.Add(descriptor);
+            payloads = [.. CarryForwardPayloads(existing, ContactAppData.PayloadKey), descriptor];
+            instructions =
+                [new PayloadInstruction { Key = ContactAppData.PayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite }];
+        }
+
+        var manifest = BuildContentManifest(existing, contentKeyHeader, contentBase64, content, payloads, instructions);
+
+        try
+        {
+            await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null,
+                sourceArea: StagingArea.Upload);
+            return manifest.NewVersionTag;
+        }
+        finally
+        {
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, staged, writeContext);
+        }
+    }
+
+    /// <summary>
+    /// Reads and decrypts the contact's <c>appextdata</c> payload (file AES key under the descriptor's
+    /// per-payload IV). Returns null when the payload is absent.
+    /// </summary>
+    private async Task<ContactAppData> ReadAppExtDataAsync(ServerFileHeader header, KeyHeader keyHeader,
+        IOdinContext writeContext)
+    {
+        var descriptor = header.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(ContactAppData.PayloadKey));
+        if (descriptor == null)
+        {
+            return null;
+        }
+
+        using var stream = await fileSystem.Storage.GetPayloadStreamAsync(
+            header.FileMetadata.File, ContactAppData.PayloadKey, null, writeContext);
+        if (stream == null)
+        {
+            return null;
+        }
+
+        using var ms = new MemoryStream();
+        await stream.Stream.CopyToAsync(ms);
+        var cipher = ms.ToArray();
+        if (cipher.Length == 0)
+        {
+            return null;
+        }
+
+        var payloadKeyHeader = new KeyHeader { Iv = descriptor.Iv, AesKey = keyHeader.AesKey };
+        return ContactAppData.Deserialize(payloadKeyHeader.Decrypt(cipher));
+    }
+
+    /// <summary>
     /// Server-internal create-or-merge for a contact that carries an odinId (used by enrichment and the
     /// lifecycle handlers). Unlike the client <see cref="CreateAsync"/> / <see cref="UpdateAsync"/>, this does <b>not</b> do
     /// client-versionTag optimistic concurrency — it always merges over the current file, retrying once
@@ -297,7 +634,8 @@ public class ContactService(
     /// converges any straggler). Overwritten values are logged to <c>merge_log</c> tagged with
     /// <paramref name="source"/>.
     /// </summary>
-    public async Task<Guid> MergeAsync(ContactContent content, ContactMergeSource source, IOdinContext odinContext)
+    public async Task<Guid> MergeAsync(PeerContactContent content, ContactMergeSource source, IOdinContext odinContext,
+        ContactExtData extData = null)
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(content.OdinId), "MergeAsync requires content.OdinId");
@@ -314,13 +652,30 @@ public class ContactService(
             var existing = await GetForWritingAsync(uniqueId, writeContext);
             if (existing == null)
             {
-                var (_, versionTag) = await WriteNewAsync(uniqueId, content, writeContext);
+                // First write for this odinId. Project the peer-sourced fields onto a fresh
+                // ContactContent (owner-owned fields stay unset) before persisting.
+                var created = Merge(new ContactContent(), content);
+                var (_, versionTag) = await WriteNewAsync(uniqueId, created, writeContext);
+
+                // The create path writes content only; if the peer also brought ext_data, persist it in
+                // a follow-up write now that the file exists (rare: a brand-new contact that already
+                // carries bios). Content is unchanged on this second pass, so only the ext_data payload
+                // is added.
+                if (extData is { IsEmpty: false })
+                {
+                    var fresh = await GetForWritingAsync(uniqueId, writeContext);
+                    if (fresh != null)
+                    {
+                        versionTag = await OverwriteAsync(fresh, content, source, extData, writeContext);
+                    }
+                }
+
                 return versionTag;
             }
 
             try
             {
-                return await OverwriteAsync(existing, content, source, writeContext);
+                return await OverwriteAsync(existing, content, source, extData, writeContext);
             }
             catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
             {
@@ -387,8 +742,8 @@ public class ContactService(
         return (uniqueId, serverFileHeader.FileMetadata.VersionTag.GetValueOrDefault(versionTag));
     }
 
-    private async Task<Guid> OverwriteAsync(ServerFileHeader existing, ContactContent incoming, ContactMergeSource source,
-        IOdinContext writeContext)
+    private async Task<Guid> OverwriteAsync(ServerFileHeader existing, PeerContactContent incoming, ContactMergeSource source,
+        ContactExtData extData, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
         var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
@@ -400,9 +755,13 @@ public class ContactService(
         var overwrites = ContactMergeLog.ComputeOverwrites(existingContent, incoming);
         var merged = Merge(existingContent, incoming);
 
-        if (overwrites.Count == 0)
+        // ext_data is peer-only and replaced wholesale: write it when the peer supplied non-empty
+        // extended data; otherwise the stored ext_data payload (if any) is carried forward untouched.
+        var writeExtData = extData is { IsEmpty: false };
+
+        if (overwrites.Count == 0 && !writeExtData)
         {
-            // Nothing to log (first-time fills / no-ops). Content-only update; no history to keep.
+            // Nothing to log (first-time fills / no-ops) and no ext_data change. Content-only update.
             // The content IV must still rotate — re-encrypting different plaintext under the same
             // key+IV is forbidden (the same rule UpdateBatchAsync enforces) — so re-wrap the file's
             // key header under the fresh IV.
@@ -414,52 +773,65 @@ public class ContactService(
             return existing.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        // History to keep: write the merged content AND the appended merge_log payload in ONE
-        // transaction so the change and its history land together (or not at all).
-        var existingLog = await ReadMergeLogAsync(existing, keyHeader, writeContext);
-        return await WriteContentWithMergeLogAsync(existing, merged, keyHeader.AesKey, existingLog, overwrites, source,
+        // A payload changed (merge_log to append and/or ext_data to replace): write the merged content
+        // AND the affected payload(s) in ONE transaction so the change and its history land together (or
+        // not at all). The merge_log is only read when there's an overwrite to append to it.
+        var existingLog = overwrites.Count > 0
+            ? await ReadMergeLogAsync(existing, keyHeader, writeContext)
+            : null;
+        return await WriteMergedAsync(existing, merged, keyHeader.AesKey, existingLog, overwrites, source, extData,
             existing.FileMetadata.VersionTag.GetValueOrDefault(), writeContext);
     }
 
     /// <summary>
-    /// Atomically writes the merged content and the appended <c>merge_log</c> payload via a single
-    /// <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit (one version-tag advance, one
-    /// change notification). The contact's AES key is reused; the content key-header IV is rotated (a
-    /// hard requirement for encrypted updates), and the merge_log payload gets its own IV.
+    /// Atomically writes the merged content and—when present—the appended <c>merge_log</c> and/or the
+    /// wholesale-replaced <c>ext_data</c> payload via a single
+    /// <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit (one version-tag advance, one change
+    /// notification). The contact's AES key is reused; the content key-header IV is rotated (a hard
+    /// requirement for encrypted updates), and each rewritten payload gets its own IV. Payloads this
+    /// write doesn't touch (the profile image, and whichever of merge_log/ext_data isn't being written)
+    /// are carried forward unchanged.
     /// </summary>
-    private async Task<Guid> WriteContentWithMergeLogAsync(ServerFileHeader existing, ContactContent merged,
+    private async Task<Guid> WriteMergedAsync(ServerFileHeader existing, ContactContent merged,
         SensitiveByteArray aesKey, List<ContactMergeLogEntry> existingLog, Dictionary<string, string> overwrites,
-        ContactMergeSource source, Guid currentVersionTag, IOdinContext writeContext)
+        ContactMergeSource source, ContactExtData extData, Guid currentVersionTag, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
 
         // 1) Merged content, re-encrypted under a fresh content IV.
-        var contentIv = ByteArrayUtil.GetRndByteArray(16);
-        var contentKeyHeader = new KeyHeader { Iv = contentIv, AesKey = aesKey };
+        var contentKeyHeader = new KeyHeader { Iv = ByteArrayUtil.GetRndByteArray(16), AesKey = aesKey };
         var contentBase64 = EncryptContent(contentKeyHeader, merged);
 
-        // 2) Appended + trimmed merge log, encrypted under its own IV, staged to the upload temp area.
-        var logBytes = ContactMergeLog.BuildUpdatedLog(existingLog, overwrites, source, UnixTimeUtc.Now());
-        var logIv = ByteArrayUtil.GetRndByteArray(16);
-        var logCipher = new KeyHeader { Iv = logIv, AesKey = aesKey }.EncryptDataAes(logBytes);
+        var rewritten = new List<PayloadDescriptor>();
+        var instructions = new List<PayloadInstruction>();
 
-        var uid = UnixTimeUtcUnique.Now();
-        var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(ContactMergeLog.PayloadKey, uid);
-        var bytesWritten = await fileSystem.Storage.WriteUploadStream(file, extension, new MemoryStream(logCipher), writeContext);
-
-        var mergeLogDescriptor = new PayloadDescriptor
+        // 2) merge_log: appended + trimmed, when this merge overwrote a prior value.
+        if (overwrites is { Count: > 0 })
         {
-            Key = ContactMergeLog.PayloadKey,
-            Uid = uid,
-            Iv = logIv,
-            ContentType = ContactMergeLog.ContentType,
-            BytesWritten = bytesWritten,
-            LastModified = UnixTimeUtc.Now(),
-            Thumbnails = new List<ThumbnailDescriptor>()
-        };
+            var logBytes = ContactMergeLog.BuildUpdatedLog(existingLog, overwrites, source, UnixTimeUtc.Now());
+            rewritten.Add(await StagePayloadAsync(file, ContactMergeLog.PayloadKey, ContactMergeLog.ContentType,
+                logBytes, aesKey, writeContext));
+            instructions.Add(new PayloadInstruction
+                { Key = ContactMergeLog.PayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite });
+        }
 
-        // 3) New metadata: merged content + the merge_log descriptor. VersionTag carries the *current*
-        // tag (the optimistic-concurrency expectation); NewVersionTag is the tag after the write.
+        // 3) ext_data: peer-only, replaced wholesale, when the peer brought non-empty extended data.
+        if (extData is { IsEmpty: false })
+        {
+            rewritten.Add(await StagePayloadAsync(file, ContactExtData.PayloadKey, ContactExtData.ContentType,
+                extData.Serialize(), aesKey, writeContext));
+            instructions.Add(new PayloadInstruction
+                { Key = ContactExtData.PayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite });
+        }
+
+        // Carry forward every payload this write isn't rewriting (e.g. the profile image, and whichever
+        // of merge_log/ext_data wasn't touched). Payloads not named in PayloadInstruction are preserved.
+        var carried = (existing.FileMetadata.Payloads ?? new List<PayloadDescriptor>())
+            .Where(p => !rewritten.Any(r => p.KeyEquals(r.Key)))
+            .ToList();
+
+        // New metadata: merged content + the rewritten payload descriptors. VersionTag carries the
+        // *current* tag (the optimistic-concurrency expectation); NewVersionTag is the tag after the write.
         var newMetadata = new FileMetadata(file)
         {
             AppData = new AppFileMetaData
@@ -471,9 +843,7 @@ public class ContactService(
             },
             IsEncrypted = true,
             VersionTag = currentVersionTag,
-            // Carry forward other payloads (e.g. the profile image) — only merge_log is rewritten here;
-            // payloads not named in PayloadInstruction are preserved as-is.
-            Payloads = [.. CarryForwardPayloads(existing, ContactMergeLog.PayloadKey), mergeLogDescriptor]
+            Payloads = [.. carried, .. rewritten]
         };
 
         var manifest = new BatchUpdateManifest
@@ -486,30 +856,48 @@ public class ContactService(
                 AccessControlList = AccessControlList.OwnerOnly,
                 AllowDistribution = false
             },
-            PayloadInstruction =
-            [
-                new PayloadInstruction
-                {
-                    Key = ContactMergeLog.PayloadKey,
-                    OperationType = PayloadUpdateOperationType.AppendOrOverwrite
-                }
-            ]
+            PayloadInstruction = instructions
         };
 
-        var descriptors = new List<PayloadDescriptor> { mergeLogDescriptor };
         try
         {
-            // Keeps existing payloads not named in the instructions (e.g. a future prfl_pic); commits
-            // the header (content) and the merge_log payload in a single transaction. The merge_log
-            // payload was staged via WriteUploadStream, so it lives in the Upload staging area.
+            // Commits the header (content) and the staged payload(s) in a single transaction; payloads
+            // were staged via WriteUploadStream, so they live in the Upload staging area.
             await fileSystem.Storage.UpdateBatchAsync(file, file, manifest, writeContext, markComplete: null,
                 sourceArea: StagingArea.Upload);
             return manifest.NewVersionTag;
         }
         finally
         {
-            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, descriptors, writeContext);
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, rewritten, writeContext);
         }
+    }
+
+    /// <summary>
+    /// Encrypts <paramref name="plain"/> under the file AES key with a fresh per-payload IV, stages the
+    /// ciphertext to the upload temp area, and returns its descriptor (ready for an AppendOrOverwrite
+    /// instruction).
+    /// </summary>
+    private async Task<PayloadDescriptor> StagePayloadAsync(InternalDriveFileId file, string key, string contentType,
+        byte[] plain, SensitiveByteArray aesKey, IOdinContext writeContext)
+    {
+        var iv = ByteArrayUtil.GetRndByteArray(16);
+        var cipher = new KeyHeader { Iv = iv, AesKey = aesKey }.EncryptDataAes(plain);
+
+        var uid = UnixTimeUtcUnique.Now();
+        var extension = TenantPathManager.GetBasePayloadFileNameAndExtension(key, uid);
+        var bytesWritten = await fileSystem.Storage.WriteUploadStream(file, extension, new MemoryStream(cipher), writeContext);
+
+        return new PayloadDescriptor
+        {
+            Key = key,
+            Uid = uid,
+            Iv = iv,
+            ContentType = contentType,
+            BytesWritten = bytesWritten,
+            LastModified = UnixTimeUtc.Now(),
+            Thumbnails = new List<ThumbnailDescriptor>()
+        };
     }
 
     /// <summary>
@@ -697,6 +1085,75 @@ public class ContactService(
             : [uniqueId];
     }
 
+    /// <summary>
+    /// Enforces the JSON-tier size caps on an owner/app contact write: every core text field is bounded
+    /// (so the list query stays cheap) and each per-app blob is bounded by
+    /// <see cref="AppDataBlobMaxBytes"/>. Peer/enrichment writes are best-effort and not validated here.
+    /// Over-cap values are rejected with a clear <see cref="OdinClientException"/>.
+    /// </summary>
+    private static void AssertContentWithinCaps(ContactContent content)
+    {
+        if (content == null)
+        {
+            return;
+        }
+
+        if (content.Name != null)
+        {
+            AssertFieldWithinCap(content.Name.DisplayName, "name.displayName", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Name.GivenName, "name.givenName", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Name.AdditionalName, "name.additionalName", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Name.Surname, "name.surname", MaxContactFieldChars);
+        }
+
+        if (content.Location != null)
+        {
+            AssertFieldWithinCap(content.Location.AddressLine1, "location.addressLine1", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Location.AddressLine2, "location.addressLine2", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Location.Postcode, "location.postcode", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Location.City, "location.city", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Location.Country, "location.country", MaxContactFieldChars);
+        }
+
+        AssertFieldWithinCap(content.Phone?.Number, "phone.number", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Email?.Email, "email.email", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Birthday?.Date, "birthday.date", MaxContactFieldChars);
+        AssertFieldWithinCap(content.ShortBio, "shortBio", MaxShortBioChars);
+        AssertFieldWithinCap(content.Nickname, "nickname", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Status, "status", MaxContactFieldChars);
+        AssertFieldWithinCap(content.Link, "link", MaxContactFieldChars);
+
+        foreach (var (key, value) in content.Social ?? new Dictionary<string, string>())
+        {
+            AssertFieldWithinCap(value, $"social[{key}]", MaxContactFieldChars);
+        }
+
+        foreach (var (_, value) in content.AppData ?? new Dictionary<string, string>())
+        {
+            AssertAppBlobWithinCap(value);
+        }
+    }
+
+    private static void AssertFieldWithinCap(string value, string field, int maxChars)
+    {
+        OdinValidationUtils.AssertIsTrue(value == null || value.Length <= maxChars,
+            $"Contact field '{field}' exceeds the {maxChars}-character cap");
+    }
+
+    private static void AssertAppBlobWithinCap(string content)
+    {
+        var bytes = content == null ? 0 : System.Text.Encoding.UTF8.GetByteCount(content);
+        OdinValidationUtils.AssertIsTrue(bytes <= AppDataBlobMaxBytes,
+            $"App data blob exceeds the {AppDataBlobMaxBytes}-byte cap; use a payload for bulk data");
+    }
+
+    private static void AssertAppExtBlobWithinCap(string content)
+    {
+        var bytes = content == null ? 0 : System.Text.Encoding.UTF8.GetByteCount(content);
+        OdinValidationUtils.AssertIsTrue(bytes <= AppExtDataBlobMaxBytes,
+            $"App ext-data blob exceeds the {AppExtDataBlobMaxBytes}-byte cap");
+    }
+
     private static string EncryptContent(KeyHeader keyHeader, ContactContent content)
     {
         // odin-js contract / byte-compat: the value-objects are always present (rendered as {} when
@@ -724,12 +1181,12 @@ public class ContactService(
                ?? new ContactContent();
     }
 
-    private static ContactContent Merge(ContactContent existing, ContactContent incoming)
+    private static ContactContent Merge(ContactContent existing, PeerContactContent incoming)
     {
         existing ??= new ContactContent();
-        incoming ??= new ContactContent();
+        incoming ??= new PeerContactContent();
 
-        return new ContactContent
+        var merged = new ContactContent
         {
             OdinId = Coalesce(incoming.OdinId, existing.OdinId),
             Source = Coalesce(incoming.Source, existing.Source),
@@ -737,8 +1194,21 @@ public class ContactService(
             Location = MergeLocation(existing.Location, incoming.Location),
             Phone = MergePhone(existing.Phone, incoming.Phone),
             Email = MergeEmail(existing.Email, incoming.Email),
-            Birthday = MergeBirthday(existing.Birthday, incoming.Birthday)
+            Birthday = MergeBirthday(existing.Birthday, incoming.Birthday),
+            ShortBio = Coalesce(incoming.ShortBio, existing.ShortBio),
+            Nickname = Coalesce(incoming.Nickname, existing.Nickname),
+            Status = Coalesce(incoming.Status, existing.Status),
+            Link = Coalesce(incoming.Link, existing.Link),
+            Social = MergeSocial(existing.Social, incoming.Social),
+
+            // Per-app blobs are always preserved here: neither a peer/enrichment write nor a core
+            // contact write may touch them. They are mutated only via SetAppDataAsync/DeleteAppDataAsync,
+            // which merge a single app's slot. (A full ContactContent on the owner path carries no
+            // appData by contract; we ignore it if present so a core edit can't clobber another app.)
+            AppData = existing.AppData
         };
+
+        return merged;
     }
 
     /// <summary>
@@ -772,6 +1242,10 @@ public class ContactService(
         if (existing == null) return incoming;
         return new ContactLocation
         {
+            Label = Coalesce(incoming.Label, existing.Label),
+            AddressLine1 = Coalesce(incoming.AddressLine1, existing.AddressLine1),
+            AddressLine2 = Coalesce(incoming.AddressLine2, existing.AddressLine2),
+            Postcode = Coalesce(incoming.Postcode, existing.Postcode),
             City = Coalesce(incoming.City, existing.City),
             Country = Coalesce(incoming.Country, existing.Country)
         };
@@ -780,19 +1254,50 @@ public class ContactService(
     private static ContactPhone MergePhone(ContactPhone existing, ContactPhone incoming)
     {
         var number = Coalesce(incoming?.Number, existing?.Number);
-        return number == null ? null : new ContactPhone { Number = number };
+        return number == null ? null : new ContactPhone
+        {
+            Number = number,
+            Label = Coalesce(incoming?.Label, existing?.Label)
+        };
     }
 
     private static ContactEmail MergeEmail(ContactEmail existing, ContactEmail incoming)
     {
         var email = Coalesce(incoming?.Email, existing?.Email);
-        return email == null ? null : new ContactEmail { Email = email };
+        return email == null ? null : new ContactEmail
+        {
+            Email = email,
+            Label = Coalesce(incoming?.Label, existing?.Label)
+        };
     }
 
     private static ContactBirthday MergeBirthday(ContactBirthday existing, ContactBirthday incoming)
     {
         var date = Coalesce(incoming?.Date, existing?.Date);
         return date == null ? null : new ContactBirthday { Date = date };
+    }
+
+    /// <summary>
+    /// Key-wise union of the GUID-keyed social/game handles: incoming wins per key, an empty incoming
+    /// value leaves the existing one alone (matching the <see cref="Coalesce"/> rule), and the result
+    /// collapses to null when nothing remains so the field is omitted rather than stored as {}.
+    /// </summary>
+    private static Dictionary<string, string> MergeSocial(
+        Dictionary<string, string> existing, Dictionary<string, string> incoming)
+    {
+        if (incoming == null) return existing;
+        if (existing == null) return incoming;
+
+        var merged = new Dictionary<string, string>(existing);
+        foreach (var (key, value) in incoming)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                merged[key] = value;
+            }
+        }
+
+        return merged.Count == 0 ? null : merged;
     }
 
 }

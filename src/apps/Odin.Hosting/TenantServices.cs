@@ -28,6 +28,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.Drives.Reactions;
 using Odin.Services.Drives.Statistics;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.LiveRelay;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
@@ -74,6 +75,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version5tov6;
 using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
 using Odin.Services.Configuration.VersionUpgrade.Version7tov8;
 using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
+using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -116,6 +118,12 @@ public static class TenantServices
         // AppNotificationHandler / PeerAppNotificationHandler below.
         cb.RegisterType<AppNotificationDispatcher>().AsSelf().SingleInstance();
         cb.RegisterType<PeerAppNotificationDispatcher>().AsSelf().SingleInstance();
+
+        // Per-tenant singleton: holds the per-app async locks that serialize the snapshot
+        // read-modify-write; state itself lives in the (Redis-backed) layer-2 cache.
+        cb.RegisterType<LiveRelayRetainedStore>().AsSelf().SingleInstance();
+        cb.RegisterType<LiveRelayService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<PeerLiveRelayReceiverService>().AsSelf().InstancePerLifetimeScope();
 
         cb.RegisterType<ClientRegistrationStorage>().InstancePerLifetimeScope();
 
@@ -164,6 +172,9 @@ public static class TenantServices
             .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
             .As<INotificationHandler<AppNotificationAddedNotification>>()
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<ConnectionChangedNotification>>()
+            .As<INotificationHandler<CircleDefinitionChangedNotification>>()
+            .As<INotificationHandler<LiveRelayNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
 
@@ -370,6 +381,7 @@ public static class TenantServices
         cb.RegisterType<V6ToV7VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V7ToV8VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V8ToV9VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V9ToV10VersionMigrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();

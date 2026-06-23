@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Autofac;
 using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
@@ -16,8 +17,10 @@ using Odin.Hosting.Tests._Universal.ApiClient.Drive;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Drive;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
+using Odin.Services.Base;
 using Odin.Services.Contacts;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
@@ -841,6 +844,160 @@ public class ContactTests : V2Fixture
     }
 
     [Test]
+    public async Task Sync_EnrichesSocialLinkAndStatus_FromPeerProfile_KeyedByTypeId()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Seed Sam's profile with two social handles (one per network — data is a single {network: handle}
+        // pair), a game handle, and a personal link.
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Twitter,
+            new Dictionary<string, object> { ["twitter"] = "@samwise" }, priority: 1000);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Instagram,
+            new Dictionary<string, object> { ["instagram"] = "eerr33" }, priority: 999); // exact real-data shape
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Github,
+            new Dictionary<string, object> { ["github"] = "samwiseg" }, priority: 1001);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Steam,
+            new Dictionary<string, object> { ["steam"] = "gardener" }, priority: 1002);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Link,
+            new Dictionary<string, object> { ["link_text"] = "My site", ["link_target"] = "https://sam.shire" }, priority: 1003);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Status,
+            new Dictionary<string, object> { ["status"] = "I am da man" }, priority: 1004);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Nickname,
+            new Dictionary<string, object> { ["nickName"] = "Sam" }, priority: 1005);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Address,
+            new Dictionary<string, object>
+            {
+                ["address1"] = "1 Bagshot Row", ["address2"] = "Bag End", ["postcode"] = "SH1 1AA",
+                ["city"] = "Hobbiton", ["country"] = "The Shire"
+            }, priority: 1006);
+
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, uid))!);
+
+        // Social/game handles are keyed by the attribute TYPE ID in the data's no-dash form, value = handle.
+        Assert.That(stored.Social, Is.Not.Null);
+        Assert.That(stored.Social![BuiltInProfileAttributes.Twitter.ToString("N")], Is.EqualTo("@samwise"));
+        Assert.That(stored.Social!["345fef7bada5b100001e4c78111c86de"], Is.EqualTo("eerr33"), "instagram, exact real-data type id");
+        Assert.That(stored.Social![BuiltInProfileAttributes.Github.ToString("N")], Is.EqualTo("samwiseg"));
+        Assert.That(stored.Social![BuiltInProfileAttributes.Steam.ToString("N")], Is.EqualTo("gardener"), "game handles ride in social too");
+
+        // The personal link flattens to its target URL.
+        Assert.That(stored.Link, Is.EqualTo("https://sam.shire"));
+
+        // Status / nickname flatten into their content fields.
+        Assert.That(stored.Status, Is.EqualTo("I am da man"));
+        Assert.That(stored.Nickname, Is.EqualTo("Sam"));
+
+        // Location carries the full street address, not just city/country.
+        Assert.That(stored.Location!.AddressLine1, Is.EqualTo("1 Bagshot Row"));
+        Assert.That(stored.Location.AddressLine2, Is.EqualTo("Bag End"));
+        Assert.That(stored.Location.Postcode, Is.EqualTo("SH1 1AA"));
+        Assert.That(stored.Location.City, Is.EqualTo("Hobbiton"));
+        Assert.That(stored.Location.Country, Is.EqualTo("The Shire"));
+    }
+
+    [Test]
+    public async Task Sync_EnrichesExtData_FromPeerBioAttributes_RoundTrips()
+    {
+        var sam = await LoginAsOwner(Identities.Sam);
+        var frodo = await LoginAsOwner(Identities.Frodo);
+
+        // Seed Sam's profile with the three bio-family attributes:
+        //  - "Short bio" (1d89f51a…): a plain string ≤160 chars → flattened into the contact CONTENT header.
+        //  - "Experience" (md5 full_bio) and "Bio" (md5 short_bio): rich-text → carried VERBATIM in ext_data.
+        var experienceData = new Dictionary<string, object>
+        {
+            ["short_bio"] = "experience-title",
+            ["full_bio"] = new object[]
+            {
+                new Dictionary<string, object>
+                {
+                    ["children"] = new object[] { new Dictionary<string, object> { ["text"] = "experience description" } },
+                    ["type"] = "p",
+                    ["id"] = "NF4tmpq6sK"
+                }
+            },
+            ["experience_link"] = "https://experince.link",
+            ["experience_image"] = "xprnc_key"
+        };
+        var bioData = new Dictionary<string, object>
+        {
+            ["short_bio"] = new object[]
+            {
+                new Dictionary<string, object>
+                {
+                    ["type"] = "paragraph",
+                    ["children"] = new object[] { new Dictionary<string, object> { ["text"] = "born born" } },
+                    ["id"] = "NXHtACYXHc"
+                }
+            }
+        };
+
+        await SeedProfileAttributeAsync(sam, ContactProfileAttributes.Experience, experienceData, priority: 11000);
+        await SeedProfileAttributeAsync(sam, ContactProfileAttributes.Bio, bioData, priority: 10000);
+        await SeedProfileAttributeAsync(sam, ContactProfileAttributes.ShortBioType,
+            new Dictionary<string, object> { ["short_bio"] = "a short bio yo" }, priority: 12000);
+
+        // Placeholder contact + connect + sync (same pattern as the other enrichment tests).
+        var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Placeholder" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        Assert.That((await frodo.Connections.SendConnectionRequest(sam.Identity)).IsSuccessStatusCode, Is.True);
+        Assert.That((await sam.Connections.AcceptConnectionRequest(frodo.Identity)).IsSuccessStatusCode, Is.True);
+
+        var sync = await contacts.SyncAsync(Identities.Sam);
+        Assert.That(sync.StatusCode, Is.EqualTo(HttpStatusCode.Accepted));
+
+        // 1) The small "Short bio" string flattened into the content header (not ext_data).
+        var stored = DecryptContent(frodo, (await GetByUniqueIdAsync(frodo, uid))!);
+        Assert.That(stored.ShortBio, Is.EqualTo("a short bio yo"));
+
+        // 2) ext_data payload carries Experience + Bio verbatim, keyed by type id (no-dash form).
+        var extData = await ReadExtDataAsync(frodo, uid);
+        Assert.That(extData, Is.Not.Null, "ext_data payload should be present");
+        Assert.That(extData!.Attributes, Is.Not.Null);
+
+        var expKey = ContactProfileAttributes.Experience.ToString("N");
+        var bioKey = ContactProfileAttributes.Bio.ToString("N");
+        Assert.That(extData.Attributes.ContainsKey(expKey), Is.True, "Experience should be in ext_data");
+        Assert.That(extData.Attributes.ContainsKey(bioKey), Is.True, "Bio should be in ext_data");
+        Assert.That(extData.Attributes.ContainsKey(ContactProfileAttributes.ShortBioType.ToString("N")), Is.False,
+            "the plain-string Short bio belongs in the content header, not ext_data");
+
+        // Rich text round-trips verbatim (structure and values preserved).
+        var exp = extData.Attributes[expKey];
+        Assert.That(exp.GetProperty("short_bio").GetString(), Is.EqualTo("experience-title"));
+        Assert.That(exp.GetProperty("experience_link").GetString(), Is.EqualTo("https://experince.link"));
+        var expText = exp.GetProperty("full_bio").EnumerateArray().First()
+            .GetProperty("children").EnumerateArray().First().GetProperty("text").GetString();
+        Assert.That(expText, Is.EqualTo("experience description"));
+
+        var bio = extData.Attributes[bioKey];
+        var bioText = bio.GetProperty("short_bio").EnumerateArray().First()
+            .GetProperty("children").EnumerateArray().First().GetProperty("text").GetString();
+        Assert.That(bioText, Is.EqualTo("born born"));
+    }
+
+    [Test]
     public async Task Sync_AppWithoutExplicitReadConnections_StillEnriches_ViaImpliedPermissions()
     {
         var sam = await LoginAsOwner(Identities.Sam);
@@ -1025,6 +1182,348 @@ public class ContactTests : V2Fixture
     }
 
     // -----------------------------------------------------------------------------------------
+    // per-app data (appData[appId]) — the JSON-tier app blob
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task AppData_AppWritesBlob_RidesInlineInContent_NotAPayload()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var uid = create.Content!.UniqueId;
+
+        const string blob = "{\"loc\":\"shire\"}";
+        var set = await contacts.SetAppDataAsync(uid, new SetContactAppDataRequest
+        {
+            Content = blob,
+            VersionTag = create.Content.VersionTag
+        });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(set.Content!.VersionTag, Is.Not.EqualTo(create.Content.VersionTag), "the write advances the version tag");
+
+        var header = await GetByUniqueIdAsync(owner, uid);
+        var stored = DecryptContent(owner, header!);
+        Assert.That(stored.AppData, Is.Not.Null);
+        Assert.That(stored.AppData![app.AppId.ToString()], Is.EqualTo(blob), "the app's blob rides inline in the content");
+
+        // The governing rule: list/display reads never touch payloads — app data is in the content JSON.
+        Assert.That(header!.FileMetadata.Payloads ?? new List<PayloadDescriptor>(), Is.Empty,
+            "app data must ride inline in the content JSON, not as a payload");
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Sam"), "core field preserved");
+    }
+
+    [Test]
+    public async Task AppData_DifferentApp_NeitherSeesNorOverwritesTheOther()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var setA = await contactsA.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"A\"", VersionTag = create.Content!.VersionTag });
+        Assert.That(setA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var setB = await contactsB.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"B\"", VersionTag = setA.Content!.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.AppData![appA.AppId.ToString()], Is.EqualTo("\"A\""), "app A's blob is intact after app B writes");
+        Assert.That(stored.AppData![appB.AppId.ToString()], Is.EqualTo("\"B\""), "app B writes its own slot");
+        Assert.That(stored.AppData.Count, Is.EqualTo(2), "each app keeps a distinct slot");
+    }
+
+    [Test]
+    public async Task AppData_CoreUpdate_PreservesAppBlob()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appContacts = new V2ContactsClient(app.Identity, app.Factory);
+        var ownerContacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await ownerContacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var set = await appContacts.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"keep\"", VersionTag = create.Content!.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // An owner core update carries no appData; the merge must preserve the app blob untouched.
+        var current = await GetByUniqueIdAsync(owner, uid);
+        var update = await ownerContacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = current!.FileMetadata.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Samwise" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise"), "core field updated");
+        Assert.That(stored.AppData![app.AppId.ToString()], Is.EqualTo("\"keep\""), "core update preserves the app blob");
+    }
+
+    [Test]
+    public async Task AppData_Delete_ClearsOnlyThatAppsBlob()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+        await contactsA.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"A\"", VersionTag = create.Content!.VersionTag });
+        var setB = await contactsB.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"B\"", VersionTag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var del = await contactsA.DeleteAppDataAsync(uid, setB.Content!.VersionTag);
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var stored = DecryptContent(owner, (await GetByUniqueIdAsync(owner, uid))!);
+        Assert.That(stored.AppData!.ContainsKey(appA.AppId.ToString()), Is.False, "app A's blob is gone");
+        Assert.That(stored.AppData![appB.AppId.ToString()], Is.EqualTo("\"B\""), "app B's blob is untouched");
+
+        // Deleting an absent blob → 404.
+        var afterDelTag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag;
+        var delAgain = await contactsA.DeleteAppDataAsync(uid, afterDelTag);
+        Assert.That(delAgain.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task AppData_OverCap_Rejected()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var tooBig = "\"" + new string('x', ContactService.AppDataBlobMaxBytes + 1) + "\"";
+        var set = await contacts.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = tooBig, VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an over-cap blob is rejected; use a payload for bulk data");
+    }
+
+    [Test]
+    public async Task AppData_OwnerToken_IsBadRequest_NoAppToStamp()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        // The owner console is not an app client, so there is no appId to stamp the blob with.
+        var set = await contacts.SetAppDataAsync(uid, new SetContactAppDataRequest { Content = "\"x\"", VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task CoreField_OverCap_Rejected()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var contacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent
+            {
+                OdinId = Identities.Sam,
+                Name = new ContactName { DisplayName = new string('a', 257) } // > 256-char cap
+            }
+        });
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an over-cap core field is rejected");
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // per-app bulk data (appextdata payload) — the on-demand tier
+    // -----------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task AppExtData_AppWritesBulkBlob_StoredAsPayload_NotInContent()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        // A blob far larger than the inline AppDataBlobMaxBytes cap → belongs in the bulk payload.
+        var bulk = "\"" + new string('b', ContactService.AppDataBlobMaxBytes * 10) + "\"";
+        var set = await contacts.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest
+        {
+            Content = bulk,
+            VersionTag = create.Content.VersionTag
+        });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var header = await GetByUniqueIdAsync(owner, uid);
+        Assert.That(header!.FileMetadata.Payloads?.Any(p => p.Key == ContactAppData.PayloadKey), Is.True,
+            "bulk data is stored as the appextdata payload");
+
+        // The governing rule: bulk data is NOT in the list/display content — it's fetched on demand.
+        var content = DecryptContent(owner, header);
+        Assert.That(content.AppData, Is.Null, "bulk data must not ride inline in the contact content");
+
+        // The payload decrypts to this app's slot, verbatim.
+        var appExt = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(appExt!.AppData![app.AppId.ToString()], Is.EqualTo(bulk));
+    }
+
+    [Test]
+    public async Task AppExtData_DifferentApp_NeitherSeesNorOverwritesTheOther()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var setA = await contactsA.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"A-bulk\"", VersionTag = create.Content.VersionTag });
+        Assert.That(setA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var setB = await contactsB.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"B-bulk\"", VersionTag = setA.Content!.VersionTag });
+        Assert.That(setB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var appExt = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(appExt!.AppData![appA.AppId.ToString()], Is.EqualTo("\"A-bulk\""), "app A's bulk blob is intact");
+        Assert.That(appExt.AppData![appB.AppId.ToString()], Is.EqualTo("\"B-bulk\""), "app B has its own bulk slot");
+        Assert.That(appExt.AppData.Count, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task AppExtData_CoreUpdate_PreservesBulkPayload()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appContacts = new V2ContactsClient(app.Identity, app.Factory);
+        var ownerContacts = new V2ContactsClient(owner.Identity, owner.Factory);
+
+        var create = await ownerContacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var set = await appContacts.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"keep-bulk\"", VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // An owner core update (which writes the merge_log payload) must carry the appextdata forward.
+        var current = await GetByUniqueIdAsync(owner, uid);
+        var update = await ownerContacts.UpdateAsync(uid, new UpdateContactRequest
+        {
+            VersionTag = current!.FileMetadata.VersionTag,
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Samwise" } }
+        });
+        Assert.That(update.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var appExt = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(appExt!.AppData![app.AppId.ToString()], Is.EqualTo("\"keep-bulk\""), "core update preserves the bulk payload");
+    }
+
+    [Test]
+    public async Task AppExtData_Delete_DropsPayloadWhenEmpty_KeepsOtherApp()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var appA = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var appB = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contactsA = new V2ContactsClient(appA.Identity, appA.Factory);
+        var contactsB = new V2ContactsClient(appB.Identity, appB.Factory);
+
+        var create = await contactsA.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+        await contactsA.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"A\"", VersionTag = create.Content.VersionTag });
+        var setB = await contactsB.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = "\"B\"", VersionTag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag });
+
+        // Deleting A's slot keeps the payload (B remains).
+        var delA = await contactsA.DeleteAppExtDataAsync(uid, setB.Content!.VersionTag);
+        Assert.That(delA.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var afterA = await ReadAppExtDataAsync(owner, uid);
+        Assert.That(afterA!.AppData!.ContainsKey(appA.AppId.ToString()), Is.False, "A's bulk blob is gone");
+        Assert.That(afterA.AppData![appB.AppId.ToString()], Is.EqualTo("\"B\""), "B's bulk blob is untouched");
+
+        // Deleting B's slot empties the map → the payload is dropped entirely.
+        var afterATag = (await GetByUniqueIdAsync(owner, uid))!.FileMetadata.VersionTag;
+        var delB = await contactsB.DeleteAppExtDataAsync(uid, afterATag);
+        Assert.That(delB.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var header = await GetByUniqueIdAsync(owner, uid);
+        Assert.That(header!.FileMetadata.Payloads?.Any(p => p.Key == ContactAppData.PayloadKey) ?? false, Is.False,
+            "an emptied appextdata payload is dropped");
+
+        // Deleting again → 404.
+        var delAgain = await contactsB.DeleteAppExtDataAsync(uid, header.FileMetadata.VersionTag);
+        Assert.That(delAgain.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task AppExtData_OverCap_Rejected()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ContactDrive, DrivePermission.Read,
+            PermissionKeyAllowance.Apps);
+        var contacts = new V2ContactsClient(app.Identity, app.Factory);
+
+        var create = await contacts.CreateAsync(new CreateContactRequest
+        {
+            Content = new ContactContent { OdinId = Identities.Sam, Name = new ContactName { DisplayName = "Sam" } }
+        });
+        var uid = create.Content!.UniqueId;
+
+        var tooBig = "\"" + new string('x', ContactService.AppExtDataBlobMaxBytes + 1) + "\"";
+        var set = await contacts.SetAppExtDataAsync(uid, new SetContactAppExtDataRequest { Content = tooBig, VersionTag = create.Content.VersionTag });
+        Assert.That(set.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "an over-cap bulk blob is rejected");
+    }
+
+    // -----------------------------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------------------------
 
@@ -1053,19 +1552,29 @@ public class ContactTests : V2Fixture
     /// Seeds an anonymous Name profile attribute on the identity's ProfileDrive, tagged with the Name
     /// attribute type id (so the enrichment peer-query finds it).
     /// </summary>
-    private static async Task SeedProfileNameAsync(OwnerSession identity, string displayName, string givenName = null,
+    private static Task SeedProfileNameAsync(OwnerSession identity, string displayName, string givenName = null,
         int? priority = null)
     {
-        var nameType = AttributeTypeId("name");
         var data = new Dictionary<string, object> { ["displayName"] = displayName };
         if (givenName != null)
         {
             data["givenName"] = givenName;
         }
 
+        return SeedProfileAttributeAsync(identity, AttributeTypeId("name"), data, priority);
+    }
+
+    /// <summary>
+    /// Seeds an anonymous profile attribute of the given type on the identity's ProfileDrive, tagged with
+    /// its type id (so the enrichment peer-query finds it). <paramref name="data"/> is the attribute's
+    /// <c>data</c> object (values may be nested arrays/objects, e.g. rich text).
+    /// </summary>
+    private static async Task SeedProfileAttributeAsync(OwnerSession identity, Guid type,
+        Dictionary<string, object> data, int? priority = null)
+    {
         var attribute = new ProfileBlock
         {
-            Type = nameType.ToString(),
+            Type = type.ToString(),
             Priority = priority,
             Data = data
         };
@@ -1079,7 +1588,7 @@ public class ContactTests : V2Fixture
                 AppData = new UploadAppFileMetaData
                 {
                     FileType = ContactProfileAttributes.AttributeFileType,
-                    Tags = [nameType],
+                    Tags = [type],
                     Content = OdinSystemSerializer.Serialize(attribute)
                 }
             },
@@ -1158,5 +1667,53 @@ public class ContactTests : V2Fixture
         var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
         var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
         return JsonSerializer.Deserialize<List<ContactMergeLogEntry>>(plain.ToStringFromUtf8Bytes())!;
+    }
+
+    /// <summary>
+    /// Reads and decrypts the contact's <c>ext_data</c> payload (AES-encrypted with the file key under its
+    /// own IV from the payload descriptor). Returns null when the payload is absent.
+    /// </summary>
+    private static async Task<ContactExtData> ReadExtDataAsync(OwnerSession owner, Guid uniqueId)
+    {
+        var header = await GetByUniqueIdAsync(owner, uniqueId);
+        var descriptor = header?.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactExtData.PayloadKey);
+        if (descriptor == null)
+        {
+            return null;
+        }
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetPayloadByUniqueIdAsync(uniqueId, ContactDriveId, ContactExtData.PayloadKey);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, "ext_data payload should be readable");
+        var cipher = await resp.Content!.ReadAsByteArrayAsync();
+
+        var sharedSecret = owner.SharedSecret;
+        var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+        var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
+        return ContactExtData.Deserialize(plain);
+    }
+
+    /// <summary>
+    /// Reads and decrypts the contact's <c>appextdata</c> payload (AES-encrypted with the file key under
+    /// its own IV from the payload descriptor). Returns null when the payload is absent.
+    /// </summary>
+    private static async Task<ContactAppData> ReadAppExtDataAsync(OwnerSession owner, Guid uniqueId)
+    {
+        var header = await GetByUniqueIdAsync(owner, uniqueId);
+        var descriptor = header?.FileMetadata.Payloads?.FirstOrDefault(p => p.Key == ContactAppData.PayloadKey);
+        if (descriptor == null)
+        {
+            return null;
+        }
+
+        var reader = new DriveReaderV2Client(owner.Identity, owner.Factory);
+        var resp = await reader.GetPayloadByUniqueIdAsync(uniqueId, ContactDriveId, ContactAppData.PayloadKey);
+        Assert.That(resp.IsSuccessStatusCode, Is.True, "appextdata payload should be readable");
+        var cipher = await resp.Content!.ReadAsByteArrayAsync();
+
+        var sharedSecret = owner.SharedSecret;
+        var fileKeyHeader = header!.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+        var plain = new KeyHeader { Iv = descriptor.Iv, AesKey = fileKeyHeader.AesKey }.Decrypt(cipher);
+        return ContactAppData.Deserialize(plain);
     }
 }
