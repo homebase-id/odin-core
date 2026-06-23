@@ -458,14 +458,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
                     Directory.CreateDirectory(uploadPath);
             }
 
-            var inboxPath = _tenantPathManager.GetDriveInboxPath(driveId);
-            if (Directory.Exists(inboxPath) == false)
-            {
-                logger.LogError($"{logPrefix} MISSING - no upload directory on disk {inboxPath}");
-
-                if (createDirs)
-                    Directory.CreateDirectory(inboxPath);
-            }
+            // TODO:INBOX The per-drive inbox folder is no longer created or written to (metadata moved to the
+            // inbox row, payloads stream to long-term), so its absence is expected, not an integrity failure.
+            // Do not flag or recreate it. Remove this with the rest of the folder-based inbox.
         }
 
 

@@ -75,7 +75,7 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         await sut.EnsureDirectoryAsync(Path.GetDirectoryName(dst)!);
         using (var ms = new MemoryStream("payload"u8.ToArray()))
             await sut.WriteStreamAsync(src, ms);
-        await sut.IngestFromAsync(sut, src, dst);
+        await sut.CopyFromAsync(sut, src, dst);
         Assert.That(await sut.ReadAllBytesAsync(dst), Is.EqualTo("payload"u8.ToArray()));
     }
 
@@ -86,7 +86,7 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         var src = Path.Combine(TestRootPath, "src", "a.payload");
         var dst = Path.Combine(TestRootPath, "dst", "b.payload");
         var s3Source = new FakeS3Store();
-        var ex = Assert.CatchAsync<DriveFileStoreException>(() => sut.IngestFromAsync(s3Source, src, dst));
+        var ex = Assert.CatchAsync<DriveFileStoreException>(() => sut.CopyFromAsync(s3Source, src, dst));
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex!.Message, Does.Contain("S3"));
         await Task.CompletedTask;
@@ -166,7 +166,7 @@ public class DiskFileStoreTests : PayloadReaderWriterBaseTestFixture
         public Task DeleteAsync(string path, CancellationToken ct = default) => throw new NotImplementedException();
         public Task DeleteSetAsync(string dir, Guid fileId, CancellationToken ct = default) => throw new NotImplementedException();
         public Task EnsureDirectoryAsync(string dir, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task IngestFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task CopyFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default) => throw new NotImplementedException();
         public (string bucket, string fullKey)? GetS3Location(string relativePath) => throw new NotImplementedException();
     }
 }
