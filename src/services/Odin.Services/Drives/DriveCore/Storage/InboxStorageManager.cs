@@ -11,6 +11,8 @@ namespace Odin.Services.Drives.DriveCore.Storage
     /// Temporary storage for a given drive. Used to stage incoming file parts from peer transfers (inbox).
     /// Backed by local disk or S3 depending on configuration, via <see cref="InboxFileStore"/>.
     /// </summary>
+    // TODO:INBOX Delete this entire class once the inbox folder is drained (no pre-upgrade items left in any
+    // inbox). Both producers now carry metadata on the inbox row; this only serves draining legacy items.
     public class InboxStorageManager(
         InboxFileStore inboxFileStore,
         ILogger<InboxStorageManager> logger,

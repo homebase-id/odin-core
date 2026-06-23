@@ -126,6 +126,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                         {
                             var fs = fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
                             await fs.Storage.CleanupInboxTemporaryFiles(file, odinContext);
+
+                            // The item is being abandoned without a committed header. If its payloads were streamed
+                            // straight to long-term (new-format item), they are now orphans under the incoming fileId;
+                            // delete them. No-op for legacy items (payloads were in the inbox folder).
+                            await fs.Storage.CleanupAbandonedLongTermPayloads(file, inboxItem.FileMetadata?.Payloads, odinContext);
                         }
                         else
                         {
@@ -326,6 +331,16 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
         }
 
+        // TODO:INBOX Delete this method (always use StagingArea.LongTerm) once no pre-upgrade peer-transfer items
+        // remain in any inbox. (internal rather than private only so ResolveInboxSourceAreaTests can pin the
+        // dual-read decision; that test is tagged TODO:INBOX and goes with this method.)
+        // New inbox items carry their metadata on the row and stream payloads straight to long-term, so there is
+        // nothing in the inbox folder to read; processing sources payloads from long-term (StagingArea.LongTerm).
+        // Legacy/in-flight items (queued by an older build) still have on-disk staging, so fall back to it. This
+        // is the dual-read transition; it can be removed once no pre-upgrade items remain in any inbox.
+        internal static StagingArea ResolveInboxSourceArea(TransferInboxItem inboxItem) =>
+            inboxItem.FileMetadata != null ? StagingArea.LongTerm : StagingArea.Inbox;
+
         private async Task<(bool success, List<PayloadDescriptor> payloads)> ProcessNormalFileSaveOperation(TransferInboxItem inboxItem,
             IOdinContext odinContext,
             PeerFileWriter writer,
@@ -339,7 +354,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 (success, payloads) = await writer.HandleFile(file, fs, decryptedKeyHeader, inboxItem.Sender,
                     inboxItem.TransferInstructionSet,
-                    odinContext, sourceArea: StagingArea.Inbox, markComplete: markComplete);
+                    odinContext, sourceArea: ResolveInboxSourceArea(inboxItem), markComplete: markComplete,
+                    metadataOverride: inboxItem.FileMetadata);
             });
 
             logger.LogDebug("Processing Inbox -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
@@ -360,7 +376,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             {
                 (success, payloads) = await writer.HandleFile(file, fs, decryptedKeyHeader, inboxItem.Sender,
                     inboxItem.TransferInstructionSet,
-                    odinContext, sourceArea: StagingArea.Inbox, markComplete: markComplete);
+                    odinContext, sourceArea: ResolveInboxSourceArea(inboxItem), markComplete: markComplete,
+                    metadataOverride: inboxItem.FileMetadata);
             });
 
             logger.LogDebug("ProcessFeedItemViaTransit -> HandleFile Complete. gtid: {gtid} Took {ms} ms", inboxItem.GlobalTransitId,
@@ -381,7 +398,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             logger.LogDebug("PeerFileUpdateWriter called. Sender: {sender} FileId: {file}", inboxItem.Sender, inboxItem.FileId);
             return await writer.UpsertFileAsync(file, decryptedKeyHeader, inboxItem.Sender, updateInstructionSet, odinContext,
-                markComplete, sourceArea: StagingArea.Inbox);
+                markComplete, sourceArea: ResolveInboxSourceArea(inboxItem), metadataOverride: inboxItem.FileMetadata);
         }
 
         private async Task<bool> HandleReaction(TransferInboxItem inboxItem, IDriveFileSystem fs, IOdinContext odinContext,
@@ -450,7 +467,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
                 {
                     (success, payloads) = await writer.HandleFile(file, fs, decryptedKeyHeader, inboxItem.Sender,
                         inboxItem.TransferInstructionSet,
-                        odinContext, sourceArea: StagingArea.Inbox, driveOriginWasCollaborative: feedPayload.DriveOriginWasCollaborative, markComplete: markComplete);
+                        odinContext, sourceArea: ResolveInboxSourceArea(inboxItem),
+                        driveOriginWasCollaborative: feedPayload.DriveOriginWasCollaborative, markComplete: markComplete,
+                        metadataOverride: inboxItem.FileMetadata);
                 });
 
                 logger.LogDebug("Processing Feed Inbox Item -> HandleFile Complete. Took {ms} ms", handleFileMs);

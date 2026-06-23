@@ -55,13 +55,13 @@ public interface IDriveFileStore
     /// root-relative keys (the store applies its own bucket and root prefix); for a disk store they are file
     /// system paths.
     /// </remarks>
-    Task IngestFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default);
+    Task CopyFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default);
 
     /// <summary>
     /// Returns the (bucket, full object key) of <paramref name="relativePath"/> in THIS store, or
     /// <c>null</c> when this store is not S3-backed (a disk store has no bucket or key). The returned key
     /// already includes this store's root prefix, so it is usable as-is as a copy source. An S3 destination's
-    /// <see cref="IngestFromAsync"/> calls this on the source store to perform the S3-to-S3 (cross-bucket)
+    /// <see cref="CopyFromAsync"/> calls this on the source store to perform the S3-to-S3 (cross-bucket)
     /// server-side copy.
     /// </summary>
     (string bucket, string fullKey)? GetS3Location(string relativePath);

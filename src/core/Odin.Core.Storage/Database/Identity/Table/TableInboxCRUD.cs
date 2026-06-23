@@ -38,7 +38,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             fileId.AssertGuidNotEmpty("Guid parameter fileId cannot be set to Empty GUID.");
             boxId.AssertGuidNotEmpty("Guid parameter boxId cannot be set to Empty GUID.");
             if (value?.Length < 0) throw new OdinDatabaseValidationException($"Too short value, was {value.Length} (min 0)");
-            if (value?.Length > 65535) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 65535)");
+            if (value?.Length > 1048576) throw new OdinDatabaseValidationException($"Too long value, was {value.Length} (max 1048576)");
             popStamp.AssertGuidNotEmpty("Guid parameter popStamp cannot be set to Empty GUID.");
             if (correlationId?.Length < 0) throw new OdinDatabaseValidationException($"Too short correlationId, was {correlationId.Length} (min 0)");
             if (correlationId?.Length > 64) throw new OdinDatabaseValidationException($"Too long correlationId, was {correlationId.Length} (max 64)");
