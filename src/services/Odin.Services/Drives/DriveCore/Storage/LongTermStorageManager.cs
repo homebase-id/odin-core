@@ -380,7 +380,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 descriptor.Key,
                 descriptor.Uid);
 
-            await longTermPayloadStore.IngestFromAsync(sourceStore, sourceFile, destinationFile);
+            await longTermPayloadStore.CopyFromAsync(sourceStore, sourceFile, destinationFile);
 
             logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
         }
@@ -440,9 +440,9 @@ namespace Odin.Services.Drives.DriveCore.Storage
 
         private async Task MoveOneWithinLongTermAsync(string sourcePath, string destPath)
         {
-            // IngestFromAsync(source: longTermPayloadStore) is a same-store copy (disk File.Copy or S3 server-side
+            // CopyFromAsync(source: longTermPayloadStore) is a same-store copy (disk File.Copy or S3 server-side
             // copy); follow it with a delete of the source to make it a move.
-            await longTermPayloadStore.IngestFromAsync(longTermPayloadStore, sourcePath, destPath);
+            await longTermPayloadStore.CopyFromAsync(longTermPayloadStore, sourcePath, destPath);
             await longTermPayloadStore.DeleteAsync(sourcePath);
             logger.LogDebug("Payload moved within long-term: {sourcePath} -> {destPath}", sourcePath, destPath);
         }
@@ -459,7 +459,7 @@ namespace Odin.Services.Drives.DriveCore.Storage
                 payloadDescriptor.Uid,
                 thumbnailDescriptor.PixelWidth, thumbnailDescriptor.PixelHeight);
 
-            await longTermPayloadStore.IngestFromAsync(sourceStore, sourceThumbnailFilePath, destinationFile);
+            await longTermPayloadStore.CopyFromAsync(sourceStore, sourceThumbnailFilePath, destinationFile);
             logger.LogDebug("Thumbnail: moved {sourceThumbnailFilePath} to {destinationFile}",
                 sourceThumbnailFilePath, destinationFile);
 

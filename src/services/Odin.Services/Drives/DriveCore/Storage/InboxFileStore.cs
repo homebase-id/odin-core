@@ -21,6 +21,6 @@ public sealed class InboxFileStore(IDriveFileStore inner) : IDriveFileStore
     public Task DeleteAsync(string p, CancellationToken ct = default) => inner.DeleteAsync(p, ct);
     public Task DeleteSetAsync(string d, Guid f, CancellationToken ct = default) => inner.DeleteSetAsync(d, f, ct);
     public Task EnsureDirectoryAsync(string d, CancellationToken ct = default) => inner.EnsureDirectoryAsync(d, ct);
-    public Task IngestFromAsync(IDriveFileStore src, string s, string d, CancellationToken ct = default) => inner.IngestFromAsync(src, s, d, ct);
+    public Task CopyFromAsync(IDriveFileStore src, string s, string d, CancellationToken ct = default) => inner.CopyFromAsync(src, s, d, ct);
     public (string bucket, string fullKey)? GetS3Location(string relativePath) => inner.GetS3Location(relativePath);
 }
