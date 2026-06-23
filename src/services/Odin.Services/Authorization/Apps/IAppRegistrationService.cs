@@ -18,6 +18,12 @@ namespace Odin.Services.Authorization.Apps
 
         Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId, IOdinContext odinContext);
 
+        /// <summary>
+        /// Resolves the appId of the app client making the current call (via its access-registration id),
+        /// or null when the caller is not an app client (e.g. the owner console, or a guest).
+        /// </summary>
+        Task<GuidId?> GetCallingAppIdAsync(IOdinContext odinContext);
+
         Task<IOdinContext?> GetAppPermissionContextAsync(ClientAuthenticationToken token, IOdinContext odinContext);
 
         /// <summary>

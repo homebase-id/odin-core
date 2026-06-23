@@ -339,6 +339,18 @@ namespace Odin.Services.Authorization.Apps
             await ResetAppPermissionContextCacheAsync();
         }
 
+        public async Task<GuidId?> GetCallingAppIdAsync(IOdinContext odinContext)
+        {
+            var accessRegistrationId = odinContext.Caller.OdinClientContext?.AccessRegistrationId;
+            if (accessRegistrationId == null)
+            {
+                return null;
+            }
+
+            var client = await clientRegistrationStorage.GetAsync<AppClientRegistration>(accessRegistrationId);
+            return client?.AppId;
+        }
+
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClientsAsync(GuidId appId, IOdinContext odinContext)
         {
             var list = await clientRegistrationStorage.GetByTypeAndCategoryIdAsync<AppClientRegistration>(AppClientRegistration.CatType,
