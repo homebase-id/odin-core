@@ -69,6 +69,36 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
+    public async Task<ApiResponse<HttpContent>> DeleteCircleDefinition(GuidId circleId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleDefinition>(client, ownerSharedSecret);
+            var response = await svc.DeleteCircleDefinition(circleId);
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> EnableCircleDefinition(GuidId circleId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleDefinition>(client, ownerSharedSecret);
+            var response = await svc.EnableCircleDefinition(circleId);
+            return response;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> DisableCircleDefinition(GuidId circleId)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleDefinition>(client, ownerSharedSecret);
+            var response = await svc.DisableCircleDefinition(circleId);
+            return response;
+        }
+    }
+
     public async Task<ApiResponse<HttpContent>> GrantCircle(Guid circleId, OdinId odinId)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);

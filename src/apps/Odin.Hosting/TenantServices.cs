@@ -167,6 +167,8 @@ public static class TenantServices
             .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
             .As<INotificationHandler<AppNotificationAddedNotification>>()
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
+            .As<INotificationHandler<ConnectionChangedNotification>>()
+            .As<INotificationHandler<CircleDefinitionChangedNotification>>()
             .As<INotificationHandler<LiveRelayNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
