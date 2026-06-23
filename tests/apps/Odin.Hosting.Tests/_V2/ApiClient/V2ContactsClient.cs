@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -36,6 +37,34 @@ public class V2ContactsClient(OdinId identity, IApiClientFactory factory)
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IContactsHttpClientApiV2>(client, sharedSecret);
         return await svc.DeleteImage(uniqueId, versionTag);
+    }
+
+    public async Task<ApiResponse<ContactWriteResponse>> SetAppDataAsync(Guid uniqueId, SetContactAppDataRequest request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IContactsHttpClientApiV2>(client, sharedSecret);
+        return await svc.SetAppData(uniqueId, request);
+    }
+
+    public async Task<ApiResponse<ContactWriteResponse>> DeleteAppDataAsync(Guid uniqueId, Guid versionTag)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IContactsHttpClientApiV2>(client, sharedSecret);
+        return await svc.DeleteAppData(uniqueId, versionTag);
+    }
+
+    public async Task<ApiResponse<ContactWriteResponse>> SetAppExtDataAsync(Guid uniqueId, SetContactAppExtDataRequest request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IContactsHttpClientApiV2>(client, sharedSecret);
+        return await svc.SetAppExtData(uniqueId, request);
+    }
+
+    public async Task<ApiResponse<ContactWriteResponse>> DeleteAppExtDataAsync(Guid uniqueId, Guid versionTag)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IContactsHttpClientApiV2>(client, sharedSecret);
+        return await svc.DeleteAppExtData(uniqueId, versionTag);
     }
 
     public async Task<ApiResponse<HttpContent>> DeleteAsync(Guid uniqueId)

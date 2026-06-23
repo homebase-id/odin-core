@@ -1162,7 +1162,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// than an empty record. Skips silently when the context lacks the ContactDrive storage key
         /// (peer/introduction) and never throws into the connection flow.
         /// </summary>
-        private async Task TryUpsertConnectionContactAsync(OdinId odinId, ContactContent card,
+        private async Task TryUpsertConnectionContactAsync(OdinId odinId, PeerContactContent card,
             IOdinContext odinContext, bool enrichFromPublicIfNoName)
         {
             try
@@ -1174,7 +1174,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     return;
                 }
 
-                var content = card ?? new ContactContent();
+                var content = card ?? new PeerContactContent();
                 content.OdinId = odinId.DomainName;   // authoritative identity for the contact
                 content.Source = "contact";           // connection-derived
 
@@ -1193,7 +1193,7 @@ namespace Odin.Services.Membership.Connections.Requests
         }
 
         /// <summary>Builds a contact card from the peer's request data — their full shared card, else their name.</summary>
-        private static ContactContent CardFromRequestData(ContactRequestData data)
+        private static PeerContactContent CardFromRequestData(ContactRequestData data)
         {
             if (data?.Contact != null)
             {
@@ -1202,11 +1202,11 @@ namespace Odin.Services.Membership.Connections.Requests
 
             return string.IsNullOrWhiteSpace(data?.Name)
                 ? null
-                : new ContactContent { Name = new ContactName { DisplayName = data.Name } };
+                : new PeerContactContent { Name = new ContactName { DisplayName = data.Name } };
         }
 
         /// <summary>Builds a contact card from the recipient's public profile card returned on delivery.</summary>
-        private static ContactContent CardFromReceipt(ConnectionRequestReceipt receipt)
+        private static PeerContactContent CardFromReceipt(ConnectionRequestReceipt receipt)
         {
             if (string.IsNullOrWhiteSpace(receipt?.RecipientPublicCardJson))
             {
@@ -1220,7 +1220,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     name.ValueKind == JsonValueKind.String &&
                     !string.IsNullOrWhiteSpace(name.GetString()))
                 {
-                    return new ContactContent { Name = new ContactName { DisplayName = name.GetString() } };
+                    return new PeerContactContent { Name = new ContactName { DisplayName = name.GetString() } };
                 }
             }
             catch
