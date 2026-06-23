@@ -143,6 +143,9 @@ public static class ContactMergeLog
 
         if (c.Location != null)
         {
+            Put("location.addressLine1", c.Location.AddressLine1);
+            Put("location.addressLine2", c.Location.AddressLine2);
+            Put("location.postcode", c.Location.Postcode);
             Put("location.city", c.Location.City);
             Put("location.country", c.Location.Country);
         }

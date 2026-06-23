@@ -1108,6 +1108,9 @@ public class ContactService(
 
         if (content.Location != null)
         {
+            AssertFieldWithinCap(content.Location.AddressLine1, "location.addressLine1", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Location.AddressLine2, "location.addressLine2", MaxContactFieldChars);
+            AssertFieldWithinCap(content.Location.Postcode, "location.postcode", MaxContactFieldChars);
             AssertFieldWithinCap(content.Location.City, "location.city", MaxContactFieldChars);
             AssertFieldWithinCap(content.Location.Country, "location.country", MaxContactFieldChars);
         }
@@ -1249,6 +1252,9 @@ public class ContactService(
         if (existing == null) return incoming;
         return new ContactLocation
         {
+            AddressLine1 = Coalesce(incoming.AddressLine1, existing.AddressLine1),
+            AddressLine2 = Coalesce(incoming.AddressLine2, existing.AddressLine2),
+            Postcode = Coalesce(incoming.Postcode, existing.Postcode),
             City = Coalesce(incoming.City, existing.City),
             Country = Coalesce(incoming.Country, existing.Country)
         };

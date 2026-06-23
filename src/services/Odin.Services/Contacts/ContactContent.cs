@@ -131,6 +131,17 @@ public class ContactName
 
 public class ContactLocation
 {
+    /// <summary>Street address line 1 (odin-js AddressFields <c>address1</c>).</summary>
+    [JsonPropertyName("addressLine1")]
+    public string AddressLine1 { get; set; }
+
+    /// <summary>Street address line 2 (odin-js AddressFields <c>address2</c>).</summary>
+    [JsonPropertyName("addressLine2")]
+    public string AddressLine2 { get; set; }
+
+    [JsonPropertyName("postcode")]
+    public string Postcode { get; set; }
+
     [JsonPropertyName("city")]
     public string City { get; set; }
 

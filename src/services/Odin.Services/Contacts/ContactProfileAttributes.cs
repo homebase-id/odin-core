@@ -75,6 +75,9 @@ internal static class ContactProfileAttributes
     public const string AdditionalName = "additionalName";
     public const string Surname = "surname";
 
+    public const string AddressLine1 = "address1"; // odin-js AddressFields.AddressLine1
+    public const string AddressLine2 = "address2"; // odin-js AddressFields.AddressLine2
+    public const string Postcode = "postcode";     // odin-js AddressFields.Postcode
     public const string City = "city";
     public const string Country = "country";
 

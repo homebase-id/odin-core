@@ -865,6 +865,12 @@ public class ContactTests : V2Fixture
             new Dictionary<string, object> { ["status"] = "I am da man" }, priority: 1004);
         await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Nickname,
             new Dictionary<string, object> { ["nickName"] = "Sam" }, priority: 1005);
+        await SeedProfileAttributeAsync(sam, BuiltInProfileAttributes.Address,
+            new Dictionary<string, object>
+            {
+                ["address1"] = "1 Bagshot Row", ["address2"] = "Bag End", ["postcode"] = "SH1 1AA",
+                ["city"] = "Hobbiton", ["country"] = "The Shire"
+            }, priority: 1006);
 
         var contacts = new V2ContactsClient(frodo.Identity, frodo.Factory);
         var create = await contacts.CreateAsync(new CreateContactRequest
@@ -895,6 +901,13 @@ public class ContactTests : V2Fixture
         // Status / nickname flatten into their content fields.
         Assert.That(stored.Status, Is.EqualTo("I am da man"));
         Assert.That(stored.Nickname, Is.EqualTo("Sam"));
+
+        // Location carries the full street address, not just city/country.
+        Assert.That(stored.Location!.AddressLine1, Is.EqualTo("1 Bagshot Row"));
+        Assert.That(stored.Location.AddressLine2, Is.EqualTo("Bag End"));
+        Assert.That(stored.Location.Postcode, Is.EqualTo("SH1 1AA"));
+        Assert.That(stored.Location.City, Is.EqualTo("Hobbiton"));
+        Assert.That(stored.Location.Country, Is.EqualTo("The Shire"));
     }
 
     [Test]

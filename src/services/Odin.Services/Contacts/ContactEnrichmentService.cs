@@ -248,6 +248,9 @@ public class ContactEnrichmentService(
             {
                 var location = new ContactLocation
                 {
+                    AddressLine1 = Str(data, ContactProfileAttributes.AddressLine1),
+                    AddressLine2 = Str(data, ContactProfileAttributes.AddressLine2),
+                    Postcode = Str(data, ContactProfileAttributes.Postcode),
                     City = Str(data, ContactProfileAttributes.City),
                     Country = Str(data, ContactProfileAttributes.Country)
                 };
@@ -325,7 +328,8 @@ public class ContactEnrichmentService(
 
     private static bool HasAnyValue(ContactLocation location)
     {
-        return location.City != null || location.Country != null;
+        return location.AddressLine1 != null || location.AddressLine2 != null || location.Postcode != null
+               || location.City != null || location.Country != null;
     }
 
     /// <summary>
