@@ -304,6 +304,18 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version0tov1
 
         private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
+            // Skip auto-connected (unconfirmed) identities. Re-issuing their grants here goes through
+            // GrantCircleAsync, which refuses to grant additional circles to an auto-connected identity.
+            // An auto-connected identity that also holds another circle grant (an anomalous state seen in
+            // older data) would therefore throw and roll back the whole migration. These identities are
+            // introduced by the very feature this migration releases, so genuine v0 data has none; where
+            // they exist they were created by current code and already hold correct grants — nothing to fix.
+            if (icr.AccessGrant.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId))
+            {
+                logger.LogDebug("Skipping auto-connected identity {odinId} during circle-grant fix", icr.OdinId);
+                return;
+            }
+
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
             {
                 var circleId = circleGrant.Value.CircleId;
