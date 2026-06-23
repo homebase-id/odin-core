@@ -218,6 +218,7 @@ public class ContactEnrichmentService(
             {
                 var location = new ContactLocation
                 {
+                    Label = Str(data, ContactProfileAttributes.Label),
                     AddressLine1 = Str(data, ContactProfileAttributes.AddressLine1),
                     AddressLine2 = Str(data, ContactProfileAttributes.AddressLine2),
                     Postcode = Str(data, ContactProfileAttributes.Postcode),
@@ -235,7 +236,7 @@ public class ContactEnrichmentService(
                 var number = Str(data, ContactProfileAttributes.PhoneNumberField);
                 if (number != null)
                 {
-                    content.Phone = new ContactPhone { Number = number };
+                    content.Phone = new ContactPhone { Number = number, Label = Str(data, ContactProfileAttributes.Label) };
                     found = true;
                 }
             }
@@ -244,7 +245,7 @@ public class ContactEnrichmentService(
                 var email = Str(data, ContactProfileAttributes.EmailField);
                 if (email != null)
                 {
-                    content.Email = new ContactEmail { Email = email };
+                    content.Email = new ContactEmail { Email = email, Label = Str(data, ContactProfileAttributes.Label) };
                     found = true;
                 }
             }
@@ -298,8 +299,8 @@ public class ContactEnrichmentService(
 
     private static bool HasAnyValue(ContactLocation location)
     {
-        return location.AddressLine1 != null || location.AddressLine2 != null || location.Postcode != null
-               || location.City != null || location.Country != null;
+        return location.Label != null || location.AddressLine1 != null || location.AddressLine2 != null
+               || location.Postcode != null || location.City != null || location.Country != null;
     }
 
     /// <summary>

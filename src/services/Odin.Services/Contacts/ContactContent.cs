@@ -124,6 +124,10 @@ public class ContactName
 
 public class ContactLocation
 {
+    /// <summary>Free-form label for this address, e.g. "Home" / "Work" (odin-js AddressFields <c>label</c>).</summary>
+    [JsonPropertyName("label")]
+    public string Label { get; set; }
+
     /// <summary>Street address line 1 (odin-js AddressFields <c>address1</c>).</summary>
     [JsonPropertyName("addressLine1")]
     public string AddressLine1 { get; set; }
@@ -144,12 +148,20 @@ public class ContactLocation
 
 public class ContactPhone
 {
+    /// <summary>Free-form label for this number, e.g. "Mobile" / "Work" (odin-js PhoneFields <c>label</c>).</summary>
+    [JsonPropertyName("label")]
+    public string Label { get; set; }
+
     [JsonPropertyName("number")]
     public string Number { get; set; }
 }
 
 public class ContactEmail
 {
+    /// <summary>Free-form label for this email, e.g. "Personal" / "Work" (odin-js EmailFields <c>label</c>).</summary>
+    [JsonPropertyName("label")]
+    public string Label { get; set; }
+
     [JsonPropertyName("email")]
     public string Email { get; set; }
 }

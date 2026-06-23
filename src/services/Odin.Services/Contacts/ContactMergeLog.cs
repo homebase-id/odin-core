@@ -143,6 +143,7 @@ public static class ContactMergeLog
 
         if (c.Location != null)
         {
+            Put("location.label", c.Location.Label);
             Put("location.addressLine1", c.Location.AddressLine1);
             Put("location.addressLine2", c.Location.AddressLine2);
             Put("location.postcode", c.Location.Postcode);
@@ -152,11 +153,13 @@ public static class ContactMergeLog
 
         if (c.Phone != null)
         {
+            Put("phone.label", c.Phone.Label);
             Put("phone.number", c.Phone.Number);
         }
 
         if (c.Email != null)
         {
+            Put("email.label", c.Email.Label);
             Put("email.email", c.Email.Email);
         }
 

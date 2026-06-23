@@ -1242,6 +1242,7 @@ public class ContactService(
         if (existing == null) return incoming;
         return new ContactLocation
         {
+            Label = Coalesce(incoming.Label, existing.Label),
             AddressLine1 = Coalesce(incoming.AddressLine1, existing.AddressLine1),
             AddressLine2 = Coalesce(incoming.AddressLine2, existing.AddressLine2),
             Postcode = Coalesce(incoming.Postcode, existing.Postcode),
@@ -1253,13 +1254,21 @@ public class ContactService(
     private static ContactPhone MergePhone(ContactPhone existing, ContactPhone incoming)
     {
         var number = Coalesce(incoming?.Number, existing?.Number);
-        return number == null ? null : new ContactPhone { Number = number };
+        return number == null ? null : new ContactPhone
+        {
+            Number = number,
+            Label = Coalesce(incoming?.Label, existing?.Label)
+        };
     }
 
     private static ContactEmail MergeEmail(ContactEmail existing, ContactEmail incoming)
     {
         var email = Coalesce(incoming?.Email, existing?.Email);
-        return email == null ? null : new ContactEmail { Email = email };
+        return email == null ? null : new ContactEmail
+        {
+            Email = email,
+            Label = Coalesce(incoming?.Label, existing?.Label)
+        };
     }
 
     private static ContactBirthday MergeBirthday(ContactBirthday existing, ContactBirthday incoming)
