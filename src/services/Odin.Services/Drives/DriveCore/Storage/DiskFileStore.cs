@@ -58,7 +58,7 @@ public sealed class DiskFileStore(FileReaderWriter frw) : IDriveFileStore
     /// We therefore treat it as a programming error and throw rather than risk a silent mis-copy.
     /// <paramref name="sourcePath"/> and <paramref name="destPath"/> are both local file system paths.
     /// </remarks>
-    public Task IngestFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default)
+    public Task CopyFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default)
     {
         if (source.Backend != StorageBackendType.Disk)
             throw new DriveFileStoreException($"Disk dest cannot ingest from {source.Backend} source");

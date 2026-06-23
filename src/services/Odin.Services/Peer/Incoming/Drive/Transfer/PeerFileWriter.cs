@@ -38,41 +38,50 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             IOdinContext odinContext,
             StagingArea sourceArea,
             bool driveOriginWasCollaborative = false,
-            WriteSecondDatabaseRowBase markComplete = null)
+            WriteSecondDatabaseRowBase markComplete = null,
+            FileMetadata metadataOverride = null)
         {
             var fileSystemType = encryptedRecipientTransferInstructionSet.FileSystemType;
             var transferFileType = encryptedRecipientTransferInstructionSet.TransferFileType;
 
             var drive = await driveManager.GetDriveAsync(file.DriveId);
 
-            FileMetadata metadata = null;
-            var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
+            // TODO:INBOX Delete this fallback block (keep only metadata = metadataOverride) once no pre-upgrade
+            // peer-transfer items remain in any inbox.
+            // New inbox items carry the metadata on the inbox row (metadataOverride); they staged nothing on disk.
+            // Legacy/in-flight items (queued before the metadata moved onto the row) still have a .metadata file in
+            // the staging folder, so fall back to reading it. This is the dual-read transition.
+            FileMetadata metadata = metadataOverride;
+            if (metadata == null)
             {
-                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file,
-                    MultipartHostTransferParts.Metadata.ToString().ToLower(), sourceArea, odinContext);
-
-                if (bytes == null)
+                var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileWriter HandleFile ReadTempFile", async () =>
                 {
-                    // this is bad error.
-                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", file.FileId,
-                        file.DriveId);
-                    throw new OdinFileWriteException("Missing temp file while processing inbox");
-                }
+                    var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file,
+                        MultipartHostTransferParts.Metadata.ToString().ToLower(), sourceArea, odinContext);
 
-                string json = bytes.ToStringFromUtf8Bytes();
+                    if (bytes == null)
+                    {
+                        // this is bad error.
+                        logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", file.FileId,
+                            file.DriveId);
+                        throw new OdinFileWriteException("Missing temp file while processing inbox");
+                    }
 
-                metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+                    string json = bytes.ToStringFromUtf8Bytes();
 
-                if (null == metadata)
-                {
-                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ",
-                        file.FileId,
-                        file.DriveId);
-                    throw new OdinFileWriteException("Metadata could not be deserialized");
-                }
-            });
+                    metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
 
-            logger.LogDebug("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
+                    if (null == metadata)
+                    {
+                        logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ",
+                            file.FileId,
+                            file.DriveId);
+                        throw new OdinFileWriteException("Metadata could not be deserialized");
+                    }
+                });
+
+                logger.LogDebug("Get metadata from temp file and deserialize: {ms} ms", metadataMs);
+            }
 
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along

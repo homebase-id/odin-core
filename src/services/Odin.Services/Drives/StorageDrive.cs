@@ -94,7 +94,10 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
         }
 
         Directory.CreateDirectory(GetDriveUploadPath());
-        Directory.CreateDirectory(GetDriveInboxPath());
+
+        // TODO:INBOX The per-drive inbox folder is intentionally NOT created: nothing writes to it anymore
+        // (peer payloads stream to long-term, metadata rides the inbox row). The read/cleanup paths that remain
+        // for draining legacy items tolerate its absence. Drop GetDriveInboxPath with the rest once the folder is gone.
 
         if (!tenantPathManager.S3PayloadsEnabled && !string.IsNullOrEmpty(payloadDirectory))
         {
