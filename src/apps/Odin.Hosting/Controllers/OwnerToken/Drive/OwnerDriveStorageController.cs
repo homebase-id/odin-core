@@ -53,6 +53,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// <summary>
         /// Indicates if the specified inbox temp file exists.  This is used for testing only
         /// </summary>
+        // TODO:INBOX Test-only endpoint over the folder-based inbox; delete it (and its tests) once the inbox
+        // folder is drained and InboxFileExists is gone from the storage layer.
         [SwaggerOperation(Tags = [ControllerConstants.OwnerDrive])]
         [HttpGet("inbox-file-exists")]
         public async Task<bool> InboxFileExists([FromQuery] Guid fileId,

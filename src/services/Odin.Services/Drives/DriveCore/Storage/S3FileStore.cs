@@ -163,7 +163,7 @@ public class S3FileStore(
     /// always S3. Both branches run under the shared retry policy and wrap non-cancellation failures as
     /// <see cref="DriveFileStoreException"/> (cancellation propagates unwrapped).
     /// </summary>
-    public async Task IngestFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default)
+    public async Task CopyFromAsync(IDriveFileStore source, string sourcePath, string destPath, CancellationToken ct = default)
     {
         if (source.Backend == StorageBackendType.S3)
         {

@@ -116,6 +116,8 @@ public class TenantPathManager
     // Disk root locations
     // ----------------------
 
+    // TODO:INBOX Inbox-folder path helper (along with InboxFolder/InboxPath/InboxDrivesPath and
+    // GetDriveInboxFilePath below); delete once nothing targets the per-drive inbox folder.
     // e.g. /data/tenants/registrations/<tenant-id>/inbox/drives/<drive-id>
     public string GetDriveInboxPath(Guid driveId)
     {
@@ -209,6 +211,27 @@ public class TenantPathManager
         var fileName = GetPayloadFileName(fileId, payloadKey, payloadUid);
         var dir = GetPayloadDirectory(driveId, fileId);
         return Path.Combine(dir, fileName);
+    }
+
+    // The incoming peer-transfer receive path streams each payload/thumbnail with the staging-style
+    // `extension` already computed by the caller (GetBasePayloadFileNameAndExtension /
+    // GetThumbnailFileNameAndExtension, e.g. "key-0.payload" or "key-0-10x20.thumb"). When we write
+    // that stream straight to long-term storage (instead of the inbox folder), the long-term file
+    // name is "{fileId:N}-{extension}".
+    //
+    // Note the separator difference: the staging file name (GetFilename) joins fileId and extension
+    // with a '.', while long-term file names (GetPayloadFileName / GetThumbnailFileName) join with a
+    // '-'. The tail ("{key}-{uid}[-{w}x{h}].ext") is identical, so prefixing "{fileId:N}-" reproduces
+    // exactly what the canonical readers expect. TenantPathManagerTests pins this equivalence.
+    public static string GetLongTermFileNameFromExtension(Guid fileId, string extension)
+    {
+        return $"{GuidToPathSafeString(fileId)}{FileNameSectionDelimiter}{extension.ToLower()}";
+    }
+
+    public string GetLongTermPayloadDirectoryAndFileNameFromExtension(Guid driveId, Guid fileId, string extension)
+    {
+        var dir = GetPayloadDirectory(driveId, fileId);
+        return Path.Combine(dir, GetLongTermFileNameFromExtension(fileId, extension));
     }
 
     public static string GetBasePayloadSearchMask()
