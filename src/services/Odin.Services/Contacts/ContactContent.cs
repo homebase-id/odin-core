@@ -95,13 +95,6 @@ public class PeerContactContent
 public class ContactContent : PeerContactContent
 {
     /// <summary>
-    /// Whether the owner has flagged this contact as an emergency contact. <b>Owner-owned</b> — set only
-    /// via the contacts API, never from peer data. Defaults to <c>false</c>.
-    /// </summary>
-    [JsonPropertyName("isEmergencyContact")]
-    public bool IsEmergencyContact { get; set; }
-
-    /// <summary>
     /// Per-app opaque data blobs, keyed by the calling app's id (GUID string). Each value is a small,
     /// app-authored JSON string stored <b>verbatim</b> — the server never parses it. <b>Owner/app-owned</b>
     /// and never sourced from a peer: enrichment and the connection flow operate on

@@ -1201,22 +1201,12 @@ public class ContactService(
             Link = Coalesce(incoming.Link, existing.Link),
             Social = MergeSocial(existing.Social, incoming.Social),
 
-            // Owner-owned fields: preserved by default. A peer/enrichment write supplies a plain
-            // PeerContactContent, which by construction carries none of these — so it can never
-            // overwrite them. Only the owner API path passes a full ContactContent and may change them.
-            IsEmergencyContact = existing.IsEmergencyContact,
-
             // Per-app blobs are always preserved here: neither a peer/enrichment write nor a core
             // contact write may touch them. They are mutated only via SetAppDataAsync/DeleteAppDataAsync,
             // which merge a single app's slot. (A full ContactContent on the owner path carries no
             // appData by contract; we ignore it if present so a core edit can't clobber another app.)
             AppData = existing.AppData
         };
-
-        if (incoming is ContactContent owner)
-        {
-            merged.IsEmergencyContact = owner.IsEmergencyContact;
-        }
 
         return merged;
     }
