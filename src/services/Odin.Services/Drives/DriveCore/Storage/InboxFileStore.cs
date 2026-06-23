@@ -7,6 +7,8 @@ namespace Odin.Services.Drives.DriveCore.Storage;
 
 #nullable enable
 
+// TODO:INBOX Delete this store (and its DI registration in TenantServices) once the inbox folder is drained.
+// It only routes I/O to the per-drive inbox folder; nothing should target that folder afterward.
 public sealed class InboxFileStore(IDriveFileStore inner) : IDriveFileStore
 {
     public StorageBackendType Backend => inner.Backend;

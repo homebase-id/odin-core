@@ -46,14 +46,14 @@ namespace Odin.Services.Drives.FileSystem.Base
         private IDriveFileStore ResolveStore(StagingArea area) => area switch
         {
             StagingArea.Upload => uploadFileStore,
-            StagingArea.Inbox  => inboxFileStore,
+            StagingArea.Inbox  => inboxFileStore, // TODO:INBOX drop this arm with the folder-based inbox
             _ => throw new ArgumentOutOfRangeException(nameof(area))
         };
 
         private static string StagingRoot(StagingArea area, StorageDrive drive) => area switch
         {
             StagingArea.Upload => drive.GetDriveUploadPath(),
-            StagingArea.Inbox  => drive.GetDriveInboxPath(),
+            StagingArea.Inbox  => drive.GetDriveInboxPath(), // TODO:INBOX drop this arm with the folder-based inbox
             _ => throw new ArgumentOutOfRangeException(nameof(area))
         };
 
@@ -398,6 +398,9 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await uploadStorageManager.WriteUploadStream(file, extension, stream);
         }
 
+        // TODO:INBOX No production callers remain: the peer-transfer path streams to long-term and the feed path
+        // now carries metadata on the inbox row. Only InboxStorageManagerTests still exercises it. Delete together
+        // with the folder-based inbox.
         public async Task<uint> WriteInboxStream(InternalDriveFileId file, string extension, Stream stream, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -406,8 +409,24 @@ namespace Odin.Services.Drives.FileSystem.Base
         }
 
         /// <summary>
+        /// Streams an incoming peer payload/thumbnail straight into long-term storage under the (incoming)
+        /// <paramref name="file"/> fileId, bypassing the inbox staging folder. Used by the peer receive path so
+        /// that inbox processing has nothing to copy at commit time (see <see cref="StagingArea.LongTerm"/>).
+        /// <paramref name="extension"/> is the staging-style payload/thumbnail extension.
+        /// </summary>
+        public async Task<uint> WritePayloadDirectlyToLongTerm(InternalDriveFileId file, string extension, Stream stream,
+            IOdinContext odinContext)
+        {
+            await AssertDriveIsNotArchived(file.DriveId, odinContext);
+            await AssertCanWriteToDrive(file.DriveId, odinContext);
+            var drive = await DriveManager.GetDriveAsync(file.DriveId);
+            return await longTermStorageManager.WriteStreamDirectToLongTermAsync(drive, file.FileId, extension, stream);
+        }
+
+        /// <summary>
         /// Reads the whole file so be sure this is only used on small'ish files; ones you're ok with loaded fully into server-memory
         /// </summary>
+        // TODO:INBOX Reads from the folder-based inbox; delete once the inbox folder is drained.
         public async Task<byte[]> GetAllFileBytesFromInboxFile(InternalDriveFileId file, string extension, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -422,6 +441,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             return await uploadStorageManager.UploadFileExists(file, extension);
         }
 
+        // TODO:INBOX Backs the test-only owner endpoint over the folder-based inbox; delete once the folder is drained.
         public async Task<bool> InboxFileExists(InternalDriveFileId file, string extension, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
@@ -723,7 +743,7 @@ namespace Odin.Services.Drives.FileSystem.Base
             ignorePayload = ignorePayload.GetValueOrDefault(false) || newMetadata.PayloadsAreRemote;
 
             var targetFile = originFile;
-            newMetadata.File = targetFile; // this is a new file so we can use the same fileId from the temp file
+            newMetadata.File = targetFile; // this is a new file so we can use the same fileId from the incoming file
             serverMetadata.FileSystemType = GetFileSystemType();
 
             // First copy and prepare everything we need
@@ -1607,12 +1627,64 @@ namespace Odin.Services.Drives.FileSystem.Base
             }
         }
 
+        // TODO:INBOX Both producers are migrated (peer-transfer and feed both carry metadata on the inbox row),
+        // so nothing new is written to the folder. Delete once the folder is drained: no pre-upgrade items remain
+        // in any inbox (every TransferInboxItem carries a non-null FileMetadata, so
+        // PeerInboxProcessor.ResolveInboxSourceArea never returns StagingArea.Inbox). At that point the whole
+        // legacy inbox-folder path is dead and can go together: StagingArea.Inbox, WriteInboxStream,
+        // InboxStorageManager, InboxFileStore, the inbox path helpers, and this wrapper.
         public async Task CleanupInboxTemporaryFiles(InternalDriveFileId file, IOdinContext odinContext)
         {
             await AssertDriveIsNotArchived(file.DriveId, odinContext);
             if (await CanWriteToDrive(file.DriveId, odinContext))
             {
                 await inboxStorageManager.CleanupInboxFiles(file);
+            }
+        }
+
+        /// <summary>
+        /// Deletes long-term payload/thumbnail files that the peer receive path streamed directly under the
+        /// incoming fileId for an inbox item that is now being abandoned (failed permanently) without ever
+        /// committing a header. This prevents leaks introduced by writing inbox-routed payloads straight to
+        /// long-term storage instead of the inbox folder.
+        /// </summary>
+        /// <remarks>
+        /// Only call this on the give-up path. A successfully committed new file keeps the SAME (incoming) fileId, so
+        /// deleting its payloads here would destroy live data; the success path must not invoke this.
+        /// <paramref name="directlyWrittenPayloads"/> is the inbox row's payload descriptors; it is empty/null for
+        /// legacy items whose payloads lived in the inbox folder, making this a no-op for them.
+        /// </remarks>
+        public async Task CleanupAbandonedLongTermPayloads(InternalDriveFileId incomingFile,
+            List<PayloadDescriptor> directlyWrittenPayloads, IOdinContext odinContext)
+        {
+            if (directlyWrittenPayloads == null || directlyWrittenPayloads.Count == 0)
+            {
+                return;
+            }
+
+            await AssertDriveIsNotArchived(incomingFile.DriveId, odinContext);
+            if (!await CanWriteToDrive(incomingFile.DriveId, odinContext))
+            {
+                return;
+            }
+
+            var drive = await DriveManager.GetDriveAsync(incomingFile.DriveId);
+
+            // Only delete payloads still present. A failure that occurred during/after CommitNewFile/OverwriteFile
+            // already removed them in those methods' cleanup; re-deleting would log spurious "does not exist"
+            // errors. We only need to catch the pre-commit failures where the directly-written payloads remain.
+            var stillPresent = new List<PayloadDescriptor>();
+            foreach (var descriptor in directlyWrittenPayloads)
+            {
+                if (await longTermStorageManager.PayloadExistsOnDiskAsync(drive, incomingFile.FileId, descriptor))
+                {
+                    stillPresent.Add(descriptor);
+                }
+            }
+
+            if (stillPresent.Count > 0)
+            {
+                await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, incomingFile.FileId, stillPresent);
             }
         }
 
@@ -1929,6 +2001,21 @@ namespace Odin.Services.Drives.FileSystem.Base
         private async Task CopyPayloadAndThumbnailsToLongTermStorage(InternalDriveFileId originFile, InternalDriveFileId targetFile,
             StorageDrive drive, PayloadDescriptor descriptor, StagingArea sourceArea)
         {
+            if (sourceArea == StagingArea.LongTerm)
+            {
+                // The peer receive path already streamed this payload straight to long-term under
+                // originFile.FileId (no inbox folder). For a brand-new file the incoming fileId IS the final fileId,
+                // so the bytes are already at their destination and there is nothing to copy. For an
+                // overwrite/update the target fileId differs, so relocate within long-term.
+                if (originFile.FileId != targetFile.FileId)
+                {
+                    await longTermStorageManager.MovePayloadWithinLongTermAsync(drive, originFile.FileId, targetFile.FileId,
+                        descriptor);
+                }
+
+                return;
+            }
+
             var sourceStore = ResolveStore(sourceArea);
 
             var payloadExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(descriptor.Key, descriptor.Uid);

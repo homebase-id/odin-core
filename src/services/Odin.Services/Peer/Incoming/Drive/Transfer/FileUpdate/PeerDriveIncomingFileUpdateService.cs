@@ -60,7 +60,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             if (_isDirectWrite)
                 await fileSystem.Storage.WriteUploadStream(_file, fileExtension, data, odinContext);
             else
-                await fileSystem.Storage.WriteInboxStream(_file, fileExtension, data, odinContext);
+                // Inbox-routed: stream straight to long-term under the incoming fileId (no inbox folder).
+                await fileSystem.Storage.WritePayloadDirectlyToLongTerm(_file, fileExtension, data, odinContext);
         }
 
         public async Task AcceptThumbnail(string payloadKey, string thumbnailKey, string fileExtension, Stream data,
@@ -78,7 +79,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             if (_isDirectWrite)
                 await fileSystem.Storage.WriteUploadStream(_file, fileExtension, data, odinContext);
             else
-                await fileSystem.Storage.WriteInboxStream(_file, fileExtension, data, odinContext);
+                // Inbox-routed: stream straight to long-term under the incoming fileId (no inbox folder).
+                await fileSystem.Storage.WritePayloadDirectlyToLongTerm(_file, fileExtension, data, odinContext);
         }
 
         public async Task<PeerTransferResponse> FinalizeTransfer(FileMetadata fileMetadata, IOdinContext odinContext)
@@ -143,40 +145,31 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 return PeerResponseCode.AcceptedDirectWrite;
             }
 
-            logger.LogDebug("TryDirectWrite failed for file ({file}) - falling back to inbox. Writing metadata to inbox",
-                _file);
+            logger.LogDebug("TryDirectWrite failed for file ({file}) - routing to inbox.", _file);
 
-            try
-            {
-                _isDirectWrite = false;
-                await WriteInstructionsAndMetadataToDisk(fileMetadata, odinContext);
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "After TryDirectWriteFailed, we also failed to ensure " +
-                                   "metadata and instructions are available to the inbox.  file: {file}", _file);
-            }
-
-            //S1220
-            return await RouteToInboxAsync(odinContext);
+            //S1220 - the instruction set and metadata travel on the inbox row (no inbox folder); payloads are
+            // already in long-term storage under the incoming fileId.
+            return await RouteToInboxAsync(fileMetadata, odinContext);
         }
 
         private async Task WriteInstructionsAndMetadataToDisk(FileMetadata fileMetadata, IOdinContext odinContext)
         {
             logger.LogDebug("Writing metadata for file {file} (isDirectWrite: {isDirectWrite})", _file, _isDirectWrite);
 
+            // Inbox-routed transfers stage nothing on disk: the instruction set and metadata travel on the inbox
+            // row (TransferInboxItem.Data / .FileMetadata) and payloads stream straight to long-term. Only the
+            // direct-write path still uses the upload staging folder.
+            if (!_isDirectWrite)
+            {
+                return;
+            }
+
             // Write the instruction set to disk
             await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray());
-            if (_isDirectWrite)
-                await fileSystem.Storage.WriteUploadStream(_file, TenantPathManager.TransferInstructionSetExtension, stream, odinContext);
-            else
-                await fileSystem.Storage.WriteInboxStream(_file, TenantPathManager.TransferInstructionSetExtension, stream, odinContext);
+            await fileSystem.Storage.WriteUploadStream(_file, TenantPathManager.TransferInstructionSetExtension, stream, odinContext);
 
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(fileMetadata)));
-            if (_isDirectWrite)
-                await fileSystem.Storage.WriteUploadStream(_file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
-            else
-                await fileSystem.Storage.WriteInboxStream(_file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
+            await fileSystem.Storage.WriteUploadStream(_file, TenantPathManager.MetadataExtension, metadataStream, odinContext);
         }
 
         private async Task<bool> TryDirectWriteFileAsync(FileMetadata metadata, IOdinContext odinContext)
@@ -234,7 +227,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task<PeerResponseCode> RouteToInboxAsync(IOdinContext odinContext)
+        private async Task<PeerResponseCode> RouteToInboxAsync(FileMetadata fileMetadata, IOdinContext odinContext)
         {
             var item = new TransferInboxItem
             {
@@ -249,6 +242,9 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 FileSystemType = _updateInstructionSet.FileSystemType,
                 Data = OdinSystemSerializer.Serialize(_updateInstructionSet).ToUtf8ByteArray(),
 
+                // The incoming metadata rides on the inbox row instead of an inbox-folder .metadata file.
+                FileMetadata = fileMetadata,
+
                 Marker = default,
                 GlobalTransitId = default,
                 TransferInstructionSet = null,
@@ -257,7 +253,37 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
                 SharedSecretEncryptedKeyHeader = null
             };
 
-            await transitInboxBoxStorage.AddAsync(item);
+            // The payloads were already streamed straight to long-term under the incoming fileId during receive.
+            // If enqueueing the inbox item fails, nothing will ever process or clean them (the orphan scanner only
+            // sweeps the inbox folder, not long-term), so reclaim them here before failing the update.
+            try
+            {
+                await transitInboxBoxStorage.AddAsync(item);
+            }
+            catch (Exception e)
+            {
+                // Whatever the cause (cancellation included), the item never enqueued, so the payloads streamed to
+                // long-term under the incoming fileId are now orphans that nothing reclaims (the orphan scanner only
+                // sweeps the inbox folder, not long-term). Clean them up best-effort before propagating. Cancellation
+                // is not a failure, so it is not logged as an error, but its orphans still have to be reclaimed.
+                if (e is not OperationCanceledException)
+                {
+                    logger.LogError(e, "Failed to enqueue inbox item for file {file}; cleaning up directly-written " +
+                                       "long-term payloads to avoid orphans", _file);
+                }
+
+                try
+                {
+                    await fileSystem.Storage.CleanupAbandonedLongTermPayloads(_file, fileMetadata.Payloads, odinContext);
+                }
+                catch (Exception cleanupEx)
+                {
+                    logger.LogError(cleanupEx, "Cleanup of directly-written long-term payloads failed for file {file}", _file);
+                }
+
+                throw;
+            }
+
             await mediator.Publish(new InboxItemReceivedNotification()
             {
                 TargetDrive = (await driveManager.GetDriveAsync(item.DriveId)).TargetDriveInfo,

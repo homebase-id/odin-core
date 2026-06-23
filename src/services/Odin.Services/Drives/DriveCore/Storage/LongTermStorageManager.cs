@@ -385,6 +385,68 @@ namespace Odin.Services.Drives.DriveCore.Storage
             logger.LogDebug("Payload: copied {sourceFile} to {destinationFile}", sourceFile, destinationFile);
         }
 
+        /// <summary>
+        /// Streams an incoming peer payload or thumbnail straight into long-term storage, bypassing the inbox
+        /// staging folder entirely.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="extension"/> is the staging-style extension the receive path already computed for the
+        /// part (e.g. <c>"key-0.payload"</c> or <c>"key-0-10x20.thumb"</c>). The bytes are written under the
+        /// (incoming) <paramref name="fileId"/> at exactly the location
+        /// <see cref="TenantPathManager.GetPayloadDirectoryAndFileName"/> /
+        /// <c>GetThumbnailDirectoryAndFileName</c> will later read from, so no copy is needed at commit time.
+        /// Works for both disk- and S3-backed long-term storage (the long-term store handles the backend).
+        /// </remarks>
+        public async Task<uint> WriteStreamDirectToLongTermAsync(StorageDrive drive, Guid fileId, string extension, Stream stream)
+        {
+            var dir = _tenantPathManager.GetPayloadDirectory(drive.Id, fileId);
+            await longTermPayloadStore.EnsureDirectoryAsync(dir);
+
+            var path = _tenantPathManager.GetLongTermPayloadDirectoryAndFileNameFromExtension(drive.Id, fileId, extension);
+            var bytesWritten = await longTermPayloadStore.WriteStreamAsync(path, stream);
+
+            logger.LogDebug("Payload streamed directly to long-term: {path} ({bytes} bytes)", path, bytesWritten);
+            return bytesWritten;
+        }
+
+        /// <summary>
+        /// Relocates a payload (and its thumbnails) within long-term storage from <paramref name="originFileId"/>
+        /// to <paramref name="targetFileId"/>.
+        /// </summary>
+        /// <remarks>
+        /// Used when a peer transfer streamed its payloads straight to long-term under the incoming fileId
+        /// (see <see cref="WriteStreamDirectToLongTermAsync"/>) but processing then resolves it to an
+        /// overwrite/update of an existing file whose fileId differs. Implemented as copy-then-delete within the
+        /// long-term store (a local file copy on disk, a server-side copy on S3) because
+        /// <see cref="IDriveFileStore"/> has no rename primitive. The incoming payload's <c>uid</c> is unique per
+        /// upload, so the destination never collides with an existing payload on the target file.
+        /// </remarks>
+        public async Task MovePayloadWithinLongTermAsync(StorageDrive drive, Guid originFileId, Guid targetFileId,
+            PayloadDescriptor descriptor)
+        {
+            await MoveOneWithinLongTermAsync(
+                _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, originFileId, descriptor.Key, descriptor.Uid),
+                _tenantPathManager.GetPayloadDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid));
+
+            foreach (var thumb in descriptor.Thumbnails ?? [])
+            {
+                await MoveOneWithinLongTermAsync(
+                    _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, originFileId, descriptor.Key, descriptor.Uid,
+                        thumb.PixelWidth, thumb.PixelHeight),
+                    _tenantPathManager.GetThumbnailDirectoryAndFileName(drive.Id, targetFileId, descriptor.Key, descriptor.Uid,
+                        thumb.PixelWidth, thumb.PixelHeight));
+            }
+        }
+
+        private async Task MoveOneWithinLongTermAsync(string sourcePath, string destPath)
+        {
+            // IngestFromAsync(source: longTermPayloadStore) is a same-store copy (disk File.Copy or S3 server-side
+            // copy); follow it with a delete of the source to make it a move.
+            await longTermPayloadStore.IngestFromAsync(longTermPayloadStore, sourcePath, destPath);
+            await longTermPayloadStore.DeleteAsync(sourcePath);
+            logger.LogDebug("Payload moved within long-term: {sourcePath} -> {destPath}", sourcePath, destPath);
+        }
+
         public async Task CopyThumbnailToLongTermAsync(StorageDrive drive, Guid targetFileId, string sourceThumbnailFilePath,
             PayloadDescriptor payloadDescriptor,
             ThumbnailDescriptor thumbnailDescriptor,

@@ -31,7 +31,8 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             EncryptedRecipientFileUpdateInstructionSet instructionSet,
             IOdinContext odinContext,
             WriteSecondDatabaseRowBase markComplete,
-            StagingArea sourceArea)
+            StagingArea sourceArea,
+            FileMetadata metadataOverride = null)
         {
             bool success = false;
             List<PayloadDescriptor> payloads = [];
@@ -40,7 +41,7 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
 
             logger.LogDebug("PeerFileUpdateWriter - UpsertFileAsync called file: {file}", file);
 
-            var incomingMetadata = await LoadMetadataFromTemp(file, fs, sourceArea, odinContext);
+            var incomingMetadata = await LoadMetadata(file, fs, sourceArea, metadataOverride, odinContext);
 
             // Validations
             var (targetFile, existingHeader) = await GetTargetFileHeader(instructionSet.Request.File, fs, odinContext);
@@ -137,38 +138,47 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer.FileUpdate
             return (success, incomingMetadata.Payloads ?? []);
         }
 
-        private async Task<FileMetadata> LoadMetadataFromTemp(
+        private async Task<FileMetadata> LoadMetadata(
             InternalDriveFileId file,
             IDriveFileSystem fs,
             StagingArea sourceArea,
+            FileMetadata metadataOverride,
             IOdinContext odinContext)
         {
-            FileMetadata incomingMetadata = default;
-            var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile", async () =>
+            // TODO:INBOX Delete this fallback block (keep only incomingMetadata = metadataOverride) once no
+            // pre-upgrade peer-transfer items remain in any inbox.
+            // New inbox items carry the metadata on the inbox row (metadataOverride) and staged nothing on disk.
+            // Legacy/in-flight items still have a .metadata file in the staging folder; read it (dual-read).
+            FileMetadata incomingMetadata = metadataOverride;
+            if (incomingMetadata == null)
             {
-                var extension = MultipartHostTransferParts.Metadata.ToString().ToLower();
-                var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file, extension, sourceArea, odinContext);
+                var metadataMs = await PerformanceCounter.MeasureExecutionTime("PeerFileUpdateWriter HandleFile ReadTempFile",
+                    async () =>
+                    {
+                        var extension = MultipartHostTransferParts.Metadata.ToString().ToLower();
+                        var bytes = await fs.Storage.GetAllFileBytesFromTempFileForWriting(file, extension, sourceArea, odinContext);
 
-                if (bytes == null)
-                {
-                    // this is bad error.
-                    logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ", file.FileId,
-                        file.DriveId);
-                    throw new OdinFileWriteException("Missing temp file while processing inbox");
-                }
+                        if (bytes == null)
+                        {
+                            // this is bad error.
+                            logger.LogError("Cannot find the metadata file (File:{file} on DriveId:{driveID}) was not found ",
+                                file.FileId, file.DriveId);
+                            throw new OdinFileWriteException("Missing temp file while processing inbox");
+                        }
 
-                string json = bytes.ToStringFromUtf8Bytes();
+                        string json = bytes.ToStringFromUtf8Bytes();
 
-                incomingMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
-                if (null == incomingMetadata)
-                {
-                    logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ", file.FileId,
-                        file.DriveId);
-                    throw new OdinFileWriteException("Metadata could not be deserialized");
-                }
-            });
+                        incomingMetadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
+                        if (null == incomingMetadata)
+                        {
+                            logger.LogError("Metadata file (File:{file} on DriveId:{driveID}) could not be deserialized ",
+                                file.FileId, file.DriveId);
+                            throw new OdinFileWriteException("Metadata could not be deserialized");
+                        }
+                    });
 
-            logger.LogDebug("PeerFileUpdateWriter - Get metadata from temp file and deserialize: {ms} ms", metadataMs);
+                logger.LogDebug("PeerFileUpdateWriter - Get metadata from temp file and deserialize: {ms} ms", metadataMs);
+            }
 
             if (incomingMetadata.GlobalTransitId.HasValue == false)
             {

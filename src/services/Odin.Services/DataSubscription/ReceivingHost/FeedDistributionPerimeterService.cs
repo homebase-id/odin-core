@@ -219,13 +219,10 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                 var feedDriveId = SystemDriveConstants.FeedDrive.Alias;
                 logger.LogDebug("Found feed drive id {id}", feedDriveId);
 
-                // Write to temp file
+                // The feed metadata rides on the inbox row (TransferInboxItem.FileMetadata) instead of a .metadata
+                // file in the inbox folder; inbox processing reads it from the row via metadataOverride. A fresh
+                // fileId is still minted for the row, but nothing is written to the inbox folder.
                 var file = await fileSystem.Storage.CreateInternalFileId(feedDriveId, odinContext);
-
-                var stream = OdinSystemSerializer.Serialize(request.FileMetadata).ToUtf8ByteArray().ToMemoryStream();
-                await fileSystem.Storage.WriteInboxStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower(), stream,
-                    odinContext);
-                await stream.DisposeAsync();
 
                 // then tell the inbox you have a new file
                 var item = new TransferInboxItem
@@ -239,6 +236,9 @@ namespace Odin.Services.DataSubscription.ReceivingHost
                     DriveId = file.DriveId,
                     GlobalTransitId = request.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                     FileSystemType = FileSystemType.Standard, //comments are never distributed
+
+                    // The incoming feed metadata travels on the inbox row instead of an inbox-folder .metadata file.
+                    FileMetadata = request.FileMetadata,
 
                     Priority = 200,
                     Marker = default,
