@@ -77,11 +77,16 @@ public class HomebaseChannelContentService(
         return results;
     }
 
+    /// <param name="includePayloadBody">
+    /// When true, each post's full-text body is loaded from its payload (an extra storage read per post).
+    /// List/preview callers that only render header fields (caption, slug, abstract, date) should pass false.
+    /// </param>
     public async Task<(List<ChannelPost> channelPosts, string cursor)> GetChannelPosts(
         string channelKey,
         IOdinContext odinContext,
         UnixTimeUtc? fromTimestamp = null,
         int maxPosts = 10,
+        bool includePayloadBody = true,
         CancellationToken cancellationToken = default)
     {
         var targetDrive = await GetChannelDrive(channelKey, odinContext);
@@ -110,7 +115,7 @@ public class HomebaseChannelContentService(
         foreach (var sr in batch.SearchResults)
         {
             // logger.LogDebug("The DSR content: [{c}]", sr.FileMetadata.AppData.Content);
-            var post = await ParsePostFile(sr, targetDrive, odinContext, cancellationToken);
+            var post = await ParsePostFile(sr, targetDrive, odinContext, cancellationToken, includePayloadBody);
             channelPosts.Add(post);
         }
 
@@ -290,7 +295,8 @@ public class HomebaseChannelContentService(
         SharedSecretEncryptedFileHeader postFile,
         TargetDrive channelDrive,
         IOdinContext odinContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool includePayloadBody = true)
     {
         async Task<PostContent> LoadBodyFromPayload(InternalDriveFileId fileId)
         {
@@ -331,7 +337,7 @@ public class HomebaseChannelContentService(
             }
             else
             {
-                if (postFile.FileMetadata.Payloads.Any(p => p.KeyEquals(PostFullTextPayloadKey)))
+                if (includePayloadBody && postFile.FileMetadata.Payloads.Any(p => p.KeyEquals(PostFullTextPayloadKey)))
                 {
                     var bodyFromPayload = await LoadBodyFromPayload(fileId);
                     content.Body = bodyFromPayload.Body;

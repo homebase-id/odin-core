@@ -106,7 +106,7 @@ public class HomebaseSsrController(
         }
 
         var (head, _) = await BuildHeadSection(suffix: "Posts", siteType: "website");
-        var (posts, _) = await channelContentService.GetChannelPosts(channelKey, WebOdinContext);
+        var (posts, _) = await channelContentService.GetChannelPosts(channelKey, WebOdinContext, includePayloadBody: false);
 
         var thisChannel = (await channelContentService.GetChannels(WebOdinContext)).FirstOrDefault(c => c.Slug == channelKey);
 
