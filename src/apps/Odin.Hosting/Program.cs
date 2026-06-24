@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
@@ -31,6 +33,7 @@ using Odin.Services.Registry.Registration;
 using Odin.Services.Tenant.Container;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.OpenTelemetry;
 using Serilog.Sinks.SystemConsole.Themes;
 using Version = Odin.Services.Version;
 
@@ -42,6 +45,8 @@ namespace Odin.Hosting
         {
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+            Serilog.Debugging.SelfLog.Enable(Console.Error);
 
             var (didHandle, exitCode) = CommandLine.HandleCommandLineArgs(args);
             if (didHandle)
@@ -107,6 +112,37 @@ namespace Odin.Hosting
                     .Async(s => s.Console(
                         outputTemplate: logOutputTemplate,
                         theme: SystemConsoleTheme.Literate)));
+
+            // Ship logs to OpenObserve via OTLP when configured. Endpoint and credentials come from the
+            // OpenObserve config section (supplied per-host via env/vault); see open-observe/PLAN.md. No
+            // .Async wrapper: the OTLP sink batches and ships on its own background worker. The
+            // .Enrich.WithCorrelationId(...) above rides through as the "CorrelationId" attribute.
+            if (odinConfig.OpenObserve.Enabled)
+            {
+                var oo = odinConfig.OpenObserve;
+                var otlpProtocol = Enum.Parse<OtlpProtocol>(oo.Protocol, ignoreCase: true);
+                var otlpAuth = "Basic " + Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes($"{oo.Username}:{oo.Password}"));
+
+                loggerConfig
+                    .WriteTo.Filter(sink => sink.OpenTelemetry(otlp =>
+                    {
+                        otlp.Endpoint = oo.Endpoint;
+                        otlp.Protocol = otlpProtocol;
+                        otlp.Headers = new Dictionary<string, string>
+                        {
+                            ["Authorization"] = otlpAuth,
+                            // Fixed to "default": the org can't be renamed and multi-org is enterprise-gated,
+                            // so on the OSS build it's always "default". Required on gRPC (org isn't in the URL path).
+                            ["organization"] = "default",
+                            ["stream-name"] = oo.Stream,
+                        };
+                        otlp.ResourceAttributes = new Dictionary<string, object>
+                        {
+                            ["service.name"] = oo.ServiceName,
+                        };
+                    }));
+            }
 
             if (odinConfig.Logging.LogFilePath != "")
             {

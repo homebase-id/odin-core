@@ -1,0 +1,20 @@
+# === OpenObserve ingestion — paste this block into the host's EXISTING Caddyfile ===
+#
+# This box already runs an independent Caddy container for your other sites, so the OpenObserve stack no
+# longer bundles Caddy. Add the site block below to that Caddy's config and reload it.
+#
+# Prerequisites:
+#   1. NETWORK: the existing Caddy container and the `openobserve` container must share a Docker network
+#      (the `proxy` external network in compose.yml). If your Caddy is on its own network, either attach it
+#      (`docker network connect proxy <caddy-container>`) or set compose.yml's external network name to
+#      your Caddy's network. Without a shared network, `openobserve` won't resolve and you'll get 502s.
+#   2. DNS: ingest.logs.<domain> must resolve to this host. The existing Caddy already owns :80/:443 and
+#      auto-provisions the cert via its current ACME setup, so no email/tls block is needed here.
+#
+# gRPC needs HTTP/2 end-to-end, so the upstream is h2c:// (HTTP/2 cleartext) on the internal network.
+# OpenObserve serves plaintext gRPC on 5081; Caddy terminates the real TLS at the edge.
+# Reload after editing: `docker exec <caddy-container> caddy reload --config /etc/caddy/Caddyfile`.
+
+ingest.logs.example.com {
+	reverse_proxy h2c://openobserve:5081
+}

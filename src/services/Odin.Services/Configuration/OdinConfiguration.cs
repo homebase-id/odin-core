@@ -46,6 +46,8 @@ public class OdinConfiguration
 
     public CdnSection Cdn { get; init; } = new();
 
+    public OpenObserveSection OpenObserve { get; init; } = new();
+
     public OdinConfiguration()
     {
         // Mockable support
@@ -72,6 +74,7 @@ public class OdinConfiguration
         S3Storage = new S3StorageSection(config);
         S3Payload = new S3PayloadSection(config);
         Cdn = new CdnSection(config);
+        OpenObserve = new OpenObserveSection(config);
     }
 
     //
@@ -630,5 +633,38 @@ public class OdinConfiguration
             }
         }
     }
+
+    //
+
+    public class OpenObserveSection
+    {
+        public bool Enabled { get; init; }
+        public string Endpoint { get; init; } = "";
+        public string Protocol { get; init; } = "";
+        public string Username { get; init; } = "";
+        public string Password { get; init; } = "";
+        public string Stream { get; init; } = "";
+        public string ServiceName { get; init; } = "odin-hosting";
+
+        public OpenObserveSection()
+        {
+            // Mockable support
+        }
+
+        public OpenObserveSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("OpenObserve:Enabled", false);
+            if (Enabled)
+            {
+                Endpoint = config.Required<string>("OpenObserve:Endpoint");
+                Protocol = config.GetOrDefault("OpenObserve:Protocol", "Grpc");
+                Username = config.Required<string>("OpenObserve:Username");
+                Password = config.Required<string>("OpenObserve:Password");
+                Stream = config.GetOrDefault("OpenObserve:Stream", "homebase");
+                ServiceName = config.GetOrDefault("OpenObserve:ServiceName", "odin-hosting");
+            }
+        }
+    }
+
 
 }
