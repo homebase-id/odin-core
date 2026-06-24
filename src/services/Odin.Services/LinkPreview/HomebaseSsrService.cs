@@ -396,7 +396,8 @@ public class HomebaseSsrService(
             odinContext,
             post.Content.UserDate,
             maxPosts: 10,
-            cancellationToken);
+            includePayloadBody: false, // "See More" list only needs caption/slug/date from the header
+            cancellationToken: cancellationToken);
 
         contentBuilder.AppendLine($"<hr/>");
         contentBuilder.AppendLine($"<h3>See More ({otherPosts.Count} posts)</h3>");

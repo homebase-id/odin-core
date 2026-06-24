@@ -43,6 +43,10 @@ public class LinkPreviewService(
         {
             await WriteEnhancedIndexAsync(indexFilePath, odinContext);
         }
+        catch (OperationCanceledException)
+        {
+            // Request aborted (client disconnected); nothing left to write.
+        }
         catch (Exception e)
         {
             logger.LogDebug("Total Failure creating link-preview.  Writing plain index: {message}", e.Message);
@@ -116,6 +120,11 @@ public class LinkPreviewService(
             logger.LogDebug(oce, "Failed to parse channel definition: {code}", oce.ErrorCode.ToString());
             return false;
         }
+        catch (OperationCanceledException)
+        {
+            // Client disconnected (or the request was aborted) mid-render; not a failure.
+            throw;
+        }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to parse channel definition");
@@ -168,6 +177,11 @@ public class LinkPreviewService(
             await WriteAsync(content);
             return true;
         }
+        catch (OperationCanceledException)
+        {
+            // Client disconnected (or the request was aborted) mid-render; not a failure.
+            throw;
+        }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to parse post");
@@ -189,7 +203,7 @@ public class LinkPreviewService(
         if (segments is { Length: 3 }) // we have the channel key
         {
             string channelKey = segments[2];
-            var (posts, _) = await channelContentService.GetChannelPosts(channelKey, odinContext);
+            var (posts, _) = await channelContentService.GetChannelPosts(channelKey, odinContext, includePayloadBody: false);
             var thisChannel = (await channelContentService.GetChannels(odinContext)).FirstOrDefault(c => c.Slug == channelKey);
 
             return (true, channelKey, thisChannel, posts);
