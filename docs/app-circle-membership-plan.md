@@ -24,7 +24,7 @@ keys the calling app already holds.
    not just policy:** no storage key in hand ⇒ no usable grant can be produced. The
    policy boundary and the cryptographic boundary are the same line.
 
-2. **GPS drive — what we want to newly enable.** A chat app has **read** access to
+2. **GPS drive — what we want to newly enable.** A chat/location app has **temporal read** access to
    the user's GPS drive (e.g. a location/temporal API). It needs to add a contact
    to a circle that grants read access to that GPS drive. Because the app already
    holds the GPS drive's storage key (it can read the drive), it has everything
