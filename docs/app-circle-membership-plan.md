@@ -12,6 +12,51 @@ keys for the drives it was granted. So the feature is less "give apps a new
 power" and more "let the grant code build a grant from the keys the app already
 has, instead of assuming the master key is the only source."
 
+## Motivating use case: app-driven connections
+
+Today a *safe* connection can only be accepted from the **owner console** — i.e.
+with the master key online. To let users request and accept connections from
+within an app instead, we built a cryptographically **unsafe** stop-gap (the
+immediate / auto-connect flow described below).
+
+What we actually want: a user of the chat client sends a connection request; it is
+received on the other person's chat client and accepted **there** — with no owner
+console and no master key in the loop. And the connection that results should be
+**strong enough to actually work within the scope of that app** — chat, Moments,
+location, shared lists, etc. — not a weak placeholder that only starts working
+once the owner later comes online to finalize it.
+
+### Prior art: the unsafe immediate-connection mechanism
+
+To make app-side accept possible at all today, the no-master-key path improvises
+(`CircleNetworkRequestService.cs`):
+
+- The connection's keyStoreKey and CAT are ECC-encrypted to the **identity-level**
+  online/offline key and stashed as `TempWeakKeyStoreKey` /
+  `TemporaryWeakClientAccessToken`. `MasterKeyEncryptedKeyStoreKey` is left **null**
+  (`AccessExchangeGrant.RequiresMasterKeyEncryptionUpgrade()` ⇒ true).
+- The connection is pinned to **`AutoConnectionsCircle` only** and cannot be granted
+  further circles until "confirmed" from the console (`CircleNetworkService.cs`).
+- A deferred **upgrade** re-encrypts the keyStoreKey under the master key once the
+  owner comes online (`UpgradeMasterKeyStoreKeyEncryptionIfNeeded…`).
+- The flow leans on an `overrideHack` parameter that bypasses the `ReadConnections`
+  permission check, marked `//HACK: DOING THIS WHILE DESIGNING x-token - REMOVE THIS`.
+- The grant builder flags the unresolved drive question in-line:
+  `//TODO: should we validate all drives are write-only ?` — because without the
+  master key it can only safely include write-only drives (Blocker #4).
+
+This already does the work of **Blocker #3**: it escrows the keyStoreKey under an
+alternative (identity-level) key — exactly the "alternative-key copy" the data
+upgrade describes — but at identity-wide granularity and only as a temporary state
+finalized later by the master key. It does **not** address **Blocker #4**: real
+**read** access to specific drives still needs each drive's storage key, which is
+why the connection stays weak / AutoConnections-only until upgraded.
+
+A **per-drive keypair** is what would make the resulting connection "strong enough
+within the app's scope" without the master key: the app could grant the new
+connection real read access to exactly its own drives (chat, location, lists) at
+accept time — replacing the AutoConnections jail and the deferred-upgrade dance.
+
 ## What we want to achieve (worked examples)
 
 These three examples define the intended behavior. Each is decided purely by what
