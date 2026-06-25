@@ -54,3 +54,37 @@ There is no app-accessible (e.g. ICR-key / online-key) copy of either today. So
 enabling an app to grant a circle requires upgrading existing data to add the
 alternative-key-encrypted copies of these secrets (for existing connections and
 existing drives), not just changing the code path.
+
+## Alternative approach (exploratory): app-owned drives
+
+> **Status: exploratory.** Not a committed direction — captured for comparison.
+
+Instead of broadly escrowing every drive's storage key under a host key, give a
+drive an app-scoped root of trust. An app already holds a stable per-app
+`keyStoreKey` at request time, reconstructed from its client token with no master
+key (`AccessRegistration.DecryptUsingClientAuthenticationToken`). "App owns a
+drive" means re-rooting that drive's storage key onto the owning app's keyStoreKey.
+
+Concretely it would require:
+
+- An `OwningAppId` association on the drive (none exists on `StorageDrive` today).
+- A second storage-key copy, e.g. `AppKeyStoreKeyEncryptedStorageKey`, alongside
+  the existing `MasterKeyEncryptedStorageKey`.
+
+Payoff: the owning app can read/write the drive and **grant it to circles and
+identities without the master key** — dissolving the cryptographic blockers (#3,
+#4) for owned drives, scoped to that app instead of escrowing all drives broadly.
+The policy blockers (#1, #2) still apply, but the check becomes "is the caller the
+owning app?"
+
+Open questions:
+
+- **Owner access:** co-owned (keep the master-key copy so the owner can recover —
+  preferred) vs app-exclusive (owner cannot read the drive; stronger isolation but
+  risks unrecoverable data).
+- **Migration:** making an existing drive app-owned still needs the master key once
+  (owner online) to mint the app-key copy.
+- **App removal/revocation:** policy for what happens to a drive when its owning app
+  is deleted.
+- **Cross-app isolation:** only the owning app's keyStoreKey may decrypt the drive.
+- **System drives:** likely out of scope for app ownership.
