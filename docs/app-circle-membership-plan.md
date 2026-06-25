@@ -207,11 +207,16 @@ Open questions:
 
 ## Per-drive public keys: relation to each use case
 
-None exists today (see above). A per-drive keypair would be a **write-only root of
-trust** for a drive: anyone can encrypt *to* the drive's public key and deposit the
-result, but only the holder of the drive's private key (escrowed under the
-storage / master key) can read it back. That one property — *the public key lets
-you write, never read* — is what decides its relevance to each use case:
+None exists today (see above). Drive public keys are currently proposed for two
+main purposes: writing to a drive with no connection (#3), and bootstrapping the
+write side of a safe connection request (#4). Everything else is solved by
+symmetric keys the app already holds.
+
+A per-drive keypair would be a **write-only root of trust** for a drive: anyone can
+encrypt *to* the drive's public key and deposit the result, but only the holder of
+the drive's private key (escrowed under the storage / master key) can read it back.
+That one property — *the public key lets you write, never read* — is what decides
+its relevance to each use case:
 
 - **#1 Banking — neutral, and must stay that way.** A drive public key confers no
   read access, so publishing one can never breach the banking boundary. A chat app
