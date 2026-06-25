@@ -42,6 +42,16 @@ namespace Odin.Services.Membership.Connections
 
         private async Task FixIdentityAsync(IdentityConnectionRegistration icr, IOdinContext odinContext)
         {
+            // Skip auto-connected (unconfirmed) identities. Re-issuing their grants goes through
+            // GrantCircleAsync, which refuses to grant additional circles to an auto-connected identity;
+            // one that also holds another circle grant (an anomalous state seen in older data) would throw
+            // and roll back the fix. They must be confirmed before their circle memberships can change.
+            if (icr.AccessGrant.CircleGrants.ContainsKey(SystemCircleConstants.AutoConnectionsCircleId))
+            {
+                logger.LogDebug("Skipping auto-connected identity {odinId} during circle-grant fix", icr.OdinId);
+                return;
+            }
+
             foreach (var circleGrant in icr.AccessGrant.CircleGrants)
             {
                 var circleId = circleGrant.Value.CircleId;
