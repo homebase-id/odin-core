@@ -33,16 +33,21 @@ keys the calling app already holds.
    the secret is missing, but because the grant builder only knows how to source
    the storage key via the master key (see Blocker #4).
 
-3. **Write-only drive — contribute without reading (proposed mechanism).** An app
-   with **write-only** access does *not* hold the drive's storage key (and doesn't
-   need it to write). Today such a writer deposits data encrypted with the
-   per-client **shared secret**, which the server re-keys with the storage key on
-   the way in. A proposed addition is a **per-drive public key**: the write-only app
-   could leave a drive-public-key-encrypted copy in the drive's inbox. This is good
-   because the app can contribute data while remaining *cryptographically* unable to
-   read the drive — write-only becomes a real cryptographic property, not just an
-   ACL flag. (Note: no per-drive keypair exists today — see Blocker #4 / open
-   questions.)
+3. **Write-only drive — contribute without reading.** Write-without-read is
+   **already a real cryptographic property today**, not merely an ACL flag: I can
+   write to Todd's chat drive yet I am *cryptographically* unable to read it,
+   because the writer never holds that drive's storage key. An app with
+   **write-only** access is in the same position — it does *not* hold the drive's
+   storage key (and doesn't need it to write). Today the writer deposits data
+   encrypted with the per-client **shared secret**, which the server re-keys with
+   the storage key on the way in. The catch: **the shared secret only exists
+   between parties that are already connected** — so this path covers established
+   connections, not an arbitrary writer who has no shared secret for that drive. A
+   proposed addition is a **per-drive public key**: a writer could encrypt to the
+   drive's public key and leave that copy in the drive's inbox, extending the same
+   write-without-read guarantee to cases where no shared secret exists yet — while
+   the writer remains cryptographically unable to read the drive. (Note: no
+   per-drive keypair exists today — see Blocker #4 / open questions.)
 
 ## The four blockers
 
