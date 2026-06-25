@@ -3,8 +3,7 @@
 ## Problem statement
 
 Currently you must have the master key in order to add an OdinId to a circle. We
-need to change this so that an app can add OdinIds into a circle — **without
-letting an app grant access it does not itself already hold.**
+need to change this so that an app can add OdinIds into a circle — **within the scope of drives that the App already has access to.**
 
 The guiding principle: an app can only hand out what it can already reach. The
 keyStoreKey / storage-key layering is, in effect, just indirection so that the
