@@ -204,10 +204,48 @@ Open questions:
 - **App removal/revocation:** policy for what happens to a drive when its owning app
   is deleted.
 - **Cross-app isolation:** only the owning app's keyStoreKey may decrypt the drive.
-- **System drives:** likely out of scope for app ownership.
+- **System drives:** out of scope for app ownership (see taxonomy below).
 - **Per-drive public key:** none exists today — drives are purely symmetric; only
   identity-level ECC keys exist (`PublicPrivateKeyService`). It's a separate
   mechanism to design; its relation to the four use cases is in the closing section.
+
+## Drive ownership taxonomy
+
+Ownership is **lifecycle authority, not authorship.** "Which app created the drive"
+is provisioning; ownership is decided by one question:
+
+> If you delete an app — or swap to a different client — should this drive's data
+> die with it, or persist?
+
+That sorts every drive into three buckets:
+
+- **System drives — the true core.** Only what the most basic identity functionality
+  requires. The clear case is the **Profile drive**: it is integral to YouAuth —
+  being able to query a user's attributes. The bar is "the identity itself cannot
+  function without it," and very little clears it. Owner is the platform/identity
+  (master-key rooted); always present.
+- **App-owned drives.** Lifecycle bound to one installed app; deleted with it;
+  app-specific format. **Chat** is the clear case — delete the chat app and its
+  history going with it is expected.
+- **Virtual-app / appless drives.** Owned by a *stable logical owner that is not a
+  currently-installed client*, so the data survives swapping clients while staying
+  modular and grantable cross-app. This is the home for user data an app *manages*
+  but does not *own*. **Vault** is the poster child — reinstall a different chat
+  client and your vault must still be there. **Stickers** and possibly **Moments** are
+  candidates, depending on whether they should be reusable / outlive the client.
+
+**"Built-in" ≠ "system."** Today `SystemDriveConstants` hardcodes Chat, Moments,
+Stickers, Wallet (Vault), Mail, Contacts, Feed, Channels and Profile alike as
+built-in drives — but that is an implementation convenience, not a claim that they
+are system drives. By the bar above, **Feed, Channels, Mail and the rest are bolt-on
+apps**; only Profile (and a minimal core) is truly system. The move to app-owned /
+virtual-app drives reclassifies most of today's built-ins out of "system."
+
+This taxonomy is **orthogonal to the write-only keypair.** Because the per-drive key
+is escrowed under the drive's storage key (not an app), it works identically for a
+system, app-owned, or virtual-app drive — so the ownership bucket can be decided per
+drive, on product grounds, without blocking the crypto. A per-*app* key would have
+forced the bucket to be resolved first, just to know where the key lives.
 
 ## Per-drive public keys: relation to each use case
 
