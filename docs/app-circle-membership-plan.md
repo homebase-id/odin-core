@@ -245,3 +245,69 @@ its relevance to each use case:
 
 **In short:** essential to **#3** and the write side of **#4**, **not needed** for
 **#2**, and must remain **read-neutral** for **#1**.
+
+## Exploratory: a per-app keypair instead of per-drive?
+
+> **Status: exploratory.** Raised against a future direction, not a committed
+> design.
+
+A future we expect to move toward: **drives belong to apps.** When an app creates
+drives, those drives are owned by the app — delete the app and you delete its
+drives (cross-app drive grants stay possible). To a lesser extent apps will also
+own **app circles** they can create and delete. (This is the same direction as the
+"app-owned drives" section above, stated as the expected future rather than one
+alternative among several.) With that in mind: should the write-only root of trust
+be **per app** rather than **per drive**?
+
+The deciding lens: a write-only public key answers *"where do I write,"* and its
+private key answers *"who collects and reads the deposit."* So the keypair belongs
+at whatever level **owns the collection point.** If drives become app-owned, the
+collector is the app, not each individual drive — which points at per-app.
+
+Why per-app fits this future:
+
+- **Ownership & lifecycle align.** One keypair per app, created and destroyed with
+  the app, instead of N per-drive keys to mint and tear down. The cascade (delete
+  app ⇒ delete drives ⇒ key dies) is clean.
+- **The app is already a cryptographic principal.** It holds a per-app `keyStoreKey`
+  reconstructed from its client token without the master key
+  (`AccessRegistration`). A per-app keypair *extends an existing principal* rather
+  than inventing a new one per drive.
+- **#4 is app-scoped, not drive-scoped.** "Strong within the app's scope" spans
+  several drives (chat, Moments, location, lists). A per-app key bootstraps that
+  whole scope at once — the right granularity between today's identity-wide hack and
+  per-drive fan-out.
+- **#3 gets a stable address.** "Write to the chat app" becomes one durable public
+  key, rather than one per drive the writer must discover.
+
+Why not purely per-app (the tensions):
+
+- **Drives with no owning app.** System drives and owner-created drives have no
+  owning app, yet may still want the #3 write-without-connection property. A per-app
+  key cannot cover them — so a per-app scheme still needs a per-drive (or
+  per-identity) fallback. Per-app alone is not sufficient.
+- **Blast radius.** Compromise of a per-app private key exposes the pending deposits
+  across **all** of that app's drives at once; a per-drive key isolates the damage to
+  one drive.
+- **Cross-app grants are orthogonal (worth stating so it isn't conflated).** A second
+  app granted access to a drive reads it through its normal storage-key grant, *not*
+  through this keypair. The keypair governs the *collector* (the owning app), not who
+  may be granted access — so cross-app sharing does not argue against per-app
+  ownership of the key.
+
+Tentative lean: for app-owned drives, **per-app looks like the better primary fit**
+— it aligns ownership, lifecycle, and the app-scoped connection bootstrap. Keep a
+per-drive (or per-identity) mechanism as the fallback for drives with no owning app.
+A hybrid — per-app by default, per-drive where a drive needs isolation from its
+siblings — may be the honest end state.
+
+Open questions:
+
+- **Private-key escrow:** under the app's `keyStoreKey`, the master key, or both
+  (for owner recovery)?
+- **Rotation:** does the keypair rotate when the app's client token / registration
+  rotates, and what happens to deposits encrypted to the old public key?
+- **App deletion:** what happens to in-flight deposits addressed to a deleted app's
+  public key?
+- **App circles:** does app ownership of circles want the same per-app key, or is that
+  unrelated to the write-only root of trust?
