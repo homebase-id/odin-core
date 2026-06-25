@@ -201,6 +201,42 @@ Open questions:
   is deleted.
 - **Cross-app isolation:** only the owning app's keyStoreKey may decrypt the drive.
 - **System drives:** likely out of scope for app ownership.
-- **Per-drive public key (write-only deposits):** none exists today — drives are
-  purely symmetric; only identity-level ECC keys exist (`PublicPrivateKeyService`).
-  Enabling Example #3's drive-public-key deposit is a separate mechanism to design.
+- **Per-drive public key:** none exists today — drives are purely symmetric; only
+  identity-level ECC keys exist (`PublicPrivateKeyService`). It's a separate
+  mechanism to design; its relation to the four use cases is in the closing section.
+
+## Per-drive public keys: relation to each use case
+
+None exists today (see above). A per-drive keypair would be a **write-only root of
+trust** for a drive: anyone can encrypt *to* the drive's public key and deposit the
+result, but only the holder of the drive's private key (escrowed under the
+storage / master key) can read it back. That one property — *the public key lets
+you write, never read* — is what decides its relevance to each use case:
+
+- **#1 Banking — neutral, and must stay that way.** A drive public key confers no
+  read access, so publishing one can never breach the banking boundary. A chat app
+  could at most *deposit* into a drive it cannot read; it still cannot read the
+  banking drive. Relevance here is a property to **preserve**, not a feature:
+  "knows the public key" must never imply "can read."
+
+- **#2 GPS read grant — not needed.** The app already holds the GPS storage key (it
+  has read access), so it mints the member's read grant from the symmetric key it
+  already has (the Blocker #4 code path). Drive public keys add nothing; this case
+  is pure symmetric reuse.
+
+- **#3 Write-only deposit — the core use case.** This is what per-drive public keys
+  are *for*. Today write-without-read works only between already-connected parties
+  (shared secret); a per-drive public key extends the same guarantee to **any**
+  writer with no shared secret yet, by encrypting to the drive's public key into its
+  inbox.
+
+- **#4 App-driven connection — the enabler for "strong within app scope."** The new
+  connection's *read* grants are solvable like #2 wherever the accepting app holds
+  the storage key. Per-drive public keys cover the rest: they let the app bootstrap
+  the new peer's **write** access to specific drives at accept time, **per drive**,
+  in place of the current identity-wide ECC escrow + AutoConnections jail + deferred
+  master-key upgrade. The escrow becomes drive-scoped, so the connection is strong
+  enough within the app's scope immediately, without the master key.
+
+**In short:** essential to **#3** and the write side of **#4**, **not needed** for
+**#2**, and must remain **read-neutral** for **#1**.
