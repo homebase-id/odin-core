@@ -167,14 +167,18 @@ Net: the broad "escrow every drive's storage key under a host key" framing is
 **not** required if we accept read-scoping. The remaining genuine cryptographic
 work is #3 (the member keyStoreKey), not #4.
 
-## Alternative approach (exploratory): app-owned drives
+## App-owned drives (committed direction, timing TBD)
 
-> **Status: exploratory.** Not a committed direction — captured for comparison.
+> **Status: committed direction.** We are certain we need app-owned drives; the
+> open question is *when* to build it, not *whether*. The mechanics below are the
+> design sketch, not a fixed spec.
 
-Instead of escrowing secrets broadly, give a drive an app-scoped root of trust. An
-app already holds a stable per-app `keyStoreKey` at request time, reconstructed
-from its client token with no master key
-(`AccessRegistration.DecryptUsingClientAuthenticationToken`). "App owns a drive"
+Drives will be owned by the app that creates them: delete the app and you delete
+its drives (cross-app drive grants stay possible), and to a lesser extent apps will
+own app circles they can create and delete. Cryptographically this means giving a
+drive an app-scoped root of trust. An app already holds a stable per-app
+`keyStoreKey` at request time, reconstructed from its client token with no master
+key (`AccessRegistration.DecryptUsingClientAuthenticationToken`). "App owns a drive"
 means re-rooting that drive's storage key onto the owning app's keyStoreKey.
 
 Concretely it would require:
@@ -251,13 +255,12 @@ its relevance to each use case:
 > **Status: exploratory.** Raised against a future direction, not a committed
 > design.
 
-A future we expect to move toward: **drives belong to apps.** When an app creates
-drives, those drives are owned by the app — delete the app and you delete its
-drives (cross-app drive grants stay possible). To a lesser extent apps will also
-own **app circles** they can create and delete. (This is the same direction as the
-"app-owned drives" section above, stated as the expected future rather than one
-alternative among several.) With that in mind: should the write-only root of trust
-be **per app** rather than **per drive**?
+A committed direction (see "App-owned drives" above): **drives belong to apps.**
+When an app creates drives, those drives are owned by the app — delete the app and
+you delete its drives (cross-app drive grants stay possible). To a lesser extent
+apps will also own **app circles** they can create and delete. Given that this is
+where we're going, the question is: should the write-only root of trust be **per
+app** rather than **per drive**?
 
 The deciding lens: a write-only public key answers *"where do I write,"* and its
 private key answers *"who collects and reads the deposit."* So the keypair belongs
