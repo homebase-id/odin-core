@@ -1,6 +1,20 @@
 # Plan: Allow apps to add OdinIds to a circle
 
-## The app key we already have
+## Goal & status
+
+Today you must hold the **master key** to add an OdinId to a circle. We want an **app**
+(e.g. the chat client) to do it too — **but only within the scope of drives the app
+already has access to**, gaining no access, read or write, beyond its own reach. The
+motivating case is app-driven connections: a chat client sends a connection request,
+another chat client accepts it, and the resulting connection works within that app's
+scope — without the owner console or the master key online.
+
+**Status.** The key model, the naming, and three of the four blockers are settled. The
+feature is **blocked on one unsolved problem — Blocker #3:** an app cannot write into a
+peer's grant store without also gaining read access to the peer's entire scope (see
+*The current blocker*).
+
+## Key model & naming
 
 We do **not** need to invent a new app key to let an app act without the master key —
 **the app key already exists.** It is the shared, per-app hub key on the app's
@@ -72,18 +86,15 @@ device):
                               this peer's circle / drive grants
 ```
 
-**Blocker #3, in one line:** the owner's **own app** has no path to the Peer Key, so it
-cannot write into that peer's grants — and, crucially, it **must not** simply be handed
-one. The Peer Key is symmetric: any copy that lets the app *write* a grant also lets it
-*read* everything the peer can access. So #3 is **not** "give the app the Peer Key" —
-it is the unsolved problem of letting the app **write into the peer store without
-reading it** (see *The current blocker* below).
+**Blocker #3, in one line:** the owner's app has no path to the Peer Key — and must
+**not** simply be handed one, because the symmetric Peer Key cannot be given write-only.
+That is the feature's one unsolved blocker; full treatment in *The current blocker*.
 
 **Takeaway:** the app already has a durable, all-clients-shared, master-key-free key
 (the App Key). Anything we want an app to do without the master key should anchor on
 the App Key — not a newly invented one.
 
-### Proposed rename — do this first
+### Do the rename first
 
 **Before any of the feature work below, do the mechanical rename in the code** —
 adopt the **Proposed** column across the codebase (pure rename, no behavior change).
@@ -93,20 +104,7 @@ to review — in terms of *which hub key a principal can reach*. The rest of thi
 document already uses the new vocabulary (**App Key**, **App Client Key**, **Peer
 Key**); the table above is the only place the old names appear.
 
-## Problem statement
-
-Currently you must have the master key in order to add an OdinId to a circle. We
-need to change this so that an app can add OdinIds into a circle — **within the scope of drives that the App already has access to.**
-
-The guiding principle: an app can only hand out what it can already reach. The
-hub-key / storage-key layering (the **App Key** for apps, the **Peer Key** for
-connections — see above) is, in effect, just indirection so that the master key can
-always get to everything; an app sits below that, holding only the keys for the
-drives it was granted. So the feature is less "give apps a new power" and more "let
-the grant code build a grant from the keys the app already has, instead of assuming
-the master key is the only source."
-
-## What we want to achieve (worked examples)
+## What we want (worked examples)
 
 These four examples define the intended behavior. The first three are decided
 purely by what keys the calling app already holds; the fourth is the connection
@@ -119,9 +117,9 @@ flow that motivates the whole feature.
    not just policy:** no storage key in hand ⇒ no usable grant can be produced. The
    policy boundary and the cryptographic boundary are the same line.
 
-2. **GPS drive — what we want to newly enable.** A chat/location app has **temporal read** access to
-   the user's GPS drive (e.g. a location/temporal API). It needs to add a contact
-   to a circle that grants read access to that GPS drive. Because the app already
+2. **GPS drive — what we want to newly enable.** A chat/location app has **temporal read**
+   access to the user's GPS drive (e.g. a location/temporal API). It needs to add a
+   contact to a circle that grants read access to that GPS drive. Because the app already
    holds the GPS drive's storage key (it can read the drive), it has everything
    needed to mint that drive's portion of the grant for the new member ⇒ the member
    gets a **working** grant. **This is the case we cannot do today** — not because
@@ -138,11 +136,8 @@ flow that motivates the whole feature.
    the storage key on the way in. The catch: **the shared secret only exists
    between parties that are already connected** — so this path covers established
    connections, not an arbitrary writer who has no shared secret for that drive. A
-   proposed addition is a **per-drive public key**: a writer could encrypt to the
-   drive's public key and leave that copy in the drive's inbox, extending the same
-   write-without-read guarantee to cases where no shared secret exists yet — while
-   the writer remains cryptographically unable to read the drive. (Note: no
-   per-drive keypair exists today — see Blocker #4 / open questions.)
+   **per-drive public key** would extend the same write-without-read guarantee to a
+   writer with no shared secret yet (defined in *Forward-looking*; none exists today).
 
 4. **App-driven connection — the motivating case.** Today a *safe* connection can
    only be accepted from the **owner console**, i.e. with the master key online. We
@@ -175,93 +170,53 @@ flow that motivates the whole feature.
    — granting real read access to exactly that app's drives at accept time, retiring
    both the AutoConnections jail and the deferred-upgrade dance.
 
-## The four blockers
+## The blockers and where each stands
 
-Two are policy (who is allowed) and two are cryptographic (can the app physically
-build the grant). The two cryptographic blockers are **not** equivalent — one
-dissolves under read-scoping, the other is the real cost. See the callout after #4.
+Four things block an app today — two are policy (who is allowed), two are
+cryptographic (can the app build the grant). Each, with its status:
 
-1. **The auth gate refuses the app outright.** `GrantCircleAsync` (and
-   `RevokeCircleAccessAsync`) call `AssertHasMasterKey()` as their first line
-   (`CircleNetworkService.cs`). An app context is built with `masterKey: null`
-   (`OdinContextMiddleware.cs`), so the call throws before anything else runs. This
-   is the visible blocker. *(Policy.)*
+**#1 — The auth gate refuses the app (policy → tractable).** `GrantCircleAsync` /
+`RevokeCircleAccessAsync` call `AssertHasMasterKey()` as their first line
+(`CircleNetworkService.cs`); an app context has `masterKey: null`
+(`OdinContextMiddleware.cs`), so the call throws immediately. *Resolution:* stop gating
+the app path on the master key; gate on the permission from #2.
 
-2. **There is no permission an app could present instead.** App operations are
-   authorized by named permission keys the app was granted (e.g. `ReadConnections`,
-   `ReadCircleMembership`), checked via `HasPermission(...)`. The add-to-circle path
-   has no such check — its only authorization is the master key. The circle
-   permission set only contains `ReadCircleMembership` (read-only); there is no
-   "manage circle membership" key, and nothing in the app-allowed set maps to this
-   operation. So even with the gate in #1 removed, the system has no token of
-   authority to distinguish an allowed app from a disallowed one. *(Policy — needs a
-   new permission key, e.g. `ManageCircleMembership`.)*
+**#2 — No permission an app could present (policy → tractable).** App operations
+authorize via named permission keys (`HasPermission(...)`); the circle set only has
+`ReadCircleMembership` (read-only), and nothing maps to "manage membership." *Resolution:*
+add a `ManageCircleMembership` permission key and put it in the app-allowed set.
 
-3. **The app cannot reach the target's Peer Key.** Adding a circle grant to an
-   existing connection means writing a grant sealed under *that connection's*
-   **Peer Key**, stored only as
-   `AccessExchangeGrant.MasterKeyEncryptedPeerKey` — reachable via the master
-   key alone. This is the **connection's** secret, not a drive secret — read-scoping
-   the app does not help, because the app's drive access says nothing about another
-   connection's Peer Key. There is no app-reachable copy today. *(Cryptographic
-   — this is the real cost; see callout.)*
+**#4 — The grant builder sources storage keys only via the master key (crypto → free
+under read-scoping).** Building a circle grant re-encrypts each drive's storage key
+under the new connection's **Peer Key**, and today the builder gets that storage key one
+way only: `drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey)`
+(`ExchangeGrantService.cs`). With a null master key it silently mints a grant with a
+**null** storage key. *But this is a code-path assumption, not a missing secret:* for
+any drive the app can already read, the app holds the storage key at request time
+(`App Client Key → App Key → AppKeyEncryptedStorageKey`, via
+`PermissionGroup.GetDriveStorageKey`). *Resolution:* add a code path in
+`CreateExchangeGrant` that reuses that already-held storage key — no master key, no data
+upgrade.
 
-4. **The grant builder sources the drive storage key only via the master key.** A
-   circle grant that includes drive reads must re-encrypt each drive's storage key
-   under the new connection's **Peer Key**. The grant builder currently obtains
-   the plaintext storage key one way only:
-   `drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey)`
-   (`ExchangeGrantService.cs`). With a null master key it silently produces a grant
-   with a **null** storage key — a member who is "in the circle" but cannot read any
-   of its drives.
+> *Incidental fix (do regardless of this feature):* that silent null-storage-key line
+> should **throw / refuse** rather than mint a member who is "in the circle" but can read
+> nothing.
 
-   **But this is not a missing-secret problem.** For any drive the app already has
-   **read** access to, the app *holds a usable plaintext storage key at request
-   time* — reconstructed without the master key via
-   `App Client Key → App Key → AppKeyEncryptedStorageKey → storage key`
-   (`PermissionGroup.GetDriveStorageKey`). The blocker is that
-   `CreateExchangeGrant` was written assuming the master key is the only source. A
-   code path that reuses the storage key already in the app's permission context
-   dissolves this for read-scoped grants — **no data upgrade needed.** *(Cryptographic
-   in appearance, but really a code-path assumption.)*
+**#3 — The app cannot reach the target's Peer Key (crypto → THE BLOCKER).** Adding a
+member writes a grant sealed under that connection's **Peer Key**
+(`AccessExchangeGrant.MasterKeyEncryptedPeerKey`), reachable today only via the master
+key (and by the peer themselves). Read-scoping does not help — it is the *connection's*
+secret, not a drive secret. **And it cannot simply be handed to the app: the Peer Key is
+symmetric, so any copy that lets the app write also lets it read the peer's entire
+scope.** This is the unsolved problem the feature is stuck on — full treatment next.
 
-> **#3 and #4 are not the same kind of blocker — this is the key correction.**
-> Blocker #4 (drive storage keys) dissolves the moment we scope "an app may only
-> grant drives it can already read": the app already holds those storage keys, so it
-> needs no new escrowed copies and no migration. Blocker #3 (the **Peer Key**)
-> does **not** dissolve — it is a connection-level escrow node the app genuinely
-> cannot see. **#3 is the actual cryptographic cost of this feature.**
+> **#3 ≠ #4 — the key distinction.** #4 dissolves the moment we scope "an app grants only
+> drives it can already read": the app already holds those storage keys, so no escrow and
+> no migration — the broad "escrow every storage key under a host key" framing is
+> unnecessary. #3 does **not** dissolve: it is a connection-level secret the app cannot
+> see, and the obvious fixes break the scope constraint. **#3 is the blocker.**
 
-## The silent failure (fix regardless of this feature)
-
-The line
-`var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey);`
-silently yields a grant with a null storage key when no master key is present — a
-member who is in the circle but can read nothing. Silent is bad. Independent of
-this feature, this path should **throw / refuse** rather than mint a broken grant.
-
-## What it takes (revised)
-
-Scoping the feature to "an app grants only drives it can already read" collapses
-the work to:
-
-- **#1 (policy):** stop gating on the master key for the app path; gate on the new
-  permission instead.
-- **#2 (policy):** add a `ManageCircleMembership` (or similar) permission key and put
-  it in the app-allowed set.
-- **#3 (crypto — UNSOLVED, the blocker):** the app must write into the target's grant
-  store, but doing so requires the **Peer Key** — which would also let it *read* the
-  peer's entire scope. The app has the drive key (#4) yet no safe path to update the
-  peer's store. **This is the open blocker — see the next section.**
-- **#4 (crypto — free under scoping):** add a code path in `CreateExchangeGrant`
-  that uses the storage key already in the app's permission context for drives the
-  app can read, instead of decrypting `MasterKeyEncryptedStorageKey`. No upgrade.
-
-Net: the broad "escrow every drive's storage key under a host key" framing is
-**not** required if we accept read-scoping. The remaining genuine cryptographic work —
-and the current blocker — is **#3**, not #4.
-
-## ⛔ The current blocker: #3 is unsolved — write-without-read into the peer store
+## ⛔ The current blocker: #3 — write-without-read into the peer store
 
 > **This is the open problem the whole feature is stuck on.** The App Key story, the
 > #1 / #2 / #4 mechanics, and read-scoping all work. **#3 does not.** Until it is solved,
@@ -303,8 +258,8 @@ stored. Candidate directions, to be designed:
 
 1. **Asymmetric write-only deposit** — give the peer's grant store a public key; the app
    adds a grant by encrypting it *to* that public key; the peer/owner reads with the
-   private key. The app writes, never reads. (The per-drive-public-key idea, generalized
-   to the peer store.)
+   private key. The app writes, never reads. (This is the per-drive public key from
+   *Forward-looking*, generalized to the peer store.)
 2. **Per-circle sub-keys** — bound the app's reach to the circles it manages, so even
    its write path cannot touch the peer's other circles. Likely needed *alongside* (1).
 
@@ -328,18 +283,18 @@ copy is delivered.
 - **Per-app management key.** An extra per-app key between the App Key and the Peer-Key
   copies, for a single-cut revocation seam. Same read-all; also saves no copies and adds
   no isolation (it sits under the App Key).
-- **B — Identity-level online/ICR-key escrow.** One identity-wide key, not per app —
-  coarse authority and identity-wide blast radius, on top of read-all.
-- **E — KDF derivation.** Peer Key = KDF(App Key, connectionId). Same read-all; couples
-  every connection to one key.
-- **F — Host/server-held escrow key.** Server recovers the Peer Key without the owner —
+- **Identity-level online/ICR-key escrow.** One identity-wide key, not per app — coarse
+  authority and identity-wide blast radius, on top of read-all.
+- **KDF derivation.** Peer Key = KDF(App Key, connectionId). Same read-all; couples every
+  connection to one key.
+- **Host/server-held escrow key.** Server recovers the Peer Key without the owner —
   read-all plus shifts trust to the host.
-- **I — Proxy re-encryption.** Server transforms the master-key-encrypted Peer Key into
+- **Proxy re-encryption.** Server transforms the master-key-encrypted Peer Key into
   app-readable form — still yields the full Peer Key (read-all), and heavy novel crypto.
 
 > **Asymmetric, used the *other* way, is the way out.** Delivering the Peer Key *to* the
-> app (even via a keypair — old option D) keeps the read-all flaw. Encrypting new grants
-> *to the peer* instead — so the app writes without ever holding a read key — is the
+> app (even via a per-app keypair) keeps the read-all flaw. Encrypting new grants *to the
+> peer* instead — so the app writes without ever holding a read key — is the
 > write-without-read direction above. Same primitive, opposite direction.
 
 ## App-owned drives (committed direction, timing TBD)
@@ -403,7 +358,6 @@ Open questions:
 - **TargetDrive reconciliation:** drives are addressed everywhere today by
   `TargetDrive` (Alias+Type Guids); how do the new string-addressed, app-scoped
   drives coexist with — or replace — `TargetDrive`-based APIs and stored references?
-
 - **Owner access:** co-owned (keep the master-key copy so the owner can recover —
   preferred) vs app-exclusive (owner cannot read the drive; stronger isolation but
   risks unrecoverable data).
@@ -414,13 +368,14 @@ Open questions:
 - **Cross-app isolation:** only the owning app's App Key may decrypt the drive.
 - **System drives:** out of scope for app ownership (see taxonomy below).
 - **Per-drive public key:** none exists today — drives are purely symmetric; only
-  identity-level ECC keys exist (`PublicPrivateKeyService`). It's a separate
-  mechanism to design; its relation to the four use cases is in the closing section.
+  identity-level ECC keys exist (`PublicPrivateKeyService`). Defined below; it is also
+  the most promising direction for Blocker #3.
 
 ## Forward-looking: drive keys and ownership
 
 Three related forward-looking threads, condensed. None of this blocks the near-term
-feature above.
+feature above — except that the **per-drive public key** below is also the leading
+candidate for solving Blocker #3.
 
 **Drive ownership = lifecycle, not authorship.** Litmus: *delete the app or swap the
 client — should the drive's data die or persist?* Three buckets:
@@ -436,9 +391,11 @@ Chat, Stickers, Wallet) are bolt-on apps hardcoded for convenience, not system d
 
 **Per-drive public key — purpose.** A write-only root of trust for a drive (none
 exists today; drives are purely symmetric). *The public key lets you write, never
-read.* Two proposed uses: writing to a drive with **no connection** (#3), and
-bootstrapping the **write side** of a safe connection request (#4). Reads (#2) need no
-keypair; banking (#1) stays read-neutral by construction.
+read.* Proposed uses: writing to a drive with **no connection** (Example #3),
+bootstrapping the **write side** of a safe connection request (Example #4), and —
+generalized to the peer's grant store — the **write-without-read** path that Blocker #3
+needs. Reads (Example #2) need no keypair; banking (Example #1) stays read-neutral by
+construction.
 
 **Recommendation: per-drive, not per-app** — with the private key escrowed under that
 drive's **storage key**, so deposit-collection custody = existing read access, for
