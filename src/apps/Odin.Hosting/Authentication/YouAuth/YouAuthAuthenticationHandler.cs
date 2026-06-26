@@ -80,7 +80,11 @@ namespace Odin.Hosting.Authentication.YouAuth
 
         private async Task<AuthenticateResult> HandleAppAuth(IOdinContext odinContext)
         {
-            if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true))
+            // Header (BX0900) -> cookie -> WS subprotocol bearer. The subprotocol path lets a
+            // browser App WebSocket authenticate cross-site, where it can send neither the
+            // BX0900 header nor the SameSite cookie on the upgrade.
+            if (!TryGetClientAuthToken(YouAuthConstants.AppCookieName, out var authToken, true)
+                && !TryGetWebSocketBearerToken(out authToken))
             {
                 return AuthenticateResult.Fail("Invalid App Token");
             }
@@ -288,6 +292,39 @@ namespace Odin.Hosting.Authentication.YouAuth
             }
 
             return ClientAuthenticationToken.TryParse(clientAuthToken64, out clientAuthToken);
+        }
+
+        // Browsers can't set the BX0900 header or send the cross-site SameSite cookie on a WS
+        // upgrade, so the app token rides in a Sec-WebSocket-Protocol value prefixed with
+        // "odin.bearer." (kube-style subprotocol bearer). Must match the prefix used by the client
+        // and by V2NotificationSocketController.
+        private const string WsBearerPrefix = "odin.bearer.";
+
+        private bool TryGetWebSocketBearerToken(out ClientAuthenticationToken clientAuthToken)
+        {
+            clientAuthToken = null;
+            if (!Context.WebSockets.IsWebSocketRequest)
+            {
+                return false;
+            }
+
+            var bearer = Context.WebSockets.WebSocketRequestedProtocols
+                .FirstOrDefault(p => p.StartsWith(WsBearerPrefix, StringComparison.Ordinal));
+            if (bearer == null)
+            {
+                return false;
+            }
+
+            // Subprotocol values must be RFC 7230 tokens, so the base64 token is sent base64url-encoded.
+            var token64 = Base64UrlToBase64(bearer.Substring(WsBearerPrefix.Length));
+            return ClientAuthenticationToken.TryParse(token64, out clientAuthToken);
+        }
+
+        private static string Base64UrlToBase64(string base64Url)
+        {
+            var s = base64Url.Replace('-', '+').Replace('_', '/');
+            var padLen = (4 - s.Length % 4) % 4;
+            return padLen == 0 ? s : s + new string('=', padLen);
         }
     }
 }

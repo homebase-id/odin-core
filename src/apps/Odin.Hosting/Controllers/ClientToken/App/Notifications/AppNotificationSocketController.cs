@@ -46,10 +46,17 @@ namespace Odin.Hosting.Controllers.ClientToken.App.Notifications
 
             try
             {
-                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
+                var acceptContext = new WebSocketAcceptContext { DangerousEnableCompression = true };
+
+                // Echo the app-level subprotocol so browsers accept the 101 when the client
+                // authenticated via the "odin.bearer." subprotocol instead of the cookie.
+                // Must match V2NotificationSocketController.
+                if (HttpContext.WebSockets.WebSocketRequestedProtocols.Contains("odin.notify.v1"))
                 {
-                    DangerousEnableCompression = true
-                });
+                    acceptContext.SubProtocol = "odin.notify.v1";
+                }
+
+                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(acceptContext);
 
                 await _notificationHandler.EstablishConnection(webSocket, WebOdinContext, cancellationTokenSources.Token);
             }

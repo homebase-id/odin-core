@@ -133,6 +133,96 @@ public class NotificationsTest
     }
 
     [Test]
+    public async Task CanConnectToWebSocketWithSubprotocolBearerAuth()
+    {
+        var identity = TestIdentities.Samwise;
+        var appDrive = TargetDrive.NewTargetDrive();
+
+        //
+        // Create an app
+        //
+        Guid appId = Guid.NewGuid();
+        var testAppContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, identity,
+            canReadConnections: true,
+            targetDrive: appDrive,
+            driveAllowAnonymousReads: false);
+
+        //
+        // Create a device use the app
+        //
+        var ownerApiClient = _scaffold.CreateOwnerApiClientRedux(identity);
+        var (deviceClientAuthToken, deviceSharedSecret) = await ownerApiClient.AppManager.RegisterAppClient(appId);
+
+        //
+        // A browser can send neither the BX0900 header nor the cross-site SameSite cookie on a WS
+        // upgrade, so the app token rides in an "odin.bearer." subprotocol value instead. This is
+        // exactly what the js-lib WebsocketProvider sends: the BX0900 token string, made URL-safe
+        // (base64 -> base64url) so it is a valid Sec-WebSocket-Protocol token. No cookie attached.
+        //
+        var bearer = "odin.bearer." + deviceClientAuthToken.ToString()
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+        ClientWebSocket socket = new ClientWebSocket();
+        socket.Options.AddSubProtocol("odin.notify.v1");
+        socket.Options.AddSubProtocol(bearer);
+        CancellationTokenSource tokenSource = new CancellationTokenSource();
+
+        //
+        // Connect to the socket
+        //
+        var uri = new Uri($"wss://{identity.OdinId}:{WebScaffold.HttpsPort}{AppApiPathConstantsV1.NotificationsV1}/ws");
+        await socket.ConnectAsync(uri, tokenSource.Token);
+
+        // The server must echo the negotiated subprotocol or a browser rejects the 101.
+        ClassicAssert.AreEqual("odin.notify.v1", socket.SubProtocol);
+
+        //
+        // Send a request indicating the drives (handshake1)
+        //
+        var request = new SocketCommand
+        {
+            Command = SocketCommandType.EstablishConnectionRequest,
+            Data = OdinSystemSerializer.Serialize(new EstablishConnectionOptions
+            {
+                Drives = [testAppContext.TargetDrive],
+            })
+        };
+
+        var ssp = SharedSecretEncryptedPayload.Encrypt(
+            OdinSystemSerializer.Serialize(request).ToUtf8ByteArray(),
+            deviceSharedSecret.ToSensitiveByteArray());
+        var sendBuffer = OdinSystemSerializer.Serialize(ssp).ToUtf8ByteArray();
+        await socket.SendAsync(new ArraySegment<byte>(sendBuffer), WebSocketMessageType.Text, true, tokenSource.Token);
+
+        //
+        // Wait for the reply
+        //
+        var receiveBuffer = new ArraySegment<byte>(new byte[1024 * 3]);
+        var receiveResult = await socket.ReceiveAsync(receiveBuffer, tokenSource.Token);
+        if (receiveResult.MessageType == WebSocketMessageType.Text)
+        {
+            var array = receiveBuffer.Array;
+            Array.Resize(ref array, receiveResult.Count);
+
+            var json = array.ToStringFromUtf8Bytes();
+            var n = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);
+
+            ClassicAssert.IsTrue(n.IsEncrypted);
+            var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, deviceSharedSecret.ToSensitiveByteArray());
+            var response = OdinSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
+
+            ClassicAssert.IsNotNull(response);
+            ClassicAssert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
+        }
+        else
+        {
+            Assert.Fail("Did not receive a valid handshake");
+        }
+
+        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+    }
+
+    [Test]
     [Ignore("work in progress")]
     public async Task CanReceiveFileAddedNotification()
     {
