@@ -26,9 +26,15 @@ app grant's hub key is the **App Key**; a peer connection's hub key is the **Pee
 Key**. Blocker #3 then states simply: *the app holds its App Key but not the target's
 Peer Key.*
 
-**There is no "key store" object.** A hub key does not wrap one bundle — it wraps each
-key beneath it **individually** (each drive's storage key, the ICR/transit key). "The
-app's keys" is a description, not a key; nothing to build.
+**The App Key *is* the key store** (and likewise the Peer Key). It is the indirection
+that lets each access be stored **once**: every drive/transit key the app can reach is
+wrapped a single time under the App Key — *not* duplicated per device, and *not* wrapped
+again under the master key — while the App Key itself carries the two top-level
+wrappings (`MasterKeyEncryptedAppKey` + one `AppClientKeyEncryptedAppKey` per device).
+So there is no *separate* store object to build. Beneath it the leaves stay wrapped
+**individually**, so each principal reaches only its own subset. The one other copy of a
+drive's storage key — `MasterKeyEncryptedStorageKey` on the drive — is the drive's own
+canonical root (a different level), not an app duplicate.
 
 ### How the App Key fits together
 
