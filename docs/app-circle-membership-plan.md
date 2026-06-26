@@ -13,6 +13,7 @@ the names. So we lead with the naming and propose a rename.
 | Per-device key, one per login | `accessKeyStoreKey` / "access key" (`AccessRegistration`) | **App Client Key** *(a.k.a. App Device Key)* |
 | The shared per-app hub key | grant `keyStoreKey` (`ExchangeGrant`) | **App Key** |
 | The per-connection hub key — a connected peer's grants | `keyStoreKey` on `AccessExchangeGrant` (the ICR) | **Peer Key** |
+| The connected peer's per-CAT client key (≥1 per connection) | `AccessRegistration` on the ICR | **Peer Client Key** |
 | App Key wrapped per device | `AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey` | **AppClientKeyEncryptedAppKey** |
 | App Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (app grant) | **MasterKeyEncryptedAppKey** |
 | Peer Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (`AccessExchangeGrant`) | **MasterKeyEncryptedPeerKey** |
@@ -51,19 +52,25 @@ app's keys" is a description, not a key; nothing to build.
 
 Each connection (ICR) to another identity has its own hub key — the **Peer Key** —
 which unlocks the grants that peer is given (circle grants → the storage keys for the
-drives that peer may read). Today **only the owner can reach it**:
+drives that peer may read). It *already* has a master-key-free reconstruction path
+today — but only for the **peer themselves**, via their CAT, using the exact same
+split-key pattern as App Client Key → App Key (a peer may even hold several, one per
+device):
 
 ```
- owner ── master key ──────────────►  PEER KEY        MasterKeyEncryptedPeerKey
- app   ──        (no path today) ───►  PEER KEY        ◄── Blocker #3
-                                         │  unlocks
-                                         ▼
-                             this peer's circle / drive grants
+ owner ── master key ────────────────►  PEER KEY       MasterKeyEncryptedPeerKey
+ peer  ── Peer Client Key (its CAT) ──►  PEER KEY       (split-key, like App Client Key)
+ app   ── (no path today) ────────────►  PEER KEY       ◄── Blocker #3
+                                           │  unlocks
+                                           ▼
+                              this peer's circle / drive grants
 ```
 
-**Blocker #3, in one line:** an app reaches its **App Key** but has no path to a peer's
-**Peer Key**, so it cannot write into that peer's grants. "Solving #3" (below) is
-exactly *give the app a master-key-free path to the Peer Key.*
+**Blocker #3, in one line:** the Peer Key is *already* reachable without the master
+key — by the owner (master key) and by the connected peer (their CAT) — but the
+owner's **own app** has no path to it, so it cannot write into that peer's grants.
+"Solving #3" (below) is exactly *give the app a master-key-free path to the Peer Key*
+— a third wrapping alongside the two that already exist, not new crypto.
 
 **Takeaway:** the app already has a durable, all-clients-shared, master-key-free key
 (the App Key). Anything we want an app to do without the master key should anchor on
