@@ -47,12 +47,15 @@ Blocker #3: the app holds its own **App Key** but not the target's **Connection 
 (the App Key). Anything we want an app to do without the master key should anchor on
 the App Key — not a newly invented one.
 
-### Proposed rename
+### Proposed rename — do this first
 
-Adopt the **Proposed** column above across the codebase — a mechanical rename, no
-behavior change. The rest of this document uses the new vocabulary (**App Key**, **App
-Client Key**, **Connection Key**) so the design reads in terms of *which hub key a
-principal can or cannot reach*.
+**Before any of the feature work below, do the mechanical rename in the code** —
+adopt the **Proposed** column across the codebase (pure rename, no behavior change).
+Two reasons it comes first: the current names actively mislead (they hid the fact
+that the App Key already exists), and every design below is far easier to state — and
+to review — in terms of *which hub key a principal can reach*. The rest of this
+document already uses the new vocabulary (**App Key**, **App Client Key**, **Connection
+Key**); the table above is the only place the old names appear.
 
 ## Problem statement
 
@@ -60,11 +63,12 @@ Currently you must have the master key in order to add an OdinId to a circle. We
 need to change this so that an app can add OdinIds into a circle — **within the scope of drives that the App already has access to.**
 
 The guiding principle: an app can only hand out what it can already reach. The
-keyStoreKey / storage-key layering is, in effect, just indirection so that the
-master key can always get to everything; an app sits below that, holding only the
-keys for the drives it was granted. So the feature is less "give apps a new
-power" and more "let the grant code build a grant from the keys the app already
-has, instead of assuming the master key is the only source."
+hub-key / storage-key layering (the **App Key** for apps, the **Connection Key** for
+connections — see above) is, in effect, just indirection so that the master key can
+always get to everything; an app sits below that, holding only the keys for the
+drives it was granted. So the feature is less "give apps a new power" and more "let
+the grant code build a grant from the keys the app already has, instead of assuming
+the master key is the only source."
 
 ## What we want to achieve (worked examples)
 
@@ -114,19 +118,19 @@ flow that motivates the whole feature.
 
    *Prior art — the unsafe stop-gap we already built.* To make app-side accept
    possible at all, the no-master-key path improvises
-   (`CircleNetworkRequestService.cs`): it ECC-encrypts the connection's keyStoreKey
+   (`CircleNetworkRequestService.cs`): it ECC-encrypts the new **Connection Key**
    and CAT to the **identity-level** online/offline key (`TempWeakKeyStoreKey` /
-   `TemporaryWeakClientAccessToken`), leaves `MasterKeyEncryptedKeyStoreKey` **null**
-   (`RequiresMasterKeyEncryptionUpgrade()` ⇒ true), pins the connection to
-   **`AutoConnectionsCircle` only** until "confirmed" from the console, and later
-   runs a deferred **upgrade** to re-encrypt the keyStoreKey under the master key
-   when the owner appears. It leans on an `overrideHack` parameter bypassing the
-   `ReadConnections` check (`//HACK: DOING THIS WHILE DESIGNING x-token - REMOVE THIS`)
-   and flags the open question in-line: `//TODO: should we validate all drives are
-   write-only ?`.
+   `TemporaryWeakClientAccessToken`), leaves the connection's
+   `MasterKeyEncryptedConnectionKey` **null** (`RequiresMasterKeyEncryptionUpgrade()`
+   ⇒ true), pins the connection to **`AutoConnectionsCircle` only** until "confirmed"
+   from the console, and later runs a deferred **upgrade** to re-encrypt the
+   Connection Key under the master key when the owner appears. It leans on an
+   `overrideHack` parameter bypassing the `ReadConnections` check
+   (`//HACK: DOING THIS WHILE DESIGNING x-token - REMOVE THIS`) and flags the open
+   question in-line: `//TODO: should we validate all drives are write-only ?`.
 
    *Why it's the same problem.* That stop-gap already does the work of **Blocker #3**
-   — it escrows the keyStoreKey under an alternative (identity-level) key — but
+   — it escrows the Connection Key under an alternative (identity-level) key — but
    coarsely and only as a temporary state finalized by the master key. It does **not**
    solve **Blocker #4**: real **read** access to specific drives still needs each
    drive's storage key, which is exactly why the connection stays weak /
@@ -157,18 +161,19 @@ dissolves under read-scoping, the other is the real cost. See the callout after 
    authority to distinguish an allowed app from a disallowed one. *(Policy — needs a
    new permission key, e.g. `ManageCircleMembership`.)*
 
-3. **The app cannot decrypt the target member's keyStoreKey.** Adding a circle
-   grant to an existing connection means writing a grant encrypted under *that
-   connection's* keyStoreKey, which is stored only as
-   `AccessExchangeGrant.MasterKeyEncryptedKeyStoreKey`. This is the **member's**
-   secret, not a drive secret — read-scoping the app does not help, because the
-   app's drive access says nothing about another member's keyStoreKey. There is no
-   app-accessible copy today. *(Cryptographic — this is the real cost; see callout.)*
+3. **The app cannot reach the target's Connection Key.** Adding a circle grant to an
+   existing connection means writing a grant sealed under *that connection's*
+   **Connection Key**, stored only as
+   `AccessExchangeGrant.MasterKeyEncryptedConnectionKey` — reachable via the master
+   key alone. This is the **connection's** secret, not a drive secret — read-scoping
+   the app does not help, because the app's drive access says nothing about another
+   connection's Connection Key. There is no app-reachable copy today. *(Cryptographic
+   — this is the real cost; see callout.)*
 
 4. **The grant builder sources the drive storage key only via the master key.** A
    circle grant that includes drive reads must re-encrypt each drive's storage key
-   under the new member's keyStoreKey. The grant builder currently obtains the
-   plaintext storage key one way only:
+   under the new connection's **Connection Key**. The grant builder currently obtains
+   the plaintext storage key one way only:
    `drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey)`
    (`ExchangeGrantService.cs`). With a null master key it silently produces a grant
    with a **null** storage key — a member who is "in the circle" but cannot read any
@@ -177,7 +182,7 @@ dissolves under read-scoping, the other is the real cost. See the callout after 
    **But this is not a missing-secret problem.** For any drive the app already has
    **read** access to, the app *holds a usable plaintext storage key at request
    time* — reconstructed without the master key via
-   `client token → app keyStoreKey (AccessRegistration) → DriveGrant.KeyStoreKeyEncryptedStorageKey → storage key`
+   `App Client Key → App Key → AppKeyEncryptedStorageKey → storage key`
    (`PermissionGroup.GetDriveStorageKey`). The blocker is that
    `CreateExchangeGrant` was written assuming the master key is the only source. A
    code path that reuses the storage key already in the app's permission context
@@ -187,9 +192,9 @@ dissolves under read-scoping, the other is the real cost. See the callout after 
 > **#3 and #4 are not the same kind of blocker — this is the key correction.**
 > Blocker #4 (drive storage keys) dissolves the moment we scope "an app may only
 > grant drives it can already read": the app already holds those storage keys, so it
-> needs no new escrowed copies and no migration. Blocker #3 (the member's
-> keyStoreKey) does **not** dissolve — it is a member-level escrow node the app
-> genuinely cannot see. **#3 is the actual cryptographic cost of this feature.**
+> needs no new escrowed copies and no migration. Blocker #3 (the **Connection Key**)
+> does **not** dissolve — it is a connection-level escrow node the app genuinely
+> cannot see. **#3 is the actual cryptographic cost of this feature.**
 
 ## The silent failure (fix regardless of this feature)
 
@@ -208,60 +213,57 @@ the work to:
   permission instead.
 - **#2 (policy):** add a `ManageCircleMembership` (or similar) permission key and put
   it in the app-allowed set.
-- **#3 (crypto — the real cost):** give the app a way to encrypt into the target
-  member's grant. We introduce an app-accessible copy of the connection keyStoreKey
-  for connections the app is allowed to manage — via a **per-app management key**
-  (detailed in the next section). This is the one place that needs a data upgrade
-  for existing connections.
+- **#3 (crypto — the real cost):** give the app a way to encrypt into the target's
+  grant. We introduce an app-reachable copy of the **Connection Key** for connections
+  the app is allowed to manage — via a **per-app management key** (detailed in the
+  next section). This is the one place that needs a data upgrade for existing
+  connections.
 - **#4 (crypto — free under scoping):** add a code path in `CreateExchangeGrant`
   that uses the storage key already in the app's permission context for drives the
   app can read, instead of decrypting `MasterKeyEncryptedStorageKey`. No upgrade.
 
 Net: the broad "escrow every drive's storage key under a host key" framing is
 **not** required if we accept read-scoping. The remaining genuine cryptographic
-work is #3 (the member keyStoreKey), not #4.
+work is #3 (the **Connection Key**), not #4.
 
 ## Solving #3: the per-app management key
 
 Blocker #3 is the only piece read-scoping does not dissolve. Adding a member to a
-circle writes into *that member's* grant, which is sealed under the **connection's
-keyStoreKey** (`AccessExchangeGrant.MasterKeyEncryptedKeyStoreKey`) — reachable only
-via the master key today. The fix is a per-app **management key** that gives an
-authorized app an alternate, master-key-free path to each managed connection's
-keyStoreKey.
+circle writes into *that connection's* grant, sealed under the **Connection Key**
+(`AccessExchangeGrant.MasterKeyEncryptedConnectionKey`) — reachable only via the
+master key today. The fix is a per-app **management key** that gives an authorized
+app an alternate, master-key-free path to each managed **Connection Key**.
 
 ### What it is
 
 - A per-app random secret (16 bytes), **one per app** — the app's durable authority
   to manage circle membership on the owner's behalf **without the master key**.
 - It is the **hub**: one management key fans out to one *spoke* on every connection
-  that app manages (the spoke being that connection's keyStoreKey wrapped under the
+  that app manages (the spoke being that **Connection Key** wrapped under the
   management key).
 
 ### When it's created, and what unlocks it
 
 - **Created** at app registration, or when the app is granted `ManageCircleMembership`
   — i.e. while the master key is present.
-- **Stored** wrapped under the app's grant keyStoreKey, as
-  `AppKeyStoreKeyEncryptedManagementKey` on the app registration. It has **no own
-  master-key copy** — the owner reaches it transitively (master key → app's
-  `MasterKeyEncryptedKeyStoreKey` → management key).
-- **Unlocked at request time, no master key:** client access token half-key →
-  `AccessRegistration` → **app grant keyStoreKey** → decrypt
-  `AppKeyStoreKeyEncryptedManagementKey` → **management key**.
+- **Stored** wrapped under the **App Key**, as `AppKeyEncryptedManagementKey` on the
+  app registration. It has **no own master-key copy** — the owner reaches it
+  transitively (master key → `MasterKeyEncryptedAppKey` → App Key → management key).
+- **Unlocked at request time, no master key:** **App Client Key → App Key** → decrypt
+  `AppKeyEncryptedManagementKey` → **management key**.
 
 ### How it shows up on the ICR, and why
 
 New field on `AccessExchangeGrant`, alongside the existing
-`MasterKeyEncryptedKeyStoreKey`:
+`MasterKeyEncryptedConnectionKey`:
 
 ```csharp
-Dictionary<Guid, SymmetricKeyEncryptedAes> AppManagementKeyEncryptedKeyStoreKey
+Dictionary<Guid, SymmetricKeyEncryptedAes> AppManagementKeyEncryptedConnectionKey
 ```
 
-- **key** = managing AppId; **value** = this connection's keyStoreKey wrapped under
-  that app's management key.
-- **Why on the ICR:** the member keyStoreKey is unique per connection, so the
+- **key** = managing AppId; **value** = this **Connection Key** wrapped under that
+  app's management key.
+- **Why on the ICR:** the Connection Key is unique per connection, so the
   app-reachable copy must live per connection — it is the spoke.
 - **Why a dictionary keyed by AppId:** apps and connections are orthogonal — one app
   manages many connections, and one connection may be managed by more than one app,
@@ -271,69 +273,68 @@ Dictionary<Guid, SymmetricKeyEncryptedAes> AppManagementKeyEncryptedKeyStoreKey
 ### How a spoke gets minted
 
 - **App-accepted connections:** minted **at accept, no master key** — the app holds
-  its management key (chain above) and the just-generated member keyStoreKey, so it
+  its management key (chain above) and the just-generated **Connection Key**, so it
   wraps one under the other on the spot. No migration, no AutoConnections jail.
 - **Pre-existing connections:** one-time **migration** while the owner is online
-  (master key present) — for each connection the app may manage, wrap its keyStoreKey
-  under the management key and add the entry.
+  (master key present) — for each connection the app may manage, wrap its Connection
+  Key under the management key and add the entry.
 
 ### What this gives us (the payoff)
 
-Reaching the management key yields the one missing ingredient — the target
-connection's **member keyStoreKey** in the clear, exactly what
-`CircleNetworkService.cs:458` produces from the master key today. From there the real
-`GrantCircleAsync` body runs with **no master key**:
+Reaching the management key yields the one missing ingredient — the target's
+**Connection Key** in the clear, exactly what `CircleNetworkService.cs:458` produces
+from the master key today. From there the real `GrantCircleAsync` body runs with **no
+master key**:
 
 - **Permission-only parts of the circle: fully granted** — the `PermissionSet` is
-  stored in the clear in the grant; it just needs the member keyStoreKey to be
-  written.
+  stored in the clear in the grant; it just needs the Connection Key to be written.
 - **Drive parts: granted for the drives the app can read** — each drive's storage key
-  is sourced from the app's own permission context (#4) and wrapped under the member
-  keyStoreKey. The member gets real read access to *(circle's drives ∩ drives the app
-  can read)*.
+  is sourced from the app's own permission context (#4) and wrapped under the
+  Connection Key. The member gets real read access to *(circle's drives ∩ drives the
+  app can read)*.
 - **Drives the app can't read stay empty** — no storage key in hand ⇒ non-working
   portion. Banking drive stays impossible, by the same cryptographic line.
 
-The same recovered member keyStoreKey also unblocks the other two member-grant
-mutations for the app path: `UpdateCircleDefinitionAsync` and
-`ReconcileAuthorizedCircles`.
+The same recovered Connection Key also unblocks the other two member-grant mutations
+for the app path: `UpdateCircleDefinitionAsync` and `ReconcileAuthorizedCircles`.
 
-**Full chain:** client access token → app keyStoreKey → management key → member
-keyStoreKey → write circle grant.
+**Full chain:** App Client Key → App Key → management key → Connection Key → write
+circle grant.
 
 ### How it maps to the four goals
 
-The management key gives the app exactly one thing — the target member's keyStoreKey
+The management key gives the app exactly one thing — the target's **Connection Key**
 (the envelope every grant is sealed under) — and *no* drive storage keys. What you may
 put *in* the envelope stays bounded by the storage keys the app already holds (#4).
 
-- **#1 Banking — neutral, by design.** The management key hands over the member
-  envelope, not any drive's storage key. Granting banking *read* would still need the
-  banking storage key the app doesn't hold, so that portion stays empty/non-working.
-  The boundary remains enforced by #4 — the management key never widens drive reach.
+- **#1 Banking — neutral, by design.** The management key hands over the Connection
+  Key (the envelope), not any drive's storage key. Granting banking *read* would still
+  need the banking storage key the app doesn't hold, so that portion stays
+  empty/non-working. The boundary remains enforced by #4 — the management key never
+  widens drive reach.
 - **#2 GPS — needs both halves.** #4 supplies the GPS storage key (the app reads the
-  drive); the management key supplies the member keyStoreKey. Together they produce a
+  drive); the management key supplies the Connection Key. Together they produce a
   *working* read grant with no master key. The management key is the missing half that
   turns "app holds the storage key" into "member gets a working grant."
 - **#3 Write-only — management key alone suffices.** A write grant carries no storage
   key (storage keys embed only for Read/ConditionalTemporalRead), so writing a
-  write-only drive grant needs only the member keyStoreKey — even for drives the app
-  can't read. (The per-drive public key is about *depositing data*; the management key
-  is about *granting* the write membership.)
+  write-only drive grant needs only the Connection Key — even for drives the app can't
+  read. (The per-drive public key is about *depositing data*; the management key is
+  about *granting* the write membership.)
 - **#4 App-driven connection — durable manageability.** At accept the app generates
-  the new connection's keyStoreKey itself, so it can build initial grants on the spot
-  (reads via #4, write bootstrap via the per-drive keypair) without the management key.
-  The management key's role is to mint the spoke at accept so the member keyStoreKey
-  stays reachable *afterward* — letting the app add/modify circles in later sessions
-  without the master key, retiring the AutoConnections-jail + deferred-upgrade dance.
+  the new **Connection Key** itself, so it can build initial grants on the spot (reads
+  via #4, write bootstrap via the per-drive keypair) without the management key. The
+  management key's role is to mint the spoke at accept so the Connection Key stays
+  reachable *afterward* — letting the app add/modify circles in later sessions without
+  the master key, retiring the AutoConnections-jail + deferred-upgrade dance.
 
 Throughline: the management key solves the *envelope* (#3) for every case; what goes
 *in* it is still bounded by #4.
 
 ### Revocation
 
-- **One app:** remove its `AppManagementKeyEncryptedKeyStoreKey` entries and its
-  `AppKeyStoreKeyEncryptedManagementKey`.
+- **One app:** remove its `AppManagementKeyEncryptedConnectionKey` entries and its
+  `AppKeyEncryptedManagementKey`.
 - **Fully:** rotate the management key.
 
 ### Outstanding decision
@@ -350,7 +351,7 @@ key *at the add operation*, or that defers the add until the owner is next onlin
 those defeat the purpose. Like the chosen approach, every option below still needs
 the master key *once* for setup/migration of pre-existing connections.)
 
-- **B — Identity-level online/ICR-key escrow.** Wrap the member keyStoreKey under a
+- **B — Identity-level online/ICR-key escrow.** Wrap the Connection Key under a
   single identity-wide online/ICR key; the spoke is one non-app-specific wrapping per
   connection, not keyed by AppId. *How it differs from the chosen per-app key:* one
   key for the whole identity vs one per app — so authority is coarse ("any app
@@ -360,28 +361,28 @@ the master key *once* for setup/migration of pre-existing connections.)
   code — it reuses the key the no-master-key accept path already uses for
   `TempWeakKeyStoreKey`. *Rejected for coarse authority and blast radius.*
 
-- **C — Direct app-keyStoreKey wrapping (no management key).** Wrap the member
-  keyStoreKey straight under each app's grant keyStoreKey, skipping the
-  management-key layer. Simpler by one indirection, but loses the rotation seam and
-  forces re-wraps whenever an app's keyStoreKey rotates.
+- **C — Direct App-Key wrapping (no management key).** Wrap the Connection Key
+  straight under each app's **App Key**, skipping the management-key layer. Simpler by
+  one indirection, but loses the rotation seam and forces re-wraps whenever the App
+  Key rotates.
 
 - **D — Per-app ECC keypair (encrypt-to-public-key).** Owner/accept flow encrypts
   the spoke to the app's *public* key; lets the spoke be minted even when the app is
   offline, app decrypts with its private key. More crypto surface than a symmetric
   management key.
 
-- **E — Derive instead of store (KDF).** member keyStoreKey =
+- **E — Derive instead of store (KDF).** Connection Key =
   KDF(management key, connectionId), so no per-ICR spoke is stored. Saves storage but
   couples every connection to one key by construction, and still needs a re-mint for
   existing connections.
 
 - **F — Host/server-held escrow key.** The server holds a key that recovers the
-  member keyStoreKey without the owner present; real-time and no per-app plumbing,
-  but shifts trust to the host.
+  Connection Key without the owner present; real-time and no per-app plumbing, but
+  shifts trust to the host.
 
 - **I — Proxy re-encryption.** Owner issues a re-encryption key (once) so the server
-  transforms the master-key-encrypted keyStoreKey into app-readable form without ever
-  revealing it; elegant, but heavy and novel crypto.
+  transforms the master-key-encrypted Connection Key into app-readable form without
+  ever revealing it; elegant, but heavy and novel crypto.
 
 ## App-owned drives (committed direction, timing TBD)
 
@@ -392,23 +393,23 @@ the master key *once* for setup/migration of pre-existing connections.)
 Drives will be owned by the app that creates them: delete the app and you delete
 its drives (cross-app drive grants stay possible), and to a lesser extent apps will
 own app circles they can create and delete. Cryptographically this means giving a
-drive an app-scoped root of trust. An app already holds a stable per-app
-`keyStoreKey` at request time, reconstructed from its client token with no master
-key (`AccessRegistration.DecryptUsingClientAuthenticationToken`). "App owns a drive"
-means re-rooting that drive's storage key onto the owning app's keyStoreKey.
+drive an app-scoped root of trust. An app already holds a stable **App Key** at
+request time, reconstructed from its App Client Key with no master key
+(`AccessRegistration.DecryptUsingClientAuthenticationToken`). "App owns a drive"
+means re-rooting that drive's storage key onto the owning app's **App Key**.
 
 Concretely it would require:
 
 - An `OwningAppId` association on the drive (none exists on `StorageDrive` today).
-- A second storage-key copy, e.g. `AppKeyStoreKeyEncryptedStorageKey`, alongside
-  the existing `MasterKeyEncryptedStorageKey`.
+- A second storage-key copy, e.g. `AppKeyEncryptedStorageKey`, alongside the
+  existing `MasterKeyEncryptedStorageKey`.
 
 Payoff: the owning app can read/write the drive and **grant it to circles and
 identities without the master key** — scoped to that app rather than escrowing all
 drives broadly. (Note this mainly addresses #4-style drive access, which
-read-scoping already handles; it does not by itself solve #3, the member
-keyStoreKey.) The policy blockers (#1, #2) still apply, but the check becomes "is
-the caller the owning app?"
+read-scoping already handles; it does not by itself solve #3, the **Connection
+Key**.) The policy blockers (#1, #2) still apply, but the check becomes "is the
+caller the owning app?"
 
 ### Implementation: storage changes
 
@@ -418,7 +419,7 @@ Two dedicated, code-first CRUD tables (same pattern as `TableDrivesCRUD`):
 `KeyThreeValue` / `ThreeKeyValueStorage` blob (`AppRegistrationService.cs:39,93`)
 into their own table. Columns: `identityId`, `AppId` (PK), `Name`, `CorsHostName`,
 JSON columns for `AuthorizedCircles`, `CircleMemberPermissionGrant`, and `Grant`
-(now carrying `AppKeyStoreKeyEncryptedManagementKey`), `created`/`modified`.
+(now carrying `AppKeyEncryptedManagementKey`), `created`/`modified`.
 *Migration:* shadow-table copy (cf. `TableDrivesMigrationV202510311515`) — create the
 table, copy each `KeyThreeValue` row where `key3 = AppRegistrationDataType`,
 deserialize `data` into columns, verify counts, retire old rows. One-time, no master
@@ -430,7 +431,7 @@ drives (**one-to-many** via `AppId` FK → `AppRegistrations.AppId`). It deliber
 **does not use `TargetDrive`** (no Alias/Type Guids); a drive is identified within
 its app by **string `Type`** and **string `Label`**. Columns: `identityId`,
 `DriveId` (PK), `AppId` (owning app), `DriveType` (string), `DriveLabel` (string),
-`AppKeyStoreKeyEncryptedStorageKey`, optionally `MasterKeyEncryptedStorageKey`
+`AppKeyEncryptedStorageKey`, optionally `MasterKeyEncryptedStorageKey`
 (co-owned recovery — see Open questions), `created`/`modified`.
 
 **Transition strategy.** The new table ships first and backs app-created drives going
@@ -452,7 +453,7 @@ Open questions:
   (owner online) to mint the app-key copy.
 - **App removal/revocation:** policy for what happens to a drive when its owning app
   is deleted.
-- **Cross-app isolation:** only the owning app's keyStoreKey may decrypt the drive.
+- **Cross-app isolation:** only the owning app's App Key may decrypt the drive.
 - **System drives:** out of scope for app ownership (see taxonomy below).
 - **Per-drive public key:** none exists today — drives are purely symmetric; only
   identity-level ECC keys exist (`PublicPrivateKeyService`). It's a separate
