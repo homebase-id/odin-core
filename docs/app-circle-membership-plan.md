@@ -10,9 +10,10 @@ another chat client accepts it, and the resulting connection works within that a
 scope — without the owner console or the master key online.
 
 **Status.** The key model, the naming, and three of the four blockers are settled. The
-feature is **blocked on one unsolved problem — Blocker #3:** an app cannot write into a
-peer's grant store without also gaining read access to the peer's entire scope (see
-*The current blocker*).
+hard part is **Blocker #3:** an app cannot write into a peer's grant store without also
+gaining read access to the peer's entire scope. A **candidate solution** — a write-only
+deposit via a Peer Key Store keypair — is now in hand but not yet built (see *The current
+blocker*).
 
 ## Key model & naming
 
@@ -220,8 +221,8 @@ scope.** This is the unsolved problem the feature is stuck on — full treatment
 
 > **This is the open problem the whole feature is stuck on.** The App Key story, the
 > #1 / #2 / #4 mechanics, and read-scoping all work. **#3 does not.** Until it is solved,
-> an app cannot add an OdinId to a circle. Everything below this line is the problem
-> statement, not a solution.
+> an app cannot add an OdinId to a circle. A **candidate solution** is below (write-only
+> deposit); it is not yet built.
 
 **The constraint we will not break:** an app may grant a peer access *only* to things
 the app itself already has — and it must gain **no** access, read or write, to anything
@@ -251,19 +252,28 @@ Key**, hence the **same read-all**. They differ only in plumbing; none satisfies
 constraint. **Reaching the Peer Key is the wrong goal.** (Listed under *Rejected
 approaches* below, for the record.)
 
-**What a real solution needs: write-without-read.** The app must be able to *add* a
-grant the peer can use, without holding any key that *reads* the peer's existing grants.
-Symmetric crypto cannot do this; it requires a structural change to how peer grants are
-stored. Candidate directions, to be designed:
+### Candidate solution: write-only deposit via the Peer Key Store PK
 
-1. **Asymmetric write-only deposit** — give the peer's grant store a public key; the app
-   adds a grant by encrypting it *to* that public key; the peer/owner reads with the
-   private key. The app writes, never reads. (This is the per-drive public key from
-   *Forward-looking*, generalized to the peer store.)
-2. **Per-circle sub-keys** — bound the app's reach to the circles it manages, so even
-   its write path cannot touch the peer's other circles. Likely needed *alongside* (1).
+Give every **Peer Key Store** an **ECC-384 keypair** — the **Peer Key Store PK** (public,
+in clear) with its private key **Peer-Key-encrypted**. That keypair is the
+write-without-read primitive:
 
-**Status: UNSOLVED.** No design is chosen. This is the thing to solve next.
+- **App deposits a grant** (to a circle, for drives it holds the storage key to — #4) by
+  ECIES-encrypting it to the Peer Key Store PK with a fresh **ECC-384 temp key**; the temp
+  public key is stored beside the ciphertext (needed to decrypt). The app needs no Peer
+  Key and can read nothing — it only writes.
+- **Access converts it.** Whenever the Peer Key Store is next accessed with the Peer Key in
+  scope (peer login via CAT, or owner online), the private key is recovered (Peer Key → its
+  encrypted copy) and each pending deposit is rewritten as a normal Peer-Key-encrypted
+  grant.
+
+Because the app gains **no read capability at all**, this needs **neither per-circle keys
+nor App circles** to bound it — those drop to optional product features, not requirements
+for #3. *Validation:* keep each grant's `{ circleId, driveId, permission }` in clear so the
+server checks `driveId ∈ the depositing app's drives` at deposit time; only the storage key
+is sealed to the PK.
+
+**Status: candidate solution — not yet built.**
 
 ### Policy question (downstream of the above)
 
