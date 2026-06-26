@@ -329,7 +329,7 @@ Dictionary<Guid, SymmetricKeyEncryptedAes> AppManagementKeyEncryptedPeerKey
   its management key (chain above) and the just-generated **Peer Key**, so it
   wraps one under the other on the spot. No migration, no AutoConnections jail.
 - **Pre-existing connections:** one-time **migration** while the owner is online
-  (master key present) — for each connection the app may manage, wrap its Connection
+  (master key present) — for each connection the app may manage, wrap its Peer
   Key under the management key and add the entry.
 
 ### What this gives us (the payoff)
@@ -345,8 +345,9 @@ master key**:
   is sourced from the app's own permission context (#4) and wrapped under the
   Peer Key. The member gets real read access to *(circle's drives ∩ drives the
   app can read)*.
-- **Drives the app can't read stay empty** — no storage key in hand ⇒ non-working
-  portion. Banking drive stays impossible, by the same cryptographic line.
+- **Drives the app can't read stay empty *on write*** — no storage key in hand ⇒
+  non-working portion, so the app cannot *grant* the banking drive. (Reading it is a
+  separate, unsolved problem — see below.)
 
 The same recovered Peer Key also unblocks the other two member-grant mutations
 for the app path: `UpdateCircleDefinitionAsync` and `ReconcileAuthorizedCircles`.
@@ -356,15 +357,18 @@ circle grant.
 
 ### How it maps to the four goals
 
-The management key gives the app exactly one thing — the target's **Peer Key**
-(the envelope every grant is sealed under) — and *no* drive storage keys. What you may
-put *in* the envelope stays bounded by the storage keys the app already holds (#4).
+The management key gives the app the target's **Peer Key** (the envelope every grant is
+sealed under). What you may *write into* the envelope stays bounded by the storage keys
+the app already holds (#4) — but what you can *read out* of it is **not** bounded (see
+the open problem below).
 
-- **#1 Banking — neutral, by design.** The management key hands over the Connection
-  Key (the envelope), not any drive's storage key. Granting banking *read* would still
-  need the banking storage key the app doesn't hold, so that portion stays
-  empty/non-working. The boundary remains enforced by #4 — the management key never
-  widens drive reach.
+- **#1 Banking — safe for *writes*, an open problem for *reads*.** For *writing* grants,
+  #4 still bounds the app: it can only mint a working banking grant if it holds the
+  banking storage key, which it doesn't — so that portion stays empty/non-working. **But
+  holding the Peer Key also lets the app *read* every grant already under it** —
+  including a banking storage key that some *other* circle (owner- or other-app-granted)
+  already wrapped there. So #1 holds for writes but **not** for reads. See *Open
+  problem: reaching the Peer Key over-grants read*.
 - **#2 GPS — needs both halves.** #4 supplies the GPS storage key (the app reads the
   drive); the management key supplies the Peer Key. Together they produce a
   *working* read grant with no master key. The management key is the missing half that
@@ -381,8 +385,32 @@ put *in* the envelope stays bounded by the storage keys the app already holds (#
   reachable *afterward* — letting the app add/modify circles in later sessions without
   the master key, retiring the AutoConnections-jail + deferred-upgrade dance.
 
-Throughline: the management key solves the *envelope* (#3) for every case; what goes
-*in* it is still bounded by #4.
+Throughline: the management key solves the *envelope* (#3) for every case; what you
+*write into* it is bounded by #4 — but what you can *read out* of it is not yet (open
+problem below).
+
+### Open problem: reaching the Peer Key over-grants *read* — undecided
+
+Reaching the Peer Key is what lets the app *write* a new circle grant. But with
+symmetric crypto, holding the Peer Key also lets the app **read** every grant already
+under it. A peer is usually in several circles — some this app cares about, others the
+**owner granted directly** (a family circle with the banking or photos drive) or
+**another app** granted. All of their drive storage keys are wrapped under the one Peer
+Key. So an app that can manage a peer's circle membership could decrypt **everything
+that peer can access**, well beyond the app's own drive scope.
+
+This breaks the clean **#1 (banking)** line for *reads*: #4 stops the app from *writing*
+a banking grant, but reaching the Peer Key would let it *read* a banking storage key
+that some other circle already wrapped there.
+
+**We reject the "just accept it" option.** Letting a managing app read a peer's whole
+scope would effectively give that app access to anything *any* of your peers can access
+— too much power to hand an app.
+
+**No solution is decided yet.** Candidate directions (each a real restructure of the
+grant layout, to be designed): per-circle sub-keys under the Peer Key so the app only
+reaches the circles it manages; or a write-only path that lets the app *add* a grant
+without holding the read key. **This is an open problem, not yet solved.**
 
 ### Revocation
 
@@ -460,7 +488,7 @@ Concretely it would require:
 Payoff: the owning app can read/write the drive and **grant it to circles and
 identities without the master key** — scoped to that app rather than escrowing all
 drives broadly. (Note this mainly addresses #4-style drive access, which
-read-scoping already handles; it does not by itself solve #3, the **Connection
+read-scoping already handles; it does not by itself solve #3, the **Peer
 Key**.) The policy blockers (#1, #2) still apply, but the check becomes "is the
 caller the owning app?"
 
