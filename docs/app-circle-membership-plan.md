@@ -29,10 +29,16 @@ the names. So we lead with the naming and propose a rename.
 | The shared per-app hub key | grant `keyStoreKey` (`ExchangeGrant`) | **App Key** |
 | The per-connection hub key — a connected peer's grants | `keyStoreKey` on `AccessExchangeGrant` (the ICR) | **Peer Key** |
 | The connected peer's per-CAT client key (≥1 per connection) | `AccessRegistration` on the ICR | **Peer Client Key** |
+| The app's grant container (what the App Key unlocks) | `ExchangeGrant` (app grant) | **App Key Store** |
+| A peer's grant container (what the Peer Key unlocks) | `AccessExchangeGrant` (the ICR) | **Peer Key Store** |
 | App Key wrapped per device | `AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey` | **AppClientKeyEncryptedAppKey** |
 | App Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (app grant) | **MasterKeyEncryptedAppKey** |
 | Peer Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (`AccessExchangeGrant`) | **MasterKeyEncryptedPeerKey** |
 | A drive's storage key wrapped under its grant's hub key | `KeyStoreKeyEncryptedStorageKey` | **AppKeyEncryptedStorageKey** / **PeerKeyEncryptedStorageKey** |
+| The transit/ICR key under a hub key | `KeyStoreKeyEncryptedIcrKey` | **AppKeyEncryptedIcrKey** / **PeerKeyEncryptedIcrKey** |
+| *(#3 candidate)* the Peer Key Store's public key, in clear | *(new)* | **`PeerKeyStorePublicKey`** *(prose: Peer Key Store PK)* |
+| *(#3 candidate)* its private key, Peer-Key-encrypted | *(new)* | **`PeerKeyEncryptedStorePrivateKey`** |
+| *(#3 candidate)* a grant deposited via the PK, awaiting conversion | `EccEncryptedPayload` (reuse) | **Deposited Grant** |
 
 **Why the old name misleads:** the code calls *every* grant's hub key the same thing —
 `keyStoreKey` — whether it belongs to an app or to a peer connection. That one reused
@@ -254,9 +260,10 @@ approaches* below, for the record.)
 
 ### Candidate solution: write-only deposit via the Peer Key Store PK
 
-Give every **Peer Key Store** an **ECC-384 keypair** — the **Peer Key Store PK** (public,
-in clear) with its private key **Peer-Key-encrypted**. That keypair is the
-write-without-read primitive:
+Give every **Peer Key Store** (a peer's grant container — the `AccessExchangeGrant`) an
+**ECC-384 keypair**: the **Peer Key Store PK** (`PeerKeyStorePublicKey`, in clear) and its
+private key **Peer-Key-encrypted** (`PeerKeyEncryptedStorePrivateKey`). That keypair is
+the write-without-read primitive:
 
 - **App deposits a grant** (to a circle, for drives it holds the storage key to — #4) by
   ECIES-encrypting it to the Peer Key Store PK with a fresh **ECC-384 temp key**; the temp
@@ -264,8 +271,8 @@ write-without-read primitive:
   Key and can read nothing — it only writes.
 - **Access converts it.** Whenever the Peer Key Store is next accessed with the Peer Key in
   scope (peer login via CAT, or owner online), the private key is recovered (Peer Key → its
-  encrypted copy) and each pending deposit is rewritten as a normal Peer-Key-encrypted
-  grant.
+  encrypted copy) and each **Deposited Grant** is rewritten as a normal
+  Peer-Key-encrypted grant.
 
 Because the app gains **no read capability at all**, this needs **neither per-circle keys
 nor App circles** to bound it — those drop to optional product features, not requirements
