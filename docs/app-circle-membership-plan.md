@@ -259,6 +259,47 @@ When a circle includes a drive the app **cannot** read, do we **(a)** grant the
 partial / permission-only result silently, or **(b)** reject the add as out of the
 app's scope? This is a policy call, not a cryptographic one — **undecided**.
 
+### Alternatives considered
+
+The per-app management key (above) is the chosen approach. These were weighed and
+set aside. (Excluded entirely from consideration: anything that requires the master
+key *at the add operation*, or that defers the add until the owner is next online —
+those defeat the purpose. Like the chosen approach, every option below still needs
+the master key *once* for setup/migration of pre-existing connections.)
+
+- **B — Identity-level online/ICR-key escrow.** Wrap the member keyStoreKey under a
+  single identity-wide online/ICR key; the spoke is one non-app-specific wrapping per
+  connection, not keyed by AppId. *How it differs from the chosen per-app key:* one
+  key for the whole identity vs one per app — so authority is coarse ("any app
+  holding the identity key," conflating with transit-write apps that already hold the
+  ICR key), you cannot revoke one app without rotating the shared key, and a single
+  key compromise exposes every connection for every app. Its only upside is less new
+  code — it reuses the key the no-master-key accept path already uses for
+  `TempWeakKeyStoreKey`. *Rejected for coarse authority and blast radius.*
+
+- **C — Direct app-keyStoreKey wrapping (no management key).** Wrap the member
+  keyStoreKey straight under each app's grant keyStoreKey, skipping the
+  management-key layer. Simpler by one indirection, but loses the rotation seam and
+  forces re-wraps whenever an app's keyStoreKey rotates.
+
+- **D — Per-app ECC keypair (encrypt-to-public-key).** Owner/accept flow encrypts
+  the spoke to the app's *public* key; lets the spoke be minted even when the app is
+  offline, app decrypts with its private key. More crypto surface than a symmetric
+  management key.
+
+- **E — Derive instead of store (KDF).** member keyStoreKey =
+  KDF(management key, connectionId), so no per-ICR spoke is stored. Saves storage but
+  couples every connection to one key by construction, and still needs a re-mint for
+  existing connections.
+
+- **F — Host/server-held escrow key.** The server holds a key that recovers the
+  member keyStoreKey without the owner present; real-time and no per-app plumbing,
+  but shifts trust to the host.
+
+- **I — Proxy re-encryption.** Owner issues a re-encryption key (once) so the server
+  transforms the master-key-encrypted keyStoreKey into app-readable form without ever
+  revealing it; elegant, but heavy and novel crypto.
+
 ## App-owned drives (committed direction, timing TBD)
 
 > **Status: committed direction.** We are certain we need app-owned drives; the
