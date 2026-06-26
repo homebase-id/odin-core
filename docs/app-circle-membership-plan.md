@@ -249,10 +249,10 @@ the work to:
 - **#2 (policy):** add a `ManageCircleMembership` (or similar) permission key and put
   it in the app-allowed set.
 - **#3 (crypto — the real cost):** give the app a way to encrypt into the target's
-  grant. We introduce an app-reachable copy of the **Peer Key** for connections
-  the app is allowed to manage — via a **per-app management key** (detailed in the
-  next section). This is the one place that needs a data upgrade for existing
-  connections.
+  grant. We add an app-reachable copy of the **Peer Key** — wrapped under the app's own
+  **App Key** (`AppKeyEncryptedPeerKey`) — for connections the app is allowed to manage
+  (detailed in the next section). This is the one place that needs a data upgrade for
+  existing connections.
 - **#4 (crypto — free under scoping):** add a code path in `CreateExchangeGrant`
   that uses the storage key already in the app's permission context for drives the
   app can read, instead of decrypting `MasterKeyEncryptedStorageKey`. No upgrade.
@@ -261,83 +261,52 @@ Net: the broad "escrow every drive's storage key under a host key" framing is
 **not** required if we accept read-scoping. The remaining genuine cryptographic
 work is #3 (the **Peer Key**), not #4.
 
-## Solving #3: the per-app management key
+## Solving #3: an app-reachable Peer Key copy
 
 Blocker #3 is the only piece read-scoping does not dissolve. Adding a member to a
 circle writes into *that connection's* grant, sealed under the **Peer Key**
-(`AccessExchangeGrant.MasterKeyEncryptedPeerKey`) — reachable only via the master key
-today. We need to give an authorized app a master-key-free path to each managed
-**Peer Key**.
+(`AccessExchangeGrant.MasterKeyEncryptedPeerKey`) — reachable today only by the owner
+(master key) and the peer (their CAT). The fix is the obvious third wrapping: store the
+Peer Key wrapped under the **App Key** of each app allowed to manage that connection.
+**No new key** — the app already reaches its App Key with no master key; this just adds
+one unwrap from there to the Peer Key.
 
-> **Isn't this just the App Key?** Almost — and that is the right instinct. The app
-> already reaches its **App Key** with no master key; the only thing missing is a hop
-> from the App Key to each managed **Peer Key**. There are two ways to add that hop:
->
-> - **Direct (simplest):** store the Peer Key wrapped straight under the App Key —
->   `AppKeyEncryptedPeerKey`, one per managed connection. **No new key.** (Alternative
->   C below.)
-> - **Via a management key (described here):** introduce a separate per-app secret —
->   the *management key* — itself wrapped under the App Key, and hang the Peer-Key
->   spokes off *it* instead of off the App Key directly.
->
-> Both reach the Peer Key with no master key. The management key buys exactly one
-> thing: a **revocation / rotation seam** — you can revoke or rotate an app's
-> *circle-management authority alone* by touching one key, without disturbing the App
-> Key or the rest of the app. If that independent seam isn't worth the extra layer,
-> collapse this whole section to the direct form (`AppKeyEncryptedPeerKey`). **This is
-> the one open design choice in the plan.**
+### The field
 
-### What it is (management-key variant)
-
-- A per-app random secret (16 bytes), **one per app** — the app's durable authority
-  to manage circle membership on the owner's behalf **without the master key**.
-- It is the **hub**: one management key fans out to one *spoke* on every connection
-  that app manages (the spoke being that **Peer Key** wrapped under the
-  management key).
-
-### When it's created, and what unlocks it
-
-- **Created** at app registration, or when the app is granted `ManageCircleMembership`
-  — i.e. while the master key is present.
-- **Stored** wrapped under the **App Key**, as `AppKeyEncryptedManagementKey` on the
-  app registration. It has **no own master-key copy** — the owner reaches it
-  transitively (master key → `MasterKeyEncryptedAppKey` → App Key → management key).
-- **Unlocked at request time, no master key:** **App Client Key → App Key** → decrypt
-  `AppKeyEncryptedManagementKey` → **management key**.
-
-### How it shows up on the ICR, and why
-
-New field on `AccessExchangeGrant`, alongside the existing
-`MasterKeyEncryptedPeerKey`:
+New field on `AccessExchangeGrant`, alongside the existing `MasterKeyEncryptedPeerKey`:
 
 ```csharp
-Dictionary<Guid, SymmetricKeyEncryptedAes> AppManagementKeyEncryptedPeerKey
+Dictionary<Guid, SymmetricKeyEncryptedAes> AppKeyEncryptedPeerKey
 ```
 
-- **key** = managing AppId; **value** = this **Peer Key** wrapped under that
-  app's management key.
-- **Why on the ICR:** the Peer Key is unique per connection, so the
-  app-reachable copy must live per connection — it is the spoke.
+- **key** = managing AppId; **value** = this connection's **Peer Key** wrapped under
+  that app's **App Key**.
+- **Why on the ICR:** the Peer Key is unique per connection, so the app-reachable copy
+  must live per connection.
 - **Why a dictionary keyed by AppId:** apps and connections are orthogonal — one app
   manages many connections, and one connection may be managed by more than one app,
-  each with its own management key (its own wrapping). Usually one entry. Keying by
-  AppId makes revocation clean.
+  each wrapping under its own App Key. Usually one entry. Keying by AppId makes
+  revocation clean.
 
-### How a spoke gets minted
+### Reaching it (no master key)
 
-- **App-accepted connections:** minted **at accept, no master key** — the app holds
-  its management key (chain above) and the just-generated **Peer Key**, so it
-  wraps one under the other on the spot. No migration, no AutoConnections jail.
-- **Pre-existing connections:** one-time **migration** while the owner is online
-  (master key present) — for each connection the app may manage, wrap its Peer
-  Key under the management key and add the entry.
+**App Client Key → App Key → decrypt `AppKeyEncryptedPeerKey[appId]` → Peer Key.** The
+same App-Key chain the app already runs for its own drives, plus one unwrap.
+
+### How a copy gets minted
+
+- **App-accepted connections:** minted **at accept, no master key** — the app holds its
+  App Key and the just-generated **Peer Key**, so it wraps one under the other on the
+  spot. No migration, no AutoConnections jail.
+- **Pre-existing connections:** one-time **migration** while the owner is online (master
+  key present) — for each connection the app may manage, wrap its Peer Key under the App
+  Key and add the entry.
 
 ### What this gives us (the payoff)
 
-Reaching the management key yields the one missing ingredient — the target's
-**Peer Key** in the clear, exactly what `CircleNetworkService.cs:458` produces
-from the master key today. From there the real `GrantCircleAsync` body runs with **no
-master key**:
+Reaching the Peer Key yields the one missing ingredient — the target's **Peer Key** in
+the clear, exactly what `CircleNetworkService.cs:458` produces from the master key
+today. From there the real `GrantCircleAsync` body runs with **no master key**:
 
 - **Permission-only parts of the circle: fully granted** — the `PermissionSet` is
   stored in the clear in the grant; it just needs the Peer Key to be written.
@@ -352,15 +321,14 @@ master key**:
 The same recovered Peer Key also unblocks the other two member-grant mutations
 for the app path: `UpdateCircleDefinitionAsync` and `ReconcileAuthorizedCircles`.
 
-**Full chain:** App Client Key → App Key → management key → Peer Key → write
-circle grant.
+**Full chain:** App Client Key → App Key → Peer Key → write circle grant.
 
 ### How it maps to the four goals
 
-The management key gives the app the target's **Peer Key** (the envelope every grant is
-sealed under). What you may *write into* the envelope stays bounded by the storage keys
-the app already holds (#4) — but what you can *read out* of it is **not** bounded (see
-the open problem below).
+Holding the Peer Key gives the app the envelope every grant is sealed under. What you
+may *write into* the envelope stays bounded by the storage keys the app already holds
+(#4) — but what you can *read out* of it is **not** bounded (see the open problem
+below).
 
 - **#1 Banking — safe for *writes*, an open problem for *reads*.** For *writing* grants,
   #4 still bounds the app: it can only mint a working banking grant if it holds the
@@ -370,24 +338,24 @@ the open problem below).
   already wrapped there. So #1 holds for writes but **not** for reads. See *Open
   problem: reaching the Peer Key over-grants read*.
 - **#2 GPS — needs both halves.** #4 supplies the GPS storage key (the app reads the
-  drive); the management key supplies the Peer Key. Together they produce a
-  *working* read grant with no master key. The management key is the missing half that
-  turns "app holds the storage key" into "member gets a working grant."
-- **#3 Write-only — management key alone suffices.** A write grant carries no storage
-  key (storage keys embed only for Read/ConditionalTemporalRead), so writing a
-  write-only drive grant needs only the Peer Key — even for drives the app can't
-  read. (The per-drive public key is about *depositing data*; the management key is
-  about *granting* the write membership.)
-- **#4 App-driven connection — durable manageability.** At accept the app generates
-  the new **Peer Key** itself, so it can build initial grants on the spot (reads
-  via #4, write bootstrap via the per-drive keypair) without the management key. The
-  management key's role is to mint the spoke at accept so the Peer Key stays
-  reachable *afterward* — letting the app add/modify circles in later sessions without
-  the master key, retiring the AutoConnections-jail + deferred-upgrade dance.
+  drive); the `AppKeyEncryptedPeerKey` copy supplies the Peer Key. Together they produce
+  a *working* read grant with no master key — the missing half that turns "app holds the
+  storage key" into "member gets a working grant."
+- **#3 Write-only — the Peer Key alone suffices.** A write grant carries no storage key
+  (storage keys embed only for Read/ConditionalTemporalRead), so writing a write-only
+  drive grant needs only the Peer Key — even for drives the app can't read. (The
+  per-drive public key is about *depositing data*; reaching the Peer Key is about
+  *granting* the write membership.)
+- **#4 App-driven connection — durable manageability.** At accept the app generates the
+  new **Peer Key** itself, so it can build initial grants on the spot (reads via #4,
+  write bootstrap via the per-drive keypair). The `AppKeyEncryptedPeerKey` copy is what
+  keeps the Peer Key reachable *afterward* — letting the app add/modify circles in later
+  sessions without the master key, retiring the AutoConnections-jail + deferred-upgrade
+  dance.
 
-Throughline: the management key solves the *envelope* (#3) for every case; what you
-*write into* it is bounded by #4 — but what you can *read out* of it is not yet (open
-problem below).
+Throughline: this gives the app the *envelope* (#3) for every case; what you *write
+into* it is bounded by #4 — but what you can *read out* of it is not yet (open problem
+below).
 
 ### Open problem: reaching the Peer Key over-grants *read* — undecided
 
@@ -414,9 +382,9 @@ without holding the read key. **This is an open problem, not yet solved.**
 
 ### Revocation
 
-- **One app:** remove its `AppManagementKeyEncryptedPeerKey` entries and its
-  `AppKeyEncryptedManagementKey`.
-- **Fully:** rotate the management key.
+- **One app's circle-management:** remove that app's `AppKeyEncryptedPeerKey` entries
+  across the connections it manages.
+- **The whole app:** dropping the App Key / app registration severs them too.
 
 ### Outstanding decision
 
@@ -424,46 +392,48 @@ When a circle includes a drive the app **cannot** read, do we **(a)** grant the
 partial / permission-only result silently, or **(b)** reject the add as out of the
 app's scope? This is a policy call, not a cryptographic one — **undecided**.
 
+### Deferred: a management-key indirection
+
+An earlier draft interposed a per-app **management key** between the App Key and the
+Peer-Key copies (App Key → management key → Peer Key). Its only benefit was a
+single-cut **revocation / rotation seam** — sever an app's circle-management reach by
+deleting one key instead of N per-connection copies. But it **saves no copies**, adds
+**no isolation** (it sits under the App Key, so the App Key transitively reaches
+everything anyway), and **App Key rotation isn't a hot path** — so the seam does not
+justify a new key and field. **Removed for now.** If single-cut revocation later proves
+necessary it can be reintroduced as a thin layer; and the read-escalation restructure
+(above) may reshape the copy layout first regardless.
+
 ### Alternatives considered
 
-The per-app management key (above) is the chosen approach. These were weighed and
-set aside. (Excluded entirely from consideration: anything that requires the master
-key *at the add operation*, or that defers the add until the owner is next online —
-those defeat the purpose. Like the chosen approach, every option below still needs
-the master key *once* for setup/migration of pre-existing connections.)
+Direct App-Key wrapping (above) is the chosen approach. These were weighed and set
+aside. (Excluded entirely from consideration: anything that requires the master key *at
+the add operation*, or that defers the add until the owner is next online — those defeat
+the purpose. Like the chosen approach, every option below still needs the master key
+*once* for setup/migration of pre-existing connections.)
 
-- **B — Identity-level online/ICR-key escrow.** Wrap the Peer Key under a
-  single identity-wide online/ICR key; the spoke is one non-app-specific wrapping per
-  connection, not keyed by AppId. *How it differs from the chosen per-app key:* one
-  key for the whole identity vs one per app — so authority is coarse ("any app
-  holding the identity key," conflating with transit-write apps that already hold the
-  ICR key), you cannot revoke one app without rotating the shared key, and a single
-  key compromise exposes every connection for every app. Its only upside is less new
-  code — it reuses the key the no-master-key accept path already uses for
-  `TempWeakKeyStoreKey`. *Rejected for coarse authority and blast radius.*
+- **B — Identity-level online/ICR-key escrow.** Wrap the Peer Key under a single
+  identity-wide online/ICR key, not keyed by AppId. One key for the whole identity vs
+  one per app — so authority is coarse ("any app holding the identity key," conflating
+  with transit-write apps that already hold the ICR key), you cannot revoke one app
+  without rotating the shared key, and a single key compromise exposes every connection
+  for every app. *Rejected for coarse authority and blast radius.*
 
-- **C — Direct App-Key wrapping (no management key).** Wrap the Peer Key
-  straight under each app's **App Key**, skipping the management-key layer. Simpler by
-  one indirection, but loses the rotation seam and forces re-wraps whenever the App
-  Key rotates.
+- **D — Per-app ECC keypair (encrypt-to-public-key).** Owner/accept flow encrypts the
+  copy to the app's *public* key; lets it be minted even when the app is offline, app
+  decrypts with its private key. More crypto surface than the symmetric App-Key wrapping.
 
-- **D — Per-app ECC keypair (encrypt-to-public-key).** Owner/accept flow encrypts
-  the spoke to the app's *public* key; lets the spoke be minted even when the app is
-  offline, app decrypts with its private key. More crypto surface than a symmetric
-  management key.
+- **E — Derive instead of store (KDF).** Peer Key = KDF(App Key, connectionId), so no
+  per-ICR copy is stored. Saves storage but couples every connection to one key by
+  construction, and still needs a re-mint for existing connections.
 
-- **E — Derive instead of store (KDF).** Peer Key =
-  KDF(management key, connectionId), so no per-ICR spoke is stored. Saves storage but
-  couples every connection to one key by construction, and still needs a re-mint for
-  existing connections.
-
-- **F — Host/server-held escrow key.** The server holds a key that recovers the
-  Peer Key without the owner present; real-time and no per-app plumbing, but
-  shifts trust to the host.
+- **F — Host/server-held escrow key.** The server holds a key that recovers the Peer Key
+  without the owner present; real-time and no per-app plumbing, but shifts trust to the
+  host.
 
 - **I — Proxy re-encryption.** Owner issues a re-encryption key (once) so the server
-  transforms the master-key-encrypted Peer Key into app-readable form without
-  ever revealing it; elegant, but heavy and novel crypto.
+  transforms the master-key-encrypted Peer Key into app-readable form without ever
+  revealing it; elegant, but heavy and novel crypto.
 
 ## App-owned drives (committed direction, timing TBD)
 
@@ -499,8 +469,8 @@ Two dedicated, code-first CRUD tables (same pattern as `TableDrivesCRUD`):
 **1. New `AppRegistrations` table.** Move app registrations off the shared
 `KeyThreeValue` / `ThreeKeyValueStorage` blob (`AppRegistrationService.cs:39,93`)
 into their own table. Columns: `identityId`, `AppId` (PK), `Name`, `CorsHostName`,
-JSON columns for `AuthorizedCircles`, `CircleMemberPermissionGrant`, and `Grant`
-(now carrying `AppKeyEncryptedManagementKey`), `created`/`modified`.
+JSON columns for `AuthorizedCircles`, `CircleMemberPermissionGrant`, and `Grant`,
+`created`/`modified`.
 *Migration:* shadow-table copy (cf. `TableDrivesMigrationV202510311515`) — create the
 table, copy each `KeyThreeValue` row where `key3 = AppRegistrationDataType`,
 deserialize `data` into columns, verify counts, retire old rows. One-time, no master
