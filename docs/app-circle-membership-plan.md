@@ -1,5 +1,59 @@
 # Plan: Allow apps to add OdinIds to a circle
 
+## The app key we already have
+
+We do **not** need to invent a new app key to let an app act without the master key —
+**the app key already exists.** It is the shared, per-app `keyStoreKey` on the app's
+exchange grant, and every logged-in client (device) already reaches it with no master
+key. The trouble is the names: today's identifiers hide this. So we lead with the
+naming and propose a rename.
+
+| Concept | Today (obscure) | Proposed |
+|---|---|---|
+| Per-device key, one per login | `accessKeyStoreKey` / "access key" (`AccessRegistration`) | **App Client Key** *(a.k.a. App Device Key)* |
+| The shared per-app hub key | grant `keyStoreKey` (`ExchangeGrant`) | **App Key** |
+| The keys the hub unlocks (drive storage keys, ICR/transit) | `KeyStoreKeyEncryptedDriveGrants`, … | **App Key Store** |
+| App Key wrapped per device | `AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey` | **AppClientKeyEncryptedAppKey** |
+| App Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` | **MasterKeyEncryptedAppKey** |
+| A drive's storage key under the App Key | `KeyStoreKeyEncryptedStorageKey` | **AppKeyEncryptedStorageKey** |
+
+**Generic role:** `keyStoreKey` is really "the hub key of *a* grant." Every grant has
+one — for an **app** grant it is the **App Key**; for a **connection** (ICR) grant it
+is the **Connection Key**. Same field, different principal. This is the crux of
+Blocker #3: the app holds its own **App Key** but not the target's **Connection Key**.
+
+### How it fits together
+
+```
+ owner  ── master key ──────────────►  APP KEY        MasterKeyEncryptedAppKey
+ device ── App Client Key ──────────►  APP KEY        AppClientKeyEncryptedAppKey
+                                         │            (same key; one wrapping per device)
+                                         ▼  unlocks
+                                    APP KEY STORE
+                          (drive storage keys + ICR / transit key)
+
+ per device:  device token-half  ⊕  server-stored half  →  App Client Key  →  unwraps App Key
+```
+
+- **App Client Key** — per device, reconstructed each request from the device's
+  token-half ⊕ a server-stored half. No master key.
+- **App Key** — one per app. Every device's App Client Key unwraps the *same* App Key,
+  so *N* devices are just *N* wrappings of one key and all clients share identical
+  access. The owner reaches that same App Key via the master key.
+- **App Key Store** — everything the App Key unlocks: the app's drive storage keys and
+  its ICR/transit key.
+
+**Takeaway:** the app already has a durable, all-clients-shared, master-key-free key
+(the App Key). Anything we want an app to do without the master key should anchor on
+the App Key — not a newly invented one.
+
+### Proposed rename
+
+Adopt the **Proposed** column above across the codebase — a mechanical rename, no
+behavior change. The rest of this document uses the new vocabulary (**App Key**, **App
+Client Key**, **Connection Key**) so the design reads in terms of *which hub key a
+principal can or cannot reach*.
+
 ## Problem statement
 
 Currently you must have the master key in order to add an OdinId to a circle. We
