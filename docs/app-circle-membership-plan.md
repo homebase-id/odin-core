@@ -247,6 +247,35 @@ mutations for the app path: `UpdateCircleDefinitionAsync` and
 **Full chain:** client access token → app keyStoreKey → management key → member
 keyStoreKey → write circle grant.
 
+### How it maps to the four goals
+
+The management key gives the app exactly one thing — the target member's keyStoreKey
+(the envelope every grant is sealed under) — and *no* drive storage keys. What you may
+put *in* the envelope stays bounded by the storage keys the app already holds (#4).
+
+- **#1 Banking — neutral, by design.** The management key hands over the member
+  envelope, not any drive's storage key. Granting banking *read* would still need the
+  banking storage key the app doesn't hold, so that portion stays empty/non-working.
+  The boundary remains enforced by #4 — the management key never widens drive reach.
+- **#2 GPS — needs both halves.** #4 supplies the GPS storage key (the app reads the
+  drive); the management key supplies the member keyStoreKey. Together they produce a
+  *working* read grant with no master key. The management key is the missing half that
+  turns "app holds the storage key" into "member gets a working grant."
+- **#3 Write-only — management key alone suffices.** A write grant carries no storage
+  key (storage keys embed only for Read/ConditionalTemporalRead), so writing a
+  write-only drive grant needs only the member keyStoreKey — even for drives the app
+  can't read. (The per-drive public key is about *depositing data*; the management key
+  is about *granting* the write membership.)
+- **#4 App-driven connection — durable manageability.** At accept the app generates
+  the new connection's keyStoreKey itself, so it can build initial grants on the spot
+  (reads via #4, write bootstrap via the per-drive keypair) without the management key.
+  The management key's role is to mint the spoke at accept so the member keyStoreKey
+  stays reachable *afterward* — letting the app add/modify circles in later sessions
+  without the master key, retiring the AutoConnections-jail + deferred-upgrade dance.
+
+Throughline: the management key solves the *envelope* (#3) for every case; what goes
+*in* it is still bounded by #4.
+
 ### Revocation
 
 - **One app:** remove its `AppManagementKeyEncryptedKeyStoreKey` entries and its
@@ -327,7 +356,40 @@ read-scoping already handles; it does not by itself solve #3, the member
 keyStoreKey.) The policy blockers (#1, #2) still apply, but the check becomes "is
 the caller the owning app?"
 
+### Implementation: storage changes
+
+Two dedicated, code-first CRUD tables (same pattern as `TableDrivesCRUD`):
+
+**1. New `AppRegistrations` table.** Move app registrations off the shared
+`KeyThreeValue` / `ThreeKeyValueStorage` blob (`AppRegistrationService.cs:39,93`)
+into their own table. Columns: `identityId`, `AppId` (PK), `Name`, `CorsHostName`,
+JSON columns for `AuthorizedCircles`, `CircleMemberPermissionGrant`, and `Grant`
+(now carrying `AppKeyStoreKeyEncryptedManagementKey`), `created`/`modified`.
+*Migration:* shadow-table copy (cf. `TableDrivesMigrationV202510311515`) — create the
+table, copy each `KeyThreeValue` row where `key3 = AppRegistrationDataType`,
+deserialize `data` into columns, verify counts, retire old rows. One-time, no master
+key.
+
+**2. New drives table, scoped under an app.** A brand-new table — *not* an evolution
+of the existing `Drives` table. A drive belongs to exactly one app; an app owns many
+drives (**one-to-many** via `AppId` FK → `AppRegistrations.AppId`). It deliberately
+**does not use `TargetDrive`** (no Alias/Type Guids); a drive is identified within
+its app by **string `Type`** and **string `Label`**. Columns: `identityId`,
+`DriveId` (PK), `AppId` (owning app), `DriveType` (string), `DriveLabel` (string),
+`AppKeyStoreKeyEncryptedStorageKey`, optionally `MasterKeyEncryptedStorageKey`
+(co-owned recovery — see Open questions), `created`/`modified`.
+
+**Transition strategy.** The new table ships first and backs app-created drives going
+forward. Existing drives in the legacy `Drives` table are moved over in a **follow-up
+data migration** that maps each old `TargetDrive` (Alias+Type Guids) onto the new
+`AppId` + string `Type`/`Label` model — its own deferred task, since deciding which
+app owns a pre-existing/system drive (and its string type/label) is non-trivial.
+
 Open questions:
+
+- **TargetDrive reconciliation:** drives are addressed everywhere today by
+  `TargetDrive` (Alias+Type Guids); how do the new string-addressed, app-scoped
+  drives coexist with — or replace — `TargetDrive`-based APIs and stored references?
 
 - **Owner access:** co-owned (keep the master-key copy so the owner can recover —
   preferred) vs app-exclusive (owner cannot read the drive; stronger isolation but
