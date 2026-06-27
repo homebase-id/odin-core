@@ -1,7 +1,10 @@
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using NUnit.Framework;
 using Odin.Core;                                   // GuidId, SensitiveByteArray
 using Odin.Core.Cryptography.Data;                 // SymmetricKeyEncryptedAes, SymmetricKeyEncryptedXor
@@ -197,30 +200,16 @@ namespace Odin.Services.Tests.Authorization
     [TestFixture]
     public class WireNamePinningTests
     {
-        private static readonly string[] ForbiddenNewNames =
-        {
-            "MasterKeyEncryptedAppKey", "MasterKeyEncryptedPeerKey",
-            "AppClientKeyEncryptedAppKey", "AppKeyEncryptedStorageKey", "PeerKeyEncryptedStorageKey"
-        };
-
-        private static HashSet<string> TopLevelKeys(string json)
-        {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.EnumerateObject().Select(p => p.Name).ToHashSet();
-        }
-
         private static void AssertWireStable(object fresh, string legacyJson)
         {
             var freshJson = OdinSystemSerializer.Serialize(fresh);
 
             // 1) every legacy top-level wire key is still emitted (no own-field rename leaked)
-            Assert.That(TopLevelKeys(freshJson), Is.SupersetOf(TopLevelKeys(legacyJson)),
+            Assert.That(WireCheck.TopLevelKeys(freshJson), Is.SupersetOf(WireCheck.TopLevelKeys(legacyJson)),
                 "a persisted property name changed on the wire — missing JsonPropertyName pin");
 
             // 2) no new C# name leaked anywhere in the graph (nested included; case-insensitive)
-            foreach (var bad in ForbiddenNewNames)
-                Assert.That(freshJson, Does.Not.Contain(bad).IgnoreCase,
-                    $"emitted renamed symbol '{bad}' onto the wire");
+            WireCheck.AssertNoForbiddenNames(freshJson);
         }
 
         [Test] public void DriveGrant_WireNamesStable()          => AssertWireStable(SnapshotFactory.DriveGrant(),          LegacySnapshots.DriveGrant);
@@ -272,5 +261,118 @@ namespace Odin.Services.Tests.Authorization
             var appKey = r.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey.DecryptKeyClone(SnapshotKeys.AccessKeyStoreKey);
             SnapshotKeys.AssertKey(appKey, SnapshotKeys.AppKey);
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Shared wire-format checks (used by the factory and real-flow suites).
+    // ---------------------------------------------------------------------
+    internal static class WireCheck
+    {
+        // C# names introduced by the rename that must NEVER reach the wire (anywhere in the graph).
+        public static readonly string[] ForbiddenNewNames =
+        {
+            "MasterKeyEncryptedAppKey", "MasterKeyEncryptedPeerKey",
+            "AppClientKeyEncryptedAppKey", "AppKeyEncryptedStorageKey", "PeerKeyEncryptedStorageKey"
+        };
+
+        public static HashSet<string> TopLevelKeys(string json)
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.EnumerateObject().Select(p => p.Name).ToHashSet();
+        }
+
+        // The wire names System.Text.Json would emit for T's own top-level properties,
+        // honoring [JsonPropertyName] (the rename's pins) and [JsonIgnore], else camelCase.
+        public static HashSet<string> ExpectedWireNames(Type t)
+        {
+            var names = new HashSet<string>();
+            foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (!p.CanRead) continue;
+                if (p.GetCustomAttribute<JsonIgnoreAttribute>() != null) continue;
+                var pinned = p.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name;
+                names.Add(pinned ?? JsonNamingPolicy.CamelCase.ConvertName(p.Name));
+            }
+            return names;
+        }
+
+        public static void AssertNoForbiddenNames(string json)
+        {
+            foreach (var bad in ForbiddenNewNames)
+                Assert.That(json, Does.Not.Contain(bad).IgnoreCase, $"emitted renamed symbol '{bad}' onto the wire");
+        }
+
+        // Deserialize the frozen snapshot, re-serialize, and assert the wire stayed stable:
+        // no persisted key dropped, no renamed symbol leaked, and serialization is a fixed point.
+        public static void AssertRoundTripStable<T>(string snapshot)
+        {
+            var rt = OdinSystemSerializer.Serialize(OdinSystemSerializer.Deserialize<T>(snapshot));
+            Assert.That(TopLevelKeys(rt), Is.SupersetOf(TopLevelKeys(snapshot)),
+                $"{typeof(T).Name}: a persisted property name changed on the wire — missing JsonPropertyName pin");
+            AssertNoForbiddenNames(rt);
+            var rt2 = OdinSystemSerializer.Serialize(OdinSystemSerializer.Deserialize<T>(rt));
+            Assert.That(rt2, Is.EqualTo(rt), $"{typeof(T).Name}: serialization is not idempotent");
+        }
+
+        // Every persisted top-level property of T appears in the snapshot — proves the
+        // fixture actually exercises each pin-needing field (no silently-absent property).
+        public static void AssertCompleteness<T>(string snapshot)
+        {
+            var expected = ExpectedWireNames(typeof(T));
+            Assert.That(expected, Is.Not.Empty, $"{typeof(T).Name}: reflection found no persisted properties — check guard");
+            Assert.That(TopLevelKeys(snapshot), Is.SupersetOf(expected),
+                $"{typeof(T).Name}: snapshot is missing a persisted property — fixture does not cover it");
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // REAL on-the-wire blobs captured from a live provision via
+    // Odin.Hosting.Tests RealBlobCaptureTest (KeyThreeValue.data / Connections.data).
+    // Frozen pre-rename. These are the genuine production shapes — note the connection
+    // persists as IcrAccessRecord with circleGrants/appGrants cleared to {} (stored in
+    // sibling tables), which a hand-built fixture would not capture.
+    // ---------------------------------------------------------------------
+    internal static class RealSnapshots
+    {
+        public const string AppRegistration = """{"appId":"59e73f4c16544946beef47a948b3677e","name":"Test_59e73f4c-1654-4946-beef-47a948b3677e","authorizedCircles":["99f63c2c-1778-464e-8cb2-8359c347ec4d"],"circleMemberPermissionGrant":{"drives":[{"permissionedDrive":{"drive":{"alias":"cb8885a774b54f519d5a9441cc69f470","type":"61bdb80a3f0b4a76a3b06f836e779201"},"permission":"read","temporalReadWindowSeconds":null}}],"permissionSet":{"keys":[10]}},"grant":{"created":1782523571515,"modified":0,"masterKeyEncryptedKeyStoreKey":{"keyEncrypted":"+HDaeCH9V4oP8fnLtN4dRbz2f2PzaWd5fAUsOLIZ70Y=","keyIV":"XtBEjA2D/4shkCU6tGMVuw==","keyHash":"qFEOnxl7sA9rDFp8yCHOQQ=="},"isRevoked":false,"keyStoreKeyEncryptedDriveGrants":[{"driveId":"cb8885a7-74b5-4f51-9d5a-9441cc69f470","permissionedDrive":{"drive":{"alias":"cb8885a774b54f519d5a9441cc69f470","type":"61bdb80a3f0b4a76a3b06f836e779201"},"permission":"readWrite","temporalReadWindowSeconds":null},"keyStoreKeyEncryptedStorageKey":{"keyEncrypted":"ejj8z6XWN4SLXnC2wFlAjzgsbTjAHPG2hUM6TmjTCcw=","keyIV":"ZWXvOWM8/HWM3rYevq8NGw==","keyHash":"ZpWi1BZEZ3v3Vbr+FVY89A=="}}],"permissionSet":{"keys":[10,50]},"keyStoreKeyEncryptedIcrKey":null},"corsHostName":null}""";
+
+        public const string IcrAccessRecord = """{"accessGrant":{"masterKeyEncryptedKeyStoreKey":{"keyEncrypted":"I7oZktlglfJ6WEnxLTqD8PjXt6pcYxMDQeX+2zPOuQI=","keyIV":"kHGIPgDVs/aTqeeDQlD6xw==","keyHash":"ZvDCLRQt/HLZNZjFPhIhPQ=="},"circleGrants":{},"appGrants":{},"accessRegistration":{"id":"f36af019400bae009d36a622d1fd4121","accessRegistrationClientType":"other","created":1782523572404,"clientAccessKeyEncryptedKeyStoreKey":{"keyEncrypted":"4O+AMNTYVt5Ira1u8D/U6A==","keyHash":"rBd9pHRUIRlikhmRUIip1A=="},"accessKeyStoreKeyEncryptedSharedSecret":{"keyEncrypted":"p26mNtFHN00xURihw6ASKNWwDptmWdelvVhImIbhBb8=","keyIV":"R4Ldamwtux9naLxwEqBwAQ==","keyHash":"7iZiQHJQcfvDxG4F+KgF2A=="},"isRevoked":false,"accessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey":{"keyEncrypted":"Xiua4R63nY9eG+RalQ8drSs6s63wykF/R7SKiRVEQYg=","keyIV":"ZXZaNlEFvMLRTQnF94KKYg==","keyHash":"zNLlHE94diZ14duwHYr/uw=="}},"isRevoked":false},"encryptedClientAccessToken":{"keyEncrypted":"up5GoQWMgQRy+ZHtlnjIgLvSQjIqSqe4fwYbDfR80Fsn+O+UZzElWEr284XH+Akqq4c9yHQ1I/g+u9WA8PYuFA==","keyIV":"2OqBcMocFnRfqFim6+M9tw==","keyHash":"4sLdyfZ30KP8qBW7ckYIQg=="},"weakClientAccessToken":"","weakKeyStoreKey":"","originalContactData":{"name":"Test Test","imageId":"00000000-0000-0000-0000-000000000000","contact":null},"introducerOdinId":null,"verificationHash64":"UwVMIcaTzmtSSYzeHk48X9mSAyquGS3AAXDR4d6NxMk=","connectionOrigin":"IdentityOwner"}""";
+    }
+
+    // ---------------------------------------------------------------------
+    // Real-flow compatibility: the captured production blobs deserialize, stay
+    // wire-stable across a round trip, and are covered field-for-field.
+    // ---------------------------------------------------------------------
+    [TestFixture]
+    public class RealSnapshotCompatibilityTests
+    {
+        // tier 1 — the renamed persisted fields still bind (non-null) on real data
+        [Test]
+        public void AppRegistration_RenamedFieldsPopulated()
+        {
+            var a = OdinSystemSerializer.Deserialize<AppRegistration>(RealSnapshots.AppRegistration);
+            Assert.That(a.Grant, Is.Not.Null);
+            Assert.That(a.Grant.MasterKeyEncryptedKeyStoreKey, Is.Not.Null);                 // -> MasterKeyEncryptedAppKey
+            Assert.That(a.Grant.KeyStoreKeyEncryptedDriveGrants, Is.Not.Null.And.Not.Empty);
+            Assert.That(a.Grant.KeyStoreKeyEncryptedDriveGrants[0].KeyStoreKeyEncryptedStorageKey, Is.Not.Null); // -> *KeyEncryptedStorageKey
+        }
+
+        [Test]
+        public void IcrAccessRecord_RenamedFieldsPopulated()
+        {
+            var icr = OdinSystemSerializer.Deserialize<IcrAccessRecord>(RealSnapshots.IcrAccessRecord);
+            Assert.That(icr.AccessGrant, Is.Not.Null);
+            Assert.That(icr.AccessGrant.MasterKeyEncryptedKeyStoreKey, Is.Not.Null);          // -> MasterKeyEncryptedPeerKey
+            Assert.That(icr.AccessGrant.AccessRegistration, Is.Not.Null);
+            Assert.That(icr.AccessGrant.AccessRegistration.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey, Is.Not.Null); // -> AppClientKeyEncryptedAppKey
+        }
+
+        // tier 2 + idempotence — wire stays pinned across a round trip
+        [Test] public void AppRegistration_WireStable() => WireCheck.AssertRoundTripStable<AppRegistration>(RealSnapshots.AppRegistration);
+        [Test] public void IcrAccessRecord_WireStable() => WireCheck.AssertRoundTripStable<IcrAccessRecord>(RealSnapshots.IcrAccessRecord);
+
+        // completeness — the fixture covers every persisted top-level property of the type
+        [Test] public void AppRegistration_Complete() => WireCheck.AssertCompleteness<AppRegistration>(RealSnapshots.AppRegistration);
+        [Test] public void IcrAccessRecord_Complete() => WireCheck.AssertCompleteness<IcrAccessRecord>(RealSnapshots.IcrAccessRecord);
     }
 }
