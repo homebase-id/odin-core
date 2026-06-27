@@ -339,25 +339,27 @@ table, copy each `KeyThreeValue` row where `key3 = AppRegistrationDataType`,
 deserialize `data` into columns, verify counts, retire old rows. One-time, no master
 key.
 
-**2. App ownership on the existing `Drives` table — two columns.** No new table and no
-re-addressing: a drive stays a `TargetDrive` (Alias+Type Guids). Add two nullable columns:
+**2. App ownership on the existing `Drives` table — one column.** No new table and no
+re-addressing: a drive stays a `TargetDrive` (Alias+Type Guids). Add **one** nullable
+column:
 
 - **`AppId`** — the owning app; **null = not app-owned** (system/owner drive, behaves
   exactly as today).
-- **`AppKeyEncryptedStorageKey`** — the App-Key copy of the storage key, present only for
-  app-owned drives, alongside the existing `MasterKeyEncryptedStorageKey`.
 
-No migration of existing drives — they keep `AppId = null`. Making a drive app-owned is a
-per-drive action that needs the master key once (owner online) to mint the
-`AppKeyEncryptedStorageKey`; deleting the app deletes its `AppId`-owned drives.
+That's it. The owning app already reaches the drive's storage key through its normal grant
+(`App Client Key → App Key → DriveGrant → storage key`), so ownership needs **no extra key
+copy on the drive** — only the `AppId` association. No migration of existing drives (they
+keep `AppId = null`); deleting the app deletes its `AppId`-owned drives.
 
 Open questions:
 
-- **Owner access:** co-owned (keep the master-key copy so the owner can recover —
-  preferred) vs app-exclusive (owner cannot read the drive; stronger isolation but
-  risks unrecoverable data).
-- **Migration:** making an existing drive app-owned still needs the master key once
-  (owner online) to mint the app-key copy.
+- **Owner access:** co-owned (keep `MasterKeyEncryptedStorageKey` so the owner can recover
+  — preferred; needs no extra column) vs app-exclusive (drop the master copy — the drive
+  then needs an **App-Key storage-key root** on the drive, a *distinct* new column, and the
+  owner can no longer read it: stronger isolation, but risks unrecoverable data).
+- **Making a drive app-owned:** for co-owned this is essentially setting `AppId` — the app
+  already reaches the storage key via its grant. The master key is needed only to mint the
+  app-exclusive root copy above, or to grant the owning app access if it has none yet.
 - **App removal/revocation:** policy for what happens to a drive when its owning app
   is deleted.
 - **Cross-app isolation:** only the owning app's App Key may decrypt the drive.
