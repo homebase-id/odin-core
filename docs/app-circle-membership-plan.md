@@ -250,13 +250,9 @@ without also gaining read access to the peer's entire scope.** That is the block
 missing piece is not the drive key (we have it) — it is a *safe* path to write the peer
 store.
 
-**"Just give the app the Peer Key" does not work — in any form.** Every approach we
-considered for handing the app the Peer Key — wrapping it under the App Key
-(`AppKeyEncryptedPeerKey`), a per-app management key, identity-level escrow, KDF
-derivation, host-held escrow, proxy re-encryption — delivers the **same symmetric Peer
-Key**, hence the **same read-all**. They differ only in plumbing; none satisfies the
-constraint. **Reaching the Peer Key is the wrong goal.** (Listed under *Rejected
-approaches* below, for the record.)
+**Reaching the Peer Key is the wrong goal.** Every way of *handing* the app the Peer Key
+delivers the same symmetric key and the same read-all (see *Rejected approaches*). The
+fix is not to reach the Peer Key at all — it is to **write without reading it**.
 
 ### Candidate solution: write-only deposit via the Peer Key Store PK
 
@@ -288,31 +284,17 @@ Once a write-without-read mechanism exists: when a circle includes a drive the a
 **cannot** read, do we **(a)** grant the partial / permission-only result, or **(b)**
 reject the add as out of the app's scope? A policy call — **undecided**.
 
-### Rejected approaches (all grant read-all)
+### Rejected approaches (for the record)
 
-For the record — every option here hands the app the symmetric **Peer Key**, so every
-one violates the write-without-read constraint. They differ only in *how* the Peer Key
-copy is delivered.
+Every option below hands the app the symmetric **Peer Key**, so every one grants
+read-all and fails the constraint — they differ only in *how* the copy is delivered:
 
-- **App-Key wrapping (`AppKeyEncryptedPeerKey`).** Wrap the Peer Key under the app's App
-  Key — simplest delivery, no new key. *Was briefly the leading idea; rejected because
-  the app then reads the peer's whole store.*
-- **Per-app management key.** An extra per-app key between the App Key and the Peer-Key
-  copies, for a single-cut revocation seam. Same read-all; also saves no copies and adds
-  no isolation (it sits under the App Key).
-- **Identity-level online/ICR-key escrow.** One identity-wide key, not per app — coarse
-  authority and identity-wide blast radius, on top of read-all.
-- **KDF derivation.** Peer Key = KDF(App Key, connectionId). Same read-all; couples every
-  connection to one key.
-- **Host/server-held escrow key.** Server recovers the Peer Key without the owner —
-  read-all plus shifts trust to the host.
-- **Proxy re-encryption.** Server transforms the master-key-encrypted Peer Key into
-  app-readable form — still yields the full Peer Key (read-all), and heavy novel crypto.
-
-> **Asymmetric, used the *other* way, is the way out.** Delivering the Peer Key *to* the
-> app (even via a per-app keypair) keeps the read-all flaw. Encrypting new grants *to the
-> peer* instead — so the app writes without ever holding a read key — is the
-> write-without-read direction above. Same primitive, opposite direction.
+- **App-Key wrapping (`AppKeyEncryptedPeerKey`)** — simplest delivery; was briefly the lead.
+- **Per-app management key** — a single-cut revocation seam; no isolation (sits under the App Key).
+- **Identity-level online/ICR-key escrow** — one key for the whole identity; coarse, identity-wide blast radius.
+- **KDF derivation** — Peer Key = KDF(App Key, connectionId); couples every connection to one key.
+- **Host/server-held escrow key** — works without the owner, but shifts trust to the host.
+- **Proxy re-encryption** — still yields the full Peer Key, and heavy novel crypto.
 
 ## App-owned drives (committed direction, timing TBD)
 
