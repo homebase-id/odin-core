@@ -327,7 +327,7 @@ caller the owning app?"
 
 ### Implementation: storage changes
 
-Two dedicated, code-first CRUD tables (same pattern as `TableDrivesCRUD`):
+Two additive changes — **no new drives table**:
 
 **1. New `AppRegistrations` table.** Move app registrations off the shared
 `KeyThreeValue` / `ThreeKeyValueStorage` blob (`AppRegistrationService.cs:39,93`)
@@ -339,26 +339,20 @@ table, copy each `KeyThreeValue` row where `key3 = AppRegistrationDataType`,
 deserialize `data` into columns, verify counts, retire old rows. One-time, no master
 key.
 
-**2. New drives table, scoped under an app.** A brand-new table — *not* an evolution
-of the existing `Drives` table. A drive belongs to exactly one app; an app owns many
-drives (**one-to-many** via `AppId` FK → `AppRegistrations.AppId`). It deliberately
-**does not use `TargetDrive`** (no Alias/Type Guids); a drive is identified within
-its app by **string `Type`** and **string `Label`**. Columns: `identityId`,
-`DriveId` (PK), `AppId` (owning app), `DriveType` (string), `DriveLabel` (string),
-`AppKeyEncryptedStorageKey`, optionally `MasterKeyEncryptedStorageKey`
-(co-owned recovery — see Open questions), `created`/`modified`.
+**2. App ownership on the existing `Drives` table — two columns.** No new table and no
+re-addressing: a drive stays a `TargetDrive` (Alias+Type Guids). Add two nullable columns:
 
-**Transition strategy.** The new table ships first and backs app-created drives going
-forward. Existing drives in the legacy `Drives` table are moved over in a **follow-up
-data migration** that maps each old `TargetDrive` (Alias+Type Guids) onto the new
-`AppId` + string `Type`/`Label` model — its own deferred task, since deciding which
-app owns a pre-existing/system drive (and its string type/label) is non-trivial.
+- **`AppId`** — the owning app; **null = not app-owned** (system/owner drive, behaves
+  exactly as today).
+- **`AppKeyEncryptedStorageKey`** — the App-Key copy of the storage key, present only for
+  app-owned drives, alongside the existing `MasterKeyEncryptedStorageKey`.
+
+No migration of existing drives — they keep `AppId = null`. Making a drive app-owned is a
+per-drive action that needs the master key once (owner online) to mint the
+`AppKeyEncryptedStorageKey`; deleting the app deletes its `AppId`-owned drives.
 
 Open questions:
 
-- **TargetDrive reconciliation:** drives are addressed everywhere today by
-  `TargetDrive` (Alias+Type Guids); how do the new string-addressed, app-scoped
-  drives coexist with — or replace — `TargetDrive`-based APIs and stored references?
 - **Owner access:** co-owned (keep the master-key copy so the owner can recover —
   preferred) vs app-exclusive (owner cannot read the drive; stronger isolation but
   risks unrecoverable data).
