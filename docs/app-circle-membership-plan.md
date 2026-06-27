@@ -172,10 +172,12 @@ flow that motivates the whole feature.
    coarsely and only as a temporary state finalized by the master key. It does **not**
    solve **Blocker #4**: real **read** access to specific drives still needs each
    drive's storage key, which is exactly why the connection stays weak /
-   AutoConnections-only until upgraded. A **per-drive keypair** is what would make the
-   accepted connection genuinely strong within the app's scope without the master key
-   — granting real read access to exactly that app's drives at accept time, retiring
-   both the AutoConnections jail and the deferred-upgrade dance.
+   AutoConnections-only until upgraded. What would make the accepted connection genuinely
+   strong within the app's scope — without the master key — is that at accept the app
+   holds the new **Peer Key** (it generates it), so it grants **read** access to exactly
+   its drives directly (#4); the per-drive public key covers the **write** side of the
+   request bootstrap. Together these retire the AutoConnections jail and the
+   deferred-upgrade dance.
 
 ## The blockers and where each stands
 
@@ -390,11 +392,23 @@ Chat, Stickers, Wallet) are bolt-on apps hardcoded for convenience, not system d
 
 **Per-drive public key — purpose.** A write-only root of trust for a drive (none
 exists today; drives are purely symmetric). *The public key lets you write, never
-read.* Proposed uses: writing to a drive with **no connection** (Example #3),
-bootstrapping the **write side** of a safe connection request (Example #4), and —
-generalized to the peer's grant store — the **write-without-read** path that Blocker #3
-needs. Reads (Example #2) need no keypair; banking (Example #1) stays read-neutral by
-construction.
+read.* Uses: writing to a drive with **no connection** (Example #3) and bootstrapping the
+**write side** of a safe connection request (Example #4). Reads (Example #2) need no
+keypair; banking (Example #1) stays read-neutral by construction.
+
+**Two keypairs, one pattern.** The Drive PK and the **Peer Key Store PK** (#3's candidate
+solution) share this write-only pattern — an ECC keypair with its private key escrowed
+under a symmetric key — but they are **distinct keypairs with distinct jobs**, and
+neither subsumes the other:
+
+| | Drive PK | Peer Key Store PK |
+|---|---|---|
+| Lives on | a **drive** | a **Peer Key Store** (the ICR) |
+| Private key escrowed under | the drive's **storage key** | the **Peer Key** |
+| Lets a writer deposit | **data** into a drive | a **grant** into a peer's store |
+
+Both are needed for the full scope: the Peer Key Store PK is what unblocks **#3**; the
+Drive PK is what enables the write-only *data* deposits of Examples #3 and #4.
 
 **Recommendation: per-drive, not per-app** — with the private key escrowed under that
 drive's **storage key**, so deposit-collection custody = existing read access, for
