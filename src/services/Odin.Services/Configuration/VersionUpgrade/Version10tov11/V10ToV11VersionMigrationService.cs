@@ -15,14 +15,18 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
 {
     /// <summary>
     /// v10 → v11: grants the Chat app (<see cref="SystemAppConstants.ChatAppId"/>)
-    /// <see cref="DrivePermission.Write"/> on the <see cref="SystemDriveConstants.ProfileDrive"/>.
+    /// <see cref="DrivePermission.Write"/> on the <see cref="SystemDriveConstants.ProfileDrive"/> and the
+    /// <see cref="PermissionKeys.ManageProfile"/> permission key.
     ///
     /// <para>
-    /// A fresh v11 install already ships with this grant — <see cref="SystemAppConstants"/> now lists
-    /// the ProfileDrive with <see cref="DrivePermission.ReadWrite"/> in the Chat app's
-    /// <see cref="AppRegistrationRequest.Drives"/> (it previously held only Read). This migration
-    /// backfills the same upgrade onto <b>existing</b> installs whose stored Chat app grant predates it,
-    /// preserving every other drive grant verbatim and only adding the missing Write permission.
+    /// A fresh v11 install already ships with both — <see cref="SystemAppConstants"/> now lists the
+    /// ProfileDrive with <see cref="DrivePermission.ReadWrite"/> in the Chat app's
+    /// <see cref="AppRegistrationRequest.Drives"/> (it previously held only Read) and includes
+    /// <see cref="PermissionKeys.ManageProfile"/> in its permission set. This migration backfills the same
+    /// upgrade onto <b>existing</b> installs whose stored Chat app grant predates it, preserving every
+    /// other drive grant and permission key verbatim and only adding the missing ProfileDrive Write
+    /// permission and the ManageProfile key. ManageProfile is what lets profile-attribute writes funnel
+    /// through the Profile attribute API once direct ProfileDrive write access is removed.
     /// </para>
     /// </summary>
     public class V10ToV11VersionMigrationService(
@@ -52,13 +56,14 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
                     continue;
                 }
 
-                if (HasProfileDriveWrite(app))
+                if (HasProfileDriveWrite(app) && HasManageProfile(app))
                 {
                     continue;
                 }
 
                 logger.LogInformation(
-                    "Granting Write on the ProfileDrive to the Chat app {appName} ({appId})", app.Name, app.AppId);
+                    "Granting Write on the ProfileDrive and the ManageProfile key to the Chat app {appName} ({appId})",
+                    app.Name, app.AppId);
 
                 // Preserve the app's existing drive grants verbatim — only upgrade the ProfileDrive grant.
                 var drives = app.Grant.DriveGrants
@@ -77,10 +82,17 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
                     }
                 });
 
+                // Preserve the app's existing permission keys verbatim — only add the missing ManageProfile.
+                var permissionKeys = new List<int>(app.Grant.PermissionSet?.Keys ?? new List<int>());
+                if (!permissionKeys.Contains(PermissionKeys.ManageProfile))
+                {
+                    permissionKeys.Add(PermissionKeys.ManageProfile);
+                }
+
                 await appRegistrationService.UpdateAppPermissionsAsync(new UpdateAppPermissionsRequest
                 {
                     AppId = app.AppId,
-                    PermissionSet = new PermissionSet(app.Grant.PermissionSet?.Keys ?? new List<int>()),
+                    PermissionSet = new PermissionSet(permissionKeys),
                     Drives = drives
                 }, odinContext);
             }
@@ -104,6 +116,12 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
                 throw new OdinSystemException(
                     $"Chat app {chatApp.Name} ({chatApp.AppId}) was not granted Write access to the ProfileDrive");
             }
+
+            if (!HasManageProfile(chatApp))
+            {
+                throw new OdinSystemException(
+                    $"Chat app {chatApp.Name} ({chatApp.AppId}) was not granted the ManageProfile permission");
+            }
         }
 
         private static bool HasProfileDriveWrite(RedactedAppRegistration app)
@@ -111,6 +129,11 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version10tov11
             return app.Grant?.DriveGrants?.Any(g =>
                 g.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive &&
                 g.PermissionedDrive.Permission.HasFlag(DrivePermission.Write)) ?? false;
+        }
+
+        private static bool HasManageProfile(RedactedAppRegistration app)
+        {
+            return app.Grant?.PermissionSet?.Keys?.Contains(PermissionKeys.ManageProfile) ?? false;
         }
     }
 }
