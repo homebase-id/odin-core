@@ -77,13 +77,6 @@ public class ProfileAttributeService(
     private static readonly Guid ExternalLinksSectionId = new("d37d864d-0dc3-1aa7-dca5-be7cde816406"); // toGuidId("ExternalLinksSection")
     private static readonly Guid AboutSectionId = new("fd2ddd86-16b6-4814-aaef-168775757632");         // toGuidId("AboutSection")
 
-    // Name attribute field keys (odin-js MinimalProfileFields) — the server computes displayName from these,
-    // exactly as odin-js nameAttributeProcessing does, so reads (incl. ContactEnrichmentService) see it.
-    private const string ExplicitDisplayNameField = "explicitDisplayName";
-    private const string GivenNameField = "givenName";
-    private const string SurnameField = "surname";
-    private const string DisplayNameField = "displayName";
-
     /// <summary>
     /// Create or edit a built-in profile attribute. When <paramref name="request"/> carries an
     /// <see cref="SetProfileAttributeRequest.Id"/> that already exists, this edits it (optimistic
@@ -316,15 +309,15 @@ public class ProfileAttributeService(
             return;
         }
 
-        var explicitName = Str(data, ExplicitDisplayNameField)?.Trim();
+        var explicitName = Str(data, ProfileAttributeFields.ExplicitDisplayName)?.Trim();
         var displayName = !string.IsNullOrEmpty(explicitName)
             ? explicitName
-            : string.Join(" ", new[] { Str(data, GivenNameField), Str(data, SurnameField) }
+            : string.Join(" ", new[] { Str(data, ProfileAttributeFields.GivenName), Str(data, ProfileAttributeFields.Surname) }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
 
         if (!string.IsNullOrWhiteSpace(displayName))
         {
-            data[DisplayNameField] = displayName;
+            data[ProfileAttributeFields.DisplayName] = displayName;
         }
     }
 
