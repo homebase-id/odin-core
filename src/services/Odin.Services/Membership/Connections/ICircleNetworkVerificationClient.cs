@@ -39,5 +39,12 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         [Post(RootPath + "/preflight-introduction")]
         Task<ApiResponse<PeerIntroductionPreflightResponse>> PreflightIntroduction(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Notifies the recipient that the caller has severed their connection, so the
+        /// recipient disconnects from the caller in return.
+        /// </summary>
+        [Post(RootPath + "/break-connection")]
+        Task<ApiResponse<HttpContent>> BreakConnection(CancellationToken cancellationToken = default);
     }
 }

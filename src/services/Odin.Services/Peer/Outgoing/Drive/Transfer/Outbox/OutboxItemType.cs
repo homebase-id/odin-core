@@ -23,5 +23,7 @@ public enum OutboxItemType
     SendIntroduction = 2088,
 
     ConnectIntroducee = 3088,
-    
+
+    BreakConnectionRequest = 3200,
+
 }

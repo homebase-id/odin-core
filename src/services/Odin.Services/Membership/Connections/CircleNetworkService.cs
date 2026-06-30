@@ -27,6 +27,7 @@ using Odin.Services.Mediator;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 using Permissions_PermissionSet = Odin.Services.Authorization.Permissions.PermissionSet;
 
@@ -47,6 +48,7 @@ namespace Odin.Services.Membership.Connections
         IDriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         CircleNetworkStorage circleNetworkStorage,
+        PeerOutbox peerOutbox,
         IdentityDatabase db)
         : INotificationHandler<DriveDefinitionAddedNotification>,
             INotificationHandler<AppRegistrationChangedNotification>
@@ -156,16 +158,69 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Disconnects you from the specified <see cref="OdinId"/>
+        /// Disconnects you from the specified <see cref="OdinId"/>.
         /// </summary>
-        public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext)
+        /// <param name="notifyRemote">
+        /// When true, the remote identity is notified (best-effort, via the outbox) so it severs its
+        /// side of the connection as well. When false (the default), the disconnect is one-sided and
+        /// the remote identity keeps its record until it independently reconciles the asymmetry.
+        /// </param>
+        public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext, bool notifyRemote = false)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+            return await DisconnectInternalAsync(odinId, notifyRemote, odinContext);
+        }
 
-            var info = await this.GetIcrAsync(odinId, odinContext);
+        /// <summary>
+        /// Handles an inbound notification that the caller has severed their connection with us; we
+        /// sever ours in return.  Invoked from the peer perimeter, where the caller's identity has
+        /// already been verified, so this does not require the owner's <see cref="PermissionKeys.ManageContacts"/>.
+        /// </summary>
+        public async Task ReceiveRemoteDisconnectAsync(IOdinContext odinContext)
+        {
+            // Guard against a stale notification tearing down a re-established connection.
+            // The caller's identity is proven by certificate, but their *connection* is proven by an
+            // access token that matches our current AccessRegistration. If the connection was severed
+            // and later re-established, a break-connection still pending in the caller's outbox carries
+            // the old token; that no longer validates, so the perimeter downgrades the caller below
+            // Connected. Requiring a connected caller here ensures we only honor a disconnect for the
+            // connection instance the caller actually still shares with us.
+            odinContext.Caller.AssertCallerIsConnected();
+            var caller = odinContext.GetCallerOdinIdOrFail();
+
+            // notifyRemote:false -- the caller initiated this; echoing the notification back would loop.
+            await DisconnectInternalAsync(caller, notifyRemote: false, odinContext);
+        }
+
+        private async Task<bool> DisconnectInternalAsync(OdinId odinId, bool notifyRemote, IOdinContext odinContext)
+        {
+            // overrideHack/no-upgrade: the inbound-peer path runs under a context without ReadConnections,
+            // and we're about to delete the record anyway, so skip the permission check and token upgrade.
+            var info = await this.GetIcrAsync(odinId, odinContext, overrideHack: true, tryUpgradeEncryption: false);
             if (info is { Status: ConnectionStatus.Connected })
             {
+                // Capture the access token to the remote identity BEFORE deleting the connection record,
+                // so the outbox worker can still authenticate to them once the local record is gone.
+                ClientAccessToken remoteToken = null;
+                if (notifyRemote)
+                {
+                    try
+                    {
+                        remoteToken = info.EncryptedClientAccessToken?.Decrypt(odinContext.PermissionsContext.GetIcrKey());
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogDebug(e, "Could not resolve access token for [{odinId}] while disconnecting; " +
+                                           "the remote identity will not be notified to disconnect in return.", odinId);
+                    }
+                }
+
                 await circleNetworkStorage.DeleteAsync(odinId);
+
+                if (notifyRemote && remoteToken != null)
+                {
+                    await EnqueueBreakConnectionNotificationAsync(odinId, remoteToken);
+                }
 
                 await mediator.Publish(new ConnectionDeletedNotification()
                 {
@@ -184,6 +239,36 @@ namespace Odin.Services.Membership.Connections
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Queues a best-effort, retried notification telling the remote identity that we have
+        /// disconnected, so they disconnect from us in return.
+        /// </summary>
+        private async Task EnqueueBreakConnectionNotificationAsync(OdinId recipient, ClientAccessToken remoteToken)
+        {
+            var item = new OutboxFileItem
+            {
+                Recipient = recipient,
+                Priority = 50, //super high priority to ensure these are sent quickly
+                Type = OutboxItemType.BreakConnectionRequest,
+                AttemptCount = 0,
+                File = new InternalDriveFileId()
+                {
+                    DriveId = SystemDriveConstants.TransientTempDrive.Alias,
+                    FileId = recipient.ToHashId()
+                },
+                DependencyFileId = default,
+                State = new OutboxItemState
+                {
+                    TransferInstructionSet = null,
+                    OriginalTransitOptions = null,
+                    EncryptedClientAuthToken = remoteToken.ToPortableBytes(),
+                    Data = Array.Empty<byte>()
+                },
+            };
+
+            await peerOutbox.AddItemAsync(item, useUpsert: true);
         }
 
         /// <summary>
