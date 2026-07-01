@@ -43,6 +43,13 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
             await circleNetworkRequestService.EstablishConnection(payload, authenticationToken64, WebOdinContext);
             return new JsonResult(new NoResultResponse(true));
         }
-        
+
+        [HttpPost("withdraw")]
+        public async Task<IActionResult> WithdrawConnectionRequest([FromBody] ConnectionRequestWithdrawal request)
+        {
+            await circleNetworkRequestService.ReceiveConnectionRequestWithdrawalAsync(request, WebOdinContext);
+            return Ok();
+        }
+
     }
 }

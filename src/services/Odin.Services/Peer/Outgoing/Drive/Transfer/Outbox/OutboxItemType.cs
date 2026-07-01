@@ -26,4 +26,6 @@ public enum OutboxItemType
 
     BreakConnectionRequest = 3200,
 
+    WithdrawConnectionRequest = 3300,
+
 }

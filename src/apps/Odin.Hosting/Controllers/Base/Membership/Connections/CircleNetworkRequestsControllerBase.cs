@@ -126,11 +126,11 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("sent/delete")]
-        public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
+        public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient, [FromQuery] bool notifyRemote = false)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
 
-            await circleNetworkRequestService.DeleteSentRequest(id, WebOdinContext);
+            await circleNetworkRequestService.DeleteSentRequest(id, WebOdinContext, notifyRemote);
             return true;
         }
 

@@ -33,6 +33,7 @@ using Odin.Services.EncryptionKeyService;
 using Odin.Services.Membership.CircleMembership;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer;
+using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
 using Odin.Services.Util;
 using Refit;
 
@@ -62,7 +63,8 @@ namespace Odin.Services.Membership.Connections.Requests
         ContactService contactService,
         ContactEnrichmentService contactEnrichmentService,
         StaticFileContentService staticFileContentService,
-        VersionUpgradeScheduler versionUpgradeScheduler)
+        VersionUpgradeScheduler versionUpgradeScheduler,
+        PeerOutbox peerOutbox)
         : PeerServiceBase(odinHttpClientFactory, cns, fileSystemResolver, odinConfiguration)
     {
         private static readonly byte[] PendingRequestsDataType = Guid.Parse("e8597025-97b8-4736-8f6c-76ae696acd86").ToByteArray();
@@ -633,14 +635,66 @@ namespace Odin.Services.Membership.Connections.Requests
 
         /// <summary>
         /// Deletes the sent request record.  If the recipient accepts the request
-        /// after it has been delete, the connection will not be established.
-        /// 
-        /// This does not notify the original recipient
+        /// after it has been deleted, the connection will not be established.
         /// </summary>
-        public Task DeleteSentRequest(OdinId recipient, IOdinContext odinContext)
+        /// <param name="notifyRemote">
+        /// When true, the recipient is notified (best-effort, via the outbox) so it withdraws the matching
+        /// pending request from its side. When false (the default), the cancel is one-sided and the recipient
+        /// keeps its pending request until it independently reconciles the asymmetry.
+        /// </param>
+        public async Task DeleteSentRequest(OdinId recipient, IOdinContext odinContext, bool notifyRemote = false)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
-            return DeleteSentRequestInternalAsync(recipient);
+
+            Guid? withdrawalTimestampId = null;
+            if (notifyRemote)
+            {
+                // Capture the request instance id before we delete the record, so the recipient can confirm the
+                // withdrawal targets the request it currently holds (and not a newer re-send).
+                var sentRequest = await GetSentRequestInternalAsync(recipient);
+                withdrawalTimestampId = sentRequest?.OutgoingRequestTimestampId;
+            }
+
+            await DeleteSentRequestInternalAsync(recipient);
+
+            if (notifyRemote && withdrawalTimestampId is { } timestampId && timestampId != Guid.Empty)
+            {
+                await EnqueueWithdrawConnectionRequestAsync(recipient, timestampId);
+            }
+        }
+
+        /// <summary>
+        /// Handles an inbound notification that the caller has withdrawn a connection request they previously sent
+        /// us; we remove the matching pending request.  Invoked from the peer perimeter, where the caller's identity
+        /// has already been verified by certificate.
+        /// </summary>
+        public async Task ReceiveConnectionRequestWithdrawalAsync(ConnectionRequestWithdrawal withdrawal, IOdinContext odinContext)
+        {
+            odinContext.Caller.AssertCallerIsAuthenticated();
+            OdinValidationUtils.AssertNotNull(withdrawal, nameof(withdrawal));
+
+            var sender = odinContext.GetCallerOdinIdOrFail();
+
+            var pending = await _pendingRequestValueStorage.GetAsync<PendingConnectionRequestHeader>(
+                tblKeyThreeValue, MakePendingRequestsKey(sender));
+
+            if (pending == null)
+            {
+                // Nothing to withdraw -- already accepted, already deleted, or never received. No-op.
+                return;
+            }
+
+            // Only honor the withdrawal if it targets the request instance we currently hold. If the caller
+            // cancelled an earlier request and then sent a newer one, a stale withdrawal for the earlier request
+            // must not remove the newer pending request.
+            if (pending.EccEncryptedPayload?.TimestampId != withdrawal.TimestampId)
+            {
+                logger.LogDebug("Ignoring stale connection-request withdrawal from {sender}; the pending request " +
+                                "we hold is a different instance than the one being withdrawn.", sender);
+                return;
+            }
+
+            await DeletePendingRequestInternal(sender);
         }
 
         private async Task DeleteSentRequestInternalAsync(OdinId recipient)
@@ -665,7 +719,41 @@ namespace Odin.Services.Membership.Connections.Requests
         }
 
         /// <summary>
-        /// Accepts a connection request.  This will store the public key certificate 
+        /// Queues a best-effort, retried notification telling the recipient that we have cancelled a connection
+        /// request we sent them, so they withdraw the matching pending request from their side.
+        /// </summary>
+        private async Task EnqueueWithdrawConnectionRequestAsync(OdinId recipient, Guid timestampId)
+        {
+            var withdrawal = new ConnectionRequestWithdrawal { TimestampId = timestampId };
+
+            var item = new OutboxFileItem
+            {
+                Recipient = recipient,
+                Priority = 50, //high priority to ensure the withdrawal is delivered promptly
+                Type = OutboxItemType.WithdrawConnectionRequest,
+                AttemptCount = 0,
+                File = new InternalDriveFileId
+                {
+                    DriveId = SystemDriveConstants.TransientTempDrive.Alias,
+                    FileId = recipient.ToHashId()
+                },
+                DependencyFileId = default,
+                State = new OutboxItemState
+                {
+                    TransferInstructionSet = null,
+                    OriginalTransitOptions = null,
+                    // The withdrawal is delivered over the certificate-authenticated peer perimeter (no
+                    // connection/CAT exists for a pending request), so there is no auth token to carry.
+                    EncryptedClientAuthToken = Array.Empty<byte>(),
+                    Data = OdinSystemSerializer.Serialize(withdrawal).ToUtf8ByteArray()
+                },
+            };
+
+            await peerOutbox.AddItemAsync(item, useUpsert: true);
+        }
+
+        /// <summary>
+        /// Accepts a connection request.  This will store the public key certificate
         /// of the sender then send the recipients public key certificate to the sender.
         /// </summary>
         public async Task AcceptConnectionRequestAsync(AcceptRequestHeader header, bool tryOverrideAcl, IOdinContext odinContext)
@@ -1446,6 +1534,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 Message = header.Message,
                 ClientAccessToken64 = "",
                 TempRawKey = null,
+                OutgoingRequestTimestampId = timestamp,
                 VerificationRandomCode = randomCode,
                 ConnectionRequestOrigin = header.ConnectionRequestOrigin,
                 IntroducerOdinId = header.IntroducerOdinId,
