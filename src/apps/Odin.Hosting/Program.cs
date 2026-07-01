@@ -123,6 +123,9 @@ namespace Odin.Hosting
                 var otlpAuth = "Basic " + Convert.ToBase64String(
                     Encoding.UTF8.GetBytes($"{oo.Username}:{oo.Password}"));
 
+                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
+                var streamName = env == Environments.Production ? "homebase" : Environment.MachineName;
+
                 loggerConfig
                     .WriteTo.Filter(sink => sink.OpenTelemetry(otlp =>
                     {
@@ -134,7 +137,7 @@ namespace Odin.Hosting
                             // Fixed to "default": the org can't be renamed and multi-org is enterprise-gated,
                             // so on the OSS build it's always "default". Required on gRPC (org isn't in the URL path).
                             ["organization"] = "default",
-                            ["stream-name"] = "homebase",
+                            ["stream-name"] = streamName,
                         };
                         otlp.ResourceAttributes = new Dictionary<string, object>
                         {
