@@ -161,11 +161,11 @@ namespace Odin.Services.Membership.Connections
         /// Disconnects you from the specified <see cref="OdinId"/>.
         /// </summary>
         /// <param name="notifyRemote">
-        /// When true, the remote identity is notified (best-effort, via the outbox) so it severs its
-        /// side of the connection as well. When false (the default), the disconnect is one-sided and
+        /// When true (the default), the remote identity is notified (best-effort, via the outbox) so
+        /// it severs its side of the connection as well. When false, the disconnect is one-sided and
         /// the remote identity keeps its record until it independently reconciles the asymmetry.
         /// </param>
-        public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext, bool notifyRemote = false)
+        public async Task<bool> DisconnectAsync(OdinId odinId, IOdinContext odinContext, bool notifyRemote = true)
         {
             odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
             return await DisconnectInternalAsync(odinId, notifyRemote, odinContext);

@@ -30,7 +30,7 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         }
 
         [HttpPost("disconnect")]
-        public async Task<bool> Disconnect([FromBody] OdinIdRequest request, [FromQuery] bool notifyRemote = false)
+        public async Task<bool> Disconnect([FromBody] OdinIdRequest request, [FromQuery] bool notifyRemote = true)
         {
             var result = await circleNetwork.DisconnectAsync((OdinId)request.OdinId, WebOdinContext, notifyRemote);
             return result;

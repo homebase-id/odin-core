@@ -41,7 +41,7 @@ public class ReciprocalDisconnectTests
     }
 
     [Test]
-    public async Task DisconnectingFromAnIdentityAlsoDisconnectsThatIdentityFromYou()
+    public async Task DisconnectNotifiesRemoteByDefault()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -54,7 +54,8 @@ public class ReciprocalDisconnectTests
         ClassicAssert.IsTrue(samViewBefore.IsSuccessStatusCode);
         ClassicAssert.IsTrue(samViewBefore.Content.Status == ConnectionStatus.Connected);
 
-        // Frodo disconnects from Sam, opting in to notify the remote so Sam disconnects too
+        // Frodo disconnects from Sam using the default (notifyRemote omitted), which now notifies
+        // the remote so Sam disconnects too.
         var disconnectResponse = await frodo.Network.DisconnectFrom(sam.OdinId, notifyRemote: true);
         ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode);
 
@@ -71,11 +72,11 @@ public class ReciprocalDisconnectTests
             $"Sam was still connected to Frodo after Frodo disconnected (status: {samViewAfter.Content?.Status})");
 
         // cleanup
-        await sam.Network.DisconnectFrom(frodo.OdinId);
+        await sam.Network.DisconnectFrom(frodo.OdinId, notifyRemote: false);
     }
 
     [Test]
-    public async Task DisconnectIsOneSidedByDefault()
+    public async Task DisconnectCanOptOutOfNotifyingRemote()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
         var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
@@ -83,9 +84,10 @@ public class ReciprocalDisconnectTests
         await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
         await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
 
-        // Default disconnect (notifyRemote omitted) must NOT notify the peer -- this preserves the
-        // intentional asymmetric-state behavior the connection state machine relies on.
-        var disconnectResponse = await frodo.Network.DisconnectFrom(sam.OdinId);
+        // Passing notifyRemote:false must NOT notify the peer -- this preserves the intentional
+        // asymmetric-state behavior the connection state machine relies on for callers that need it
+        // (e.g. bad-CAT detection scenarios).
+        var disconnectResponse = await frodo.Network.DisconnectFrom(sam.OdinId, notifyRemote: false);
         ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode);
 
         // Frodo's side is gone...
@@ -99,6 +101,6 @@ public class ReciprocalDisconnectTests
             $"Sam should still be connected to Frodo after a one-sided disconnect (status: {samView.Content?.Status})");
 
         // cleanup
-        await sam.Network.DisconnectFrom(frodo.OdinId);
+        await sam.Network.DisconnectFrom(frodo.OdinId, notifyRemote: false);
     }
 }

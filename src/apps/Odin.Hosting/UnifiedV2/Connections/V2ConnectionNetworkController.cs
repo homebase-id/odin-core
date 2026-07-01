@@ -46,7 +46,7 @@ public class V2ConnectionNetworkController(
 
     [HttpPost("disconnect")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Disconnect from an identity")]
-    public async Task<IActionResult> Disconnect([FromBody] OdinIdRequest request, [FromQuery] bool notifyRemote = false)
+    public async Task<IActionResult> Disconnect([FromBody] OdinIdRequest request, [FromQuery] bool notifyRemote = true)
     {
         await circleNetwork.DisconnectAsync((OdinId)request.OdinId, WebOdinContext, notifyRemote);
         return Ok();
