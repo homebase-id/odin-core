@@ -44,10 +44,17 @@ callers can see, needs a content audit first).
 5. **(cosmetic)** add an `AutoConnected` case to `DriveFileUtility.cs`'s priority switch so
    unvetted-ACL'd files sort correctly.
 
-6. **Expose `vetted` on the DTO** (issue #919, independent of the above) — add `Vetted` to
-   `RedactedIdentityConnectionRegistration` and set it in
-   `IdentityConnectionRegistration.Redacted()` as `IsConnected() && IsConfirmedConnection()`.
-   Propagates to all endpoints for free since they all funnel through `Redacted()`.
+6. **✅ Done — Expose `vetted` on the DTO** (issue #919, independent of the above) — added `Vetted`
+   to `RedactedIdentityConnectionRegistration`, set in `IdentityConnectionRegistration.Redacted()`
+   as `IsConnected() && IsConfirmedConnection()`. Propagates to all endpoints for free since they
+   all funnel through `Redacted()`.
+
+   ⚠️ **This is a stopgap source of truth.** `Vetted` is computed directly off the ICR
+   (`IsConnected()`/`IsConfirmedConnection()`), independent of `CallerContext.SecurityLevel`.
+   Once step 2's centralized helper (`CircleNetworkUtils.SecurityLevelFor(icr)`) exists,
+   redefine `Vetted` in terms of it (e.g. `SecurityLevelFor(icr) >= SecurityGroupType.Connected`)
+   so there is one computation of "is this connection vetted," not two independent expressions
+   that read the same circle-grant data separately and could silently drift apart.
 
 7. **Audit before flipping the switch** — before step 1 goes live, check how much stored content
    is ACL'd `Connected`-only (feed/profile/connection-scoped drives), since the query range filter
