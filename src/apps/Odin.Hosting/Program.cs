@@ -120,7 +120,6 @@ namespace Odin.Hosting
             if (odinConfig.OpenObserve.Enabled)
             {
                 var oo = odinConfig.OpenObserve;
-                var otlpProtocol = Enum.Parse<OtlpProtocol>(oo.Protocol, ignoreCase: true);
                 var otlpAuth = "Basic " + Convert.ToBase64String(
                     Encoding.UTF8.GetBytes($"{oo.Username}:{oo.Password}"));
 
@@ -128,14 +127,14 @@ namespace Odin.Hosting
                     .WriteTo.Filter(sink => sink.OpenTelemetry(otlp =>
                     {
                         otlp.Endpoint = oo.Endpoint;
-                        otlp.Protocol = otlpProtocol;
+                        otlp.Protocol = OtlpProtocol.Grpc;
                         otlp.Headers = new Dictionary<string, string>
                         {
                             ["Authorization"] = otlpAuth,
                             // Fixed to "default": the org can't be renamed and multi-org is enterprise-gated,
                             // so on the OSS build it's always "default". Required on gRPC (org isn't in the URL path).
                             ["organization"] = "default",
-                            ["stream-name"] = oo.Stream,
+                            ["stream-name"] = "homebase",
                         };
                         otlp.ResourceAttributes = new Dictionary<string, object>
                         {
