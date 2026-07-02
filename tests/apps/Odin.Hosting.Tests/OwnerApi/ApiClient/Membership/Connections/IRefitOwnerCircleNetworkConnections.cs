@@ -30,7 +30,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
         Task<ApiResponse<bool>> Block([Body] OdinIdRequest request);
 
         [Post(root_path + "/disconnect")]
-        Task<ApiResponse<bool>> Disconnect([Body] OdinIdRequest request);
+        Task<ApiResponse<bool>> Disconnect([Body] OdinIdRequest request, [Query] bool notifyRemote = true);
 
         [Post(root_path + "/status")]
         Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] OdinIdRequest request, bool omitContactData = true);

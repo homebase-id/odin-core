@@ -156,12 +156,12 @@ public class V2ConnectionRequestsController(
     // DELETE /requests/outgoing/{recipientId}
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpDelete("requests/outgoing/{recipientId}")]
-    public async Task<IActionResult> CancelOutgoingRequest(string recipientId)
+    public async Task<IActionResult> CancelOutgoingRequest(string recipientId, [FromQuery] bool notifyRemote = false)
     {
         AssertIsValidOdinId(recipientId, out var id);
 
         await circleNetworkRequestService
-            .DeleteSentRequest(id, WebOdinContext);
+            .DeleteSentRequest(id, WebOdinContext, notifyRemote);
 
         return NoContent();
     }

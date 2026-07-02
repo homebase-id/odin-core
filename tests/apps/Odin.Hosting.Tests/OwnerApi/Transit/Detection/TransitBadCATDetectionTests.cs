@@ -89,11 +89,13 @@ public class TransitBadCATDetectionTests
 
         //
         // Merry gets mad and disconnects from Pippin, pippin leaves for Gondor with Gandalf 🧙‍🐎
+        // notifyRemote:false -- this scenario specifically requires Pippin to still *think* he's
+        // connected so his next call carries a now-stale CAT, exercising bad-CAT detection below.
         //
-        await merryOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity);
+        await merryOwnerClient.Network.DisconnectFrom(pippinOwnerClient.Identity, notifyRemote: false);
 
         //
-        // Pippin makes transit query call to Merry still thinking they are connected (therefore he sends CAT).  
+        // Pippin makes transit query call to Merry still thinking they are connected (therefore he sends CAT).
         //
         // On the backend - Merry's server detects bad CAT (or ICR), rejects the call and Tells Pippin's server that the CAT is invalid
         // therefore, the call should fail with 403

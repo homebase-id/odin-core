@@ -274,6 +274,12 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
                 case OutboxItemType.ConnectIntroducee:
                     return await ConnectIntroducee(childScope, fileItem, odinContext, cancellationToken);
 
+                case OutboxItemType.BreakConnectionRequest:
+                    return await SendBreakConnectionRequest(fileItem, odinContext, cancellationToken);
+
+                case OutboxItemType.WithdrawConnectionRequest:
+                    return await SendWithdrawConnectionRequest(fileItem, odinContext, cancellationToken);
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -303,6 +309,24 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         {
             var workLogger = loggerFactory.CreateLogger<SendReadReceiptOutboxWorker>();
             var worker = new SendReadReceiptOutboxWorker(fileItem, workLogger, odinHttpClientFactory, odinConfiguration);
+            return await worker.Send(odinContext, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendBreakConnectionRequest(OutboxFileItem fileItem,
+            IOdinContext odinContext,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendBreakConnectionRequestOutboxWorker>();
+            var worker = new SendBreakConnectionRequestOutboxWorker(fileItem, workLogger, odinConfiguration, odinHttpClientFactory);
+            return await worker.Send(odinContext, cancellationToken);
+        }
+
+        private async Task<(bool shouldMarkComplete, UnixTimeUtc nextRun)> SendWithdrawConnectionRequest(OutboxFileItem fileItem,
+            IOdinContext odinContext,
+            CancellationToken cancellationToken)
+        {
+            var workLogger = loggerFactory.CreateLogger<SendWithdrawConnectionRequestOutboxWorker>();
+            var worker = new SendWithdrawConnectionRequestOutboxWorker(fileItem, workLogger, odinConfiguration, odinHttpClientFactory);
             return await worker.Send(odinContext, cancellationToken);
         }
 

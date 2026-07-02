@@ -123,14 +123,18 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
         /// Deletes a connection request sent to the specified recipient.
         /// </summary>
         /// <param name="recipient"></param>
+        /// <param name="notifyRemote">
+        /// When true, the recipient is notified (best-effort, via the outbox) so it withdraws the matching
+        /// pending request. When false (the default), the cancel is one-sided.
+        /// </param>
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.Circles })]
         [HttpPost("sent/delete")]
-        public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
+        public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient, [FromQuery] bool notifyRemote = false)
         {
             AssertIsValidOdinId(recipient.OdinId, out var id);
 
-            await circleNetworkRequestService.DeleteSentRequest(id, WebOdinContext);
+            await circleNetworkRequestService.DeleteSentRequest(id, WebOdinContext, notifyRemote);
             return true;
         }
 

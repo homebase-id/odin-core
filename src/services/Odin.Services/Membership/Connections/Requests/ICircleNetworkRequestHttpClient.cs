@@ -21,5 +21,12 @@ namespace Odin.Services.Membership.Connections.Requests
 
         [Post(RootPath + "/establishconnection")]
         Task<ApiResponse<NoResultResponse>> EstablishConnection([Body] SharedSecretEncryptedPayload requestReply, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Notifies the recipient that the caller has withdrawn a connection request they previously sent, so the
+        /// recipient removes the matching pending request.
+        /// </summary>
+        [Post(RootPath + "/withdraw")]
+        Task<ApiResponse<HttpContent>> WithdrawConnectionRequest([Body] ConnectionRequestWithdrawal request, CancellationToken cancellationToken = default);
     }
 }
