@@ -42,6 +42,31 @@ public class V2ProfileController(
         return Ok(new ProfileAttributeWriteResponse { Id = result.Id, VersionTag = result.VersionTag });
     }
 
+    // PUT /api/v2/profile/attributes/photo — create or edit the Photo attribute (409 on a stale version
+    // tag when editing). Plain JSON body like SetAttribute above, not multipart: profile photos are capped
+    // small (a 200x200 rendition is ~10-20KB; nothing here should approach six figures of bytes), so the
+    // ~33% base64 overhead is negligible and not worth the multipart parsing complexity. Unlike SetAttribute,
+    // the image + its pre-generated thumbnails ride as a payload (see SetPhotoAttributeRequest); the server
+    // does not resize images, so the caller supplies every rendition it wants stored, plaintext — the server
+    // encrypts at rest itself based on Visibility (matches SetAttribute, not SetContactImageRequest, which
+    // requires client-side pre-encryption).
+    [SwaggerOperation(Tags = [SwaggerInfo.Profile])]
+    [HttpPut("attributes/photo")]
+    [ProducesResponseType(typeof(ProfileAttributeWriteResponse), 200)]
+    [ProducesResponseType(typeof(ProfileAttributeWriteConflict), 409)]
+    public async Task<IActionResult> SetPhotoAttribute([FromBody] SetPhotoAttributeRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+
+        var result = await profileAttributeService.SetPhotoAttributeAsync(request, WebOdinContext);
+        if (result.Outcome == ProfileAttributeWriteOutcome.VersionConflict)
+        {
+            return Conflict(new ProfileAttributeWriteConflict { Id = result.Id, VersionTag = result.VersionTag });
+        }
+
+        return Ok(new ProfileAttributeWriteResponse { Id = result.Id, VersionTag = result.VersionTag });
+    }
+
     // DELETE /api/v2/profile/attributes/{id}?versionTag=...  — delete an attribute (404 if missing,
     // 409 on a stale version tag).
     [SwaggerOperation(Tags = [SwaggerInfo.Profile])]

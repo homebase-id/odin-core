@@ -35,4 +35,8 @@ internal static class ProfileAttributeFields
     public const string ShortBio = "short_bio";        // odin-js — the "Short bio" tagline
     public const string Status = "status";             // odin-js MinimalProfileFields.Status
     public const string Nickname = "nickName";         // odin-js NicknameFields.NickName
+
+    // Photo (odin-js MinimalProfileFields.ProfileImageKey) — holds the payload key pointing at the image,
+    // not the image itself (set server-side by ProfileAttributeService.SetPhotoAttributeAsync).
+    public const string ProfileImageKey = "profileImageKey";
 }

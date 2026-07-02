@@ -50,6 +50,53 @@ public sealed class SetProfileAttributeRequest
     public Guid? ExpectedVersionTag { get; set; }
 }
 
+/// <summary>
+/// Request to create or edit the Photo attribute (see <c>ProfileAttributeService.SetPhotoAttributeAsync</c>).
+/// Unlike <see cref="SetProfileAttributeRequest"/>, this carries the image + its pre-generated thumbnails
+/// as a payload rather than header-only <c>Data</c> — the server does not resize images, so
+/// <see cref="Thumbnails"/> must already be sized the way the caller wants them stored (matching odin-js,
+/// which generates them client-side before upload).
+/// </summary>
+public sealed class SetPhotoAttributeRequest
+{
+    /// <summary>
+    /// The attribute id (the file's unique id). When it matches an existing Photo attribute this edits it
+    /// (replacing the image + thumbnails wholesale); when null or unknown a new attribute is created.
+    /// </summary>
+    public Guid? Id { get; set; }
+
+    /// <summary>Authored rank; lower is preferred (odin-js attribute priority). Defaults to 0.</summary>
+    public int? Priority { get; set; }
+
+    /// <summary>
+    /// The attribute's visibility / access-control level. Defaults to <see cref="ProfileAttributeVisibility.Anonymous"/>.
+    /// Callers can hold multiple Photo attributes at once (e.g. a public avatar and a higher-resolution
+    /// Connected-only one), each with its own <see cref="Id"/> and visibility.
+    /// </summary>
+    public ProfileAttributeVisibility Visibility { get; set; } = ProfileAttributeVisibility.Anonymous;
+
+    /// <summary>The expected current version tag; required when editing an existing attribute (optimistic concurrency).</summary>
+    public Guid? ExpectedVersionTag { get; set; }
+
+    /// <summary>MIME type of the full-size image, e.g. <c>image/webp</c>.</summary>
+    public string ContentType { get; set; }
+
+    /// <summary>The full-size image bytes.</summary>
+    public byte[] Content { get; set; }
+
+    /// <summary>Pre-generated thumbnail renditions of <see cref="Content"/>, caller-supplied.</summary>
+    public List<ProfilePhotoThumbnail> Thumbnails { get; set; } = new();
+}
+
+/// <summary>A caller-generated thumbnail rendition for a Photo attribute's image.</summary>
+public sealed class ProfilePhotoThumbnail
+{
+    public int PixelWidth { get; set; }
+    public int PixelHeight { get; set; }
+    public string ContentType { get; set; }
+    public byte[] Content { get; set; }
+}
+
 public enum ProfileAttributeWriteOutcome
 {
     Created,

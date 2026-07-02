@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -7,6 +8,7 @@ using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -14,6 +16,7 @@ using Odin.Services.Contacts;
 using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
+using Odin.Services.Drives.FileSystem.Base;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Peer.Encryption;
 using Odin.Services.Util;
@@ -40,11 +43,12 @@ namespace Odin.Services.Profile;
 /// </para>
 ///
 /// <para>
-/// <b>Scope (this increment):</b> scalar/text attributes only — the same set
-/// <see cref="ContactEnrichmentService"/> reads (name, nickname, address, birthday, phone, email, status,
-/// link, social/game handles). Photo/Experience/Theme attributes (which carry image payloads + generated
-/// thumbnails) and the header-overflow payload path are intentionally not handled here; content that does
-/// not fit the file header is rejected.
+/// <b>Scope (this increment):</b> scalar/text attributes via <see cref="SetAttributeAsync"/> — the same
+/// set <see cref="ContactEnrichmentService"/> reads (name, nickname, address, birthday, phone, email,
+/// status, link, social/game handles) — plus the Photo attribute via the dedicated
+/// <see cref="SetPhotoAttributeAsync"/>, which carries an image payload + generated thumbnails instead of
+/// header-only content. Experience/Theme attributes and the general header-overflow payload path remain
+/// out of scope; content that does not fit the file header is rejected.
 /// </para>
 /// </summary>
 public class ProfileAttributeService(
@@ -53,6 +57,22 @@ public class ProfileAttributeService(
 {
     /// <summary>File type of a profile attribute on the ProfileDrive (odin-js <c>AttributeConfig.AttributeFileType</c>).</summary>
     public const int AttributeFileType = 77;
+
+    /// <summary>
+    /// Payload key for the Photo attribute's image (odin-js <c>PHOTO_PAYLOAD_KEY</c>). Must satisfy
+    /// <c>^[a-z0-9_]{8,10}$</c> (see <see cref="TenantPathManager.IsValidPayloadKey"/>).
+    /// </summary>
+    private const string PhotoPayloadKey = "prfl_key";
+
+    /// <summary>
+    /// Max size of the Photo attribute's full-size image. Generous headroom over a realistic profile photo
+    /// (a 400x400 rendition typically runs well under 200KB) — this is a sanity ceiling against a buggy or
+    /// abusive caller, not a target size. Nothing else in the write path bounds this: unlike thumbnails
+    /// (<see cref="ThumbnailDescriptor.MaxThumbnailSize"/>, enforced via <c>ServerFileHeader.Validate</c>),
+    /// the main payload has no size check downstream, and Kestrel's request body size limit is unbounded
+    /// (<c>Program.cs</c> sets <c>MaxRequestBodySize = null</c>).
+    /// </summary>
+    private const int MaxPhotoContentBytes = 2 * 1024 * 1024;
 
     /// <summary>
     /// Max size (UTF-8 bytes) of the attribute JSON carried inline in the file header. Mirrors odin-js
@@ -135,6 +155,234 @@ public class ProfileAttributeService(
             Outcome = ProfileAttributeWriteOutcome.Updated,
             Id = attributeId,
             VersionTag = newVersionTag
+        };
+    }
+
+    /// <summary>
+    /// Create or edit the Photo attribute (odin-js <c>BuiltInAttributes.Photo</c>). Unlike
+    /// <see cref="SetAttributeAsync"/>, the attribute's image rides as a drive-file <b>payload</b> (plus
+    /// caller-supplied thumbnails) rather than header content — the header's <c>data.profileImageKey</c>
+    /// field just points at <see cref="PhotoPayloadKey"/>, matching odin-js <c>photoAttributeProcessing</c>.
+    /// The server does not resize images: the caller supplies the full-size image and every thumbnail
+    /// rendition it wants stored, exactly as odin-js generates them client-side before upload.
+    ///
+    /// <para>
+    /// Same create-or-edit-by-<see cref="SetPhotoAttributeRequest.Id"/> contract as
+    /// <see cref="SetAttributeAsync"/>, including per-request <see cref="SetPhotoAttributeRequest.Visibility"/>
+    /// — callers can hold multiple Photo attributes at once (e.g. a public avatar and a higher-resolution
+    /// Connected-only one), each independently addressable and ACL'd.
+    /// </para>
+    /// </summary>
+    public async Task<ProfileAttributeWriteResult> SetPhotoAttributeAsync(SetPhotoAttributeRequest request,
+        IOdinContext odinContext)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "Photo content is required");
+        OdinValidationUtils.AssertIsTrue(request.Content.Length <= MaxPhotoContentBytes,
+            $"Photo content exceeds the {MaxPhotoContentBytes} byte limit");
+        OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "Photo content type is required");
+        foreach (var thumbnail in request.Thumbnails ?? [])
+        {
+            OdinValidationUtils.AssertIsTrue(thumbnail.Content is { Length: > 0 }, "Thumbnail content is required");
+            OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(thumbnail.ContentType), "Thumbnail content type is required");
+            OdinValidationUtils.AssertIsTrue(thumbnail.PixelWidth > 0 && thumbnail.PixelHeight > 0,
+                "Thumbnail dimensions are required");
+        }
+
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageProfile);
+
+        var writeContext = GetWriteContext(odinContext);
+
+        var attributeId = request.Id ?? Guid.NewGuid();
+        var existing = request.Id.HasValue ? await GetForWritingAsync(request.Id.Value, writeContext) : null;
+
+        if (existing == null)
+        {
+            var createdVersionTag = await WriteNewPhotoAsync(attributeId, request, writeContext);
+            return new ProfileAttributeWriteResult
+            {
+                Outcome = ProfileAttributeWriteOutcome.Created,
+                Id = attributeId,
+                VersionTag = createdVersionTag
+            };
+        }
+
+        var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
+        if (request.ExpectedVersionTag.GetValueOrDefault() != currentVersionTag)
+        {
+            logger.LogDebug("Photo attribute update version conflict for id {id} (caller {caller} vs current {current})",
+                attributeId, request.ExpectedVersionTag, currentVersionTag);
+
+            return new ProfileAttributeWriteResult
+            {
+                Outcome = ProfileAttributeWriteOutcome.VersionConflict,
+                Id = attributeId,
+                VersionTag = currentVersionTag
+            };
+        }
+
+        var newVersionTag = await OverwritePhotoAsync(existing, attributeId, request, writeContext);
+        return new ProfileAttributeWriteResult
+        {
+            Outcome = ProfileAttributeWriteOutcome.Updated,
+            Id = attributeId,
+            VersionTag = newVersionTag
+        };
+    }
+
+    private async Task<Guid> WriteNewPhotoAsync(Guid attributeId, SetPhotoAttributeRequest request, IOdinContext writeContext)
+    {
+        var file = await fileSystem.Storage.CreateInternalFileId(DriveId, writeContext);
+        var encrypt = Encrypts(request.Visibility);
+        var keyHeader = encrypt ? KeyHeader.NewRandom16() : KeyHeader.Empty();
+
+        var payloadDescriptor = await StagePhotoPayloadAsync(file, request, keyHeader, encrypt, writeContext);
+        try
+        {
+            var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, encrypt,
+                versionTag: null);
+            var serverMetadata = new ServerMetadata
+            {
+                AccessControlList = AclFor(request.Visibility),
+                AllowDistribution = false
+            };
+
+            var (success, _) = await fileSystem.Storage.CommitNewFile(file, keyHeader, metadata, serverMetadata,
+                ignorePayload: false, writeContext, sourceArea: StagingArea.Upload);
+            if (!success)
+            {
+                throw new OdinSystemException("Failed to commit photo attribute");
+            }
+
+            return metadata.VersionTag.GetValueOrDefault();
+        }
+        finally
+        {
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, [payloadDescriptor], writeContext);
+        }
+    }
+
+    private async Task<Guid> OverwritePhotoAsync(ServerFileHeader existing, Guid attributeId,
+        SetPhotoAttributeRequest request, IOdinContext writeContext)
+    {
+        var file = existing.FileMetadata.File;
+        var encrypt = Encrypts(request.Visibility);
+        var keyHeader = encrypt ? KeyHeader.NewRandom16() : KeyHeader.Empty();
+
+        // Same full-rebuild convention as OverwriteAsync: OverwriteFile treats newMetadata.Payloads as the
+        // complete desired payload set and hard-deletes whatever isn't referenced anymore, so the prior
+        // image (and its thumbnails) are cleaned up automatically once the new one commits.
+        var payloadDescriptor = await StagePhotoPayloadAsync(file, request, keyHeader, encrypt, writeContext);
+        try
+        {
+            var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, encrypt,
+                versionTag: existing.FileMetadata.VersionTag.GetValueOrDefault());
+            var serverMetadata = new ServerMetadata
+            {
+                AccessControlList = AclFor(request.Visibility),
+                AllowDistribution = false
+            };
+
+            var (success, _) = await fileSystem.Storage.OverwriteFile(file, file, keyHeader, metadata, serverMetadata,
+                ignorePayload: false, writeContext, markComplete: null, sourceArea: StagingArea.Upload);
+            if (!success)
+            {
+                throw new OdinSystemException("Failed to commit photo attribute");
+            }
+
+            return metadata.VersionTag.GetValueOrDefault();
+        }
+        finally
+        {
+            await fileSystem.Storage.CleanupUploadTemporaryFiles(file, [payloadDescriptor], writeContext);
+        }
+    }
+
+    /// <summary>
+    /// Stages the image + thumbnails to the upload temp area and returns the payload descriptor. Encrypted
+    /// attributes share one payload IV across the image and every thumbnail (matching
+    /// <see cref="ContactService"/>'s <c>SetContactImageRequest</c> convention — thumbnails have no IV of
+    /// their own).
+    /// </summary>
+    private async Task<PayloadDescriptor> StagePhotoPayloadAsync(InternalDriveFileId file, SetPhotoAttributeRequest request,
+        KeyHeader keyHeader, bool encrypt, IOdinContext writeContext)
+    {
+        var uid = UnixTimeUtcUnique.Now();
+        var iv = encrypt ? ByteArrayUtil.GetRndByteArray(16) : new byte[16];
+
+        byte[] EncryptIfNeeded(byte[] plain) =>
+            encrypt ? new KeyHeader { Iv = iv, AesKey = keyHeader.AesKey }.EncryptDataAes(plain) : plain;
+
+        var imageExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(PhotoPayloadKey, uid);
+        var imageBytesWritten = await fileSystem.Storage.WriteUploadStream(file, imageExtension,
+            new MemoryStream(EncryptIfNeeded(request.Content)), writeContext);
+
+        var thumbnailDescriptors = new List<ThumbnailDescriptor>();
+        foreach (var thumbnail in request.Thumbnails ?? [])
+        {
+            var thumbExtension = TenantPathManager.GetThumbnailFileNameAndExtension(
+                PhotoPayloadKey, uid, thumbnail.PixelWidth, thumbnail.PixelHeight);
+            var thumbBytesWritten = await fileSystem.Storage.WriteUploadStream(file, thumbExtension,
+                new MemoryStream(EncryptIfNeeded(thumbnail.Content)), writeContext);
+
+            thumbnailDescriptors.Add(new ThumbnailDescriptor
+            {
+                PixelWidth = thumbnail.PixelWidth,
+                PixelHeight = thumbnail.PixelHeight,
+                ContentType = thumbnail.ContentType,
+                BytesWritten = thumbBytesWritten
+            });
+        }
+
+        return new PayloadDescriptor
+        {
+            Key = PhotoPayloadKey,
+            Uid = uid,
+            Iv = iv,
+            ContentType = request.ContentType,
+            BytesWritten = imageBytesWritten,
+            LastModified = UnixTimeUtc.Now(),
+            Thumbnails = thumbnailDescriptors
+        };
+    }
+
+    /// <summary>
+    /// Builds the Photo attribute's <see cref="FileMetadata"/>: header content is just the pointer
+    /// <c>{ data: { profileImageKey: PhotoPayloadKey } }</c> (odin-js overwrites the field the same way
+    /// after staging the image), so it never risks tripping <see cref="AssertContentFitsHeader"/> the way
+    /// an inline image would.
+    /// </summary>
+    private FileMetadata BuildPhotoMetadata(InternalDriveFileId file, Guid attributeId, int priority,
+        PayloadDescriptor payloadDescriptor, bool encrypt, Guid? versionTag)
+    {
+        var data = new Dictionary<string, object> { [ProfileAttributeFields.ProfileImageKey] = PhotoPayloadKey };
+        var content = new ProfileAttributeContent
+        {
+            Id = attributeId.ToString("N"),
+            ProfileId = StandardProfileId.ToString("N"),
+            Type = BuiltInProfileAttributes.Photo.ToString("N"),
+            Priority = priority,
+            SectionId = PersonalInfoSectionId.ToString("N"),
+            Data = data
+        };
+
+        var storedContent = OdinSystemSerializer.Serialize(content);
+        AssertContentFitsHeader(storedContent);
+
+        return new FileMetadata(file)
+        {
+            AppData = new AppFileMetaData
+            {
+                FileType = AttributeFileType,
+                UniqueId = attributeId,
+                Tags = [BuiltInProfileAttributes.Photo, PersonalInfoSectionId, StandardProfileId, attributeId],
+                GroupId = PersonalInfoSectionId,
+                Content = storedContent
+            },
+            IsEncrypted = encrypt,
+            VersionTag = versionTag,
+            FileState = FileState.Active,
+            Payloads = [payloadDescriptor]
         };
     }
 
@@ -332,9 +580,17 @@ public class ProfileAttributeService(
         }
     }
 
-    /// <summary>Asserts the type is a known built-in attribute and returns its canonical GUID.</summary>
+    /// <summary>Asserts the type is a known built-in attribute (and not Photo, which has its own payload-carrying
+    /// write path) and returns its canonical GUID.</summary>
     private static Guid AssertSupportedType(Guid attributeType)
     {
+        if (attributeType == BuiltInProfileAttributes.Photo)
+        {
+            throw new OdinClientException(
+                $"The Photo attribute carries an image payload and is not supported by {nameof(SetAttributeAsync)}; use {nameof(SetPhotoAttributeAsync)}.",
+                OdinClientErrorCode.ArgumentError);
+        }
+
         var match = BuiltInProfileAttributes.All.FirstOrDefault(t => t.Type == attributeType);
         if (match == null)
         {
