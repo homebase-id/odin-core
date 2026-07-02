@@ -133,7 +133,8 @@ namespace Odin.Services.Membership.Connections
                 ConnectionRequestOrigin = this.ConnectionRequestOrigin,
                 AccessGrant = this.AccessGrant?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
-                HasVerificationHash = !this.VerificationHash.IsNullOrEmpty()
+                HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
+                Vetted = this.IsConnected() && this.IsConfirmedConnection()
             };
         }
     }
@@ -158,5 +159,10 @@ namespace Odin.Services.Membership.Connections
         public bool HasVerificationHash { get; init; }
 
         public bool Rku { get; init; }
+
+        /// <summary>
+        /// True if the identity is connected and is a member of the Confirmed Connections system circle
+        /// </summary>
+        public bool Vetted { get; init; }
     }
 }
