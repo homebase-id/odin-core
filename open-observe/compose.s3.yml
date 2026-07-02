@@ -1,0 +1,105 @@
+# OpenObserve: centralized log aggregation for Homebase/ODIN identity hosts.
+#
+# The log host (Hetzner CCX12, hel1) already runs an INDEPENDENT Caddy container serving other sites, so
+# this stack does NOT bundle Caddy (a second one would collide on 80/443). That Caddy runs with
+# `--network host`, so it shares the host's network namespace and CANNOT be attached to a Docker bridge
+# network (host-mode containers can't join other networks). It therefore can't resolve `openobserve` by
+# container name. So this stack publishes OO's gRPC port on the host loopback (127.0.0.1:5081) and the
+# host's Caddy reverse-proxies to it there. Add one site block to the existing Caddyfile (see
+# README.md). Ansible renders this file + a 0600 `.env` (from the vault) and brings it up with
+# docker_compose_v2. See PLAN.md. Every ${VAR} comes from that .env. NO secrets live in this file.
+services:
+  openobserve:
+    container_name: openobserve   # host's Caddy (network=host) reaches it at reverse_proxy h2c://127.0.0.1:5081
+    restart: unless-stopped
+    # Pin a concrete version in production; do NOT float :latest. OSS / AGPL build (not enterprise).
+    image: public.ecr.aws/zinclabs/openobserve:${OPENOBSERVE_VERSION:?set OPENOBSERVE_VERSION in .env}
+    # Hard memory ceiling; must exceed the sum of the cache sizes + memtable + overhead or the container
+    # is OOM-killed. Default sized for an ~8 GB host.
+    mem_limit: "${OO_MEM_LIMIT:-6g}"
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OO_ROOT_USER_EMAIL:?}"
+      ZO_ROOT_USER_PASSWORD: "${OO_ROOT_USER_PASSWORD:?}"
+      ZO_DATA_DIR: "/data"
+      ZO_COMPACT_DATA_RETENTION_DAYS: "${OO_RETENTION_DAYS:-30}"   # prune logs older than N days; compactor enforces
+      # Data backend = Hetzner S3 (hel1). ZO_LOCAL_MODE left UNSET (stays local/single-node); only data → S3.
+      # Metadata stays SQLite on the oo-data volume — BACK IT UP (see PLAN.md §8).
+      ZO_LOCAL_MODE_STORAGE: "s3"
+      ZO_S3_PROVIDER: "minio"                                       # generic S3-compatible; Hetzner isn't a named provider
+      ZO_S3_SERVER_URL: "${ZO_S3_SERVER_URL:?}"
+      ZO_S3_REGION_NAME: "${ZO_S3_REGION_NAME:?}"
+      ZO_S3_BUCKET_NAME: "${ZO_S3_BUCKET_NAME:?}"
+      ZO_S3_ACCESS_KEY: "${ZO_S3_ACCESS_KEY:?}"
+      ZO_S3_SECRET_KEY: "${ZO_S3_SECRET_KEY:?}"
+      ZO_S3_FEATURE_FORCE_PATH_STYLE: "${ZO_S3_FORCE_PATH_STYLE:-false}"  # Hetzner uses virtual-hosted style
+      # Memory bounds (single-node; the two in-memory caches each default to ~50% RAM — pin them).
+      ZO_DISK_CACHE_MAX_SIZE: "${ZO_DISK_CACHE_MAX_SIZE:-10240}"          # MB; local read-cache (disk, not RAM)
+      ZO_MEMORY_CACHE_MAX_SIZE: "${OO_MEM_CACHE_MAX_SIZE:-2048}"          # MB; query-result cache
+      ZO_MEMORY_CACHE_DATAFUSION_MAX_SIZE: "${OO_DATAFUSION_CACHE_MAX_SIZE:-2048}"  # MB; query engine working set
+      ZO_FILE_MOVE_THREAD_NUM: "${OO_FILE_MOVE_THREAD_NUM:-1}"            # compaction threads (default cores x2); 1 suits 2 vCPU
+      # --- operational / feature flags (see .env.example) ---
+      ZO_TELEMETRY: "${OO_TELEMETRY:-false}"                              # no anonymous phone-home (self-hosted)
+      ZO_PROMETHEUS_ENABLED: "${OO_PROMETHEUS_ENABLED:-true}"             # expose OO's own metrics on /metrics
+      ZO_INGEST_ALLOWED_UPTO: "${OO_INGEST_ALLOWED_UPTO:-5}"              # hrs; events OLDER than this are DROPPED (future side defaults 24h)
+      ZO_FEATURE_INDEX_EXTRA_FIELDS: "${OO_INDEX_EXTRA_FIELDS:-}"         # comma list; secondary index (e.g. correlation ids) for fast filters
+      ZO_FEATURE_FULLTEXT_EXTRA_FIELDS: "${OO_FULLTEXT_EXTRA_FIELDS:-}"   # comma list; extra full-text fields (add your OTLP message field)
+      ZO_ALLOW_USER_DEFINED_SCHEMAS: "${OO_ALLOW_USER_DEFINED_SCHEMAS:-true}"  # enable UDS (whitelist). Per-stream defined_schema_fields + store_original_data are set via the stream settings API, NOT env.
+      # --- search / diagnostics ---
+      ZO_STREAMING_ENABLED: "${OO_STREAMING_ENABLED:-false}"             # default false HERE (not OO's default): streaming search reset the stream on v0.91.0; off = full result in one shot. Re-test on upgrade.
+      ZO_GRPC_MAX_MESSAGE_SIZE: "${OO_GRPC_MAX_MESSAGE_SIZE:-16}"        # MB; internal gRPC message ceiling (raise if broad queries reset the stream)
+      RUST_LOG: "${RUST_LOG:-info}"                                      # error|warn|info|debug|trace; bump to debug to trace search internals
+    ports:
+      - "127.0.0.1:5080:5080"   # Web UI — loopback ONLY; reach via SSH tunnel (see PLAN.md "UI access").
+      - "127.0.0.1:5081:5081"   # OTLP gRPC — loopback ONLY. The host's Caddy (network=host) forwards h2c
+                                # here and terminates the real TLS at the edge. Not exposed off-box.
+    volumes:
+      - oo-data:/data           # SQLite metadata + WAL + read cache (Parquet data goes to S3) — BACK UP the metadata
+    # No custom network: the host's Caddy runs with `--network host` and can't join a Docker bridge net,
+    # so there's no shared network to put OO on. OO uses the default bridge (outbound to S3 works) and is
+    # reached by Caddy via the loopback-published 5081 above.
+
+  # --- one-shot bootstrap: create the dedicated (non-root) ingest user INSIDE the stack (no external call) ---
+  # Waits for OpenObserve, then ensures the non-root ingest user exists. Idempotent (checks first, creates
+  # only if missing), so it is safe to re-run on every `up`. Reaches OO by service name over the compose
+  # default network (container-to-container, independent of the loopback port publishing). It runs on
+  # create/recreate, so a full `down`+`up` re-provisions the user. See PLAN.md §5.3 for the
+  # password-vs-passcode and role-name caveats to confirm on your version.
+  oo-init:
+    image: "${OO_INIT_IMAGE:-curlimages/curl:8.21.0}"
+    container_name: oo-init
+    depends_on:
+      - openobserve
+    restart: "no"                 # one-shot: runs, provisions, exits
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OO_ROOT_USER_EMAIL:?}"
+      ZO_ROOT_USER_PASSWORD: "${OO_ROOT_USER_PASSWORD:?}"
+      OO_INGEST_EMAIL: "${OO_INGEST_EMAIL:?}"
+      OO_INGEST_PASSWORD: "${OO_INGEST_PASSWORD:?}"
+      OO_INGEST_ROLE: "${OO_INGEST_ROLE:-admin}"
+    entrypoint: ["/bin/sh", "-c"]
+    # NOTE: shell vars are written $$VAR so Compose passes a literal $ to sh (single $ = Compose interpolation).
+    command:
+      - |
+        set -eu
+        OO_URL="http://openobserve:5080"
+        echo "oo-init: waiting for OpenObserve /healthz ..."
+        until curl -fsS "$$OO_URL/healthz" >/dev/null 2>&1; do sleep 2; done
+        echo "oo-init: up; ensuring ingest user $$OO_INGEST_EMAIL (role $$OO_INGEST_ROLE)"
+        users=$$(curl -fsS -u "$$ZO_ROOT_USER_EMAIL:$$ZO_ROOT_USER_PASSWORD" "$$OO_URL/api/default/users" || echo "")
+        if printf '%s' "$$users" | grep -q "\"$$OO_INGEST_EMAIL\""; then
+          echo "oo-init: user already exists, nothing to do"
+        else
+          echo "oo-init: creating ingest user"
+          body="{\"email\":\"$$OO_INGEST_EMAIL\",\"first_name\":\"ingest\",\"last_name\":\"homebase\",\"password\":\"$$OO_INGEST_PASSWORD\",\"role\":\"$$OO_INGEST_ROLE\"}"
+          resp=$$(curl -sS -w '\n%{http_code}' -u "$$ZO_ROOT_USER_EMAIL:$$ZO_ROOT_USER_PASSWORD" \
+            -H 'Content-Type: application/json' -X POST "$$OO_URL/api/default/users" -d "$$body" || true)
+          code=$$(printf '%s\n' "$$resp" | tail -n1)
+          msg=$$(printf '%s\n' "$$resp" | sed '$$d')
+          case "$$code" in
+            2*) echo "oo-init: created ($$code)" ;;
+            *)  echo "oo-init: FAILED to create user: HTTP $$code -- $$msg"; exit 1 ;;
+          esac
+        fi
+
+volumes:
+  oo-data:

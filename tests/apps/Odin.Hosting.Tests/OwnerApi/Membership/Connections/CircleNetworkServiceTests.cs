@@ -830,7 +830,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 var samConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await samConnections.Disconnect(new OdinIdRequest() { OdinId = frodo.Identity });
-                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                // Content is false when there was nothing connected to disconnect (e.g. the peer already
+                // severed the connection via a prior reciprocal-disconnect notification) -- that's not a failure.
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.None);
             }
 
@@ -838,7 +840,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             {
                 var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
-                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                // Content is false when there was nothing connected to disconnect (e.g. the peer already
+                // severed the connection via a prior reciprocal-disconnect notification) -- that's not a failure.
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
         }
@@ -1100,7 +1104,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             {
                 var frodoConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
-                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                // Content is false when there was nothing connected to disconnect (e.g. the peer already
+                // severed the connection via a prior reciprocal-disconnect notification) -- that's not a failure.
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
 
@@ -1108,7 +1114,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             {
                 var samConnections = RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret);
                 var disconnectResponse = await samConnections.Disconnect(new OdinIdRequest() { OdinId = frodo.Identity });
-                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                // Content is false when there was nothing connected to disconnect (e.g. the peer already
+                // severed the connection via a prior reciprocal-disconnect notification) -- that's not a failure.
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
             }
         }

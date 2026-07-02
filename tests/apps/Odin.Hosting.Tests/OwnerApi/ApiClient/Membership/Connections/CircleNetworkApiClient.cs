@@ -155,13 +155,15 @@ public class CircleNetworkApiClient
         }
     }
 
-    public async Task DisconnectFrom(TestIdentity recipient)
+    public async Task DisconnectFrom(TestIdentity recipient, bool notifyRemote = true)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
-                .Disconnect(new OdinIdRequest() { OdinId = recipient.OdinId });
-            ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                .Disconnect(new OdinIdRequest() { OdinId = recipient.OdinId }, notifyRemote);
+            // Content is false when there was nothing connected to disconnect (e.g. the peer already
+            // severed the connection via a prior reciprocal-disconnect notification) -- that's not a failure.
+            ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode, "failed to disconnect");
             await AssertConnectionStatus(client, ownerSharedSecret, recipient.OdinId, ConnectionStatus.None);
         }
     }

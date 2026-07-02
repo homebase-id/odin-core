@@ -172,12 +172,12 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> DisconnectFrom(OdinId recipient)
+    public async Task<ApiResponse<HttpContent>> DisconnectFrom(OdinId recipient, bool notifyRemote = false)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
         {
             var disconnectResponse = await RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret)
-                .Disconnect(new OdinIdRequest() { OdinId = recipient });
+                .Disconnect(new OdinIdRequest() { OdinId = recipient }, notifyRemote);
             return disconnectResponse;
         }
     }

@@ -632,7 +632,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId2 });
-                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                // Content is false when there was nothing connected to disconnect (e.g. the peer already
+                // severed the connection via a prior reciprocal-disconnect notification) -- that's not a failure.
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, odinId2, ConnectionStatus.None);
             }
 
@@ -640,7 +642,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<IRefitOwnerCircleNetworkConnections>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId1 });
-                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
+                ClassicAssert.IsTrue(disconnectResponse.IsSuccessStatusCode, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, odinId1, ConnectionStatus.None);
             }
         }
