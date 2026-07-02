@@ -178,8 +178,11 @@ public class ProfileAttributeService(
     {
         OdinValidationUtils.AssertNotNull(request, nameof(request));
         OdinValidationUtils.AssertIsTrue(request.Content is { Length: > 0 }, "Photo content is required");
-        OdinValidationUtils.AssertIsTrue(request.Content.Length <= MaxPhotoContentBytes,
-            $"Photo content exceeds the {MaxPhotoContentBytes} byte limit");
+        if (request.Content.Length > MaxPhotoContentBytes)
+        {
+            throw new OdinClientException($"Photo content exceeds the {MaxPhotoContentBytes} byte limit",
+                OdinClientErrorCode.MaxContentLengthExceeded);
+        }
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.ContentType), "Photo content type is required");
         foreach (var thumbnail in request.Thumbnails ?? [])
         {
