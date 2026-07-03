@@ -172,6 +172,7 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
             .As<INotificationHandler<ConnectionChangedNotification>>()
             .As<INotificationHandler<CircleDefinitionChangedNotification>>()
+            .As<INotificationHandler<PublicProfileContentPublishedNotification>>()
             .As<INotificationHandler<LiveRelayNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
@@ -319,6 +320,7 @@ public static class TenantServices
         cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<ContactEnrichmentService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<ProfileAttributeService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ProfilePublishService>().AsSelf().InstancePerLifetimeScope();
         // Enrichment is client-driven via POST /api/v2/contacts/sync (phase 1). Automatic
         // lifecycle-driven enrichment is deferred — see docs/contact-enrichment-phase2.md.
 

@@ -31,6 +31,7 @@ internal static class ProfileAttributeFields
     public const string PhoneNumber = "phone_number";  // odin-js PhoneFields.PhoneNumber
     public const string Email = "email";               // odin-js EmailFields.Email
     public const string BirthdayDate = "birtday_date"; // (sic) odin-js BirthdayFields.Date
+    public const string LinkText = "link_text";        // odin-js LinkFields.LinkText (the link's title)
     public const string LinkTarget = "link_target";    // odin-js LinkFields.LinkTarget (the URL)
     public const string ShortBio = "short_bio";        // odin-js — the "Short bio" tagline
     public const string Status = "status";             // odin-js MinimalProfileFields.Status

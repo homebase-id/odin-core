@@ -53,7 +53,8 @@ namespace Odin.Services.Profile;
 /// </summary>
 public class ProfileAttributeService(
     ILogger<ProfileAttributeService> logger,
-    StandardFileSystem fileSystem)
+    StandardFileSystem fileSystem,
+    ProfilePublishService profilePublishService)
 {
     /// <summary>File type of a profile attribute on the ProfileDrive (odin-js <c>AttributeConfig.AttributeFileType</c>).</summary>
     public const int AttributeFileType = 77;
@@ -126,6 +127,7 @@ public class ProfileAttributeService(
         {
             var createdVersionTag = await WriteNewAsync(attributeId, attributeType, sectionId, priority, data,
                 request.Visibility, writeContext);
+            await profilePublishService.PublishAsync(attributeType, odinContext);
             return new ProfileAttributeWriteResult
             {
                 Outcome = ProfileAttributeWriteOutcome.Created,
@@ -150,6 +152,7 @@ public class ProfileAttributeService(
 
         var newVersionTag = await OverwriteAsync(existing, attributeId, attributeType, sectionId, priority, data,
             request.Visibility, writeContext);
+        await profilePublishService.PublishAsync(attributeType, odinContext);
         return new ProfileAttributeWriteResult
         {
             Outcome = ProfileAttributeWriteOutcome.Updated,
@@ -212,6 +215,7 @@ public class ProfileAttributeService(
         if (existing == null)
         {
             var createdVersionTag = await WriteNewPhotoAsync(attributeId, request, writeContext);
+            await profilePublishService.PublishAsync(BuiltInProfileAttributes.Photo, odinContext);
             return new ProfileAttributeWriteResult
             {
                 Outcome = ProfileAttributeWriteOutcome.Created,
@@ -235,6 +239,7 @@ public class ProfileAttributeService(
         }
 
         var newVersionTag = await OverwritePhotoAsync(existing, attributeId, request, writeContext);
+        await profilePublishService.PublishAsync(BuiltInProfileAttributes.Photo, odinContext);
         return new ProfileAttributeWriteResult
         {
             Outcome = ProfileAttributeWriteOutcome.Updated,
@@ -440,7 +445,18 @@ public class ProfileAttributeService(
                 OdinClientErrorCode.VersionTagMismatch);
         }
 
+        // Tag order is [type, sectionId, profileId, id] for both the plain and Photo write paths (see
+        // BuildHeaderAsync/BuildPhotoMetadata) -- read the type off the tags before the delete discards it.
+        var tags = existing.FileMetadata.AppData.Tags;
+        Guid? deletedAttributeType = tags is { Count: > 0 } ? tags[0] : null;
+
         await fileSystem.Storage.SoftDeleteLongTermFile(existing.FileMetadata.File, writeContext, null);
+
+        if (deletedAttributeType.HasValue)
+        {
+            await profilePublishService.PublishAsync(deletedAttributeType, odinContext);
+        }
+
         return true;
     }
 

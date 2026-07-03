@@ -18,6 +18,13 @@ public class V2ProfileClient(OdinId identity, IApiClientFactory factory)
         return await svc.SetAttribute(request);
     }
 
+    public async Task<ApiResponse<ProfileAttributeWriteResponse>> SetPhotoAttributeAsync(SetPhotoAttributeRequest request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IProfileHttpClientApiV2>(client, sharedSecret);
+        return await svc.SetPhotoAttribute(request);
+    }
+
     public async Task<ApiResponse<HttpContent>> DeleteAttributeAsync(Guid id, Guid versionTag)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

@@ -15,6 +15,9 @@ public interface IProfileHttpClientApiV2
     [Put(Root + "/attributes")]
     Task<ApiResponse<ProfileAttributeWriteResponse>> SetAttribute([Body] SetProfileAttributeRequest request);
 
+    [Put(Root + "/attributes/photo")]
+    Task<ApiResponse<ProfileAttributeWriteResponse>> SetPhotoAttribute([Body] SetPhotoAttributeRequest request);
+
     [Delete(Root + "/attributes/{id}")]
     Task<ApiResponse<HttpContent>> DeleteAttribute(Guid id, Guid versionTag);
 }
