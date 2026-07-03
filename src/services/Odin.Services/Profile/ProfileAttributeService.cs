@@ -242,8 +242,8 @@ public class ProfileAttributeService(
         var payloadDescriptor = await StagePhotoPayloadAsync(file, request, keyHeader, encrypt, writeContext);
         try
         {
-            var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, encrypt,
-                versionTag: null);
+            var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, keyHeader,
+                encrypt, versionTag: null);
             var serverMetadata = new ServerMetadata
             {
                 AccessControlList = AclFor(request.Visibility),
@@ -278,8 +278,8 @@ public class ProfileAttributeService(
         var payloadDescriptor = await StagePhotoPayloadAsync(file, request, keyHeader, encrypt, writeContext);
         try
         {
-            var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, encrypt,
-                versionTag: existing.FileMetadata.VersionTag.GetValueOrDefault());
+            var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, keyHeader,
+                encrypt, versionTag: existing.FileMetadata.VersionTag.GetValueOrDefault());
             var serverMetadata = new ServerMetadata
             {
                 AccessControlList = AclFor(request.Visibility),
@@ -353,10 +353,13 @@ public class ProfileAttributeService(
     /// Builds the Photo attribute's <see cref="FileMetadata"/>: header content is just the pointer
     /// <c>{ data: { profileImageKey: PhotoPayloadKey } }</c> (odin-js overwrites the field the same way
     /// after staging the image), so it never risks tripping <see cref="AssertContentFitsHeader"/> the way
-    /// an inline image would.
+    /// an inline image would. Encrypted the same way <see cref="BuildHeaderAsync"/> encrypts text-attribute
+    /// content — under <paramref name="keyHeader"/> when <paramref name="encrypt"/> is set — so
+    /// <c>IsEncrypted</c> and the actual stored bytes never disagree the way the image payload already
+    /// doesn't (see <see cref="StagePhotoPayloadAsync"/>).
     /// </summary>
     private FileMetadata BuildPhotoMetadata(InternalDriveFileId file, Guid attributeId, int priority,
-        PayloadDescriptor payloadDescriptor, bool encrypt, Guid? versionTag)
+        PayloadDescriptor payloadDescriptor, KeyHeader keyHeader, bool encrypt, Guid? versionTag)
     {
         var data = new Dictionary<string, object> { [ProfileAttributeFields.ProfileImageKey] = PhotoPayloadKey };
         var content = new ProfileAttributeContent
@@ -369,7 +372,8 @@ public class ProfileAttributeService(
             Data = data
         };
 
-        var storedContent = OdinSystemSerializer.Serialize(content);
+        var json = OdinSystemSerializer.Serialize(content);
+        var storedContent = encrypt ? keyHeader.EncryptDataAes(json.ToUtf8ByteArray()).ToBase64() : json;
         AssertContentFitsHeader(storedContent);
 
         return new FileMetadata(file)
