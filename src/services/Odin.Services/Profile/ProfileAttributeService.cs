@@ -191,6 +191,16 @@ public class ProfileAttributeService(
             OdinValidationUtils.AssertIsTrue(thumbnail.PixelWidth > 0 && thumbnail.PixelHeight > 0,
                 "Thumbnail dimensions are required");
         }
+        if (request.PreviewThumbnail != null)
+        {
+            OdinValidationUtils.AssertIsTrue(request.PreviewThumbnail.Content is { Length: > 0 },
+                "Preview thumbnail content is required");
+            OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(request.PreviewThumbnail.ContentType),
+                "Preview thumbnail content type is required");
+            OdinValidationUtils.AssertIsTrue(
+                request.PreviewThumbnail.PixelWidth > 0 && request.PreviewThumbnail.PixelHeight > 0,
+                "Preview thumbnail dimensions are required");
+        }
 
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageProfile);
 
@@ -243,7 +253,7 @@ public class ProfileAttributeService(
         try
         {
             var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, keyHeader,
-                encrypt, versionTag: null);
+                encrypt, request.PreviewThumbnail, versionTag: null);
             var serverMetadata = new ServerMetadata
             {
                 AccessControlList = AclFor(request.Visibility),
@@ -279,7 +289,7 @@ public class ProfileAttributeService(
         try
         {
             var metadata = BuildPhotoMetadata(file, attributeId, request.Priority ?? 0, payloadDescriptor, keyHeader,
-                encrypt, versionTag: existing.FileMetadata.VersionTag.GetValueOrDefault());
+                encrypt, request.PreviewThumbnail, versionTag: existing.FileMetadata.VersionTag.GetValueOrDefault());
             var serverMetadata = new ServerMetadata
             {
                 AccessControlList = AclFor(request.Visibility),
@@ -356,10 +366,13 @@ public class ProfileAttributeService(
     /// an inline image would. Encrypted the same way <see cref="BuildHeaderAsync"/> encrypts text-attribute
     /// content — under <paramref name="keyHeader"/> when <paramref name="encrypt"/> is set — so
     /// <c>IsEncrypted</c> and the actual stored bytes never disagree the way the image payload already
-    /// doesn't (see <see cref="StagePhotoPayloadAsync"/>).
+    /// doesn't (see <see cref="StagePhotoPayloadAsync"/>). <paramref name="previewThumbnail"/> is stored
+    /// as-is, unencrypted regardless of <paramref name="encrypt"/> — matching odin-js, which never runs its
+    /// embedded preview thumb through the same encryption step as content.
     /// </summary>
     private FileMetadata BuildPhotoMetadata(InternalDriveFileId file, Guid attributeId, int priority,
-        PayloadDescriptor payloadDescriptor, KeyHeader keyHeader, bool encrypt, Guid? versionTag)
+        PayloadDescriptor payloadDescriptor, KeyHeader keyHeader, bool encrypt,
+        ProfilePhotoThumbnail previewThumbnail, Guid? versionTag)
     {
         var data = new Dictionary<string, object> { [ProfileAttributeFields.ProfileImageKey] = PhotoPayloadKey };
         var content = new ProfileAttributeContent
@@ -384,7 +397,16 @@ public class ProfileAttributeService(
                 UniqueId = attributeId,
                 Tags = [BuiltInProfileAttributes.Photo, PersonalInfoSectionId, StandardProfileId, attributeId],
                 GroupId = PersonalInfoSectionId,
-                Content = storedContent
+                Content = storedContent,
+                PreviewThumbnail = previewThumbnail == null
+                    ? null
+                    : new ThumbnailContent
+                    {
+                        PixelWidth = previewThumbnail.PixelWidth,
+                        PixelHeight = previewThumbnail.PixelHeight,
+                        ContentType = previewThumbnail.ContentType,
+                        Content = previewThumbnail.Content
+                    }
             },
             IsEncrypted = encrypt,
             VersionTag = versionTag,

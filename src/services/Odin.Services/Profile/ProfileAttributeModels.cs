@@ -86,6 +86,22 @@ public sealed class SetPhotoAttributeRequest
 
     /// <summary>Pre-generated thumbnail renditions of <see cref="Content"/>, caller-supplied.</summary>
     public List<ProfilePhotoThumbnail> Thumbnails { get; set; } = new();
+
+    /// <summary>
+    /// A small (&lt;=1KB) blur-up rendition embedded directly in the file header for instant rendering
+    /// before the payload loads (odin-js <c>appData.previewThumbnail</c> / <c>EmbeddedThumb</c>). Optional
+    /// — omit if the caller doesn't want one. Unlike <see cref="Thumbnails"/>, this is never encrypted
+    /// regardless of <see cref="Visibility"/> (matching odin-js, which never runs its embedded preview thumb
+    /// through the same encryption step as <c>appData.content</c>), since it's meant to always render
+    /// instantly and access is already gated by who can query the file at all.
+    /// <para>
+    /// odin-js deliberately reports <see cref="ProfilePhotoThumbnail.PixelWidth"/>/
+    /// <see cref="ProfilePhotoThumbnail.PixelHeight"/> as the <b>source image's natural dimensions</b> here,
+    /// not the thumbnail's actual (much smaller) resized pixel size — callers matching that convention
+    /// should do the same, though the server does not enforce it.
+    /// </para>
+    /// </summary>
+    public ProfilePhotoThumbnail PreviewThumbnail { get; set; }
 }
 
 /// <summary>A caller-generated thumbnail rendition for a Photo attribute's image.</summary>
