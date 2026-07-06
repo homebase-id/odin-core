@@ -161,8 +161,13 @@ public sealed class ProfileAttributeContent
     [JsonPropertyName("type")]
     public string Type { get; set; }
 
+    // Nullable: the wire format genuinely allows a missing/null priority (matching the sibling read-side
+    // model, ProfileAttribute.Priority, and ContactEnrichmentService's `Priority ?? int.MaxValue` handling
+    // of it) -- a non-nullable int here throws on deserializing any attribute a writer didn't set it on,
+    // silently failing the whole republish for that attribute's type (the exception is caught and logged,
+    // but the content is then treated as entirely absent).
     [JsonPropertyName("priority")]
-    public int Priority { get; set; }
+    public int? Priority { get; set; }
 
     [JsonPropertyName("sectionId")]
     public string SectionId { get; set; }

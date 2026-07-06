@@ -836,10 +836,14 @@ public class ContactTests : V2Fixture
         Assert.That(stored.Name!.DisplayName, Is.EqualTo("Samwise Gamgee"));
         Assert.That(stored.Name.GivenName, Is.EqualTo("Samwise"));
 
-        // 6) The overwrite was recorded in the merge log, tagged as enrichment.
+        // 6) The overwrite was recorded in the merge log exactly once. Source can be either "api" (the
+        // connection-flow's own card exchange already carried the real name, since Sam's public profile is
+        // now published before the request completes) or "enrichment" (the explicit /sync call) --
+        // whichever leg of the connection/sync flow gets to a real name first records it; the other is then
+        // a no-op merge (same value, nothing to log).
         var log = await ReadMergeLogAsync(frodo, uid);
         Assert.That(log, Has.Count.EqualTo(1));
-        Assert.That(log[0].By, Is.EqualTo("enrichment"));
+        Assert.That(log[0].By, Is.AnyOf("api", "enrichment"));
         Assert.That(log[0].Changes["name.displayName"], Is.EqualTo("Placeholder"));
     }
 

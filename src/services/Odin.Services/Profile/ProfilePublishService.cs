@@ -264,14 +264,16 @@ public class ProfilePublishService(
     // public profile page; do not rename.
     private static List<QueryParamSection> BuildFixedSiteDataSections()
     {
-        QueryParamSection Section(string name, TargetDrive drive, Guid? groupId, params Guid[] tags) => new()
+        // No GroupId filter: the attribute-type tag alone already disambiguates (a built-in type maps 1:1
+        // to its section), so requiring GroupId too only makes this fragile to writers that set Tags but
+        // not GroupId, without adding any real safety.
+        QueryParamSection Section(string name, TargetDrive drive, params Guid[] tags) => new()
         {
             Name = name,
             QueryParams = new FileQueryParamsV1
             {
                 TargetDrive = drive,
                 FileType = [ProfileAttributeService.AttributeFileType],
-                GroupId = groupId.HasValue ? [groupId.Value] : null,
                 TagsMatchAtLeastOne = tags
             },
             ResultOptions = BaseResultOptions
@@ -279,15 +281,15 @@ public class ProfilePublishService(
 
         return
         [
-            Section("socials", ProfileDrive, null, SocialAndGameTypes.Select(t => t.Type).ToArray()),
-            Section("name", ProfileDrive, ProfileAttributeService.PersonalInfoSectionId, BuiltInProfileAttributes.Name),
-            Section("photo", ProfileDrive, ProfileAttributeService.PersonalInfoSectionId, BuiltInProfileAttributes.Photo),
-            Section("status", ProfileDrive, ProfileAttributeService.PersonalInfoSectionId, BuiltInProfileAttributes.Status),
-            Section("long-bio", ProfileDrive, null, BuiltInProfileAttributes.Experience),
-            Section("short-bio", ProfileDrive, null, BuiltInProfileAttributes.Bio),
-            Section("short-bio-summary", ProfileDrive, null, BuiltInProfileAttributes.BioSummary),
-            Section("link", ProfileDrive, null, BuiltInProfileAttributes.Link),
-            Section("theme", HomePageConfigDrive, null, ThemeAttributeType)
+            Section("socials", ProfileDrive, SocialAndGameTypes.Select(t => t.Type).ToArray()),
+            Section("name", ProfileDrive, BuiltInProfileAttributes.Name),
+            Section("photo", ProfileDrive, BuiltInProfileAttributes.Photo),
+            Section("status", ProfileDrive, BuiltInProfileAttributes.Status),
+            Section("long-bio", ProfileDrive, BuiltInProfileAttributes.Experience),
+            Section("short-bio", ProfileDrive, BuiltInProfileAttributes.Bio),
+            Section("short-bio-summary", ProfileDrive, BuiltInProfileAttributes.BioSummary),
+            Section("link", ProfileDrive, BuiltInProfileAttributes.Link),
+            Section("theme", HomePageConfigDrive, ThemeAttributeType)
         ];
     }
 
@@ -353,7 +355,7 @@ public class ProfilePublishService(
     private async Task RepublishProfileImageAsync(IOdinContext publishContext)
     {
         var photoAttribute = (await QueryAnonymousAttributesAsync([BuiltInProfileAttributes.Photo], publishContext,
-            ProfileAttributeService.PersonalInfoSectionId, maxRecords: 1)).FirstOrDefault();
+            maxRecords: 1)).FirstOrDefault();
         if (photoAttribute == null)
         {
             return;
@@ -421,12 +423,11 @@ public class ProfilePublishService(
 
     private async Task RepublishProfileCardAsync(IOdinContext publishContext)
     {
-        var nameContent = DeserializeAttributeContent((await QueryAnonymousAttributesAsync(
-                [BuiltInProfileAttributes.Name], publishContext, ProfileAttributeService.PersonalInfoSectionId, maxRecords: 1))
-            .FirstOrDefault()?.FileMetadata.AppData.Content);
+        var nameResults = await QueryAnonymousAttributesAsync([BuiltInProfileAttributes.Name], publishContext, maxRecords: 1);
+        var nameContent = DeserializeAttributeContent(nameResults.FirstOrDefault()?.FileMetadata.AppData.Content);
 
         var statusContent = DeserializeAttributeContent((await QueryAnonymousAttributesAsync(
-                [BuiltInProfileAttributes.Status], publishContext, ProfileAttributeService.PersonalInfoSectionId, maxRecords: 1))
+                [BuiltInProfileAttributes.Status], publishContext, maxRecords: 1))
             .FirstOrDefault()?.FileMetadata.AppData.Content);
 
         var bio = (await QueryAnonymousAttributesAsync([BuiltInProfileAttributes.Bio], publishContext))
@@ -523,14 +524,16 @@ public class ProfilePublishService(
     //
 
     private async Task<List<SharedSecretEncryptedFileHeader>> QueryAnonymousAttributesAsync(
-        IEnumerable<Guid> attributeTypes, IOdinContext publishContext, Guid? groupId = null, int maxRecords = 100)
+        IEnumerable<Guid> attributeTypes, IOdinContext publishContext, int maxRecords = 100)
     {
+        // Filtering by the attribute-type tag alone is sufficient to disambiguate -- a built-in type maps
+        // 1:1 to its section, so a redundant GroupId filter here only makes this fragile to writers (e.g.
+        // test fixtures) that set Tags but not GroupId, without adding any real safety.
         var qp = new FileQueryParamsV1
         {
             TargetDrive = ProfileDrive,
             FileType = [ProfileAttributeService.AttributeFileType],
-            TagsMatchAtLeastOne = attributeTypes,
-            GroupId = groupId.HasValue ? [groupId.Value] : null
+            TagsMatchAtLeastOne = attributeTypes
         };
 
         var options = new QueryBatchResultOptions
