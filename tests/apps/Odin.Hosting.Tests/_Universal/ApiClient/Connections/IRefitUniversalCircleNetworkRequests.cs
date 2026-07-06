@@ -28,7 +28,7 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] OdinIdRequest request);
 
         [Post(SentPathRoot + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteSentRequest([Body] OdinIdRequest request);
+        Task<ApiResponse<HttpContent>> DeleteSentRequest([Body] OdinIdRequest request, [Query] bool notifyRemote = false);
 
         [Get(PendingPathRoot + "/list")]
         Task<ApiResponse<PagedResult<PendingConnectionRequestHeader>>> GetPendingRequestList([Query] PageOptions pageRequest);

@@ -31,7 +31,15 @@ namespace Odin.Hosting.Controllers.PeerIncoming.Membership
         {
             return await verificationService.SynchronizeVerificationHashFromRemoteAsync(payload, WebOdinContext);
         }
-        
-        
+
+        /// <summary>
+        /// Handles a notification that the caller has disconnected from us; we disconnect from them in return.
+        /// </summary>
+        [HttpPost("break-connection")]
+        public async Task<IActionResult> BreakConnection()
+        {
+            await circleNetwork.ReceiveRemoteDisconnectAsync(WebOdinContext);
+            return Ok();
+        }
     }
 }

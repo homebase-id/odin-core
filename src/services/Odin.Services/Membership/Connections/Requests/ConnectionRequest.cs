@@ -19,6 +19,13 @@ namespace Odin.Services.Membership.Connections.Requests
 
         public UnixTimeUtc ReceivedTimestampMilliseconds { get; set; }
 
+        /// <summary>
+        /// The TimestampId stamped on the outgoing EccEncryptedPayload for this request. Persisted with the
+        /// sent-request record so that if the sender later cancels the request they can tell the recipient which
+        /// request instance to withdraw (and not a newer re-send that reused the same sender/recipient pair).
+        /// </summary>
+        public Guid OutgoingRequestTimestampId { get; set; }
+
         public string ClientAccessToken64 { get; set; }
 
         /// <summary>

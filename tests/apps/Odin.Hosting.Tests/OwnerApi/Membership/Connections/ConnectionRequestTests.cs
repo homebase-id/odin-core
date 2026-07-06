@@ -86,7 +86,7 @@ public class ConnectionRequestTests
 
         // Pippin should disconnect (note: this relies on not telling the remote server you are disconnecting)
         var pippinClient = _scaffold.CreateOwnerApiClient(recipient);
-        await pippinClient.Network.DisconnectFrom(sender);
+        await pippinClient.Network.DisconnectFrom(sender, notifyRemote: false);
 
         await Connect(sender, recipient);
         await AssertConnected(sender, recipient);
@@ -107,7 +107,7 @@ public class ConnectionRequestTests
 
         // Pippin should disconnect (note: this relies on not telling the remote server you are disconnecting)
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
-        await pippinClient.Network.DisconnectFrom(merry);
+        await pippinClient.Network.DisconnectFrom(merry, notifyRemote: false);
         await pippinClient.Network.SendConnectionRequestTo(merry);
 
         // Merry deletes the incoming request
@@ -173,7 +173,7 @@ public class ConnectionRequestTests
 
         // Pippin should disconnect (note: this relies on not telling the remote server you are disconnecting)
         var pippinClient = _scaffold.CreateOwnerApiClient(pippin);
-        await pippinClient.Network.DisconnectFrom(merry);
+        await pippinClient.Network.DisconnectFrom(merry, notifyRemote: false);
 
         var merryClient = _scaffold.CreateOwnerApiClient(merry);
         await merryClient.Network.SendConnectionRequestTo(pippin);
@@ -202,7 +202,8 @@ public class ConnectionRequestTests
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
 
-        await merryClient.Network.DisconnectFrom(pippin);
+        // Merry disconnects one-sided so Pippin's side is still Connected (asserted below).
+        await merryClient.Network.DisconnectFrom(pippin, notifyRemote: false);
         await merryClient.Network.SendConnectionRequestTo(pippin);
 
         await pippinClient.Network.DeleteConnectionRequestFrom(merry);
@@ -335,7 +336,7 @@ public class ConnectionRequestTests
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
 
-        await merryClient.Network.DisconnectFrom(pippin);
+        await merryClient.Network.DisconnectFrom(pippin, notifyRemote: false);
         await pippinClient.Network.SendConnectionRequestTo(merry);
 
         //
@@ -370,7 +371,7 @@ public class ConnectionRequestTests
         await Connect(merry, pippin);
         await AssertConnected(merry, pippin);
 
-        await merryClient.Network.DisconnectFrom(pippin);
+        await merryClient.Network.DisconnectFrom(pippin, notifyRemote: false);
         await pippinClient.Network.SendConnectionRequestTo(merry);
 
         // ensure pippin does not have an outgoing request

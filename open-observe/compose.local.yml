@@ -1,0 +1,111 @@
+# OpenObserve stack: LOCAL + EPHEMERAL variant (no S3, NO persistent storage). Alternative to compose.s3.yml.
+#
+# Two differences from compose.s3.yml: (1) local-disk storage instead of S3, and (2) NO volume, so log data
+# does NOT survive the container. OpenObserve writes everything (Parquet data, SQLite metadata, WAL,
+# caches) under ZO_DATA_DIR=/data; here /data is left inside the container's writable layer with no mount.
+# The image declares no VOLUME (verified on v0.91.0), so nothing lands in an anonymous volume either. When
+# the container is removed or recreated (`docker compose down`, a redeploy, an image bump) everything is
+# gone and the next start comes up empty. This is BROADER than just logs: the SQLite metadata stores ALL
+# configuration, so a recreate also wipes every dashboard, saved search, alert, function, stream schema,
+# and user, INCLUDING the `ingest@...` user provisioned per PLAN.md §5.3. On each bring-up you must
+# re-provision that user and re-import dashboards (export them as JSON and keep them in git).
+#
+# Lifecycle nuance: the writable layer DOES survive `docker stop`/`start` and an auto-restart (the
+# `restart: unless-stopped` policy bounces the SAME container). So data dies on REMOVAL/recreate, not on a
+# transient crash. If you want it gone on every process exit too, use a tmpfs (see the volumes note below).
+#
+# Caddy story is unchanged: the host's `--network host` Caddy reaches OO via the loopback-published ports
+# (127.0.0.1:5080 UI, 127.0.0.1:5081 gRPC). See README.md and PLAN.md.
+# Run with:  docker compose -f compose.local.yml up -d
+# Every ${VAR} comes from .env. The ZO_S3_* and ZO_DISK_CACHE_* vars in .env.example are simply unused
+# here (harmless if left in the file). NO secrets live in this file.
+services:
+  openobserve:
+    container_name: openobserve   # host's Caddy (network=host) reaches it at reverse_proxy h2c://127.0.0.1:5081
+    restart: unless-stopped
+    # Pin a concrete version in production; do NOT float :latest. OSS / AGPL build (not enterprise).
+    image: public.ecr.aws/zinclabs/openobserve:${OPENOBSERVE_VERSION:?set OPENOBSERVE_VERSION in .env}
+    # Hard memory ceiling; must exceed the in-memory cache sizes + memtable + overhead or the container
+    # is OOM-killed. Default sized for an ~8 GB host.
+    mem_limit: "${OO_MEM_LIMIT:-6g}"
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OO_ROOT_USER_EMAIL:?}"
+      ZO_ROOT_USER_PASSWORD: "${OO_ROOT_USER_PASSWORD:?}"
+      ZO_DATA_DIR: "/data"
+      ZO_COMPACT_DATA_RETENTION_DAYS: "${OO_RETENTION_DAYS:-30}"   # prune logs older than N days; compactor enforces
+      # Data backend = LOCAL DISK (OpenObserve's default). ZO_LOCAL_MODE_STORAGE is left UNSET on purpose;
+      # unset defaults to local disk, so all Parquet data is written under ZO_DATA_DIR on the oo-data volume.
+      # No ZO_S3_* vars and no ZO_DISK_CACHE_* here: the disk cache only accelerates REMOTE (S3) objects, and
+      # with local storage the data is already on the volume, so it would do nothing.
+      # In-memory query caches still apply regardless of backend (each defaults to ~50% RAM — pin them).
+      ZO_MEMORY_CACHE_MAX_SIZE: "${OO_MEM_CACHE_MAX_SIZE:-2048}"          # MB; query-result cache
+      ZO_MEMORY_CACHE_DATAFUSION_MAX_SIZE: "${OO_DATAFUSION_CACHE_MAX_SIZE:-2048}"  # MB; query engine working set
+      ZO_FILE_MOVE_THREAD_NUM: "${OO_FILE_MOVE_THREAD_NUM:-1}"            # compaction threads (default cores x2); 1 suits 2 vCPU
+      # --- operational / feature flags (see .env.example) ---
+      ZO_TELEMETRY: "${OO_TELEMETRY:-false}"                              # no anonymous phone-home (self-hosted)
+      ZO_PROMETHEUS_ENABLED: "${OO_PROMETHEUS_ENABLED:-true}"             # expose OO's own metrics on /metrics
+      ZO_INGEST_ALLOWED_UPTO: "${OO_INGEST_ALLOWED_UPTO:-5}"              # hrs; events OLDER than this are DROPPED (future side defaults 24h)
+      ZO_FEATURE_INDEX_EXTRA_FIELDS: "${OO_INDEX_EXTRA_FIELDS:-}"         # comma list; secondary index (e.g. correlation ids) for fast filters
+      ZO_FEATURE_FULLTEXT_EXTRA_FIELDS: "${OO_FULLTEXT_EXTRA_FIELDS:-}"   # comma list; extra full-text fields (add your OTLP message field)
+      ZO_ALLOW_USER_DEFINED_SCHEMAS: "${OO_ALLOW_USER_DEFINED_SCHEMAS:-true}"  # enable UDS (whitelist). Per-stream defined_schema_fields + store_original_data are set via the stream settings API, NOT env.
+      # --- search / diagnostics ---
+      ZO_STREAMING_ENABLED: "${OO_STREAMING_ENABLED:-false}"             # default false HERE (not OO's default): streaming search reset the stream on v0.91.0; off = full result in one shot. Re-test on upgrade.
+      ZO_GRPC_MAX_MESSAGE_SIZE: "${OO_GRPC_MAX_MESSAGE_SIZE:-16}"        # MB; internal gRPC message ceiling (raise if broad queries reset the stream)
+      RUST_LOG: "${RUST_LOG:-info}"                                      # error|warn|info|debug|trace; bump to debug to trace search internals
+    ports:
+      - "127.0.0.1:5080:5080"   # Web UI — loopback ONLY; reach via SSH tunnel (see PLAN.md "UI access").
+      - "127.0.0.1:5081:5081"   # OTLP gRPC — loopback ONLY; the host's Caddy (network=host) forwards h2c here.
+    # NO volumes on purpose: /data stays in the container's writable layer, so all log data + metadata are
+    # discarded when the container is removed or recreated (the image declares no VOLUME, so no anonymous
+    # volume is created either). For death-on-every-exit rather than only on removal, mount /data as a
+    # RAM-backed tmpfs instead of leaving it on the writable layer (note: it counts against mem_limit and is
+    # a poor fit for bulk logs):
+    #   tmpfs:
+    #     - /data
+    # No custom network: the host's Caddy runs with `--network host` and can't join a Docker bridge net, so
+    # there's no shared network to put OO on. OO uses the default bridge and now needs no outbound egress
+    # for storage (everything is local). Reached by Caddy via the loopback-published ports above.
+
+  # --- one-shot bootstrap: create the dedicated (non-root) ingest user INSIDE the stack (no external call) ---
+  # Waits for OpenObserve, then ensures the non-root ingest user exists. Idempotent (checks first, creates
+  # only if missing), so it is safe to re-run on every `up`. Reaches OO by service name over the compose
+  # default network (container-to-container, independent of the loopback port publishing). It runs on
+  # create/recreate, so a full `down`+`up` re-provisions the user. IMPORTANT for this EPHEMERAL variant:
+  # the user dies with the container, and this re-creates it on the same `down`+`up` that wiped it, so a
+  # normal redeploy self-heals. See PLAN.md §5.3 for the password-vs-passcode and role-name caveats.
+  oo-init:
+    image: "${OO_INIT_IMAGE:-curlimages/curl:8.21.0}"
+    container_name: oo-init
+    depends_on:
+      - openobserve
+    restart: "no"                 # one-shot: runs, provisions, exits
+    environment:
+      ZO_ROOT_USER_EMAIL: "${OO_ROOT_USER_EMAIL:?}"
+      ZO_ROOT_USER_PASSWORD: "${OO_ROOT_USER_PASSWORD:?}"
+      OO_INGEST_EMAIL: "${OO_INGEST_EMAIL:?}"
+      OO_INGEST_PASSWORD: "${OO_INGEST_PASSWORD:?}"
+      OO_INGEST_ROLE: "${OO_INGEST_ROLE:-admin}"
+    entrypoint: ["/bin/sh", "-c"]
+    # NOTE: shell vars are written $$VAR so Compose passes a literal $ to sh (single $ = Compose interpolation).
+    command:
+      - |
+        set -eu
+        OO_URL="http://openobserve:5080"
+        echo "oo-init: waiting for OpenObserve /healthz ..."
+        until curl -fsS "$$OO_URL/healthz" >/dev/null 2>&1; do sleep 2; done
+        echo "oo-init: up; ensuring ingest user $$OO_INGEST_EMAIL (role $$OO_INGEST_ROLE)"
+        users=$$(curl -fsS -u "$$ZO_ROOT_USER_EMAIL:$$ZO_ROOT_USER_PASSWORD" "$$OO_URL/api/default/users" || echo "")
+        if printf '%s' "$$users" | grep -q "\"$$OO_INGEST_EMAIL\""; then
+          echo "oo-init: user already exists, nothing to do"
+        else
+          echo "oo-init: creating ingest user"
+          body="{\"email\":\"$$OO_INGEST_EMAIL\",\"first_name\":\"ingest\",\"last_name\":\"homebase\",\"password\":\"$$OO_INGEST_PASSWORD\",\"role\":\"$$OO_INGEST_ROLE\"}"
+          resp=$$(curl -sS -w '\n%{http_code}' -u "$$ZO_ROOT_USER_EMAIL:$$ZO_ROOT_USER_PASSWORD" \
+            -H 'Content-Type: application/json' -X POST "$$OO_URL/api/default/users" -d "$$body" || true)
+          code=$$(printf '%s\n' "$$resp" | tail -n1)
+          msg=$$(printf '%s\n' "$$resp" | sed '$$d')
+          case "$$code" in
+            2*) echo "oo-init: created ($$code)" ;;
+            *)  echo "oo-init: FAILED to create user: HTTP $$code -- $$msg"; exit 1 ;;
+          esac
+        fi

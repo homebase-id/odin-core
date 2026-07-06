@@ -75,14 +75,14 @@ public class UniversalCircleNetworkRequestsApiClient(OdinId identity, IApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> DeleteSentRequestTo(OdinId recipient)
+    public async Task<ApiResponse<HttpContent>> DeleteSentRequestTo(OdinId recipient, bool notifyRemote = false)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
 
         {
             var svc = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkRequests>(client, ownerSharedSecret);
 
-            var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = recipient });
+            var deleteResponse = await svc.DeleteSentRequest(new OdinIdRequest() { OdinId = recipient }, notifyRemote);
             return deleteResponse;
         }
     }
