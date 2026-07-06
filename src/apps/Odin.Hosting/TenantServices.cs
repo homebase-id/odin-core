@@ -320,7 +320,12 @@ public static class TenantServices
         cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<ContactEnrichmentService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<ProfileAttributeService>().AsSelf().InstancePerLifetimeScope();
-        cb.RegisterType<ProfilePublishService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ProfilePublishService>()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .As<INotificationHandler<DriveFileChangedNotification>>()
+            .As<INotificationHandler<DriveFileDeletedNotification>>()
+            .AsSelf()
+            .InstancePerLifetimeScope();
         // Enrichment is client-driven via POST /api/v2/contacts/sync (phase 1). Automatic
         // lifecycle-driven enrichment is deferred — see docs/contact-enrichment-phase2.md.
 

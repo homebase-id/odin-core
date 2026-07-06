@@ -131,6 +131,21 @@ public sealed class ProfileAttributeWriteResult
     public Guid VersionTag { get; init; }
 }
 
+public enum ProfileAttributeDeleteOutcome
+{
+    Deleted,
+    NotFound,
+    VersionConflict
+}
+
+public sealed class ProfileAttributeDeleteResult
+{
+    public ProfileAttributeDeleteOutcome Outcome { get; init; }
+
+    /// <summary>The attribute's current version tag on a version conflict; default otherwise.</summary>
+    public Guid VersionTag { get; init; }
+}
+
 /// <summary>
 /// The on-drive JSON shape of a profile attribute (odin-js <c>Attribute</c>). Guid fields are written in
 /// the no-dash form odin-js uses (<c>toGuidId</c> / <c>ToString("N")</c>).

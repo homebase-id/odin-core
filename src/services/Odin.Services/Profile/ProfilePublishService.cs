@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -21,6 +22,7 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.PersonMetadata;
+using Odin.Services.Mediator;
 using Odin.Services.Optimization.Cdn;
 
 namespace Odin.Services.Profile;
@@ -31,11 +33,18 @@ namespace Odin.Services.Profile;
 /// <c>/pub/profile</c>, consumed server-side by <see cref="Odin.Services.LinkPreview.Profile.HomebaseProfileContentService"/>)
 /// -- whenever a profile attribute changes. This is the server-side counterpart of odin-js's
 /// <c>publishProfile</c>/<c>publishProfileImage</c>/<c>publishProfileCard</c>
-/// (<c>packages/libs/js-lib/src/public/file/*</c>), which only fire from the owner-app's UI mutation hooks
-/// and never run for attribute writes that go through <see cref="ProfileAttributeService"/> directly.
+/// (<c>packages/libs/js-lib/src/public/file/*</c>), which only fire from the owner-app's UI mutation hooks.
 ///
 /// <para>
-/// Called inline, synchronously, right after an attribute write commits -- a single user does not edit
+/// Reacts generically to <see cref="DriveFileAddedNotification"/>/<see cref="DriveFileChangedNotification"/>/
+/// <see cref="DriveFileDeletedNotification"/> for the ProfileDrive rather than requiring each writer to call
+/// <see cref="PublishAsync"/> by hand -- so this fires for <em>any</em> profile-attribute write, including
+/// ones from <see cref="ProfileAttributeService"/>, the owner-app's own direct uploads, or any future writer,
+/// without each of them needing to remember to trigger a republish.
+/// </para>
+///
+/// <para>
+/// Runs inline, synchronously, right after an attribute write commits -- a single user does not edit
 /// profile attributes often enough for the extra query/read latency to matter. Every step is best-effort:
 /// a failure here is logged and swallowed rather than turning a successful attribute write into a 500.
 /// </para>
@@ -46,17 +55,15 @@ public class ProfilePublishService(
     IDriveManager driveManager,
     IMediator mediator,
     ILogger<ProfilePublishService> logger)
+    : INotificationHandler<DriveFileAddedNotification>,
+        INotificationHandler<DriveFileChangedNotification>,
+        INotificationHandler<DriveFileDeletedNotification>
 {
-    private const int AttributeFileType = 77;
     private const int ChannelDefinitionFileType = 103;
     private const string DefaultPayloadKey = "dflt_key";
 
     private static readonly TargetDrive ProfileDrive = SystemDriveConstants.ProfileDrive;
     private static readonly TargetDrive HomePageConfigDrive = SystemDriveConstants.HomePageConfigDrive;
-
-    // Pinned locally rather than shared -- same convention already used across this codebase (e.g.
-    // HomebaseProfileContentService.AboutSectionId duplicates ProfileAttributeService's copy).
-    private static readonly Guid PersonalInfoSectionId = new("158c7768-8016-2cb8-7f95-dcb3ecb587b0"); // toGuidId("PersonalInfoSection")
 
     // odin-js HomePageAttributes.Theme = toGuidId("theme_attribute"); not part of BuiltInProfileAttributes
     // since Theme attributes live on the HomePageConfigDrive, not the ProfileDrive, and are out of scope
@@ -90,10 +97,9 @@ public class ProfilePublishService(
 
     private static readonly Lazy<List<QueryParamSection>> FixedSiteDataSections = new(BuildFixedSiteDataSections);
 
-    private static readonly Lazy<HashSet<Guid>> SiteDataTriggerTypes = new(() =>
-        FixedSiteDataSections.Value
-            .SelectMany(s => s.QueryParams.TagsMatchAtLeastOne ?? [])
-            .ToHashSet());
+    private static readonly Lazy<HashSet<Guid>> SiteDataTriggerTypes = new(() => FixedSiteDataSections.Value
+        .SelectMany(s => s.QueryParams.TagsMatchAtLeastOne ?? [])
+        .ToHashSet());
 
     /// <param name="attributeType">
     /// The type of the attribute that was just created/updated/deleted, or <c>null</c> to republish
@@ -110,13 +116,44 @@ public class ProfilePublishService(
 
         if (attributeType == null || attributeType == BuiltInProfileAttributes.Photo)
         {
-            await TryRunAsync(() => RepublishProfileImageAsync(publishContext), "public_image.json");
+            await TryRunAsync(() => RepublishProfileImageAsync(publishContext), StaticFileConstants.ProfileImageFileName);
         }
 
         if (attributeType == null || ProfileCardTriggerTypes.Contains(attributeType.Value))
         {
-            await TryRunAsync(() => RepublishProfileCardAsync(publishContext), "public_profile.json");
+            await TryRunAsync(() => RepublishProfileCardAsync(publishContext), StaticFileConstants.PublicProfileCardFileName);
         }
+    }
+
+    public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken) =>
+        HandleDriveEventAsync(notification.File.DriveId, notification.ServerFileHeader, notification.OdinContext);
+
+    public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken) =>
+        HandleDriveEventAsync(notification.File.DriveId, notification.ServerFileHeader, notification.OdinContext);
+
+    public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken) =>
+        // The live header's content/tags are already cleared by the delete; PreviousServerFileHeader still
+        // carries the attribute's type tag, which is all PublishAsync needs.
+        HandleDriveEventAsync(notification.File.DriveId, notification.PreviousServerFileHeader, notification.OdinContext);
+
+    /// <summary>
+    /// Common entry point for all three drive-write notifications: only profile-attribute files on the
+    /// ProfileDrive are in scope (odin-js's own direct uploads and any other file on this drive are ignored).
+    /// The attribute type -- needed to decide which artifacts a change can possibly affect -- comes from the
+    /// header's own tags (<c>[type, sectionId, profileId, id]</c>, see BuildHeaderAsync/BuildPhotoMetadata)
+    /// rather than a caller-supplied parameter, since any writer can reach this path.
+    /// </summary>
+    private async Task HandleDriveEventAsync(Guid driveId, ServerFileHeader header, IOdinContext odinContext)
+    {
+        if (driveId != ProfileDrive.Alias || header?.FileMetadata?.AppData?.FileType != ProfileAttributeService.AttributeFileType)
+        {
+            return;
+        }
+
+        var tags = header.FileMetadata.AppData.Tags;
+        Guid? attributeType = tags is { Count: > 0 } ? tags[0] : null;
+
+        await PublishAsync(attributeType, odinContext);
     }
 
     private async Task TryRunAsync(Func<Task> action, string artifact)
@@ -233,7 +270,7 @@ public class ProfilePublishService(
             QueryParams = new FileQueryParamsV1
             {
                 TargetDrive = drive,
-                FileType = [AttributeFileType],
+                FileType = [ProfileAttributeService.AttributeFileType],
                 GroupId = groupId.HasValue ? [groupId.Value] : null,
                 TagsMatchAtLeastOne = tags
             },
@@ -243,9 +280,9 @@ public class ProfilePublishService(
         return
         [
             Section("socials", ProfileDrive, null, SocialAndGameTypes.Select(t => t.Type).ToArray()),
-            Section("name", ProfileDrive, PersonalInfoSectionId, BuiltInProfileAttributes.Name),
-            Section("photo", ProfileDrive, PersonalInfoSectionId, BuiltInProfileAttributes.Photo),
-            Section("status", ProfileDrive, PersonalInfoSectionId, BuiltInProfileAttributes.Status),
+            Section("name", ProfileDrive, ProfileAttributeService.PersonalInfoSectionId, BuiltInProfileAttributes.Name),
+            Section("photo", ProfileDrive, ProfileAttributeService.PersonalInfoSectionId, BuiltInProfileAttributes.Photo),
+            Section("status", ProfileDrive, ProfileAttributeService.PersonalInfoSectionId, BuiltInProfileAttributes.Status),
             Section("long-bio", ProfileDrive, null, BuiltInProfileAttributes.Experience),
             Section("short-bio", ProfileDrive, null, BuiltInProfileAttributes.Bio),
             Section("short-bio-summary", ProfileDrive, null, BuiltInProfileAttributes.BioSummary),
@@ -316,7 +353,7 @@ public class ProfilePublishService(
     private async Task RepublishProfileImageAsync(IOdinContext publishContext)
     {
         var photoAttribute = (await QueryAnonymousAttributesAsync([BuiltInProfileAttributes.Photo], publishContext,
-            PersonalInfoSectionId, maxRecords: 1)).FirstOrDefault();
+            ProfileAttributeService.PersonalInfoSectionId, maxRecords: 1)).FirstOrDefault();
         if (photoAttribute == null)
         {
             return;
@@ -385,11 +422,11 @@ public class ProfilePublishService(
     private async Task RepublishProfileCardAsync(IOdinContext publishContext)
     {
         var nameContent = DeserializeAttributeContent((await QueryAnonymousAttributesAsync(
-            [BuiltInProfileAttributes.Name], publishContext, PersonalInfoSectionId, maxRecords: 1))
+                [BuiltInProfileAttributes.Name], publishContext, ProfileAttributeService.PersonalInfoSectionId, maxRecords: 1))
             .FirstOrDefault()?.FileMetadata.AppData.Content);
 
         var statusContent = DeserializeAttributeContent((await QueryAnonymousAttributesAsync(
-            [BuiltInProfileAttributes.Status], publishContext, PersonalInfoSectionId, maxRecords: 1))
+                [BuiltInProfileAttributes.Status], publishContext, ProfileAttributeService.PersonalInfoSectionId, maxRecords: 1))
             .FirstOrDefault()?.FileMetadata.AppData.Content);
 
         var bio = (await QueryAnonymousAttributesAsync([BuiltInProfileAttributes.Bio], publishContext))
@@ -417,7 +454,8 @@ public class ProfilePublishService(
             .Select(a => DeserializeAttributeContent(a.FileMetadata.AppData.Content))
             .Select(c => c?.Data?.Count > 0 ? c.Data.First() : (KeyValuePair<string, object>?)null)
             .Where(kvp => kvp is { Key.Length: > 0 })
-            .Select(kvp => new FrontEndProfileLink { Type = kvp!.Value.Key, Url = GetSocialLink(kvp.Value.Key, Convert.ToString(kvp.Value.Value)) })
+            .Select(kvp => new FrontEndProfileLink
+                { Type = kvp!.Value.Key, Url = GetSocialLink(kvp.Value.Key, Convert.ToString(kvp.Value.Value)) })
             .Where(l => !string.IsNullOrEmpty(l.Url))
             .ToList();
 
@@ -459,8 +497,8 @@ public class ProfilePublishService(
 
     // odin-js ProfileConfig.ts getSocialLink, ported verbatim -- it doesn't need to know the per-platform
     // field key convention either, since it operates purely on whatever key/value pair is already stored.
-    private static readonly HashSet<string> UnlinkableSocialTypes =
-        new(StringComparer.OrdinalIgnoreCase) { "minecraft", "steam", "discord", "riot games", "epic games", "stackoverflow" };
+    private static readonly HashSet<string> UnlinkableSocialTypes = new(StringComparer.OrdinalIgnoreCase)
+        { "minecraft", "steam", "discord", "riot games", "epic games", "stackoverflow" };
 
     private static string GetSocialLink(string type, string value)
     {
@@ -490,7 +528,7 @@ public class ProfilePublishService(
         var qp = new FileQueryParamsV1
         {
             TargetDrive = ProfileDrive,
-            FileType = [AttributeFileType],
+            FileType = [ProfileAttributeService.AttributeFileType],
             TagsMatchAtLeastOne = attributeTypes,
             GroupId = groupId.HasValue ? [groupId.Value] : null
         };
@@ -505,13 +543,9 @@ public class ProfilePublishService(
 
         var batch = await fileSystem.Query.GetBatch(ProfileDrive.Alias, qp, options, publishContext);
 
-        // Same filter StaticFileContentService.Filter already applies when serving these sections -- only
-        // ever republish content that's genuinely public.
-        return batch.SearchResults
-            .Where(r => r.FileState == FileState.Active &&
-                        !r.FileMetadata.IsEncrypted &&
-                        r.ServerMetadata?.AccessControlList?.RequiredSecurityGroup == SecurityGroupType.Anonymous)
-            .ToList();
+        // Same "is this actually public" rule StaticFileContentService applies when serving sitedata.json --
+        // reuse it directly so the two can't drift on what counts as public.
+        return staticFileContentService.Filter(batch.SearchResults).ToList();
     }
 
     private ProfileAttributeContent DeserializeAttributeContent(string content)

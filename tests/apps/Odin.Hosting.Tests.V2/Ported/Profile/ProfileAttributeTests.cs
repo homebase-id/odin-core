@@ -150,6 +150,38 @@ public class ProfileAttributeTests : V2Fixture
     }
 
     [Test]
+    public async Task SetAttribute_IdBelongsToAnotherType_IsRejected()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+
+        var status = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = StatusType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object> { ["status"] = "original" }
+        });
+        var statusId = status.Content!.Id;
+
+        // Declare Type = Name but reuse the Status attribute's id -- must be rejected, not silently
+        // rewrite the Status record as a Name attribute.
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Id = statusId,
+            ExpectedVersionTag = status.Content.VersionTag,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object> { ["givenName"] = "Sam" }
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"actual {response.StatusCode}");
+
+        // the Status attribute must survive untouched
+        var header = await GetByUniqueIdAsync(owner, statusId);
+        var content = JsonSerializer.Deserialize<ProfileAttributeContent>(header!.FileMetadata.AppData.Content)!;
+        Assert.That(content.Data["status"].ToString(), Is.EqualTo("original"));
+    }
+
+    [Test]
     public async Task SetAttribute_ConnectedVisibility_StoresEncrypted()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
@@ -199,6 +231,28 @@ public class ProfileAttributeTests : V2Fixture
 
         var delete = await profile.DeleteAttributeAsync(id, created.Content.VersionTag);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), $"actual {delete.StatusCode}");
+    }
+
+    [Test]
+    public async Task DeleteAttribute_StaleVersionTag_Returns409()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = await GetProfileClientAsync(owner, CallerKind.App, [PermissionKeys.ManageProfile]);
+
+        var created = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = StatusType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object> { ["status"] = "v1" }
+        });
+        var id = created.Content!.Id;
+
+        var delete = await profile.DeleteAttributeAsync(id, Guid.NewGuid() /* stale */);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.Conflict), $"actual {delete.StatusCode}");
+
+        // the attribute must survive a rejected delete
+        var header = await GetByUniqueIdAsync(owner, id);
+        Assert.That(header, Is.Not.Null);
     }
 
     private static async Task<V2ProfileClient> GetProfileClientAsync(

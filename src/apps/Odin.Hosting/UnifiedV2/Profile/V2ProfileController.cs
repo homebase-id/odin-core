@@ -71,17 +71,21 @@ public class V2ProfileController(
     // 409 on a stale version tag).
     [SwaggerOperation(Tags = [SwaggerInfo.Profile])]
     [HttpDelete("attributes/{id:guid}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(typeof(ProfileAttributeWriteConflict), 409)]
     public async Task<IActionResult> DeleteAttribute(Guid id, [FromQuery] Guid versionTag)
     {
         OdinValidationUtils.AssertNotEmptyGuid(id, nameof(id));
 
-        var deleted = await profileAttributeService.DeleteAttributeAsync(id, versionTag, WebOdinContext);
-        if (!deleted)
+        var result = await profileAttributeService.DeleteAttributeAsync(id, versionTag, WebOdinContext);
+        return result.Outcome switch
         {
-            return NotFound();
-        }
-
-        return NoContent();
+            ProfileAttributeDeleteOutcome.NotFound => NotFound(),
+            ProfileAttributeDeleteOutcome.VersionConflict =>
+                Conflict(new ProfileAttributeWriteConflict { Id = id, VersionTag = result.VersionTag }),
+            _ => NoContent()
+        };
     }
 }
 

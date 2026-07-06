@@ -53,8 +53,7 @@ namespace Odin.Services.Profile;
 /// </summary>
 public class ProfileAttributeService(
     ILogger<ProfileAttributeService> logger,
-    StandardFileSystem fileSystem,
-    ProfilePublishService profilePublishService)
+    StandardFileSystem fileSystem)
 {
     /// <summary>File type of a profile attribute on the ProfileDrive (odin-js <c>AttributeConfig.AttributeFileType</c>).</summary>
     public const int AttributeFileType = 77;
@@ -94,9 +93,11 @@ public class ProfileAttributeService(
 
     // Profile section ids — odin-js BuiltInProfiles.*SectionId = toGuidId("<name>") = md5("<name>"). Pinned
     // here so the server never recomputes an md5 at runtime (same convention as BuiltInProfileAttributes).
-    private static readonly Guid PersonalInfoSectionId = new("158c7768-8016-2cb8-7f95-dcb3ecb587b0"); // toGuidId("PersonalInfoSection")
-    private static readonly Guid ExternalLinksSectionId = new("d37d864d-0dc3-1aa7-dca5-be7cde816406"); // toGuidId("ExternalLinksSection")
-    private static readonly Guid AboutSectionId = new("fd2ddd86-16b6-4814-aaef-168775757632");         // toGuidId("AboutSection")
+    // Internal (not private): the single source of truth other profile readers/publishers in this assembly
+    // (ProfilePublishService, HomebaseProfileContentService) reference instead of pinning their own copies.
+    internal static readonly Guid PersonalInfoSectionId = new("158c7768-8016-2cb8-7f95-dcb3ecb587b0"); // toGuidId("PersonalInfoSection")
+    internal static readonly Guid ExternalLinksSectionId = new("d37d864d-0dc3-1aa7-dca5-be7cde816406"); // toGuidId("ExternalLinksSection")
+    internal static readonly Guid AboutSectionId = new("fd2ddd86-16b6-4814-aaef-168775757632");         // toGuidId("AboutSection")
 
     /// <summary>
     /// Create or edit a built-in profile attribute. When <paramref name="request"/> carries an
@@ -119,46 +120,9 @@ public class ProfileAttributeService(
 
         var writeContext = GetWriteContext(odinContext);
 
-        // create-or-edit: a supplied id that resolves to an existing file is an edit; anything else creates.
-        var attributeId = request.Id ?? Guid.NewGuid();
-        var existing = request.Id.HasValue ? await GetForWritingAsync(request.Id.Value, writeContext) : null;
-
-        if (existing == null)
-        {
-            var createdVersionTag = await WriteNewAsync(attributeId, attributeType, sectionId, priority, data,
-                request.Visibility, writeContext);
-            await profilePublishService.PublishAsync(attributeType, odinContext);
-            return new ProfileAttributeWriteResult
-            {
-                Outcome = ProfileAttributeWriteOutcome.Created,
-                Id = attributeId,
-                VersionTag = createdVersionTag
-            };
-        }
-
-        var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
-        if (request.ExpectedVersionTag.GetValueOrDefault() != currentVersionTag)
-        {
-            logger.LogDebug("Profile attribute update version conflict for id {id} (caller {caller} vs current {current})",
-                attributeId, request.ExpectedVersionTag, currentVersionTag);
-
-            return new ProfileAttributeWriteResult
-            {
-                Outcome = ProfileAttributeWriteOutcome.VersionConflict,
-                Id = attributeId,
-                VersionTag = currentVersionTag
-            };
-        }
-
-        var newVersionTag = await OverwriteAsync(existing, attributeId, attributeType, sectionId, priority, data,
-            request.Visibility, writeContext);
-        await profilePublishService.PublishAsync(attributeType, odinContext);
-        return new ProfileAttributeWriteResult
-        {
-            Outcome = ProfileAttributeWriteOutcome.Updated,
-            Id = attributeId,
-            VersionTag = newVersionTag
-        };
+        return await ExecuteWriteAsync(request.Id, request.ExpectedVersionTag, attributeType, writeContext,
+            id => WriteNewAsync(id, attributeType, sectionId, priority, data, request.Visibility, writeContext),
+            (existing, id) => OverwriteAsync(existing, id, attributeType, sectionId, priority, data, request.Visibility, writeContext));
     }
 
     /// <summary>
@@ -209,13 +173,33 @@ public class ProfileAttributeService(
 
         var writeContext = GetWriteContext(odinContext);
 
-        var attributeId = request.Id ?? Guid.NewGuid();
-        var existing = request.Id.HasValue ? await GetForWritingAsync(request.Id.Value, writeContext) : null;
+        return await ExecuteWriteAsync(request.Id, request.ExpectedVersionTag, BuiltInProfileAttributes.Photo, writeContext,
+            id => WriteNewPhotoAsync(id, request, writeContext),
+            (existing, id) => OverwritePhotoAsync(existing, id, request, writeContext));
+    }
+
+    /// <summary>
+    /// Shared create-or-edit orchestration for <see cref="SetAttributeAsync"/> and
+    /// <see cref="SetPhotoAttributeAsync"/>: resolve the id, look up any existing file by it, and dispatch
+    /// to <paramref name="writeNew"/> or <paramref name="overwrite"/> — including the optimistic-concurrency
+    /// check — so the two write paths cannot silently diverge in this behavior. Republishing the public
+    /// static-file artifacts is not this method's concern: <see cref="ProfilePublishService"/> reacts to the
+    /// <c>DriveFileAddedNotification</c>/<c>DriveFileChangedNotification</c> that <paramref name="writeNew"/>/
+    /// <paramref name="overwrite"/> already raise, on its own, for any ProfileDrive attribute write.
+    /// </summary>
+    private async Task<ProfileAttributeWriteResult> ExecuteWriteAsync(Guid? requestId, Guid? expectedVersionTag,
+        Guid attributeType, IOdinContext writeContext,
+        Func<Guid, Task<Guid>> writeNew, Func<ServerFileHeader, Guid, Task<Guid>> overwrite)
+    {
+        // create-or-edit: a supplied id that resolves to an existing file is an edit; anything else creates.
+        var attributeId = requestId ?? Guid.NewGuid();
+        var existing = requestId.HasValue
+            ? await GetForWritingAsync(requestId.Value, attributeType, writeContext)
+            : null;
 
         if (existing == null)
         {
-            var createdVersionTag = await WriteNewPhotoAsync(attributeId, request, writeContext);
-            await profilePublishService.PublishAsync(BuiltInProfileAttributes.Photo, odinContext);
+            var createdVersionTag = await writeNew(attributeId);
             return new ProfileAttributeWriteResult
             {
                 Outcome = ProfileAttributeWriteOutcome.Created,
@@ -225,10 +209,10 @@ public class ProfileAttributeService(
         }
 
         var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
-        if (request.ExpectedVersionTag.GetValueOrDefault() != currentVersionTag)
+        if (expectedVersionTag.GetValueOrDefault() != currentVersionTag)
         {
-            logger.LogDebug("Photo attribute update version conflict for id {id} (caller {caller} vs current {current})",
-                attributeId, request.ExpectedVersionTag, currentVersionTag);
+            logger.LogDebug("Profile attribute update version conflict for id {id} (caller {caller} vs current {current})",
+                attributeId, expectedVersionTag, currentVersionTag);
 
             return new ProfileAttributeWriteResult
             {
@@ -238,8 +222,7 @@ public class ProfileAttributeService(
             };
         }
 
-        var newVersionTag = await OverwritePhotoAsync(existing, attributeId, request, writeContext);
-        await profilePublishService.PublishAsync(BuiltInProfileAttributes.Photo, odinContext);
+        var newVersionTag = await overwrite(existing, attributeId);
         return new ProfileAttributeWriteResult
         {
             Outcome = ProfileAttributeWriteOutcome.Updated,
@@ -391,7 +374,7 @@ public class ProfileAttributeService(
         };
 
         var json = OdinSystemSerializer.Serialize(content);
-        var storedContent = encrypt ? keyHeader.EncryptDataAes(json.ToUtf8ByteArray()).ToBase64() : json;
+        var storedContent = EncryptOrPlaintext(json, keyHeader, encrypt);
         AssertContentFitsHeader(storedContent);
 
         return new FileMetadata(file)
@@ -422,54 +405,73 @@ public class ProfileAttributeService(
 
     /// <summary>
     /// Delete the attribute addressed by <paramref name="attributeId"/> (soft delete). Optimistic
-    /// concurrency on <paramref name="expectedVersionTag"/>. Returns false when no such attribute exists.
+    /// concurrency on <paramref name="expectedVersionTag"/>, signaled the same way as
+    /// <see cref="SetAttributeAsync"/>/<see cref="SetPhotoAttributeAsync"/> (a typed outcome, not an
+    /// exception) so a stale tag maps to 409 rather than a generic 400.
     /// </summary>
-    public async Task<bool> DeleteAttributeAsync(Guid attributeId, Guid expectedVersionTag, IOdinContext odinContext)
+    public async Task<ProfileAttributeDeleteResult> DeleteAttributeAsync(Guid attributeId, Guid expectedVersionTag,
+        IOdinContext odinContext)
     {
         OdinValidationUtils.AssertNotEmptyGuid(attributeId, nameof(attributeId));
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageProfile);
 
         var writeContext = GetWriteContext(odinContext);
 
-        var existing = await GetForWritingAsync(attributeId, writeContext);
+        var existing = await GetForWritingAsync(attributeId, expectedAttributeType: null, writeContext);
         if (existing == null)
         {
-            return false;
+            return new ProfileAttributeDeleteResult { Outcome = ProfileAttributeDeleteOutcome.NotFound };
         }
 
         var currentVersionTag = existing.FileMetadata.VersionTag.GetValueOrDefault();
         if (expectedVersionTag != currentVersionTag)
         {
-            throw new OdinClientException(
-                $"Profile attribute {attributeId} version conflict (caller {expectedVersionTag} vs current {currentVersionTag})",
-                OdinClientErrorCode.VersionTagMismatch);
+            logger.LogDebug("Profile attribute delete version conflict for id {id} (caller {caller} vs current {current})",
+                attributeId, expectedVersionTag, currentVersionTag);
+
+            return new ProfileAttributeDeleteResult
+            {
+                Outcome = ProfileAttributeDeleteOutcome.VersionConflict,
+                VersionTag = currentVersionTag
+            };
         }
 
-        // Tag order is [type, sectionId, profileId, id] for both the plain and Photo write paths (see
-        // BuildHeaderAsync/BuildPhotoMetadata) -- read the type off the tags before the delete discards it.
-        var tags = existing.FileMetadata.AppData.Tags;
-        Guid? deletedAttributeType = tags is { Count: > 0 } ? tags[0] : null;
-
+        // ProfilePublishService reacts to the DriveFileDeletedNotification this raises on its own (using
+        // PreviousServerFileHeader for the type tag, since the delete clears it) -- no explicit call needed.
         await fileSystem.Storage.SoftDeleteLongTermFile(existing.FileMetadata.File, writeContext, null);
 
-        if (deletedAttributeType.HasValue)
-        {
-            await profilePublishService.PublishAsync(deletedAttributeType, odinContext);
-        }
-
-        return true;
+        return new ProfileAttributeDeleteResult { Outcome = ProfileAttributeDeleteOutcome.Deleted };
     }
 
     // Grant ONLY Write here, not ReadWrite: the caller's real Read grant on the ProfileDrive supplies the
     // storage key (needed to encrypt the key header of non-public attributes) and read access, so the
     // bypass just adds the missing Write permission. Least-privilege, and correct once apps are locked to
     // Read on the drive (the funnel that lets direct Write be removed).
+    //
+    // ManageProfile and the ProfileDrive grant are independent authorization facts (a circle/app could in
+    // principle carry one without the other), so fail loudly here rather than letting a misconfigured caller
+    // hit an inconsistent, visibility-dependent failure later (plaintext writes would "work", encrypted ones
+    // would fail deep inside key resolution).
     private static IOdinContext GetWriteContext(IOdinContext odinContext)
     {
+        if (!odinContext.PermissionsContext.TryGetDriveStorageKey(DriveId, out _))
+        {
+            throw new OdinSystemException(
+                "ManageProfile granted without a real ProfileDrive grant -- caller cannot resolve a storage key.");
+        }
+
         return OdinContextUpgrades.UpgradeToByPassAclCheck(Drive, DrivePermission.Write, odinContext);
     }
 
-    private async Task<ServerFileHeader> GetForWritingAsync(Guid attributeId, IOdinContext writeContext)
+    /// <summary>
+    /// Resolves an existing attribute by its unique id for editing/deleting. Guards against a caller
+    /// supplying an id that resolves to some other file: rejects anything that isn't itself a profile
+    /// attribute (<see cref="AttributeFileType"/>), and — when <paramref name="expectedAttributeType"/> is
+    /// supplied — anything whose stored type tag doesn't match what the caller declared it should be. Without
+    /// this, e.g. a Name edit naming another attribute's id would silently overwrite that unrelated record.
+    /// </summary>
+    private async Task<ServerFileHeader> GetForWritingAsync(Guid attributeId, Guid? expectedAttributeType,
+        IOdinContext writeContext)
     {
         var options = new ResultOptions
         {
@@ -486,7 +488,21 @@ public class ProfileAttributeService(
         }
 
         var file = new InternalDriveFileId(DriveId, match.FileId);
-        return await fileSystem.Storage.GetServerFileHeaderForWriting(file, writeContext);
+        var header = await fileSystem.Storage.GetServerFileHeaderForWriting(file, writeContext);
+
+        // Tag order is [type, sectionId, profileId, id] for both the plain and Photo write paths (see
+        // BuildHeaderAsync/BuildPhotoMetadata).
+        var tags = header.FileMetadata.AppData.Tags;
+        var actualType = tags is { Count: > 0 } ? tags[0] : (Guid?)null;
+        if (header.FileMetadata.AppData.FileType != AttributeFileType ||
+            (expectedAttributeType.HasValue && actualType != expectedAttributeType.Value))
+        {
+            throw new OdinClientException(
+                $"Attribute {attributeId} does not match the expected type; refusing to treat it as {expectedAttributeType}",
+                OdinClientErrorCode.ArgumentError);
+        }
+
+        return header;
     }
 
     private async Task<Guid> WriteNewAsync(Guid attributeId, Guid attributeType, Guid sectionId, int priority,
@@ -543,19 +559,8 @@ public class ProfileAttributeService(
 
         var json = OdinSystemSerializer.Serialize(content);
         var encrypt = Encrypts(visibility);
-
-        KeyHeader keyHeader;
-        string storedContent;
-        if (encrypt)
-        {
-            keyHeader = KeyHeader.NewRandom16();
-            storedContent = keyHeader.EncryptDataAes(json.ToUtf8ByteArray()).ToBase64();
-        }
-        else
-        {
-            keyHeader = KeyHeader.Empty();
-            storedContent = json;
-        }
+        var keyHeader = encrypt ? KeyHeader.NewRandom16() : KeyHeader.Empty();
+        var storedContent = EncryptOrPlaintext(json, keyHeader, encrypt);
 
         AssertContentFitsHeader(storedContent);
 
@@ -589,6 +594,15 @@ public class ProfileAttributeService(
             writeContext);
         return (header, encrypt);
     }
+
+    /// <summary>
+    /// Serializes an attribute's header content: AES-encrypted (base64) under <paramref name="keyHeader"/>
+    /// when <paramref name="encrypt"/> is set, plaintext otherwise. Shared by <see cref="BuildHeaderAsync"/>
+    /// and <see cref="BuildPhotoMetadata"/> so <c>IsEncrypted</c> and the actual stored bytes can't
+    /// independently drift out of sync the way they once did (see the fix in <c>f65041f6e</c>).
+    /// </summary>
+    private static string EncryptOrPlaintext(string json, KeyHeader keyHeader, bool encrypt) =>
+        encrypt ? keyHeader.EncryptDataAes(json.ToUtf8ByteArray()).ToBase64() : json;
 
     /// <summary>
     /// Applies the per-type derived fields odin-js computes before saving. For the Name attribute that is
