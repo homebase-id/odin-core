@@ -36,6 +36,11 @@ public enum ClientNotificationType
     /// A circle definition was created, updated, deleted, enabled, or disabled.
     /// </summary>
     CircleDefinitionChanged = 5003,
+    /// <summary>
+    /// One of the public, static-file artifacts derived from profile attributes (sitedata.json,
+    /// public_image.json, public_profile.json) was republished.
+    /// </summary>
+    PublicProfileContentPublished = 5004,
     /// An opaque live-relay data point (e.g. live GPS) pushed by a connected identity to an app.
     /// Carries the sending identity, a channel key, the opaque blob, and the server-received time.
     /// </summary>

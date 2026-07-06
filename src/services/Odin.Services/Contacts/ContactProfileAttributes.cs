@@ -37,15 +37,15 @@ internal static class ContactProfileAttributes
     // not a toGuidId. Its data field is also named "short_bio" — but it's a string here, unlike the
     // rich-text "short_bio" array inside the "Bio" attribute above. Match by type id to keep them apart.
     public static readonly Guid ShortBioType = BuiltInProfileAttributes.BioSummary;
-    public const string ShortBioField = "short_bio";
+    public const string ShortBioField = ProfileAttributeFields.ShortBio;
 
     /// <summary>The "Status" attribute — a short current-status string flattened into Content.Status.</summary>
     public static readonly Guid Status = BuiltInProfileAttributes.Status;
-    public const string StatusField = "status";
+    public const string StatusField = ProfileAttributeFields.Status;
 
     /// <summary>The "Nickname" attribute — a preferred name flattened into Content.Nickname.</summary>
     public static readonly Guid Nickname = BuiltInProfileAttributes.Nickname;
-    public const string NicknameField = "nickName"; // odin-js NicknameFields.NickName
+    public const string NicknameField = ProfileAttributeFields.Nickname;
 
     /// <summary>A single personal link / website attribute (its target URL is flattened into Content.Link).</summary>
     public static readonly Guid Link = BuiltInProfileAttributes.Link;
@@ -69,24 +69,24 @@ internal static class ContactProfileAttributes
     /// <summary>Everything the enrichment ProfileDrive query pulls in one shot.</summary>
     public static readonly Guid[] QueryTypes = [.. TextTypes, .. ExtDataTypes, .. SocialTypes, Link];
 
-    // Field keys within an attribute's Data dictionary (odin-js *Fields).
-    public const string DisplayName = "displayName";
-    public const string GivenName = "givenName";
-    public const string AdditionalName = "additionalName";
-    public const string Surname = "surname";
+    // Field keys within an attribute's Data dictionary — aliases to the shared source of truth
+    // (ProfileAttributeFields), so the reader here and the writer (ProfileAttributeService) cannot drift.
+    public const string DisplayName = ProfileAttributeFields.DisplayName;
+    public const string GivenName = ProfileAttributeFields.GivenName;
+    public const string AdditionalName = ProfileAttributeFields.AdditionalName;
+    public const string Surname = ProfileAttributeFields.Surname;
 
-    // Shared optional label across Address/Phone/Email attributes (odin-js *Fields.Label), e.g. "Home"/"Work".
-    public const string Label = "label";
+    public const string Label = ProfileAttributeFields.Label;
 
-    public const string AddressLine1 = "address1"; // odin-js AddressFields.AddressLine1
-    public const string AddressLine2 = "address2"; // odin-js AddressFields.AddressLine2
-    public const string Postcode = "postcode";     // odin-js AddressFields.Postcode
-    public const string City = "city";
-    public const string Country = "country";
+    public const string AddressLine1 = ProfileAttributeFields.AddressLine1;
+    public const string AddressLine2 = ProfileAttributeFields.AddressLine2;
+    public const string Postcode = ProfileAttributeFields.Postcode;
+    public const string City = ProfileAttributeFields.City;
+    public const string Country = ProfileAttributeFields.Country;
 
-    public const string PhoneNumberField = "phone_number";
-    public const string EmailField = "email";
-    public const string BirthdayDate = "birtday_date"; // (sic) matches odin-js BirthdayFields.Date
+    public const string PhoneNumberField = ProfileAttributeFields.PhoneNumber;
+    public const string EmailField = ProfileAttributeFields.Email;
+    public const string BirthdayDate = ProfileAttributeFields.BirthdayDate;
 
-    public const string LinkTargetField = "link_target"; // odin-js LinkFields.LinkTarget (the URL)
+    public const string LinkTargetField = ProfileAttributeFields.LinkTarget;
 }

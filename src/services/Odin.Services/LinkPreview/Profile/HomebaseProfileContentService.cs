@@ -17,6 +17,7 @@ using Odin.Services.Drives.Management;
 using Odin.Services.LinkPreview.PersonMetadata;
 using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
 using Odin.Services.Optimization.Cdn;
+using Odin.Services.Profile;
 
 namespace Odin.Services.LinkPreview.Profile;
 
@@ -30,8 +31,6 @@ public class HomebaseProfileContentService(
     IDriveManager driveManager,
     ILogger<HomebaseProfileContentService> logger)
 {
-    public const int AttributeFileType = 77;
-    public static readonly Guid AboutSectionId = new("fd2ddd8616b64814aaef168775757632");
 
     public string GetPublicImageUrl(IOdinContext odinContext)
     {
@@ -132,8 +131,8 @@ public class HomebaseProfileContentService(
         var qp = new FileQueryParamsV1
         {
             TargetDrive = SystemDriveConstants.ProfileDrive,
-            FileType = [AttributeFileType],
-            GroupId = [AboutSectionId]
+            FileType = [ProfileAttributeService.AttributeFileType],
+            GroupId = [ProfileAttributeService.AboutSectionId]
         };
 
         var options = new QueryBatchResultOptions
