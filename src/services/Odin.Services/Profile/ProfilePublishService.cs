@@ -358,6 +358,7 @@ public class ProfilePublishService(
             maxRecords: 1)).FirstOrDefault();
         if (photoAttribute == null)
         {
+            await ClearProfileImageAsync(publishContext);
             return;
         }
 
@@ -365,12 +366,14 @@ public class ProfilePublishService(
         var payloadKey = GetDataString(content, ProfileAttributeFields.ProfileImageKey);
         if (string.IsNullOrWhiteSpace(payloadKey))
         {
+            await ClearProfileImageAsync(publishContext);
             return;
         }
 
         var payloadDescriptor = photoAttribute.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(payloadKey));
         if (payloadDescriptor == null)
         {
+            await ClearProfileImageAsync(publishContext);
             return;
         }
 
@@ -401,6 +404,7 @@ public class ProfilePublishService(
             using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, publishContext);
             if (payloadStream == null)
             {
+                await ClearProfileImageAsync(publishContext);
                 return;
             }
 
@@ -409,6 +413,25 @@ public class ProfilePublishService(
         }
 
         await staticFileContentService.PublishProfileImageAsync(imageBytes.ToBase64(), contentType);
+
+        await mediator.Publish(new PublicProfileContentPublishedNotification
+        {
+            Artifact = PublicProfileArtifact.ProfileImage,
+            OdinContext = publishContext
+        });
+    }
+
+    /// <summary>
+    /// Removes the previously-published <c>public_image.json</c> artifact when there's no longer an active
+    /// Anonymous-tier Photo attribute to publish -- e.g. after the attribute is deleted. Without this,
+    /// <c>/pub/image</c> would keep serving the last-published bytes forever, since unlike
+    /// <see cref="RepublishSiteDataAsync"/> (which rebuilds its whole document from scratch on every call and
+    /// so naturally reflects a deletion as an empty section) there is nothing to rebuild *from* once the
+    /// source attribute is gone.
+    /// </summary>
+    private async Task ClearProfileImageAsync(IOdinContext publishContext)
+    {
+        await staticFileContentService.ClearStaticFileAsync(StaticFileConstants.ProfileImageFileName);
 
         await mediator.Publish(new PublicProfileContentPublishedNotification
         {

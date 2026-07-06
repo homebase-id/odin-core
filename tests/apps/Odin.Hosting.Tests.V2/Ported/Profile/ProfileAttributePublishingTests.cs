@@ -134,6 +134,45 @@ public class ProfileAttributePublishingTests : V2Fixture
     }
 
     [Test]
+    public async Task DeleteAttribute_Photo_ClearsPublicImage()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = new V2ProfileClient(owner.Identity, owner.Factory);
+
+        var thumbBytes = Enumerable.Range(0, 64).Select(i => (byte)i).ToArray();
+
+        var created = await profile.SetPhotoAttributeAsync(new SetPhotoAttributeRequest
+        {
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            ContentType = "image/webp",
+            Content = Enumerable.Repeat((byte)0xAB, 128).ToArray(),
+            Thumbnails =
+            [
+                new ProfilePhotoThumbnail
+                {
+                    PixelWidth = 250,
+                    PixelHeight = 250,
+                    ContentType = "image/jpeg",
+                    Content = thumbBytes
+                }
+            ]
+        });
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {created.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageBeforeResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageBeforeResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageBeforeResp.StatusCode}");
+
+        var delete = await profile.DeleteAttributeAsync(created.Content!.Id, created.Content.VersionTag);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), $"actual {delete.StatusCode}");
+
+        // Regression: deleting the only Anonymous-tier Photo attribute must clear /pub/image rather than
+        // leaving the previously-published bytes served forever.
+        var imageAfterResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageAfterResp.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"actual {imageAfterResp.StatusCode}");
+    }
+
+    [Test]
     public async Task DeleteAttribute_PublicBio_UpdatesProfileCard()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
