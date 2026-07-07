@@ -20,6 +20,8 @@ namespace Odin.Services.Authorization.Permissions
 
         public const int ManageContacts = 160;
 
+        public const int ManageProfile = 170;
+
         public const int UseTransitWrite = 210;
 
         public const int UseTransitRead = 305;
@@ -49,6 +51,7 @@ namespace Odin.Services.Authorization.Permissions
             SendPushNotifications,
             ManageFeed,
             ManageContacts,
+            ManageProfile,
             PublishStaticContent,
             AllowIntroductions,
             SendIntroductions
@@ -107,6 +110,7 @@ namespace Odin.Services.Authorization.Permissions
                 PermissionKeys.SendPushNotifications,
                 PermissionKeys.ManageFeed,
                 PermissionKeys.ManageContacts,
+                PermissionKeys.ManageProfile,
                 PermissionKeys.PublishStaticContent
             });
 
