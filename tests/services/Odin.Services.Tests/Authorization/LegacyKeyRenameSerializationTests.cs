@@ -31,7 +31,7 @@ namespace Odin.Services.Tests.Authorization
         public static SensitiveByteArray StorageKey        => Key(0x44);
         public static SensitiveByteArray AccessKeyStoreKey => Key(0x66);
 
-        public static T Load<T>(string json) => OdinSystemSerializer.Deserialize<T>(json);
+        public static T Load<T>(string json) => OdinSystemSerializer.Deserialize<T>(json)!;
 
         public static void AssertKey(SensitiveByteArray actual, SensitiveByteArray expected) =>
             Assert.That(actual.GetKey(), Is.EqualTo(expected.GetKey()));
@@ -350,7 +350,7 @@ namespace Odin.Services.Tests.Authorization
         [Test]
         public void AppRegistration_RenamedFieldsPopulated()
         {
-            var a = OdinSystemSerializer.Deserialize<AppRegistration>(RealSnapshots.AppRegistration);
+            var a = OdinSystemSerializer.Deserialize<AppRegistration>(RealSnapshots.AppRegistration)!;
             Assert.That(a.Grant, Is.Not.Null);
             Assert.That(a.Grant.MasterKeyEncryptedKeyStoreKey, Is.Not.Null);                 // -> MasterKeyEncryptedAppKey
             Assert.That(a.Grant.KeyStoreKeyEncryptedDriveGrants, Is.Not.Null.And.Not.Empty);
@@ -360,7 +360,7 @@ namespace Odin.Services.Tests.Authorization
         [Test]
         public void IcrAccessRecord_RenamedFieldsPopulated()
         {
-            var icr = OdinSystemSerializer.Deserialize<IcrAccessRecord>(RealSnapshots.IcrAccessRecord);
+            var icr = OdinSystemSerializer.Deserialize<IcrAccessRecord>(RealSnapshots.IcrAccessRecord)!;
             Assert.That(icr.AccessGrant, Is.Not.Null);
             Assert.That(icr.AccessGrant.MasterKeyEncryptedKeyStoreKey, Is.Not.Null);          // -> MasterKeyEncryptedPeerKey
             Assert.That(icr.AccessGrant.AccessRegistration, Is.Not.Null);
