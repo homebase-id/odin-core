@@ -6,6 +6,7 @@ using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Services.AppNotifications.ClientNotifications;
 using Odin.Services.Contacts;
+using Odin.Services.Profile;
 using Odin.Services.AppNotifications.Data;
 using Odin.Services.AppNotifications.Push;
 using Odin.Services.AppNotifications.SystemNotifications;
@@ -76,6 +77,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version6tov7;
 using Odin.Services.Configuration.VersionUpgrade.Version7tov8;
 using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
+using Odin.Services.Configuration.VersionUpgrade.Version10tov11;
 using Odin.Services.Security.Email;
 using Odin.Services.Security.Health;
 using Odin.Services.Security.PasswordRecovery.RecoveryPhrase;
@@ -170,6 +172,7 @@ public static class TenantServices
             .As<INotificationHandler<ConnectionFinalizedNotification>>()
             .As<INotificationHandler<ConnectionChangedNotification>>()
             .As<INotificationHandler<CircleDefinitionChangedNotification>>()
+            .As<INotificationHandler<PublicProfileContentPublishedNotification>>()
             .As<INotificationHandler<LiveRelayNotification>>()
             .AsSelf()
             .InstancePerLifetimeScope();
@@ -316,6 +319,13 @@ public static class TenantServices
 
         cb.RegisterType<ContactService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<ContactEnrichmentService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ProfileAttributeService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<ProfilePublishService>()
+            .As<INotificationHandler<DriveFileAddedNotification>>()
+            .As<INotificationHandler<DriveFileChangedNotification>>()
+            .As<INotificationHandler<DriveFileDeletedNotification>>()
+            .AsSelf()
+            .InstancePerLifetimeScope();
         // Enrichment is client-driven via POST /api/v2/contacts/sync (phase 1). Automatic
         // lifecycle-driven enrichment is deferred — see docs/contact-enrichment-phase2.md.
 
@@ -378,6 +388,7 @@ public static class TenantServices
         cb.RegisterType<V7ToV8VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V8ToV9VersionMigrationService>().InstancePerLifetimeScope();
         cb.RegisterType<V9ToV10VersionMigrationService>().InstancePerLifetimeScope();
+        cb.RegisterType<V10ToV11VersionMigrationService>().InstancePerLifetimeScope();
 
         cb.RegisterType<VersionUpgradeService>().InstancePerLifetimeScope();
         cb.RegisterType<VersionUpgradeScheduler>().InstancePerLifetimeScope();

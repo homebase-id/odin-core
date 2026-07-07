@@ -29,10 +29,13 @@ public class FrontEndProfile
 
     [JsonPropertyName("bio")]
     public string Bio { get; set; }
-    
+
+    [JsonPropertyName("email")]
+    public List<FrontEndProfileEmail> Email { get; set; }
+
     [JsonPropertyName("links")]
     public List<FrontEndProfileLink> Links { get; set; }
-    
+
     [JsonPropertyName("sameAs")]
     public List<FrontEndProfileLink> SameAs { get; set; }
 }
@@ -41,8 +44,17 @@ public class FrontEndProfileLink
 {
     [JsonPropertyName("type")]
     public string Type { get; set; }
-    
+
     [JsonPropertyName("url")]
     public string Url { get; set; }
 
+}
+
+public class FrontEndProfileEmail
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; }
+
+    [JsonPropertyName("email")]
+    public string Email { get; set; }
 }

@@ -183,6 +183,23 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
         tx.Commit();
     }
 
+    /// <summary>
+    /// Removes a previously-published static artifact entirely (both its <see cref="StaticFileConfiguration"/>
+    /// and data) so a subsequent <see cref="GetStaticFileStreamAsync"/> reports it as not found, rather than
+    /// continuing to serve stale bytes from before. Used by <see cref="Odin.Services.Profile.ProfilePublishService"/>
+    /// when a republish is triggered but the source content (e.g. the Anonymous-tier Photo attribute) no longer
+    /// exists -- unlike <see cref="PublishAsync"/>'s section-based artifacts, which naturally self-correct to an
+    /// empty result when rebuilt, single-value artifacts like the profile image have nothing to rebuild *from*
+    /// once their source is gone, so they must be explicitly cleared instead.
+    /// </summary>
+    public async Task ClearStaticFileAsync(string filename)
+    {
+        await using var tx = await db.BeginStackedTransactionAsync();
+        await StaticFileConfigStorage.DeleteAsync(db.KeyValueCached, GetConfigKey(filename));
+        await StaticFileConfigStorage.DeleteAsync(db.KeyValueCached, GetDataKey(filename));
+        tx.Commit();
+    }
+
     public async Task PublishProfileCardAsync(string json)
     {
         var filename = StaticFileConstants.PublicProfileCardFileName;
@@ -240,7 +257,14 @@ public class StaticFileContentService(StandardFileSystem fileSystem, IdentityDat
         return (config, fileExists: true, bytes);
     }
 
-    private IEnumerable<SharedSecretEncryptedFileHeader> Filter(IEnumerable<SharedSecretEncryptedFileHeader> headers)
+    /// <summary>
+    /// The "is this content actually public" rule for anything this service publishes: active, unencrypted,
+    /// and Anonymous-visibility. Internal (not private) so other publishers of public static content --
+    /// e.g. <see cref="Odin.Services.Profile.ProfilePublishService"/>, which queries the ProfileDrive itself
+    /// for shapes this service's own <see cref="PublishAsync"/> section pipeline doesn't produce -- apply the
+    /// same rule instead of maintaining their own copy that could drift from this one.
+    /// </summary>
+    internal IEnumerable<SharedSecretEncryptedFileHeader> Filter(IEnumerable<SharedSecretEncryptedFileHeader> headers)
     {
         return headers.Where(r =>
             r.FileState == FileState.Active &&
