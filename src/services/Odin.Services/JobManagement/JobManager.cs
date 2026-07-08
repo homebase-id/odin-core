@@ -19,12 +19,15 @@ namespace Odin.Services.JobManagement;
 public interface IJobManager
 {
     T NewJob<T>() where T : AbstractJob;
+    T NewJob<T>(Guid identityId) where T : AbstractJob;
     Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null);
     Task RunJobNowAsync(Guid jobId, CancellationToken cancellationToken);
     Task<long> CountJobsAsync();
     Task<IReadOnlyList<JobsRecord>> GetAllJobsAsync();
+    Task<IReadOnlyList<JobsRecord>> GetJobsByIdentityIdAsync(Guid identityId);
     Task<bool> DeleteJobByIdAsync(Guid jobId);
     Task<bool> DeleteJobByHashAsync(string jobHash);
+    Task<int> DeleteJobsByIdentityIdAsync(Guid identityId);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
     Task<bool> JobExistsAsync(Guid jobId);
     Task DeleteExpiredJobsAsync();
@@ -47,6 +50,15 @@ public class JobManager(
     public T NewJob<T>() where T : AbstractJob
     {
         return lifetimeScope.Resolve<T>();
+    }
+
+    //
+
+    public T NewJob<T>(Guid identityId) where T : AbstractJob
+    {
+        var job = NewJob<T>();
+        job.IdentityId = identityId;
+        return job;
     }
 
     //
@@ -76,6 +88,7 @@ public class JobManager(
             jobData = job.SerializeJobData(),
             jobHash = job.CreateJobHash(),
             lastError = null,
+            identityId = job.IdentityId,
         };
 
         if (record.jobHash == null)
@@ -445,6 +458,13 @@ public class JobManager(
 
     //
 
+    public async Task<IReadOnlyList<JobsRecord>> GetJobsByIdentityIdAsync(Guid identityId)
+    {
+        return await tableJobs.GetJobsByIdentityIdAsync(identityId);
+    }
+
+    //
+
     // Surface jobs whose worker died mid-flight. A crash between GetNextScheduledJobAsync
     // (state -> Preflight) and the end of ExecuteAsync leaves a row pinned in Preflight or Running
     // forever — DeleteExpiredJobsAsync won't clean it up because expiresAt is only set on terminal
@@ -502,6 +522,14 @@ public class JobManager(
     {
         var result = await tableJobs.DeleteByHashAsync(jobHash);
         return result > 0;
+    }
+
+    //
+
+    public async Task<int> DeleteJobsByIdentityIdAsync(Guid identityId)
+    {
+        var result = await tableJobs.DeleteJobsByIdentityIdAsync(identityId);
+        return result;
     }
 
 

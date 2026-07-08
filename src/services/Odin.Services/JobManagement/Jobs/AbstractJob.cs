@@ -26,6 +26,16 @@ public abstract class AbstractJob : IDisposable
     // Job Id
     public Guid? Id => Record == null || Record.id == Guid.Empty ? null : Record.id; 
 
+    // Optionally associates the job with an identity. Set this before scheduling to persist it to
+    // the jobs table; once the job has a Record, that value is authoritative. Lets jobs belonging to
+    // an identity be looked up or purged via TableJobs.GetJobsByIdentityIdAsync / DeleteJobsByIdentityIdAsync.
+    private Guid? _identityId;
+    public Guid? IdentityId
+    {
+        get => Record != null ? Record.identityId : _identityId;
+        set => _identityId = value;
+    }
+
     // Job state
     public JobState State => (JobState?)Record?.state ?? JobState.Unknown;
     
