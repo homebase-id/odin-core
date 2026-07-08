@@ -9,6 +9,7 @@ public class TableJobsMigrationList : MigrationListBase
     {
         Migrations = new List<MigrationBase>() {
             new TableJobsMigrationV0(-1),
+            new TableJobsMigrationV202607080912(0),
             // AUTO-INSERT-MARKER
         };
     }

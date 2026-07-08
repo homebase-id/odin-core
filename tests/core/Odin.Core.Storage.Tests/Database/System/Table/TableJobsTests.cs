@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Autofac;
 using NUnit.Framework;
@@ -222,6 +223,99 @@ public class TableJobsTests : IocTestBase
         var (all, allCursor) = await jobs.PagingByRowIdAsync(100, null);
         Assert.That(all.Count, Is.EqualTo(3));
         Assert.That(allCursor, Is.Null);
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldGetJobsByIdentityId(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var jobs = scope.Resolve<TableJobs>();
+
+        var identity1 = Guid.NewGuid();
+        var identity2 = Guid.NewGuid();
+
+        var r1 = NewJobsRecord();
+        r1.identityId = identity1;
+        await jobs.InsertAsync(r1);
+
+        var r2 = NewJobsRecord();
+        r2.identityId = identity1;
+        await jobs.InsertAsync(r2);
+
+        var r3 = NewJobsRecord();
+        r3.identityId = identity2;
+        await jobs.InsertAsync(r3);
+
+        var r4 = NewJobsRecord();
+        r4.identityId = null;
+        await jobs.InsertAsync(r4);
+
+        var identity1Jobs = await jobs.GetJobsByIdentityIdAsync(identity1);
+        Assert.That(identity1Jobs.Count, Is.EqualTo(2));
+        Assert.That(identity1Jobs.Select(j => j.id), Is.EquivalentTo(new[] { r1.id, r2.id }));
+        Assert.That(identity1Jobs.Select(j => j.identityId), Has.All.EqualTo(identity1));
+
+        var identity2Jobs = await jobs.GetJobsByIdentityIdAsync(identity2);
+        Assert.That(identity2Jobs.Count, Is.EqualTo(1));
+        Assert.That(identity2Jobs[0].id, Is.EqualTo(r3.id));
+
+        var noJobs = await jobs.GetJobsByIdentityIdAsync(Guid.NewGuid());
+        Assert.That(noJobs, Is.Empty);
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldDeleteJobsByIdentityId(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var jobs = scope.Resolve<TableJobs>();
+
+        var identity1 = Guid.NewGuid();
+        var identity2 = Guid.NewGuid();
+
+        var r1 = NewJobsRecord();
+        r1.identityId = identity1;
+        await jobs.InsertAsync(r1);
+
+        var r2 = NewJobsRecord();
+        r2.identityId = identity1;
+        await jobs.InsertAsync(r2);
+
+        var r3 = NewJobsRecord();
+        r3.identityId = identity2;
+        await jobs.InsertAsync(r3);
+
+        var r4 = NewJobsRecord();
+        r4.identityId = null;
+        await jobs.InsertAsync(r4);
+
+        var deletedCount = await jobs.DeleteJobsByIdentityIdAsync(identity1);
+        Assert.That(deletedCount, Is.EqualTo(2));
+
+        Assert.That(await jobs.GetJobsByIdentityIdAsync(identity1), Is.Empty);
+
+        // Other identities and null-identity jobs are untouched.
+        Assert.That(await jobs.GetCountAsync(), Is.EqualTo(2));
+        var identity2Jobs = await jobs.GetJobsByIdentityIdAsync(identity2);
+        Assert.That(identity2Jobs.Count, Is.EqualTo(1));
+        Assert.That(identity2Jobs[0].id, Is.EqualTo(r3.id));
+
+        // Deleting an identity with no jobs returns 0.
+        var noneDeleted = await jobs.DeleteJobsByIdentityIdAsync(Guid.NewGuid());
+        Assert.That(noneDeleted, Is.EqualTo(0));
     }
 
     //
