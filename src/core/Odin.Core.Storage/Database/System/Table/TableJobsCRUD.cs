@@ -39,6 +39,7 @@ namespace Odin.Core.Storage.Database.System.Table
         public string jobData { get; set; }
         public string jobHash { get; set; }
         public string lastError { get; set; }
+        public Guid? identityId { get; set; }
         public UnixTimeUtc created { get; set; }
         public UnixTimeUtc modified { get; set; }
         public void Validate()
@@ -59,6 +60,7 @@ namespace Odin.Core.Storage.Database.System.Table
             if (jobHash?.Length > 65535) throw new OdinDatabaseValidationException($"Too long jobHash, was {jobHash.Length} (max 65535)");
             if (lastError?.Length < 0) throw new OdinDatabaseValidationException($"Too short lastError, was {lastError.Length} (min 0)");
             if (lastError?.Length > 65535) throw new OdinDatabaseValidationException($"Too long lastError, was {lastError.Length} (max 65535)");
+            identityId.AssertGuidNotEmpty("Guid parameter identityId cannot be set to Empty GUID.");
         }
     } // End of record JobsRecord
 
@@ -87,13 +89,13 @@ namespace Odin.Core.Storage.Database.System.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Jobs IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE Jobs IS '{ \"Version\": 202607080912 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Jobs( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Jobs( -- { \"Version\": 202607080912 }\n"
                    +rowid
                    +"id BYTEA NOT NULL UNIQUE, "
                    +"name TEXT NOT NULL, "
@@ -112,12 +114,14 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"jobData TEXT , "
                    +"jobHash TEXT  UNIQUE, "
                    +"lastError TEXT , "
+                   +"identityId BYTEA , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0Jobs ON Jobs(state);"
                    +"CREATE INDEX IF NOT EXISTS Idx1Jobs ON Jobs(expiresAt);"
                    +"CREATE INDEX IF NOT EXISTS Idx2Jobs ON Jobs(nextRun,priority);"
+                   +"CREATE INDEX IF NOT EXISTS Idx3Jobs ON Jobs(identityId);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "Jobs", createSql, commentSql);
         }
@@ -130,8 +134,8 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                           $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,identityId,created,modified) " +
+                                           $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@identityId,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@id", DbType.Binary, item.id);
                 insertCommand.AddParameter("@name", DbType.String, item.name);
@@ -150,6 +154,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertCommand.AddParameter("@jobData", DbType.String, item.jobData);
                 insertCommand.AddParameter("@jobHash", DbType.String, item.jobHash);
                 insertCommand.AddParameter("@lastError", DbType.String, item.lastError);
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -171,8 +176,8 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                            $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,identityId,created,modified) " +
+                                            $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@identityId,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@id", DbType.Binary, item.id);
@@ -192,6 +197,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 insertCommand.AddParameter("@jobData", DbType.String, item.jobData);
                 insertCommand.AddParameter("@jobHash", DbType.String, item.jobHash);
                 insertCommand.AddParameter("@lastError", DbType.String, item.lastError);
+                insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -213,10 +219,10 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified) " +
-                                            $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,{sqlNowStr},{sqlNowStr})"+
+                upsertCommand.CommandText = "INSERT INTO Jobs (id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,identityId,created,modified) " +
+                                            $"VALUES (@id,@name,@state,@priority,@nextRun,@lastRun,@runCount,@maxAttempts,@retryDelay,@onSuccessDeleteAfter,@onFailureDeleteAfter,@expiresAt,@correlationId,@jobType,@jobData,@jobHash,@lastError,@identityId,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (id) DO UPDATE "+
-                                            $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = {upsertCommand.SqlMax()}(Jobs.modified+1,{sqlNowStr}) "+
+                                            $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,identityId = @identityId,modified = {upsertCommand.SqlMax()}(Jobs.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 upsertCommand.AddParameter("@id", DbType.Binary, item.id);
                 upsertCommand.AddParameter("@name", DbType.String, item.name);
@@ -235,6 +241,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 upsertCommand.AddParameter("@jobData", DbType.String, item.jobData);
                 upsertCommand.AddParameter("@jobHash", DbType.String, item.jobHash);
                 upsertCommand.AddParameter("@lastError", DbType.String, item.lastError);
+                upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -257,7 +264,7 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE Jobs " +
-                                            $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,modified = {updateCommand.SqlMax()}(Jobs.modified+1,{sqlNowStr}) "+
+                                            $"SET name = @name,state = @state,priority = @priority,nextRun = @nextRun,lastRun = @lastRun,runCount = @runCount,maxAttempts = @maxAttempts,retryDelay = @retryDelay,onSuccessDeleteAfter = @onSuccessDeleteAfter,onFailureDeleteAfter = @onFailureDeleteAfter,expiresAt = @expiresAt,correlationId = @correlationId,jobType = @jobType,jobData = @jobData,jobHash = @jobHash,lastError = @lastError,identityId = @identityId,modified = {updateCommand.SqlMax()}(Jobs.modified+1,{sqlNowStr}) "+
                                             "WHERE (id = @id) "+
                                             "RETURNING created,modified,rowId;";
                 updateCommand.AddParameter("@id", DbType.Binary, item.id);
@@ -277,6 +284,7 @@ namespace Odin.Core.Storage.Database.System.Table
                 updateCommand.AddParameter("@jobData", DbType.String, item.jobData);
                 updateCommand.AddParameter("@jobHash", DbType.String, item.jobHash);
                 updateCommand.AddParameter("@lastError", DbType.String, item.lastError);
+                updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -327,12 +335,13 @@ namespace Odin.Core.Storage.Database.System.Table
             sl.Add("jobData");
             sl.Add("jobHash");
             sl.Add("lastError");
+            sl.Add("identityId");
             sl.Add("created");
             sl.Add("modified");
             return sl;
         }
 
-        // SELECT rowId,id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified
+        // SELECT rowId,id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,identityId,created,modified
         public JobsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<JobsRecord>();
@@ -359,8 +368,9 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobData = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
             item.jobHash = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
             item.lastError = (rdr[17] == DBNull.Value) ? null : (string)rdr[17];
-            item.created = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
-            item.modified = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[19]);
+            item.identityId = (rdr[18] == DBNull.Value) ? null : new Guid((byte[])rdr[18]);
+            item.created = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[19]);
+            item.modified = (rdr[20] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[20]);
             return item;
        }
 
@@ -385,7 +395,7 @@ namespace Odin.Core.Storage.Database.System.Table
             {
                 deleteCommand.CommandText = "DELETE FROM Jobs " +
                                              "WHERE id = @id " + 
-                                             "RETURNING rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified";
+                                             "RETURNING rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,identityId,created,modified";
 
                 deleteCommand.AddParameter("@id", DbType.Binary, id);
                 using (var rdr = await deleteCommand.ExecuteReaderAsync(CommandBehavior.SingleRow))
@@ -428,8 +438,9 @@ namespace Odin.Core.Storage.Database.System.Table
             item.jobData = (rdr[14] == DBNull.Value) ? null : (string)rdr[14];
             item.jobHash = (rdr[15] == DBNull.Value) ? null : (string)rdr[15];
             item.lastError = (rdr[16] == DBNull.Value) ? null : (string)rdr[16];
-            item.created = (rdr[17] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[17]);
-            item.modified = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
+            item.identityId = (rdr[17] == DBNull.Value) ? null : new Guid((byte[])rdr[17]);
+            item.created = (rdr[18] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[18]);
+            item.modified = (rdr[19] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[19]);
             return item;
        }
 
@@ -438,7 +449,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM Jobs " +
+                get0Command.CommandText = "SELECT rowId,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,identityId,created,modified FROM Jobs " +
                                              "WHERE id = @id LIMIT 1 "+
                                              ";";
 
@@ -469,7 +480,7 @@ namespace Odin.Core.Storage.Database.System.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,created,modified FROM Jobs " +
+                getPaging0Command.CommandText = "SELECT rowId,id,name,state,priority,nextRun,lastRun,runCount,maxAttempts,retryDelay,onSuccessDeleteAfter,onFailureDeleteAfter,expiresAt,correlationId,jobType,jobData,jobHash,lastError,identityId,created,modified FROM Jobs " +
                                             "WHERE rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);

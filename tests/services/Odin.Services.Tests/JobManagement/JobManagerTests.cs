@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -263,7 +264,114 @@ public class JobManagerTests
     }
     
     //
-    
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldScheduleAJobWithIdentityId(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        var identityId = Guid.NewGuid();
+
+        var job = jobManager.NewJob<SimpleJobTest>(identityId);
+        Assert.That(job.IdentityId, Is.EqualTo(identityId));
+
+        // Act
+        var jobId = await jobManager.ScheduleJobAsync(job);
+
+        // Assert: the identity is persisted and hydrated back on load
+        Assert.That(jobId, Is.Not.EqualTo(Guid.Empty));
+        var scheduledJob = await jobManager.GetJobAsync<SimpleJobTest>(jobId);
+        Assert.That(scheduledJob, Is.Not.Null);
+        Assert.That(scheduledJob!.IdentityId, Is.EqualTo(identityId));
+        Assert.That(scheduledJob.Record!.identityId, Is.EqualTo(identityId));
+
+        AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldGetJobsByIdentityId(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        var identity1 = Guid.NewGuid();
+        var identity2 = Guid.NewGuid();
+
+        var job1a = await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>(identity1));
+        var job1b = await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>(identity1));
+        var job2 = await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>(identity2));
+        await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>()); // no identity
+
+        // Act
+        var identity1Jobs = await jobManager.GetJobsByIdentityIdAsync(identity1);
+
+        // Assert
+        Assert.That(identity1Jobs.Count, Is.EqualTo(2));
+        CollectionAssert.AreEquivalent(new[] { job1a, job1b }, identity1Jobs.Select(j => j.id));
+        Assert.That(identity1Jobs.Select(j => j.identityId), Has.All.EqualTo(identity1));
+
+        var identity2Jobs = await jobManager.GetJobsByIdentityIdAsync(identity2);
+        Assert.That(identity2Jobs.Count, Is.EqualTo(1));
+        Assert.That(identity2Jobs[0].id, Is.EqualTo(job2));
+
+        var noJobs = await jobManager.GetJobsByIdentityIdAsync(Guid.NewGuid());
+        Assert.That(noJobs, Is.Empty);
+
+        AssertLogEvents();
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+    #if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+    #endif
+    public async Task ItShouldDeleteJobsByIdentityId(DatabaseType databaseType)
+    {
+        // Arrange
+        await CreateHostedJobManagerAsync(databaseType);
+        var jobManager = _container.Resolve<IJobManager>();
+        var identity1 = Guid.NewGuid();
+        var identity2 = Guid.NewGuid();
+
+        await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>(identity1));
+        await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>(identity1));
+        var job2 = await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>(identity2));
+        await jobManager.ScheduleJobAsync(jobManager.NewJob<SimpleJobTest>()); // no identity
+        Assert.That(await jobManager.CountJobsAsync(), Is.EqualTo(4));
+
+        // Act
+        var deleted = await jobManager.DeleteJobsByIdentityIdAsync(identity1);
+
+        // Assert: only identity1's jobs are gone; other identity and null-identity jobs remain
+        Assert.That(deleted, Is.EqualTo(2));
+        Assert.That(await jobManager.GetJobsByIdentityIdAsync(identity1), Is.Empty);
+        Assert.That(await jobManager.CountJobsAsync(), Is.EqualTo(2));
+
+        var identity2Jobs = await jobManager.GetJobsByIdentityIdAsync(identity2);
+        Assert.That(identity2Jobs.Count, Is.EqualTo(1));
+        Assert.That(identity2Jobs[0].id, Is.EqualTo(job2));
+
+        // Deleting an identity with no jobs returns 0
+        Assert.That(await jobManager.DeleteJobsByIdentityIdAsync(Guid.NewGuid()), Is.EqualTo(0));
+
+        AssertLogEvents();
+    }
+
+    //
+
     [Test]
     [TestCase(DatabaseType.Sqlite)]
     #if RUN_POSTGRES_TESTS

@@ -287,4 +287,35 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
 
     //
 
+    public async Task<List<JobsRecord>> GetJobsByIdentityIdAsync(Guid identityId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM jobs WHERE identityId = @identityId ORDER BY nextRun;";
+        cmd.AddParameter("@identityId", DbType.Binary, identityId);
+
+        var result = new List<JobsRecord>();
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            result.Add(ReadRecordFromReaderAll(rdr));
+        }
+
+        return result;
+    }
+
+    //
+
+    public async Task<int> DeleteJobsByIdentityIdAsync(Guid identityId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM jobs WHERE identityId = @identityId;";
+        cmd.AddParameter("@identityId", DbType.Binary, identityId);
+        var count = await cmd.ExecuteNonQueryAsync();
+        return count;
+    }
+
+    //
+
 }
