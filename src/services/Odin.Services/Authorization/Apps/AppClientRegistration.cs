@@ -19,22 +19,24 @@ public sealed class AppClientRegistration : IClientRegistration
         // for json
     }
 
-    public AppClientRegistration(OdinId ownerOdinId, GuidId appId, string friendlyName, AccessRegistration appClientKey)
+    public AppClientRegistration(OdinId ownerOdinId, GuidId appId, string friendlyName, ServerHalfOfClientKey serverHalfOfClientKey)
     {
         GuidId.AssertIsValid(appId);
 
         AppId = appId;
         FriendlyName = friendlyName;
-        AppClientKey = appClientKey;
+        ServerHalfOfClientKey = serverHalfOfClientKey;
         IssuedTo = ownerOdinId;
     }
 
     public GuidId AppId { get; init; }
-    [JsonPropertyName("AccessRegistration")]
-    public AccessRegistration AppClientKey { get; init; }
+
+    [JsonPropertyName("accessRegistration")]
+    public ServerHalfOfClientKey ServerHalfOfClientKey { get; init; }
+    
     public string FriendlyName { get; init; }
 
-    public Guid Id => this.AppClientKey.Id;
+    public Guid Id => this.ServerHalfOfClientKey.Id;
 
     public string IssuedTo { get; set; }
 

@@ -13,7 +13,7 @@ namespace Odin.Services.Membership.Connections;
 /// </summary>
 public class AccessExchangeGrant
 {
-    [JsonPropertyName("MasterKeyEncryptedKeyStoreKey")]
+    [JsonPropertyName("masterKeyEncryptedKeyStoreKey")]
     public SymmetricKeyEncryptedAes MasterKeyEncryptedPeerKey { get; set; }
 
     /// <summary>
@@ -26,8 +26,8 @@ public class AccessExchangeGrant
     /// </summary>
     public Dictionary<Guid, Dictionary<Guid, AppCircleGrant>> AppGrants { get; set; } = new();
 
-    [JsonPropertyName("AccessRegistration")]
-    public AccessRegistration PeerClientKey { get; set; }
+    [JsonPropertyName("accessRegistration")]
+    public ServerHalfOfClientKey PeerClientKey { get; set; }
 
     /// <summary>
     /// if true, revokes access while remaining connected.

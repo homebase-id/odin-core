@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Permissions;
@@ -10,23 +9,21 @@ namespace Odin.Services.Authorization.ExchangeGrants;
 /// <summary>
 /// Defines the information needed to grant system permissions and drive access
 /// </summary>
-public class ExchangeGrant
+public class KeyStore
 {
-    public ExchangeGrant()
-    {
-    }
-
     public UnixTimeUtc Created { get; set; }
     public UnixTimeUtc Modified { get; set; }
     
-    [JsonPropertyName("MasterKeyEncryptedKeyStoreKey")]
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
+    
     public bool IsRevoked { get; set; }
+    
     public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
+    
     public PermissionSet PermissionSet { get; set; }
 
-    [JsonPropertyName("KeyStoreKeyEncryptedIcrKey")]
-    public SymmetricKeyEncryptedAes PeerKeyEncryptedIcrKey { get; set; }
+    //TODO: rename to peer key
+    public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedIcrKey { get; set; }
 
     public RedactedExchangeGrant Redacted()
     {
@@ -34,7 +31,7 @@ public class ExchangeGrant
         {
             IsRevoked = this.IsRevoked,
             PermissionSet = this.PermissionSet,
-            HasIcrKey = this.PeerKeyEncryptedIcrKey?.KeyEncrypted?.Length > 0,
+            HasIcrKey = this.KeyStoreKeyEncryptedIcrKey?.KeyEncrypted?.Length > 0,
             DriveGrants = this.KeyStoreKeyEncryptedDriveGrants.Select(cg => cg.Redacted()).ToList()
         };
     }

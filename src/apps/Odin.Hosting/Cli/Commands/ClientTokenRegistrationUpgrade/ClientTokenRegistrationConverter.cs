@@ -35,14 +35,14 @@ namespace Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade
             var oldClients = await AppClientValueStorage.GetByCategoryAsync<AppClient>(tblKeyThreeValue, AppClientDataType);
             foreach (var oldClient in oldClients)
             {
-                var newAppClient = new AppClientRegistration(odinId, oldClient.AppId, oldClient.FriendlyName, oldClient.AccessRegistration);
+                var newAppClient = new AppClientRegistration(odinId, oldClient.AppId, oldClient.FriendlyName, oldClient.ServerHalfOfClientKey);
 
                 logger.LogDebug(
                     "Creating new app client registration: [{identity}] for appId:'{app}' friendlyName:'{name}' accessRegId:'{access}'",
                     odinId,
                     newAppClient.AppId,
                     newAppClient.FriendlyName,
-                    newAppClient.AppClientKey);
+                    newAppClient.ServerHalfOfClientKey);
 
                 await clientRegistrationStorage.SaveAsync(newAppClient);
             }
