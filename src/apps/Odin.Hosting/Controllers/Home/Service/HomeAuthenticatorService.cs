@@ -119,7 +119,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextCoreAsync(
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
-            AccessRegistration accessReg,
+            ServerHalfOfClientKey accessReg,
             IOdinContext odinContext)
         {
             var (grants, enabledCircles) = await 
@@ -205,7 +205,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             // added to support repost
             permissionKeys.Add(PermissionKeys.UseTransitRead);
             
-            var grants = new Dictionary<Guid, ExchangeGrant>()
+            var grants = new Dictionary<Guid, KeyStore>()
             {
                 //no additional grants for authenticated
             };

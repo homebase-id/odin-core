@@ -237,7 +237,7 @@ namespace Odin.Services.Authorization.Apps
                     AppUtil.AssertValidCorsHeader(appReg.CorsHostName);
                 }
 
-                var grantDictionary = new Dictionary<Guid, ExchangeGrant>
+                var grantDictionary = new Dictionary<Guid, KeyStore>
                 {
                     { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.AppKeyStore }
                 };
@@ -276,7 +276,7 @@ namespace Odin.Services.Authorization.Apps
             return result;
         }
 
-        public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
+        public async Task<(bool isValid, ServerHalfOfClientKey? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
             ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             var appClient = await clientRegistrationStorage.GetAsync<AppClientRegistration>(authToken.Id);
@@ -294,13 +294,13 @@ namespace Odin.Services.Authorization.Apps
                 return (false, null, null);
             }
 
-            if (appClient.AppClientKey.IsRevoked || appReg.AppKeyStore.IsRevoked)
+            if (appClient.ServerHalfOfClientKey.IsRevoked || appReg.AppKeyStore.IsRevoked)
             {
                 logger.LogDebug("app client or app is revoked");
                 return (false, null, null);
             }
 
-            return (true, appClient.AppClientKey, appReg);
+            return (true, appClient.ServerHalfOfClientKey, appReg);
         }
 
         public async Task<List<RedactedAppRegistration>> GetAppsGrantingCircleAsync(Guid circleId, IOdinContext odinContext)
@@ -358,11 +358,11 @@ namespace Odin.Services.Authorization.Apps
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
-                AccessRegistrationId = appClient.AppClientKey.Id,
+                AccessRegistrationId = appClient.ServerHalfOfClientKey.Id,
                 FriendlyName = appClient.FriendlyName,
-                IsRevoked = appClient.AppClientKey.IsRevoked,
-                Created = appClient.AppClientKey.Created,
-                AccessRegistrationClientType = appClient.AppClientKey.AccessRegistrationClientType
+                IsRevoked = appClient.ServerHalfOfClientKey.IsRevoked,
+                Created = appClient.ServerHalfOfClientKey.Created,
+                AccessRegistrationClientType = appClient.ServerHalfOfClientKey.AccessRegistrationClientType
             }).ToList();
 
             return resp;
@@ -378,7 +378,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            client.AppClientKey.IsRevoked = true;
+            client.ServerHalfOfClientKey.IsRevoked = true;
             await SaveClientAsync(client);
         }
 
@@ -433,7 +433,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            client.AppClientKey.IsRevoked = false;
+            client.ServerHalfOfClientKey.IsRevoked = false;
             await SaveClientAsync(client);
         }
 

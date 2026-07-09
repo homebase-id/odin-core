@@ -97,7 +97,7 @@ namespace Odin.Services.Membership.Connections
         /// Tries to create caller and permission context for the given OdinId if is connected
         /// </summary>
         public async Task<IOdinContext> TryCreateConnectedYouAuthContextAsync(OdinId odinId, ClientAuthenticationToken authToken,
-            AccessRegistration accessReg,
+            ServerHalfOfClientKey accessReg,
             IOdinContext odinContext)
         {
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
@@ -1107,7 +1107,7 @@ namespace Odin.Services.Membership.Connections
             var client = new PeerIcrClient
             {
                 Identity = caller,
-                AccessRegistration = accessRegistration
+                ServerHalfOfClientKey = accessRegistration
             };
 
             await circleNetworkStorage.SavePeerIcrClientAsync(client);
@@ -1238,7 +1238,7 @@ namespace Odin.Services.Membership.Connections
         private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternalAsync(
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
-            AccessRegistration accessReg,
+            ServerHalfOfClientKey accessReg,
             bool applyAppCircleGrants,
             IOdinContext odinContext)
         {
@@ -1288,7 +1288,7 @@ namespace Odin.Services.Membership.Connections
                             }
                             else
                             {
-                                grants.Add(kvp.Key, new ExchangeGrant()
+                                grants.Add(kvp.Key, new KeyStore()
                                 {
                                     Created = 0,
                                     Modified = 0,

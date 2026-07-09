@@ -312,7 +312,7 @@ public class IcrAccessRecord
     /// <summary>
     /// The drives and permissions granted to this connection
     /// </summary>
-    [JsonPropertyName("AccessGrant")]
+    [JsonPropertyName("accessGrant")]
     public AccessExchangeGrant AccessExchangeGrant { get; set; }
 
     // public byte[] EncryptedClientAccessToken { get; set; }

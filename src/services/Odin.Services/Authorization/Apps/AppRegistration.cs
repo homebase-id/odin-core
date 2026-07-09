@@ -26,8 +26,8 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Permissions and drives granted to this app and only this app as used by the Identity Owner
         /// </summary>
-        [JsonPropertyName("Grant")]
-        public ExchangeGrant AppKeyStore { get; set; }
+        [JsonPropertyName("grant")]
+        public KeyStore AppKeyStore { get; set; }
 
         public string CorsHostName { get; set; }
 
