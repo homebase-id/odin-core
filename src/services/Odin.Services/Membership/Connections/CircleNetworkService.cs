@@ -472,7 +472,7 @@ namespace Odin.Services.Membership.Connections
         /// Adds the specified odinId to your network
         /// </summary>
         /// <returns></returns>
-        public async Task ConnectAsync(string odinIdentity, AccessExchangeGrant accessGrant,
+        public async Task ConnectAsync(string odinIdentity, PeerKeyStore accessGrant,
             (EncryptedClientAccessToken EncryptedCat, (EccEncryptedPayload Token, EccEncryptedPayload KeyStoreKey) Temp) keys,
             ContactRequestData contactData,
             ConnectionRequestOrigin connectionRequestOrigin,
@@ -1136,7 +1136,7 @@ namespace Odin.Services.Membership.Connections
             {
                 AppId = appReg.AppId,
                 CircleId = circleId,
-                KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+                KeyStoreKeyEncryptedDriveGrants = grant.DriveGrants,
                 PermissionSet = grant.PermissionSet,
             };
         }
@@ -1293,7 +1293,7 @@ namespace Odin.Services.Membership.Connections
                                     Created = 0,
                                     Modified = 0,
                                     IsRevoked = false, //TODO
-                                    KeyStoreKeyEncryptedDriveGrants = appCg.KeyStoreKeyEncryptedDriveGrants,
+                                    DriveGrants = appCg.KeyStoreKeyEncryptedDriveGrants,
                                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                                     PermissionSet = appCg.PermissionSet
                                 });

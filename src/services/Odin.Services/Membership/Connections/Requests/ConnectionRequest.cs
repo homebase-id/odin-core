@@ -31,7 +31,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// The exchange grant which will be given to the recipient if the connection request is accepted
         /// </summary>
-        public AccessExchangeGrant PendingAccessExchangeGrant { get; set; }
+        public PeerKeyStore PendingPeerKeyStore { get; set; }
 
         
         public SymmetricKeyEncryptedAes TempEncryptedIcrKey { get; set; }
