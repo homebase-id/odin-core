@@ -74,7 +74,7 @@ namespace Odin.Services.Authorization.Apps
             }
 
             var appGrant = await exchangeGrantService.CreateExchangeGrantAsync(
-                keyStoreKey, request.PermissionSet!, drives, masterKey, icrKey);
+                keyStoreKey, request.PermissionSet!, drives, new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
             //TODO: add check if app is already registered
@@ -132,8 +132,8 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
-            appReg.AppKeyStore = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives, masterKey,
-                icrKey);
+            appReg.AppKeyStore = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives,
+                new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
 
             await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
 

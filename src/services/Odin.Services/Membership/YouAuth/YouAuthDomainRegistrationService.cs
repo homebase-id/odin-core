@@ -67,7 +67,7 @@ namespace Odin.Services.Membership.YouAuth
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var grants = await circleMembershipService.CreateCircleGrantListAsync(keyStoreKey, request.CircleIds ?? new List<GuidId>(),
-                masterKey, odinContext);
+                new MasterKeyStorageKeySource(masterKey), odinContext);
 
             request.ConsentRequirements?.Validate();
 
@@ -317,7 +317,8 @@ namespace Odin.Services.Membership.YouAuth
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
             var masterKey = odinContext.Caller.GetMasterKey();
             var keyStoreKey = registration.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-            var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, masterKey, odinContext);
+            var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition,
+                new MasterKeyStorageKeySource(masterKey), odinContext);
 
             registration.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 

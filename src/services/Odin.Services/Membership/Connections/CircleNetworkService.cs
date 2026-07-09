@@ -544,9 +544,15 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
+            // Drive storage keys come from whatever the caller can reach: the master key for the
+            // owner, otherwise the caller's own permission context (scoped to drives it can read).
+            IStorageKeySource storageKeySource = odinContext.Caller.HasMasterKey
+                ? new MasterKeyStorageKeySource(masterKey)
+                : new PermissionContextStorageKeySource(odinContext);
+
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
             var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
-            var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, masterKey, odinContext);
+            var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, storageKeySource, odinContext);
 
             icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -559,7 +565,7 @@ namespace Odin.Services.Membership.Connections
 
             foreach (var app in appsThatGrantThisCircle)
             {
-                var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, circleId, masterKey);
+                var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, circleId, storageKeySource);
                 icr.PeerKeyStore.AddUpdateAppCircleGrant(appCircleGrant);
             }
 
@@ -617,18 +623,18 @@ namespace Odin.Services.Membership.Connections
             SensitiveByteArray keyStoreKey,
             List<GuidId> circleIds,
             ConnectionRequestOrigin origin,
-            SensitiveByteArray masterKey,
+            IStorageKeySource storageKeySource,
             IOdinContext odinContext)
         {
             var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
-            return await this.CreateAppCircleGrantList(keyStoreKey, list, masterKey, odinContext);
+            return await this.CreateAppCircleGrantList(keyStoreKey, list, storageKeySource, odinContext);
         }
 
 
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(
             SensitiveByteArray keyStoreKey,
             List<GuidId> circleIds,
-            SensitiveByteArray masterKey,
+            IStorageKeySource storageKeySource,
             IOdinContext odinContext)
         {
             var appGrants = new Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>();
@@ -640,7 +646,7 @@ namespace Odin.Services.Membership.Connections
                 foreach (var app in appsThatGrantThisCircle)
                 {
                     var appKey = app.AppId.Value;
-                    var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, circleId, masterKey);
+                    var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, circleId, storageKeySource);
 
                     if (!appGrants.TryGetValue(appKey, out var appCircleGrantsDictionary))
                     {
@@ -704,7 +710,8 @@ namespace Odin.Services.Membership.Connections
                     // Re-create the circle grant so
                     var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
                     icr.PeerKeyStore.CircleGrants[circleKey] =
-                        await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDef, masterKey, odinContext);
+                        await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDef,
+                            new MasterKeyStorageKeySource(masterKey), odinContext);
                     keyStoreKey.Wipe();
                 }
                 else
@@ -949,7 +956,8 @@ namespace Odin.Services.Membership.Connections
                     }
 
                     var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
-                    var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId, masterKey);
+                    var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId,
+                        new MasterKeyStorageKeySource(masterKey));
                     appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
                     keyStoreKey.Wipe();
 
@@ -1140,14 +1148,16 @@ namespace Odin.Services.Membership.Connections
             RedactedAppRegistration appReg,
             SensitiveByteArray keyStoreKey,
             GuidId circleId,
-            SensitiveByteArray masterKey)
+            IStorageKeySource storageKeySource)
         {
             //map the exchange grant to a structure that matches ICR
+            //(the KeyStore wrapper is discarded, so no master key wrap is needed here)
             var grant = await exchangeGrantService.CreateExchangeGrantAsync(
                 keyStoreKey,
                 appReg.CircleMemberPermissionSetGrantRequest.PermissionSet,
                 appReg.CircleMemberPermissionSetGrantRequest.Drives,
-                masterKey);
+                storageKeySource,
+                masterKey: null);
 
             return new AppCircleGrant()
             {
@@ -1335,6 +1345,7 @@ namespace Odin.Services.Membership.Connections
                         }
                     }
                 },
+                NoStorageKeySource.Instance,
                 masterKey: null,
                 icrKey: null);
 

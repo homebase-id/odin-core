@@ -31,12 +31,15 @@ namespace Odin.Services.Authorization.ExchangeGrants
         }
 
         /// <summary>
-        /// Creates an <see cref="KeyStore"/> using the specified key store key
+        /// Creates an <see cref="KeyStore"/> using the specified key store key. Drive storage
+        /// keys come from <paramref name="storageKeySource"/>; the master key is used only to
+        /// wrap the key store key for the owner.
         /// </summary>
         public async Task<KeyStore> CreateExchangeGrantAsync(
             SensitiveByteArray keyStoreKey,
             PermissionSet permissionSet,
             IEnumerable<DriveGrantRequest>? driveGrantRequests,
+            IStorageKeySource storageKeySource,
             SensitiveByteArray? masterKey,
             SensitiveByteArray? icrKey = null)
         {
@@ -50,7 +53,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
                     var driveId = req.PermissionedDrive.Drive.Alias;
                     var drive = await _driveManager.GetDriveAsync(driveId, true);
 
-                    var driveGrant = CreateDriveGrant(drive, req.PermissionedDrive.Permission, keyStoreKey, masterKey,
+                    var driveGrant = CreateDriveGrant(drive, req.PermissionedDrive.Permission, keyStoreKey, storageKeySource,
                         req.PermissionedDrive.TemporalReadWindowSeconds);
                     driveGrants.Add(driveGrant);
                 }
@@ -174,26 +177,32 @@ namespace Odin.Services.Authorization.ExchangeGrants
         private async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup(DrivePermission permissions, IOdinContext odinContext)
         {
             var anonymousDrives = await _driveManager.GetAnonymousDrivesAsync(PageOptions.All, odinContext);
-            var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, permissions, null, null));
+            var anonDriveGrants = anonymousDrives.Results.Select(drive =>
+                this.CreateDriveGrant(drive, permissions, null, NoStorageKeySource.Instance));
             return new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null);
         }
 
         //
 
         private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey,
-            SensitiveByteArray? masterKey, long? temporalReadWindowSeconds = null)
+            IStorageKeySource storageKeySource, long? temporalReadWindowSeconds = null)
         {
-            var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(masterKey);
-
-            SymmetricKeyEncryptedAes? keyStoreKeyEncryptedStorageKey = null;
-
             // ConditionalTemporalRead also needs the storage key escrowed so the grantee can decrypt
             // in-window files while the owner is offline; the temporal API enforces the time clamp.
             bool shouldGetStorageKey = permission.HasFlag(DrivePermission.Read) ||
                                        permission.HasFlag(DrivePermission.ConditionalTemporalRead);
-            if (shouldGetStorageKey && storageKey != null && grantKeyStoreKey != null)
+
+            var storageKey = shouldGetStorageKey ? storageKeySource.GetStorageKey(drive) : null;
+
+            SymmetricKeyEncryptedAes? keyStoreKeyEncryptedStorageKey = null;
+            if (storageKey != null && grantKeyStoreKey != null)
             {
                 keyStoreKeyEncryptedStorageKey = new SymmetricKeyEncryptedAes(grantKeyStoreKey, storageKey);
+            }
+            else if (shouldGetStorageKey && grantKeyStoreKey != null)
+            {
+                _logger.LogDebug("Minting read drive grant for {drive} without a storage key (keyless source); " +
+                                 "the member cannot decrypt until the grant is re-minted", drive.TargetDriveInfo);
             }
 
             var dk = new DriveGrant()

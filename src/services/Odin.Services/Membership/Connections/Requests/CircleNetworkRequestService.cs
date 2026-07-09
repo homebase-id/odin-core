@@ -810,6 +810,9 @@ namespace Odin.Services.Membership.Connections.Requests
                 sharedSecret: remoteClientAccessToken.SharedSecret);
 
             SensitiveByteArray masterKey = odinContext.Caller.HasMasterKey ? odinContext.Caller.GetMasterKey() : null;
+            // No master key (accepting without the owner online) deliberately mints keyless
+            // grants; the deferred master-key upgrade re-mints them with real storage keys.
+            var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
             accessGrant ??= new PeerKeyStore()
             {
@@ -821,10 +824,10 @@ namespace Odin.Services.Membership.Connections.Requests
                     keyStoreKey,
                     circles,
                     incomingRequest.ConnectionRequestOrigin,
-                    masterKey,
+                    storageKeySource,
                     odinContext),
                 AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles,
-                    incomingRequest.ConnectionRequestOrigin, masterKey, odinContext),
+                    incomingRequest.ConnectionRequestOrigin, storageKeySource, odinContext),
                 PeerClientKey = accessRegistration
             };
 
@@ -1599,18 +1602,20 @@ namespace Odin.Services.Membership.Connections.Requests
                 keyStoreKey,
                 ClientTokenType.IdentityConnectionRegistration);
 
+            // We allow the master key to be null in the case of connection requests coming due to
+            // an introduction; the keyless grants are re-minted by the deferred master-key upgrade.
+            var storageKeySource = StorageKeySource.FromMasterKeyOrNone(masterKey);
             var grant = new PeerKeyStore()
             {
-                // We allow this to be null in the case of connection requests coming due to an introduction
                 MasterKeyEncryptedPeerKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
                     keyStoreKey,
                     circles,
                     origin,
-                    masterKey,
+                    storageKeySource,
                     odinContext),
-                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, origin, masterKey, odinContext),
+                AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, origin, storageKeySource, odinContext),
                 PeerClientKey = accessRegistration
             };
 

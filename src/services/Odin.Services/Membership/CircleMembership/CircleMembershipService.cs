@@ -163,7 +163,8 @@ public class CircleMembershipService(
 
     // Grants
 
-    public async Task<CircleGrant> CreateCircleGrantAsync(SensitiveByteArray keyStoreKey, CircleDefinition def, SensitiveByteArray masterKey,
+    public async Task<CircleGrant> CreateCircleGrantAsync(SensitiveByteArray keyStoreKey, CircleDefinition def,
+        IStorageKeySource storageKeySource,
         IOdinContext odinContext)
     {
         if (null == def)
@@ -172,8 +173,9 @@ public class CircleMembershipService(
         }
 
         //map the exchange grant to a structure that matches ICR
-        var grant = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, def.Permissions, def.DriveGrants, masterKey,
-            icrKey: null);
+        //(the KeyStore wrapper is discarded, so no master key wrap is needed here)
+        var grant = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, def.Permissions, def.DriveGrants,
+            storageKeySource, masterKey: null, icrKey: null);
         return new CircleGrant()
         {
             CircleId = def.Id,
@@ -186,18 +188,18 @@ public class CircleMembershipService(
         SensitiveByteArray keyStoreKey,
         List<GuidId> circleIds,
         ConnectionRequestOrigin origin,
-        SensitiveByteArray masterKey,
+        IStorageKeySource storageKeySource,
         IOdinContext odinContext)
     {
         var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
-        return await this.CreateCircleGrantListAsync(keyStoreKey, list, masterKey, odinContext);
+        return await this.CreateCircleGrantListAsync(keyStoreKey, list, storageKeySource, odinContext);
     }
 
 
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListAsync(
         SensitiveByteArray keyStoreKey,
         List<GuidId> circleIds,
-        SensitiveByteArray masterKey,
+        IStorageKeySource storageKeySource,
         IOdinContext odinContext)
     {
         var deduplicated = circleIds.Distinct().ToList();
@@ -218,7 +220,7 @@ public class CircleMembershipService(
                 throw new OdinSystemException($"Missing circle Id {id}");
             }
 
-            var cg = await this.CreateCircleGrantAsync(keyStoreKey, def, masterKey, null);
+            var cg = await this.CreateCircleGrantAsync(keyStoreKey, def, storageKeySource, null);
 
 
             if (!circleGrants.TryAdd(id.Value, cg))
