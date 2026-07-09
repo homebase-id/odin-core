@@ -517,6 +517,11 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task GrantCircleAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
+            AssertCanManageCircleMembership(odinContext);
+
+            // Granting still requires the master key: sourcing drive storage keys and unwrapping
+            // the connection's MasterKeyEncryptedPeerKey have no master-key-free path yet, so a
+            // caller authorized by ManageCircleMembership alone stops here for now.
             odinContext.Caller.AssertHasMasterKey(out var masterKey);
 
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
@@ -575,7 +580,7 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public async Task RevokeCircleAccessAsync(GuidId circleId, OdinId odinId, IOdinContext odinContext)
         {
-            odinContext.Caller.AssertHasMasterKey();
+            AssertCanManageCircleMembership(odinContext);
 
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
             if (icr.PeerKeyStore == null)
@@ -1117,6 +1122,18 @@ namespace Odin.Services.Membership.Connections
         public async Task<PeerIcrClient> GetPeerIcrClientAsync(Guid accessRegId)
         {
             return await circleNetworkStorage.GetPeerIcrClientAsync(accessRegId);
+        }
+
+        /// <summary>
+        /// Gate for managing circle membership: the owner (master key) or a caller granted
+        /// <see cref="PermissionKeys.ManageCircleMembership"/> (e.g. an app).
+        /// </summary>
+        private static void AssertCanManageCircleMembership(IOdinContext odinContext)
+        {
+            if (!odinContext.Caller.HasMasterKey)
+            {
+                odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageCircleMembership);
+            }
         }
 
         private async Task<AppCircleGrant> CreateAppCircleGrantAsync(
