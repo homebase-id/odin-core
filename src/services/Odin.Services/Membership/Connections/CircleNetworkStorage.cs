@@ -108,7 +108,7 @@ public class CircleNetworkStorage
         var existingRecord = await GetAsync(identity);
         var icrAccessRecord = MapToStorageIcrAccessRecord(existingRecord);
 
-        icrAccessRecord.AccessExchangeGrant.MasterKeyEncryptedPeerKey = masterKeyEncryptedKsk;
+        icrAccessRecord.PeerKeyStore.MasterKeyEncryptedPeerKey = masterKeyEncryptedKsk;
         icrAccessRecord.WeakKeyStoreKey = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
@@ -216,7 +216,7 @@ public class CircleNetworkStorage
         var circleGrants = await _circleMembershipService.GetCirclesGrantsByDomainAsync(record.identity, DomainType.Identity);
         foreach (var circleGrant in circleGrants)
         {
-            data.AccessExchangeGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
+            data.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
         var allAppGrants = await _db.AppGrantsCached.GetByOdinHashIdAsync(odinHashId);
@@ -224,7 +224,7 @@ public class CircleNetworkStorage
         foreach (var appGrantRecord in allAppGrants)
         {
             var appCircleGrant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrantRecord.data.ToStringFromUtf8Bytes());
-            data.AccessExchangeGrant.AddUpdateAppCircleGrant(appCircleGrant);
+            data.PeerKeyStore.AddUpdateAppCircleGrant(appCircleGrant);
         }
 
         ConnectionRequestOrigin connectionOrigin = string.IsNullOrEmpty(data.ConnectionOrigin)
@@ -240,7 +240,7 @@ public class CircleNetworkStorage
             Status = (ConnectionStatus)record.status,
             Created = record.created.milliseconds,
             LastUpdated = record.modified,
-            PeerKeyStore = data.AccessExchangeGrant,
+            PeerKeyStore = data.PeerKeyStore,
             OriginalContactData = data.OriginalContactData,
             EncryptedClientAccessToken = data.EncryptedClientAccessToken == null
                 ? null
@@ -268,8 +268,8 @@ public class CircleNetworkStorage
         // Clearing these so they are not serialized on
         // the connections record.  Instead, we give them
         // each their own table
-        icrAccessRecord.AccessExchangeGrant?.AppGrants?.Clear();
-        icrAccessRecord.AccessExchangeGrant?.CircleGrants?.Clear();
+        icrAccessRecord.PeerKeyStore?.AppGrants?.Clear();
+        icrAccessRecord.PeerKeyStore?.CircleGrants?.Clear();
 
         var record = new ConnectionsRecord()
         {
@@ -286,7 +286,7 @@ public class CircleNetworkStorage
     {
         var icrAccessRecord = new IcrAccessRecord
         {
-            AccessExchangeGrant = icr.PeerKeyStore,
+            PeerKeyStore = icr.PeerKeyStore,
             OriginalContactData = icr.OriginalContactData,
             IntroducerOdinId = icr.IntroducerOdinId,
             VerificationHash64 = icr.VerificationHash?.ToBase64(),
@@ -313,7 +313,7 @@ public class IcrAccessRecord
     /// The drives and permissions granted to this connection
     /// </summary>
     [JsonPropertyName("accessGrant")]
-    public AccessExchangeGrant AccessExchangeGrant { get; set; }
+    public PeerKeyStore PeerKeyStore { get; set; }
 
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }

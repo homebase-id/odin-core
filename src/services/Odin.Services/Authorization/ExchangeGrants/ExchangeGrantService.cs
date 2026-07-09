@@ -61,7 +61,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 Created = UnixTimeUtc.Now().milliseconds,
                 MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
-                KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
+                DriveGrants = driveGrants.ToList(),
                 KeyStoreKeyEncryptedIcrKey = icrKey == null ? null : new SymmetricKeyEncryptedAes(keyStoreKey, icrKey),
                 PermissionSet = permissionSet
             };
@@ -129,7 +129,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
                     var pg = new PermissionGroup(
                         exchangeGrant.PermissionSet,
-                        exchangeGrant.KeyStoreKeyEncryptedDriveGrants,
+                        exchangeGrant.DriveGrants,
                         grantKeyStoreKey,
                         exchangeGrant.KeyStoreKeyEncryptedIcrKey);
                     permissionGroupMap.Add(key.ToString(), pg);

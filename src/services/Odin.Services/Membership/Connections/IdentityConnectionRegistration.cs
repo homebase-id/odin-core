@@ -59,7 +59,7 @@ namespace Odin.Services.Membership.Connections
         /// The drives and permissions granted to this connection
         /// </summary>
         [JsonPropertyName("accessGrant")]
-        public AccessExchangeGrant PeerKeyStore { get; set; }
+        public PeerKeyStore PeerKeyStore { get; set; }
 
         /// <summary>
         /// The encrypted <see cref="ClientAccessToken"/> token used when accessing another connected identity
@@ -150,7 +150,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// The drives and permissions granted to this connection
         /// </summary>
-        public RedactedAccessExchangeGrant AccessGrant { get; init; }
+        public RedactedPeerKeyStore AccessGrant { get; init; }
 
         public UnixTimeUtc Created { get; set; }
         public UnixTimeUtc LastUpdated { get; set; }

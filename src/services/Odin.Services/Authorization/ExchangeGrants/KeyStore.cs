@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Permissions;
@@ -18,11 +19,11 @@ public class KeyStore
     
     public bool IsRevoked { get; set; }
     
-    public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
-    
+    [JsonPropertyName("keyStoreKeyEncryptedDriveGrants")]
+    public List<DriveGrant> DriveGrants { get; set; }
+
     public PermissionSet PermissionSet { get; set; }
 
-    //TODO: rename to peer key
     public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedIcrKey { get; set; }
 
     public RedactedExchangeGrant Redacted()
@@ -32,7 +33,7 @@ public class KeyStore
             IsRevoked = this.IsRevoked,
             PermissionSet = this.PermissionSet,
             HasIcrKey = this.KeyStoreKeyEncryptedIcrKey?.KeyEncrypted?.Length > 0,
-            DriveGrants = this.KeyStoreKeyEncryptedDriveGrants.Select(cg => cg.Redacted()).ToList()
+            DriveGrants = this.DriveGrants.Select(cg => cg.Redacted()).ToList()
         };
     }
 }

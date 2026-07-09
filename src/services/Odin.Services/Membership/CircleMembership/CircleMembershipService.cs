@@ -177,7 +177,7 @@ public class CircleMembershipService(
         return new CircleGrant()
         {
             CircleId = def.Id,
-            KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+            KeyStoreKeyEncryptedDriveGrants = grant.DriveGrants,
             PermissionSet = grant.PermissionSet
         };
     }
@@ -255,7 +255,7 @@ public class CircleMembershipService(
                     Modified = 0,
                     IsRevoked = false, //TODO
 
-                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                    DriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
                     KeyStoreKeyEncryptedIcrKey = null, //not required since this is not being created for the owner
                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                     PermissionSet = cg.PermissionSet

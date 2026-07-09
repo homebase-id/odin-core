@@ -11,7 +11,7 @@ namespace Odin.Services.Membership.Connections;
 /// <summary>
 /// Bundles the exchange grant and access registration given to a single <see cref="IdentityConnectionRegistration"/>
 /// </summary>
-public class AccessExchangeGrant
+public class PeerKeyStore
 {
     [JsonPropertyName("masterKeyEncryptedKeyStoreKey")]
     public SymmetricKeyEncryptedAes MasterKeyEncryptedPeerKey { get; set; }
@@ -51,9 +51,9 @@ public class AccessExchangeGrant
         return !IsRevoked && !this.PeerClientKey.IsRevoked;
     }
 
-    public RedactedAccessExchangeGrant Redacted()
+    public RedactedPeerKeyStore Redacted()
     {
-        return new RedactedAccessExchangeGrant()
+        return new RedactedPeerKeyStore()
         {
             IsRevoked = this.IsRevoked,
             CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
@@ -67,7 +67,7 @@ public class AccessExchangeGrant
     }
 }
 
-public class RedactedAccessExchangeGrant
+public class RedactedPeerKeyStore
 {
     public bool IsRevoked { get; set; }
     public List<RedactedCircleGrant> CircleGrants { get; set; }
