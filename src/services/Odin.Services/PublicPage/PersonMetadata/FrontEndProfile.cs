@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Odin.Services.LinkPreview.PersonMetadata;
+namespace Odin.Services.PublicPage.PersonMetadata;
 
 public class FrontEndProfile
 {

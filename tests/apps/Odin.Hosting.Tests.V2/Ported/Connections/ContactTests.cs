@@ -26,7 +26,7 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Base.Upload;
-using Odin.Services.LinkPreview.Profile;
+using Odin.Services.PublicPage.Profile;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Peer.Encryption;
 using Refit;

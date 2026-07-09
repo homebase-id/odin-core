@@ -2,7 +2,7 @@ using System;
 using Odin.Core.Time;
 using Odin.Services.Drives;
 
-namespace Odin.Services.LinkPreview.Posts;
+namespace Odin.Services.PublicPage.Posts;
 
 public class ChannelPost
 {

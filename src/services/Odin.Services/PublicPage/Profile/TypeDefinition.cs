@@ -1,4 +1,4 @@
-namespace Odin.Services.LinkPreview;
+namespace Odin.Services.PublicPage;
 
 public class TypeDefinition
 {

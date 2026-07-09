@@ -18,7 +18,7 @@ using Odin.Services.DataSubscription;
 using Odin.Services.Drives.Management;
 using Odin.Services.Tenant;
 using Odin.Hosting.Authentication.Peer;
-using Odin.Services.LinkPreview;
+using Odin.Services.PublicPage;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
 namespace Odin.Hosting.Middleware
@@ -269,7 +269,7 @@ namespace Odin.Hosting.Middleware
 
         private async Task LoadLinkPreviewContextAsync(HttpContext httpContext, IOdinContext odinContext)
         {
-            var linkPreviewService = httpContext.RequestServices.GetRequiredService<LinkPreviewService>();
+            var linkPreviewService = httpContext.RequestServices.GetRequiredService<HomebasePublicPageService>();
             if(!linkPreviewService.IsAllowedPath())
             {
                 return;

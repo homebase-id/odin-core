@@ -21,7 +21,7 @@ using Odin.Hosting.Controllers.ClientToken.App;
 using Odin.Hosting.Controllers.ClientToken.Guest;
 using Odin.Hosting.Controllers.Home.Auth;
 using Odin.Hosting.UnifiedV2;
-using Odin.Services.LinkPreview;
+using Odin.Services.PublicPage;
 
 namespace Odin.Hosting.Middleware
 {

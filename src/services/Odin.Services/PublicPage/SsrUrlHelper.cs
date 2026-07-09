@@ -1,7 +1,7 @@
 
 using System;
 
-namespace Odin.Services.LinkPreview;
+namespace Odin.Services.PublicPage;
 
 public static class SsrUrlHelper
 {

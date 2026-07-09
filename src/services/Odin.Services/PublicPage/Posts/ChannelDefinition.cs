@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace Odin.Services.LinkPreview.Posts;
+namespace Odin.Services.PublicPage.Posts;
 
 public class ChannelDefinition
 {
