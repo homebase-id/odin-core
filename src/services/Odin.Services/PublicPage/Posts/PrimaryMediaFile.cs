@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Odin.Services.LinkPreview.Posts;
+namespace Odin.Services.PublicPage.Posts;
 
 public class PrimaryMediaFile
 {

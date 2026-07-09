@@ -30,7 +30,7 @@ using Odin.Hosting.Middleware;
 using Odin.Hosting.Middleware.Logging;
 using Odin.Hosting.Multitenant;
 using Odin.Services.Background;
-using Odin.Services.LinkPreview;
+using Odin.Services.PublicPage;
 using Odin.Core.Storage.Database.System;
 using Odin.Hosting.Extensions;
 using StackExchange.Redis;
@@ -396,7 +396,7 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
                     {
                         context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
 
-                        var svc = context.RequestServices.GetRequiredService<LinkPreviewService>();
+                        var svc = context.RequestServices.GetRequiredService<HomebasePublicPageService>();
                         var odinContext = context.RequestServices.GetRequiredService<IOdinContext>();
 
                         var indexFile = Path.Combine(publicPath, "index.html");

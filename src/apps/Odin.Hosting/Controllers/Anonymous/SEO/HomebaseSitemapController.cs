@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.LinkPreview;
+using Odin.Services.PublicPage;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 
