@@ -65,7 +65,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
                 foreach (var circleId in SystemCircleConstants.AllSystemCircles)
                 {
                     // Only validate the identities who are members of this system circle
-                    if (!identity.AccessGrant.CircleGrants.TryGetValue(circleId, out var circleGrant))
+                    if (!identity.PeerKeyStore.CircleGrants.TryGetValue(circleId, out var circleGrant))
                     {
                         continue;
                     }
@@ -111,7 +111,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
                 // the same upgrade the circle-definition reconcile path performs. If it still can't be
                 // upgraded (e.g. no TempWeakKeyStoreKey to recover from), skip it rather than crash the
                 // batch; it will be reconciled later once the identity completes its upgrade.
-                if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                if (identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
                 {
                     var upgraded = await circleNetworkService.TryUpgradeMasterKeyStoreKeyEncryptionAsync(identity, odinContext);
                     if (!upgraded)
@@ -127,7 +127,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version7tov8
                 // Moments drive grant is issued to confirmed and auto-connected identities alike
                 foreach (var circleId in SystemCircleConstants.AllSystemCircles)
                 {
-                    if (!identity.AccessGrant.CircleGrants.ContainsKey(circleId))
+                    if (!identity.PeerKeyStore.CircleGrants.ContainsKey(circleId))
                     {
                         continue;
                     }

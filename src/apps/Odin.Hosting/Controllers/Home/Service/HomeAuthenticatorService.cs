@@ -124,7 +124,7 @@ namespace Odin.Hosting.Controllers.Home.Service
         {
             var (grants, enabledCircles) = await 
                 circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
-                    icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
+                    icr.PeerKeyStore.CircleGrants.Values.ToList(), odinContext);
 
             var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
             var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
@@ -298,7 +298,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
 
             var (grantKeyStoreKey, sharedSecret) =
-                icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
+                icr.PeerKeyStore.PeerClientKey.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
             sharedSecret.Wipe();
 
             var browserClientAccessToken = await StoreClientAsync(icr.OdinId, grantKeyStoreKey, HomeAppClientType.ConnectedIdentity);
@@ -338,7 +338,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             //TODO: need to remove the override hack method below and support passing in the auth token from an icr client
             var icr = await circleNetworkService.GetIcrAsync(client.OdinId, odinContext, true);
-            bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
+            bool isAuthenticated = icr.PeerKeyStore?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
             // Only return the permissions if the identity is connected.

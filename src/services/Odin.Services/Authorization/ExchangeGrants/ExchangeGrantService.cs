@@ -62,7 +62,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
                 KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
-                KeyStoreKeyEncryptedIcrKey = icrKey == null ? null : new SymmetricKeyEncryptedAes(keyStoreKey, icrKey),
+                PeerKeyEncryptedIcrKey = icrKey == null ? null : new SymmetricKeyEncryptedAes(keyStoreKey, icrKey),
                 PermissionSet = permissionSet
             };
 
@@ -131,7 +131,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
                         exchangeGrant.PermissionSet,
                         exchangeGrant.KeyStoreKeyEncryptedDriveGrants,
                         grantKeyStoreKey,
-                        exchangeGrant.KeyStoreKeyEncryptedIcrKey);
+                        exchangeGrant.PeerKeyEncryptedIcrKey);
                     permissionGroupMap.Add(key.ToString(), pg);
                 }
             }
@@ -229,7 +229,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
                 AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: accessKeyStoreKey, dataToEncrypt: ss),
                 IsRevoked = false,
-                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = keyStoreKey == null
+                AppClientKeyEncryptedAppKey = keyStoreKey == null
                     ? null
                     : new SymmetricKeyEncryptedAes(secret: accessKeyStoreKey, dataToEncrypt: keyStoreKey)
             };

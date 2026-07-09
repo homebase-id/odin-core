@@ -453,3 +453,132 @@ public class AppRegistrationRecord
    separate classes so the "app never touches a Peer Key" invariant is visible in the dependency
    graph: `PublicKeyDepositor` has no `PeerKey` in its constructor, and that's the whole security
    argument.
+
+## Transition strategy: build the new structure, migrate all apps at go-live
+
+Build the new app-registration structure (the new `AppRegistrations` table and the classes above)
+alongside the existing system during development, then — in a single release — migrate **all**
+existing apps into it and retire the old store. There is deliberately **no dual-running period**
+where old-format and new-format apps coexist in production.
+
+Mechanics (the plan doc's shadow-table pattern, cf. `TableDrivesMigrationV202510311515`):
+
+1. Create the new `AppRegistrations` table; deploy the new classes dark (no reader).
+2. At go-live, copy every `KeyThreeValue` row where `key3 = AppRegistrationDataType` into the
+   new table, deserializing the blob into columns.
+3. **Preserve `AppId` byte-for-byte** — it is the join key into every existing ICR's `AppGrants`
+   dictionary; change it and existing members' app access orphans.
+4. **Transfer grant contents verbatim** — the wrapped keys and `AccessRegistration`s
+   (device logins) copy as-is, or every device gets logged out at go-live.
+5. Verify by comparing each migrated row **prop-by-prop against the raw old JSON** (not against
+   the deserialized old object — a reader that silently drops a field to null would make both
+   sides equally wrong and pass).
+6. Repoint **every** reader in the same release — `GetRegisteredAppsAsync` /
+   `GetAppRegistration(appId)`, which serve CAT→permission-context resolution on every app
+   request, circle-grant propagation (`CircleNetworkService.GrantCircleAsync`), app revocation,
+   and YouAuth registration — then retire the old rows.
+
+The migration is registration-only: **ICRs are never touched.** `AppGrants` entries in
+connections are self-contained snapshots (permission set + drive keys wrapped under that
+connection's Peer Key, keyed by `AppId`); they were minted *from* the old registration but do not
+reference it.
+
+### Benefits
+
+- **One code path in production at all times.** No composite/shim service probing two stores, no
+  "which system is this app in?" discriminator leaking through auth resolution.
+- **No silent-miss bugs.** Call sites that enumerate all apps (`GrantCircleAsync`'s
+  `AuthorizedCircles` walk, connection accept) can't miss apps living in the other store —
+  there is no other store.
+- **Clean new home without behavioral fork.** The new table and classes land whole; the old
+  `KeyThreeValue` blob retires; no divergence tax from maintaining grant logic twice.
+- **Migration verification replaces serialization-snapshot tests for the migrated types** — the
+  raw-JSON prop-by-prop comparison runs against every real production row, which is a stronger
+  check than a captured sample.
+- **ICR safety for free** — existing connections keep working without rewriting a single ICR,
+  because the migration never touches them.
+
+### Trade-offs
+
+- **Big-bang cutover risk.** All readers flip in one release; a missed reader is a production
+  auth failure, not a quiet degradation. Mitigation: the reader surface is small and enumerable
+  (registration service is the single seam), and each identity is its own server — dogfood the
+  cutover on one identity before rolling out.
+- **The migration must be right the first time.** `AppId` fidelity and verbatim grant transfer
+  are hard requirements; failure modes are user-visible (device logouts, orphaned member access).
+  Mitigation: step 5's verification, plus keeping the old rows until verified rather than
+  deleting in the same transaction.
+- **No incremental validation in production.** Unlike a strangler, you can't watch new-format
+  apps behave in prod before committing old apps to the format. Mitigation: the format is
+  exercised end-to-end in integration tests and on a canary identity first.
+- **Rollback is a restore, not a toggle.** Once old rows are retired, reverting means restoring
+  them and re-flipping readers. Mitigation: retire lazily (a release later), so rollback within
+  the window is just re-pointing the reader.
+
+### Rejected variant: dual systems (new apps on new format, migrate old apps later)
+
+Considered and rejected. App grants don't stay inside the registration — they fan out into every
+ICR's `AppGrants` via code that enumerates **one** store (`CircleNetworkService.cs:552`:
+`GetRegisteredAppsAsync` → `AuthorizedCircles` → `icr.AccessGrant.AddUpdateAppCircleGrant`). With
+two live stores, a new-format app authorized for a circle is invisible to that walk: new members
+connect fine but **silently get no access through that app**. Every merge point (CAT auth, circle
+propagation, revoke's `AppGrants` cleanup) needs a complete composite shim from day one — and a
+complete shim that down-converts to the old shapes *is* the single-code-path design, minus the
+benefit of ever finishing. The deferred "migrate old apps later" step also historically never
+ships, leaving the discriminator permanent.
+
+## Rename exclusions
+
+The plan doc says "do the rename first" across its whole table. Scoped to this feature, several
+rows should be **excluded** — two reasons recur: the feature never touches the type's internals,
+or the type is genuinely shared across principals and a one-sided name would be wrong somewhere.
+
+### Excluded — feature treats these as black boxes
+
+| Rename (from the plan's table) | Why excluded |
+|---|---|
+| `accessKeyStoreKey` / `AccessRegistration` → **App Client Key** | The feature calls `DecryptUsingClientAuthenticationToken` as-is; internals unchanged. Also shared: the same class is the ICR's peer-device registration — renaming means splitting one class in two. |
+| `AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey` → **AppClientKeyEncryptedAppKey** | Lives inside that black box. |
+| ICR's `AccessRegistration` → **Peer Client Key** | The deposit-conversion trigger fires at CAT auth through existing code, unchanged. |
+| `MasterKeyEncryptedKeyStoreKey` (app grant) → **MasterKeyEncryptedAppKey** | The app path deliberately never uses the master-key wrapping. |
+| `KeyStoreKeyEncryptedIcrKey` → **AppKeyEncryptedIcrKey / PeerKeyEncryptedIcrKey** | Deposits don't involve the ICR/transit key. |
+
+### Excluded — the generic name is correct: `ExchangeGrant` → ~~App Key Store~~
+
+`ExchangeGrant` is not the app's container; it is the codebase's **hub-key-generic** grant shape.
+`ExchangeGrantService.CreatePermissionContext` takes `Dictionary<Guid, ExchangeGrant>` as its
+universal input, and every auth scheme funnels through it with a *different* hub key doing the
+wrapping:
+
+- `CircleMembershipService.cs:233` (`MapCircleGrantsToExchangeGrantsAsync`) — adapts a **connected
+  peer's** `CircleGrant`s into `ExchangeGrant`s; the drive grants inside are wrapped under the
+  **Peer Key**, so `AppKeyEncryptedDriveGrants` would be factually wrong here.
+- `CircleNetworkService.cs:1291` — same adapter for a peer's `AppCircleGrant`s.
+- `YouAuthDomainRegistrationService.cs:506` — **guest/domain** visitors' permission contexts.
+- `HomeAuthenticatorService.cs:208` — authenticated **home** visitors.
+
+The class earns its generic name. If the App-Key-Store vocabulary is wanted, put it at the usage
+site — e.g. rename the property `AppRegistration.Grant` → `KeyStore`, still typed as the generic
+class — the same reasoning that keeps `AccessRegistration` and `DriveGrant` unsplit.
+
+### Kept — the vocabulary the feature's code actually speaks
+
+- Grant `keyStoreKey` (`ExchangeGrant`) → **App Key** — the #4 storage-key source unwraps drive
+  keys under it.
+- `keyStoreKey` on `AccessExchangeGrant` → **Peer Key** — the entire #3 story is stated in terms
+  of it.
+- `MasterKeyEncryptedKeyStoreKey` (ICR) → **MasterKeyEncryptedPeerKey** — the owner path in
+  `GrantCircleAsync` (which this feature modifies) unwraps it.
+- `AccessExchangeGrant` → **Peer Key Store** — this class gains `WriteOnlyKey` +
+  `DepositedGrants` anyway.
+- `KeyStoreKeyEncryptedStorageKey` → **AppKeyEncryptedStorageKey / PeerKeyEncryptedStorageKey** —
+  what the source reads and the sealer/deposit writes. *Caution:* `DriveGrant` is one class used
+  in both contexts, so this is either two classes or one kept-generic C# name with the
+  principal-specific naming at the containing collections.
+- The three new #3 names (`PeerKeyStorePublicKey`, `PeerKeyEncryptedStorePrivateKey`,
+  `DepositedGrant`) — new fields, not renames.
+
+Net effect: the serialization-fidelity guardrail shrinks to the **non-migrated** stored types the
+rename touches — `AccessExchangeGrant` (ICRs), `ExchangeGrant`, and `DriveGrant` as persisted in
+ICRs — since the app-registration types are covered by the migration's raw-JSON verification
+instead.

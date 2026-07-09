@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 
@@ -8,6 +9,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
     {
         public Guid DriveId { get; set; }
         public PermissionedDrive PermissionedDrive { get; set; }
+        
+        [JsonPropertyName("KeyStoreKeyEncryptedStorageKey")]
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
 
         public DriveGrant Clone()

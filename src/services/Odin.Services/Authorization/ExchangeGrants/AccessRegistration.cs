@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Time;
@@ -22,7 +23,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// <summary>
         /// The GrantKeyStoreKey encrypted with this AccessRegistration's key
         /// </summary>
-        public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey { get; set; }
+        [JsonPropertyName("AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey")]
+        public SymmetricKeyEncryptedAes AppClientKeyEncryptedAppKey { get; set; }
 
         /// <summary>
         /// Decrypts the grant key store key and shared secret using your Client Auth Token 
@@ -33,7 +35,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
             var token = authToken.AccessTokenHalfKey;
             var accessKey = this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(token);
             var sharedSecret = this.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(accessKey);
-            var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(accessKey);
+            var grantKeyStoreKey = this.AppClientKeyEncryptedAppKey?.DecryptKeyClone(accessKey);
             accessKey.Wipe();
 
             return (grantKeyStoreKey, sharedSecret);

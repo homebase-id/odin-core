@@ -23,22 +23,22 @@ exchange grant (today buried under the generic name `keyStoreKey`), and every
 logged-in client (device) already reaches it with no master key. The trouble is purely
 the names. So we lead with the naming and propose a rename.
 
-| Concept | Today (obscure) | Proposed |
-|---|---|---|
-| Per-device key, one per login | `accessKeyStoreKey` / "access key" (`AccessRegistration`) | **App Client Key** *(a.k.a. App Device Key)* |
-| The shared per-app hub key | grant `keyStoreKey` (`ExchangeGrant`) | **App Key** |
-| The per-connection hub key — a connected peer's grants | `keyStoreKey` on `AccessExchangeGrant` (the ICR) | **Peer Key** |
-| The connected peer's per-CAT client key (≥1 per connection) | `AccessRegistration` on the ICR | **Peer Client Key** |
-| The app's grant container (what the App Key unlocks) | `ExchangeGrant` (app grant) | **App Key Store** |
-| A peer's grant container (what the Peer Key unlocks) | `AccessExchangeGrant` (the ICR) | **Peer Key Store** |
-| App Key wrapped per device | `AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey` | **AppClientKeyEncryptedAppKey** |
-| App Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (app grant) | **MasterKeyEncryptedAppKey** |
-| Peer Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (`AccessExchangeGrant`) | **MasterKeyEncryptedPeerKey** |
-| A drive's storage key wrapped under its grant's hub key | `KeyStoreKeyEncryptedStorageKey` | **AppKeyEncryptedStorageKey** / **PeerKeyEncryptedStorageKey** |
-| The transit/ICR key under a hub key | `KeyStoreKeyEncryptedIcrKey` | **AppKeyEncryptedIcrKey** / **PeerKeyEncryptedIcrKey** |
-| *(#3 candidate)* the Peer Key Store's public key, in clear | *(new)* | **`PeerKeyStorePublicKey`** *(prose: Peer Key Store PK)* |
-| *(#3 candidate)* its private key, Peer-Key-encrypted | *(new)* | **`PeerKeyEncryptedStorePrivateKey`** |
-| *(#3 candidate)* a grant deposited via the PK, awaiting conversion | `EccEncryptedPayload` (reuse) | **Deposited Grant** |
+| Concept | Today (obscure) | Proposed | Actual                                                                                                |
+|---|---|---|-------------------------------------------------------------------------------------------------------|
+| Per-device key, one per login | `accessKeyStoreKey` / "access key" (`AccessRegistration`) | **App Client Key** *(a.k.a. App Device Key)* | **AppClientKey** Note: I did not rename the class, just the property on AppClientRegistration)        
+| The shared per-app hub key | grant `keyStoreKey` (`ExchangeGrant`) | **App Key** | MasterKeyEncryptedKeyStoreKey -> MasterKeyEncryptedPeerKey                                            |
+| The per-connection hub key — a connected peer's grants | `keyStoreKey` on `AccessExchangeGrant` (the ICR) | **Peer Key** | PeerKey                                                                                               |
+| The connected peer's per-CAT client key (≥1 per connection) | `AccessRegistration` on the ICR | **Peer Client Key** | **PeerClientKey**                                                                                     |
+| The app's grant container (what the App Key unlocks) | `ExchangeGrant` (app grant) | **App Key Store** | **AppKeyStore** Note: just renamed the property AppRegistration.Grant --> AppRegistration.AppKeyStore |
+| A peer's grant container (what the Peer Key unlocks) | `AccessExchangeGrant` (the ICR) | **Peer Key Store** | PeerKeyStore                                                                                          |
+| App Key wrapped per device | `AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey` | **AppClientKeyEncryptedAppKey** | AppClientKeyEncryptedAppKey                                                                           |
+| App Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (app grant) | **MasterKeyEncryptedAppKey** | **MasterKeyEncryptedAppKey**                                                                          |
+| Peer Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (`AccessExchangeGrant`) | **MasterKeyEncryptedPeerKey** | **MasterKeyEncryptedPeerKey**                                                                         |
+| A drive's storage key wrapped under its grant's hub key | `KeyStoreKeyEncryptedStorageKey` | **AppKeyEncryptedStorageKey** / **PeerKeyEncryptedStorageKey** | Left as-is.  neither suggestion makes sense based on the usage
+| The transit/ICR key under a hub key | `KeyStoreKeyEncryptedIcrKey` | **AppKeyEncryptedIcrKey** / **PeerKeyEncryptedIcrKey** | PeerKeyEncryptedIcrKey                                                                                                      |
+| *(#3 candidate)* the Peer Key Store's public key, in clear | *(new)* | **`PeerKeyStorePublicKey`** *(prose: Peer Key Store PK)* |                                                                                                       |
+| *(#3 candidate)* its private key, Peer-Key-encrypted | *(new)* | **`PeerKeyEncryptedStorePrivateKey`** |                                                                                                       |
+| *(#3 candidate)* a grant deposited via the PK, awaiting conversion | `EccEncryptedPayload` (reuse) | **Deposited Grant** |                                                                                                       |
 
 **Why the old name misleads:** the code calls *every* grant's hub key the same thing —
 `keyStoreKey` — whether it belongs to an app or to a peer connection. That one reused

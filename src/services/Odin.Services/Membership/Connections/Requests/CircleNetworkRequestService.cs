@@ -813,7 +813,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var circles = header.CircleIds?.ToList() ?? new List<GuidId>();
             accessGrant ??= new AccessExchangeGrant()
             {
-                MasterKeyEncryptedKeyStoreKey = odinContext.Caller.HasMasterKey
+                MasterKeyEncryptedPeerKey = odinContext.Caller.HasMasterKey
                     ? new SymmetricKeyEncryptedAes(masterKey, keyStoreKey)
                     : null,
                 IsRevoked = false,
@@ -825,7 +825,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     odinContext),
                 AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles,
                     incomingRequest.ConnectionRequestOrigin, masterKey, odinContext),
-                AccessRegistration = accessRegistration
+                PeerClientKey = accessRegistration
             };
 
             var verificationHash = _cns.CreateVerificationHash(
@@ -1051,7 +1051,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var recipient = (OdinId)originalRequest.Recipient;
 
             var (keyStoreKey, sharedSecret) = originalRequest.PendingAccessExchangeGrant
-                .AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
+                .PeerClientKey.DecryptUsingClientAuthenticationToken(authToken);
             var payloadBytes = payload.Decrypt(sharedSecret);
 
             ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
@@ -1602,7 +1602,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var grant = new AccessExchangeGrant()
             {
                 // We allow this to be null in the case of connection requests coming due to an introduction
-                MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
+                MasterKeyEncryptedPeerKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
                     keyStoreKey,
@@ -1611,7 +1611,7 @@ namespace Odin.Services.Membership.Connections.Requests
                     masterKey,
                     odinContext),
                 AppGrants = await _cns.CreateAppCircleGrantListWithSystemCircle(keyStoreKey, circles, origin, masterKey, odinContext),
-                AccessRegistration = accessRegistration
+                PeerClientKey = accessRegistration
             };
 
             return (clientAccessToken, grant);
