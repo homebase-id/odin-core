@@ -256,7 +256,7 @@ public class CircleMembershipService(
                     IsRevoked = false, //TODO
 
                     KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-                    KeyStoreKeyEncryptedIcrKey = null, //not required since this is not being created for the owner
+                    PeerKeyEncryptedIcrKey = null, //not required since this is not being created for the owner
                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                     PermissionSet = cg.PermissionSet
                 });

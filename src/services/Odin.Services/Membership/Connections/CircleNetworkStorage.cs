@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
@@ -67,7 +68,7 @@ public class CircleNetworkStorage
 
         //Reconcile circle grants in the table
         await _circleMembershipService.DeleteMemberFromAllCirclesAsync(icr.OdinId, DomainType.Identity);
-        foreach (var (circleId, circleGrant) in icr.AccessGrant?.CircleGrants ?? [])
+        foreach (var (circleId, circleGrant) in icr.PeerKeyStore?.CircleGrants ?? [])
         {
             var circleMembers = await _circleMembershipService.GetDomainsInCircleAsync(circleId, odinContext, overrideHack: true);
             var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
@@ -82,7 +83,7 @@ public class CircleNetworkStorage
         await _db.AppGrantsCached.DeleteByIdentityAsync(odinHashId);
 
         // Now write the latest
-        foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant?.AppGrants ?? [])
+        foreach (var (appId, appCircleGrantDictionary) in icr.PeerKeyStore?.AppGrants ?? [])
         {
             foreach (var (circleId, appCircleGrant) in appCircleGrantDictionary)
             {
@@ -107,7 +108,7 @@ public class CircleNetworkStorage
         var existingRecord = await GetAsync(identity);
         var icrAccessRecord = MapToStorageIcrAccessRecord(existingRecord);
 
-        icrAccessRecord.AccessGrant.MasterKeyEncryptedKeyStoreKey = masterKeyEncryptedKsk;
+        icrAccessRecord.AccessExchangeGrant.MasterKeyEncryptedPeerKey = masterKeyEncryptedKsk;
         icrAccessRecord.WeakKeyStoreKey = null;
 
         var record = ToConnectionsRecord(identity, status, icrAccessRecord);
@@ -215,7 +216,7 @@ public class CircleNetworkStorage
         var circleGrants = await _circleMembershipService.GetCirclesGrantsByDomainAsync(record.identity, DomainType.Identity);
         foreach (var circleGrant in circleGrants)
         {
-            data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
+            data.AccessExchangeGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
         var allAppGrants = await _db.AppGrantsCached.GetByOdinHashIdAsync(odinHashId);
@@ -223,7 +224,7 @@ public class CircleNetworkStorage
         foreach (var appGrantRecord in allAppGrants)
         {
             var appCircleGrant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrantRecord.data.ToStringFromUtf8Bytes());
-            data.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
+            data.AccessExchangeGrant.AddUpdateAppCircleGrant(appCircleGrant);
         }
 
         ConnectionRequestOrigin connectionOrigin = string.IsNullOrEmpty(data.ConnectionOrigin)
@@ -239,7 +240,7 @@ public class CircleNetworkStorage
             Status = (ConnectionStatus)record.status,
             Created = record.created.milliseconds,
             LastUpdated = record.modified,
-            AccessGrant = data.AccessGrant,
+            PeerKeyStore = data.AccessExchangeGrant,
             OriginalContactData = data.OriginalContactData,
             EncryptedClientAccessToken = data.EncryptedClientAccessToken == null
                 ? null
@@ -267,8 +268,8 @@ public class CircleNetworkStorage
         // Clearing these so they are not serialized on
         // the connections record.  Instead, we give them
         // each their own table
-        icrAccessRecord.AccessGrant?.AppGrants?.Clear();
-        icrAccessRecord.AccessGrant?.CircleGrants?.Clear();
+        icrAccessRecord.AccessExchangeGrant?.AppGrants?.Clear();
+        icrAccessRecord.AccessExchangeGrant?.CircleGrants?.Clear();
 
         var record = new ConnectionsRecord()
         {
@@ -285,7 +286,7 @@ public class CircleNetworkStorage
     {
         var icrAccessRecord = new IcrAccessRecord
         {
-            AccessGrant = icr.AccessGrant,
+            AccessExchangeGrant = icr.PeerKeyStore,
             OriginalContactData = icr.OriginalContactData,
             IntroducerOdinId = icr.IntroducerOdinId,
             VerificationHash64 = icr.VerificationHash?.ToBase64(),
@@ -311,7 +312,8 @@ public class IcrAccessRecord
     /// <summary>
     /// The drives and permissions granted to this connection
     /// </summary>
-    public AccessExchangeGrant AccessGrant { get; set; }
+    [JsonPropertyName("AccessGrant")]
+    public AccessExchangeGrant AccessExchangeGrant { get; set; }
 
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }

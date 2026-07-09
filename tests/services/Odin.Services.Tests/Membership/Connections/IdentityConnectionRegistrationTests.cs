@@ -40,7 +40,7 @@ public class IdentityConnectionRegistrationTests
         var icr = new IdentityConnectionRegistration
         {
             OdinId = new OdinId("frodo.dotyou.cloud"),
-            AccessGrant = new AccessExchangeGrant
+            PeerKeyStore = new AccessExchangeGrant
             {
                 CircleGrants = new Dictionary<Guid, CircleGrant>
                 {

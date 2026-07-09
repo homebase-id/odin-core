@@ -42,7 +42,7 @@ namespace Odin.Hosting.Cli.Commands.ClientTokenRegistrationUpgrade
                     odinId,
                     newAppClient.AppId,
                     newAppClient.FriendlyName,
-                    newAppClient.AccessRegistration);
+                    newAppClient.AppClientKey);
 
                 await clientRegistrationStorage.SaveAsync(newAppClient);
             }

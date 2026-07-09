@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -12,7 +13,8 @@ namespace Odin.Services.Membership.Connections;
 /// </summary>
 public class AccessExchangeGrant
 {
-    public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
+    [JsonPropertyName("MasterKeyEncryptedKeyStoreKey")]
+    public SymmetricKeyEncryptedAes MasterKeyEncryptedPeerKey { get; set; }
 
     /// <summary>
     /// The permissions granted from a given circle.  The key is the circle Id.
@@ -24,7 +26,8 @@ public class AccessExchangeGrant
     /// </summary>
     public Dictionary<Guid, Dictionary<Guid, AppCircleGrant>> AppGrants { get; set; } = new();
 
-    public AccessRegistration AccessRegistration { get; set; }
+    [JsonPropertyName("AccessRegistration")]
+    public AccessRegistration PeerClientKey { get; set; }
 
     /// <summary>
     /// if true, revokes access while remaining connected.
@@ -45,7 +48,7 @@ public class AccessExchangeGrant
 
     public bool IsValid()
     {
-        return !IsRevoked && !this.AccessRegistration.IsRevoked;
+        return !IsRevoked && !this.PeerClientKey.IsRevoked;
     }
 
     public RedactedAccessExchangeGrant Redacted()
@@ -60,7 +63,7 @@ public class AccessExchangeGrant
 
     public bool RequiresMasterKeyEncryptionUpgrade()
     {
-        return MasterKeyEncryptedKeyStoreKey == null;
+        return MasterKeyEncryptedPeerKey == null;
     }
 }
 

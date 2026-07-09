@@ -65,7 +65,7 @@ namespace Odin.Services.Membership.Connections
 
             var icr = await this.GetIcrAsync(odinId, remoteIcrToken);
 
-            if (!icr.AccessGrant?.IsValid() ?? false)
+            if (!icr.PeerKeyStore?.IsValid() ?? false)
             {
                 logger.LogDebug("Creating transit permission context for [{odinId}] - Failed due to invalid access grant", odinId);
                 throw new OdinSecurityException("Invalid token")
@@ -86,7 +86,7 @@ namespace Odin.Services.Membership.Connections
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternalAsync(
                 icr: icr,
                 authToken: remoteIcrToken,
-                accessReg: icr.AccessGrant!.AccessRegistration,
+                accessReg: icr.PeerKeyStore!.PeerClientKey,
                 applyAppCircleGrants: true,
                 odinContext);
 
@@ -103,7 +103,7 @@ namespace Odin.Services.Membership.Connections
             logger.LogDebug("TryCreateConnectedYouAuthContext for {id}", odinId);
 
             var icr = await GetIdentityConnectionRegistrationInternalAsync(odinId);
-            bool isValid = icr.AccessGrant?.IsValid() ?? false;
+            bool isValid = icr.PeerKeyStore?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
             if (icr.Status == ConnectionStatus.Blocked)
@@ -366,7 +366,7 @@ namespace Odin.Services.Membership.Connections
             var info = await this.GetIcrAsync(odinId, odinContext);
             if (info.Status == ConnectionStatus.Blocked)
             {
-                bool isValid = info.AccessGrant?.IsValid() ?? false;
+                bool isValid = info.PeerKeyStore?.IsValid() ?? false;
 
                 info.Status = isValid ? ConnectionStatus.Connected : ConnectionStatus.None;
                 await this.SaveIcrAsync(info, odinContext);
@@ -420,12 +420,12 @@ namespace Odin.Services.Membership.Connections
         {
             var connection = await GetIdentityConnectionRegistrationInternalAsync(odinId);
 
-            if (connection?.AccessGrant?.AccessRegistration == null)
+            if (connection?.PeerKeyStore?.PeerClientKey == null)
             {
                 throw new OdinSecurityException("Unauthorized Action") { IsRemoteIcrIssue = true };
             }
 
-            connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteClientAuthenticationToken.AccessTokenHalfKey);
+            connection.PeerKeyStore.PeerClientKey.AssertValidRemoteKey(remoteClientAuthenticationToken.AccessTokenHalfKey);
 
             return connection;
         }
@@ -494,7 +494,7 @@ namespace Odin.Services.Membership.Connections
                 Created = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 OriginalContactData = contactData,
-                AccessGrant = accessGrant,
+                PeerKeyStore = accessGrant,
                 EncryptedClientAccessToken = keys.EncryptedCat, //may come in as NULL; meaning this cannot be used until we have the ICR key
                 TemporaryWeakClientAccessToken = keys.Temp.Token,
                 TempWeakKeyStoreKey = keys.Temp.KeyStoreKey,
@@ -526,24 +526,24 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinSecurityException($"{odinId} must have valid connection to be added to a circle");
             }
 
-            if (icr.AccessGrant.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
+            if (icr.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
             {
                 throw new OdinClientException(
                     $"Cannot grant additional circles to auto-connected identity.  You must first confirm the connection.",
                     OdinClientErrorCode.CannotGrantAutoConnectedMoreCircles);
             }
 
-            if (icr.AccessGrant.CircleGrants.TryGetValue(circleId, out _))
+            if (icr.PeerKeyStore.CircleGrants.TryGetValue(circleId, out _))
             {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
             var circleDefinition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
-            var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+            var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
             var circleGrant = await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDefinition, masterKey, odinContext);
 
-            icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
+            icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
             //
             // Check the apps.  If the circle being granted is authorized by an app
@@ -555,7 +555,7 @@ namespace Odin.Services.Membership.Connections
             foreach (var app in appsThatGrantThisCircle)
             {
                 var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, circleId, masterKey);
-                icr.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
+                icr.PeerKeyStore.AddUpdateAppCircleGrant(appCircleGrant);
             }
 
             keyStoreKey.Wipe();
@@ -578,21 +578,21 @@ namespace Odin.Services.Membership.Connections
             odinContext.Caller.AssertHasMasterKey();
 
             var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-            if (icr.AccessGrant == null)
+            if (icr.PeerKeyStore == null)
             {
                 return;
             }
 
-            if (icr.AccessGrant.CircleGrants.ContainsKey(circleId))
+            if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
             {
-                if (!icr.AccessGrant.CircleGrants.Remove(circleId))
+                if (!icr.PeerKeyStore.CircleGrants.Remove(circleId))
                 {
                     throw new OdinClientException($"Failed to remove {circleId} from {odinId}");
                 }
             }
 
             //find the circle grant across all app grants and remove it
-            foreach (var (_, appCircleGrants) in icr.AccessGrant.AppGrants)
+            foreach (var (_, appCircleGrants) in icr.PeerKeyStore.AppGrants)
             {
                 appCircleGrants.Remove(circleId.Value);
             }
@@ -667,11 +667,11 @@ namespace Odin.Services.Membership.Connections
                 var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
 
                 var circleKey = circleDef.Id;
-                var hasCg = icr.AccessGrant.CircleGrants.Remove(circleKey, out _);
+                var hasCg = icr.PeerKeyStore.CircleGrants.Remove(circleKey, out _);
 
                 if (icr.IsConnected() && hasCg)
                 {
-                    if (icr.AccessGrant == null)
+                    if (icr.PeerKeyStore == null)
                     {
                         logger.LogError("icr for {odinID} has null access grant", odinId);
                     }
@@ -683,22 +683,22 @@ namespace Odin.Services.Membership.Connections
                         // refetch the record since the above method just writes to db
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                         
-                        if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                        if (icr.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
                         {
                             logger.LogError("After Refetch ICR for {identity} STILL Requires MasterKey Encryption Upgrade; " +
                                             "something is wrong for sure", icr.OdinId);
                         }
                     }
 
-                    if (icr.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                    if (icr.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
                     {
                         logger.LogError("ICR for {identity} still Requires MasterKey Encryption Upgrade - skipping", icr.OdinId);
                         continue;
                     }
 
                     // Re-create the circle grant so
-                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
-                    icr.AccessGrant.CircleGrants[circleKey] =
+                    var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                    icr.PeerKeyStore.CircleGrants[circleKey] =
                         await circleMembershipService.CreateCircleGrantAsync(keyStoreKey, circleDef, masterKey, odinContext);
                     keyStoreKey.Wipe();
                 }
@@ -734,7 +734,7 @@ namespace Odin.Services.Membership.Connections
             foreach (var odinId in members)
             {
                 var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                var hasCg = icr.AccessGrant.CircleGrants.TryGetValue(circleDef.Id, out _);
+                var hasCg = icr.PeerKeyStore.CircleGrants.TryGetValue(circleDef.Id, out _);
 
                 if (icr.IsConnected() && !hasCg)
                 {
@@ -817,15 +817,15 @@ namespace Odin.Services.Membership.Connections
             info.Icr = icr.Redacted();
 
             ArgumentNullException.ThrowIfNull(icr);
-            ArgumentNullException.ThrowIfNull(icr.AccessGrant);
-            ArgumentNullException.ThrowIfNull(icr.AccessGrant.CircleGrants);
+            ArgumentNullException.ThrowIfNull(icr.PeerKeyStore);
+            ArgumentNullException.ThrowIfNull(icr.PeerKeyStore.CircleGrants);
 
             // Get all circles on identity
             foreach (var definition in circleDefinitions)
             {
                 ArgumentNullException.ThrowIfNull(definition);
 
-                var isCircleMember = icr.AccessGrant.CircleGrants.TryGetValue(definition.Id, out var circleGrant);
+                var isCircleMember = icr.PeerKeyStore.CircleGrants.TryGetValue(definition.Id, out var circleGrant);
                 var hasCircleGrant = circleGrant != null;
 
                 var summary = isCircleMember ? "Identity is in this circle" : "Identity is not a member of this circle";
@@ -918,7 +918,7 @@ namespace Odin.Services.Membership.Connections
                     foreach (var odinId in members)
                     {
                         var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
-                        icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
+                        icr.PeerKeyStore.AppGrants[appKey]?.Remove(circleId);
                         await this.SaveIcrAsync(icr, odinContext);
                     }
                 }
@@ -938,17 +938,17 @@ namespace Odin.Services.Membership.Connections
                         icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
                     }
 
-                    if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
+                    if (!icr.PeerKeyStore.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {
                         appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
                     }
 
-                    var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+                    var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
                     var appCircleGrant = await this.CreateAppCircleGrantAsync(newAppRegistration, keyStoreKey, circleId, masterKey);
                     appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
                     keyStoreKey.Wipe();
 
-                    icr.AccessGrant.AppGrants[appKey] = appCircleGrantDictionary;
+                    icr.PeerKeyStore.AppGrants[appKey] = appCircleGrantDictionary;
                     await this.SaveIcrAsync(icr, odinContext);
                 }
             }
@@ -1009,7 +1009,7 @@ namespace Odin.Services.Membership.Connections
                 throw new OdinClientException("Cannot confirm identity that is not connected", OdinClientErrorCode.IdentityMustBeConnected);
             }
 
-            if (!icr.AccessGrant.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
+            if (!icr.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
             {
                 throw new OdinClientException("Cannot confirm identity that is not in the AutoConnectionsCircle",
                     OdinClientErrorCode.NotAnAutoConnection);
@@ -1247,11 +1247,11 @@ namespace Odin.Services.Membership.Connections
 
             var (grants, enabledCircles) = await
                 circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
-                    icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
+                    icr.PeerKeyStore.CircleGrants.Values.ToList(), odinContext);
 
             if (applyAppCircleGrants)
             {
-                foreach (var kvp in icr.AccessGrant.AppGrants)
+                foreach (var kvp in icr.PeerKeyStore.AppGrants)
                 {
                     // var appId = kvp.Key;
                     var appCircleGrantDictionary = kvp.Value;
@@ -1425,7 +1425,7 @@ namespace Odin.Services.Membership.Connections
         public async Task<bool> TryUpgradeMasterKeyStoreKeyEncryptionAsync(IdentityConnectionRegistration identity,
             IOdinContext odinContext)
         {
-            if (!identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+            if (!identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
             {
                 return true;
             }
@@ -1434,7 +1434,7 @@ namespace Odin.Services.Membership.Connections
 
             // The upgrade writes to the db, so refetch to determine whether it actually took effect.
             var refreshed = await GetIdentityConnectionRegistrationInternalAsync(identity.OdinId);
-            return !refreshed.AccessGrant.RequiresMasterKeyEncryptionUpgrade();
+            return !refreshed.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade();
         }
 
         /// <summary>
@@ -1458,7 +1458,7 @@ namespace Odin.Services.Membership.Connections
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+                if (!identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
                 {
                     continue;
                 }
@@ -1482,7 +1482,7 @@ namespace Odin.Services.Membership.Connections
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,
             IOdinContext odinContext)
         {
-            if (identity.AccessGrant.RequiresMasterKeyEncryptionUpgrade())
+            if (identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
             {
                 logger.LogDebug("Upgrading KSK Encryption for {id}", identity.OdinId);
                 try
