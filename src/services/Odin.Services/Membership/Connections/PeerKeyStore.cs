@@ -34,6 +34,23 @@ public class PeerKeyStore
     /// </summary>
     public bool IsRevoked { get; set; }
 
+    /// <summary>
+    /// The store's write-without-read keypair: public key in clear, private key escrowed
+    /// under this store's key store key (the Peer Key). Lets a caller without the Peer Key
+    /// (e.g. an app) deposit grants it cannot read back. Null on stores created before this
+    /// existed; provisioned the next time the owner grants a circle on this connection.
+    /// </summary>
+    public EccFullKeyData WriteOnlyKeyPair { get; set; }
+
+    /// <summary>
+    /// Grants deposited via <see cref="WriteOnlyKeyPair"/>, awaiting conversion into normal
+    /// Peer-Key-encrypted circle grants when the key store key is next in scope.
+    /// </summary>
+    public List<DepositedGrant> DepositedGrants { get; set; } = new();
+
+    [JsonIgnore]
+    public bool HasPendingDeposits => DepositedGrants?.Count > 0;
+
     public void AddUpdateAppCircleGrant(AppCircleGrant appCircleGrant)
     {
         var appKey = appCircleGrant.AppId;

@@ -819,6 +819,7 @@ namespace Odin.Services.Membership.Connections.Requests
                 MasterKeyEncryptedPeerKey = odinContext.Caller.HasMasterKey
                     ? new SymmetricKeyEncryptedAes(masterKey, keyStoreKey)
                     : null,
+                WriteOnlyKeyPair = PeerKeyStoreWriteOnlyKey.CreateKeyPair(keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
                     keyStoreKey,
@@ -1608,6 +1609,7 @@ namespace Odin.Services.Membership.Connections.Requests
             var grant = new PeerKeyStore()
             {
                 MasterKeyEncryptedPeerKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
+                WriteOnlyKeyPair = PeerKeyStoreWriteOnlyKey.CreateKeyPair(keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await circleMembershipService.CreateCircleGrantListWithSystemCircleAsync(
                     keyStoreKey,
