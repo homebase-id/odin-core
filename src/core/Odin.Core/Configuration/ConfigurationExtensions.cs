@@ -27,14 +27,16 @@ public static class ConfigurationExtensions
     public static T GetOrDefault<T>(this IConfiguration config, string path, T defaultValue = default!)
     {
         var section = config.GetSection(path);
-    
+
         if (!section.Exists())
         {
             return defaultValue;
         }
 
+        // An empty JSON array/object (e.g. "key": []) yields an existing section whose Get<T>()
+        // returns null for reference types; fall back to the default rather than returning null.
         var value = section.Get<T>();
-        return value!;
+        return value ?? defaultValue;
     }
 
     //
