@@ -31,6 +31,7 @@ namespace Odin.Services.Membership.Connections.Requests
         /// <summary>
         /// The exchange grant which will be given to the recipient if the connection request is accepted
         /// </summary>
+        [JsonPropertyName("pendingAccessExchangeGrant")]
         public PeerKeyStore PendingPeerKeyStore { get; set; }
 
         
