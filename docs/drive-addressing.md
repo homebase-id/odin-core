@@ -280,13 +280,10 @@ express ownership at all.
 
 - An app may create / modify / delete **only** circles whose `AppId` is its own.
 - `AppId IS NULL` marks an **owner circle**. Apps must never touch those — that is the boundary
-  keeping a chat app out of the family circle.
+  keeping a chat app out of system circles.
 - A circle definition written by an app may reference **only drives the app can already read** —
   the same constraint that governs granting. Otherwise an app could mint a circle containing the
   banking drive and hand it out.
-
-*Open:* should an app-owned circle also carry a slug, so an app finds "my contacts circle" without
-storing a Guid? The symmetry with drives says yes; nothing in a URL needs it yet, so it can wait.
 
 ## What this depends on
 
