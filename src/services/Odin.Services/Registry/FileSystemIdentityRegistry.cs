@@ -160,6 +160,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             PlanId = request.PlanId,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
+            EnablePublicWebPresence = request.EnablePublicWebPresence,
             FirstRunToken = Guid.NewGuid()
         };
 

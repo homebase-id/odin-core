@@ -19,7 +19,12 @@ namespace Odin.Services.Registry
         /// </summary>
         public string PlanId { get; set; }
         public bool IsCertificateManaged { get; set; }
-        
+
+        /// <summary>
+        /// Whether the identity is allowed a public home page
+        /// </summary>
+        public bool EnablePublicWebPresence { get; set; } = true;
+
         /// <summary>
         /// Optional certificates to match the <see cref="OdinId"/>
         /// </summary>

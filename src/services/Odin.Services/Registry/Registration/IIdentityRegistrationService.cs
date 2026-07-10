@@ -43,7 +43,7 @@ public interface IIdentityRegistrationService
     /// Create identity on own or managed domain
     /// </summary>
     /// <returns>First-run token</returns>
-    Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId);
+    Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId, string invitationCode);
     
     //
     // Managed Domain
@@ -75,5 +75,11 @@ public interface IIdentityRegistrationService
     /// Determines if the invitation code is valid
     /// </summary>
     Task<bool> IsValidInvitationCode(string code);
+
+    /// <summary>
+    /// Determines if the invitation code grants a public web presence.
+    /// True unless the code is configured in Registry:InvitationCodesWithoutPublicWebPresence.
+    /// </summary>
+    Task<bool> CodeGrantsPublicWebPresence(string code);
 }
 
