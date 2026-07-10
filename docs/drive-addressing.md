@@ -6,6 +6,9 @@ Today a drive is addressed by Guids that both ends must hardcode. We want an app
 drives, and a **remote** caller to address them, with short slugs — `/chat/messages`. Getting there
 means untangling one overloaded field (`Type`). The API is what this is *for*, so it leads.
 
+Apps also need to own the **circles** they create, which turns out to need the same `AppId` column —
+see *Circles* below.
+
 ## Addressing & API (V2)
 
 A drive ends up with two names, for two different jobs:
@@ -247,6 +250,43 @@ Mechanics: nullable columns (`Guid? AppId`, `string DriveSlug`), `TEXT` with a C
 per convention (never `char(n)` — Postgres blank-pads it, SQLite ignores it). The CRUD is generated
 with a version header, so this is regenerate + an `AbstractMigrator` migration, exercised on **both**
 SQLite and Postgres.
+
+## Circles
+
+An app should be able to **create and modify its own circles** — the app-circle-membership plan
+already assumes this ("apps own app circles they can create and delete"). That needs the same
+ownership column drives get:
+
+```sql
+-- Circle (existing table; one new nullable column)
+AppId  BYTEA,        -- owning app; NULL = owner circle
+-- index (identityId, AppId)
+```
+
+**A column, not a field in the JSON.** `TableCircle` keeps the definition in an opaque
+`data BYTEA` — worse than `Drives`, which at least exposes `DriveType` / `DriveName`. Bury `AppId`
+in that blob and:
+
+- *delete app ⇒ delete its circles* becomes load-all-deserialize-filter-delete, instead of one
+  `DELETE … WHERE identityId = ? AND AppId = ?`;
+- listing an app's circles deserializes **every** circle on the identity;
+- the ownership check on *every* app write to a circle costs a blob parse;
+- and no constraint or FK can ever reference it.
+
+Circles number in the tens per identity, so this is not about speed. It is about being able to
+express ownership at all.
+
+**The rules that come with it:**
+
+- An app may create / modify / delete **only** circles whose `AppId` is its own.
+- `AppId IS NULL` marks an **owner circle**. Apps must never touch those — that is the boundary
+  keeping a chat app out of the family circle.
+- A circle definition written by an app may reference **only drives the app can already read** —
+  the same constraint that governs granting. Otherwise an app could mint a circle containing the
+  banking drive and hand it out.
+
+*Open:* should an app-owned circle also carry a slug, so an app finds "my contacts circle" without
+storing a Guid? The symmetry with drives says yes; nothing in a URL needs it yet, so it can wait.
 
 ## What this depends on
 
