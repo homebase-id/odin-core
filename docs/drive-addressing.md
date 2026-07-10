@@ -48,17 +48,19 @@ circle; the slug replaces only the *address*.
 
 ### Enumeration, and the feed example
 
-Say the **feed app** (`AppSlug = feed`) invents a channel type Guid `ff42…` and owns *zero or more*
-drives of that type — `news`, `photos`, … each with its own `DriveSlug`. One call finds them:
+Say the **feed app** (`AppSlug = feed`) invents a channel type — `DriveTypeGuid = ff42…`, spelled
+`DriveTypeSlug = channel` — and owns *zero or more* drives of that type, each with its own
+`DriveSlug`. One call finds them:
 
 ```
-GET /api/v2/drives?app=feed&type=ff42…
-→ [ { driveId, slug: "news",   type: "ff42…" },
-    { driveId, slug: "photos", type: "ff42…" }, … ]
+GET /api/v2/drives?app=feed&type=channel
+→ [ { driveId, slug: "news",   typeSlug: "channel", typeGuid: "ff42…" },
+    { driveId, slug: "photos", typeSlug: "channel", typeGuid: "ff42…" }, … ]
 ```
 
-This is why `Type` must stay **out of any unique key** — the feed app has many drives sharing one
-type, distinguished by slug.
+This is why the **type** must stay **out of any unique key** — the feed app has many drives sharing
+one type, distinguished by `DriveSlug`. `/feed/news` addresses a *drive*; `channel` names its
+*category*.
 
 **This retires `GET /api/v2/drives/metadata/channel-drives`.** That endpoint exists *only* because
 `Type` is a global constant — it is hardcoded to `SystemDriveConstants.ChannelDriveType`. Once the
@@ -134,27 +136,38 @@ Split the one overloaded `Type` into things with distinct jobs:
 |---|---|---|
 | Resolve a drive | `DriveId + Type` | **`DriveId`** alone — the drive's identifier |
 | Federate ("subscribable", "public") | `Type == ChannelDriveType` | **capability flags** — `AllowSubscriptions`, `AllowAnonymousReads` (already exist) |
-| Categorize, app-privately | — | **`AppDriveType`** — a **Guid the app invents**; the feed app decides its channel drives are `ff42…`, nobody else need know |
-| Address a drive (URL, and remotely) | — | **`DriveSlug`** — short (target ≤12 chars), `[a-z0-9-]`, unique **per app**, immutable |
-| Address an app (URL, and remotely) | — | **`AppSlug`** — same rules, unique **per identity**; e.g. `chat`. `AppId` stays the internal Guid |
+| Address that drive (URL, and remotely) | — | **`DriveSlug`** — e.g. `news`; short (≤12 chars), `[a-z0-9-]`, unique **per app**, immutable |
+| Categorize it, app-privately | — | **`DriveTypeGuid`** — a **Guid the app invents**; the feed app decides its channel drives are `ff42…` |
+| …readably | — | **`DriveTypeSlug`** — e.g. `channel`; the same category, spelled for humans and query strings |
+| Address an app (URL, and remotely) | — | **`AppSlug`** — e.g. `chat`, unique **per identity** |
 | Own / cascade-delete | — | **`AppId`** — nullable; `null` = not app-owned |
 
-An app then names its drives `(AppDriveType, DriveSlug)` — e.g. `(ff42…, "news")` — and never
-needs to know the `DriveId`.
+**Everything comes in pairs — an exact Guid for the system, a slug for humans and URLs:**
+
+| | Guid | Slug |
+|---|---|---|
+| the app | `AppId` | `AppSlug` |
+| the drive | `DriveId` | `DriveSlug` |
+| the drive's category | `DriveTypeGuid` | `DriveTypeSlug` |
+
+An app then names its drives `(DriveTypeSlug, DriveSlug)` — e.g. `("channel", "news")` — and never
+needs to know a Guid at all.
 
 **`Type` stays a Guid — the app just invents it.** Nothing about its representation changes; only
 its *meaning* goes from "a value the whole system agrees on" to "a value the owning app chose."
 
-**Integrity: should two apps be allowed the same `Type` Guid?** In principle yes — apps are
-developed independently and drives are `AppId`-scoped, so no app can *use* another's drives. But
-the realistic cause of a collision isn't chance (random Guids never collide), it's **copy-paste** —
-someone forks the feed app and keeps its constants. That's worth rejecting. The rule would be:
-*within an identity, a given `Type` Guid may belong to at most one `AppId`.* Note this is a
-functional dependency, not a `UNIQUE` constraint — the feed app has many drives sharing that Type —
-so enforce it at drive-create (reject if any drive on this identity has this `Type` under a
-different `AppId`), which wants an index on `(identityId, DriveType)`. A registry table
-`(identityId, Type) → AppId` is the heavier alternative, and would double as the lookup for the
-legacy by-Type call paths.
+**The type pair needs its own row, which conveniently fixes integrity.** `DriveTypeGuid` and
+`DriveTypeSlug` are one-to-one *within an app*, and many drives share them — so neither can be a
+column on `Drives` without denormalising and inviting drift. Give types a small registry table (see
+*Schema*). It then answers a question that was otherwise awkward:
+
+*Should two apps be allowed the same type Guid?* In principle yes — apps are developed
+independently and drives are `AppId`-scoped, so no app can *use* another's drives. But the
+realistic cause of a collision isn't chance (random Guids never collide), it's **copy-paste** —
+someone forks the feed app and keeps its constants. Worth rejecting. As a bare rule it is an
+awkward functional dependency (*within an identity, a type Guid belongs to at most one `AppId`*)
+that no `UNIQUE` on `Drives` can express, since the feed app has many drives sharing that type. On
+the registry table it is simply `UNIQUE(identityId, DriveTypeGuid)`.
 
 ## Schema
 
@@ -167,7 +180,16 @@ AppId      BYTEA,        -- owning app; NULL = not app-owned
 DriveSlug  TEXT,         -- URL/wire segment; NULL when AppId is NULL
 
 , UNIQUE(identityId, AppId, DriveSlug)   -- one "news" per app
--- index (identityId, DriveType)         -- one-app-per-Type check; legacy by-type lookups
+-- index (identityId, DriveType)         -- legacy by-type lookups
+
+-- DriveTypes (NEW table; the DriveTypeGuid ↔ DriveTypeSlug pair, per app)
+identityId     BYTEA NOT NULL,
+AppId          BYTEA NOT NULL,
+DriveTypeGuid  BYTEA NOT NULL,   -- the Guid the app invented
+DriveTypeSlug  TEXT  NOT NULL,   -- readable form, e.g. "channel"
+
+, UNIQUE(identityId, DriveTypeGuid)          -- a type Guid belongs to at most one app
+, UNIQUE(identityId, AppId, DriveTypeSlug)   -- one "channel" per app
 
 -- AppRegistrations (NEW table; see below)
 identityId   BYTEA NOT NULL,
@@ -204,7 +226,7 @@ optional; here it is required.)*
 ### Slug format
 
 A slug is a URL path segment *and* a wire address, so it must survive both with no encoding.
-Applies to **`AppSlug`** and **`DriveSlug`** alike:
+Applies to **`AppSlug`**, **`DriveSlug`** and **`DriveTypeSlug`** alike:
 
 - `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$` — lowercase letters, digits, internal hyphens only.
 - **No** spaces, `/`, `.`, `%`, `?`, `#`, `&`, `:`, `@`, and no uppercase. Nothing that needs
@@ -254,8 +276,9 @@ Why these shapes:
   *within its app*.
 - **That unique index doubles as the enumeration index.** Its `(identityId, AppId)` prefix serves
   `GET /drives?app=feed`; the `type` filter then runs over that app's handful of drives.
-- **`(identityId, DriveType)` index** backs the integrity rule (*a Type Guid belongs to at most one
-  `AppId` within an identity*), which is a functional dependency and therefore cannot be a `UNIQUE`.
+- **The `DriveTypes` table** carries the `DriveTypeGuid` ↔ `DriveTypeSlug` pair and enforces
+  *a type Guid belongs to at most one app* as a plain `UNIQUE`, which no constraint on `Drives`
+  could express.
 - **`UNIQUE(identityId, DriveId, DriveType)` can be dropped** once resolution is by `DriveId` — it
   is already redundant against `UNIQUE(identityId, DriveId)`.
 
@@ -344,7 +367,7 @@ app-private.
   depends on it.
 - **What the slug actually replaces.** Not `Type` — the slug pair replaces `TargetDrive`, *both* of
   its components, as the **address**. `Type` survives, demoted from "half the address" to "the
-  app-private category you filter on" (`?type=ff42…`). So "slug instead of Type" is a half-truth;
+  app-private category you filter on" (`?type=channel`). So "slug instead of Type" is a half-truth;
   it is *slug instead of `DriveId + Type` as an address, with `Type` kept as a category.*
 - **Transition: `Type` stays in responses until `TargetDrive` retires.** Making `Type` app-private
   changes its *meaning*, not its *exposure*. Every existing client still builds
