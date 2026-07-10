@@ -86,9 +86,27 @@ Two consequences:
 ### Slugs are resolved by the recipient
 
 `/peer/{odinId}/drives/chat/messages` means *"whatever app **that identity** registered under
-`chat`, and its `messages` drive."* That is a feature — it works across independent implementations
-of a chat app, where a shared Guid constant would not — and it is a risk: a different app could
-occupy the slug. A Guid is exact; a slug is a convention. Worth deciding how much we care.
+`chat`, and its `messages` drive."*
+
+`UNIQUE(identityId, AppSlug)` makes that unambiguous — an identity has at most one `chat`, so there
+is no squatting-by-collision. And **authorization is unchanged**: the sender still needs a drive
+grant on whatever the slug resolves to. This is not an access-control hole.
+
+What it *is* is **late binding**. A Guid names one exact drive forever; a slug names whatever
+currently occupies that name. Two consequences, both worth deciding rather than inheriting:
+
+- **A feature across identities.** Frodo and Sam can run different chat implementations, and
+  `/chat/messages` still means "the chat app's message drive" on each. A shared Guid constant
+  cannot express that.
+- **A hazard across time.** If Frodo uninstalls one chat app (its drives are deleted with it) and
+  installs another under the same slug, a sender's stored `/chat/messages` silently re-points at
+  the new app's drive — where a stored `TargetDrive` Guid would instead dangle and force
+  re-discovery. Silent re-pointing may be exactly what we want. It should be a decision, not an
+  accident.
+
+One practical wrinkle: **registration is first-come.** On a given identity the *second* app wanting
+`chat` cannot have it. So an app cannot assume its preferred slug is available, and a sender cannot
+assume `chat` is the app it had in mind.
 
 ## Why this needs a model change
 
@@ -333,10 +351,10 @@ app-private.
    If remote callers address drives by slug, the slug pair *is* the wire address and `TargetDrive`
    should retire. Otherwise a drive carries three names (`DriveId`, `TargetDrive`, slug pair) with
    no stated precedence — the old "TargetDrive reconciliation" question, now unavoidable.
-2. **How much do we care that a slug is a convention, not a guarantee?** A remote `/chat/messages`
-   resolves against whatever the *recipient* registered as `chat`. Nothing stops a different app
-   from occupying that slug. Do we need a reserved/well-known slug list, or is recipient-side
-   resolution simply the correct semantics?
+2. **Late binding: feature or hazard?** A slug names whatever *currently* occupies it, so an
+   uninstall/reinstall can silently re-point a sender's stored `/chat/messages` at a different
+   app's drive — where a stored `TargetDrive` Guid would dangle and force re-discovery. Is silent
+   re-pointing the intended semantics?
 3. **Are system drives (`AppId IS NULL`) slug-addressable at all?** Under the invariant in *Schema*
    they are not — `/profile` would need a reserved app slug, or system drives keep Guid addressing
    forever. Probably fine, but say so out loud.
