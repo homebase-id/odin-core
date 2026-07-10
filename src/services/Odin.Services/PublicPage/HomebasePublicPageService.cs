@@ -29,6 +29,7 @@ public class HomebasePublicPageService(
     HomebaseChannelContentService channelContentService,
     IHttpContextAccessor httpContextAccessor,
     HomebaseSsrService ssrService,
+    TenantContext tenantContext,
     ILogger<HomebasePublicPageService> logger)
 {
     private const string IndexFileKey = "link-preview-service-index-file";
@@ -37,10 +38,28 @@ public class HomebasePublicPageService(
     const string IndexPlaceholder = "<!-- @@identifier-content@@ -->";
     const string NoScriptPlaceholder = "<!-- @@noscript-identifier-content@@ -->";
 
+    public const string NoWebPresenceHtml =
+        "<!DOCTYPE html>" +
+        "<html lang='en'>" +
+        "<head>" +
+        "<meta charset='utf-8'/>" +
+        "<meta name='viewport' content='width=device-width, initial-scale=1'/>" +
+        "<meta name='robots' content='noindex, nofollow'/>" +
+        "<title>Homebase ID</title>" +
+        "</head>" +
+        "<body><p>This is a Homebase ID.</p></body>" +
+        "</html>";
+
     public async Task WriteIndexFileAsync(string indexFilePath, IOdinContext odinContext)
     {
         try
         {
+            if (!tenantContext.EnablePublicWebPresence)
+            {
+                await WriteAsync(NoWebPresenceHtml);
+                return;
+            }
+
             await WriteEnhancedIndexAsync(indexFilePath, odinContext);
         }
         catch (OperationCanceledException)

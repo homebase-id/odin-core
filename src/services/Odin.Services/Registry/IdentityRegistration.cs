@@ -62,6 +62,11 @@ namespace Odin.Services.Registry
         public bool Disabled { get; set; }
 
         /// <summary>
+        /// Whether the identity is allowed a public home page (link previews, SEO/SSR content, etc.)
+        /// </summary>
+        public bool EnablePublicWebPresence { get; set; } = true;
+
+        /// <summary>
         /// The date this account was marked for deletion.
         /// </summary>
         public UnixTimeUtc? MarkedForDeletionDate { get; set; }

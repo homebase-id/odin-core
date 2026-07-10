@@ -402,6 +402,111 @@ public class AdminControllerTest
 
     //
 
+    [Test]
+    public async Task ItShouldEnableAndDisablePublicWebPresence()
+    {
+        var adminClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
+        var tenantClient = WebScaffold.HttpClientFactory.CreateClient($"frodo.dotyou.cloud:{WebScaffold.HttpsPort}");
+
+        // Verify enabled by default
+        {
+            var request = NewRequestMessage(HttpMethod.Get,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud");
+            var response = await adminClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
+            Assert.That(tenant.EnablePublicWebPresence, Is.True);
+        }
+
+        // Public pages render normally
+        {
+            var response = await tenantClient.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+                $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/ssr/home"));
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.That(body, Does.Not.Contain("This is a Homebase ID."));
+
+            response = await tenantClient.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+                $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/robots.txt"));
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            body = await response.Content.ReadAsStringAsync();
+            Assert.That(body, Does.Contain("Sitemap:"));
+
+            response = await tenantClient.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+                $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/sitemap.xml"));
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        // Disable public web presence
+        {
+            var request = NewRequestMessage(HttpMethod.Patch,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/public-web-presence/disable");
+            var response = await adminClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        }
+
+        // Verify flag is off
+        {
+            var request = NewRequestMessage(HttpMethod.Get,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud");
+            var response = await adminClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            var tenant = OdinSystemSerializer.Deserialize<TenantModel>(await response.Content.ReadAsStringAsync());
+            Assert.That(tenant.EnablePublicWebPresence, Is.False);
+        }
+
+        // Public pages are gated
+        {
+            var response = await tenantClient.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+                $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/ssr/home"));
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.That(body, Does.Contain("This is a Homebase ID."));
+            Assert.That(body, Does.Contain("noindex"));
+
+            response = await tenantClient.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+                $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/robots.txt"));
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            body = await response.Content.ReadAsStringAsync();
+            Assert.That(body, Does.Contain("Disallow: /"));
+            Assert.That(body, Does.Not.Contain("Sitemap:"));
+
+            response = await tenantClient.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+                $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/sitemap.xml"));
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        }
+
+        // Re-enable and verify pages are back
+        {
+            var request = NewRequestMessage(HttpMethod.Patch,
+                "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/frodo.dotyou.cloud/public-web-presence/enable");
+            var response = await adminClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+            response = await tenantClient.SendAsync(new HttpRequestMessage(HttpMethod.Get,
+                $"https://frodo.dotyou.cloud:{WebScaffold.HttpsPort}/ssr/home"));
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.That(body, Does.Not.Contain("This is a Homebase ID."));
+        }
+    }
+
+    //
+
+    [Test]
+    public async Task ItShouldReturnNotFoundTogglingPublicWebPresenceOnUnknownTenant()
+    {
+        var adminClient = WebScaffold.HttpClientFactory.CreateClient("admin.dotyou.cloud:4444");
+        var request = NewRequestMessage(HttpMethod.Patch,
+            "https://admin.dotyou.cloud:4444/api/admin/v1/tenants/no-such.dotyou.cloud/public-web-presence/disable");
+        var response = await adminClient.SendAsync(request);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    //
+
     private async Task CreatePayload(TestIdentity testIdentity)
     {
         var ownerClient = _scaffold.CreateOwnerApiClient(testIdentity);

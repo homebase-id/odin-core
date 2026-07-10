@@ -130,7 +130,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             idReg.FirstRunToken,
             isPreconfigured,
             idReg.MarkedForDeletionDate,
-            idReg.Email);
+            idReg.Email,
+            idReg.EnablePublicWebPresence);
 
         return tc;
     }
@@ -351,9 +352,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             primaryDomainName = registration.PrimaryDomainName.ToLower(),
             email = registration.Email?.ToLower(),
             firstRunToken = registration.FirstRunToken?.ToString(),
-            disabled = false,
-            markedForDeletionDate = null,
-            planId = "free"
+            disabled = registration.Disabled,
+            markedForDeletionDate = registration.MarkedForDeletionDate,
+            planId = registration.PlanId ?? "free",
+            enablePublicWebPresence = registration.EnablePublicWebPresence
         });
 
         _logger.LogInformation("Wrote registration record for [{registrationId}]", registration.Id);
@@ -388,6 +390,23 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             if (reg.Disabled != disabled)
             {
                 reg.Disabled = disabled;
+                await SaveRegistrationInternal(reg);
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled)
+    {
+        bool? result = null;
+        var reg = _trie.LookupExactName(domain);
+        if (reg != null)
+        {
+            result = reg.EnablePublicWebPresence;
+            if (reg.EnablePublicWebPresence != enabled)
+            {
+                reg.EnablePublicWebPresence = enabled;
                 await SaveRegistrationInternal(reg);
             }
         }
@@ -453,6 +472,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                         : Guid.Parse(registrationRecord.firstRunToken),
                     PlanId = registrationRecord.planId,
                     Disabled = registrationRecord.disabled,
+                    EnablePublicWebPresence = registrationRecord.enablePublicWebPresence,
                     MarkedForDeletionDate = registrationRecord.markedForDeletionDate,
                     // LastSeen = registrationRecord.lastSeen // SEB:TODO
                 };
