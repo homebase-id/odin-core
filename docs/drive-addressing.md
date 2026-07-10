@@ -48,23 +48,34 @@ circle; the slug replaces only the *address*.
 
 ### Enumeration, and the feed example
 
-Say the **feed app** (`AppSlug = feed`) invents a channel type — `DriveTypeGuid = ff42…`, spelled
-`DriveTypeSlug = channel` — and owns *zero or more* drives of that type, each with its own
-`DriveSlug`. One call finds them:
+The **feed app** (`AppSlug = feed`) invents a channel type — `DriveTypeSlug = channel`, backed by
+`DriveTypeGuid = ff42…` — and owns *zero or more* drives of that type, each with its own
+`DriveSlug`. An app's drives are a collection, so they get a resource of their own:
 
 ```
-GET /api/v2/drives?app=feed&type=channel
-→ [ { driveId, slug: "news",   typeSlug: "channel", typeGuid: "ff42…" },
-    { driveId, slug: "photos", typeSlug: "channel", typeGuid: "ff42…" }, … ]
+GET /api/v2/drives/feed                 → every drive the feed app owns
+GET /api/v2/drives/feed?type=channel    → just its channel drives
+
+→ [ { "driveSlug": "news",   "driveTypeSlug": "channel" },
+    { "driveSlug": "photos", "driveTypeSlug": "channel" } ]
 ```
 
-This is why the **type** must stay **out of any unique key** — the feed app has many drives sharing
-one type, distinguished by `DriveSlug`. `/feed/news` addresses a *drive*; `channel` names its
-*category*.
+Note what is *absent*: no Guids. An app names its own drives entirely in slugs, all the way down to
+`/api/v2/drives/feed/news/files`. (`/drives/feed` cannot be mistaken for `/drives/{driveId:guid}` —
+the `:guid` constraint again.)
+
+**The Guids are backwards compatibility.** During the transition each entry also carries `driveId`
+and `driveTypeGuid`, because existing clients still assemble `TargetDrive = (DriveId, Type)` for the
+Guid routes. Both are scaffolding: once `TargetDrive` retires, they drop out of the response
+entirely — see *Cost & sequencing*.
+
+This is also why the **type** must stay **out of any unique key**: the feed app has many drives
+sharing one type, distinguished by `DriveSlug`. `/feed/news` addresses a *drive*; `channel` names
+its *category*.
 
 **This retires `GET /api/v2/drives/metadata/channel-drives`.** That endpoint exists *only* because
 `Type` is a global constant — it is hardcoded to `SystemDriveConstants.ChannelDriveType`. Once the
-type belongs to the app, the generic filter above replaces it. (The lookup beneath it,
+type belongs to the app, `GET /api/v2/drives/feed?type=channel` replaces it. (The lookup beneath it,
 `driveManager.GetDrivesAsync(type, …)`, must likewise become `(appId, type)`; a bare `type` is
 ambiguous once apps pick their own.)
 
