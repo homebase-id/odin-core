@@ -287,7 +287,7 @@ Why these shapes:
   segments, so `/feed/news` and `/chat/news` may coexist. A drive slug only has to be unique
   *within its app*.
 - **That unique index doubles as the enumeration index.** Its `(identityId, AppId)` prefix serves
-  `GET /drives?app=feed`; the `type` filter then runs over that app's handful of drives.
+  `GET /api/v2/drives/feed`; the `?type=` filter then runs over that app's handful of drives.
 - **The `DriveTypes` table** carries the `DriveTypeGuid` ↔ `DriveTypeSlug` pair and enforces
   *a type Guid belongs to at most one app* as a plain `UNIQUE`, which no constraint on `Drives`
   could express.
