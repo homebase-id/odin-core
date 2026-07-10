@@ -75,8 +75,11 @@ its own reach.*
 
 Two consequences:
 
-- `type` is **app-private**, so it means nothing to a non-owning caller — consider omitting it for
-  them rather than returning a Guid they cannot interpret.
+- `type` is **app-private**: a non-owning caller cannot interpret it. *Long term* it is a pure
+  category — something to filter on, not part of any address — and could be omitted for callers
+  that don't own the drive. **Not during the transition**, though: until the slug pair replaces
+  `TargetDrive`, `type` is still half of the address every existing client builds, so it must keep
+  being returned to everyone. See *Cost & sequencing*.
 - `AppId` must be an **indexed column**, not a JSON field: this is a per-app enumeration on the
   startup path of every app.
 
@@ -313,6 +316,15 @@ app-private.
   caller. Eventually the system should mint a **random Guid**, so apps address purely by
   `(AppSlug, DriveSlug)` and never see it. We are not ready for that yet — and nothing above
   depends on it.
+- **What the slug actually replaces.** Not `Type` — the slug pair replaces `TargetDrive`, *both* of
+  its components, as the **address**. `Type` survives, demoted from "half the address" to "the
+  app-private category you filter on" (`?type=ff42…`). So "slug instead of Type" is a half-truth;
+  it is *slug instead of `DriveId + Type` as an address, with `Type` kept as a category.*
+- **Transition: `Type` stays in responses until `TargetDrive` retires.** Making `Type` app-private
+  changes its *meaning*, not its *exposure*. Every existing client still builds
+  `TargetDrive = (DriveId, Type)` to address a drive, so responses must keep returning `type` until
+  slug addressing has replaced `TargetDrive` end to end. Only then can `type` be hidden from
+  non-owning callers. Two independent steps, in this order — do not conflate them.
 - Existing drives keep their `SystemDriveConstants` Type and `AppId = null`.
 
 ## Open questions
