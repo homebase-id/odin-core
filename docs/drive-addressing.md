@@ -90,25 +90,26 @@ Two consequences:
 `/peer/{odinId}/drives/chat/messages` means *"whatever app **that identity** registered under
 `chat`, and its `messages` drive."*
 
-`UNIQUE(identityId, AppSlug)` makes that unambiguous — an identity has at most one `chat`, so there
-is no squatting-by-collision. And **authorization is unchanged**: the sender still needs a drive
-grant on whatever the slug resolves to. This is not an access-control hole.
+**`AppSlug` names a particular app by a particular author** — it is a package name, not a role. A
+second chat implementation does not get to call itself `chat`; it picks its own slug (`chatty`). It
+can still *reference* `chat/messages` — addressing the first app's drive — provided it is
+file-format compatible and has been granted access. **Interop happens by referencing another app's
+drive, never by occupying its name.**
 
-What it *is* is **late binding**. A Guid names one exact drive forever; a slug names whatever
-currently occupies that name. Two consequences, both worth deciding rather than inheriting:
+`UNIQUE(identityId, AppSlug)` makes resolution unambiguous, and **authorization is unchanged**: the
+sender needs a drive grant on whatever the slug resolves to. So this is not an access-control hole.
 
-- **A feature across identities.** Frodo and Sam can run different chat implementations, and
-  `/chat/messages` still means "the chat app's message drive" on each. A shared Guid constant
-  cannot express that.
-- **A hazard across time.** If Frodo uninstalls one chat app (its drives are deleted with it) and
-  installs another under the same slug, a sender's stored `/chat/messages` silently re-points at
-  the new app's drive — where a stored `TargetDrive` Guid would instead dangle and force
-  re-discovery. Silent re-pointing may be exactly what we want. It should be a decision, not an
-  accident.
+What remains is a **namespace** question, and it is real:
 
-One practical wrinkle: **registration is first-come.** On a given identity the *second* app wanting
-`chat` cannot have it. So an app cannot assume its preferred slug is available, and a sender cannot
-assume `chat` is the app it had in mind.
+- **There is no global registry.** `AppSlug` is unique per *identity*. Nothing stops a different
+  author from shipping an app that registers itself as `chat` on an identity where the real one is
+  not installed — a sender's `/chat/messages` then resolves to the impostor's drive. It still
+  cannot be written to without a grant, so this is a naming problem, not an access one.
+- **Registration is first-come.** On a given identity the *second* app wanting `chat` cannot have
+  it. So an app cannot assume its own preferred slug is available.
+- **The slug is quietly doing global-identifier duty.** For a remote `/chat/messages` to mean
+  anything, sender and recipient must agree on what `chat` is. That is a lot of weight for a flat,
+  unowned, ≤12-character namespace. `AppId` is the thing that is actually globally unique.
 
 ## Why this needs a model change
 
@@ -382,10 +383,11 @@ app-private.
    If remote callers address drives by slug, the slug pair *is* the wire address and `TargetDrive`
    should retire. Otherwise a drive carries three names (`DriveId`, `TargetDrive`, slug pair) with
    no stated precedence — the old "TargetDrive reconciliation" question, now unavoidable.
-2. **Late binding: feature or hazard?** A slug names whatever *currently* occupies it, so an
-   uninstall/reinstall can silently re-point a sender's stored `/chat/messages` at a different
-   app's drive — where a stored `TargetDrive` Guid would dangle and force re-discovery. Is silent
-   re-pointing the intended semantics?
+2. **Does `AppSlug` need a global registry?** Remote addressing only works if sender and recipient
+   agree on what `chat` is, yet the slug is a flat, unowned, per-identity name — while `AppId` is
+   the value that is actually globally unique. Do we reserve well-known slugs, bind the slug to the
+   `AppId` at publish time, or accept that `/chat/…` is only as trustworthy as the recipient's
+   registration?
 3. **Are system drives (`AppId IS NULL`) slug-addressable at all?** Under the invariant in *Schema*
    they are not — `/profile` would need a reserved app slug, or system drives keep Guid addressing
    forever. Probably fine, but say so out loud.
