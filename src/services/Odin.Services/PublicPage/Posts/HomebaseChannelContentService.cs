@@ -21,7 +21,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
 
-namespace Odin.Services.LinkPreview.Posts;
+namespace Odin.Services.PublicPage.Posts;
 
 /// <summary>
 /// Loads content from the /home app for channels, posts, articles. (duplicates logic from the Frontend,

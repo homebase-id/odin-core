@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using Odin.Core.Time;
 
-namespace Odin.Services.LinkPreview.Posts;
+namespace Odin.Services.PublicPage.Posts;
 
 // Modeled after the Article and PostContent in odin-js
 // I only pulled in what is needed for link preview

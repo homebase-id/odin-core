@@ -11,12 +11,12 @@ using Newtonsoft.Json;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.DataSubscription.Follower;
-using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
-using Odin.Services.LinkPreview.Posts;
-using Odin.Services.LinkPreview.Profile;
+using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
+using Odin.Services.PublicPage.Posts;
+using Odin.Services.PublicPage.Profile;
 using Odin.Services.Membership.Connections;
 
-namespace Odin.Services.LinkPreview;
+namespace Odin.Services.PublicPage;
 
 public class HomebaseSsrService(
     HomebaseProfileContentService profileContentService,

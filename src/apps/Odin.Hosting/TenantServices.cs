@@ -60,14 +60,14 @@ using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.Reactions.Redux.Group;
 using Odin.Services.Fingering;
 using Odin.Services.LinkMetaExtractor;
-using Odin.Services.LinkPreview;
+using Odin.Services.PublicPage;
 using Odin.Services.Peer.AppNotification;
 using Odin.Services.Membership.Connections.Verification;
 using Odin.Services.Peer.Incoming.Drive.Reactions.Group;
 using Odin.Services.Registry;
 using Odin.Services.Drives.FileSystem.Base;
-using Odin.Services.LinkPreview.Posts;
-using Odin.Services.LinkPreview.Profile;
+using Odin.Services.PublicPage.Posts;
+using Odin.Services.PublicPage.Profile;
 using Odin.Core.Storage.Database.Identity;
 using Odin.Services.Authorization;
 using Odin.Core.Storage.PubSub;
@@ -398,7 +398,7 @@ public static class TenantServices
 
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
-        cb.RegisterType<LinkPreviewService>().As<LinkPreviewService>().InstancePerLifetimeScope();
+        cb.RegisterType<HomebasePublicPageService>().As<HomebasePublicPageService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
 
 

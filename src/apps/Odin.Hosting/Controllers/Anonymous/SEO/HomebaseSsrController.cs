@@ -6,10 +6,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions;
 using Odin.Hosting.Controllers.Base;
-using Odin.Services.LinkPreview;
-using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
-using Odin.Services.LinkPreview.Posts;
-using Odin.Services.LinkPreview.Profile;
+using Odin.Services.PublicPage;
+using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
+using Odin.Services.PublicPage.Posts;
+using Odin.Services.PublicPage.Profile;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 

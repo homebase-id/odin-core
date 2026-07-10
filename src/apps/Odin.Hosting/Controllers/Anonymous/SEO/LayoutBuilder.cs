@@ -6,8 +6,8 @@ using System.Web;
 using Microsoft.AspNetCore.Http;
 using Odin.Core.Serialization;
 using Odin.Services.Base;
-using Odin.Services.LinkPreview;
-using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
+using Odin.Services.PublicPage;
+using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
 
 namespace Odin.Hosting.Controllers.Anonymous.SEO;
 

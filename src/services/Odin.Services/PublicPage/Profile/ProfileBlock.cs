@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Odin.Services.LinkPreview.Profile;
+namespace Odin.Services.PublicPage.Profile;
 
 public class ProfileBlock
 {

@@ -14,12 +14,12 @@ using Odin.Services.Drives;
 using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
-using Odin.Services.LinkPreview.PersonMetadata;
-using Odin.Services.LinkPreview.PersonMetadata.SchemaDotOrg;
+using Odin.Services.PublicPage.PersonMetadata;
+using Odin.Services.PublicPage.PersonMetadata.SchemaDotOrg;
 using Odin.Services.Optimization.Cdn;
 using Odin.Services.Profile;
 
-namespace Odin.Services.LinkPreview.Profile;
+namespace Odin.Services.PublicPage.Profile;
 
 /// <summary>
 /// Loads information about this tenant and their profile information for server side rendering requirements

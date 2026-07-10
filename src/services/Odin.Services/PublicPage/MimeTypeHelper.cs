@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Odin.Services.LinkPreview;
+namespace Odin.Services.PublicPage;
 
 // via grok
 public static class MimeTypeHelper
