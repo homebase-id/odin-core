@@ -3,8 +3,9 @@
 *Status: proposal, for discussion. Prompted by the app-owned-drives direction.*
 
 Today a drive is addressed by Guids that both ends must hardcode. We want an app to name its own
-drives, and a **remote** caller to address them, with short slugs — `/chat/messages`. Getting there
-means untangling one overloaded field (`Type`). The API is what this is *for*, so it leads.
+drives, and a **remote** caller to address them, with short slugs — `/apps/chat/drives/messages`.
+Getting there means untangling one overloaded field (`Type`). The API is what this is *for*, so it
+leads.
 
 Apps also need to own the **circles** they create, which turns out to need the same `AppId` column —
 see *Circles* below.
@@ -27,20 +28,22 @@ Today's V2 routes take the Guid:
 The slug form slots in beside them:
 
 ```
-     /api/v2/drives/{appSlug}/{driveSlug}/files
-/api/v2/peer/{odinId}/drives/{appSlug}/{driveSlug}/files
+          /api/v2/apps/{appSlug}/drives/{driveSlug}/files
+/api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/files
 ```
 
-These **coexist without ambiguity** — the `:guid` route constraint means `/drives/chat/messages`
-can never match `/drives/{driveId:guid}`. So slugs can be added without touching the Guid routes.
+Note the shape: **every segment names what follows it.** The slug tree hangs off a new `/apps` root
+(free today) rather than burrowing under `/drives`, where `/drives/feed` would read as *"the drive
+called feed."* The two trees are simply separate, so slugs can be added without touching the Guid
+routes and without any route-constraint trickery.
 
 The remote case is the one that matters. Sending a message to another identity's chat drive today
 requires both sides to share hardcoded Guid constants (`TargetDrive` = `DriveId + Type`, from
 `SystemDriveConstants`). With slugs:
 
 ```
-POST /api/v2/peer/frodo.dotyou.cloud/drives/chat/messages/files
-                                            └app┘ └ drive ┘
+POST /api/v2/peer/frodo.dotyou.cloud/apps/chat/drives/messages/files
+                                          └app┘        └ drive ┘
 ```
 
 Neither side shares a Guid. Authorization is unchanged — the sender still needs a drive grant via a
@@ -53,16 +56,15 @@ The **feed app** (`AppSlug = feed`) invents a channel type — `DriveTypeSlug = 
 `DriveSlug`. An app's drives are a collection, so they get a resource of their own:
 
 ```
-GET /api/v2/drives/feed                 → every drive the feed app owns
-GET /api/v2/drives/feed?type=channel    → just its channel drives
+GET /api/v2/apps/feed/drives                 → every drive the feed app owns
+GET /api/v2/apps/feed/drives?type=channel    → just its channel drives
 
 → [ { "driveSlug": "news",   "driveTypeSlug": "channel" },
     { "driveSlug": "photos", "driveTypeSlug": "channel" } ]
 ```
 
 Note what is *absent*: no Guids. An app names its own drives entirely in slugs, all the way down to
-`/api/v2/drives/feed/news/files`. (`/drives/feed` cannot be mistaken for `/drives/{driveId:guid}` —
-the `:guid` constraint again.)
+`/api/v2/apps/feed/drives/news/files`.
 
 **The Guids are backwards compatibility.** During the transition each entry also carries `driveId`
 and `driveTypeGuid`, because existing clients still assemble `TargetDrive = (DriveId, Type)` for the
@@ -70,12 +72,12 @@ Guid routes. Both are scaffolding: once `TargetDrive` retires, they drop out of 
 entirely — see *Cost & sequencing*.
 
 This is also why the **type** must stay **out of any unique key**: the feed app has many drives
-sharing one type, distinguished by `DriveSlug`. `/feed/news` addresses a *drive*; `channel` names
+sharing one type, distinguished by `DriveSlug`. `feed/drives/news` names a *drive*; `channel` names
 its *category*.
 
 **This retires `GET /api/v2/drives/metadata/channel-drives`.** That endpoint exists *only* because
 `Type` is a global constant — it is hardcoded to `SystemDriveConstants.ChannelDriveType`. Once the
-type belongs to the app, `GET /api/v2/drives/feed?type=channel` replaces it. (The lookup beneath it,
+type belongs to the app, `GET /api/v2/apps/feed/drives?type=channel` replaces it. (The lookup under
 `driveManager.GetDrivesAsync(type, …)`, must likewise become `(appId, type)`; a bare `type` is
 ambiguous once apps pick their own.)
 
@@ -98,12 +100,12 @@ Two consequences:
 
 ### Slugs are resolved by the recipient
 
-`/peer/{odinId}/drives/chat/messages` means *"whatever app **that identity** registered under
+`/peer/{odinId}/apps/chat/drives/messages` means *"whatever app **that identity** registered under
 `chat`, and its `messages` drive."*
 
 **`AppSlug` names a particular app by a particular author** — it is a package name, not a role. A
 second chat implementation does not get to call itself `chat`; it picks its own slug (`chatty`). It
-can still *reference* `chat/messages` — addressing the first app's drive — provided it is
+can still *reference* `chat`'s `messages` drive — addressing the first app's drive — provided it is
 file-format compatible and has been granted access. **Interop happens by referencing another app's
 drive, never by occupying its name.**
 
@@ -114,11 +116,11 @@ What remains is a **namespace** question, and it is real:
 
 - **There is no global registry.** `AppSlug` is unique per *identity*. Nothing stops a different
   author from shipping an app that registers itself as `chat` on an identity where the real one is
-  not installed — a sender's `/chat/messages` then resolves to the impostor's drive. It still
+  not installed — a sender's `/apps/chat/drives/messages` then resolves to the impostor's drive. It still
   cannot be written to without a grant, so this is a naming problem, not an access one.
 - **Registration is first-come.** On a given identity the *second* app wanting `chat` cannot have
   it. So an app cannot assume its own preferred slug is available.
-- **The slug is quietly doing global-identifier duty.** For a remote `/chat/messages` to mean
+- **The slug is quietly doing global-identifier duty.** For a remote `/apps/chat/…` to mean
   anything, sender and recipient must agree on what `chat` is. That is a lot of weight for a flat,
   unowned, ≤12-character namespace. `AppId` is the thing that is actually globally unique.
 
@@ -244,12 +246,12 @@ Applies to **`AppSlug`**, **`DriveSlug`** and **`DriveTypeSlug`** alike:
 - **No** spaces, `/`, `.`, `%`, `?`, `#`, `&`, `:`, `@`, and no uppercase. Nothing that needs
   percent-encoding; nothing readable as a path separator or as `.` / `..`.
 - 1–12 characters — capped in the C# validator, not in the column type.
-- **Not a reserved route segment.** The slug lands inside
-  `/api/v2/drives/{appSlug}/{driveSlug}/files`, so it must not collide with a literal sibling at
-  that position. Today that is exactly one word — **`metadata`**
-  (`/api/v2/drives/metadata/channel-drives`) — and the denylist must grow whenever a literal
-  segment is added under `/drives`. (Retiring `channel-drives`, as proposed above, removes this
-  one.)
+- **Not a reserved route segment.** A slug must never collide with a literal sibling at its
+  position. Rooting the slug tree at `/apps` buys this almost for free: `{appSlug}` sits under
+  `/apps` and `{driveSlug}` under `/apps/{appSlug}/drives`, and neither has a literal sibling
+  today. (Under the rejected `/drives/{appSlug}/…` shape, `metadata` was a live collision —
+  `/api/v2/drives/metadata/channel-drives`.) Keep a denylist anyway, and grow it whenever a
+  literal segment is added at either position.
 
 **Validate and reject at write; never coerce.** The value is immutable and ends up in *other
 identities'* URLs, so silently lowercasing or stripping a character produces an address the caller
@@ -284,10 +286,10 @@ Worth fixing on its own, and a good reason to land the type before more slugs ex
 Why these shapes:
 
 - **`UNIQUE(identityId, AppId, DriveSlug)` — per app, not per identity.** The URL carries both
-  segments, so `/feed/news` and `/chat/news` may coexist. A drive slug only has to be unique
+  segments, so `feed/drives/news` and `chat/drives/news` may coexist. A drive slug need only be unique
   *within its app*.
 - **That unique index doubles as the enumeration index.** Its `(identityId, AppId)` prefix serves
-  `GET /api/v2/drives/feed`; the `?type=` filter then runs over that app's handful of drives.
+  `GET /api/v2/apps/feed/drives`; the `?type=` filter then runs over that app's handful of drives.
 - **The `DriveTypes` table** carries the `DriveTypeGuid` ↔ `DriveTypeSlug` pair and enforces
   *a type Guid belongs to at most one app* as a plain `UNIQUE`, which no constraint on `Drives`
   could express.
