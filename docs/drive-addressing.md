@@ -303,8 +303,16 @@ express ownership at all.
 - `AppId IS NULL` marks an **owner circle**. Apps must never touch those — that is the boundary
   keeping a chat app out of system circles.
 - A circle definition written by an app may reference **only drives the app can already read** —
-  the same constraint that governs granting. Otherwise an app could mint a circle containing the
-  banking drive and hand it out.
+  the same constraint that governs granting. Note *why*: not because the app could otherwise
+  decrypt those drives itself. It cannot — reaching the banking drive's storage key needs the
+  master key, or that drive's owning app's App Key (via *its* App Client Key), and our app has
+  neither. Any grant it minted would come out **keyless**: a member "in the circle" who can decrypt
+  nothing.
+
+  The real hazard is **confused deputy**. An app can *plant* a definition naming the banking drive,
+  and the next time the **owner** grants that circle — master key present — the grant machinery
+  sources the storage key from the master key and mints a fully *working* banking grant on the
+  app's behalf. So validate at definition-write time, not only at grant time.
 
 ## What this depends on
 
