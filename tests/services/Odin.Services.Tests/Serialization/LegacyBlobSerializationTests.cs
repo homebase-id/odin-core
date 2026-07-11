@@ -87,7 +87,7 @@ public class LegacyBlobSerializationTests
     [Test]
     public void ConnectionRequest_LegacySentRequestBlob_Deserializes()
     {
-        var request = OdinSystemSerializer.Deserialize<ConnectionRequest>(LegacyConnectionRequestBlob);
+        var request = OdinSystemSerializer.Deserialize<ConnectionRequest>(LegacyConnectionRequestBlob)!;
 
         Assert.That(request.PendingPeerKeyStore, Is.Not.Null,
             "pendingAccessExchangeGrant did not map to PendingPeerKeyStore - in-flight sent requests would lose their grant");
@@ -98,7 +98,7 @@ public class LegacyBlobSerializationTests
     [Test]
     public void IcrAccessRecord_LegacyConnectionsBlob_Deserializes()
     {
-        var record = OdinSystemSerializer.Deserialize<IcrAccessRecord>(LegacyIcrAccessRecordBlob);
+        var record = OdinSystemSerializer.Deserialize<IcrAccessRecord>(LegacyIcrAccessRecordBlob)!;
 
         Assert.That(record.PeerKeyStore, Is.Not.Null, "accessGrant did not map to PeerKeyStore");
         AssertPeerKeyStoreIsIntact(record.PeerKeyStore);
@@ -107,7 +107,7 @@ public class LegacyBlobSerializationTests
     [Test]
     public void AppRegistration_LegacyBlob_Deserializes()
     {
-        var registration = OdinSystemSerializer.Deserialize<AppRegistration>(LegacyAppRegistrationBlob);
+        var registration = OdinSystemSerializer.Deserialize<AppRegistration>(LegacyAppRegistrationBlob)!;
 
         Assert.That(registration.AppKeyStore, Is.Not.Null, "grant did not map to AppKeyStore");
         Assert.That(registration.AppKeyStore.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(MasterKey).GetKey(), Is.EqualTo(KeyStoreKey));
