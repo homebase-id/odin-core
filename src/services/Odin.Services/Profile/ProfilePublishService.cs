@@ -21,7 +21,7 @@ using Odin.Services.Drives.DriveCore.Query;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Drives.FileSystem.Standard;
 using Odin.Services.Drives.Management;
-using Odin.Services.LinkPreview.PersonMetadata;
+using Odin.Services.PublicPage.PersonMetadata;
 using Odin.Services.Mediator;
 using Odin.Services.Optimization.Cdn;
 
@@ -30,7 +30,7 @@ namespace Odin.Services.Profile;
 /// <summary>
 /// Republishes the public, static-file artifacts derived from profile attributes -- <c>sitedata.json</c>,
 /// <c>public_image.json</c> (served at <c>/pub/image</c>) and <c>public_profile.json</c> (served at
-/// <c>/pub/profile</c>, consumed server-side by <see cref="Odin.Services.LinkPreview.Profile.HomebaseProfileContentService"/>)
+/// <c>/pub/profile</c>, consumed server-side by <see cref="Odin.Services.PublicPage.Profile.HomebaseProfileContentService"/>)
 /// -- whenever a profile attribute changes. This is the server-side counterpart of odin-js's
 /// <c>publishProfile</c>/<c>publishProfileImage</c>/<c>publishProfileCard</c>
 /// (<c>packages/libs/js-lib/src/public/file/*</c>), which only fire from the owner-app's UI mutation hooks.

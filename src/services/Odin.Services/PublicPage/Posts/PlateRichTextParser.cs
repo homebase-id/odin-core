@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 
-namespace Odin.Services.LinkPreview.Posts;
+namespace Odin.Services.PublicPage.Posts;
 
 public static class PlateRichTextParser
 {

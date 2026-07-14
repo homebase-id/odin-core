@@ -15,7 +15,7 @@ using Odin.Services.Optimization.Cdn;
 using Odin.Services.Tenant;
 using Odin.Services.Util;
 using Odin.Core.Time;
-using Odin.Services.LinkPreview;
+using Odin.Services.PublicPage;
 
 namespace Odin.Hosting.Controllers.Anonymous
 {

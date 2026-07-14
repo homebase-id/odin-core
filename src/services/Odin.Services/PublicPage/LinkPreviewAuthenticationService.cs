@@ -10,7 +10,7 @@ using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 
-namespace Odin.Services.LinkPreview;
+namespace Odin.Services.PublicPage;
 
 public class LinkPreviewAuthenticationService(IDriveManager driveManager, TenantContext tenantContext)
 {
