@@ -569,20 +569,10 @@ namespace Odin.Services.Membership.Connections
                     icr.PeerKeyStore.CircleGrants.Add(circleGrant.CircleId, circleGrant);
                 }
 
-                //
                 // Check the apps.  If a circle being granted is authorized by an app
                 // ensure the new member gets the permissions given by the app
-                //
-                var allApps = await appRegistrationService.GetRegisteredAppsAsync(odinContext);
-                foreach (var grantedCircleId in convertedCircleIds.Append(circleId.Value).Distinct())
-                {
-                    var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == grantedCircleId) ?? false);
-                    foreach (var app in appsThatGrantThisCircle)
-                    {
-                        var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, grantedCircleId, storageKeySource);
-                        icr.PeerKeyStore.AddUpdateAppCircleGrant(appCircleGrant);
-                    }
-                }
+                await FanOutAppCircleGrantsAsync(icr, keyStoreKey, convertedCircleIds.Append(circleId.Value).Distinct(),
+                    storageKeySource, odinContext);
 
                 keyStoreKey.Wipe();
             }
@@ -1289,9 +1279,13 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Opportunistic deposit conversion at peer CAT auth — the peer's token reconstructs the
         /// key store key, which is exactly the "next accessed with the key in scope" moment.
-        /// Never fails the auth path. Note: app-authorized-circle grants (AppGrants) cannot be
-        /// fanned out here (their drive keys are beyond the peer's reach); the owner's next
-        /// grant touch does that.
+        /// Never fails the auth path. Also fans out AppCircleGrants for the converted circles, via
+        /// <see cref="NoStorageKeySource"/> since there is no master key here: any drive grant that
+        /// doesn't need Read (the common case -- e.g. Chat's Write|React grants) comes out fully
+        /// working; one that needs Read comes out keyless (permission recorded, no storage key) and
+        /// self-heals the next time <see cref="ReconcileAuthorizedCircles"/> runs for that app (i.e.
+        /// the owner changes that app's registration) — same deferred-key pattern already used for
+        /// introduction/auto-connect accepts.
         /// </summary>
         private async Task<bool> TryConvertDepositedGrantsAtPeerAuthAsync(IdentityConnectionRegistration icr,
             ClientAuthenticationToken remoteIcrToken, IOdinContext odinContext)
@@ -1307,6 +1301,9 @@ namespace Odin.Services.Membership.Connections
                 try
                 {
                     var convertedCircleIds = await ConvertDepositedGrantsAsync(icr.PeerKeyStore, keyStoreKey, odinContext);
+
+                    await FanOutAppCircleGrantsAsync(icr, keyStoreKey, convertedCircleIds, NoStorageKeySource.Instance, odinContext);
+
                     await this.SaveIcrAsync(icr, odinContext);
 
                     foreach (var convertedCircleId in convertedCircleIds)
@@ -1332,6 +1329,32 @@ namespace Odin.Services.Membership.Connections
             {
                 logger.LogWarning(e, "Failed converting deposited grants for {odinId}; auth continues", icr.OdinId);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// For each of <paramref name="grantedCircleIds"/>, finds every registered app that
+        /// authorizes that circle (<see cref="RedactedAppRegistration.AuthorizedCircles"/>) and
+        /// mints/updates that app's <see cref="AppCircleGrant"/> on <paramref name="icr"/>. Shared
+        /// by <see cref="GrantCircleAsync"/> (owner path, real keys via the master key) and
+        /// <see cref="TryConvertDepositedGrantsAtPeerAuthAsync"/> (peer-CAT path, no master key —
+        /// see that call site for the <see cref="NoStorageKeySource"/> tradeoff). Mutates
+        /// <paramref name="icr"/> in place; caller saves.
+        /// </summary>
+        private async Task FanOutAppCircleGrantsAsync(IdentityConnectionRegistration icr, SensitiveByteArray keyStoreKey,
+            IEnumerable<Guid> grantedCircleIds, IStorageKeySource storageKeySource, IOdinContext odinContext)
+        {
+            // GetAppsGrantingCircleAsync (unlike GetRegisteredAppsAsync) does not assert the master
+            // key -- required here since the peer-CAT caller (TryConvertDepositedGrantsAtPeerAuthAsync)
+            // never has one.
+            foreach (var grantedCircleId in grantedCircleIds)
+            {
+                var appsThatGrantThisCircle = await appRegistrationService.GetAppsGrantingCircleAsync(grantedCircleId, odinContext);
+                foreach (var app in appsThatGrantThisCircle)
+                {
+                    var appCircleGrant = await this.CreateAppCircleGrantAsync(app, keyStoreKey, grantedCircleId, storageKeySource);
+                    icr.PeerKeyStore.AddUpdateAppCircleGrant(appCircleGrant);
+                }
             }
         }
 
@@ -1657,45 +1680,67 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Iterates all connected identities and upgrades the master-key store-key encryption for any that
-        /// still require it (i.e. their grant was established without the owner's master key). Intended to be
-        /// run once before version migrations so downstream migration logic can assume identities are upgraded.
-        /// Identities that cannot be upgraded (e.g. no TempWeakKeyStoreKey to recover from) are left as-is and
-        /// self-heal later via the lazy circle-definition reconcile path. Returns the number of identities
-        /// upgraded and skipped so the caller can log a summary in its own trace.
+        /// Iterates all connected identities and (1) upgrades the master-key store-key encryption for any
+        /// that still require it (i.e. their grant was established without the owner's master key), and (2)
+        /// backfills the write-only <see cref="PeerKeyStore.WriteOnlyKeyPair"/> for any that predate it, so
+        /// apps can deposit circle grants via <see cref="CreateDepositedGrantAsync"/> without waiting for the
+        /// owner to first touch that specific connection. Intended to be run once before version migrations
+        /// so downstream migration logic can assume identities are upgraded. Identities that cannot be
+        /// upgraded (e.g. no TempWeakKeyStoreKey to recover from) are left as-is and self-heal later via the
+        /// lazy circle-definition reconcile path — the write-only keypair backfill is skipped for those too,
+        /// since it also needs the key store key. Returns the number of identities upgraded, skipped, and
+        /// keypair-provisioned so the caller can log a summary in its own trace.
         /// </summary>
-        public async Task<(int upgraded, int skipped)> UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(
+        public async Task<(int upgraded, int skipped, int keyPairsProvisioned)> UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(
             IOdinContext odinContext, CancellationToken cancellationToken)
         {
             odinContext.Caller.AssertHasMasterKey();
+            var masterKey = odinContext.Caller.GetMasterKey();
 
             var allIdentities = await GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
 
             var upgraded = 0;
             var skipped = 0;
+            var keyPairsProvisioned = 0;
             foreach (var identity in allIdentities.Results)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
+                var requiredKskUpgrade = identity.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade();
+                if (requiredKskUpgrade)
                 {
-                    continue;
+                    if (await TryUpgradeMasterKeyStoreKeyEncryptionAsync(identity, odinContext))
+                    {
+                        upgraded++;
+                    }
+                    else
+                    {
+                        skipped++;
+                        logger.LogWarning(
+                            "Identity {odinId} still requires master key encryption upgrade after attempt; leaving for lazy reconcile",
+                            identity.OdinId);
+                        continue;
+                    }
                 }
 
-                if (await TryUpgradeMasterKeyStoreKeyEncryptionAsync(identity, odinContext))
+                // The KSK upgrade above writes MasterKeyEncryptedPeerKey to the db; re-fetch so we decrypt
+                // the current stored value rather than the stale in-memory copy.
+                var current = requiredKskUpgrade
+                    ? await GetIdentityConnectionRegistrationInternalAsync(identity.OdinId)
+                    : identity;
+
+                if (current.PeerKeyStore.WriteOnlyKeyPair == null)
                 {
-                    upgraded++;
-                }
-                else
-                {
-                    skipped++;
-                    logger.LogWarning(
-                        "Identity {odinId} still requires master key encryption upgrade after attempt; leaving for lazy reconcile",
-                        identity.OdinId);
+                    var keyStoreKey = current.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
+                    current.PeerKeyStore.WriteOnlyKeyPair = PeerKeyStoreWriteOnlyKey.CreateKeyPair(keyStoreKey);
+                    keyStoreKey.Wipe();
+
+                    await SaveIcrAsync(current, odinContext);
+                    keyPairsProvisioned++;
                 }
             }
 
-            return (upgraded, skipped);
+            return (upgraded, skipped, keyPairsProvisioned);
         }
 
         private async Task<bool> UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(IdentityConnectionRegistration identity,
