@@ -7,6 +7,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.UnifiedV2;
 using Odin.Hosting.UnifiedV2.Connections;
+using Odin.Services.Membership.Connections;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -29,6 +30,9 @@ public interface IConnectionNetworkHttpClientApiV2
 
     [Get(Root + "/circles")]
     Task<ApiResponse<List<OdinId>>> GetCircleMembers(Guid circleId);
+
+    [Get(Root + "/status")]
+    Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo(string odinId);
 
     [Post(Root + "/circles/add")]
     Task<ApiResponse<HttpContent>> GrantCircle([Body] AddCircleMembershipRequest request);

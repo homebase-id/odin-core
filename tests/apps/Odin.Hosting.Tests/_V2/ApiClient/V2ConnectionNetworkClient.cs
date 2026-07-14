@@ -8,6 +8,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base.Membership.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
 using Odin.Hosting.UnifiedV2.Connections;
+using Odin.Services.Membership.Connections;
 using Refit;
 
 namespace Odin.Hosting.Tests._V2.ApiClient;
@@ -47,6 +48,13 @@ public class V2ConnectionNetworkClient(OdinId identity, IApiClientFactory factor
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
         return await svc.GetCircleMembers(circleId);
+    }
+
+    public async Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfoAsync(OdinId odinId)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionNetworkHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetConnectionInfo(odinId.ToString());
     }
 
     public async Task<ApiResponse<HttpContent>> GrantCircleAsync(Guid circleId, OdinId odinId)
