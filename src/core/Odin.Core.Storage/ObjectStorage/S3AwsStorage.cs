@@ -267,11 +267,6 @@ public class S3AwsStorage : IS3Storage
             throw new ArgumentOutOfRangeException(nameof(offset), "Length must be greater than 0");
         }
 
-        if (length == long.MaxValue)
-        {
-            length -= offset;
-        }
-
         // _logger.LogDebug("Requesting bytes from S3: Path={Path}, Offset={Offset}, Length={Length}", path, offset, length);
 
         S3Path.AssertFileName(path);
@@ -284,8 +279,25 @@ public class S3AwsStorage : IS3Storage
             {
                 BucketName = BucketName,
                 Key = path,
-                ByteRange = new ByteRange(offset, offset + length - 1)
             };
+
+            // length == long.MaxValue is the "read to end of object" sentinel (see the
+            // ReadBytesAsync(path) overload). Read the whole object with a plain GetObject (no Range
+            // header) instead of synthesizing a 'bytes=0-<huge>' range. A 'bytes=0-' range against a
+            // zero-length object is unsatisfiable on any compliant S3 (AWS included) and yields 416
+            // RequestedRangeNotSatisfiable; a rangeless GET returns 200 with the whole body (0 bytes
+            // for an empty object). For a from-offset read-to-end, use an open-ended suffix range.
+            if (length == long.MaxValue)
+            {
+                if (offset > 0)
+                {
+                    request.ByteRange = new ByteRange($"bytes={offset}-");
+                }
+            }
+            else
+            {
+                request.ByteRange = new ByteRange(offset, offset + length - 1);
+            }
 
             using var response = await _s3Client.GetObjectAsync(request, cancellationToken);
             await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
