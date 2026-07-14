@@ -255,7 +255,13 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
             }
             catch (OdinFileWriteException ofwe)
             {
-                logger.LogError(ofwe,
+                // A delete request whose target file isn't present (already deleted, or never
+                // received) is a benign, idempotent no-op, not a write failure worth an error. Any
+                // other instruction type that fails to write here is a genuine error.
+                var level = inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile
+                    ? LogLevel.Warning
+                    : LogLevel.Error;
+                logger.Log(level, ofwe,
                     "Issue Writing a file.  Action: Marking Complete. marker/popStamp: [{marker}]",
                     Utilities.BytesToHexString(inboxItem.Marker.ToByteArray()));
                 return (InboxReturnTypes.DeleteFromInbox, []);
