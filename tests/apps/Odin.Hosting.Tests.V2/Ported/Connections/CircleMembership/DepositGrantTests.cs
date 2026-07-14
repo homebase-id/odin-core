@@ -10,11 +10,13 @@ using Odin.Core.Identity;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
 using Odin.Hosting.Tests.V2.Peer;
+using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections.CircleMembership;
 
@@ -168,6 +170,79 @@ public class DepositGrantTests : V2Fixture
         var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleA, sam.Identity);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
             $"deposit against a connection with no write-only keypair should 400, got {response.StatusCode}");
+    }
+
+    [Test]
+    public async Task AppCannotGrantAdditionalCircle_ToAutoConnectedUnconfirmedIdentity()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        // The V2 auto-connect endpoint always lands the connection in
+        // ConnectionRequestOrigin.IdentityOwnerApp (CircleNetworkUtils.EnsureSystemCircles), which
+        // grants SystemCircleConstants.AutoConnectionsCircleId rather than ConfirmedConnectionsCircleId
+        // -- an auto-connected identity that hasn't been explicitly confirmed by the owner yet.
+        var header = new ConnectionRequestHeader
+        {
+            Recipient = sam.Identity,
+            Message = "auto-connect",
+            ContactData = new ContactRequestData { Name = "test" },
+            CircleIds = new List<GuidId>()
+        };
+        var autoConnect = await frodo.Connections.AutoConnectAsync(header);
+        Assert.That(autoConnect.IsSuccessStatusCode, Is.True, $"auto-connect failed: {autoConnect.StatusCode}");
+        Assert.That(autoConnect.Content!.Outcome, Is.EqualTo(AutoConnectOutcome.Connected));
+
+        var (_, circleA, app) = await SetupAppWithMatchingCircleAsync(frodo);
+
+        // Same guard GrantCircleAsync applies to the owner path -- exercised here via an app caller,
+        // which reaches the identical check before ever branching into the deposit logic.
+        var response = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleA, sam.Identity);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest),
+            $"app should not be able to grant an additional circle to an auto-connected, unconfirmed identity, got {response.StatusCode}");
+
+        var storage = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
+        var icr = await storage.GetAsync(sam.Identity);
+        Assert.That(icr!.PeerKeyStore.DepositedGrants.Any(d => d.CircleId == circleA), Is.False,
+            "no deposit should have been created for the blocked circle");
+    }
+
+    [Test]
+    public async Task PendingDeposit_IsVisibleAsPendingCircleId_ThenMovesToCircleGrants_OnConversion()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+        await PeerFlow.CreatePeerDriveAsync(frodo, sam, DrivePermission.Read, "baseline");
+
+        var (_, circleA, app) = await SetupAppWithMatchingCircleAsync(frodo);
+
+        var deposit = await new V2ConnectionNetworkClient(app.Identity, app.Factory).GrantCircleAsync(circleA, sam.Identity);
+        Assert.That(deposit.IsSuccessStatusCode, Is.True, $"deposit failed: {deposit.StatusCode}");
+
+        var infoBefore = await frodo.Connections.GetConnectionInfo(sam.Identity);
+        Assert.That(infoBefore.IsSuccessStatusCode, Is.True);
+        Assert.That(infoBefore.Content!.AccessGrant.PendingCircleIds, Does.Contain(circleA),
+            "circleA should be visible as pending before conversion");
+        Assert.That(infoBefore.Content.AccessGrant.CircleGrants.Any(cg => cg.CircleId == circleA), Is.False,
+            "circleA must not appear as a real grant yet");
+
+        // Owner touches a different circle on the same connection — the known trigger that also
+        // converts pending deposits (OwnerGrantConversionTests).
+        var circleB = Guid.NewGuid();
+        await frodo.Admin.CreateCircle(circleB, "circleB", new PermissionSetGrantRequest
+        {
+            Drives = new List<DriveGrantRequest>(),
+            PermissionSet = new PermissionSet(PermissionKeys.ReadWhoIFollow)
+        });
+        var ownerGrant = await new V2ConnectionNetworkClient(frodo.Identity, frodo.Factory).GrantCircleAsync(circleB, sam.Identity);
+        Assert.That(ownerGrant.IsSuccessStatusCode, Is.True, $"owner grant failed: {ownerGrant.StatusCode}");
+
+        var infoAfter = await frodo.Connections.GetConnectionInfo(sam.Identity);
+        Assert.That(infoAfter.IsSuccessStatusCode, Is.True);
+        Assert.That(infoAfter.Content!.AccessGrant.PendingCircleIds, Does.Not.Contain(circleA),
+            "circleA should no longer be reported pending once converted");
+        Assert.That(infoAfter.Content.AccessGrant.CircleGrants.Any(cg => cg.CircleId == circleA), Is.True,
+            "circleA should now appear as a real grant");
     }
 
     /// <summary>

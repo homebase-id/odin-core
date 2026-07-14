@@ -74,7 +74,8 @@ public class PeerKeyStore
         {
             IsRevoked = this.IsRevoked,
             CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
-            AppGrants = this.AppGrants.ToDictionary(k => k.Key, pair => pair.Value.Values.Select(v => v.Redacted()))
+            AppGrants = this.AppGrants.ToDictionary(k => k.Key, pair => pair.Value.Values.Select(v => v.Redacted())),
+            PendingCircleIds = this.DepositedGrants.Select(d => d.CircleId.Value).ToList()
         };
     }
 
@@ -89,4 +90,11 @@ public class RedactedPeerKeyStore
     public bool IsRevoked { get; set; }
     public List<RedactedCircleGrant> CircleGrants { get; set; }
     public Dictionary<Guid, IEnumerable<RedactedAppCircleGrant>> AppGrants { get; set; }
+
+    /// <summary>
+    /// Circles deposited via an app's write-only grant but not yet converted into a real
+    /// <see cref="CircleGrant"/> — the identity is not yet a member of these, but will be as
+    /// soon as the Peer Key is next in scope (owner grant touch or peer CAT auth).
+    /// </summary>
+    public List<Guid> PendingCircleIds { get; set; }
 }
