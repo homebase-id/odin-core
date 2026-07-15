@@ -49,11 +49,19 @@ public sealed class AppSession : IV2Caller
     /// app the requested <paramref name="drivePermission"/> on <paramref name="targetDrive"/>.
     /// Caller is responsible for having already created the drive.
     /// </summary>
+    /// <summary>
+    /// As the main overload, but also lets the app be registered with <paramref name="authorizedCircles"/>
+    /// and a <paramref name="circleMemberGrantRequest"/> — needed for tests exercising
+    /// <c>CircleNetworkService.FanOutAppCircleGrantsAsync</c> (e.g. a Chat-shaped app that grants circle
+    /// members Write/React on a drive once they're added to one of its authorized circles).
+    /// </summary>
     public static async Task<AppSession> SetupAsync(
         OwnerSession owner,
         TargetDrive targetDrive,
         DrivePermission drivePermission,
-        IReadOnlyList<int>? permissionKeys = null)
+        IReadOnlyList<int>? permissionKeys = null,
+        List<Guid>? authorizedCircles = null,
+        PermissionSetGrantRequest? circleMemberGrantRequest = null)
     {
         var appId = Guid.NewGuid();
         var permissions = new PermissionSetGrantRequest
@@ -72,7 +80,7 @@ public sealed class AppSession : IV2Caller
             PermissionSet = new PermissionSet(permissionKeys is null ? new List<int>() : new List<int>(permissionKeys))
         };
 
-        await owner.Admin.RegisterApp(appId, permissions);
+        await owner.Admin.RegisterApp(appId, permissions, authorizedCircles, circleMemberGrantRequest);
         var (token, sharedSecret) = await owner.Admin.RegisterAppClient(appId);
 
         return new AppSession(owner.Host, owner.Identity, appId, token, sharedSecret);

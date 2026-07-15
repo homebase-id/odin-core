@@ -146,8 +146,11 @@ namespace Odin.Services.Peer.Incoming.Drive.Transfer
 
             if (clientFileHeader == null)
             {
-                // this is bad error.
-                logger.LogError(
+                // Benign: a delete request for a file we don't have (already deleted, or never
+                // received). It's an idempotent no-op, not an error. Log at warning; the
+                // OdinFileWriteException is handled in PeerInboxProcessor, which drops the item from
+                // the inbox (DeleteFromInbox).
+                logger.LogWarning(
                     "[DeleteFlow] PeerFileWriter.DeleteFile -> Cannot find the metadata file (global transit id:{globalTransitId} on DriveId:{driveId}) was not found",
                     item.GlobalTransitId, item.DriveId);
                 throw new OdinFileWriteException("Missing file by global transit id while file while processing delete request in inbox");

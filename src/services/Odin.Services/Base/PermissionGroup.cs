@@ -155,11 +155,6 @@ public class PermissionGroup : IGenericCloneable<PermissionGroup>
         return _encryptedIcrKey?.DecryptKeyClone(key);
     }
 
-    public SensitiveByteArray? GetKeyStoreKey()
-    {
-        return this._keyStoreKey;
-    }
-
     public RedactedPermissionGroup Redacted()
     {
         if (null == _permissionSet)

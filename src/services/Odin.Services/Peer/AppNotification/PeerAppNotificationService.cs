@@ -169,7 +169,7 @@ public class PeerAppNotificationService : PeerServiceBase
                 return null;
             }
 
-            var accessReg = peerIcrClient.AccessRegistration;
+            var accessReg = peerIcrClient.ServerHalfOfClientKey;
             var odinContext =
                 await CircleNetworkService.TryCreateConnectedYouAuthContextAsync(peerIcrClient.Identity, token, accessReg,
                     currentOdinContext);
@@ -196,7 +196,7 @@ public class PeerAppNotificationService : PeerServiceBase
             return (false, null);
         }
 
-        if (peerIcrClient.AccessRegistration.IsRevoked) // || reg.IsRevoked
+        if (peerIcrClient.ServerHalfOfClientKey.IsRevoked) // || reg.IsRevoked
         {
             return (false, null);
         }
