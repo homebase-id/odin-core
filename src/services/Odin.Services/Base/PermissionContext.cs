@@ -15,6 +15,7 @@ namespace Odin.Services.Base
     public class PermissionContext : IGenericCloneable<PermissionContext>
     {
         private readonly bool _isSystem = false;
+        private readonly SensitiveByteArray _keyStoreKey;
         public SensitiveByteArray SharedSecretKey { get; private set; }
         internal Dictionary<string, PermissionGroup> PermissionGroups { get; }
 
@@ -31,16 +32,19 @@ namespace Odin.Services.Base
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
-            bool isSystem = false)
+            bool isSystem = false,
+            SensitiveByteArray keyStoreKey = null)
         {
             SharedSecretKey = sharedSecretKey;
             PermissionGroups = permissionGroups ?? new Dictionary<string, PermissionGroup>();
             _isSystem = isSystem;
+            _keyStoreKey = keyStoreKey;
         }
 
         public PermissionContext(PermissionContext other)
         {
             _isSystem = other._isSystem;
+            _keyStoreKey = other._keyStoreKey?.Clone();
             SharedSecretKey = other.SharedSecretKey?.Clone();
             PermissionGroups = new Dictionary<string, PermissionGroup>();
             foreach (var (key, value) in other.PermissionGroups)
@@ -61,32 +65,22 @@ namespace Odin.Services.Base
 
         public SensitiveByteArray DecryptUsingKeyStoreKey(SymmetricKeyEncryptedAes encryptedKeyStoreKey)
         {
-            // TODO: need to move the key store key storage to this
-            // upper class rather than having to hunt thru the permission groups
-            
-            var groupWithKey = PermissionGroups.Values.FirstOrDefault(group => group.GetKeyStoreKey()?.IsSet() ?? false);
-
-            if (null == groupWithKey)
-            {
-                throw new OdinSecurityException($"No key store key found");
-            }
-            
-            return encryptedKeyStoreKey.DecryptKeyClone(groupWithKey.GetKeyStoreKey());
+            return encryptedKeyStoreKey.DecryptKeyClone(GetKeyStoreKey());
         }
-        
+
+        /// <summary>
+        /// The hub key of the authenticated principal this context was created for: the caller's
+        /// grant key store key (CAT-derived) or, for the owner, the master key. Contexts built
+        /// without one (anonymous, system, follower) have none and this throws.
+        /// </summary>
         public SensitiveByteArray GetKeyStoreKey()
         {
-            // TODO: need to move the key store key storage to this
-            // upper class rather than having to hunt thru the permission groups
-            
-            var groupWithKey = PermissionGroups.Values.FirstOrDefault(group => group.GetKeyStoreKey()?.IsSet() ?? false);
-
-            if (null == groupWithKey)
+            if (!(_keyStoreKey?.IsSet() ?? false))
             {
-                throw new OdinSecurityException($"No key store key found");
+                throw new OdinSecurityException("No key store key found");
             }
 
-            return groupWithKey.GetKeyStoreKey();
+            return _keyStoreKey;
         }
 
         public SensitiveByteArray GetIcrKey(bool failIfNotFound = true)

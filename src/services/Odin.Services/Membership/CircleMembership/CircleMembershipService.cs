@@ -163,7 +163,8 @@ public class CircleMembershipService(
 
     // Grants
 
-    public async Task<CircleGrant> CreateCircleGrantAsync(SensitiveByteArray keyStoreKey, CircleDefinition def, SensitiveByteArray masterKey,
+    public async Task<CircleGrant> CreateCircleGrantAsync(SensitiveByteArray keyStoreKey, CircleDefinition def,
+        IStorageKeySource storageKeySource,
         IOdinContext odinContext)
     {
         if (null == def)
@@ -172,12 +173,13 @@ public class CircleMembershipService(
         }
 
         //map the exchange grant to a structure that matches ICR
-        var grant = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, def.Permissions, def.DriveGrants, masterKey,
-            icrKey: null);
+        //(the KeyStore wrapper is discarded, so no master key wrap is needed here)
+        var grant = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, def.Permissions, def.DriveGrants,
+            storageKeySource, masterKey: null, icrKey: null);
         return new CircleGrant()
         {
             CircleId = def.Id,
-            KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+            KeyStoreKeyEncryptedDriveGrants = grant.DriveGrants,
             PermissionSet = grant.PermissionSet
         };
     }
@@ -186,18 +188,18 @@ public class CircleMembershipService(
         SensitiveByteArray keyStoreKey,
         List<GuidId> circleIds,
         ConnectionRequestOrigin origin,
-        SensitiveByteArray masterKey,
+        IStorageKeySource storageKeySource,
         IOdinContext odinContext)
     {
         var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
-        return await this.CreateCircleGrantListAsync(keyStoreKey, list, masterKey, odinContext);
+        return await this.CreateCircleGrantListAsync(keyStoreKey, list, storageKeySource, odinContext);
     }
 
 
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListAsync(
         SensitiveByteArray keyStoreKey,
         List<GuidId> circleIds,
-        SensitiveByteArray masterKey,
+        IStorageKeySource storageKeySource,
         IOdinContext odinContext)
     {
         var deduplicated = circleIds.Distinct().ToList();
@@ -218,7 +220,7 @@ public class CircleMembershipService(
                 throw new OdinSystemException($"Missing circle Id {id}");
             }
 
-            var cg = await this.CreateCircleGrantAsync(keyStoreKey, def, masterKey, null);
+            var cg = await this.CreateCircleGrantAsync(keyStoreKey, def, storageKeySource, null);
 
 
             if (!circleGrants.TryAdd(id.Value, cg))
@@ -230,7 +232,7 @@ public class CircleMembershipService(
         return circleGrants;
     }
 
-    public async Task<(Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles)> MapCircleGrantsToExchangeGrantsAsync(
+    public async Task<(Dictionary<Guid, KeyStore> exchangeGrants, List<GuidId> enabledCircles)> MapCircleGrantsToExchangeGrantsAsync(
         AsciiDomainName domainName,
         List<CircleGrant> circleGrants,
         IOdinContext odinContext)
@@ -241,7 +243,7 @@ public class CircleMembershipService(
         // Note: remember that all connected users are added to a system
         // circle; this circle has grants to all drives marked allowAnonymous == true
 
-        var grants = new Dictionary<Guid, ExchangeGrant>();
+        var grants = new Dictionary<Guid, KeyStore>();
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)
         {
@@ -249,13 +251,13 @@ public class CircleMembershipService(
             if (enabled)
             {
                 enabledCircles.Add(cg.CircleId);
-                grants.Add(cg.CircleId, new ExchangeGrant()
+                grants.Add(cg.CircleId, new KeyStore()
                 {
                     Created = 0,
                     Modified = 0,
                     IsRevoked = false, //TODO
 
-                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                    DriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
                     KeyStoreKeyEncryptedIcrKey = null, //not required since this is not being created for the owner
                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                     PermissionSet = cg.PermissionSet

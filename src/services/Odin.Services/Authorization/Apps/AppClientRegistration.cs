@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -18,21 +19,24 @@ public sealed class AppClientRegistration : IClientRegistration
         // for json
     }
 
-    public AppClientRegistration(OdinId ownerOdinId, GuidId appId, string friendlyName, AccessRegistration accessRegistration)
+    public AppClientRegistration(OdinId ownerOdinId, GuidId appId, string friendlyName, ServerHalfOfClientKey serverHalfOfClientKey)
     {
         GuidId.AssertIsValid(appId);
 
         AppId = appId;
         FriendlyName = friendlyName;
-        AccessRegistration = accessRegistration;
+        ServerHalfOfClientKey = serverHalfOfClientKey;
         IssuedTo = ownerOdinId;
     }
 
     public GuidId AppId { get; init; }
-    public AccessRegistration AccessRegistration { get; init; }
+
+    [JsonPropertyName("accessRegistration")]
+    public ServerHalfOfClientKey ServerHalfOfClientKey { get; init; }
+    
     public string FriendlyName { get; init; }
 
-    public Guid Id => this.AccessRegistration.Id;
+    public Guid Id => this.ServerHalfOfClientKey.Id;
 
     public string IssuedTo { get; set; }
 

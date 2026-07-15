@@ -131,8 +131,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                         "icr2.Status={s2} icr2.LastUpdated={u2} icr2.IsConnected={c2} icr2.HasAccessGrant={g2} " +
                         "tenant={tenant}",
                         recipient,
-                        icr1?.Status, icr1?.LastUpdated, icr1?.IsConnected(), icr1?.AccessGrant != null,
-                        icr2?.Status, icr2?.LastUpdated, icr2?.IsConnected(), icr2?.AccessGrant != null,
+                        icr1?.Status, icr1?.LastUpdated, icr1?.IsConnected(), icr1?.PeerKeyStore != null,
+                        icr2?.Status, icr2?.LastUpdated, icr2?.IsConnected(), icr2?.PeerKeyStore != null,
                         odinContext.Tenant);
                     return false;
                 }

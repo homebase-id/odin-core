@@ -18,6 +18,7 @@ using Odin.Services.Configuration.VersionUpgrade.Version7tov8;
 using Odin.Services.Configuration.VersionUpgrade.Version8tov9;
 using Odin.Services.Configuration.VersionUpgrade.Version9tov10;
 using Odin.Services.Configuration.VersionUpgrade.Version10tov11;
+using Odin.Services.Configuration.VersionUpgrade.Version11tov12;
 using Odin.Services.Membership.Connections;
 
 namespace Odin.Services.Configuration.VersionUpgrade;
@@ -36,6 +37,7 @@ public class VersionUpgradeService(
     V8ToV9VersionMigrationService v9,
     V9ToV10VersionMigrationService v10,
     V10ToV11VersionMigrationService v11,
+    V11ToV12VersionMigrationService v12,
     IdentityDatabase db,
     OwnerAuthenticationService authService,
     CircleNetworkService circleNetworkService,
@@ -74,10 +76,12 @@ public class VersionUpgradeService(
 
         try
         {
-            // Bring all connected identities up to the current master-key store-key encryption scheme
-            // before running any migration. Migrations that re-grant circles dereference the
-            // MasterKeyEncryptedKeyStoreKey, which is null on grants established without the owner's
-            // master key; upgrading up front lets the version ladder assume that invariant.
+            // Bring all connected identities up to the current master-key store-key encryption scheme,
+            // and backfill the write-only Peer Key Store keypair, before running any migration.
+            // Migrations that re-grant circles dereference the MasterKeyEncryptedKeyStoreKey, which is
+            // null on grants established without the owner's master key; upgrading up front lets the
+            // version ladder assume that invariant. The keypair backfill is piggybacked on the same
+            // pass since it needs the same decrypted key store key.
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
@@ -86,11 +90,12 @@ public class VersionUpgradeService(
             await using (var encTx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken))
             {
                 _isRunning = true;
-                var (upgraded, skipped) =
+                var (upgraded, skipped, keyPairsProvisioned) =
                     await circleNetworkService.UpgradeMasterKeyStoreKeyEncryptionForConnectedIdentitiesAsync(odinContext, cancellationToken);
                 encTx.Commit();
                 logger.LogInformation(
-                    LogTag + " Master key encryption pre-pass complete: {upgraded} upgraded, {skipped} skipped", upgraded, skipped);
+                    LogTag + " Master key encryption pre-pass complete: {upgraded} upgraded, {skipped} skipped, {keyPairsProvisioned} write-only keypairs provisioned",
+                    upgraded, skipped, keyPairsProvisioned);
             }
 
             // Ensure every system drive exists before running any migration. EnsureSystemDrivesExist is
@@ -345,6 +350,29 @@ public class VersionUpgradeService(
                 await v11.UpgradeAsync(odinContext, cancellationToken);
 
                 await v11.ValidateUpgradeAsync(odinContext, cancellationToken);
+
+                currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
+
+                tx.Commit();
+                logger.LogInformation(LogTag + " Upgrading to v{currentVersion} successful", currentVersion);
+            }
+
+            // do this after each version upgrade
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (currentVersion == 11)
+            {
+                await using var tx = await db.BeginStackedTransactionAsync(cancellationToken: cancellationToken);
+
+                _isRunning = true;
+                logger.LogInformation(LogTag + " Upgrading from v{currentVersion}", currentVersion);
+
+                await v12.UpgradeAsync(odinContext, cancellationToken);
+
+                await v12.ValidateUpgradeAsync(odinContext, cancellationToken);
 
                 currentVersion = (await tenantConfigService.IncrementVersionAsync()).DataVersionNumber;
 

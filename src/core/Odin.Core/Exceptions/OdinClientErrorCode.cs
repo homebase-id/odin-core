@@ -80,6 +80,7 @@ public enum OdinClientErrorCode
     MissingPayloadKeys = 4170,
     ThumbnailTooLarge = 4171,
     MustRotateKeyHeaderIvWhenUpdating = 4172,
+    CannotSourceDriveStorageKeyForGrant = 4173,
 
 
     // Connection errors 50xx
