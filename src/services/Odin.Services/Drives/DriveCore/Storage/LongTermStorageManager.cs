@@ -405,6 +405,20 @@ namespace Odin.Services.Drives.DriveCore.Storage
             var path = _tenantPathManager.GetLongTermPayloadDirectoryAndFileNameFromExtension(drive.Id, fileId, extension);
             var bytesWritten = await longTermPayloadStore.WriteStreamAsync(path, stream);
 
+            // A payload/thumbnail is never legitimately zero bytes. A zero-byte write means the
+            // incoming (non-seekable, forward-only) peer stream was already drained, typically because
+            // an earlier attempt consumed it before a transient store error and the retry re-read an
+            // empty stream. Committing the file header over an empty object leaves a permanently
+            // unreadable payload: every subsequent read requests 'bytes=0-' and the store returns 416
+            // RequestedRangeNotSatisfiable. Fail the transfer (HTTP 500 -> sender retries) instead of
+            // persisting corruption.
+            if (bytesWritten == 0)
+            {
+                throw new OdinSystemException(
+                    $"Direct-to-long-term write produced 0 bytes for '{path}'. " +
+                    "Refusing to commit an empty payload/thumbnail.");
+            }
+
             logger.LogDebug("Payload streamed directly to long-term: {path} ({bytes} bytes)", path, bytesWritten);
             return bytesWritten;
         }
