@@ -10,5 +10,5 @@ public class IdentityConnectionRegistrationClient
 
     public OdinId OdinId { get; init; }
 
-    public AccessRegistration AccessRegistration { get; init; }
+    public ServerHalfOfClientKey ServerHalfOfClientKey { get; init; }
 }

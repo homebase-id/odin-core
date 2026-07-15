@@ -83,7 +83,7 @@ namespace Odin.Services.Authorization.Apps
             {
                 AppId = request.AppId,
                 Name = request.Name,
-                Grant = appGrant,
+                AppKeyStore = appGrant,
 
                 CorsHostName = request.CorsHostName,
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
@@ -109,7 +109,7 @@ namespace Odin.Services.Authorization.Apps
             //TODO: Should we regen the key store key?  
 
             var masterKey = odinContext.Caller.GetMasterKey();
-            var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
+            var keyStoreKey = appReg.AppKeyStore.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(masterKey);
             var hasTransit = this.HasRequestedTransit(request.PermissionSet);
             var icrKey = hasTransit ? await icrKeyService.GetDecryptedIcrKeyAsync(odinContext) : null;
 
@@ -132,7 +132,7 @@ namespace Odin.Services.Authorization.Apps
                 }
             }
 
-            appReg.Grant = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives, masterKey,
+            appReg.AppKeyStore = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives, masterKey,
                 icrKey);
 
             await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
@@ -178,7 +178,7 @@ namespace Odin.Services.Authorization.Apps
             {
                 AppId = oldRegistration.AppId,
                 Name = oldRegistration.Name,
-                Grant = oldRegistration.Grant,
+                AppKeyStore = oldRegistration.AppKeyStore,
                 CorsHostName = oldRegistration.CorsHostName,
 
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
@@ -207,7 +207,7 @@ namespace Odin.Services.Authorization.Apps
 
             var masterKey = odinContext.Caller.GetMasterKey();
             var (accessRegistration, cat) =
-                await exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.App);
+                await exchangeGrantService.CreateClientAccessToken(appReg.AppKeyStore, masterKey, ClientTokenType.App);
 
             var appClient = new AppClientRegistration(odinContext.Tenant, appId, friendlyName, accessRegistration);
             await SaveClientAsync(appClient);
@@ -237,9 +237,9 @@ namespace Odin.Services.Authorization.Apps
                     AppUtil.AssertValidCorsHeader(appReg.CorsHostName);
                 }
 
-                var grantDictionary = new Dictionary<Guid, ExchangeGrant>
+                var grantDictionary = new Dictionary<Guid, KeyStore>
                 {
-                    { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant }
+                    { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.AppKeyStore }
                 };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
@@ -276,7 +276,7 @@ namespace Odin.Services.Authorization.Apps
             return result;
         }
 
-        public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
+        public async Task<(bool isValid, ServerHalfOfClientKey? accessReg, AppRegistration? appRegistration)> ValidateClientAuthTokenAsync(
             ClientAuthenticationToken authToken, IOdinContext odinContext)
         {
             var appClient = await clientRegistrationStorage.GetAsync<AppClientRegistration>(authToken.Id);
@@ -288,19 +288,19 @@ namespace Odin.Services.Authorization.Apps
 
             var appReg = await this.GetAppRegistrationInternalAsync(appClient.AppId);
 
-            if (null == appReg || null == appReg.Grant)
+            if (null == appReg || null == appReg.AppKeyStore)
             {
                 logger.LogDebug("null app registration or app registration grant");
                 return (false, null, null);
             }
 
-            if (appClient.AccessRegistration.IsRevoked || appReg.Grant.IsRevoked)
+            if (appClient.ServerHalfOfClientKey.IsRevoked || appReg.AppKeyStore.IsRevoked)
             {
                 logger.LogDebug("app client or app is revoked");
                 return (false, null, null);
             }
 
-            return (true, appClient.AccessRegistration, appReg);
+            return (true, appClient.ServerHalfOfClientKey, appReg);
         }
 
         public async Task<List<RedactedAppRegistration>> GetAppsGrantingCircleAsync(Guid circleId, IOdinContext odinContext)
@@ -315,7 +315,7 @@ namespace Odin.Services.Authorization.Apps
             if (null != appReg)
             {
                 //TODO: do we do anything with storage DEK here?
-                appReg.Grant.IsRevoked = true;
+                appReg.AppKeyStore.IsRevoked = true;
             }
 
             //TODO: revoke all clients? or is the one flag enough?
@@ -331,7 +331,7 @@ namespace Odin.Services.Authorization.Apps
             if (null != appReg)
             {
                 //TODO: do we do anything with storage DEK here?
-                appReg.Grant.IsRevoked = false;
+                appReg.AppKeyStore.IsRevoked = false;
             }
 
             await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
@@ -358,11 +358,11 @@ namespace Odin.Services.Authorization.Apps
             var resp = list.Where(appClient => appClient.AppId == appId).Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
-                AccessRegistrationId = appClient.AccessRegistration.Id,
+                AccessRegistrationId = appClient.ServerHalfOfClientKey.Id,
                 FriendlyName = appClient.FriendlyName,
-                IsRevoked = appClient.AccessRegistration.IsRevoked,
-                Created = appClient.AccessRegistration.Created,
-                AccessRegistrationClientType = appClient.AccessRegistration.AccessRegistrationClientType
+                IsRevoked = appClient.ServerHalfOfClientKey.IsRevoked,
+                Created = appClient.ServerHalfOfClientKey.Created,
+                AccessRegistrationClientType = appClient.ServerHalfOfClientKey.AccessRegistrationClientType
             }).ToList();
 
             return resp;
@@ -378,7 +378,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            client.AccessRegistration.IsRevoked = true;
+            client.ServerHalfOfClientKey.IsRevoked = true;
             await SaveClientAsync(client);
         }
 
@@ -433,7 +433,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            client.AccessRegistration.IsRevoked = false;
+            client.ServerHalfOfClientKey.IsRevoked = false;
             await SaveClientAsync(client);
         }
 
