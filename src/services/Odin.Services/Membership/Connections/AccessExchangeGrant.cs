@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Data;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -11,10 +10,9 @@ namespace Odin.Services.Membership.Connections;
 /// <summary>
 /// Bundles the exchange grant and access registration given to a single <see cref="IdentityConnectionRegistration"/>
 /// </summary>
-public class PeerKeyStore
+public class AccessExchangeGrant
 {
-    [JsonPropertyName("masterKeyEncryptedKeyStoreKey")]
-    public SymmetricKeyEncryptedAes MasterKeyEncryptedPeerKey { get; set; }
+    public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
 
     /// <summary>
     /// The permissions granted from a given circle.  The key is the circle Id.
@@ -26,8 +24,7 @@ public class PeerKeyStore
     /// </summary>
     public Dictionary<Guid, Dictionary<Guid, AppCircleGrant>> AppGrants { get; set; } = new();
 
-    [JsonPropertyName("accessRegistration")]
-    public ServerHalfOfClientKey PeerClientKey { get; set; }
+    public AccessRegistration AccessRegistration { get; set; }
 
     /// <summary>
     /// if true, revokes access while remaining connected.
@@ -48,12 +45,12 @@ public class PeerKeyStore
 
     public bool IsValid()
     {
-        return !IsRevoked && !this.PeerClientKey.IsRevoked;
+        return !IsRevoked && !this.AccessRegistration.IsRevoked;
     }
 
-    public RedactedPeerKeyStore Redacted()
+    public RedactedAccessExchangeGrant Redacted()
     {
-        return new RedactedPeerKeyStore()
+        return new RedactedAccessExchangeGrant()
         {
             IsRevoked = this.IsRevoked,
             CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
@@ -63,11 +60,11 @@ public class PeerKeyStore
 
     public bool RequiresMasterKeyEncryptionUpgrade()
     {
-        return MasterKeyEncryptedPeerKey == null;
+        return MasterKeyEncryptedKeyStoreKey == null;
     }
 }
 
-public class RedactedPeerKeyStore
+public class RedactedAccessExchangeGrant
 {
     public bool IsRevoked { get; set; }
     public List<RedactedCircleGrant> CircleGrants { get; set; }

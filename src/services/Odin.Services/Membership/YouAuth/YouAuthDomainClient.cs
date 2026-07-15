@@ -1,5 +1,4 @@
 using System;
-using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Core.Serialization;
 using Odin.Core.Util;
@@ -14,21 +13,18 @@ public sealed class YouAuthDomainClient : IClientRegistration
         // for json
     }
 
-    public YouAuthDomainClient(AsciiDomainName domain, string friendlyName, ServerHalfOfClientKey serverHalfOfClientKey)
+    public YouAuthDomainClient(AsciiDomainName domain, string friendlyName, AccessRegistration accessRegistration)
     {
         Domain = domain;
-        ServerHalfOfClientKey = serverHalfOfClientKey;
+        AccessRegistration = accessRegistration;
         FriendlyName = friendlyName;
     }
 
     public AsciiDomainName Domain { get; init; }
-
-    [JsonPropertyName("accessRegistration")]
-    public ServerHalfOfClientKey ServerHalfOfClientKey { get; init; }
-
+    public AccessRegistration AccessRegistration { get; init; }
     public string FriendlyName { get; init; }
 
-    public Guid Id => this.ServerHalfOfClientKey.Id;
+    public Guid Id => this.AccessRegistration.Id;
 
     public string IssuedTo => this.Domain.DomainName;
     public int Type => 408;

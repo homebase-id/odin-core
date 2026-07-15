@@ -208,11 +208,11 @@ namespace Odin.Services.Membership.YouAuth
                 new RedactedYouAuthDomainClient()
                 {
                     Domain = domainClient.Domain,
-                    AccessRegistrationId = domainClient.ServerHalfOfClientKey.Id,
+                    AccessRegistrationId = domainClient.AccessRegistration.Id,
                     FriendlyName = domainClient.FriendlyName,
-                    IsRevoked = domainClient.ServerHalfOfClientKey.IsRevoked,
-                    Created = domainClient.ServerHalfOfClientKey.Created,
-                    AccessRegistrationClientType = domainClient.ServerHalfOfClientKey.AccessRegistrationClientType
+                    IsRevoked = domainClient.AccessRegistration.IsRevoked,
+                    Created = domainClient.AccessRegistration.Created,
+                    AccessRegistrationClientType = domainClient.AccessRegistration.AccessRegistrationClientType
                 }).ToList();
 
             return resp;
@@ -276,7 +276,7 @@ namespace Odin.Services.Membership.YouAuth
             await using var tx = await db.BeginStackedTransactionAsync();
             foreach (var c in clientsByDomain)
             {
-                await ClientStorage.DeleteAsync(db.KeyThreeValueCached, c.ServerHalfOfClientKey.Id);
+                await ClientStorage.DeleteAsync(db.KeyThreeValueCached, c.AccessRegistration.Id);
             }
 
             await DomainStorage.DeleteAsync(db.KeyThreeValueCached, GetDomainKey(domain));
@@ -385,7 +385,7 @@ namespace Odin.Services.Membership.YouAuth
             return result;
         }
 
-        private async Task<(bool isValid, ServerHalfOfClientKey? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)>
+        private async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)>
             ValidateClientAuthTokenAsync(
                 ClientAuthenticationToken authToken)
         {
@@ -402,19 +402,19 @@ namespace Odin.Services.Membership.YouAuth
                 return (false, null, null);
             }
 
-            if (domainClient.ServerHalfOfClientKey.IsRevoked || reg.IsRevoked)
+            if (domainClient.AccessRegistration.IsRevoked || reg.IsRevoked)
             {
                 return (false, null, null);
             }
 
-            return (true, domainClient.ServerHalfOfClientKey, reg);
+            return (true, domainClient.AccessRegistration, reg);
         }
 
         // 
 
         private async Task SaveClientAsync(YouAuthDomainClient youAuthDomainClient)
         {
-            await ClientStorage.UpsertAsync(db.KeyThreeValueCached, youAuthDomainClient.ServerHalfOfClientKey.Id,
+            await ClientStorage.UpsertAsync(db.KeyThreeValueCached, youAuthDomainClient.AccessRegistration.Id,
                 GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
                 ClientDataType,
                 youAuthDomainClient);
@@ -488,7 +488,7 @@ namespace Odin.Services.Membership.YouAuth
         private async Task<IOdinContext> CreateAuthenticatedContextForYouAuthDomainAsync(
             ClientAuthenticationToken authToken,
             YouAuthDomainRegistration domainRegistration,
-            ServerHalfOfClientKey accessReg,
+            AccessRegistration accessReg,
             IOdinContext odinContext)
         {
             if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))

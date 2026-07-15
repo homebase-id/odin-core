@@ -177,7 +177,7 @@ public class CircleMembershipService(
         return new CircleGrant()
         {
             CircleId = def.Id,
-            KeyStoreKeyEncryptedDriveGrants = grant.DriveGrants,
+            KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
             PermissionSet = grant.PermissionSet
         };
     }
@@ -230,7 +230,7 @@ public class CircleMembershipService(
         return circleGrants;
     }
 
-    public async Task<(Dictionary<Guid, KeyStore> exchangeGrants, List<GuidId> enabledCircles)> MapCircleGrantsToExchangeGrantsAsync(
+    public async Task<(Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles)> MapCircleGrantsToExchangeGrantsAsync(
         AsciiDomainName domainName,
         List<CircleGrant> circleGrants,
         IOdinContext odinContext)
@@ -241,7 +241,7 @@ public class CircleMembershipService(
         // Note: remember that all connected users are added to a system
         // circle; this circle has grants to all drives marked allowAnonymous == true
 
-        var grants = new Dictionary<Guid, KeyStore>();
+        var grants = new Dictionary<Guid, ExchangeGrant>();
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)
         {
@@ -249,13 +249,13 @@ public class CircleMembershipService(
             if (enabled)
             {
                 enabledCircles.Add(cg.CircleId);
-                grants.Add(cg.CircleId, new KeyStore()
+                grants.Add(cg.CircleId, new ExchangeGrant()
                 {
                     Created = 0,
                     Modified = 0,
                     IsRevoked = false, //TODO
 
-                    DriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
                     KeyStoreKeyEncryptedIcrKey = null, //not required since this is not being created for the owner
                     MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                     PermissionSet = cg.PermissionSet
