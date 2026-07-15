@@ -12,6 +12,11 @@ namespace Odin.Services.Authorization.Permissions
 
         public const int ReadCircleMembership = 50;
 
+        /// <summary>
+        /// Add/remove an OdinId to/from a circle without the master key (e.g. from an app).
+        /// </summary>
+        public const int ManageCircleMembership = 51;
+
         public const int ReadWhoIFollow = 80;
 
         public const int ReadMyFollowers = 130;
@@ -44,6 +49,7 @@ namespace Odin.Services.Authorization.Permissions
             ReadConnections,
             ReadConnectionRequests,
             ReadCircleMembership,
+            ManageCircleMembership,
             ReadWhoIFollow,
             ReadMyFollowers,
             UseTransitWrite,
@@ -74,6 +80,14 @@ namespace Odin.Services.Authorization.Permissions
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadConnectionRequests,
                 PermissionKeys.ReadCircleMembership
+            ],
+
+            // Managing circle membership requires seeing the connections being added
+            // and the membership being changed.
+            [PermissionKeys.ManageCircleMembership] =
+            [
+                PermissionKeys.ReadConnections,
+                PermissionKeys.ReadCircleMembership
             ]
         };
 
@@ -103,6 +117,7 @@ namespace Odin.Services.Authorization.Permissions
             {
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
+                PermissionKeys.ManageCircleMembership,
                 PermissionKeys.ReadConnectionRequests,
                 PermissionKeys.ReadWhoIFollow,
                 PermissionKeys.UseTransitWrite,

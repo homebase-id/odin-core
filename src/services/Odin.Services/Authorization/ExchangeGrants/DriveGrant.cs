@@ -8,6 +8,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
     {
         public Guid DriveId { get; set; }
         public PermissionedDrive PermissionedDrive { get; set; }
+
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
 
         public DriveGrant Clone()

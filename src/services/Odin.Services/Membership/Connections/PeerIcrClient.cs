@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
@@ -18,9 +19,10 @@ public sealed class PeerIcrClient : IClientRegistration
 
     public OdinId Identity { get; init; }
 
-    public AccessRegistration AccessRegistration { get; init; }
+    [JsonPropertyName("accessRegistration")]
+    public ServerHalfOfClientKey ServerHalfOfClientKey { get; init; }
 
-    public Guid Id => AccessRegistration!.Id;
+    public Guid Id => ServerHalfOfClientKey!.Id;
 
     public string IssuedTo => this.Identity;
 

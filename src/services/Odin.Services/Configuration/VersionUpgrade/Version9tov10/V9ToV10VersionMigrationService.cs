@@ -104,7 +104,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version9tov10
                 foreach (var circleId in SystemCircleConstants.AllSystemCircles)
                 {
                     // Only validate identities who are members of this system circle.
-                    if (!identity.AccessGrant.CircleGrants.TryGetValue(circleId, out var circleGrant))
+                    if (!identity.PeerKeyStore.CircleGrants.TryGetValue(circleId, out var circleGrant))
                     {
                         continue;
                     }

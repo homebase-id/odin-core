@@ -82,9 +82,9 @@ public class V2ConnectionNetworkController(
 
     [HttpGet("status")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Get connection status for an identity")]
-    public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo(OdinId odinId)
+    public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromQuery] string odinId)
     {
-        var result = await circleNetwork.GetIcrAsync(odinId, WebOdinContext);
+        var result = await circleNetwork.GetIcrAsync(new OdinId(odinId), WebOdinContext);
         return result?.Redacted();
     }
 

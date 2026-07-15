@@ -11,7 +11,7 @@ public static class Version
     /// <summary>
     /// Indicates version information the current release (data structure version, code version, etc.)
     /// </summary>
-    public const int DataVersionNumber = 11;
+    public const int DataVersionNumber = 12;
 }
 
 // DO NOT CHANGE OR MOVE THIS FILE
