@@ -14,7 +14,7 @@ public sealed class HomeAppClientRegistration : IClientRegistration
         //for json
     }
 
-    public HomeAppClientRegistration(OdinId odinId, ServerHalfOfClientKey accessReg, HomeAppClientType clientType)
+    public HomeAppClientRegistration(OdinId odinId, AccessRegistration accessReg, HomeAppClientType clientType)
     {
         OdinId = odinId;
         AccessRegistration = accessReg;
@@ -23,7 +23,7 @@ public sealed class HomeAppClientRegistration : IClientRegistration
 
     public OdinId OdinId { get; init; }
 
-    public ServerHalfOfClientKey? AccessRegistration { get; init; }
+    public AccessRegistration? AccessRegistration { get; init; }
 
     public HomeAppClientType ClientType { get; init; }
 

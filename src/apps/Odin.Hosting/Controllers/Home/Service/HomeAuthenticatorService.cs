@@ -119,12 +119,12 @@ namespace Odin.Hosting.Controllers.Home.Service
         private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextCoreAsync(
             IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
-            ServerHalfOfClientKey accessReg,
+            AccessRegistration accessReg,
             IOdinContext odinContext)
         {
             var (grants, enabledCircles) = await 
                 circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
-                    icr.PeerKeyStore.CircleGrants.Values.ToList(), odinContext);
+                    icr.AccessGrant.CircleGrants.Values.ToList(), odinContext);
 
             var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
             var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
@@ -205,7 +205,7 @@ namespace Odin.Hosting.Controllers.Home.Service
             // added to support repost
             permissionKeys.Add(PermissionKeys.UseTransitRead);
             
-            var grants = new Dictionary<Guid, KeyStore>()
+            var grants = new Dictionary<Guid, ExchangeGrant>()
             {
                 //no additional grants for authenticated
             };
@@ -298,7 +298,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
 
             var (grantKeyStoreKey, sharedSecret) =
-                icr.PeerKeyStore.PeerClientKey.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
+                icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteClientAuthToken);
             sharedSecret.Wipe();
 
             var browserClientAccessToken = await StoreClientAsync(icr.OdinId, grantKeyStoreKey, HomeAppClientType.ConnectedIdentity);
@@ -338,7 +338,7 @@ namespace Odin.Hosting.Controllers.Home.Service
 
             //TODO: need to remove the override hack method below and support passing in the auth token from an icr client
             var icr = await circleNetworkService.GetIcrAsync(client.OdinId, odinContext, true);
-            bool isAuthenticated = icr.PeerKeyStore?.IsValid() ?? false;
+            bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
             // Only return the permissions if the identity is connected.

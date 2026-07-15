@@ -59,7 +59,7 @@ namespace Odin.Services.Configuration.VersionUpgrade.Version5tov6
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Only validate the identities who are confirmed connected
-                if (identity.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out var circleGrant))
+                if (identity.AccessGrant.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out var circleGrant))
                 {
                     var driveGrant = circleGrant.KeyStoreKeyEncryptedDriveGrants
                         .SingleOrDefault(g => g.PermissionedDrive.Drive == SystemDriveConstants.ShardRecoveryDrive);

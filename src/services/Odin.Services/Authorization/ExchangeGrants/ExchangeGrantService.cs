@@ -31,9 +31,9 @@ namespace Odin.Services.Authorization.ExchangeGrants
         }
 
         /// <summary>
-        /// Creates an <see cref="KeyStore"/> using the specified key store key
+        /// Creates an <see cref="ExchangeGrant"/> using the specified key store key
         /// </summary>
-        public async Task<KeyStore> CreateExchangeGrantAsync(
+        public async Task<ExchangeGrant> CreateExchangeGrantAsync(
             SensitiveByteArray keyStoreKey,
             PermissionSet permissionSet,
             IEnumerable<DriveGrantRequest>? driveGrantRequests,
@@ -56,12 +56,12 @@ namespace Odin.Services.Authorization.ExchangeGrants
                 }
             }
 
-            var grant = new KeyStore()
+            var grant = new ExchangeGrant()
             {
                 Created = UnixTimeUtc.Now().milliseconds,
                 MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(masterKey, keyStoreKey),
                 IsRevoked = false,
-                DriveGrants = driveGrants.ToList(),
+                KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
                 KeyStoreKeyEncryptedIcrKey = icrKey == null ? null : new SymmetricKeyEncryptedAes(keyStoreKey, icrKey),
                 PermissionSet = permissionSet
             };
@@ -76,7 +76,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// <param name="masterKey"></param>
         /// <param name="tokenType"></param>
         /// <returns></returns>
-        public async Task<(ServerHalfOfClientKey, ClientAccessToken)> CreateClientAccessToken(KeyStore grant,
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant,
             SensitiveByteArray? masterKey,
             ClientTokenType tokenType)
         {
@@ -99,7 +99,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
             return token;
         }
 
-        public async Task<(ServerHalfOfClientKey, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray? keyStoreKey,
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray? keyStoreKey,
             ClientTokenType tokenType,
             SensitiveByteArray? sharedSecret = null)
         {
@@ -110,8 +110,8 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
         public async Task<PermissionContext> CreatePermissionContext(
             ClientAuthenticationToken authToken,
-            Dictionary<Guid, KeyStore>? grants,
-            ServerHalfOfClientKey accessReg,
+            Dictionary<Guid, ExchangeGrant>? grants,
+            AccessRegistration accessReg,
             IOdinContext odinContext,
             List<int>? additionalPermissionKeys = null,
             bool includeAnonymousDrives = false,
@@ -129,7 +129,7 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
                     var pg = new PermissionGroup(
                         exchangeGrant.PermissionSet,
-                        exchangeGrant.DriveGrants,
+                        exchangeGrant.KeyStoreKeyEncryptedDriveGrants,
                         grantKeyStoreKey,
                         exchangeGrant.KeyStoreKeyEncryptedIcrKey);
                     permissionGroupMap.Add(key.ToString(), pg);
@@ -212,44 +212,35 @@ namespace Odin.Services.Authorization.ExchangeGrants
             return dk;
         }
 
-        private Task<(ServerHalfOfClientKey, ClientAccessToken)> CreateClientAccessTokenInternal(
-            SensitiveByteArray? keyStoreKey,
+        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray? keyStoreKey,
             ClientTokenType tokenType,
             AccessRegistrationClientType clientType = AccessRegistrationClientType.Other, SensitiveByteArray? sharedSecret = null)
         {
-            var clientKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            
-            // now split the client key, give one to the server, and one to the client
-            var serverHalfOfKey = new SymmetricKeyEncryptedXor(clientKey, out var clientHalfOfKey);
+            var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var serverAccessKey = new SymmetricKeyEncryptedXor(accessKeyStoreKey, out var clientAccessKey);
 
             var ss = sharedSecret ?? ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            var reg = new ServerHalfOfClientKey()
+            var reg = new AccessRegistration()
             {
                 Id = SequentialGuid.CreateGuid(),
-                
                 AccessRegistrationClientType = clientType,
-                
                 Created = UnixTimeUtc.Now().milliseconds,
-                
-                ServerHalfOfKey = serverHalfOfKey,
-                
-                ClientKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: clientKey, dataToEncrypt: ss),
-              
+                ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
+                AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: accessKeyStoreKey, dataToEncrypt: ss),
                 IsRevoked = false,
-                
-                ClientKeyEncryptedKeyStoreKey = keyStoreKey == null
+                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = keyStoreKey == null
                     ? null
-                    : new SymmetricKeyEncryptedAes(secret: clientKey, dataToEncrypt: keyStoreKey)
+                    : new SymmetricKeyEncryptedAes(secret: accessKeyStoreKey, dataToEncrypt: keyStoreKey)
             };
 
-            clientKey.Wipe();
+            accessKeyStoreKey.Wipe();
 
             //Note: we have to send both the id and the AccessTokenHalfKey back to the server
             var cat = new ClientAccessToken()
             {
                 Id = reg.Id,
-                AccessTokenHalfKey = clientHalfOfKey,
+                AccessTokenHalfKey = clientAccessKey,
                 SharedSecret = ss,
                 ClientTokenType = tokenType
             };

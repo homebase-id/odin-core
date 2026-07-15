@@ -32,16 +32,16 @@ namespace Odin.Services.Authorization.Acl
             if (requiredCircles.Any())
             {
                 var icr = await circleNetwork.GetIcrAsync(odinId, odinContext, true);
-                var hasBadData = icr.PeerKeyStore.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
+                var hasBadData = icr.AccessGrant.CircleGrants?.Where(cg => cg.Value?.CircleId?.Value == null).Any();
                 if (hasBadData.GetValueOrDefault())
                 {
-                    var cg = icr.PeerKeyStore.CircleGrants?.Select(cg => cg.Value.Redacted());
+                    var cg = icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.Redacted());
                     logger.LogInformation("ICR for {odinId} has corrupt circle grants. {cg}", odinId, cg);
 
                     //let it continue on
                 }
 
-                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.PeerKeyStore.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
+                var hasAtLeastOneCircle = requiredCircles.Intersect(icr.AccessGrant.CircleGrants?.Select(cg => cg.Value.CircleId.Value) ?? Array.Empty<Guid>())
                     .Any();
                 return hasAtLeastOneCircle;
             }

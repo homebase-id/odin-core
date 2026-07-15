@@ -1,12 +1,11 @@
 using System;
-using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Time;
 
 namespace Odin.Services.Authorization.ExchangeGrants
 {
-    public class ServerHalfOfClientKey
+    public class AccessRegistration
     {
         public GuidId Id { get; set; }
 
@@ -14,19 +13,16 @@ namespace Odin.Services.Authorization.ExchangeGrants
 
         public UnixTimeUtc Created { get; set; }
 
-        [JsonPropertyName("clientAccessKeyEncryptedKeyStoreKey")]
-        public SymmetricKeyEncryptedXor ServerHalfOfKey { get; set; }
+        public SymmetricKeyEncryptedXor ClientAccessKeyEncryptedKeyStoreKey { get; set; }
 
-        [JsonPropertyName("accessKeyStoreKeyEncryptedSharedSecret")]
-        public SymmetricKeyEncryptedAes ClientKeyEncryptedSharedSecret { get; set; }
+        public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedSharedSecret { get; set; }
 
         public bool IsRevoked { get; set; }
 
         /// <summary>
         /// The GrantKeyStoreKey encrypted with this AccessRegistration's key
         /// </summary>
-        [JsonPropertyName("accessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey")]
-        public SymmetricKeyEncryptedAes ClientKeyEncryptedKeyStoreKey { get; set; }
+        public SymmetricKeyEncryptedAes AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey { get; set; }
 
         /// <summary>
         /// Decrypts the grant key store key and shared secret using your Client Auth Token 
@@ -34,18 +30,18 @@ namespace Odin.Services.Authorization.ExchangeGrants
         /// <returns></returns>
         public (SensitiveByteArray keyStoreKey, SensitiveByteArray sharedSecret) DecryptUsingClientAuthenticationToken(ClientAuthenticationToken authToken)
         {
-            var clientToken = authToken.AccessTokenHalfKey;
-            var serverHalfOfKey = this.ServerHalfOfKey.DecryptKeyClone(clientToken);
-            var sharedSecret = this.ClientKeyEncryptedSharedSecret.DecryptKeyClone(serverHalfOfKey);
-            var keyStoreKey = this.ClientKeyEncryptedKeyStoreKey?.DecryptKeyClone(serverHalfOfKey);
-            serverHalfOfKey.Wipe();
+            var token = authToken.AccessTokenHalfKey;
+            var accessKey = this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(token);
+            var sharedSecret = this.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(accessKey);
+            var grantKeyStoreKey = this.AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey?.DecryptKeyClone(accessKey);
+            accessKey.Wipe();
 
-            return (keyStoreKey, sharedSecret);
+            return (grantKeyStoreKey, sharedSecret);
         }
 
         public void AssertValidRemoteKey(SensitiveByteArray remoteKey)
         {
-            this.ServerHalfOfKey.DecryptKeyClone(remoteKey);
+            this.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(remoteKey);
         }
     }
 

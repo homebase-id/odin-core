@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -52,14 +51,13 @@ namespace Odin.Services.Membership.Connections
 
         public bool IsConfirmedConnection()
         {
-            return PeerKeyStore?.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out _) ?? false;
+            return AccessGrant?.CircleGrants.TryGetValue(SystemCircleConstants.ConfirmedConnectionsCircleId, out _) ?? false;
         }
 
         /// <summary>
         /// The drives and permissions granted to this connection
         /// </summary>
-        [JsonPropertyName("accessGrant")]
-        public PeerKeyStore PeerKeyStore { get; set; }
+        public AccessExchangeGrant AccessGrant { get; set; }
 
         /// <summary>
         /// The encrypted <see cref="ClientAccessToken"/> token used when accessing another connected identity
@@ -73,7 +71,7 @@ namespace Odin.Services.Membership.Connections
 
         /// <summary>
         /// Storage of the KeyStoreKey until the master key is available to finalize
-        /// the encryption of the <see cref="PeerKeyStore"/> MasterKeyEncryptedKeyStoreKey
+        /// the encryption of the <see cref="AccessExchangeGrant"/> MasterKeyEncryptedKeyStoreKey
         /// </summary>
         public EccEncryptedPayload TempWeakKeyStoreKey { get; set; }
 
@@ -133,7 +131,7 @@ namespace Odin.Services.Membership.Connections
                 OriginalContactData = omitContactData ? null : this.OriginalContactData,
                 IntroducerOdinId = this.IntroducerOdinId,
                 ConnectionRequestOrigin = this.ConnectionRequestOrigin,
-                AccessGrant = this.PeerKeyStore?.Redacted(),
+                AccessGrant = this.AccessGrant?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
                 Vetted = this.IsConnected() && this.IsConfirmedConnection()
@@ -150,7 +148,7 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// The drives and permissions granted to this connection
         /// </summary>
-        public RedactedPeerKeyStore AccessGrant { get; init; }
+        public RedactedAccessExchangeGrant AccessGrant { get; init; }
 
         public UnixTimeUtc Created { get; set; }
         public UnixTimeUtc LastUpdated { get; set; }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
@@ -26,8 +25,7 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Permissions and drives granted to this app and only this app as used by the Identity Owner
         /// </summary>
-        [JsonPropertyName("grant")]
-        public KeyStore AppKeyStore { get; set; }
+        public ExchangeGrant Grant { get; set; }
 
         public string CorsHostName { get; set; }
 
@@ -38,13 +36,13 @@ namespace Odin.Services.Authorization.Apps
             {
                 AppId = this.AppId,
                 Name = this.Name,
-                IsRevoked = this.AppKeyStore.IsRevoked,
-                Created = this.AppKeyStore.Created,
+                IsRevoked = this.Grant.IsRevoked,
+                Created = this.Grant.Created,
                 AuthorizedCircles = this.AuthorizedCircles,
                 CircleMemberPermissionSetGrantRequest = this.CircleMemberPermissionGrant ?? new PermissionSetGrantRequest(),
-                Modified = this.AppKeyStore.Modified,
+                Modified = this.Grant.Modified,
                 CorsHostName = this.CorsHostName,
-                Grant = this.AppKeyStore.Redacted()
+                Grant = this.Grant.Redacted()
             };
         }
     }

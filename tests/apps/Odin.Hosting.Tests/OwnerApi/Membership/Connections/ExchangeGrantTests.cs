@@ -11,7 +11,7 @@ using Odin.Services.Drives;
 
 namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 {
-    public class KeyStoreTests
+    public class ExchangeGrantTests
     {
         private WebScaffold _scaffold;
 
