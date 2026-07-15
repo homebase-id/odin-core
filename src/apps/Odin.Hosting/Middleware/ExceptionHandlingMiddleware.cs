@@ -53,8 +53,8 @@ namespace Odin.Hosting.Middleware
                 var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";
 
                 logger.LogDebug(e, "Security exception thrown");
-                
-                await HandleExceptionAsync(context, new ForbiddenException(message, inner: e));
+
+                await HandleExceptionAsync(context, new ForbiddenException(message, e.ErrorCode, inner: e));
             }
             catch (Exception ex)
             {

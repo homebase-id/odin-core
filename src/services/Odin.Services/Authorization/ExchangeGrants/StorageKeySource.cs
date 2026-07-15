@@ -58,7 +58,9 @@ public sealed class PermissionContextStorageKeySource(IOdinContext odinContext) 
     {
         if (!odinContext.PermissionsContext.TryGetDriveStorageKey(drive.Id, out var storageKey))
         {
-            throw new OdinSecurityException($"Caller cannot source the storage key for drive {drive.TargetDriveInfo}");
+            throw new OdinSecurityException(
+                $"Caller cannot source the storage key for drive {drive.TargetDriveInfo}",
+                OdinClientErrorCode.CannotSourceDriveStorageKeyForGrant);
         }
 
         return storageKey;

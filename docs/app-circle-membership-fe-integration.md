@@ -23,12 +23,15 @@ POST /api/v2/connections/circles/add
 
 - `200 OK` — the grant was accepted. **This does not mean the contact is a member
   yet** — see "Pending vs. real" below.
-- `403 Forbidden` — the call itself was invalid: the app lacks
-  `ManageCircleMembership`, the contact isn't connected to this identity at all, or
-  the circle includes a drive the app doesn't itself have access to. **Treat any
-  403 as a bug in how the client is calling the API** — a well-behaved client
-  should never hit this in normal operation (see error table; these are not
-  distinguishable from each other and aren't meant to drive user-facing UI).
+- `403 Forbidden` — the call itself was invalid. Most causes (missing
+  `ManageCircleMembership`, contact not connected at all) are bugs in how the
+  client is calling the API — **not user-facing, don't build recovery UI for
+  them.** **One 403 cause is different and *is* worth checking:** the circle
+  includes a drive the app doesn't itself have access to. This one carries a
+  specific `errorCode` (`CannotSourceDriveStorageKeyForGrant`, 4173) in the
+  `problem+json` body — **403s are not always codeless**, check `errorCode` on
+  every 403 the same as you would on a 400 before writing it off as a bug (see
+  error table).
 - `400 Bad Request` — a real, user-facing outcome:
   - the contact is connected but only via auto-connect and hasn't been confirmed
     by the owner yet (check `vetted` before attempting, see below)
@@ -111,13 +114,16 @@ provides one, an `errorCode` integer extension field.
 
 | HTTP | `errorCode` | Meaning | What to do |
 |---|---|---|---|
-| 403 | *(always 0 / absent — no code distinguishes these)* | the client called the API in a way it shouldn't have: missing `ManageCircleMembership`, contact not connected, or the circle spans a drive the app doesn't hold | **not a user-facing state** — log it as a bug, don't build recovery UI. All three cases are indistinguishable from each other today, and that's fine — a well-behaved client should never hit this. |
+| 403 | **4173** (`CannotSourceDriveStorageKeyForGrant`) | the circle grants access to a drive the calling app cannot itself read — the app has no storage key to mint that portion of the grant | **user-facing**: tell the user this app can't add this circle because it includes a drive outside the app's own access (e.g. "the Chat app can't grant the Location circle — it includes a drive Chat can't read") |
+| 403 | *(0 / absent — no code)* | anything else: missing `ManageCircleMembership`, contact not connected at all, etc. | **not a user-facing state** — log it as a bug, don't build recovery UI. These remain indistinguishable from each other, and that's fine — a well-behaved client should never hit them. |
 | 400 | **3010** (`CannotGrantAutoConnectedMoreCircles`) | contact is auto-connected but not yet confirmed by the owner | tell the user to confirm the connection in the owner console first — the client can't do this for them |
 | 400 | **3005** (`IdentityAlreadyMemberOfCircle`) | contact is already a member, or already has a pending deposit, for this circle | no-op from the user's perspective — refresh `status` and show current state |
 | 400 | *(0 / `UnhandledScenario`)* | connection predates this feature, not yet backfilled | rare, self-resolving; show a generic "try again" rather than a specific message |
 
-Don't try to special-case the 403s further — the server doesn't currently emit
-distinct codes for them, and they're not meant to be reachable in normal use.
+**Always check `errorCode` before branching on HTTP status alone** — as of this
+code, a 403 can carry a meaningful `errorCode` just like a 400 does. Don't
+special-case the *other* 403s further — the server doesn't emit distinct codes
+for those, and they're not meant to be reachable in normal use.
 
 ## What NOT to build
 
