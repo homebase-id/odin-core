@@ -318,4 +318,44 @@ public class TableJobs(ScopedSystemConnectionFactory scopedConnectionFactory)
 
     //
 
+    // Deletes a single job by id, but only if it belongs to the given identity. Used to let a
+    // tenant cancel its own jobs without being able to delete another tenant's job by guessing its id.
+    public async Task<int> DeleteAsync(Guid id, Guid identityId)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText = "DELETE FROM jobs WHERE id = @id AND identityId = @identityId;";
+        cmd.AddParameter("@id", DbType.Binary, id);
+        cmd.AddParameter("@identityId", DbType.Binary, identityId);
+        var count = await cmd.ExecuteNonQueryAsync();
+        return count;
+    }
+
+    //
+
+    // Replaces a job's data and due time in place (same id, same identityId ownership check as
+    // DeleteAsync above), resetting it to a fresh Scheduled state so it runs again regardless of
+    // whatever state it was previously in (including a terminal Succeeded/Failed).
+    public async Task<int> UpdateAsync(Guid id, Guid identityId, string jobData, long nextRun)
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+        cmd.CommandText =
+            """
+            UPDATE jobs
+            SET jobData = @jobData, nextRun = @nextRun, state = @scheduled, runCount = 0, lastError = NULL, expiresAt = NULL, modified = @modified
+            WHERE id = @id AND identityId = @identityId;
+            """;
+        cmd.AddParameter("@jobData", DbType.String, jobData);
+        cmd.AddParameter("@nextRun", DbType.Int64, nextRun);
+        cmd.AddParameter("@scheduled", DbType.Int32, (int)JobState.Scheduled);
+        cmd.AddParameter("@modified", DbType.Int64, UnixTimeUtc.Now().milliseconds);
+        cmd.AddParameter("@id", DbType.Binary, id);
+        cmd.AddParameter("@identityId", DbType.Binary, identityId);
+        var count = await cmd.ExecuteNonQueryAsync();
+        return count;
+    }
+
+    //
+
 }
