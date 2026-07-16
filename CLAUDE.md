@@ -131,3 +131,7 @@ Custom crypto layer in `Odin.Core.Cryptography`. AES-GCM (preferred) and AES-CBC
 ## CI / CD
 Do NOT use slash (/) in Git branch names.
 
+## Reporting findings
+
+When reporting a bug, review finding, or any analysis of this codebase, explicitly separate what was verified by reading code/tests from what was inferred or assumed. If a conclusion depends on an assumption about behavior outside this repo (external scripts, ops/ansible playbooks, infra config, runtime environment, etc.) or on unverified reasoning, say so directly in the same sentence as the claim -- do not state inferred conclusions as confirmed facts.
+
