@@ -174,7 +174,7 @@ namespace Odin.Services.Authentication.Owner
                 { "owner_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey, icrKey) },
             };
 
-            var ctx = new PermissionContext(permissionGroupMap, clientSharedSecret);
+            var ctx = new PermissionContext(permissionGroupMap, clientSharedSecret, keyStoreKey: masterKey);
 
             return ctx;
         }
