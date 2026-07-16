@@ -26,6 +26,8 @@ public interface IJobManager
     Task<IReadOnlyList<JobsRecord>> GetAllJobsAsync();
     Task<IReadOnlyList<JobsRecord>> GetJobsByIdentityIdAsync(Guid identityId);
     Task<bool> DeleteJobByIdAsync(Guid jobId);
+    Task<bool> DeleteJobByIdAsync(Guid jobId, Guid identityId);
+    Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt);
     Task<bool> DeleteJobByHashAsync(string jobHash);
     Task<int> DeleteJobsByIdentityIdAsync(Guid identityId);
     Task<T?> GetJobAsync<T>(Guid jobId) where T : AbstractJob;
@@ -513,6 +515,22 @@ public class JobManager(
     public async Task<bool> DeleteJobByIdAsync(Guid jobId)
     {
         var result = await tableJobs.DeleteAsync(jobId);
+        return result > 0;
+    }
+
+    //
+
+    public async Task<bool> DeleteJobByIdAsync(Guid jobId, Guid identityId)
+    {
+        var result = await tableJobs.DeleteAsync(jobId, identityId);
+        return result > 0;
+    }
+
+    //
+
+    public async Task<bool> RescheduleJobAsync(Guid jobId, Guid identityId, string jobData, DateTimeOffset newRunAt)
+    {
+        var result = await tableJobs.UpdateAsync(jobId, identityId, jobData, newRunAt.ToUnixTimeMilliseconds());
         return result > 0;
     }
 

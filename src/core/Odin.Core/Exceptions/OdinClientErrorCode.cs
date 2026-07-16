@@ -18,6 +18,7 @@ public enum OdinClientErrorCode
     // Notifcation Errors 20xx
     InvalidNotificationType = 2001,
     UnknownNotificationId = 2002,
+    TooManyScheduledNotifications = 2003,
 
 
     // Circle Errors 30xx
