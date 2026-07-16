@@ -5,12 +5,14 @@ using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
+using Odin.Core.Exceptions;
 using Odin.Core.Time;
 using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Services.AppNotifications.Data;
+using Odin.Services.AppNotifications.Push.Scheduled;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -236,6 +238,7 @@ public class ScheduledNotificationTests
         ClassicAssert.AreEqual(updatedSendAt.milliseconds, entry.SendAt.milliseconds);
         ClassicAssert.AreEqual("Scheduled", entry.State);
         ClassicAssert.AreEqual(0, entry.AttemptCount);
+        ClassicAssert.AreEqual(3, entry.MaxAttempts);
 
         // updating a job id that doesn't exist reports nothing to update
         var updateMissingResponse = await scheduleClient.Update(Guid.NewGuid(), updatedOptions, updatedSendAt);
@@ -373,6 +376,118 @@ public class ScheduledNotificationTests
         // ...and can cancel any of them.
         var ownerCancel = await ownerScheduleClient.Cancel(jobId);
         ClassicAssert.IsTrue(ownerCancel.IsSuccessStatusCode, $"Owner cancel failed: {ownerCancel.StatusCode}");
+    }
+
+    /// <summary>
+    /// A tenant cannot have more than <see cref="ScheduledNotificationService.MaxPendingPerTenant"/>
+    /// scheduled notifications pending at once; scheduling beyond the cap is rejected with a client
+    /// error rather than silently growing the shared job queue without limit.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_CannotExceedMaxPendingPerTenant()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var callerContext = new OwnerTestCase(targetDrive);
+        await callerContext.Initialize(ownerFrodo);
+        var scheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, callerContext.GetFactory());
+
+        // Far enough out that nothing fires (and drops off the pending count) during the test.
+        var sendAt = UnixTimeUtc.Now().AddHours(6);
+
+        // Other tests sharing this identity may have left pending notifications behind; count what's
+        // already there rather than assuming a clean slate, so this test isn't order-dependent.
+        var listBefore = await scheduleClient.List();
+        ClassicAssert.IsTrue(listBefore.IsSuccessStatusCode, $"List failed: {listBefore.StatusCode}");
+        var currentCount = listBefore.Content?.Count ?? 0;
+
+        var scheduledJobIds = new List<Guid>();
+        try
+        {
+            // Fill up to (but not over) the cap.
+            for (var i = currentCount; i < ScheduledNotificationService.MaxPendingPerTenant; i++)
+            {
+                var options = new AppNotificationOptions
+                {
+                    AppId = Guid.NewGuid(),
+                    TypeId = Guid.NewGuid(),
+                    TagId = Guid.NewGuid(),
+                    Silent = true
+                };
+                var response = await scheduleClient.Schedule(options, sendAt);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Schedule failed while filling the cap: {response.StatusCode}");
+                scheduledJobIds.Add(response.Content.JobId);
+            }
+
+            // One more, past the cap, is rejected.
+            var overCapOptions = new AppNotificationOptions
+            {
+                AppId = Guid.NewGuid(),
+                TypeId = Guid.NewGuid(),
+                TagId = Guid.NewGuid(),
+                Silent = true
+            };
+            var overCapResponse = await scheduleClient.Schedule(overCapOptions, sendAt);
+            ClassicAssert.AreEqual(HttpStatusCode.BadRequest, overCapResponse.StatusCode);
+            ClassicAssert.AreEqual(
+                OdinClientErrorCode.TooManyScheduledNotifications, WebScaffold.GetErrorCode(overCapResponse.Error));
+        }
+        finally
+        {
+            // Don't leave the tenant pinned at the cap for whichever test runs next.
+            foreach (var jobId in scheduledJobIds)
+            {
+                await scheduleClient.Cancel(jobId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Both Schedule and Update require notification options; a null payload is rejected with a client
+    /// error rather than silently scheduling/updating with no content.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_RequiresOptions()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var callerContext = new OwnerTestCase(targetDrive);
+        await callerContext.Initialize(ownerFrodo);
+        var scheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, callerContext.GetFactory());
+
+        var sendAt = UnixTimeUtc.Now().AddHours(1);
+
+        // Schedule with no options is rejected.
+        var scheduleResponse = await scheduleClient.Schedule(null, sendAt);
+        ClassicAssert.AreEqual(HttpStatusCode.BadRequest, scheduleResponse.StatusCode);
+        ClassicAssert.AreEqual(OdinClientErrorCode.ArgumentError, WebScaffold.GetErrorCode(scheduleResponse.Error));
+
+        // Schedule a real notification so there's a job id to attempt an update against.
+        var options = new AppNotificationOptions
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = true
+        };
+        var validScheduleResponse = await scheduleClient.Schedule(options, sendAt);
+        ClassicAssert.IsTrue(validScheduleResponse.IsSuccessStatusCode, $"Schedule failed: {validScheduleResponse.StatusCode}");
+        var jobId = validScheduleResponse.Content.JobId;
+
+        // Update with no options is rejected too.
+        var updateResponse = await scheduleClient.Update(jobId, null, sendAt);
+        ClassicAssert.AreEqual(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+        ClassicAssert.AreEqual(OdinClientErrorCode.ArgumentError, WebScaffold.GetErrorCode(updateResponse.Error));
+
+        await scheduleClient.Cancel(jobId);
     }
 
     private static async Task<AppNotification> WaitForNotificationByTagId(

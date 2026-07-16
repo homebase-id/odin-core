@@ -355,6 +355,58 @@ public class TableJobsTests : IocTestBase
 
     //
 
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldOnlyUpdateJobByIdWhenIdentityMatches(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var jobs = scope.Resolve<TableJobs>();
+
+        var identity1 = Guid.NewGuid();
+        var identity2 = Guid.NewGuid();
+
+        // Simulate a job that already failed permanently: terminal state, prior attempts, an error,
+        // and an expiry set (so it would eventually be swept by DeleteExpiredJobsAsync).
+        var r1 = NewJobsRecord();
+        r1.identityId = identity1;
+        r1.state = (int)JobState.Failed;
+        r1.runCount = 3;
+        r1.lastError = "boom";
+        r1.expiresAt = DateTimeOffset.Now.AddDays(1).ToUnixTimeMilliseconds();
+        await jobs.InsertAsync(r1);
+
+        var newNextRun = DateTimeOffset.Now.AddHours(2).ToUnixTimeMilliseconds();
+
+        // Wrong identity: nothing is updated.
+        var updatedByWrongIdentity = await jobs.UpdateAsync(r1.id, identity2, "new job data", newNextRun);
+        Assert.That(updatedByWrongIdentity, Is.EqualTo(0));
+        var unchanged = await jobs.GetAsync(r1.id);
+        Assert.That(unchanged!.state, Is.EqualTo((int)JobState.Failed));
+        Assert.That(unchanged.runCount, Is.EqualTo(3));
+
+        // Correct identity: the row is replaced in place and reset to a fresh Scheduled state.
+        var updatedByCorrectIdentity = await jobs.UpdateAsync(r1.id, identity1, "new job data", newNextRun);
+        Assert.That(updatedByCorrectIdentity, Is.EqualTo(1));
+
+        var updated = await jobs.GetAsync(r1.id);
+        Assert.That(updated!.jobData, Is.EqualTo("new job data"));
+        Assert.That(updated.nextRun.milliseconds, Is.EqualTo(newNextRun));
+        Assert.That(updated.state, Is.EqualTo((int)JobState.Scheduled));
+        Assert.That(updated.runCount, Is.EqualTo(0));
+        Assert.That(updated.lastError, Is.Null);
+        Assert.That(updated.expiresAt, Is.Null);
+
+        // Updating a non-existing job returns 0.
+        var noneUpdated = await jobs.UpdateAsync(Guid.NewGuid(), identity1, "data", newNextRun);
+        Assert.That(noneUpdated, Is.EqualTo(0));
+    }
+
+    //
+
     private JobsRecord NewJobsRecord()
     {
         return new JobsRecord
