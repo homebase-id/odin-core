@@ -136,6 +136,54 @@ public class ScheduledNotificationTests
         ClassicAssert.IsNull(notification, "A cancelled notification should not be delivered");
     }
 
+    /// <summary>
+    /// A notification scheduled for the future shows up in the list endpoint with its job id, options,
+    /// and send time, and disappears from the list once cancelled.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_AppearsInListUntilCancelled()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var callerContext = new OwnerTestCase(targetDrive);
+        await callerContext.Initialize(ownerFrodo);
+        var scheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, callerContext.GetFactory());
+
+        var options = new AppNotificationOptions
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = true
+        };
+        var sendAt = UnixTimeUtc.Now().AddHours(1);
+
+        var scheduleResponse = await scheduleClient.Schedule(options, sendAt);
+        ClassicAssert.IsTrue(scheduleResponse.IsSuccessStatusCode, $"Schedule failed: {scheduleResponse.StatusCode}");
+        var jobId = scheduleResponse.Content.JobId;
+
+        var listResponse = await scheduleClient.List();
+        ClassicAssert.IsTrue(listResponse.IsSuccessStatusCode, $"List failed: {listResponse.StatusCode}");
+        var entry = listResponse.Content?.SingleOrDefault(s => s.JobId == jobId);
+        ClassicAssert.IsNotNull(entry, "Scheduled notification did not appear in the list");
+        ClassicAssert.AreEqual(options.TagId, entry.Options.TagId);
+        ClassicAssert.AreEqual(sendAt.milliseconds, entry.SendAt.milliseconds);
+        ClassicAssert.AreEqual("Scheduled", entry.State);
+
+        var cancelResponse = await scheduleClient.Cancel(jobId);
+        ClassicAssert.IsTrue(cancelResponse.IsSuccessStatusCode, $"Cancel failed: {cancelResponse.StatusCode}");
+
+        var listAfterCancel = await scheduleClient.List();
+        ClassicAssert.IsTrue(listAfterCancel.IsSuccessStatusCode, $"List failed: {listAfterCancel.StatusCode}");
+        ClassicAssert.IsFalse(
+            listAfterCancel.Content?.Any(s => s.JobId == jobId) ?? false,
+            "Cancelled notification should no longer appear in the list");
+    }
+
     private static async Task<AppNotification> WaitForNotificationByTagId(
         OwnerApiClientRedux ownerClient,
         Guid tagId,

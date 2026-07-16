@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
@@ -44,6 +45,15 @@ namespace Odin.Hosting.UnifiedV2.Notifications
             }
 
             return Ok();
+        }
+
+        /// <summary>
+        /// Lists the caller's scheduled notifications.
+        /// </summary>
+        [HttpGet("schedule")]
+        public async Task<List<ScheduledNotificationSummary>> ListSchedule()
+        {
+            return await scheduledNotificationService.ListScheduledNotificationsAsync(WebOdinContext);
         }
     }
 }

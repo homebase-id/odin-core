@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
@@ -19,4 +20,7 @@ public interface IScheduledNotificationHttpClientV2
 
     [Delete(Endpoint + "/schedule/{jobId}")]
     Task<ApiResponse<HttpContent>> Cancel(Guid jobId);
+
+    [Get(Endpoint + "/schedule")]
+    Task<ApiResponse<List<ScheduledNotificationSummary>>> List();
 }

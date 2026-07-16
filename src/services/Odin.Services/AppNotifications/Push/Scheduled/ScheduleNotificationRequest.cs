@@ -31,3 +31,29 @@ public class ScheduleNotificationResult
     /// </summary>
     public System.Guid JobId { get; set; }
 }
+
+/// <summary>
+/// Summary of a tenant's scheduled notification, as returned by the list endpoint.
+/// </summary>
+public class ScheduledNotificationSummary
+{
+    /// <summary>
+    /// Id of the scheduled job; pass this to the cancel endpoint.
+    /// </summary>
+    public System.Guid JobId { get; set; }
+
+    /// <summary>
+    /// The notification to send.
+    /// </summary>
+    public AppNotificationOptions? Options { get; set; }
+
+    /// <summary>
+    /// When the notification is scheduled to be sent (UTC, milliseconds since epoch).
+    /// </summary>
+    public UnixTimeUtc SendAt { get; set; }
+
+    /// <summary>
+    /// Current state of the underlying job (e.g. Scheduled, Failed).
+    /// </summary>
+    public string State { get; set; } = string.Empty;
+}

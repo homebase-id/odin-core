@@ -1,10 +1,13 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.System.Table;
 using Odin.Core.Time;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -20,6 +23,7 @@ namespace Odin.Services.AppNotifications.Push.Scheduled;
 /// </summary>
 public class ScheduledNotificationService(
     IJobManager jobManager,
+    TenantContext tenantContext,
     ILogger<ScheduledNotificationService> logger)
 {
     /// <summary>
@@ -42,7 +46,7 @@ public class ScheduledNotificationService(
 
         var tenant = odinContext.Tenant;
 
-        var job = jobManager.NewJob<ScheduledNotificationJob>();
+        var job = jobManager.NewJob<ScheduledNotificationJob>(tenantContext.DotYouRegistryId);
         job.Data = new ScheduledNotificationJobData
         {
             Tenant = tenant,
@@ -78,5 +82,40 @@ public class ScheduledNotificationService(
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
         return await jobManager.DeleteJobByIdAsync(jobId);
+    }
+
+    /// <summary>
+    /// Lists the tenant's pending/attempted scheduled notifications (i.e. not yet cleaned up by the job engine).
+    /// </summary>
+    public async Task<List<ScheduledNotificationSummary>> ListScheduledNotificationsAsync(IOdinContext odinContext)
+    {
+        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
+
+        var records = await jobManager.GetJobsByIdentityIdAsync(tenantContext.DotYouRegistryId);
+
+        var result = new List<ScheduledNotificationSummary>();
+        foreach (var record in records)
+        {
+            if (record.jobType != ScheduledNotificationJob.JobTypeId.ToString() || string.IsNullOrEmpty(record.jobData))
+            {
+                continue;
+            }
+
+            var data = OdinSystemSerializer.Deserialize<ScheduledNotificationJobData>(record.jobData);
+            if (data == null)
+            {
+                continue;
+            }
+
+            result.Add(new ScheduledNotificationSummary
+            {
+                JobId = record.id,
+                Options = data.Options,
+                SendAt = data.SendAt,
+                State = ((JobState)record.state).ToString(),
+            });
+        }
+
+        return result;
     }
 }

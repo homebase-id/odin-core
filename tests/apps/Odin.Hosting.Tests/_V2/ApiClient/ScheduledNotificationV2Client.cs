@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
@@ -28,5 +29,12 @@ public class ScheduledNotificationV2Client(OdinId identity, IApiClientFactory fa
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IScheduledNotificationHttpClientV2>(client, sharedSecret);
         return await svc.Cancel(jobId);
+    }
+
+    public async Task<ApiResponse<List<ScheduledNotificationSummary>>> List()
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IScheduledNotificationHttpClientV2>(client, sharedSecret);
+        return await svc.List();
     }
 }
