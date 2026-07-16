@@ -56,4 +56,14 @@ public class ScheduledNotificationSummary
     /// Current state of the underlying job (e.g. Scheduled, Failed).
     /// </summary>
     public string State { get; set; } = string.Empty;
+
+    /// <summary>
+    /// How many times this notification has been attempted so far.
+    /// </summary>
+    public int AttemptCount { get; set; }
+
+    /// <summary>
+    /// The maximum number of attempts before the notification is given up on.
+    /// </summary>
+    public int MaxAttempts { get; set; }
 }

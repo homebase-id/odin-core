@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 using Odin.Core.Time;
+using Odin.Hosting.Tests._Universal;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests._V2.ApiClient.TestCases;
 using Odin.Services.AppNotifications.Data;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Drives;
 using Odin.Services.Peer.Outgoing.Drive;
 
@@ -182,6 +184,195 @@ public class ScheduledNotificationTests
         ClassicAssert.IsFalse(
             listAfterCancel.Content?.Any(s => s.JobId == jobId) ?? false,
             "Cancelled notification should no longer appear in the list");
+    }
+
+    /// <summary>
+    /// Updating a scheduled notification replaces its options and send time in place -- same job id --
+    /// and resets its attempt count, rather than requiring a cancel-then-reschedule.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_CanBeUpdatedInPlace()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var callerContext = new OwnerTestCase(targetDrive);
+        await callerContext.Initialize(ownerFrodo);
+        var scheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, callerContext.GetFactory());
+
+        var originalOptions = new AppNotificationOptions
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = true
+        };
+        var originalSendAt = UnixTimeUtc.Now().AddHours(1);
+
+        var scheduleResponse = await scheduleClient.Schedule(originalOptions, originalSendAt);
+        ClassicAssert.IsTrue(scheduleResponse.IsSuccessStatusCode, $"Schedule failed: {scheduleResponse.StatusCode}");
+        var jobId = scheduleResponse.Content.JobId;
+
+        var updatedOptions = new AppNotificationOptions
+        {
+            AppId = originalOptions.AppId,
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = false
+        };
+        var updatedSendAt = UnixTimeUtc.Now().AddHours(2);
+
+        var updateResponse = await scheduleClient.Update(jobId, updatedOptions, updatedSendAt);
+        ClassicAssert.IsTrue(updateResponse.IsSuccessStatusCode, $"Update failed: {updateResponse.StatusCode}");
+
+        var listResponse = await scheduleClient.List();
+        ClassicAssert.IsTrue(listResponse.IsSuccessStatusCode, $"List failed: {listResponse.StatusCode}");
+        var entry = listResponse.Content?.SingleOrDefault(s => s.JobId == jobId);
+        ClassicAssert.IsNotNull(entry, "Updated notification should still exist under the same job id");
+        ClassicAssert.AreEqual(updatedOptions.TagId, entry.Options.TagId);
+        ClassicAssert.AreEqual(updatedSendAt.milliseconds, entry.SendAt.milliseconds);
+        ClassicAssert.AreEqual("Scheduled", entry.State);
+        ClassicAssert.AreEqual(0, entry.AttemptCount);
+
+        // updating a job id that doesn't exist reports nothing to update
+        var updateMissingResponse = await scheduleClient.Update(Guid.NewGuid(), updatedOptions, updatedSendAt);
+        ClassicAssert.AreEqual(HttpStatusCode.NotFound, updateMissingResponse.StatusCode);
+    }
+
+    /// <summary>
+    /// An app can only update the scheduled notifications it created itself; a different app on the same
+    /// tenant cannot update it. The owner, however, can update any app's scheduled notification.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_UpdateIsScopedToTheAppThatCreatedIt()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var appA = new AppTestCase(targetDrive, DrivePermission.Write, new TestPermissionKeyList(PermissionKeys.SendPushNotifications));
+        await appA.Initialize(ownerFrodo);
+        var appAScheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, appA.GetFactory());
+
+        var appB = new AppTestCase(targetDrive, DrivePermission.Write, new TestPermissionKeyList(PermissionKeys.SendPushNotifications));
+        await appB.Initialize(ownerFrodo);
+        var appBScheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, appB.GetFactory());
+
+        var options = new AppNotificationOptions
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = true
+        };
+        var sendAt = UnixTimeUtc.Now().AddHours(1);
+
+        // App A schedules a notification.
+        var scheduleResponse = await appAScheduleClient.Schedule(options, sendAt);
+        ClassicAssert.IsTrue(scheduleResponse.IsSuccessStatusCode, $"Schedule failed: {scheduleResponse.StatusCode}");
+        var jobId = scheduleResponse.Content.JobId;
+
+        var updatedOptions = new AppNotificationOptions
+        {
+            AppId = options.AppId,
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = false
+        };
+        var updatedSendAt = UnixTimeUtc.Now().AddHours(2);
+
+        // App B cannot update App A's scheduled notification.
+        var appBUpdate = await appBScheduleClient.Update(jobId, updatedOptions, updatedSendAt);
+        ClassicAssert.AreEqual(
+            HttpStatusCode.NotFound, appBUpdate.StatusCode,
+            "App B should not be able to update App A's scheduled notification");
+
+        // App A can update its own.
+        var appAUpdate = await appAScheduleClient.Update(jobId, updatedOptions, updatedSendAt);
+        ClassicAssert.IsTrue(appAUpdate.IsSuccessStatusCode, $"App A update failed: {appAUpdate.StatusCode}");
+
+        // The owner can update any app's scheduled notification too.
+        var ownerCallerContext = new OwnerTestCase(targetDrive);
+        await ownerCallerContext.Initialize(ownerFrodo);
+        var ownerScheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, ownerCallerContext.GetFactory());
+
+        var ownerUpdate = await ownerScheduleClient.Update(jobId, updatedOptions, UnixTimeUtc.Now().AddHours(3));
+        ClassicAssert.IsTrue(ownerUpdate.IsSuccessStatusCode, $"Owner update failed: {ownerUpdate.StatusCode}");
+    }
+
+    /// <summary>
+    /// An app can only see/cancel the scheduled notifications it created itself; a different app on the
+    /// same tenant sees neither in its list nor can cancel it. The owner, however, sees and can cancel
+    /// any app's scheduled notification.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_IsScopedToTheAppThatCreatedIt()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var appA = new AppTestCase(targetDrive, DrivePermission.Write, new TestPermissionKeyList(PermissionKeys.SendPushNotifications));
+        await appA.Initialize(ownerFrodo);
+        var appAScheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, appA.GetFactory());
+
+        var appB = new AppTestCase(targetDrive, DrivePermission.Write, new TestPermissionKeyList(PermissionKeys.SendPushNotifications));
+        await appB.Initialize(ownerFrodo);
+        var appBScheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, appB.GetFactory());
+
+        var options = new AppNotificationOptions
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = true
+        };
+        var sendAt = UnixTimeUtc.Now().AddHours(1);
+
+        // App A schedules a notification.
+        var scheduleResponse = await appAScheduleClient.Schedule(options, sendAt);
+        ClassicAssert.IsTrue(scheduleResponse.IsSuccessStatusCode, $"Schedule failed: {scheduleResponse.StatusCode}");
+        var jobId = scheduleResponse.Content.JobId;
+
+        // App B does not see it in its own list...
+        var appBList = await appBScheduleClient.List();
+        ClassicAssert.IsTrue(appBList.IsSuccessStatusCode, $"List failed: {appBList.StatusCode}");
+        ClassicAssert.IsFalse(
+            appBList.Content?.Any(s => s.JobId == jobId) ?? false,
+            "App B should not see App A's scheduled notification in its list");
+
+        // ...and cannot cancel it.
+        var appBCancel = await appBScheduleClient.Cancel(jobId);
+        ClassicAssert.AreEqual(
+            HttpStatusCode.NotFound, appBCancel.StatusCode,
+            "App B should not be able to cancel App A's scheduled notification");
+
+        // App A still sees its own scheduled notification.
+        var appAList = await appAScheduleClient.List();
+        ClassicAssert.IsTrue(
+            appAList.Content?.Any(s => s.JobId == jobId) ?? false,
+            "App A should still see its own scheduled notification");
+
+        // The owner sees every app's scheduled notifications...
+        var ownerCallerContext = new OwnerTestCase(targetDrive);
+        await ownerCallerContext.Initialize(ownerFrodo);
+        var ownerScheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, ownerCallerContext.GetFactory());
+
+        var ownerList = await ownerScheduleClient.List();
+        ClassicAssert.IsTrue(
+            ownerList.Content?.Any(s => s.JobId == jobId) ?? false,
+            "Owner should see App A's scheduled notification");
+
+        // ...and can cancel any of them.
+        var ownerCancel = await ownerScheduleClient.Cancel(jobId);
+        ClassicAssert.IsTrue(ownerCancel.IsSuccessStatusCode, $"Owner cancel failed: {ownerCancel.StatusCode}");
     }
 
     private static async Task<AppNotification> WaitForNotificationByTagId(

@@ -18,6 +18,9 @@ public interface IScheduledNotificationHttpClientV2
     [Post(Endpoint + "/schedule")]
     Task<ApiResponse<ScheduleNotificationResult>> Schedule([Body] ScheduleNotificationRequest request);
 
+    [Put(Endpoint + "/schedule/{jobId}")]
+    Task<ApiResponse<HttpContent>> Update(Guid jobId, [Body] ScheduleNotificationRequest request);
+
     [Delete(Endpoint + "/schedule/{jobId}")]
     Task<ApiResponse<HttpContent>> Cancel(Guid jobId);
 

@@ -24,6 +24,17 @@ public class ScheduledNotificationV2Client(OdinId identity, IApiClientFactory fa
         });
     }
 
+    public async Task<ApiResponse<HttpContent>> Update(Guid jobId, AppNotificationOptions options, UnixTimeUtc sendAt)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IScheduledNotificationHttpClientV2>(client, sharedSecret);
+        return await svc.Update(jobId, new ScheduleNotificationRequest
+        {
+            Options = options,
+            SendAt = sendAt,
+        });
+    }
+
     public async Task<ApiResponse<HttpContent>> Cancel(Guid jobId)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);

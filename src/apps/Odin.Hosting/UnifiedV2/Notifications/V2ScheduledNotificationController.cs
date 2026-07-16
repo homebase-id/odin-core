@@ -33,6 +33,22 @@ namespace Odin.Hosting.UnifiedV2.Notifications
         }
 
         /// <summary>
+        /// Updates a previously scheduled notification's options and/or send time, keeping the same job id.
+        /// </summary>
+        [HttpPut("schedule/{jobId:guid}")]
+        public async Task<IActionResult> UpdateSchedule(Guid jobId, [FromBody] ScheduleNotificationRequest request)
+        {
+            var updated = await scheduledNotificationService.UpdateScheduledNotificationAsync(
+                jobId, request.Options, request.SendAt, WebOdinContext);
+            if (!updated)
+            {
+                return NotFound();
+            }
+
+            return Ok();
+        }
+
+        /// <summary>
         /// Cancels a previously scheduled notification by its job id.
         /// </summary>
         [HttpDelete("schedule/{jobId:guid}")]

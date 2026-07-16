@@ -320,6 +320,41 @@ public class TableJobsTests : IocTestBase
 
     //
 
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
+    public async Task ItShouldOnlyDeleteJobByIdWhenIdentityMatches(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+        await using var scope = Services.BeginLifetimeScope();
+        var jobs = scope.Resolve<TableJobs>();
+
+        var identity1 = Guid.NewGuid();
+        var identity2 = Guid.NewGuid();
+
+        var r1 = NewJobsRecord();
+        r1.identityId = identity1;
+        await jobs.InsertAsync(r1);
+
+        // Wrong identity: job is not deleted.
+        var deletedByWrongIdentity = await jobs.DeleteAsync(r1.id, identity2);
+        Assert.That(deletedByWrongIdentity, Is.EqualTo(0));
+        Assert.That(await jobs.GetAsync(r1.id), Is.Not.Null);
+
+        // Correct identity: job is deleted.
+        var deletedByCorrectIdentity = await jobs.DeleteAsync(r1.id, identity1);
+        Assert.That(deletedByCorrectIdentity, Is.EqualTo(1));
+        Assert.That(await jobs.GetAsync(r1.id), Is.Null);
+
+        // Deleting a non-existing job returns 0.
+        var noneDeleted = await jobs.DeleteAsync(Guid.NewGuid(), identity1);
+        Assert.That(noneDeleted, Is.EqualTo(0));
+    }
+
+    //
+
     private JobsRecord NewJobsRecord()
     {
         return new JobsRecord

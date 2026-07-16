@@ -28,6 +28,13 @@ public class ScheduledNotificationJobData
     public AppNotificationOptions? Options { get; init; }
 
     /// <summary>
+    /// The id of the app that scheduled this notification, if the caller authenticated as an app.
+    /// Null when the owner scheduled it directly.  Used to scope list/cancel to the app that created
+    /// the schedule; the owner can still see and cancel everything.
+    /// </summary>
+    public System.Guid? ScheduledByAppId { get; init; }
+
+    /// <summary>
     /// The originally requested send time.  Retained for diagnostics; the actual scheduling is driven
     /// by the job's <c>RunAt</c>.
     /// </summary>
