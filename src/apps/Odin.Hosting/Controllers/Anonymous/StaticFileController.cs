@@ -66,6 +66,11 @@ namespace Odin.Hosting.Controllers.Anonymous
 
             if (config == null)
             {
+                if (!string.IsNullOrEmpty(fallbackContent64) && !string.IsNullOrEmpty(fallbackContentType))
+                {
+                    return new FileContentResult(fallbackContent64.FromBase64(), fallbackContentType);
+                }
+
                 return NotFound();
             }
 
