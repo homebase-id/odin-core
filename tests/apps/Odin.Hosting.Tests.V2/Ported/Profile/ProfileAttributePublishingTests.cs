@@ -162,14 +162,18 @@ public class ProfileAttributePublishingTests : V2Fixture
         using var client = Host.CreateClient();
         var imageBeforeResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
         Assert.That(imageBeforeResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageBeforeResp.StatusCode}");
+        var imageBeforeBytes = await imageBeforeResp.Content.ReadAsByteArrayAsync();
 
         var delete = await profile.DeleteAttributeAsync(created.Content!.Id, created.Content.VersionTag);
         Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), $"actual {delete.StatusCode}");
 
         // Regression: deleting the only Anonymous-tier Photo attribute must clear /pub/image rather than
-        // leaving the previously-published bytes served forever.
+        // leaving the previously-published bytes served forever. With no image published, the endpoint
+        // falls back to the anonymous default image instead of the deleted content.
         var imageAfterResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
-        Assert.That(imageAfterResp.StatusCode, Is.EqualTo(HttpStatusCode.NotFound), $"actual {imageAfterResp.StatusCode}");
+        Assert.That(imageAfterResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageAfterResp.StatusCode}");
+        var imageAfterBytes = await imageAfterResp.Content.ReadAsByteArrayAsync();
+        Assert.That(imageAfterBytes, Is.Not.EqualTo(imageBeforeBytes));
     }
 
     [Test]
