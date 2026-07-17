@@ -37,14 +37,25 @@ public class ScheduledNotificationService(
     public const int MaxPendingPerTenant = 100;
 
     /// <summary>
+    /// Minimum allowed <see cref="ScheduleNotificationRequest.RecurrenceInterval"/>, in milliseconds.
+    /// Protects the shared system-wide job queue from a single recurring notification generating an
+    /// unbounded rate of claims (see <see cref="ScheduledNotificationJob"/>); this is the real protection
+    /// against sustained load, whereas <see cref="MaxPendingPerTenant"/> only bounds row count.
+    /// </summary>
+    public const long MinRecurrenceInterval = 5 * 60 * 1000; // 5 minutes
+
+    /// <summary>
     /// Schedules <paramref name="options"/> to be enqueued/pushed at <paramref name="sendAt"/>.
     /// A <paramref name="sendAt"/> in the past results in the notification being sent as soon as possible.
+    /// If <paramref name="recurrenceInterval"/> is set, the notification repeats every that many
+    /// milliseconds after each occurrence's intended send time, instead of running once.
     /// </summary>
-    /// <returns>The id of the scheduled job, which can be used to cancel it.</returns>
+    /// <returns>The id of the scheduled job, which can be used to cancel or update it.</returns>
     public async Task<Guid> ScheduleNotificationAsync(
         OdinId senderId,
         AppNotificationOptions? options,
         UnixTimeUtc sendAt,
+        long? recurrenceInterval,
         IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
@@ -54,13 +65,18 @@ public class ScheduledNotificationService(
             throw new OdinClientException("Notification options are required", OdinClientErrorCode.ArgumentError);
         }
 
-        var pendingCount = await CountPendingNotificationsAsync();
-        if (pendingCount >= MaxPendingPerTenant)
+        ValidateRecurrenceInterval(recurrenceInterval);
+
+        // Recurring notifications never age out of the shared queue on their own (they cycle back to
+        // Scheduled instead of expiring), so they count double against the tenant's own cap headroom.
+        var thisWeight = recurrenceInterval != null ? 2 : 1;
+        var pendingWeight = await CalculatePendingWeightAsync();
+        if (pendingWeight + thisWeight > MaxPendingPerTenant)
         {
             throw new OdinClientException(
-                $"Cannot schedule notification: this identity already has {pendingCount} pending scheduled " +
-                $"notifications, which is the maximum allowed ({MaxPendingPerTenant}). Cancel some existing " +
-                "scheduled notifications before scheduling more.",
+                $"Cannot schedule notification: this identity already has {pendingWeight} of {MaxPendingPerTenant} " +
+                "allowed pending scheduled notification slots (a recurring notification counts as 2). Cancel " +
+                "some existing scheduled notifications before scheduling more.",
                 OdinClientErrorCode.TooManyScheduledNotifications);
         }
 
@@ -73,6 +89,7 @@ public class ScheduledNotificationService(
             SenderId = senderId,
             Options = options,
             SendAt = sendAt,
+            RecurrenceInterval = recurrenceInterval,
             ScheduledByAppId = odinContext.Caller.OdinClientContext?.AppId?.Value,
         };
 
@@ -89,23 +106,25 @@ public class ScheduledNotificationService(
         });
 
         logger.LogInformation(
-            "Scheduled notification job {jobId} for tenant {tenant} to run at {runAt} (appId: {appId}, typeId: {typeId})",
-            jobId, tenant, runAt, options.AppId, options.TypeId);
+            "Scheduled notification job {jobId} for tenant {tenant} to run at {runAt} " +
+            "(appId: {appId}, typeId: {typeId}, recurring: {recurring})",
+            jobId, tenant, runAt, options.AppId, options.TypeId, recurrenceInterval != null);
 
         return jobId;
     }
 
     /// <summary>
-    /// Replaces the options and/or send time of a previously scheduled notification in place, keeping
-    /// the same job id.  Resets the job to a fresh Scheduled state (clearing any prior attempt count or
-    /// error), so it will run again even if it had already failed permanently.  Returns false if the job
-    /// no longer exists, or belongs to another app (owner can update any app's schedule; an app can only
-    /// update its own).
+    /// Replaces the options, send time, and/or recurrence of a previously scheduled notification in
+    /// place, keeping the same job id.  Resets the job to a fresh Scheduled state (clearing any prior
+    /// attempt count or error), so it will run again even if it had already failed permanently.  Returns
+    /// false if the job no longer exists, or belongs to another app (owner can update any app's schedule;
+    /// an app can only update its own).
     /// </summary>
     public async Task<bool> UpdateScheduledNotificationAsync(
         Guid jobId,
         AppNotificationOptions? options,
         UnixTimeUtc sendAt,
+        long? recurrenceInterval,
         IOdinContext odinContext)
     {
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendPushNotifications);
@@ -115,19 +134,23 @@ public class ScheduledNotificationService(
             throw new OdinClientException("Notification options are required", OdinClientErrorCode.ArgumentError);
         }
 
+        ValidateRecurrenceInterval(recurrenceInterval);
+
         var job = await jobManager.GetJobAsync<ScheduledNotificationJob>(jobId);
         if (job == null || job.Data.Tenant != odinContext.Tenant || !CanAccess(job.Data, odinContext))
         {
             return false;
         }
 
-        // Preserve identity/ownership fields from the original job; only Options and SendAt are updatable.
+        // Preserve identity/ownership fields from the original job; Options, SendAt, and
+        // RecurrenceInterval are updatable.
         job.Data = new ScheduledNotificationJobData
         {
             Tenant = job.Data.Tenant,
             SenderId = job.Data.SenderId,
             Options = options,
             SendAt = sendAt,
+            RecurrenceInterval = recurrenceInterval,
             ScheduledByAppId = job.Data.ScheduledByAppId,
         };
 
@@ -138,8 +161,9 @@ public class ScheduledNotificationService(
         if (updated)
         {
             logger.LogInformation(
-                "Rescheduled notification job {jobId} for tenant {tenant} to run at {runAt} (appId: {appId}, typeId: {typeId})",
-                jobId, job.Data.Tenant, runAt, options.AppId, options.TypeId);
+                "Rescheduled notification job {jobId} for tenant {tenant} to run at {runAt} " +
+                "(appId: {appId}, typeId: {typeId}, recurring: {recurring})",
+                jobId, job.Data.Tenant, runAt, options.AppId, options.TypeId, recurrenceInterval != null);
         }
 
         return updated;
@@ -192,10 +216,13 @@ public class ScheduledNotificationService(
             {
                 JobId = record.id,
                 Options = data.Options,
-                SendAt = data.SendAt,
+                // record.nextRun is live and reflects the upcoming occurrence; data.SendAt is the
+                // originally requested time and goes stale once a recurring notification fires once.
+                SendAt = record.nextRun,
                 State = ((JobState)record.state).ToString(),
                 AttemptCount = record.runCount,
                 MaxAttempts = record.maxAttempts,
+                RecurrenceInterval = data.RecurrenceInterval,
             });
         }
 
@@ -213,12 +240,47 @@ public class ScheduledNotificationService(
     }
 
     /// <summary>
-    /// Counts this tenant's scheduled notification jobs, across all apps and job states, for the purpose
-    /// of enforcing <see cref="MaxPendingPerTenant"/>.
+    /// Rejects a recurrence interval that's set but below <see cref="MinRecurrenceInterval"/>. A floor
+    /// on the interval -- not the pending-count cap -- is what actually protects the shared job queue
+    /// from a single recurring notification generating an unbounded claim rate.
     /// </summary>
-    private async Task<int> CountPendingNotificationsAsync()
+    private static void ValidateRecurrenceInterval(long? recurrenceInterval)
+    {
+        if (recurrenceInterval is { } interval && interval < MinRecurrenceInterval)
+        {
+            throw new OdinClientException(
+                $"Recurrence interval must be at least {MinRecurrenceInterval}ms ({MinRecurrenceInterval / 1000}s).",
+                OdinClientErrorCode.ArgumentError);
+        }
+    }
+
+    /// <summary>
+    /// Weighs this tenant's scheduled notification jobs, across all apps and job states, for the purpose
+    /// of enforcing <see cref="MaxPendingPerTenant"/>.  A recurring notification counts as 2 -- unlike a
+    /// one-shot job it never ages out of the queue on its own, so it permanently occupies a slot.
+    /// </summary>
+    private async Task<int> CalculatePendingWeightAsync()
     {
         var records = await jobManager.GetJobsByIdentityIdAsync(tenantContext.DotYouRegistryId);
-        return records.Count(r => r.jobType == ScheduledNotificationJob.JobTypeId.ToString());
+
+        var weight = 0;
+        foreach (var record in records)
+        {
+            if (record.jobType != ScheduledNotificationJob.JobTypeId.ToString())
+            {
+                continue;
+            }
+
+            var isRecurring = false;
+            if (!string.IsNullOrEmpty(record.jobData))
+            {
+                var data = OdinSystemSerializer.Deserialize<ScheduledNotificationJobData>(record.jobData);
+                isRecurring = data?.RecurrenceInterval != null;
+            }
+
+            weight += isRecurring ? 2 : 1;
+        }
+
+        return weight;
     }
 }
