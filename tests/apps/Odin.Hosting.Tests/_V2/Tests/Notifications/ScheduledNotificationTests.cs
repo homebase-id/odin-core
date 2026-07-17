@@ -447,6 +447,120 @@ public class ScheduledNotificationTests
     }
 
     /// <summary>
+    /// A recurrence interval below <see cref="ScheduledNotificationService.MinRecurrenceInterval"/> is
+    /// rejected on both Schedule and Update -- this floor, not the pending-count cap, is what actually
+    /// protects the shared job queue from a single recurring notification firing too often.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_RejectsRecurrenceIntervalBelowFloor()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var callerContext = new OwnerTestCase(targetDrive);
+        await callerContext.Initialize(ownerFrodo);
+        var scheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, callerContext.GetFactory());
+
+        var options = new AppNotificationOptions
+        {
+            AppId = Guid.NewGuid(),
+            TypeId = Guid.NewGuid(),
+            TagId = Guid.NewGuid(),
+            Silent = true
+        };
+        var sendAt = UnixTimeUtc.Now().AddHours(1);
+        var tooShortInterval = ScheduledNotificationService.MinRecurrenceInterval - 1;
+
+        // Rejected on Schedule.
+        var scheduleResponse = await scheduleClient.Schedule(options, sendAt, tooShortInterval);
+        ClassicAssert.AreEqual(HttpStatusCode.BadRequest, scheduleResponse.StatusCode);
+        ClassicAssert.AreEqual(OdinClientErrorCode.ArgumentError, WebScaffold.GetErrorCode(scheduleResponse.Error));
+
+        // A valid one-shot schedule, then rejected on Update too.
+        var validResponse = await scheduleClient.Schedule(options, sendAt);
+        ClassicAssert.IsTrue(validResponse.IsSuccessStatusCode, $"Schedule failed: {validResponse.StatusCode}");
+        var jobId = validResponse.Content.JobId;
+
+        var updateResponse = await scheduleClient.Update(jobId, options, sendAt, tooShortInterval);
+        ClassicAssert.AreEqual(HttpStatusCode.BadRequest, updateResponse.StatusCode);
+        ClassicAssert.AreEqual(OdinClientErrorCode.ArgumentError, WebScaffold.GetErrorCode(updateResponse.Error));
+
+        await scheduleClient.Cancel(jobId);
+    }
+
+    /// <summary>
+    /// A recurring notification is surfaced in the list with its interval, and counts as 2 against
+    /// <see cref="ScheduledNotificationService.MaxPendingPerTenant"/> instead of 1, since it never ages
+    /// out of the queue on its own the way a one-shot notification does.
+    /// </summary>
+    [Test]
+    public async Task ScheduledNotification_RecurringNotificationCountsDoubleAgainstTheCap()
+    {
+        var frodo = TestIdentities.Frodo;
+        var ownerFrodo = _scaffold.CreateOwnerApiClientRedux(frodo);
+
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await ownerFrodo.DriveManager.CreateDrive(targetDrive, "Test Drive", "", false);
+
+        var callerContext = new OwnerTestCase(targetDrive);
+        await callerContext.Initialize(ownerFrodo);
+        var scheduleClient = new ScheduledNotificationV2Client(frodo.OdinId, callerContext.GetFactory());
+
+        var sendAt = UnixTimeUtc.Now().AddHours(6);
+
+        // Other tests sharing this identity may have left pending notifications behind; work out the
+        // current weight (one-shot = 1, recurring = 2) rather than assuming a clean slate.
+        var listBefore = await scheduleClient.List();
+        ClassicAssert.IsTrue(listBefore.IsSuccessStatusCode, $"List failed: {listBefore.StatusCode}");
+        var currentWeight = listBefore.Content?.Sum(e => e.RecurrenceInterval != null ? 2 : 1) ?? 0;
+
+        var scheduledJobIds = new List<Guid>();
+        try
+        {
+            var recurringResponse = await scheduleClient.Schedule(
+                new AppNotificationOptions { AppId = Guid.NewGuid(), TypeId = Guid.NewGuid(), TagId = Guid.NewGuid(), Silent = true },
+                sendAt,
+                ScheduledNotificationService.MinRecurrenceInterval);
+            ClassicAssert.IsTrue(recurringResponse.IsSuccessStatusCode, $"Schedule failed: {recurringResponse.StatusCode}");
+            var recurringJobId = recurringResponse.Content.JobId;
+            scheduledJobIds.Add(recurringJobId);
+
+            var listAfterRecurring = await scheduleClient.List();
+            var recurringEntry = listAfterRecurring.Content?.SingleOrDefault(e => e.JobId == recurringJobId);
+            ClassicAssert.IsNotNull(recurringEntry, "Recurring notification did not appear in the list");
+            ClassicAssert.AreEqual(ScheduledNotificationService.MinRecurrenceInterval, recurringEntry.RecurrenceInterval);
+
+            // Fill the remaining slots with one-shots (the recurring notification already took 2).
+            for (var i = currentWeight + 2; i < ScheduledNotificationService.MaxPendingPerTenant; i++)
+            {
+                var response = await scheduleClient.Schedule(
+                    new AppNotificationOptions { AppId = Guid.NewGuid(), TypeId = Guid.NewGuid(), TagId = Guid.NewGuid(), Silent = true },
+                    sendAt);
+                ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Schedule failed while filling the cap: {response.StatusCode}");
+                scheduledJobIds.Add(response.Content.JobId);
+            }
+
+            // One more is rejected -- proving the recurring notification's 2-slot weight was enforced.
+            var overCapResponse = await scheduleClient.Schedule(
+                new AppNotificationOptions { AppId = Guid.NewGuid(), TypeId = Guid.NewGuid(), TagId = Guid.NewGuid(), Silent = true },
+                sendAt);
+            ClassicAssert.AreEqual(HttpStatusCode.BadRequest, overCapResponse.StatusCode);
+            ClassicAssert.AreEqual(
+                OdinClientErrorCode.TooManyScheduledNotifications, WebScaffold.GetErrorCode(overCapResponse.Error));
+        }
+        finally
+        {
+            foreach (var jobId in scheduledJobIds)
+            {
+                await scheduleClient.Cancel(jobId);
+            }
+        }
+    }
+
+    /// <summary>
     /// Both Schedule and Update require notification options; a null payload is rejected with a client
     /// error rather than silently scheduling/updating with no content.
     /// </summary>

@@ -88,6 +88,24 @@ public class ScheduledNotificationJob(
 
     //
 
+    /// <summary>
+    /// If <see cref="ScheduledNotificationJobData.RecurrenceInterval"/> is set, keeps this job recurring
+    /// by scheduling the next occurrence relative to the slot this one was meant to run for (rather than
+    /// wall-clock now, to avoid cadence drift if the runner was delayed).  Called by the engine after a
+    /// success, or after a failure that has exhausted all retry attempts.
+    /// </summary>
+    public override Task<DateTimeOffset?> OnCompletedAsync(JobCompletion completion)
+    {
+        if (Data.RecurrenceInterval is not { } interval)
+        {
+            return Task.FromResult<DateTimeOffset?>(null);
+        }
+
+        return Task.FromResult<DateTimeOffset?>(completion.ScheduledFor + TimeSpan.FromMilliseconds(interval));
+    }
+
+    //
+
     public override string SerializeJobData()
     {
         return OdinSystemSerializer.Serialize(Data);

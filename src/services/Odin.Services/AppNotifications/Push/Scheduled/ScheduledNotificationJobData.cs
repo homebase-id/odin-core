@@ -39,4 +39,10 @@ public class ScheduledNotificationJobData
     /// by the job's <c>RunAt</c>.
     /// </summary>
     public UnixTimeUtc SendAt { get; init; }
+
+    /// <summary>
+    /// If set, how long (in milliseconds) after each occurrence's intended send time to schedule the
+    /// next one.  Null means this is a one-shot notification.
+    /// </summary>
+    public long? RecurrenceInterval { get; init; }
 }
