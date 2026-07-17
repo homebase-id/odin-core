@@ -27,7 +27,7 @@ namespace Odin.Hosting.UnifiedV2.Notifications
         {
             var caller = WebOdinContext.GetCallerOdinIdOrFail();
             var jobId = await scheduledNotificationService.ScheduleNotificationAsync(
-                caller, request.Options, request.SendAt, WebOdinContext);
+                caller, request.Options, request.SendAt, request.RecurrenceInterval, WebOdinContext);
 
             return new ScheduleNotificationResult { JobId = jobId };
         }
@@ -39,7 +39,7 @@ namespace Odin.Hosting.UnifiedV2.Notifications
         public async Task<IActionResult> UpdateSchedule(Guid jobId, [FromBody] ScheduleNotificationRequest request)
         {
             var updated = await scheduledNotificationService.UpdateScheduledNotificationAsync(
-                jobId, request.Options, request.SendAt, WebOdinContext);
+                jobId, request.Options, request.SendAt, request.RecurrenceInterval, WebOdinContext);
             if (!updated)
             {
                 return NotFound();

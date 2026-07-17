@@ -13,7 +13,8 @@ namespace Odin.Hosting.Tests._V2.ApiClient;
 
 public class ScheduledNotificationV2Client(OdinId identity, IApiClientFactory factory)
 {
-    public async Task<ApiResponse<ScheduleNotificationResult>> Schedule(AppNotificationOptions options, UnixTimeUtc sendAt)
+    public async Task<ApiResponse<ScheduleNotificationResult>> Schedule(
+        AppNotificationOptions options, UnixTimeUtc sendAt, long? recurrenceInterval = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IScheduledNotificationHttpClientV2>(client, sharedSecret);
@@ -21,10 +22,12 @@ public class ScheduledNotificationV2Client(OdinId identity, IApiClientFactory fa
         {
             Options = options,
             SendAt = sendAt,
+            RecurrenceInterval = recurrenceInterval,
         });
     }
 
-    public async Task<ApiResponse<HttpContent>> Update(Guid jobId, AppNotificationOptions options, UnixTimeUtc sendAt)
+    public async Task<ApiResponse<HttpContent>> Update(
+        Guid jobId, AppNotificationOptions options, UnixTimeUtc sendAt, long? recurrenceInterval = null)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IScheduledNotificationHttpClientV2>(client, sharedSecret);
@@ -32,6 +35,7 @@ public class ScheduledNotificationV2Client(OdinId identity, IApiClientFactory fa
         {
             Options = options,
             SendAt = sendAt,
+            RecurrenceInterval = recurrenceInterval,
         });
     }
 

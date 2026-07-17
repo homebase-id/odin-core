@@ -19,6 +19,13 @@ public class ScheduleNotificationRequest
     /// When to send the notification (UTC, milliseconds since epoch).  A time in the past sends ASAP.
     /// </summary>
     public UnixTimeUtc SendAt { get; set; }
+
+    /// <summary>
+    /// If set, repeats the notification every <c>RecurrenceInterval</c> milliseconds after each
+    /// occurrence's intended send time, starting from <see cref="SendAt"/>.  Must be at least
+    /// <see cref="ScheduledNotificationService.MinRecurrenceInterval"/>.  Omit for a one-shot notification.
+    /// </summary>
+    public long? RecurrenceInterval { get; set; }
 }
 
 /// <summary>
@@ -66,4 +73,10 @@ public class ScheduledNotificationSummary
     /// The maximum number of attempts before the notification is given up on.
     /// </summary>
     public int MaxAttempts { get; set; }
+
+    /// <summary>
+    /// If set, this notification repeats every <c>RecurrenceInterval</c> milliseconds; null means it's
+    /// a one-shot notification.
+    /// </summary>
+    public long? RecurrenceInterval { get; set; }
 }
