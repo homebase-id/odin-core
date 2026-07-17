@@ -435,9 +435,9 @@ public class ProfilePublishService(
         var givenName = GetDataString(nameContent, ProfileAttributeFields.GivenName);
         var surname = GetDataString(nameContent, ProfileAttributeFields.Surname);
 
-        if (InitialsAvatarGenerator.TryGenerate(givenName, surname, publishContext.Tenant.ToString(), out var svgBase64))
+        if (InitialsAvatarGenerator.TryGenerate(givenName, surname, publishContext.Tenant.ToString(), out var pngBase64))
         {
-            await staticFileContentService.PublishProfileImageAsync(svgBase64!, "image/svg+xml");
+            await staticFileContentService.PublishProfileImageAsync(pngBase64!, "image/png");
 
             await mediator.Publish(new PublicProfileContentPublishedNotification
             {

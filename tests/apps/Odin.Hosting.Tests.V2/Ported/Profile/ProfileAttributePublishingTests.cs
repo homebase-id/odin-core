@@ -224,11 +224,11 @@ public class ProfileAttributePublishingTests : V2Fixture
         using var client = Host.CreateClient();
         var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
         Assert.That(imageResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageResp.StatusCode}");
-        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/svg+xml"));
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/png"));
     }
 
     [Test]
-    public async Task SetAttribute_Name_NoPhoto_LinkPreviewAliasStaysGenericFallback()
+    public async Task SetAttribute_Name_NoPhoto_LinkPreviewAliasAlsoGetsInitialsAvatar()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var profile = new V2ProfileClient(owner.Identity, owner.Factory);
@@ -247,15 +247,18 @@ public class ProfileAttributePublishingTests : V2Fixture
 
         using var client = Host.CreateClient();
 
-        // /pub/image itself gets the generated SVG avatar...
+        // The avatar is a real PNG (not SVG), so unlike an SVG fallback it's safe to serve from the
+        // link-preview (og:image) alias too -- both routes should return the exact same bytes.
         var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
-        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/svg+xml"));
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/png"));
+        var imageBytes = await imageResp.Content.ReadAsByteArrayAsync();
 
-        // ...but the link-preview (og:image) alias must never serve SVG -- most crawlers won't render it --
-        // so it stays on the generic JPEG silhouette instead.
         var linkPreviewResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image.jpg");
         Assert.That(linkPreviewResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {linkPreviewResp.StatusCode}");
-        Assert.That(linkPreviewResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/jpeg"));
+        Assert.That(linkPreviewResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/png"));
+        var linkPreviewBytes = await linkPreviewResp.Content.ReadAsByteArrayAsync();
+
+        Assert.That(linkPreviewBytes, Is.EqualTo(imageBytes));
     }
 
     [Test]
@@ -305,7 +308,7 @@ public class ProfileAttributePublishingTests : V2Fixture
 
         var imageAfterResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
         Assert.That(imageAfterResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageAfterResp.StatusCode}");
-        Assert.That(imageAfterResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/svg+xml"),
+        Assert.That(imageAfterResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/png"),
             "with a Name attribute still set, deleting the photo should fall back to the initials avatar, not the generic silhouette");
     }
 
