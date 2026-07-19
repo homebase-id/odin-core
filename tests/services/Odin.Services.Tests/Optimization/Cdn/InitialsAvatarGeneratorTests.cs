@@ -13,6 +13,48 @@ public class InitialsAvatarGeneratorTests
 {
     private const string Seed = "frodo.dotyou.cloud";
 
+    // Copied verbatim from odin-js's OdinIdColorValues[].lightTheme
+    // (packages/common/common-app/src/helpers/colors/hostnameColors.ts), which is what
+    // FallbackImg.tsx uses client-side for the same "no photo" initials avatar. This locks in that
+    // our server-rendered PNG picks the exact same background color odin-js would show for a given
+    // identity -- a transcription slip here would silently desync the two.
+    private static readonly string[] ExpectedOdinJsLightThemePalette =
+    [
+        "#006da3", "#007a3d", "#c13215", "#b814b8", "#5b6976", "#3d7406", "#cc0066", "#2e51ff",
+        "#9c5711", "#007575", "#d00b4d", "#8f2af4", "#d00b0b", "#067906", "#5151f6", "#866118",
+        "#067953", "#a20ced", "#4b7000", "#c70a88", "#b34209", "#06792d", "#7a3df5", "#6b6b24",
+        "#d00b2c", "#2d7906", "#af0bd0", "#32763e", "#2662d9", "#76681e", "#067462", "#6447f5",
+        "#5e6e0c", "#077288", "#c20aa3", "#2d761e"
+    ];
+
+    [Test]
+    public void Palette_MatchesOdinJsLightThemeValues()
+    {
+        Assert.That(InitialsAvatarGenerator.LightThemeHexPalette, Is.EqualTo(ExpectedOdinJsLightThemePalette));
+    }
+
+    [TestCase("frodo.dotyou.cloud")]
+    [TestCase("sam.dotyou.cloud")]
+    [TestCase("some-other-identity.example.com")]
+    public void TryGenerate_BackgroundColor_MatchesOdinJsGetOdinIdColorAlgorithm(string odinId)
+    {
+        InitialsAvatarGenerator.TryGenerate("Frodo", null, odinId, out var pngBase64);
+        var png = DecodePng(pngBase64!);
+
+        // Ported verbatim from odin-js's getOdinIdColor: XOR every UTF-16 code unit, then index into
+        // the palette mod its length. Reimplemented independently here (rather than reusing
+        // InitialsAvatarGenerator's internal hash) so this test actually catches the production code
+        // drifting from the algorithm, not just from itself.
+        uint hash = 0;
+        foreach (var ch in odinId)
+        {
+            hash ^= ch;
+        }
+
+        var expected = ParseHexColor(InitialsAvatarGenerator.LightThemeHexPalette[hash % InitialsAvatarGenerator.Palette.Length]);
+        Assert.That(GetPixel(png, 0, 0), Is.EqualTo(expected));
+    }
+
     [Test]
     public void TryGenerate_GivenNameOnly_ProducesSingleInitial()
     {
@@ -160,6 +202,11 @@ public class InitialsAvatarGeneratorTests
         var idx = y * stride + 1 + x * 3; // +1 skips the per-scanline filter-type byte
         return (png.RawScanlines[idx], png.RawScanlines[idx + 1], png.RawScanlines[idx + 2]);
     }
+
+    private static (byte R, byte G, byte B) ParseHexColor(string hex) => (
+        Convert.ToByte(hex.Substring(1, 2), 16),
+        Convert.ToByte(hex.Substring(3, 2), 16),
+        Convert.ToByte(hex.Substring(5, 2), 16));
 
     private static int CountWhitePixels(DecodedPng png)
     {

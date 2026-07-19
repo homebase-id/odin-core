@@ -31,14 +31,25 @@ public static class InitialsAvatarGenerator
     private const int GlyphRows = 7;
     private const int GlyphGapCols = 1;
 
-    // Curated palette (not raw random RGB) so every generated avatar has decent contrast against
-    // the white glyph.
-    private static readonly (byte R, byte G, byte B)[] Palette =
+    // The exact "lightTheme" palette from odin-js's OdinIdColorValues (getOdinIdColor,
+    // packages/common/common-app/src/helpers/colors/hostnameColors.ts), reproduced verbatim so the
+    // avatar background shown here matches the one odin-js's own FallbackImg component shows
+    // elsewhere in the app for the same identity. Selection happens in OdinIdColorIndex below.
+    internal static readonly string[] LightThemeHexPalette =
     [
-        (0xF8, 0x71, 0x71), (0xFB, 0x92, 0x3C), (0xFB, 0xBF, 0x24), (0xA3, 0xE6, 0x35),
-        (0x34, 0xD3, 0x99), (0x2D, 0xD4, 0xBF), (0x22, 0xD3, 0xEE), (0x60, 0xA5, 0xFA),
-        (0x81, 0x8C, 0xF8), (0xA7, 0x8B, 0xFA), (0xE8, 0x79, 0xF9), (0xFB, 0x71, 0x85)
+        "#006da3", "#007a3d", "#c13215", "#b814b8", "#5b6976", "#3d7406", "#cc0066", "#2e51ff",
+        "#9c5711", "#007575", "#d00b4d", "#8f2af4", "#d00b0b", "#067906", "#5151f6", "#866118",
+        "#067953", "#a20ced", "#4b7000", "#c70a88", "#b34209", "#06792d", "#7a3df5", "#6b6b24",
+        "#d00b2c", "#2d7906", "#af0bd0", "#32763e", "#2662d9", "#76681e", "#067462", "#6447f5",
+        "#5e6e0c", "#077288", "#c20aa3", "#2d761e"
     ];
+
+    internal static readonly (byte R, byte G, byte B)[] Palette = Array.ConvertAll(LightThemeHexPalette, ParseHexColor);
+
+    private static (byte R, byte G, byte B) ParseHexColor(string hex) => (
+        Convert.ToByte(hex.Substring(1, 2), 16),
+        Convert.ToByte(hex.Substring(3, 2), 16),
+        Convert.ToByte(hex.Substring(5, 2), 16));
 
     /// <summary>
     /// Attempts to build an initials avatar from <paramref name="givenName"/>/<paramref name="surname"/>.
@@ -55,7 +66,7 @@ public static class InitialsAvatarGenerator
             return false;
         }
 
-        var (r, g, b) = Palette[(int)(StableHash(colorSeed) % (uint)Palette.Length)];
+        var (r, g, b) = Palette[(int)OdinIdColorIndex(colorSeed)];
         var pixels = RenderPixels(initials, r, g, b);
         pngBase64 = Convert.ToBase64String(EncodePng(pixels, CanvasSize, CanvasSize));
         return true;
@@ -108,21 +119,19 @@ public static class InitialsAvatarGenerator
         return null;
     }
 
-    // Deterministic across process restarts, unlike string.GetHashCode() (randomized per-process in
-    // .NET) -- the same identity must always land on the same palette color.
-    private static uint StableHash(string value)
+    // Ported verbatim from odin-js's getOdinIdColor (same file as the palette above): XOR every
+    // UTF-16 code unit of the OdinId together, then index into the palette mod its length. Matching
+    // this exactly (not e.g. FNV-1a) is what makes the two implementations agree on a color for the
+    // same identity -- char in C# is already a UTF-16 code unit, same as JS's charCodeAt.
+    private static uint OdinIdColorIndex(string odinId)
     {
-        const uint fnvOffsetBasis = 2166136261;
-        const uint fnvPrime = 16777619;
-
-        var hash = fnvOffsetBasis;
-        foreach (var b in Encoding.UTF8.GetBytes(value))
+        uint c = 0;
+        foreach (var ch in odinId)
         {
-            hash ^= b;
-            hash *= fnvPrime;
+            c ^= ch;
         }
 
-        return hash;
+        return c % (uint)Palette.Length;
     }
 
     //
