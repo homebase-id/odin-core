@@ -81,6 +81,56 @@ public class InitialsAvatarGeneratorTests
         Assert.That(doubleWhite, Is.GreaterThan(singleWhite), "two initials should paint more white pixels than one");
     }
 
+    [TestCase("frodo.dotyou.cloud", "fd")] // >2 labels: first letter of label 0 + first letter of label 1
+    [TestCase("example.com", "ex")] // <=2 labels: first two characters of label 0
+    [TestCase("a.com", "a")] // <=2 labels, label 0 shorter than 2 chars: label 0 as-is
+    [TestCase("a.b.co", "ab")] // >2 labels, single-character leading labels
+    [TestCase("www.example.com", "ex")] // leading "www." is stripped before splitting
+    public void GetTwoLettersFromDomain_MatchesOdinJs(string domain, string expected)
+    {
+        // Reference values hand-computed from odin-js's getTwoLettersFromDomain
+        // (packages/libs/js-lib/src/helpers/DomainUtil.ts), so a drift here means the two
+        // implementations would show different fallback letters for the same identity.
+        Assert.That(InitialsAvatarGenerator.GetTwoLettersFromDomain(domain), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void TryGenerateFromDomain_UppercasesTheDerivedLetters()
+    {
+        InitialsAvatarGenerator.TryGenerateFromDomain("frodo.dotyou.cloud", out var domainPng);
+        InitialsAvatarGenerator.TryGenerate("Frodo", "Dotyou", "frodo.dotyou.cloud", out var namePng);
+
+        // "FD" from the domain should render identically to "FD" from given/surname initials -- same
+        // glyphs, same color seed.
+        Assert.That(domainPng, Is.EqualTo(namePng));
+    }
+
+    [TestCase(null)]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void TryGenerateFromDomain_NullOrEmptyDomain_ReturnsFalse(string domain)
+    {
+        var ok = InitialsAvatarGenerator.TryGenerateFromDomain(domain, out var pngBase64);
+
+        Assert.That(ok, Is.False);
+        Assert.That(pngBase64, Is.Null);
+    }
+
+    [Test]
+    public void TryGenerate_NoNameAtAll_FailsSoCallerCanFallThroughToDomain()
+    {
+        // TryGenerate (name-based) fails with no given name at all -- ProfilePublishService is expected
+        // to then call TryGenerateFromDomain, mirroring odin-js's FallbackImg which always has
+        // *something* to show rather than falling through to a blank/generic silhouette.
+        var nameOk = InitialsAvatarGenerator.TryGenerate(null, null, Seed, out var namePng);
+        Assert.That(nameOk, Is.False);
+        Assert.That(namePng, Is.Null);
+
+        var domainOk = InitialsAvatarGenerator.TryGenerateFromDomain(Seed, out var domainPng);
+        Assert.That(domainOk, Is.True);
+        Assert.That(domainPng, Is.Not.Null);
+    }
+
     [TestCase(null, null)]
     [TestCase("", "Baggins")]
     [TestCase("   ", "Baggins")]

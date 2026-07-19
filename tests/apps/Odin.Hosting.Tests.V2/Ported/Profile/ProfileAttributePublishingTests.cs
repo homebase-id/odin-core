@@ -313,7 +313,7 @@ public class ProfileAttributePublishingTests : V2Fixture
     }
 
     [Test]
-    public async Task SetAttribute_Name_ConnectedVisibility_NoPhoto_DoesNotPublishAvatar()
+    public async Task SetAttribute_Name_ConnectedVisibility_NoPhoto_FallsBackToDomainAvatarNotName()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
         var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ProfileDrive,
@@ -331,8 +331,14 @@ public class ProfileAttributePublishingTests : V2Fixture
         using var client = Host.CreateClient();
         var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
         Assert.That(imageResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageResp.StatusCode}");
-        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/jpeg"),
-            "a Connected (non-Anonymous) Name attribute must not leak into the public image fallback");
+
+        // A Connected (non-Anonymous) Name attribute must not leak into the public avatar -- it falls
+        // back to the domain-derived avatar (odin-js's own last-resort) rather than the "Secret" name,
+        // and rather than the generic silhouette (since a domain-derived avatar is always available).
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/png"));
+        InitialsAvatarGenerator.TryGenerateFromDomain(Identities.Frodo, out var expectedPngBase64);
+        var actualBytes = await imageResp.Content.ReadAsByteArrayAsync();
+        Assert.That(actualBytes, Is.EqualTo(Convert.FromBase64String(expectedPngBase64!)));
     }
 
     [Test]

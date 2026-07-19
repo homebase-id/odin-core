@@ -423,10 +423,10 @@ public class ProfilePublishService(
 
     /// <summary>
     /// Called whenever <see cref="RepublishProfileImageAsync"/> has no usable Photo attribute to publish.
-    /// Falls back to a generated initials avatar (e.g. "JB") when an Anonymous-tier Name attribute exists,
-    /// so <c>/pub/image</c> shows something personal rather than the generic silhouette -- otherwise clears
-    /// the artifact via <see cref="ClearProfileImageAsync"/>, which is the true last resort (no photo, no
-    /// usable name).
+    /// Falls back, in order: a generated initials avatar (e.g. "JB") from an Anonymous-tier Name
+    /// attribute if one exists; otherwise two letters derived from the domain itself (mirrors odin-js's
+    /// own FallbackImg.tsx last-resort, which almost always has something to show); otherwise clears
+    /// the artifact via <see cref="ClearProfileImageAsync"/>, the true last resort.
     /// </summary>
     private async Task PublishFallbackProfileImageAsync(IOdinContext publishContext)
     {
@@ -435,7 +435,11 @@ public class ProfilePublishService(
         var givenName = GetDataString(nameContent, ProfileAttributeFields.GivenName);
         var surname = GetDataString(nameContent, ProfileAttributeFields.Surname);
 
-        if (InitialsAvatarGenerator.TryGenerate(givenName, surname, publishContext.Tenant.ToString(), out var pngBase64))
+        var tenant = publishContext.Tenant.ToString();
+        var generated = InitialsAvatarGenerator.TryGenerate(givenName, surname, tenant, out var pngBase64) ||
+                         InitialsAvatarGenerator.TryGenerateFromDomain(tenant, out pngBase64);
+
+        if (generated)
         {
             await staticFileContentService.PublishProfileImageAsync(pngBase64!, "image/png");
 
@@ -451,9 +455,9 @@ public class ProfilePublishService(
     }
 
     /// <summary>
-    /// Removes the previously-published <c>public_image.json</c> artifact when there's no photo AND no
-    /// usable name to fall back to (see <see cref="PublishFallbackProfileImageAsync"/>) -- e.g. after the
-    /// only Photo attribute is deleted and no Name attribute exists. Without this, <c>/pub/image</c> would
+    /// Removes the previously-published <c>public_image.json</c> artifact when there's no photo and no
+    /// usable name or domain to fall back to (see <see cref="PublishFallbackProfileImageAsync"/>) --
+    /// in practice only reachable for a null/empty tenant domain. Without this, <c>/pub/image</c> would
     /// keep serving the last-published bytes forever, since unlike <see cref="RepublishSiteDataAsync"/>
     /// (which rebuilds its whole document from scratch on every call and so naturally reflects a deletion as
     /// an empty section) there is nothing to rebuild *from* once the source attribute is gone.

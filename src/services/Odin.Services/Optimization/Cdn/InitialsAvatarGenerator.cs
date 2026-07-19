@@ -55,7 +55,7 @@ public static class InitialsAvatarGenerator
     /// Attempts to build an initials avatar from <paramref name="givenName"/>/<paramref name="surname"/>.
     /// Returns false (and a null <paramref name="pngBase64"/>) when there's no given name to work with,
     /// or its first letter can't be folded to plain A-Z (the built-in font's only alphabet) -- callers
-    /// should fall through to their own default/generic fallback in either case.
+    /// should fall through to <see cref="TryGenerateFromDomain"/> (or their own default) in either case.
     /// </summary>
     public static bool TryGenerate(string? givenName, string? surname, string colorSeed, out string? pngBase64)
     {
@@ -66,10 +66,40 @@ public static class InitialsAvatarGenerator
             return false;
         }
 
+        pngBase64 = GenerateCore(initials, colorSeed);
+        return true;
+    }
+
+    /// <summary>
+    /// Ported from odin-js's getTwoLettersFromDomain (used by FallbackImg.tsx as the last-resort
+    /// avatar when there's no name to derive initials from either): two letters taken directly from
+    /// the domain itself, so there's essentially always something more personal than a blank/generic
+    /// silhouette to show. Only fails (returns false) for a null/empty domain.
+    /// </summary>
+    public static bool TryGenerateFromDomain(string? domain, out string? pngBase64)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            pngBase64 = null;
+            return false;
+        }
+
+        var initials = GetTwoLettersFromDomain(domain).ToUpperInvariant();
+        if (initials.Length == 0)
+        {
+            pngBase64 = null;
+            return false;
+        }
+
+        pngBase64 = GenerateCore(initials, domain);
+        return true;
+    }
+
+    private static string GenerateCore(string initials, string colorSeed)
+    {
         var (r, g, b) = Palette[(int)OdinIdColorIndex(colorSeed)];
         var pixels = RenderPixels(initials, r, g, b);
-        pngBase64 = Convert.ToBase64String(EncodePng(pixels, CanvasSize, CanvasSize));
-        return true;
+        return Convert.ToBase64String(EncodePng(pixels, CanvasSize, CanvasSize));
     }
 
     //
@@ -117,6 +147,25 @@ public static class InitialsAvatarGenerator
         }
 
         return null;
+    }
+
+    // Ported from odin-js's getTwoLettersFromDomain (packages/libs/js-lib/src/helpers/DomainUtil.ts).
+    // Unlike FirstLetter above, this takes raw characters as-is (no letter filtering, no diacritic
+    // folding) -- matching JS's clamped substring() (never throws on a too-short part) rather than
+    // C#'s Substring (throws past the end), since e.g. a single-label domain part can be 1 character.
+    // Internal (rather than private) so tests can assert its output directly against odin-js.
+    internal static string GetTwoLettersFromDomain(string domain)
+    {
+        var parts = domain.Replace("www.", "").Split('.');
+        if (parts.Length <= 2)
+        {
+            var part = parts[0];
+            return part.Length <= 2 ? part : part.Substring(0, 2);
+        }
+
+        var first = parts[0].Length > 0 ? parts[0].Substring(0, 1) : "";
+        var second = parts[1].Length > 0 ? parts[1].Substring(0, 1) : "";
+        return first + second;
     }
 
     // Ported verbatim from odin-js's getOdinIdColor (same file as the palette above): XOR every
