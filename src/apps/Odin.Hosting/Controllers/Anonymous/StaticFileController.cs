@@ -43,10 +43,21 @@ namespace Odin.Hosting.Controllers.Anonymous
         /// Returns the public profile image
         /// </summary>
         [HttpGet("pub/image")]
-        [HttpGet(LinkPreviewDefaults.PublicImagePath)]
         public async Task<IActionResult> GetPublicImage()
         {
             return await this.SendStream(StaticFileConstants.ProfileImageFileName, StaticFileConstants.FallBackProfileImage, "image/jpeg");
+        }
+
+        /// <summary>
+        /// Returns the public profile image for link-preview consumers (og:image). Social/chat crawlers
+        /// generally don't render SVG, so a generated initials avatar (image/svg+xml) is treated the same
+        /// as "nothing published" here and swapped for the generic JPEG silhouette instead.
+        /// </summary>
+        [HttpGet(LinkPreviewDefaults.PublicImagePath)]
+        public async Task<IActionResult> GetPublicImageForLinkPreview()
+        {
+            return await this.SendStream(StaticFileConstants.ProfileImageFileName, StaticFileConstants.FallBackProfileImage, "image/jpeg",
+                excludeContentTypePrefix: "image/svg");
         }
 
         /// <summary>
@@ -59,13 +70,19 @@ namespace Odin.Hosting.Controllers.Anonymous
         }
 
 
-        private async Task<IActionResult> SendStream(string filename, string? fallbackContent64 = null, string? fallbackContentType = null)
+        private async Task<IActionResult> SendStream(string filename, string? fallbackContent64 = null, string? fallbackContentType = null,
+            string? excludeContentTypePrefix = null)
         {
             OdinValidationUtils.AssertValidFileName(filename, "The filename is invalid");
             var (config, fileExists, bytes) = await staticFileContentService.GetStaticFileStreamAsync(filename, GetIfModifiedSince());
 
             if (config == null)
             {
+                if (!string.IsNullOrEmpty(fallbackContent64) && !string.IsNullOrEmpty(fallbackContentType))
+                {
+                    return new FileContentResult(fallbackContent64.FromBase64(), fallbackContentType);
+                }
+
                 return NotFound();
             }
 
@@ -76,7 +93,8 @@ namespace Odin.Hosting.Controllers.Anonymous
 
             string contentType = config.ContentType;
             //sanity
-            if (!fileExists || bytes == null || bytes.Length == 0)
+            if (!fileExists || bytes == null || bytes.Length == 0 ||
+                (excludeContentTypePrefix != null && contentType.StartsWith(excludeContentTypePrefix, StringComparison.OrdinalIgnoreCase)))
             {
                 if (!string.IsNullOrEmpty(fallbackContent64) && !string.IsNullOrEmpty(fallbackContentType))
                 {
