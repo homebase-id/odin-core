@@ -29,6 +29,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- DejaVu Sans (Bitstream Vera license, permissive/redistributable; see Fonts/DejaVuSans-LICENSE.txt),
+         embedded so InitialsAvatarGenerator can rasterize smooth glyph outlines without an image-library
+         dependency. Needs an explicit EmbeddedResource entry since it isn't picked up by default globbing. -->
+    <EmbeddedResource Include="Optimization/Cdn/Fonts/DejaVuSans.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The V2 in-process test framework calls internal members for its test-only drain hooks
          and replacement-factory wiring. Keep this list tight; production never relies on it. -->
     <InternalsVisibleTo Include="Odin.Hosting.Tests.V2" />
