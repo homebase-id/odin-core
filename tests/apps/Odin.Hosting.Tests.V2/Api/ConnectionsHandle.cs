@@ -52,8 +52,9 @@ public sealed class ConnectionsHandle
     public Task<ApiResponse<IntroductionPreflightResult>> PreflightIntroductionsAsync(IntroductionGroup group)
         => _v2Introductions.PreflightIntroductionsAsync(group);
 
-    /// <summary>PUT /api/v2/connections/requests/incoming/{senderId} — accept a pending incoming request.</summary>
-    public Task<ApiResponse<HttpContent>> AcceptIncomingRequestV2Async(OdinId sender, AcceptConnectionRequestV2 request)
+    /// <summary>PUT /api/v2/connections/requests/incoming/{senderId} — accept a pending incoming request. A null
+    /// request is sent as an empty body, which the endpoint accepts (no circles granted).</summary>
+    public Task<ApiResponse<HttpContent>> AcceptIncomingRequestV2Async(OdinId sender, AcceptConnectionRequestV2? request)
         => _v2Requests.AcceptIncomingRequestAsync(sender, request);
 
     // -----------------------------------------------------------------------------------------
