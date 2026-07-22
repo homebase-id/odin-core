@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Odin.Core;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
@@ -127,11 +128,16 @@ public class V2ConnectionRequestsController(
     // PUT /requests/incoming/{senderId}
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpPut("requests/incoming/{senderId}")]
-    public async Task<IActionResult> AcceptIncomingRequest(string senderId)
+    public async Task<IActionResult> AcceptIncomingRequest(string senderId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] AcceptConnectionRequestV2 request)
     {
         AssertIsValidOdinId(senderId, out var id);
 
-        var header = new AcceptRequestHeader { Sender = id };
+        var header = new AcceptRequestHeader
+        {
+            Sender = id,
+            CircleIds = request?.CircleIds ?? []
+        };
         header.Validate();
 
         await circleNetworkRequestService

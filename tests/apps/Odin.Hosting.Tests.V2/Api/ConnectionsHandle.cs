@@ -8,6 +8,7 @@ using Odin.Core.Identity;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._V2.ApiClient;
+using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Contacts;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
@@ -50,6 +51,10 @@ public sealed class ConnectionsHandle
     /// <summary>POST /api/v2/introductions/preflight — recipient eligibility check before SendIntroductions.</summary>
     public Task<ApiResponse<IntroductionPreflightResult>> PreflightIntroductionsAsync(IntroductionGroup group)
         => _v2Introductions.PreflightIntroductionsAsync(group);
+
+    /// <summary>PUT /api/v2/connections/requests/incoming/{senderId} — accept a pending incoming request.</summary>
+    public Task<ApiResponse<HttpContent>> AcceptIncomingRequestV2Async(OdinId sender, AcceptConnectionRequestV2 request)
+        => _v2Requests.AcceptIncomingRequestAsync(sender, request);
 
     // -----------------------------------------------------------------------------------------
     // V1 helpers (test setup + assertions)
