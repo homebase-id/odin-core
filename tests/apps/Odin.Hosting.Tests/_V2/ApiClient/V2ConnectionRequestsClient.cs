@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Hosting.Tests._Universal.ApiClient.Factory;
+using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Refit;
 
@@ -14,6 +15,14 @@ public class V2ConnectionRequestsClient(OdinId identity, IApiClientFactory facto
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IConnectionRequestsHttpClientApiV2>(client, sharedSecret);
         return await svc.AutoConnect(header);
+    }
+
+    // PUT /requests/incoming/{senderId} -> CircleNetworkRequestService.AcceptConnectionRequestAsync
+    public async Task<ApiResponse<HttpContent>> AcceptIncomingRequestAsync(OdinId sender, AcceptConnectionRequestV2 request)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionRequestsHttpClientApiV2>(client, sharedSecret);
+        return await svc.AcceptIncomingRequest(sender.DomainName, request);
     }
 
     // DELETE /requests/outgoing/{recipientId} -> CircleNetworkRequestService.DeleteSentRequest

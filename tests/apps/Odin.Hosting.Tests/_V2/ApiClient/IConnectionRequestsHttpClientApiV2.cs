@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
+using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Membership.Connections.Requests;
 using Refit;
 
@@ -12,6 +13,9 @@ public interface IConnectionRequestsHttpClientApiV2
 
     [Post(Root + "/requests/auto-connect")]
     Task<ApiResponse<ConnectionRequestResult>> AutoConnect([Body] ConnectionRequestHeader header);
+
+    [Put(Root + "/requests/incoming/{senderId}")]
+    Task<ApiResponse<HttpContent>> AcceptIncomingRequest(string senderId, [Body] AcceptConnectionRequestV2 request);
 
     [Delete(Root + "/requests/outgoing/{recipientId}")]
     Task<ApiResponse<HttpContent>> CancelOutgoingRequest(string recipientId);
