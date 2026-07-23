@@ -119,13 +119,28 @@ public class TenantAdmin(
 
     //
 
+    public async Task EnablePublicWebPresence(string domain)
+    {
+        await identityRegistry.SetPublicWebPresenceAsync(domain, true);
+    }
+
+    //
+
+    public async Task DisablePublicWebPresence(string domain)
+    {
+        await identityRegistry.SetPublicWebPresenceAsync(domain, false);
+    }
+
+    //
+
     private async Task<TenantModel> Map(IdentityRegistration identityRegistration, bool includePayload)
     {
         var result = new TenantModel
         {
             Domain = identityRegistration.PrimaryDomainName,
             Id = identityRegistration.Id.ToString(),
-            Enabled = !identityRegistration.Disabled
+            Enabled = !identityRegistration.Disabled,
+            EnablePublicWebPresence = identityRegistration.EnablePublicWebPresence
         };
 
         if (identityRegistry is FileSystemIdentityRegistry fsir)

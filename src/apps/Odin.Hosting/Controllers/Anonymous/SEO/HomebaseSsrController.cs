@@ -15,6 +15,7 @@ namespace Odin.Hosting.Controllers.Anonymous.SEO;
 
 [Route(LinkPreviewDefaults.SsrPath)]
 [ApiController]
+[RequirePublicWebPresence]
 public class HomebaseSsrController(
     HomebaseSsrService ssrService,
     HomebaseProfileContentService profileContentService,

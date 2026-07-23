@@ -19,7 +19,12 @@ namespace Odin.Services.Registry
         /// </summary>
         public string PlanId { get; set; }
         public bool IsCertificateManaged { get; set; }
-        
+
+        /// <summary>
+        /// Whether the identity is allowed a public home page
+        /// </summary>
+        public bool EnablePublicWebPresence { get; set; } = true;
+
         /// <summary>
         /// Optional certificates to match the <see cref="OdinId"/>
         /// </summary>
@@ -60,6 +65,11 @@ namespace Odin.Services.Registry
         /// Whether the identity is disabled (i.e. paused) or not
         /// </summary>
         public bool Disabled { get; set; }
+
+        /// <summary>
+        /// Whether the identity is allowed a public home page (link previews, SEO/SSR content, etc.)
+        /// </summary>
+        public bool EnablePublicWebPresence { get; set; } = true;
 
         /// <summary>
         /// The date this account was marked for deletion.

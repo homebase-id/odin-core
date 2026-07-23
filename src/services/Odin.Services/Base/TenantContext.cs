@@ -22,7 +22,8 @@ namespace Odin.Services.Base
             TenantPathManager tenantPathManager,
             Guid? firstRunToken,
             bool isPreconfigured,
-            UnixTimeUtc? markedForDeletionDate, string email)
+            UnixTimeUtc? markedForDeletionDate, string email,
+            bool enablePublicWebPresence = true)
         {
             this.DotYouRegistryId = dotYouRegistryId;
             this.HostOdinId = hostOdinId;
@@ -31,6 +32,7 @@ namespace Odin.Services.Base
             this.IsPreconfigured = isPreconfigured;
             this.MarkedForDeletionDate = markedForDeletionDate;
             this.Email = email;
+            this.EnablePublicWebPresence = enablePublicWebPresence;
         }
 
         public string Email { get; private set; }
@@ -64,6 +66,11 @@ namespace Odin.Services.Base
 
         public UnixTimeUtc? LastSeen { get; private set; }
 
+        /// <summary>
+        /// Whether this tenant is allowed a public home page (link previews, SEO/SSR content, etc.)
+        /// </summary>
+        public bool EnablePublicWebPresence { get; private set; } = true;
+
         public void Update(TenantContext source)
         {
             this.DotYouRegistryId = source.DotYouRegistryId;
@@ -73,6 +80,7 @@ namespace Odin.Services.Base
             this.TenantPathManager = source.TenantPathManager;
             this.Email = source.Email;
             this.LastSeen = source.LastSeen;
+            this.EnablePublicWebPresence = source.EnablePublicWebPresence;
         }
         
         public void UpdateSystemConfig(TenantSettings newConfig)
