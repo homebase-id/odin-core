@@ -127,6 +127,30 @@ public class AcceptIncomingRequestTests : V2Fixture
         Assert.That(pending.Content, Is.Not.Null);
     }
 
+    [Test]
+    public async Task Accept_ByAppWithManageContactsAndTransit_Connects()
+    {
+        // The accept flow needs the caller's ICR key. Owner contexts always carry it; app grants
+        // carry it only when the app is registered with a transit key (UseTransitRead/Write --
+        // see AppRegistrationService.HasRequestedTransit). So an app needs ManageContacts for the
+        // endpoint gate plus a transit key for the ICR key material.
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
+
+        var send = await sender.Connections.SendConnectionRequest(recipient.Identity);
+        Assert.That(send.IsSuccessStatusCode, Is.True);
+
+        var app = await BuildRecipientAppAsync(recipient,
+            PermissionKeys.ManageContacts, PermissionKeys.ReadConnectionRequests,
+            PermissionKeys.ReadCircleMembership, PermissionKeys.UseTransitWrite);
+        var accept = await app.AcceptIncomingRequestAsync(sender.Identity, new AcceptConnectionRequestV2());
+
+        Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.NoContent),
+            $"actual {accept.StatusCode}; body: {accept.Error?.Content}");
+
+        await AssertBothSidesConnected(sender, recipient);
+    }
+
     private static async Task<V2ConnectionRequestsClient> BuildRecipientAppAsync(OwnerSession recipient, params int[] permissionKeys)
     {
         // The app needs a drive grant to register against; the drive itself is irrelevant here.
