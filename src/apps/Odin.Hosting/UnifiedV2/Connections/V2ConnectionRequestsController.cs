@@ -7,6 +7,7 @@ using Odin.Core;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -131,6 +132,10 @@ public class V2ConnectionRequestsController(
     public async Task<IActionResult> AcceptIncomingRequest(string senderId,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] AcceptConnectionRequestV2 request)
     {
+        // Controller-level gate only: the service layer stays permissive because internal flows
+        // (introduction auto-accept, auto-connect short-circuits) accept under upgraded contexts.
+        WebOdinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
         AssertIsValidOdinId(senderId, out var id);
 
         var header = new AcceptRequestHeader

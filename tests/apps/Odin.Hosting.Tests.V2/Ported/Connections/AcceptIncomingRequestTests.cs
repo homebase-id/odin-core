@@ -10,7 +10,9 @@ using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Drives;
 using Odin.Services.Membership.Connections;
+using Odin.Hosting.Tests._V2.ApiClient;
 
 namespace Odin.Hosting.Tests.V2.Ported.Connections;
 
@@ -101,6 +103,37 @@ public class AcceptIncomingRequestTests : V2Fixture
         Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), $"actual {accept.StatusCode}");
 
         await AssertBothSidesConnected(sender, recipient);
+    }
+
+    [Test]
+    public async Task Accept_Forbidden_WhenAppLacksManageContacts()
+    {
+        var sender = await LoginAsOwner(Identities.Frodo);
+        var recipient = await LoginAsOwner(Identities.Sam);
+
+        var send = await sender.Connections.SendConnectionRequest(recipient.Identity);
+        Assert.That(send.IsSuccessStatusCode, Is.True);
+
+        // read keys alone must not be enough to accept
+        var app = await BuildRecipientAppAsync(recipient,
+            PermissionKeys.ReadConnectionRequests, PermissionKeys.ReadCircleMembership);
+        var accept = await app.AcceptIncomingRequestAsync(sender.Identity, new AcceptConnectionRequestV2());
+
+        Assert.That(accept.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden), $"actual {accept.StatusCode}");
+
+        // the pending request must be untouched
+        var pending = await recipient.Connections.GetIncomingRequestFrom(sender.Identity);
+        Assert.That(pending.IsSuccessStatusCode, Is.True);
+        Assert.That(pending.Content, Is.Not.Null);
+    }
+
+    private static async Task<V2ConnectionRequestsClient> BuildRecipientAppAsync(OwnerSession recipient, params int[] permissionKeys)
+    {
+        // The app needs a drive grant to register against; the drive itself is irrelevant here.
+        var drive = TargetDrive.NewTargetDrive();
+        await recipient.Admin.CreateDrive(drive, "accept-perm-test-drive", allowAnonymousReads: false);
+        var app = await AppSession.SetupAsync(recipient, drive, DrivePermission.None, permissionKeys);
+        return new V2ConnectionRequestsClient(app.Identity, app.Factory);
     }
 
     private static async Task AssertBothSidesConnected(OwnerSession sender, OwnerSession recipient)
