@@ -16,6 +16,14 @@ public class V2ConnectionRequestsClient(OdinId identity, IApiClientFactory facto
         return await svc.AutoConnect(header);
     }
 
+    // PUT /requests/incoming/{senderId} -> CircleNetworkRequestService.AcceptConnectionRequestAsync
+    public async Task<ApiResponse<HttpContent>> AcceptIncomingRequestAsync(OdinId sender)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IConnectionRequestsHttpClientApiV2>(client, sharedSecret);
+        return await svc.AcceptIncomingRequest(sender.DomainName, new { });
+    }
+
     // DELETE /requests/outgoing/{recipientId} -> CircleNetworkRequestService.DeleteSentRequest
     public async Task<ApiResponse<HttpContent>> CancelOutgoingRequestAsync(OdinId recipient)
     {

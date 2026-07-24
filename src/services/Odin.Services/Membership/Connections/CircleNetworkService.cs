@@ -553,6 +553,21 @@ namespace Odin.Services.Membership.Connections
 
             if (odinContext.Caller.HasMasterKey)
             {
+                // The store may have been created without the owner online (e.g. an app accepted the
+                // connection request), in which case the Peer Key is only held as the temp weak key.
+                // Re-mint it under the master key before we try to decrypt it.
+                if (await UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync(icr, odinContext))
+                {
+                    // refetch the record since the above method just writes to db
+                    icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+                }
+
+                if (icr.PeerKeyStore.RequiresMasterKeyEncryptionUpgrade())
+                {
+                    throw new OdinSystemException(
+                        $"Cannot grant circle to {odinId}; the peer key store still requires master key encryption upgrade");
+                }
+
                 var masterKey = odinContext.Caller.GetMasterKey();
                 var keyStoreKey = icr.PeerKeyStore.MasterKeyEncryptedPeerKey.DecryptKeyClone(masterKey);
                 var storageKeySource = new MasterKeyStorageKeySource(masterKey);
