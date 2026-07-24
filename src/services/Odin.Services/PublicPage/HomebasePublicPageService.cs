@@ -9,7 +9,6 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
-using AngleSharp.Io;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
@@ -468,7 +467,7 @@ public class HomebasePublicPageService(
     private async Task WriteAsync(string content)
     {
         var context = httpContextAccessor.HttpContext;
-        context.Response.Headers[HeaderNames.ContentType] = MediaTypeNames.Text.Html;
+        context.Response.ContentType = MediaTypeNames.Text.Html;
         try
         {
             await context.Response.WriteAsync(content);

@@ -114,7 +114,7 @@ public class ProfilePublishService(
             await TryRunAsync(() => RepublishSiteDataAsync(publishContext), "sitedata.json");
         }
 
-        if (attributeType == null || attributeType == BuiltInProfileAttributes.Photo)
+        if (attributeType == null || attributeType == BuiltInProfileAttributes.Photo || attributeType == BuiltInProfileAttributes.Name)
         {
             await TryRunAsync(() => RepublishProfileImageAsync(publishContext), StaticFileConstants.ProfileImageFileName);
         }
@@ -358,7 +358,7 @@ public class ProfilePublishService(
             maxRecords: 1)).FirstOrDefault();
         if (photoAttribute == null)
         {
-            await ClearProfileImageAsync(publishContext);
+            await PublishFallbackProfileImageAsync(publishContext);
             return;
         }
 
@@ -366,14 +366,14 @@ public class ProfilePublishService(
         var payloadKey = GetDataString(content, ProfileAttributeFields.ProfileImageKey);
         if (string.IsNullOrWhiteSpace(payloadKey))
         {
-            await ClearProfileImageAsync(publishContext);
+            await PublishFallbackProfileImageAsync(publishContext);
             return;
         }
 
         var payloadDescriptor = photoAttribute.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(payloadKey));
         if (payloadDescriptor == null)
         {
-            await ClearProfileImageAsync(publishContext);
+            await PublishFallbackProfileImageAsync(publishContext);
             return;
         }
 
@@ -404,7 +404,7 @@ public class ProfilePublishService(
             using var payloadStream = await fileSystem.Storage.GetPayloadStreamAsync(file, payloadKey, null, publishContext);
             if (payloadStream == null)
             {
-                await ClearProfileImageAsync(publishContext);
+                await PublishFallbackProfileImageAsync(publishContext);
                 return;
             }
 
@@ -422,12 +422,41 @@ public class ProfilePublishService(
     }
 
     /// <summary>
-    /// Removes the previously-published <c>public_image.json</c> artifact when there's no longer an active
-    /// Anonymous-tier Photo attribute to publish -- e.g. after the attribute is deleted. Without this,
-    /// <c>/pub/image</c> would keep serving the last-published bytes forever, since unlike
-    /// <see cref="RepublishSiteDataAsync"/> (which rebuilds its whole document from scratch on every call and
-    /// so naturally reflects a deletion as an empty section) there is nothing to rebuild *from* once the
-    /// source attribute is gone.
+    /// Called whenever <see cref="RepublishProfileImageAsync"/> has no usable Photo attribute to publish.
+    /// Falls back to a generated initials avatar (e.g. "JB") when an Anonymous-tier Name attribute exists,
+    /// so <c>/pub/image</c> shows something personal rather than the generic silhouette -- otherwise clears
+    /// the artifact via <see cref="ClearProfileImageAsync"/>, which is the true last resort (no photo, no
+    /// usable name).
+    /// </summary>
+    private async Task PublishFallbackProfileImageAsync(IOdinContext publishContext)
+    {
+        var nameResults = await QueryAnonymousAttributesAsync([BuiltInProfileAttributes.Name], publishContext, maxRecords: 1);
+        var nameContent = DeserializeAttributeContent(nameResults.FirstOrDefault()?.FileMetadata.AppData.Content);
+        var givenName = GetDataString(nameContent, ProfileAttributeFields.GivenName);
+        var surname = GetDataString(nameContent, ProfileAttributeFields.Surname);
+
+        if (InitialsAvatarGenerator.TryGenerate(givenName, surname, publishContext.Tenant.ToString(), out var svgBase64))
+        {
+            await staticFileContentService.PublishProfileImageAsync(svgBase64!, "image/svg+xml");
+
+            await mediator.Publish(new PublicProfileContentPublishedNotification
+            {
+                Artifact = PublicProfileArtifact.ProfileImage,
+                OdinContext = publishContext
+            });
+            return;
+        }
+
+        await ClearProfileImageAsync(publishContext);
+    }
+
+    /// <summary>
+    /// Removes the previously-published <c>public_image.json</c> artifact when there's no photo AND no
+    /// usable name to fall back to (see <see cref="PublishFallbackProfileImageAsync"/>) -- e.g. after the
+    /// only Photo attribute is deleted and no Name attribute exists. Without this, <c>/pub/image</c> would
+    /// keep serving the last-published bytes forever, since unlike <see cref="RepublishSiteDataAsync"/>
+    /// (which rebuilds its whole document from scratch on every call and so naturally reflects a deletion as
+    /// an empty section) there is nothing to rebuild *from* once the source attribute is gone.
     /// </summary>
     private async Task ClearProfileImageAsync(IOdinContext publishContext)
     {

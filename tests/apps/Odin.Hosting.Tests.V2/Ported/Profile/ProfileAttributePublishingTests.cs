@@ -204,6 +204,177 @@ public class ProfileAttributePublishingTests : V2Fixture
     }
 
     [Test]
+    public async Task SetAttribute_Name_NoPhoto_PublishesInitialsAvatar()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = new V2ProfileClient(owner.Identity, owner.Factory);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object>
+            {
+                ["givenName"] = "Frodo",
+                ["surname"] = "Baggins"
+            }
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageResp.StatusCode}");
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/svg+xml"));
+    }
+
+    [Test]
+    public async Task SetAttribute_Name_NoPhoto_LinkPreviewAliasStaysGenericFallback()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = new V2ProfileClient(owner.Identity, owner.Factory);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object>
+            {
+                ["givenName"] = "Frodo",
+                ["surname"] = "Baggins"
+            }
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
+
+        using var client = Host.CreateClient();
+
+        // /pub/image itself gets the generated SVG avatar...
+        var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/svg+xml"));
+
+        // ...but the link-preview (og:image) alias must never serve SVG -- most crawlers won't render it --
+        // so it stays on the generic JPEG silhouette instead.
+        var linkPreviewResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image.jpg");
+        Assert.That(linkPreviewResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {linkPreviewResp.StatusCode}");
+        Assert.That(linkPreviewResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/jpeg"));
+    }
+
+    [Test]
+    public async Task DeleteAttribute_Photo_WithNameSet_FallsBackToInitialsAvatar()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = new V2ProfileClient(owner.Identity, owner.Factory);
+
+        var nameResponse = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object>
+            {
+                ["givenName"] = "Frodo",
+                ["surname"] = "Baggins"
+            }
+        });
+        Assert.That(nameResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {nameResponse.StatusCode}");
+
+        var thumbBytes = Enumerable.Range(0, 64).Select(i => (byte)i).ToArray();
+
+        var created = await profile.SetPhotoAttributeAsync(new SetPhotoAttributeRequest
+        {
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            ContentType = "image/webp",
+            Content = Enumerable.Repeat((byte)0xAB, 128).ToArray(),
+            Thumbnails =
+            [
+                new ProfilePhotoThumbnail
+                {
+                    PixelWidth = 250,
+                    PixelHeight = 250,
+                    ContentType = "image/jpeg",
+                    Content = thumbBytes
+                }
+            ]
+        });
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {created.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageBeforeResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageBeforeResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/jpeg"));
+
+        var delete = await profile.DeleteAttributeAsync(created.Content!.Id, created.Content.VersionTag);
+        Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), $"actual {delete.StatusCode}");
+
+        var imageAfterResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageAfterResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageAfterResp.StatusCode}");
+        Assert.That(imageAfterResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/svg+xml"),
+            "with a Name attribute still set, deleting the photo should fall back to the initials avatar, not the generic silhouette");
+    }
+
+    [Test]
+    public async Task SetAttribute_Name_ConnectedVisibility_NoPhoto_DoesNotPublishAvatar()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var app = await AppSession.SetupAsync(owner, SystemDriveConstants.ProfileDrive,
+            DrivePermission.Read, [PermissionKeys.ManageProfile]);
+        var profile = new V2ProfileClient(app.Identity, app.Factory);
+
+        var response = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Connected,
+            Data = new Dictionary<string, object> { ["givenName"] = "Secret" }
+        });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {response.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        Assert.That(imageResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {imageResp.StatusCode}");
+        Assert.That(imageResp.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/jpeg"),
+            "a Connected (non-Anonymous) Name attribute must not leak into the public image fallback");
+    }
+
+    [Test]
+    public async Task SetAttribute_Name_Changed_RegeneratesInitialsAvatar()
+    {
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var profile = new V2ProfileClient(owner.Identity, owner.Factory);
+
+        var created = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object>
+            {
+                ["givenName"] = "Frodo",
+                ["surname"] = "Baggins"
+            }
+        });
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {created.StatusCode}");
+
+        using var client = Host.CreateClient();
+        var imageBeforeResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        var imageBeforeBytes = await imageBeforeResp.Content.ReadAsByteArrayAsync();
+
+        var updated = await profile.SetAttributeAsync(new SetProfileAttributeRequest
+        {
+            Id = created.Content!.Id,
+            ExpectedVersionTag = created.Content.VersionTag,
+            Type = NameType,
+            Visibility = ProfileAttributeVisibility.Anonymous,
+            Data = new Dictionary<string, object>
+            {
+                ["givenName"] = "Samwise",
+                ["surname"] = "Gamgee"
+            }
+        });
+        Assert.That(updated.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {updated.StatusCode}");
+
+        var imageAfterResp = await client.GetAsync($"https://{Identities.Frodo}/pub/image");
+        var imageAfterBytes = await imageAfterResp.Content.ReadAsByteArrayAsync();
+        Assert.That(imageAfterBytes, Is.Not.EqualTo(imageBeforeBytes),
+            "changing the Name attribute should regenerate the initials avatar");
+    }
+
+    [Test]
     public async Task SetAttribute_ConnectedVisibility_RepublishesButExcludesEncryptedContent()
     {
         var owner = await LoginAsOwner(Identities.Frodo);
