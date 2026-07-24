@@ -292,15 +292,16 @@ namespace Odin.Hosting.Middleware
                 return false;
             }
 
-            if (context.Request.Method.ToUpper() == "POST")
+            // No body to decrypt: either Content-Length is explicitly 0 or absent (and no chunked body).
+            // Some clients (HTTP/2, ASP.NET TestServer) omit Content-Length on bodyless requests.
+            // Applies to every body-carrying verb, not just POST — a bodyless PUT/PATCH would otherwise
+            // fall through to DecryptRequest and fail parsing an empty stream as a SharedSecretEncryptedPayload.
+            // GET is excluded deliberately: its encrypted payload is the querystring, not the body.
+            if (context.Request.Method.ToUpper() != "GET"
+                && context.Request.Headers.ContentLength.GetValueOrDefault() == 0
+                && !context.Request.Headers.ContainsKey("Transfer-Encoding"))
             {
-                // No body to decrypt: either Content-Length is explicitly 0 or absent (and no chunked body).
-                // Some clients (HTTP/2, ASP.NET TestServer) omit Content-Length on bodyless POSTs.
-                if (context.Request.Headers.ContentLength.GetValueOrDefault() == 0
-                    && !context.Request.Headers.ContainsKey("Transfer-Encoding"))
-                {
-                    return false;
-                }
+                return false;
             }
 
             if (context.Request.Method.ToUpper() == "GET" && context.Request.QueryString.HasValue == false)
