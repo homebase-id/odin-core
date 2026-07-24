@@ -8,6 +8,7 @@ using NUnit.Framework;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._V2.ApiClient;
 using Odin.Hosting.Tests.V2.Api;
+using Odin.Hosting.UnifiedV2.Connections;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
@@ -37,11 +38,13 @@ public class AppAcceptedConnectionGrantTests : V2Fixture
         var appDrive = TargetDrive.NewTargetDrive();
         await frodo.Admin.CreateDrive(appDrive, "appDrive", allowAnonymousReads: false);
 
-        // UseTransitWrite is what puts the ICR key in the app's permission context — required to
-        // decrypt the incoming pending request (it's ECC-encrypted under the OnlineIcrEncryptedKey).
+        // ManageContacts passes the accept endpoint's gate; UseTransitWrite is what puts the ICR key
+        // in the app's permission context — required to decrypt the incoming pending request (it's
+        // ECC-encrypted under the OnlineIcrEncryptedKey).
         var app = await AppSession.SetupAsync(frodo, appDrive, DrivePermission.Read,
             permissionKeys: new[]
             {
+                PermissionKeys.ManageContacts,
                 PermissionKeys.ReadConnectionRequests,
                 PermissionKeys.ManageCircleMembership,
                 PermissionKeys.UseTransitWrite
@@ -52,8 +55,9 @@ public class AppAcceptedConnectionGrantTests : V2Fixture
             .SendConnectionRequest(frodo.Identity);
         Assert.That(sendReq.IsSuccessStatusCode, Is.True, $"SendConnectionRequest failed: {sendReq.StatusCode}");
 
+        // No circles granted at accept time — the point of this test is the owner's later grant.
         var accept = await new V2ConnectionRequestsClient(app.Identity, app.Factory)
-            .AcceptIncomingRequestAsync(sam.Identity);
+            .AcceptIncomingRequestAsync(sam.Identity, new AcceptConnectionRequestV2());
         Assert.That(accept.IsSuccessStatusCode, Is.True, $"app accept failed: {accept.StatusCode} {accept.Error?.Content}");
 
         var storage = Host.GetTenantScope(frodo.Identity.DomainName).Resolve<CircleNetworkStorage>();
