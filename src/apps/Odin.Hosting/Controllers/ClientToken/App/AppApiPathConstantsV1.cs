@@ -21,8 +21,10 @@
         public const string PeerReactionContentV1 = PeerV1 + "/reactions";
         
         public const string CirclesV1 = BasePathV1 + "/circles";
-        
+
         public const string CirclesDefinitionsV1 = CirclesV1 + "/definitions";
+
+        public const string ContactsV1 = BasePathV1 + "/contacts";
 
         public const string FollowersV1 = BasePathV1 + "/followers";
 
