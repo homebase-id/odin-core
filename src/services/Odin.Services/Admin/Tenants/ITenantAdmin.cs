@@ -13,6 +13,9 @@ public interface ITenantAdmin
     Task EnableTenant(string domain);
     Task DisableTenant(string domain);
 
+    Task EnablePublicWebPresence(string domain);
+    Task DisablePublicWebPresence(string domain);
+
     Task<string> EnqueueDeleteTenant(string domain);
     Task<string> EnqueueExportTenant(string domain);
 }
