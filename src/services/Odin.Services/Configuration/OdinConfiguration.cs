@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Configuration;
 using Odin.Core.Configuration;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage.Cache;
 using Odin.Core.Storage.Factory;
 using Odin.Core.Util;
@@ -153,7 +154,15 @@ public class OdinConfiguration
 
     public class RegistrySection
     {
+        /// <summary>
+        /// Invitation codes that register an identity with a public web presence
+        /// </summary>
         public List<string> InvitationCodes { get; init; } = [];
+
+        /// <summary>
+        /// Invitation codes that register an identity without a public web presence
+        /// </summary>
+        public List<string> InvitationCodesWithoutPublicWebPresence { get; init; } = [];
 
         public string PowerDnsHostAddress { get; init; } = "";
         public string PowerDnsApiKey { get; init; } = "";
@@ -187,7 +196,19 @@ public class OdinConfiguration
                     .First(), // SEB:NOTE we currently only allow one A record
                 config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
+            InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
+                "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
             DaysUntilAccountDeletion = config.GetOrDefault("Registry:DaysUntilAccountDeletion", 30);
+
+            var ambiguousCodes = InvitationCodes
+                .Intersect(InvitationCodesWithoutPublicWebPresence, StringComparer.InvariantCultureIgnoreCase)
+                .ToList();
+            if (ambiguousCodes.Count > 0)
+            {
+                throw new OdinSystemException(
+                    "Registry:InvitationCodes and Registry:InvitationCodesWithoutPublicWebPresence must not overlap: " +
+                    string.Join(", ", ambiguousCodes));
+            }
         }
 
         public class ManagedDomainApex

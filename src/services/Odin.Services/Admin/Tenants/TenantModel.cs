@@ -8,6 +8,7 @@ public class TenantModel
     public string RegistrationPath { get; set; } = "";
     public long RegistrationSize { get; set; } = 0;
     public bool Enabled { get; set; }
+    public bool EnablePublicWebPresence { get; set; }
     public string? PayloadPath { get; set; } = null;
     public long? PayloadSize { get; set; } = null;
 }

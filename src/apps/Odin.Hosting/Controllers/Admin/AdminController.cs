@@ -115,4 +115,34 @@ public class AdminController : ControllerBase
 
     //
 
+    [HttpPatch("tenants/{domain}/public-web-presence/enable")]
+    public async Task<ActionResult> EnablePublicWebPresence(string domain)
+    {
+        if (!await _tenantAdmin.TenantExists(domain))
+        {
+            return NotFound();
+        }
+
+        await _tenantAdmin.EnablePublicWebPresence(domain);
+
+        return Ok();
+    }
+
+    //
+
+    [HttpPatch("tenants/{domain}/public-web-presence/disable")]
+    public async Task<ActionResult> DisablePublicWebPresence(string domain)
+    {
+        if (!await _tenantAdmin.TenantExists(domain))
+        {
+            return NotFound();
+        }
+
+        await _tenantAdmin.DisablePublicWebPresence(domain);
+
+        return Ok();
+    }
+
+    //
+
 }
