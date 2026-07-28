@@ -2,10 +2,12 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Odin.Core;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
+using Odin.Services.Authorization.Permissions;
 using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
@@ -127,11 +129,20 @@ public class V2ConnectionRequestsController(
     // PUT /requests/incoming/{senderId}
     [SwaggerOperation(Tags = [SwaggerInfo.Connections])]
     [HttpPut("requests/incoming/{senderId}")]
-    public async Task<IActionResult> AcceptIncomingRequest(string senderId)
+    public async Task<IActionResult> AcceptIncomingRequest(string senderId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] AcceptConnectionRequestV2 request)
     {
+        // Controller-level gate only: the service layer stays permissive because internal flows
+        // (introduction auto-accept, auto-connect short-circuits) accept under upgraded contexts.
+        WebOdinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageContacts);
+
         AssertIsValidOdinId(senderId, out var id);
 
-        var header = new AcceptRequestHeader { Sender = id };
+        var header = new AcceptRequestHeader
+        {
+            Sender = id,
+            CircleIds = request?.CircleIds ?? []
+        };
         header.Validate();
 
         await circleNetworkRequestService
