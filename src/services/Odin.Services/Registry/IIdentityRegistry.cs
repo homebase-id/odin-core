@@ -94,6 +94,12 @@ namespace Odin.Services.Registry
         Task<bool?> ToggleDisabled(string domain, bool disabled);
 
         /// <summary>
+        /// Sets whether the identity is allowed a public home page
+        /// </summary>
+        /// <returns>Previous state or null if not found</returns>
+        Task<bool?> SetPublicWebPresenceAsync(string domain, bool enabled);
+
+        /// <summary>
         /// Marks an account for deletion as of now(); returns the date on which it will be deleted based on registry config
         /// </summary>
         Task<UnixTimeUtc> MarkForDeletionAsync(string domain);

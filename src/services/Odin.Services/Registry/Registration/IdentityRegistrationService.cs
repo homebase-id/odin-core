@@ -267,7 +267,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId)
+    public async Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId, string invitationCode)
     {
         var identity = await _registry.GetAsync(domain);
         if (identity != null)
@@ -282,6 +282,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Email = email,
             PlanId = planId,
             IsCertificateManaged = false, //TODO
+            EnablePublicWebPresence = await CodeGrantsPublicWebPresence(invitationCode),
         };
 
         try
@@ -322,14 +323,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<bool> IsInvitationCodeNeeded()
     {
-        return Task.FromResult(_configuration.Registry.InvitationCodes.Count > 0);
+        return Task.FromResult(ConfiguredInvitationCodeCount > 0);
     }
-    
+
     //
 
     public Task<bool> IsValidInvitationCode(string code)
     {
-        if (_configuration.Registry.InvitationCodes.Count == 0)
+        if (ConfiguredInvitationCodeCount == 0)
         {
             return Task.FromResult(true);
         }
@@ -338,14 +339,29 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             return Task.FromResult(false);
         }
-        
-        if (code == "rebuild")
-        {
-            return Task.FromResult(true);
-        }
-        
-        var match = _configuration.Registry.InvitationCodes
-            .Exists(c => string.Equals(c, code, StringComparison.InvariantCultureIgnoreCase));
+
+        var match = MatchesAny(_configuration.Registry.InvitationCodes, code) ||
+                    MatchesAny(_configuration.Registry.InvitationCodesWithoutPublicWebPresence, code);
         return Task.FromResult(match);
+    }
+
+    //
+
+    public Task<bool> CodeGrantsPublicWebPresence(string code)
+    {
+        var withoutPresence = !string.IsNullOrEmpty(code) &&
+                              MatchesAny(_configuration.Registry.InvitationCodesWithoutPublicWebPresence, code);
+        return Task.FromResult(!withoutPresence);
+    }
+
+    //
+
+    private int ConfiguredInvitationCodeCount =>
+        _configuration.Registry.InvitationCodes.Count +
+        _configuration.Registry.InvitationCodesWithoutPublicWebPresence.Count;
+
+    private static bool MatchesAny(List<string> codes, string code)
+    {
+        return codes.Exists(c => string.Equals(c, code, StringComparison.InvariantCultureIgnoreCase));
     }
 }

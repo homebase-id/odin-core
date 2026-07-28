@@ -45,6 +45,42 @@ public class TableRegistrationsTests : IocTestBase
 #if RUN_POSTGRES_TESTS
     [TestCase(DatabaseType.Postgres)]
 #endif
+    public async Task ItShouldRoundTripEnablePublicWebPresence(DatabaseType databaseType)
+    {
+        await RegisterServicesAsync(databaseType);
+
+        await using var scope = Services.BeginLifetimeScope();
+        var tableRegistrations = scope.Resolve<TableRegistrations>();
+
+        var identityId = Guid.NewGuid();
+        await tableRegistrations.InsertAsync(new RegistrationsRecord
+        {
+            identityId = identityId,
+            email = "frodo@baggins.com",
+            primaryDomainName = "frodos.joint",
+            enablePublicWebPresence = true,
+        });
+
+        var record = await tableRegistrations.GetAsync(identityId);
+        Assert.That(record.enablePublicWebPresence, Is.True);
+
+        record.enablePublicWebPresence = false;
+        await tableRegistrations.UpsertAsync(record);
+
+        record = await tableRegistrations.GetAsync(identityId);
+        Assert.That(record.enablePublicWebPresence, Is.False);
+
+        var all = await tableRegistrations.GetAllAsync();
+        Assert.That(all[0].enablePublicWebPresence, Is.False);
+    }
+
+    //
+
+    [Test]
+    [TestCase(DatabaseType.Sqlite)]
+#if RUN_POSTGRES_TESTS
+    [TestCase(DatabaseType.Postgres)]
+#endif
     public async Task ItShouldPageByRowId(DatabaseType databaseType)
     {
         await RegisterServicesAsync(databaseType);
