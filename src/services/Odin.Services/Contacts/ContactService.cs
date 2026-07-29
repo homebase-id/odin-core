@@ -44,6 +44,21 @@ public class ContactService(
     public const string ProfileImagePayloadKey = "prfl_pic";
 
     /// <summary>
+    /// Payload key for the <b>peer's own</b> published photo, synced by
+    /// <see cref="ContactEnrichmentService"/> (see <see cref="PeerContactImage"/>). Held separately from
+    /// <see cref="ProfileImagePayloadKey"/> — the user's chosen photo for this contact — so neither can
+    /// clobber the other and a client can fall back from one to the other. Must satisfy
+    /// <c>^[a-z0-9_]{8,10}$</c>.
+    /// </summary>
+    public const string PeerImagePayloadKey = "peer_pic";
+
+    /// <summary>
+    /// Max size (bytes) of a synced peer photo. Mirrors the cap the profile service enforces when a photo
+    /// attribute is authored, so a peer cannot push more at us than they could store themselves.
+    /// </summary>
+    public const int MaxPeerImageBytes = 2 * 1024 * 1024;
+
+    /// <summary>
     /// Max size (UTF-8 bytes) of a single per-app data blob (<c>appData[appId]</c>). The blob rides inline
     /// in the contact JSON returned by every list query, so it is kept small; bulk data belongs in a payload.
     /// </summary>
@@ -183,8 +198,9 @@ public class ContactService(
             return VersionConflictResult(uniqueId, existing, currentVersionTag, odinContext);
         }
 
-        // Owner edits never touch ext_data (peer-only); pass null so any stored ext_data is preserved.
-        var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, null, writeContext);
+        // Owner edits never touch ext_data or the peer photo (both peer-only); pass null for each so the
+        // stored payloads are preserved.
+        var newVersionTag = await OverwriteAsync(existing, content, ContactMergeSource.Api, null, null, writeContext);
         return new ContactWriteResult
         {
             Outcome = ContactWriteOutcome.Updated,
@@ -634,8 +650,14 @@ public class ContactService(
     /// converges any straggler). Overwritten values are logged to <c>merge_log</c> tagged with
     /// <paramref name="source"/>.
     /// </summary>
+    /// <param name="peerImage">
+    /// The peer's own published photo, stored under <see cref="PeerImagePayloadKey"/> and never mixed
+    /// with the user's chosen <see cref="ProfileImagePayloadKey"/>. <c>null</c> leaves any stored peer
+    /// photo untouched; <see cref="PeerContactImage.None"/> removes it; an instance carrying bytes
+    /// replaces it (skipped when the digest matches what is already stored).
+    /// </param>
     public async Task<Guid> MergeAsync(PeerContactContent content, ContactMergeSource source, IOdinContext odinContext,
-        ContactExtData extData = null)
+        ContactExtData extData = null, PeerContactImage peerImage = null)
     {
         OdinValidationUtils.AssertNotNull(content, nameof(content));
         OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(content.OdinId), "MergeAsync requires content.OdinId");
@@ -657,16 +679,16 @@ public class ContactService(
                 var created = Merge(new ContactContent(), content);
                 var (_, versionTag) = await WriteNewAsync(uniqueId, created, writeContext);
 
-                // The create path writes content only; if the peer also brought ext_data, persist it in
-                // a follow-up write now that the file exists (rare: a brand-new contact that already
-                // carries bios). Content is unchanged on this second pass, so only the ext_data payload
-                // is added.
-                if (extData is { IsEmpty: false })
+                // The create path writes content only; if the peer also brought ext_data or a photo,
+                // persist those in a follow-up write now that the file exists (rare: a brand-new contact
+                // that already carries bios/an avatar). Content is unchanged on this second pass, so only
+                // the payload(s) are added.
+                if (extData is { IsEmpty: false } || peerImage is { IsRemoval: false })
                 {
                     var fresh = await GetForWritingAsync(uniqueId, writeContext);
                     if (fresh != null)
                     {
-                        versionTag = await OverwriteAsync(fresh, content, source, extData, writeContext);
+                        versionTag = await OverwriteAsync(fresh, content, source, extData, peerImage, writeContext);
                     }
                 }
 
@@ -675,7 +697,7 @@ public class ContactService(
 
             try
             {
-                return await OverwriteAsync(existing, content, source, extData, writeContext);
+                return await OverwriteAsync(existing, content, source, extData, peerImage, writeContext);
             }
             catch (OdinClientException e) when (e.ErrorCode == OdinClientErrorCode.VersionTagMismatch)
             {
@@ -743,7 +765,7 @@ public class ContactService(
     }
 
     private async Task<Guid> OverwriteAsync(ServerFileHeader existing, PeerContactContent incoming, ContactMergeSource source,
-        ContactExtData extData, IOdinContext writeContext)
+        ContactExtData extData, PeerContactImage peerImage, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
         var storageKey = writeContext.PermissionsContext.GetDriveStorageKey(DriveId);
@@ -759,7 +781,11 @@ public class ContactService(
         // extended data; otherwise the stored ext_data payload (if any) is carried forward untouched.
         var writeExtData = extData is { IsEmpty: false };
 
-        if (overwrites.Count == 0 && !writeExtData)
+        // peer_pic is likewise peer-only. Resolving the action up front keeps an unchanged photo from
+        // forcing a write: a repeat sync of the same image is a no-op, not a version-tag advance.
+        var peerImageAction = ResolvePeerImageAction(existing, peerImage);
+
+        if (overwrites.Count == 0 && !writeExtData && peerImageAction == PeerImageAction.Leave)
         {
             // Nothing to log (first-time fills / no-ops) and no ext_data change. Content-only update.
             // The content IV must still rotate — re-encrypting different plaintext under the same
@@ -773,14 +799,57 @@ public class ContactService(
             return existing.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        // A payload changed (merge_log to append and/or ext_data to replace): write the merged content
-        // AND the affected payload(s) in ONE transaction so the change and its history land together (or
-        // not at all). The merge_log is only read when there's an overwrite to append to it.
+        // A payload changed (merge_log to append, ext_data to replace, and/or the peer photo to write or
+        // drop): write the merged content AND the affected payload(s) in ONE transaction so the change
+        // and its history land together (or not at all). The merge_log is only read when there's an
+        // overwrite to append to it.
         var existingLog = overwrites.Count > 0
             ? await ReadMergeLogAsync(existing, keyHeader, writeContext)
             : null;
         return await WriteMergedAsync(existing, merged, keyHeader.AesKey, existingLog, overwrites, source, extData,
-            existing.FileMetadata.VersionTag.GetValueOrDefault(), writeContext);
+            peerImage, peerImageAction, existing.FileMetadata.VersionTag.GetValueOrDefault(), writeContext);
+    }
+
+    /// <summary>
+    /// What this merge should do with the <see cref="PeerImagePayloadKey"/> payload.
+    /// </summary>
+    private enum PeerImageAction
+    {
+        /// <summary>Nothing to do — nothing was determined, or the stored photo already matches.</summary>
+        Leave,
+
+        /// <summary>Write (or replace) the peer photo.</summary>
+        Write,
+
+        /// <summary>Drop the stored peer photo — the peer has none we can see.</summary>
+        Delete
+    }
+
+    /// <summary>
+    /// Decides the peer-photo action, comparing the incoming photo's digest against the one recorded on
+    /// the stored payload descriptor so an unchanged photo costs nothing. A null
+    /// <paramref name="peerImage"/> means the caller determined nothing this run and always leaves the
+    /// stored payload alone; <see cref="PeerContactImage.None"/> is the explicit removal signal.
+    /// </summary>
+    private static PeerImageAction ResolvePeerImageAction(ServerFileHeader existing, PeerContactImage peerImage)
+    {
+        if (peerImage == null)
+        {
+            return PeerImageAction.Leave;
+        }
+
+        var stored = existing.FileMetadata.Payloads?.FirstOrDefault(p => p.KeyEquals(PeerImagePayloadKey));
+
+        if (peerImage.IsRemoval)
+        {
+            return stored == null ? PeerImageAction.Leave : PeerImageAction.Delete;
+        }
+
+        // A stored descriptor written before the digest existed has no DescriptorContent; treat it as a
+        // mismatch so the next sync heals it (and records a digest for the sync after that).
+        return stored?.DescriptorContent == peerImage.ComputeHash()
+            ? PeerImageAction.Leave
+            : PeerImageAction.Write;
     }
 
     /// <summary>
@@ -789,12 +858,14 @@ public class ContactService(
     /// <see cref="DriveStorageServiceBase.UpdateBatchAsync"/> commit (one version-tag advance, one change
     /// notification). The contact's AES key is reused; the content key-header IV is rotated (a hard
     /// requirement for encrypted updates), and each rewritten payload gets its own IV. Payloads this
-    /// write doesn't touch (the profile image, and whichever of merge_log/ext_data isn't being written)
-    /// are carried forward unchanged.
+    /// write doesn't touch are carried forward unchanged — in particular the <b>user's</b> profile image
+    /// (<see cref="ProfileImagePayloadKey"/>), which no merge ever writes; the peer's photo lives in its
+    /// own <see cref="PeerImagePayloadKey"/> slot.
     /// </summary>
     private async Task<Guid> WriteMergedAsync(ServerFileHeader existing, ContactContent merged,
         SensitiveByteArray aesKey, List<ContactMergeLogEntry> existingLog, Dictionary<string, string> overwrites,
-        ContactMergeSource source, ContactExtData extData, Guid currentVersionTag, IOdinContext writeContext)
+        ContactMergeSource source, ContactExtData extData, PeerContactImage peerImage, PeerImageAction peerImageAction,
+        Guid currentVersionTag, IOdinContext writeContext)
     {
         var file = existing.FileMetadata.File;
 
@@ -824,10 +895,30 @@ public class ContactService(
                 { Key = ContactExtData.PayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite });
         }
 
-        // Carry forward every payload this write isn't rewriting (e.g. the profile image, and whichever
-        // of merge_log/ext_data wasn't touched). Payloads not named in PayloadInstruction are preserved.
+        // 4) peer_pic: the peer's own photo — written when it changed, dropped when the peer no longer
+        // publishes one we can see. Never touches the user's prfl_pic override either way.
+        if (peerImageAction == PeerImageAction.Write)
+        {
+            rewritten.Add(await StagePeerImagePayloadAsync(file, peerImage, aesKey, writeContext));
+            instructions.Add(new PayloadInstruction
+                { Key = PeerImagePayloadKey, OperationType = PayloadUpdateOperationType.AppendOrOverwrite });
+        }
+        else if (peerImageAction == PeerImageAction.Delete)
+        {
+            instructions.Add(new PayloadInstruction
+                { Key = PeerImagePayloadKey, OperationType = PayloadUpdateOperationType.DeletePayload });
+        }
+
+        // Carry forward every payload this write isn't rewriting (e.g. the user's profile image, and
+        // whichever of merge_log/ext_data wasn't touched) — but not one being deleted. Payloads not named
+        // in PayloadInstruction are preserved.
+        var deleting = instructions
+            .Where(i => i.OperationType == PayloadUpdateOperationType.DeletePayload)
+            .Select(i => i.Key)
+            .ToList();
+
         var carried = (existing.FileMetadata.Payloads ?? new List<PayloadDescriptor>())
-            .Where(p => !rewritten.Any(r => p.KeyEquals(r.Key)))
+            .Where(p => !rewritten.Any(r => p.KeyEquals(r.Key)) && !deleting.Any(p.KeyEquals))
             .ToList();
 
         // New metadata: merged content + the rewritten payload descriptors. VersionTag carries the
@@ -871,6 +962,60 @@ public class ContactService(
         {
             await fileSystem.Storage.CleanupUploadTemporaryFiles(file, rewritten, writeContext);
         }
+    }
+
+    /// <summary>
+    /// Encrypts the peer's photo and each of its thumbnails under the file AES key — sharing <b>one</b>
+    /// fresh payload IV, the same convention <see cref="WriteImagePayloadAsync"/> and the profile service
+    /// follow — stages them, and returns the descriptor. The image digest rides on
+    /// <see cref="PayloadDescriptor.DescriptorContent"/> so the next sync can tell an unchanged photo
+    /// from a new one without re-reading the payload.
+    /// </summary>
+    private async Task<PayloadDescriptor> StagePeerImagePayloadAsync(InternalDriveFileId file, PeerContactImage image,
+        SensitiveByteArray aesKey, IOdinContext writeContext)
+    {
+        var iv = ByteArrayUtil.GetRndByteArray(16);
+        var uid = UnixTimeUtcUnique.Now();
+
+        byte[] Encrypt(byte[] plain) => new KeyHeader { Iv = iv, AesKey = aesKey }.EncryptDataAes(plain);
+
+        var imageExtension = TenantPathManager.GetBasePayloadFileNameAndExtension(PeerImagePayloadKey, uid);
+        var imageBytesWritten = await fileSystem.Storage.WriteUploadStream(file, imageExtension,
+            new MemoryStream(Encrypt(image.Content)), writeContext);
+
+        var thumbnailDescriptors = new List<ThumbnailDescriptor>();
+        foreach (var thumbnail in image.Thumbnails ?? [])
+        {
+            if (thumbnail.Content is not { Length: > 0 } || thumbnail.PixelWidth <= 0 || thumbnail.PixelHeight <= 0)
+            {
+                continue;
+            }
+
+            var thumbExtension = TenantPathManager.GetThumbnailFileNameAndExtension(
+                PeerImagePayloadKey, uid, thumbnail.PixelWidth, thumbnail.PixelHeight);
+            var thumbBytesWritten = await fileSystem.Storage.WriteUploadStream(file, thumbExtension,
+                new MemoryStream(Encrypt(thumbnail.Content)), writeContext);
+
+            thumbnailDescriptors.Add(new ThumbnailDescriptor
+            {
+                PixelWidth = thumbnail.PixelWidth,
+                PixelHeight = thumbnail.PixelHeight,
+                ContentType = thumbnail.ContentType,
+                BytesWritten = thumbBytesWritten
+            });
+        }
+
+        return new PayloadDescriptor
+        {
+            Key = PeerImagePayloadKey,
+            Uid = uid,
+            Iv = iv,
+            ContentType = image.ContentType,
+            BytesWritten = imageBytesWritten,
+            LastModified = UnixTimeUtc.Now(),
+            DescriptorContent = image.ComputeHash(),
+            Thumbnails = thumbnailDescriptors
+        };
     }
 
     /// <summary>
