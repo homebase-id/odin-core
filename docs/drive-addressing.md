@@ -351,6 +351,71 @@ express ownership at all.
   sources the storage key from the master key and mints a fully *working* banking grant on the
   app's behalf. So validate at definition-write time, not only at grant time.
 
+## Connection defaults — enrollment
+
+Two hardcoded system circles (`CircleConstants.cs`) currently decide what every new connection can
+do. *Auto Connections* and *Confirmed Connections* carry an **identical** drive-grant bundle —
+Write|React on the chat/lists/moments/mail/feed drives; confirmed adds only ShardRecovery write,
+`AllowIntroductions`, and feed-distribution eligibility. Two problems: the bundle is a platform
+constant that is really the **chat suite's** default (connecting with a receipts vendor should not
+invite them to chat), and "confirm" is a special-cased swap between the two circles
+(`ConfirmConnectionAsync`: revoke auto, grant confirmed) guarded by a lockout
+(`CannotGrantAutoConnectedMoreCircles`, 3010).
+
+App-owned circles can absorb both. `Circle` gets one more column:
+
+```sql
+Enrollment  SMALLINT NOT NULL DEFAULT 0,   -- 0 NONE | 1 AUTO_CONNECT | 2 VERIFIED_CONNECT
+-- index (identityId, Enrollment)
+```
+
+and `AppRegistrations` one flag:
+
+```sql
+PeopleDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- participate in person-to-person connects
+```
+
+**Semantics.**
+
+- `AUTO_CONNECT` — granted the moment a connection is established, no owner action. Which circles
+  fire is **flow-scoped**: the app whose flow created the connection enrolls its own
+  `AUTO_CONNECT` circles; a person-to-person flow (introduction, direct request — owner flows)
+  additionally enrolls the `AUTO_CONNECT` circles of every app with `PeopleDefaults` set. A vendor
+  app connecting to receive receipts enrolls only its own circle: connected, deposit-capable, and
+  *not* able to chat.
+- `VERIFIED_CONNECT` — granted when the owner completes the connection review. Surfaced client-side
+  as per-app toggles in the review dialog, checked by default, individually declinable.
+- `NONE` — manual membership only. The default, and what every existing circle is.
+
+**The deposit-only invariant.** An `AUTO_CONNECT` circle may grant only Write/React drive
+permissions — no read beyond `AllowAnonymousReads` drives, and no permission keys. Enforced at
+**definition-write time**, next to the confused-deputy validation above, and re-checked whenever
+`Enrollment` changes. Rationale: the review is the key ceremony. Auto-connection hands out deposit
+capability; storage keys for anything non-public are minted only by the owner's explicit act. An
+identity that is never reviewed can *give* you things and *see* nothing — so the worst a
+misbehaving `PeopleDefaults` app can achieve is unsolicited deposits into its own drive, never
+exfiltration.
+
+**What this replaces.**
+
+| Today | Becomes |
+|---|---|
+| Auto Connections system circle | per-app `AUTO_CONNECT` circles |
+| Confirmed Connections system circle | per-app `VERIFIED_CONNECT` circles + explicit review toggles |
+| `CircleNetworkUtils` origin→circle routing | flow-scoped enrollment |
+| `ConfirmConnectionAsync` revoke/grant swap | `VERIFIED_CONNECT` enrollment at review time |
+| `CannotGrantAutoConnectedMoreCircles` (3010) | deleted — review = confirm + grant in one step |
+
+Migration note: legacy bare-`connected` file ACLs can be read as "member of any `AUTO_CONNECT`
+circle" with **zero behaviour change** — today's evaluator already admits auto-connected callers to
+`Connected` ACLs (`DriveAclAuthorizationService` folds `Connected` and `AutoConnected` into one
+case, and no caller is ever stamped `AutoConnected`).
+
+*Related:* the client-side circles proposal (chat-kmp PR #1062, `CIRCLES_VISIBILITY_PROPOSAL.md`)
+wants two more per-circle fields on this same registration record: a `Designation`
+(`PERSONAL | AUDIENCE | SERVICE | SYSTEM` — contact-book presentation and filtering) and an
+optional user-chosen `Emoji`.
+
 ## What this depends on
 
 Only four places read `Type` as a global vocabulary. Each should become a **capability check**:
@@ -406,3 +471,10 @@ app-private.
    forever. Probably fine, but say so out loud.
 4. **Immutability.** Once a slug is both a URL segment *and* a wire address, renaming breaks links
    and breaks remote senders. Presumably immutable after creation.
+5. **Install-time consent for `PeopleDefaults`.** An app opting into person-to-person defaults
+   gains deposit access on every future connection — how is that surfaced? (One-time prompt at
+   install; for existing connections, prompt once with default off?)
+6. **Do `VERIFIED_CONNECT` circles carry permission keys** (`AllowIntroductions`,
+   `ReadWhoIFollow`)? Keys are identity-wide, not drive-scoped — either they are allowed on
+   verified circles only (never auto — the deposit-only invariant forbids it), or they leave
+   circles entirely and become per-connection settings toggled at review.
