@@ -339,6 +339,12 @@ express ownership at all.
 - An app may create / modify / delete **only** circles whose `AppId` is its own.
 - `AppId IS NULL` marks an **owner circle**. Apps must never touch those — that is the boundary
   keeping a chat app out of system circles.
+
+  > **NOTE:** right now we don't see a use case for `NULL`-`AppId` circles. User-created circles
+  > (Friends, Family) are minted **under the profile app** — their grants are profile-attribute
+  > reads, and that is where users manage them; other apps reference the membership list by circle
+  > id (e.g. moments distribution) without owning it. The rule above stays as written in case a
+  > use appears.
 - A circle definition written by an app may reference **only drives the app can already read** —
   the same constraint that governs granting. Note *why*: not because the app could otherwise
   decrypt those drives itself. It cannot — reaching the banking drive's storage key needs the
@@ -459,8 +465,8 @@ case, and no caller is ever stamped `AutoConnected`).
 
 *Related:* the client-side circles proposal (chat-kmp PR #1062, `CIRCLES_VISIBILITY_PROPOSAL.md`)
 wants two more per-circle fields on this same registration record: a `Designation`
-(`PERSONAL | AUDIENCE | SERVICE | SYSTEM` — contact-book presentation and filtering) and an
-optional user-chosen `Emoji`.
+(`PERSONAL | AUDIENCE | SERVICE` — contact-book presentation and filtering; default circles carry
+none, their rendering keys off `Enrollment`) and an optional user-chosen `Emoji`.
 
 ## What this depends on
 
