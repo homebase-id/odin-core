@@ -372,17 +372,20 @@ Enrollment  SMALLINT NOT NULL DEFAULT 0,   -- 0 NONE | 1 AUTO_CONNECT | 2 VERIFI
 and `AppRegistrations` one flag:
 
 ```sql
-PeopleDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- participate in person-to-person connects
+AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_CONNECT circles on auto-connections
 ```
 
 **Semantics.**
 
-- `AUTO_CONNECT` — granted the moment a connection is established, no owner action. Which circles
-  fire is **flow-scoped**: the app whose flow created the connection enrolls its own
-  `AUTO_CONNECT` circles; a person-to-person flow (introduction, direct request — owner flows)
-  additionally enrolls the `AUTO_CONNECT` circles of every app with `PeopleDefaults` set. A vendor
-  app connecting to receive receipts enrolls only its own circle: connected, deposit-capable, and
-  *not* able to chat.
+- `AUTO_CONNECT` — a circle *eligible for unattended enrollment*: it may be granted without the
+  owner reviewing anything. Two ways that happens. An **auto-connection** — an introduction, or a
+  request auto-approved because the owner's settings permit it — carries no app context, so it
+  enrolls the `AUTO_CONNECT` circles of every app with `AutoConnectDefaults` set. An accept that
+  goes through a specific **app's consent flow** names its circles explicitly (the V2
+  accept-request endpoint already takes circle grants in the body, #1599) — and only
+  `AUTO_CONNECT`-designated circles are eligible there without review. A vendor app connecting to
+  receive receipts therefore enrolls only its own circle: connected, deposit-capable, and *not*
+  able to chat.
 - `VERIFIED_CONNECT` — granted when the owner completes the connection review. Surfaced client-side
   as per-app toggles in the review dialog, checked by default, individually declinable.
 - `NONE` — manual membership only. The default, and what every existing circle is.
@@ -393,22 +396,23 @@ permissions — no read beyond `AllowAnonymousReads` drives, and no permission k
 `Enrollment` changes. Rationale: the review is the key ceremony. Auto-connection hands out deposit
 capability; storage keys for anything non-public are minted only by the owner's explicit act. An
 identity that is never reviewed can *give* you things and *see* nothing — so the worst a
-misbehaving `PeopleDefaults` app can achieve is unsolicited deposits into its own drive, never
+misbehaving `AutoConnectDefaults` app can achieve is unsolicited deposits into its own drive, never
 exfiltration.
 
-**Worked example — auto-approved connection.** `sam.dotyou.cloud` introduces
-`frodo.dotyou.cloud` to me; the request is auto-approved (origin: introduction, a people flow).
-Today that drops frodo into the *Auto Connections* system circle, whose grant bundle is a platform
-constant. Under enrollment, the connect pipeline instead asks the **app registry**: which apps set
-`PeopleDefaults`, and what are their `AUTO_CONNECT` circles? Chat contributes its chat-defaults
-circle (ChatDrive Write|React), mail and moments likewise. Frodo can message me immediately —
-the bootstrapping property survives — while holding **zero read keys**, by the deposit-only
-invariant. This is how the app registry *replaces* the connected circle: the system circle was a
-frozen union of every app's defaults, compiled into `CircleConstants.cs`; enrollment computes the
-same union at connect time from registrations, **scoped to the flow**. The proof it's better:
-`hotel.example.com` connecting through the receipts app's auto-approved vendor flow enrolls in the
-receipts circle only — connected, able to deposit purchase history, unable to chat. A frozen union
-cannot express that; per-app registration makes it the default. And nothing is left for a bare
+**Worked example — auto-connection.** `sam.dotyou.cloud` introduces `frodo.dotyou.cloud` to me;
+my settings allow it, so the request auto-approves with no app context. Today that drops frodo
+into the *Auto Connections* system circle, whose grant bundle is a platform constant. Under
+enrollment, the connect pipeline instead asks the **app registry**: which apps set
+`AutoConnectDefaults`, and what are their `AUTO_CONNECT` circles? Chat contributes its
+chat-defaults circle (ChatDrive Write|React), mail and moments likewise. Frodo can message me
+immediately — the bootstrapping property survives — while holding **zero read keys**, by the
+deposit-only invariant. This is how the app registry *replaces* the connected circle: the system
+circle was a frozen union of every app's defaults, compiled into `CircleConstants.cs`; enrollment
+computes the same union at connect time from registrations — and an accept with app context
+bypasses the default set entirely, naming its own circles. The proof it's better:
+`hotel.example.com` accepted through the receipts app's consent screen enrolls in the receipts
+circle only — connected, able to deposit purchase history, unable to chat. A frozen union cannot
+express that; per-app registration makes it the default. And nothing is left for a bare
 `connected` ACL tier to do: content targets circles, baseline capability comes from membership,
 and "is connected" survives only as the wire-level perimeter check.
 
@@ -423,7 +427,7 @@ the review rather than auto-enrollment. What frodo holds at each stage:
 
 | Stage | Membership | Can | Cannot |
 |---|---|---|---|
-| auto-approved (people flow) | chat/mail/moments `AUTO_CONNECT` circles | message me, mail me, react | read anything non-public |
+| auto-connection | chat/mail/moments `AUTO_CONNECT` circles | message me, mail me, react | read anything non-public |
 | review: "Add to circles" (Friends ✓, feed toggle left on) | + Friends (personal), + feed `VERIFIED_CONNECT` | see Friends-visible profile fields, receive my secured feed | anything not granted to those circles |
 | review: "Chat only" (all toggles off) | unchanged from row 1 | message me, mail me, react | still holds zero read keys |
 
@@ -506,9 +510,9 @@ app-private.
    forever. Probably fine, but say so out loud.
 4. **Immutability.** Once a slug is both a URL segment *and* a wire address, renaming breaks links
    and breaks remote senders. Presumably immutable after creation.
-5. **Install-time consent for `PeopleDefaults`.** An app opting into person-to-person defaults
-   gains deposit access on every future connection — how is that surfaced? (One-time prompt at
-   install; for existing connections, prompt once with default off?)
+5. **Install-time consent for `AutoConnectDefaults`.** An app opting into the auto-connection
+   default set gains deposit access on every future auto-connection — how is that surfaced?
+   (One-time prompt at install; for existing connections, prompt once with default off?)
 6. **Do `VERIFIED_CONNECT` circles carry permission keys** (`AllowIntroductions`,
    `ReadWhoIFollow`)? Keys are identity-wide, not drive-scoped — either they are allowed on
    verified circles only (never auto — the deposit-only invariant forbids it), or they leave
