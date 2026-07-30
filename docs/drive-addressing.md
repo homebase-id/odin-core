@@ -396,6 +396,41 @@ identity that is never reviewed can *give* you things and *see* nothing — so t
 misbehaving `PeopleDefaults` app can achieve is unsolicited deposits into its own drive, never
 exfiltration.
 
+**Worked example — auto-approved connection.** `sam.dotyou.cloud` introduces
+`frodo.dotyou.cloud` to me; the request is auto-approved (origin: introduction, a people flow).
+Today that drops frodo into the *Auto Connections* system circle, whose grant bundle is a platform
+constant. Under enrollment, the connect pipeline instead asks the **app registry**: which apps set
+`PeopleDefaults`, and what are their `AUTO_CONNECT` circles? Chat contributes its chat-defaults
+circle (ChatDrive Write|React), mail and moments likewise. Frodo can message me immediately —
+the bootstrapping property survives — while holding **zero read keys**, by the deposit-only
+invariant. This is how the app registry *replaces* the connected circle: the system circle was a
+frozen union of every app's defaults, compiled into `CircleConstants.cs`; enrollment computes the
+same union at connect time from registrations, **scoped to the flow**. The proof it's better:
+`hotel.example.com` connecting through the receipts app's auto-approved vendor flow enrolls in the
+receipts circle only — connected, able to deposit purchase history, unable to chat. A frozen union
+cannot express that; per-app registration makes it the default. And nothing is left for a bare
+`connected` ACL tier to do: content targets circles, baseline capability comes from membership,
+and "is connected" survives only as the wire-level perimeter check.
+
+**Worked example — the review.** Later I review frodo (the review UX — adaptive button, per-app
+toggles, personal-circle selection — is specified client-side in chat-kmp's
+`CIRCLES_VISIBILITY_PROPOSAL.md`, chat-kmp PR #1062). The dialog surfaces each app's
+`VERIFIED_CONNECT` circles as toggles, checked by default — and these, unlike auto circles, **may
+in principle carry read grants**, because the owner is deliberately acting with the master key
+present: this is the moment storage keys can be minted. The feed app's verified circle is the
+canonical case — secured-feed distribution is read-shaped, which is exactly why it must sit behind
+the review rather than auto-enrollment. What frodo holds at each stage:
+
+| Stage | Membership | Can | Cannot |
+|---|---|---|---|
+| auto-approved (people flow) | chat/mail/moments `AUTO_CONNECT` circles | message me, mail me, react | read anything non-public |
+| review: "Add to circles" (Friends ✓, feed toggle left on) | + Friends (personal), + feed `VERIFIED_CONNECT` | see Friends-visible profile fields, receive my secured feed | anything not granted to those circles |
+| review: "Chat only" (all toggles off) | unchanged from row 1 | message me, mail me, react | still holds zero read keys |
+
+The review is one atomic act: it confirms, enrolls the checked `VERIFIED_CONNECT` circles, and
+grants any selected personal circles — no revoke/grant swap, no lockout, and a declined toggle
+simply never mints.
+
 **What this replaces.**
 
 | Today | Becomes |
