@@ -380,7 +380,14 @@ AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_
 - `AUTO_CONNECT` — a circle *eligible for unattended enrollment*: it may be granted without the
   owner reviewing anything. Two ways that happens. An **auto-connection** — an introduction, or a
   request auto-approved because the owner's settings permit it — carries no app context, so it
-  enrolls the `AUTO_CONNECT` circles of every app with `AutoConnectDefaults` set. An accept that
+  enrolls the `AUTO_CONNECT` circles of every app with `AutoConnectDefaults` set **and enabled by
+  the owner**: the flag is the app's *declaration*; a per-app toggle in the owner console is the
+  owner's *consent* (seeded by the existing install-time registration consent). The effective set
+  is declared ∧ enabled — the same declare/dispose pattern as the review-dialog toggles, as a
+  standing policy instead of a per-contact choice. Toggling an app off affects future
+  auto-connections only; already-enrolled identities keep their grants (bulk-revoke is a separate
+  explicit action on the circle's member list). The whole mechanism sits under the existing global
+  auto-accept settings — if auto-connections are disabled entirely, no app toggle matters. An accept that
   goes through a specific **app's consent flow** names its circles explicitly (the V2
   accept-request endpoint already takes circle grants in the body, #1599) — and only
   `AUTO_CONNECT`-designated circles are eligible there without review. A vendor app connecting to
@@ -510,9 +517,10 @@ app-private.
    forever. Probably fine, but say so out loud.
 4. **Immutability.** Once a slug is both a URL segment *and* a wire address, renaming breaks links
    and breaks remote senders. Presumably immutable after creation.
-5. **Install-time consent for `AutoConnectDefaults`.** An app opting into the auto-connection
-   default set gains deposit access on every future auto-connection — how is that surfaced?
-   (One-time prompt at install; for existing connections, prompt once with default off?)
+5. ~~Install-time consent for `AutoConnectDefaults`.~~ **Resolved** by the declare/dispose split:
+   the app's flag is only a declaration; the owner holds a per-app toggle in the owner console,
+   seeded by the install-time registration consent. Remaining detail: does enabling an app later
+   offer enrollment of *existing* connections (prompt once, default off), or future ones only?
 6. **Do `VERIFIED_CONNECT` circles carry permission keys** (`AllowIntroductions`,
    `ReadWhoIFollow`)? Keys are identity-wide, not drive-scoped — either they are allowed on
    verified circles only (never auto — the deposit-only invariant forbids it), or they leave
