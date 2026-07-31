@@ -508,6 +508,20 @@ not a later mutation:
 - The old fields remain for their other job: authorizing *someone else's* circles on the app's
   drives.
 
+**Where the declaration lives — three homes, each authoritative for something different.**
+Before install, the default circles exist **only in the app's own code** — the author's constants,
+exactly `CircleConstants.cs` relocated from one platform file into each app; the server cannot
+know them earlier. At install they travel as the **registration request payload** (today's
+`c=`/`cd=` params are this, for the hardcoded circles). After apply, the **Circle rows are the
+operative state** — and the copy kept in the registration record is *not* a working copy (an app
+update reconciles its *incoming* declaration against the rows; the stored old copy contributes
+nothing to that diff). The stored copy has exactly two jobs: it is the **consent record** (what
+the owner actually approved, alongside grantJson's drives and permissions), and it is the
+**server-side repair source** — `EnsureSystemCirclesExistAsync`-style self-heal and version
+migrations run on the server, possibly months after the app's code last executed on any client;
+the system circles could self-heal because their declaration lived in server code, and the stored
+JSON gives per-app circles the same property.
+
 **Declaration vs. materialization.** The `DefaultCircles` list in the registration payload is a
 *declaration*; applying the registration **materializes each declared circle as a real row in the
 `Circle` table** — `AppId` = the app, `Enrollment` as declared per circle (`AUTO_CONNECT` for the
