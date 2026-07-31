@@ -508,36 +508,37 @@ not a later mutation:
 - The old fields remain for their other job: authorizing *someone else's* circles on the app's
   drives.
 
-**No pre-circle state on the server.** Default circles come into existence *as Circle rows* in
-the same act that applies the consented registration — there is no server-side state in which
-they exist only as JSON awaiting creation. The copy kept in the registration record is a
-*record*, not a staging area, and not a working copy either (an app update reconciles its
-*incoming* declaration against the rows; the stored old copy contributes nothing to that diff).
-It has exactly two jobs: the **consent record** (what the owner actually approved, alongside
-grantJson's drives and permissions), and the **server-side repair source** —
-`EnsureSystemCirclesExistAsync`-style self-heal and version migrations run on the server, long
-after registration; the system circles could self-heal because their declaration lived in server
-code, and the stored JSON gives per-app circles the same property.
+**Three moments, and what happens at each.** Circle definitions and default membership change at
+exactly three events — nothing happens between them:
 
-**Declaration vs. materialization.** The `DefaultCircles` list in the registration payload is a
-*declaration*; applying the registration **materializes each declared circle as a real row in the
-`Circle` table** — `AppId` = the app, `Enrollment` as declared per circle (`AUTO_CONNECT` for the
-auto default, `VERIFIED_CONNECT` for verified defaults, `NONE` for ordinary circles), grants in
-the definition, deposit-only validation firing on the row write like any other circle. They must
-be real rows: membership, per-connection grants, the connect pipeline's
-`WHERE Enrollment = AUTO_CONNECT` query, ACL `circleIdList`s, and every UI all key on the Circle
-table — a circle living only in registration JSON would force a second source into all of those
-paths (the blob pathology again). The declaration kept in the registration record has one
-remaining job: **reconciliation** — on update/extend, diff the declared set against existing rows
-(keyed by a stable circle id in the declaration, so re-applying updates instead of duplicating).
-This is the same two-phase shape the system already uses: `CircleConstants` declares in code,
-`EnsureSystemCirclesExistAsync` materializes and reconciles — relocated from platform constants to
-per-app registration data.
+- **On app creation** (and app update): the `DefaultCircles` declaration in the registration
+  payload becomes **real rows in the `Circle` table** — `AppId` = the app, `Enrollment` per
+  circle as declared (`AUTO_CONNECT` / `VERIFIED_CONNECT` / `NONE` for ordinary circles), grants
+  in the definition, deposit-only validation firing on the row write. This is one act with the
+  consent: no state exists in which a circle is only JSON awaiting creation. Rows are mandatory
+  because membership, per-connection grants, the connect pipeline's
+  `WHERE Enrollment = AUTO_CONNECT` query, ACL `circleIdList`s, and every UI key on the Circle
+  table. On update, the *incoming* declaration is reconciled against the existing rows (keyed by
+  a stable circle id — update, don't duplicate); the copy kept in the registration record is a
+  record, not a staging area, with exactly two jobs: the **consent record** (what the owner
+  actually approved, alongside grantJson's drives and permissions) and the **server-side repair
+  source** for `EnsureSystemCirclesExistAsync`-style self-heal and version migrations, which run
+  long after creation. Same two-phase shape the system uses today — `CircleConstants` declares,
+  `EnsureSystemCirclesExistAsync` materializes and reconciles — relocated from platform constants
+  to per-app registration data.
+- **On auto-connect**: membership only — the new connection joins the `AUTO_CONNECT` circles of
+  the apps the owner has enabled (or exactly the circles named by an app-consent accept, #1599).
+  No definitions change.
+- **On verify** (the connection review): membership only — the contact joins the
+  `VERIFIED_CONNECT` circles whose toggles were left checked, plus any selected personal circles.
+  Additive; the review never revokes.
 
-Install is the typical moment, not the only one: `Enrollment` is a column on the circle row, so
-circles are also created at runtime (the feed app mints an `AUDIENCE` circle per encrypted
-channel drive) and via the extend-registration flow when an app update adds defaults. Two steps
-that are easy to miss either way:
+One refinement to "definitions only at app creation": apps may also create circles at **runtime**
+through the same definition-write path (the feed app mints an `AUDIENCE` circle per encrypted
+channel drive) — but membership still moves only at auto-connect, verify, or an explicit owner
+edit.
+
+Two steps that are easy to miss:
 
 - **Anonymous-read drives**: the Read + storage-key grant that `HandleDriveAdded` today adds to
   *both system circles* is instead added to **the app's own `AUTO_CONNECT` circle** — that is how
