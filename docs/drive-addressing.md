@@ -467,6 +467,26 @@ circle" with **zero behaviour change** — today's evaluator already admits auto
 `Connected` ACLs (`DriveAclAuthorizationService` folds `Connected` and `AutoConnected` into one
 case, and no caller is ever stamped `AutoConnected`).
 
+**App creation ceremony (follow-up-PR behavior).** Registering an app that declares default
+circles is a sequence, and two of its steps are easy to miss:
+
+1. **App registration row** (slug, `AppId`, `AutoConnectDefaults` declaration) + the consent
+   screen; the consent **seeds the owner-console toggle**.
+2. **Drive creation**, with capability flags (`AllowAnonymousReads`, `AllowSubscriptions`).
+3. **Default-circle registration** — the deposit-only validation fires here for `AUTO_CONNECT`
+   circles, and the definition-write rule (only drives the app can read) for all of them.
+4. **Anonymous-read drives** (easy to miss): the Read + storage-key grant that `HandleDriveAdded`
+   today adds to *both system circles* is instead added to **the app's own `AUTO_CONNECT`
+   circle** — that is how connections keep decrypting public-drive content once the system
+   circles are gone.
+5. **Existing connections** (easy to miss): enrolling them into the new app's auto circle is
+   offered, never automatic — whether as a one-time prompt (default off) or future-connections-only
+   is the remaining detail of open question 5. The same one-time decision covers applying the
+   app's verified default to already-reviewed contacts.
+6. **Circles are also created at runtime**, not only at install: the feed app creates an
+   `AUDIENCE` circle per encrypted channel drive as channels are created — its read grant *is*
+   the subscription (see the per-app table in chat-kmp PR #1062).
+
 **Implementation scope — what lands with this PR, and what explicitly does not.** Implementing
 the app-circles work must **not** drag in the full connection-model change (chat-kmp PR #1062).
 The boundary is clean because every new column defaults to today's behavior:
