@@ -539,10 +539,17 @@ exactly three events — nothing happens between them:
   2. It adds the new identity as a member of each.
   Nothing else happens. No circle definition changes.
 
-- **On verify** (the owner completes the connection review):
-  1. The client sends the circles chosen in the dialog: the checked `VERIFIED_CONNECT` toggles
-     plus the selected personal circles.
-  2. The server adds the contact as a member of each.
+- **On verify** (the owner completes the connection review — including approving a connection
+  request, which is the review happening at accept time):
+  1. The client sends the circles chosen in the dialog: the checked `VERIFIED_CONNECT` toggles,
+     the selected personal circles — **and, for any checked app the contact is not yet a member
+     of, its `AUTO_CONNECT` circle.** That covers the baselines auto-connect never granted: a
+     manual accept (auto-connect never ran), a toggle that was off at the time, or an app
+     installed after the connection. Without this, an owner-approved contact would hold no chat
+     write at all. `AUTO_CONNECT` means *eligible for unattended enrollment*, not *only enrolled
+     unattended*.
+  2. The server adds the contact as a member of each. Enrollment is idempotent — already a
+     member is a no-op.
   Nothing is removed — membership from auto-connect stays.
 
 One refinement to "definitions only at app creation": apps may also create circles at **runtime**
