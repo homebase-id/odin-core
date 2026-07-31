@@ -195,6 +195,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             result.RecipientStatus[recipient] = await EnqueueOutboxItem(recipient, introduction);
         }
 
+        var failed = result.RecipientStatus.Where(kvp => !kvp.Value).Select(kvp => kvp.Key).ToList();
+        if (failed.Count > 0)
+        {
+            _logger.LogWarning("Introduction send: {failedCount} of {total} recipient(s) could not be enqueued: {failed}",
+                failed.Count, result.RecipientStatus.Count, string.Join(", ", failed));
+        }
+        else
+        {
+            _logger.LogDebug("Introduction send: enqueued for all {total} recipient(s)", result.RecipientStatus.Count);
+        }
+
         return result;
     }
 
@@ -721,14 +732,26 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         //Store the introductions by the identity to which you're being introduces
         var newIdentities = new List<string>();
+        var skippedAlreadyConnected = 0;
+        var skippedBlocked = 0;
         foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
         {
             // Note: we do not indicate if you're already connected or
             // have blocked the identity being introduced as we do not
-            // want to communicate any such information to the introducer
+            // want to communicate any such information to the introducer.
+            // Logging it locally is fine -- these are our own logs, not a response to the introducer.
             var icr = await CircleNetworkService.GetIcrAsync(identity, odinContext, overrideHack: true);
             if (icr.IsConnected() || icr.Status == ConnectionStatus.Blocked)
             {
+                if (icr.Status == ConnectionStatus.Blocked)
+                {
+                    skippedBlocked++;
+                }
+                else
+                {
+                    skippedAlreadyConnected++;
+                }
+
                 continue;
             }
 
@@ -744,8 +767,16 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             newIdentities.Add(identity);
         }
 
+        _logger.LogInformation(
+            "Introduction received from {introducer}: {newCount} new, {alreadyConnected} already connected, " +
+            "{blocked} blocked, of {total} introduced identities",
+            introducer, newIdentities.Count, skippedAlreadyConnected, skippedBlocked,
+            introduction.Identities.Count);
+
         if (newIdentities.Count == 0)
         {
+            // Nothing to do and nothing to notify the owner about. Logged above so a "the introduction
+            // arrived but nothing happened" report can be told apart from one that never arrived.
             return;
         }
 
@@ -887,8 +918,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         //get the introductions from the list
         var introductions = await GetReceivedIntroductionsAsync(newOdinContext);
 
-        _logger.LogDebug("Sending outstanding connection requests to {introductionCount} introductions", introductions.Count);
+        _logger.LogDebug("Introduction connect: sending outstanding connection requests to {introductionCount} introduction(s)",
+            introductions.Count);
 
+        var processed = 0;
         foreach (var intro in introductions)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -898,21 +931,33 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             }
 
             var recipient = intro.Identity;
+            processed++;
 
+            // NOTE: both of the conditions below `break` rather than `continue`, so a single skipped
+            // introducee abandons every remaining introduction in this batch. The log messages describe a
+            // per-recipient skip, which suggests `continue` was intended. Logged loudly rather than changed
+            // here, because altering background-worker control flow is out of scope for this change.
             var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext);
             if (hasOutstandingRequest)
             {
-                _logger.LogDebug("{recipient} has an incoming or outgoing request; not sending connection request", recipient);
+                _logger.LogInformation(
+                    "Introduction connect: {recipient} has an incoming or outgoing request; abandoning the " +
+                    "remaining {remaining} of {total} outstanding introduction(s) in this batch",
+                    recipient, introductions.Count - processed, introductions.Count);
                 break;
             }
 
             var alreadyConnected = await CircleNetworkService.IsConnectedAsync(recipient, odinContext);
             if (alreadyConnected)
             {
-                _logger.LogDebug("{recipient} is already connected; not sending connection request", recipient);
+                _logger.LogInformation(
+                    "Introduction connect: {recipient} is already connected; abandoning the remaining " +
+                    "{remaining} of {total} outstanding introduction(s) in this batch",
+                    recipient, introductions.Count - processed, introductions.Count);
                 break;
             }
 
+            _logger.LogDebug("Introduction connect: sending connection request to {recipient}", recipient);
             await this.SendIntroductoryConnectionRequestInternalAsync(intro, cancellationToken, newOdinContext);
         }
     }
