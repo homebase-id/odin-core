@@ -467,7 +467,23 @@ circle" with **zero behaviour change** — today's evaluator already admits auto
 `Connected` ACLs (`DriveAclAuthorizationService` folds `Connected` and `AutoConnected` into one
 case, and no caller is ever stamped `AutoConnected`).
 
-### App registration and default circles (follow-up-PR behavior)
+### Installing an app (follow-up-PR behavior)
+
+Plainly, in five steps:
+
+1. **The app asks** — for its drives, its permissions, and its **default circles**: each with a
+   name, its grants, and *when it enrolls* (`AUTO_CONNECT` = on auto-connection,
+   `VERIFIED_CONNECT` = at connection review).
+2. **The owner approves** — one consent screen showing all of it.
+3. **The server applies** — creates the drives, and creates each default circle **as a real row
+   in the Circle table** with its declared enrollment value. Auto-connect circles are validated
+   deposit-only right here.
+4. **The approval seeds the owner-console toggle** for the app's auto-connect participation.
+5. **From then on** — new auto-connections join the app's `AUTO_CONNECT` circle automatically;
+   the review dialog offers its `VERIFIED_CONNECT` circle as a toggle. Existing connections are
+   *not* enrolled automatically — that is offered separately.
+
+The detail behind each step:
 
 Today's registration request **already declares circle access at install time**:
 `AppRegistrationRequest` carries `AuthorizedCircles` ("circles whose members can work with your
