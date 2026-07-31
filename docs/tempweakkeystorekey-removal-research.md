@@ -231,18 +231,76 @@ condition from *"does the caller have the master key"* to *"is the Peer Key actu
 
 ### B. Keep the escrow, re-seal it to `OnlineKey`
 
-Change `GetPublicPrivateKeyType` (`CircleNetworkRequestService.cs:1736-1741`) to return
-`PublicPrivateKeyType.OnlineKey` instead of `OfflineKey`.
+Leave the escrow in place but stop sealing it to a key the host can open.
 
 The online keypair's private half is encrypted under the **master key**
-(`PublicPrivateKeyService.cs:323`, decrypt at `:294` and `:191`), and encryption needs only the
+(`PublicPrivateKeyService.cs:323`, decrypt at `:294` and `:191`), while encryption needs only the
 public key — so any context can seal to it, including `system.domain` in scenario 4.
 
-- **Pro:** one-line change; closes the host-readable hole immediately; every existing consumer keeps
-  working unchanged; the owner retains an independent path.
-- **Pro:** applies uniformly to all four scenarios.
-- **Con:** does not remove the field — it renames the problem. `TempWeakKeyStoreKey` should be
-  renamed (e.g. `OnlineKeyEncryptedPeerKey`) since "weak" stops being accurate.
+**This option is independent of the deposits work.** Every reader of `TempWeakKeyStoreKey` has
+always held the master key: `UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync:1769` calls
+`GetMasterKey()` on the next line, and both migrations that reach it assert `HasMasterKey` at entry
+(`V7ToV8VersionMigrationService.cs:31`, `:99`). `OnlineKey` was therefore always a valid choice for
+this payload. It is `OfflineKey` today only because the CAT and the keyStoreKey share a single
+`keyType` variable at both seal sites, and the **CAT** genuinely cannot use `OnlineKey` — it is read
+from `CircleNetworkService.GetIcrAsync:417`, which has no master key. The keyStoreKey inherited that
+constraint by proximity, not by requirement.
+
+So B and A are orthogonal: deposits decide whether the escrow is needed *at all*; the key type
+decides whether it is *host-readable*. B does not wait on the membership-row problem.
+
+#### Do not flip `GetPublicPrivateKeyType`
+
+That helper (`CircleNetworkRequestService.cs:1736`) feeds two unrelated jobs:
+
+| Call site | Method | What it seals | Who opens it |
+|---|---|---|---|
+| `:1630` | `TrySendRequestInternalAsync` | the outgoing request, **to the recipient** | the recipient, in `GetPendingRequestAsync:113` — **without a master key** |
+| `:850` | `AcceptConnectionRequestAsync` | our local escrow (CAT + keyStoreKey) | our own owner, later, with the master key |
+| `:1082` | `EstablishConnection` | our local escrow (CAT + keyStoreKey) | our own owner, later, with the master key |
+
+Changing the helper would take `:1630` with it, so a recipient would need their master key to read an
+incoming request — which breaks auto-accept, the entire point of these flows. Only the keyStoreKey
+seal at `:850` and `:1082` should move.
+
+#### The change
+
+At `AcceptConnectionRequestAsync:850-856`, leave the CAT on `keyType` and move only the keyStoreKey:
+
+```csharp
+var keyType = GetPublicPrivateKeyType(incomingRequest.ConnectionRequestOrigin);
+var eccEncryptedCat = await publicPrivateKeyService.EccEncryptPayload(
+    keyType,
+    remoteClientAccessToken.ToPortableBytes());
+
+// The Peer Key escrow is only ever opened by our own owner, in
+// CircleNetworkService.UpgradeMasterKeyStoreKeyEncryptionIfNeededInternalAsync, which holds the
+// master key -- so seal it to the master-key-rooted online key rather than the host-readable
+// offline key. Note this deliberately differs from `keyType` above.
+var eccEncryptedKeyStoreKey = await publicPrivateKeyService.EccEncryptPayload(
+    PublicPrivateKeyType.OnlineKey,
+    keyStoreKey.GetKey());
+```
+
+`EstablishConnection:1082-1088` takes the identical change. Nothing else moves.
+
+No decrypt-side change is required: `EccEncryptedPayload` carries its own `KeyType` and
+`PublicPrivateKeyService.EccDecryptPayload:185-197` switches on it, so existing `OfflineKey` records
+keep working beside new `OnlineKey` ones.
+
+- **Pro:** two lines; closes the host-readable hole immediately; every existing consumer keeps
+  working unchanged; the owner retains an independent path to the Peer Key.
+- **Pro:** applies uniformly to all four scenarios, including Unattended Introduction.
+- **Pro:** available today — no dependency on deposits, membership rows, or `ConfirmConnectionAsync`.
+- **Con:** does not remove the field. `TempWeakKeyStoreKey` should be renamed (e.g.
+  `OnlineKeyEncryptedPeerKey`) since "weak" stops being accurate.
+- **Follow-up:** records already sealed to `OfflineKey` stay host-readable until re-sealed. Scope is
+  limited — `CircleNetworkStorage.cs:112` nulls the escrow after a successful upgrade, so only
+  connections the owner has not yet touched are exposed.
+- **Caveat:** do **not** apply the same change to `TemporaryWeakClientAccessToken` without first
+  guarding `UpgradeTokenEncryptionIfNeededAsync`. It is reached from `GetIcrAsync:417` with no
+  master-key guarantee; `OfflineKey` never throws there because the all-zero constant is always
+  available, but `OnlineKey` would.
 - **Caveat:** `IsValidEccPublicKeyAsync` validates against the *current* key's crc32, so rotating
   the online ECC key would strand outstanding escrows. This risk is pre-existing and equally true of
   `OfflineKey` today, but leaning harder on the field raises its importance.
@@ -318,7 +376,10 @@ all-zero offline key constant; that `WriteOnlyKeyPair` is created unconditionall
 `TryConvertDepositedGrantsAtPeerAuthAsync` runs before the permission context is built; that
 membership rows derive from `CircleGrants` only; that the outbox worker context has neither key;
 that introduction and app origins pass `masterKey: null` unconditionally; that apps with transit
-permission receive the raw ICR key; that the online ECC keypair is master-key-rooted.
+permission receive the raw ICR key; that the online ECC keypair is master-key-rooted; that every
+reader of `TempWeakKeyStoreKey` holds the master key (including both migrations, which assert it at
+entry); that `GetPublicPrivateKeyType` feeds both the wire payload and the local escrow; that
+`EccDecryptPayload` dispatches on each payload's own stored `KeyType`.
 
 **Inferred, not verified:** that writing a membership row at deposit time is safe (open question 1);
 that deferring `ConfirmConnectionAsync` is acceptable product behaviour (open question 3); the
