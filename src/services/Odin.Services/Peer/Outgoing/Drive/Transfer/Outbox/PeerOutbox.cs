@@ -74,6 +74,16 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
             return recovered;
         }
 
+        /// <summary>
+        /// Brings items whose retry backoff puts them in the future forward to now. See
+        /// <see cref="TableOutbox.BringForwardScheduledItemsAsync"/> — this is a "send now" kick,
+        /// not part of normal processing.
+        /// </summary>
+        public async Task<int> BringForwardScheduledItemsAsync()
+        {
+            return await tblOutbox.BringForwardScheduledItemsAsync();
+        }
+
         public async Task<RedactedOutboxFileItem> GetItemAsync(Guid driveId, Guid fileId, OdinId recipient)
         {
             var record = await tblOutbox.GetAsync(driveId, fileId, recipient);

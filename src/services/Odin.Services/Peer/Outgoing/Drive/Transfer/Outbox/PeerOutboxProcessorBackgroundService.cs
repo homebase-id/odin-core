@@ -41,6 +41,14 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
     {
         private static string FallbackCorrelationId => Guid.NewGuid().ToString().Remove(9, 4).Insert(9, "OUBX");
 
+        /// <summary>
+        /// How many extra <see cref="DrainAsync"/> passes to make for items a previous pass
+        /// rescheduled behind a retry backoff. Bounded so an item that fails permanently (e.g. an
+        /// unreachable recipient) costs a few retries and then lets the drain return, rather than
+        /// spinning.
+        /// </summary>
+        private const int DefaultDrainRetryPasses = 3;
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var peerOutbox = lifetimeScope.Resolve<PeerOutbox>();
@@ -91,23 +99,43 @@ namespace Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox
         /// <c>internal</c> + <c>InternalsVisibleTo("Odin.Hosting.Tests.V2")</c> so production
         /// callers can't accidentally invoke it.
         /// </summary>
-        internal async Task DrainAsync(CancellationToken cancellationToken = default)
+        internal async Task DrainAsync(CancellationToken cancellationToken = default, int maxRetryPasses = DefaultDrainRetryPasses)
         {
             var peerOutbox = lifetimeScope.Resolve<PeerOutbox>();
-            var tasks = new List<Task>();
-            try
+
+            for (var pass = 0; ; pass++)
             {
-                while (!cancellationToken.IsCancellationRequested
-                       && await peerOutbox.GetNextItemAsync() is { } item)
+                var tasks = new List<Task>();
+                try
                 {
-                    tasks.Add(ProcessItemThread(item, cancellationToken));
+                    while (!cancellationToken.IsCancellationRequested
+                           && await peerOutbox.GetNextItemAsync() is { } item)
+                    {
+                        tasks.Add(ProcessItemThread(item, cancellationToken));
+                    }
                 }
-            }
-            finally
-            {
-                // Match ExecuteAsync: wait on in-flight item tasks even if GetNextItemAsync throws,
-                // so DrainAsync's contract ("returns when in-flight work is done") still holds.
-                await Task.WhenAll(tasks);
+                finally
+                {
+                    // Match ExecuteAsync: wait on in-flight item tasks even if GetNextItemAsync throws,
+                    // so DrainAsync's contract ("returns when in-flight work is done") still holds.
+                    await Task.WhenAll(tasks);
+                }
+
+                if (cancellationToken.IsCancellationRequested || pass >= maxRetryPasses)
+                {
+                    break;
+                }
+
+                // A pass fans every eligible item out concurrently, so a transient failure is normal
+                // here — e.g. two peer writes racing for the recipient's SQLite write lock. The worker
+                // handles that by rescheduling the item behind a backoff measured in seconds, which
+                // leaves the queue looking idle even though delivery is still owed. Production waits
+                // that out on the timer loop; a synchronous drain can't, so bring the stragglers
+                // forward and retry. No items brought forward means nothing is owed — we're done.
+                if (await peerOutbox.BringForwardScheduledItemsAsync() == 0)
+                {
+                    break;
+                }
             }
         }
 
