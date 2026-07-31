@@ -50,6 +50,7 @@ namespace Odin.Services.Membership.Connections
         PublicPrivateKeyService publicPrivateKeyService,
         CircleNetworkStorage circleNetworkStorage,
         PeerOutbox peerOutbox,
+        OdinContextCache odinContextCache,
         IdentityDatabase db)
         : INotificationHandler<DriveDefinitionAddedNotification>,
             INotificationHandler<AppRegistrationChangedNotification>
@@ -1077,6 +1078,12 @@ namespace Odin.Services.Membership.Connections
             await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
 
             tx.Commit();
+
+            // Peer contexts are cached for an hour keyed on the caller's token, and only the
+            // finalized/blocked/deleted notifications reset that cache. Without this the confirmation
+            // is invisible to the identity that was just confirmed -- their calls keep running under the
+            // auto-connected circle (no AllowIntroductions) long after the owner acted.
+            await odinContextCache.ResetAsync();
         }
 
         public async Task<bool> ClearVerificationHashAsync(OdinId odinId, IOdinContext odinContext)

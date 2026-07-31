@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
@@ -27,6 +29,7 @@ using Odin.Services.Configuration.VersionUpgrade;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
 using Odin.Services.EncryptionKeyService;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Peer;
 using Odin.Services.Peer.Outgoing.Drive;
 using Odin.Services.Peer.Outgoing.Drive.Transfer.Outbox;
@@ -223,12 +226,80 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         var allowsIntroductions = odinContext.PermissionsContext != null
                                   && odinContext.PermissionsContext.HasPermission(PermissionKeys.AllowIntroductions);
 
+        // AllowIntroductions is granted only by the Confirmed Connections circle, so on its own a false
+        // conflates "I revoked you", "I never confirmed you", and "I don't know you at all". Report the
+        // connection and confirmation state alongside it so the caller can tell those apart.
+        var isCallerConnected = odinContext.Caller.IsConnected;
+
+        var callerCircles = odinContext.Caller.Circles;
+        var isCallerConfirmed = isCallerConnected &&
+                                (callerCircles?.Any(c => c == SystemCircleConstants.ConfirmedConnectionsCircleId) ?? false);
+
+        // Needed to tell "never confirmed" from "confirmed and then revoked": both leave the caller out of
+        // Confirmed Connections, but only the former is still in Auto-connected.
+        var isCallerAutoConnected = isCallerConnected &&
+                                    (callerCircles?.Any(c => c == SystemCircleConstants.AutoConnectionsCircleId) ?? false);
+
+        var connectionState = isCallerConnected
+            ? PeerCallerConnectionState.Connected
+            : await ResolveCallerConnectionStateAsync(odinContext);
+
         return new PeerIntroductionPreflightResponse
         {
             IsConfigured = isConfigured,
             RequiresUpgrade = requiresUpgrade,
             AllowsIntroductions = allowsIntroductions,
+            IsCallerConnected = isCallerConnected,
+            IsCallerConfirmed = isCallerConfirmed,
+            IsCallerAutoConnected = isCallerAutoConnected,
+            CallerConnectionState = connectionState,
         };
+    }
+
+    /// <summary>
+    /// Works out why this request did not resolve a connected context. OdinContextMiddleware swallows the
+    /// distinction -- it catches the remote-ICR security exception, sets the RemoteServerIcrIssue header
+    /// and falls back to the public transit context -- so re-read the caller's ICR to recover it.
+    /// </summary>
+    private async Task<PeerCallerConnectionState> ResolveCallerConnectionStateAsync(IOdinContext odinContext)
+    {
+        var caller = odinContext.Caller.OdinId;
+        if (!caller.HasValue)
+        {
+            return PeerCallerConnectionState.Unknown;
+        }
+
+        try
+        {
+            // Same shape as VerifyConnection's caller lookup: overrideHack because this is a peer context
+            // (the caller is the remote identity, not our owner) and tryUpgradeEncryption because the
+            // upgrade path needs our own ICR key, which is not in scope here.
+            var icr = await CircleNetworkService.GetIcrAsync(caller.Value, odinContext,
+                overrideHack: true, tryUpgradeEncryption: false);
+
+            if (icr == null)
+            {
+                return PeerCallerConnectionState.NotRecognized;
+            }
+
+            // A connected ICR whose key store is unusable is a repairable fault, not a decision. Note the
+            // deliberate merge on the other branch: blocked callers land in NotRecognized along with
+            // unknown ones, so that preflight cannot be used to detect a block.
+            if (icr.IsConnected())
+            {
+                return (icr.PeerKeyStore?.IsValid() ?? false)
+                    ? PeerCallerConnectionState.Connected
+                    : PeerCallerConnectionState.NeedsRepair;
+            }
+
+            return PeerCallerConnectionState.NotRecognized;
+        }
+        catch (Exception ex)
+        {
+            // A partially-initialized server can fail this lookup; report no signal rather than guessing.
+            _logger.LogDebug(ex, "PreflightIncomingIntroductionAsync: could not resolve caller connection state");
+            return PeerCallerConnectionState.Unknown;
+        }
     }
 
     /// <summary>
@@ -244,6 +315,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.SendIntroductions);
         OdinValidationUtils.AssertValidRecipientList(recipients, allowEmpty: false);
 
+        // Note: our own identity is dropped silently, so the result can contain fewer entries than were
+        // requested. Callers must match results by recipient rather than by position or count.
         var targets = recipients.ToOdinIdList().Without(odinContext.Tenant);
 
         var probeTasks = targets.Select(r => ProbeRecipientAsync(r, odinContext, cancellationToken)).ToList();
@@ -270,7 +343,22 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // probes contend on the same ScopedConnectionFactory and trip its parallelism guard.
             await using var childScope = _lifetimeScope.BeginLifetimeScope($"ProbeRecipient:{Guid.NewGuid()}");
 
-            var clientAuthToken = await ResolveClientAccessTokenScopedAsync(childScope, recipient, odinContext);
+            ClientAccessToken clientAuthToken;
+            try
+            {
+                clientAuthToken = await ResolveClientAccessTokenScopedAsync(childScope, recipient, odinContext);
+            }
+            catch (Exception ex)
+            {
+                // We hold an ICR but cannot turn it into a usable token (e.g. the stored CAT will not
+                // decrypt under the current ICR key). That is our fault, not the recipient's, and it used
+                // to land in the outer catch as UnknownError with a raw exception string.
+                _logger.LogDebug(ex, "Preflight probe to {recipient}: local ICR did not yield a client access token", recipient);
+                status.Status = IntroductionPreflightStatus.SenderConnectionInvalid;
+                status.Detail = $"Local connection record is present but unusable: {ex.Message}";
+                return status;
+            }
+
             if (clientAuthToken == null)
             {
                 status.Status = IntroductionPreflightStatus.NotConnected;
@@ -289,28 +377,19 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             }
             catch (TaskCanceledException)
             {
-                status.Status = IntroductionPreflightStatus.Unreachable;
+                status.Status = IntroductionPreflightStatus.RecipientTimedOut;
                 status.Detail = "Recipient did not respond";
                 return status;
             }
             catch (HttpRequestException ex)
             {
-                status.Status = IntroductionPreflightStatus.Unreachable;
-                status.Detail = ex.Message;
-                return status;
-            }
-
-            if (response.StatusCode == HttpStatusCode.Forbidden)
-            {
-                status.Status = IntroductionPreflightStatus.RecipientRejected;
-                status.Detail = "Recipient denied the preflight";
+                (status.Status, status.Detail) = ClassifyTransportFailure(ex);
                 return status;
             }
 
             if (!response.IsSuccessStatusCode || response.Content == null)
             {
-                status.Status = IntroductionPreflightStatus.Unreachable;
-                status.Detail = $"Recipient returned {(int)response.StatusCode}";
+                (status.Status, status.Detail) = ClassifyErrorResponse(response);
                 return status;
             }
 
@@ -318,6 +397,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             status.IsConfigured = payload.IsConfigured;
             status.RequiresUpgrade = payload.RequiresUpgrade;
             status.AllowsIntroductions = payload.AllowsIntroductions;
+            status.IsCallerConnected = payload.IsCallerConnected;
+            status.IsCallerConfirmed = payload.IsCallerConfirmed;
+            status.IsCallerAutoConnected = payload.IsCallerAutoConnected;
+            status.CallerConnectionState = payload.CallerConnectionState;
 
             if (!payload.IsConfigured)
             {
@@ -335,8 +418,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
             if (!payload.AllowsIntroductions)
             {
-                status.Status = IntroductionPreflightStatus.IntroductionsNotPermitted;
-                status.Detail = "Recipient has not granted AllowIntroductions to this identity";
+                (status.Status, status.Detail) = ClassifyMissingPermission(payload);
                 return status;
             }
 
@@ -350,6 +432,138 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             status.Detail = ex.Message;
             return status;
         }
+    }
+
+    /// <summary>
+    /// Explains a <c>AllowsIntroductions == false</c>. The permission is granted only by the Confirmed
+    /// Connections circle, so on its own the flag says nothing about why -- the connection and confirmation
+    /// state the recipient reports alongside it is what separates a pending confirmation from a broken
+    /// connection from a deliberate revocation.
+    /// </summary>
+    private static (IntroductionPreflightStatus status, string detail) ClassifyMissingPermission(
+        PeerIntroductionPreflightResponse payload)
+    {
+        if (payload.CallerConnectionState == PeerCallerConnectionState.NeedsRepair)
+        {
+            return (IntroductionPreflightStatus.RecipientConnectionNeedsRepair,
+                "Recipient has a connection record for this identity but it is not usable");
+        }
+
+        if (payload.CallerConnectionState == PeerCallerConnectionState.NotRecognized)
+        {
+            return (IntroductionPreflightStatus.RecipientDoesNotRecognizeConnection,
+                "Recipient has no usable connection record for this identity");
+        }
+
+        if (payload.IsCallerConnected)
+        {
+            // Only an auto-connection that is still in the Auto-connected circle is genuinely "awaiting
+            // confirmation". A connection that is in neither system circle was confirmed and then had the
+            // circle taken away, which is a decision and belongs under IntroductionsNotPermitted.
+            if (payload.IsCallerAutoConnected && !payload.IsCallerConfirmed)
+            {
+                return (IntroductionPreflightStatus.RecipientConnectionNotConfirmed,
+                    "Recipient has not confirmed the connection, so it carries no AllowIntroductions");
+            }
+
+            return (IntroductionPreflightStatus.IntroductionsNotPermitted,
+                "Recipient is connected but has not granted AllowIntroductions to this identity");
+        }
+
+        // CallerConnectionState is Unknown and the recipient did not report being connected: either an
+        // older build that predates these fields, or one that could not determine its own state. We cannot
+        // tell the cases apart, so fall back to the pre-existing (over-broad) status rather than guess.
+        return (IntroductionPreflightStatus.IntroductionsNotPermitted,
+            "Recipient did not grant AllowIntroductions and did not report a connection state");
+    }
+
+    /// <summary>
+    /// Maps a non-success preflight response. Peers signal several distinguishable conditions that were
+    /// previously collapsed into <see cref="IntroductionPreflightStatus.Unreachable"/>.
+    /// </summary>
+    private static (IntroductionPreflightStatus status, string detail) ClassifyErrorResponse(
+        ApiResponse<PeerIntroductionPreflightResponse> response)
+    {
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return (IntroductionPreflightStatus.PreflightNotSupported,
+                "Recipient does not implement the introduction preflight endpoint");
+        }
+
+        if (response.StatusCode == HttpStatusCode.ServiceUnavailable &&
+            response.Headers.IsTrue(OdinHeaderNames.UpgradeIsRunning))
+        {
+            return (IntroductionPreflightStatus.RecipientUpgradeInProgress,
+                "Recipient identity server is running a version upgrade");
+        }
+
+        // A recipient that has never completed setup also sets the ICR-issue header on its way to this
+        // error (it cannot build a transit context either), so check the error code first: "finish your
+        // setup" is the actionable one, and it is a strictly narrower condition.
+        if (response.Error != null && response.Error.TryParseProblemDetails(out var errorCode))
+        {
+            if (errorCode is OdinClientErrorCode.NotInitialized or OdinClientErrorCode.RecipientIdentityNotConfigured)
+            {
+                return (IntroductionPreflightStatus.RecipientNotConfigured,
+                    "Recipient identity server has not completed initial setup");
+            }
+        }
+
+        if (response.Headers.IsTrue(HttpHeaderConstants.RemoteServerIcrIssue))
+        {
+            return (IntroductionPreflightStatus.RecipientDoesNotRecognizeConnection,
+                "Recipient could not resolve a connection record for this identity");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return (IntroductionPreflightStatus.RecipientRejected, "Recipient denied the preflight");
+        }
+
+        return (IntroductionPreflightStatus.Unreachable, $"Recipient returned {(int)response.StatusCode}");
+    }
+
+    /// <summary>
+    /// Separates the transport failures that used to arrive as a single <c>Unreachable</c> plus a raw
+    /// exception message. A dead domain, an expired certificate and a briefly-down server call for
+    /// completely different responses from the user.
+    /// </summary>
+    private static (IntroductionPreflightStatus status, string detail) ClassifyTransportFailure(HttpRequestException ex)
+    {
+        switch (ex.HttpRequestError)
+        {
+            case HttpRequestError.NameResolutionError:
+                return (IntroductionPreflightStatus.RecipientUnresolvable, "Recipient domain could not be resolved");
+            case HttpRequestError.SecureConnectionError:
+                return (IntroductionPreflightStatus.RecipientCertificateInvalid, "TLS handshake with recipient failed");
+        }
+
+        // HttpRequestError is not always populated (it depends on the handler), so fall back to walking the
+        // inner exception chain for the same signals.
+        for (var inner = ex.InnerException; inner != null; inner = inner.InnerException)
+        {
+            if (inner is AuthenticationException)
+            {
+                return (IntroductionPreflightStatus.RecipientCertificateInvalid, "TLS handshake with recipient failed");
+            }
+
+            if (inner is SocketException socketException)
+            {
+                switch (socketException.SocketErrorCode)
+                {
+                    case SocketError.HostNotFound:
+                    case SocketError.NoData:
+                    case SocketError.TryAgain:
+                        return (IntroductionPreflightStatus.RecipientUnresolvable, "Recipient domain could not be resolved");
+                    case SocketError.ConnectionRefused:
+                        return (IntroductionPreflightStatus.RecipientConnectionRefused, "Recipient refused the connection");
+                    case SocketError.TimedOut:
+                        return (IntroductionPreflightStatus.RecipientTimedOut, "Recipient did not respond");
+                }
+            }
+        }
+
+        return (IntroductionPreflightStatus.Unreachable, ex.Message);
     }
 
     /// <summary>
