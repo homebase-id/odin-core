@@ -170,40 +170,35 @@ needs to know a Guid at all.
 **`Type` stays a Guid — the app just invents it.** Nothing about its representation changes; only
 its *meaning* goes from "a value the whole system agrees on" to "a value the owning app chose."
 
-**The type pair needs its own row, which conveniently fixes integrity.** `DriveTypeGuid` and
-`DriveTypeSlug` are one-to-one *within an app*, and many drives share them — so neither can be a
-column on `Drives` without denormalising and inviting drift. Give types a small registry table (see
-*Schema*). It then answers a question that was otherwise awkward:
+**The type pair rides on `Drives` — denormalized on purpose.** `DriveTypeGuid` and
+`DriveTypeSlug` are one-to-one *within an app*, and many drives share them, so a `DriveTypeSlug`
+column on `Drives` repeats the pair per drive. Acceptable here: a single server code path writes
+drives, slugs are immutable after creation (*Open questions*), and drives number in the tens — a
+registry table would buy integrity nobody is positioned to violate, at the price of a join on
+every enumeration, while the denormalized column makes `?type=channel` a direct filter. The two
+invariants become **drive-creation-time validation**, in the same spirit as the other
+definition-write checks:
 
-*Should two apps be allowed the same type Guid?* In principle yes — apps are developed
-independently and drives are `AppId`-scoped, so no app can *use* another's drives. But the
-realistic cause of a collision isn't chance (random Guids never collide), it's **copy-paste** —
-someone forks the feed app and keeps its constants. Worth rejecting. As a bare rule it is an
-awkward functional dependency (*within an identity, a type Guid belongs to at most one `AppId`*)
-that no `UNIQUE` on `Drives` can express, since the feed app has many drives sharing that type. On
-the registry table it is simply `UNIQUE(identityId, DriveTypeGuid)`.
+- *Pair consistency* — a new drive carrying an already-used `DriveTypeGuid` (same identity) must
+  carry the same `DriveTypeSlug`, and vice versa.
+- *No cross-app reuse* — a `DriveTypeGuid` already used by another app on this identity is
+  rejected. Random Guids never collide; **copy-paste does** (someone forks the feed app and keeps
+  its constants). No `UNIQUE` on `Drives` can express this — many drives legitimately share the
+  type — but a lookup over tens of rows at creation time enforces it exactly.
 
 ## Schema
 
-Two nullable columns on `Drives`, one on the app registration — plus the constraints that make slug
-addressing safe.
+Three nullable columns on `Drives`, a new `AppRegistrations` table — plus the constraints that
+make slug addressing safe.
 
 ```sql
--- Drives (existing table; two new nullable columns)
-AppId      BYTEA,        -- owning app; NULL = not app-owned
-DriveSlug  TEXT,         -- URL/wire segment; NULL when AppId is NULL
+-- Drives (existing table; three new nullable columns)
+AppId          BYTEA,   -- owning app; NULL = not app-owned
+DriveSlug      TEXT,    -- URL/wire segment; NULL when AppId is NULL
+DriveTypeSlug  TEXT,    -- readable form of DriveType, e.g. "channel"; NULL when AppId is NULL
 
 , UNIQUE(identityId, AppId, DriveSlug)   -- one "news" per app
 -- index (identityId, DriveType)         -- legacy by-type lookups
-
--- DriveTypes (NEW table; the DriveTypeGuid ↔ DriveTypeSlug pair, per app)
-identityId     BYTEA NOT NULL,
-AppId          BYTEA NOT NULL,
-DriveTypeGuid  BYTEA NOT NULL,   -- the Guid the app invented
-DriveTypeSlug  TEXT  NOT NULL,   -- readable form, e.g. "channel"
-
-, UNIQUE(identityId, DriveTypeGuid)          -- a type Guid belongs to at most one app
-, UNIQUE(identityId, AppId, DriveTypeSlug)   -- one "channel" per app
 
 -- AppRegistrations (NEW table; see below)
 identityId   BYTEA NOT NULL,
@@ -290,9 +285,10 @@ Why these shapes:
   *within its app*.
 - **That unique index doubles as the enumeration index.** Its `(identityId, AppId)` prefix serves
   `GET /api/v2/apps/feed/drives`; the `?type=` filter then runs over that app's handful of drives.
-- **The `DriveTypes` table** carries the `DriveTypeGuid` ↔ `DriveTypeSlug` pair and enforces
-  *a type Guid belongs to at most one app* as a plain `UNIQUE`, which no constraint on `Drives`
-  could express.
+- **No `DriveTypes` table.** The `DriveTypeGuid` ↔ `DriveTypeSlug` pair rides on `Drives`,
+  denormalized; pair consistency and *a type Guid belongs to at most one app* are enforced at
+  drive-creation time (*The type pair rides on `Drives`*) — a lookup over tens of rows, in the
+  same spirit as the other definition-write validations.
 - **`UNIQUE(identityId, DriveId, DriveType)` can be dropped** once resolution is by `DriveId` — it
   is already redundant against `UNIQUE(identityId, DriveId)`.
 
@@ -304,7 +300,7 @@ One trap:
   `DriveSlug` are set together, or both `NULL`** — then every slug-bearing row is covered, and
   system drives are simply not slug-addressable.
 
-Mechanics: nullable columns (`Guid? AppId`, `string DriveSlug`), `TEXT` with a C#-side length check
+Mechanics: nullable columns (`Guid? AppId`, `string DriveSlug`, `string DriveTypeSlug`), `TEXT` with a C#-side length check
 per convention (never `char(n)` — Postgres blank-pads it, SQLite ignores it). The CRUD is generated
 with a version header, so this is regenerate + an `AbstractMigrator` migration, exercised on **both**
 SQLite and Postgres.
