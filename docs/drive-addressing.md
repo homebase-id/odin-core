@@ -492,6 +492,21 @@ not a later mutation:
 - The old fields remain for their other job: authorizing *someone else's* circles on the app's
   drives.
 
+**Declaration vs. materialization.** The `DefaultCircles` list in the registration payload is a
+*declaration*; applying the registration **materializes each declared circle as a real row in the
+`Circle` table** — `AppId` = the app, `Enrollment` as declared per circle (`AUTO_CONNECT` for the
+auto default, `VERIFIED_CONNECT` for verified defaults, `NONE` for ordinary circles), grants in
+the definition, deposit-only validation firing on the row write like any other circle. They must
+be real rows: membership, per-connection grants, the connect pipeline's
+`WHERE Enrollment = AUTO_CONNECT` query, ACL `circleIdList`s, and every UI all key on the Circle
+table — a circle living only in registration JSON would force a second source into all of those
+paths (the blob pathology again). The declaration kept in the registration record has one
+remaining job: **reconciliation** — on update/extend, diff the declared set against existing rows
+(keyed by a stable circle id in the declaration, so re-applying updates instead of duplicating).
+This is the same two-phase shape the system already uses: `CircleConstants` declares in code,
+`EnsureSystemCirclesExistAsync` materializes and reconciles — relocated from platform constants to
+per-app registration data.
+
 Install is the typical moment, not the only one: `Enrollment` is a column on the circle row, so
 circles are also created at runtime (the feed app mints an `AUDIENCE` circle per encrypted
 channel drive) and via the extend-registration flow when an app update adds defaults. Two steps
