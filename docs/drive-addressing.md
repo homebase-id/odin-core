@@ -523,9 +523,11 @@ exactly three events — nothing happens between them:
      never read on the hot path — the rows are the truth.
 
 - **On auto-connect** (a connection is created with no app context):
-  1. The server finds every circle with `Enrollment = AUTO_CONNECT` whose app the owner has
-     enabled. (An accept that came through an app's consent flow skips this and names its
-     circles directly, #1599.)
+  1. The server queries the **`Circle` table** — `WHERE Enrollment = AUTO_CONNECT` (this query
+     is why `Enrollment` is an indexed column) — and keeps the circles whose app the owner's
+     per-app toggle enables. The stored registration JSON is **not** read here; rows are the
+     truth. (An accept that came through an app's consent flow skips this and names its circles
+     directly, #1599.)
   2. It adds the new identity as a member of each.
   Nothing else happens. No circle definition changes.
 
