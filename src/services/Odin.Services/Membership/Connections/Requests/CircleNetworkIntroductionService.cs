@@ -195,6 +195,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             result.RecipientStatus[recipient] = await EnqueueOutboxItem(recipient, introduction);
         }
 
+        var failed = result.RecipientStatus.Where(kvp => !kvp.Value).Select(kvp => kvp.Key).ToList();
+        if (failed.Count > 0)
+        {
+            _logger.LogWarning("Introduction send: {failedCount} of {total} recipient(s) could not be enqueued: {failed}",
+                failed.Count, result.RecipientStatus.Count, string.Join(", ", failed));
+        }
+        else
+        {
+            _logger.LogDebug("Introduction send: enqueued for all {total} recipient(s)", result.RecipientStatus.Count);
+        }
+
         return result;
     }
 
@@ -220,7 +231,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // Config storage can fail on a partially-initialized server. Treat this as
             // "no signal" rather than failing the whole preflight; the IsConfigured flag
             // already tells the caller setup isn't complete.
-            _logger.LogDebug(ex, "PreflightIncomingIntroductionAsync: RequiresUpgradeAsync threw");
+            _logger.LogDebug(ex, "Preflight incoming: RequiresUpgradeAsync threw; reporting no upgrade signal");
         }
 
         var allowsIntroductions = odinContext.PermissionsContext != null
@@ -244,6 +255,28 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             ? PeerCallerConnectionState.Connected
             : await ResolveCallerConnectionStateAsync(odinContext);
 
+        var caller = odinContext.Caller.OdinId;
+
+        if (allowsIntroductions)
+        {
+            _logger.LogDebug("Preflight incoming: reporting ready for caller {caller}", caller);
+        }
+        else
+        {
+            // The whole point of the extra fields: log why we are about to say no, so the reason
+            // distribution is visible in production rather than collapsing into one message.
+            _logger.LogInformation(
+                "Preflight incoming: not permitting introductions from {caller}. reason={reason} " +
+                "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} isCallerConnected={isCallerConnected} " +
+                "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected} " +
+                "connectionState={connectionState}",
+                caller,
+                DescribeIncomingRefusal(isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed,
+                    isCallerAutoConnected, connectionState),
+                isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed, isCallerAutoConnected,
+                connectionState);
+        }
+
         return new PeerIntroductionPreflightResponse
         {
             IsConfigured = isConfigured,
@@ -254,6 +287,41 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             IsCallerAutoConnected = isCallerAutoConnected,
             CallerConnectionState = connectionState,
         };
+    }
+
+    /// <summary>
+    /// A short, greppable label for why this server is about to report that it will not accept an
+    /// introduction. Mirrors the classification the caller will apply to the same fields.
+    /// </summary>
+    private static string DescribeIncomingRefusal(bool isConfigured, bool requiresUpgrade, bool isCallerConnected,
+        bool isCallerConfirmed, bool isCallerAutoConnected, PeerCallerConnectionState connectionState)
+    {
+        if (!isConfigured)
+        {
+            return "not-configured";
+        }
+
+        if (requiresUpgrade)
+        {
+            return "requires-upgrade";
+        }
+
+        if (connectionState == PeerCallerConnectionState.NeedsRepair)
+        {
+            return "connection-needs-repair";
+        }
+
+        if (!isCallerConnected)
+        {
+            return "caller-not-recognized";
+        }
+
+        if (isCallerAutoConnected && !isCallerConfirmed)
+        {
+            return "auto-connection-not-confirmed";
+        }
+
+        return "permission-not-granted";
     }
 
     /// <summary>
@@ -297,7 +365,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         catch (Exception ex)
         {
             // A partially-initialized server can fail this lookup; report no signal rather than guessing.
-            _logger.LogDebug(ex, "PreflightIncomingIntroductionAsync: could not resolve caller connection state");
+            _logger.LogWarning(ex, "Preflight incoming: could not resolve connection state for caller {caller}; " +
+                                   "reporting Unknown", caller);
             return PeerCallerConnectionState.Unknown;
         }
     }
@@ -319,8 +388,19 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         // requested. Callers must match results by recipient rather than by position or count.
         var targets = recipients.ToOdinIdList().Without(odinContext.Tenant);
 
+        _logger.LogDebug("Preflight: probing {count} recipient(s)", targets.Count());
+
         var probeTasks = targets.Select(r => ProbeRecipientAsync(r, odinContext, cancellationToken)).ToList();
         var statuses = await Task.WhenAll(probeTasks);
+
+        var notReady = statuses.Where(s => s.Status != IntroductionPreflightStatus.Ready).ToList();
+        if (notReady.Count > 0)
+        {
+            _logger.LogInformation("Preflight: {notReadyCount} of {total} recipient(s) not ready: {breakdown}",
+                notReady.Count,
+                statuses.Length,
+                string.Join(", ", notReady.Select(s => $"{s.Recipient}={s.Status}")));
+        }
 
         return new IntroductionPreflightResult
         {
@@ -328,7 +408,45 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         };
     }
 
+    /// <summary>
+    /// Wraps the probe so every outcome is logged in one place, with the fields the recipient reported.
+    /// This is the log line to read when diagnosing why a specific recipient came back not-ready: it holds
+    /// the recipient's own answer, so the sender's logs alone are enough -- no access to the recipient's
+    /// server required.
+    /// </summary>
     private async Task<RecipientPreflightStatus> ProbeRecipientAsync(OdinId recipient, IOdinContext odinContext,
+        CancellationToken cancellationToken)
+    {
+        var status = await ProbeRecipientInternalAsync(recipient, odinContext, cancellationToken);
+
+        if (status.Status == IntroductionPreflightStatus.Ready)
+        {
+            _logger.LogDebug("Preflight: {recipient} is ready", recipient);
+            return status;
+        }
+
+        _logger.LogInformation(
+            "Preflight: {recipient} is not ready. status={status} remedyActor={remedyActor} transient={transient} " +
+            "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} allowsIntroductions={allowsIntroductions} " +
+            "isCallerConnected={isCallerConnected} isCallerConfirmed={isCallerConfirmed} " +
+            "isCallerAutoConnected={isCallerAutoConnected} connectionState={connectionState} detail={detail}",
+            recipient,
+            status.Status,
+            status.RemedyActor,
+            status.IsTransient,
+            status.IsConfigured,
+            status.RequiresUpgrade,
+            status.AllowsIntroductions,
+            status.IsCallerConnected,
+            status.IsCallerConfirmed,
+            status.IsCallerAutoConnected,
+            status.CallerConnectionState,
+            status.Detail);
+
+        return status;
+    }
+
+    private async Task<RecipientPreflightStatus> ProbeRecipientInternalAsync(OdinId recipient, IOdinContext odinContext,
         CancellationToken cancellationToken)
     {
         var status = new RecipientPreflightStatus
@@ -353,7 +471,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 // We hold an ICR but cannot turn it into a usable token (e.g. the stored CAT will not
                 // decrypt under the current ICR key). That is our fault, not the recipient's, and it used
                 // to land in the outer catch as UnknownError with a raw exception string.
-                _logger.LogDebug(ex, "Preflight probe to {recipient}: local ICR did not yield a client access token", recipient);
+                _logger.LogWarning(ex, "Preflight: local ICR with {recipient} did not yield a client access token", recipient);
                 status.Status = IntroductionPreflightStatus.SenderConnectionInvalid;
                 status.Detail = $"Local connection record is present but unusable: {ex.Message}";
                 return status;
@@ -427,7 +545,7 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Preflight probe to {recipient} failed unexpectedly", recipient);
+            _logger.LogError(ex, "Preflight: probe to {recipient} failed unexpectedly", recipient);
             status.Status = IntroductionPreflightStatus.UnknownError;
             status.Detail = ex.Message;
             return status;
@@ -614,14 +732,26 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         //Store the introductions by the identity to which you're being introduces
         var newIdentities = new List<string>();
+        var skippedAlreadyConnected = 0;
+        var skippedBlocked = 0;
         foreach (var identity in introduction.Identities.ToOdinIdList().Without(odinContext.Tenant))
         {
             // Note: we do not indicate if you're already connected or
             // have blocked the identity being introduced as we do not
-            // want to communicate any such information to the introducer
+            // want to communicate any such information to the introducer.
+            // Logging it locally is fine -- these are our own logs, not a response to the introducer.
             var icr = await CircleNetworkService.GetIcrAsync(identity, odinContext, overrideHack: true);
             if (icr.IsConnected() || icr.Status == ConnectionStatus.Blocked)
             {
+                if (icr.Status == ConnectionStatus.Blocked)
+                {
+                    skippedBlocked++;
+                }
+                else
+                {
+                    skippedAlreadyConnected++;
+                }
+
                 continue;
             }
 
@@ -637,8 +767,16 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             newIdentities.Add(identity);
         }
 
+        _logger.LogInformation(
+            "Introduction received from {introducer}: {newCount} new, {alreadyConnected} already connected, " +
+            "{blocked} blocked, of {total} introduced identities",
+            introducer, newIdentities.Count, skippedAlreadyConnected, skippedBlocked,
+            introduction.Identities.Count);
+
         if (newIdentities.Count == 0)
         {
+            // Nothing to do and nothing to notify the owner about. Logged above so a "the introduction
+            // arrived but nothing happened" report can be told apart from one that never arrived.
             return;
         }
 
@@ -780,8 +918,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         //get the introductions from the list
         var introductions = await GetReceivedIntroductionsAsync(newOdinContext);
 
-        _logger.LogDebug("Sending outstanding connection requests to {introductionCount} introductions", introductions.Count);
+        _logger.LogDebug("Introduction connect: sending outstanding connection requests to {introductionCount} introduction(s)",
+            introductions.Count);
 
+        var processed = 0;
         foreach (var intro in introductions)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -791,21 +931,33 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             }
 
             var recipient = intro.Identity;
+            processed++;
 
+            // NOTE: both of the conditions below `break` rather than `continue`, so a single skipped
+            // introducee abandons every remaining introduction in this batch. The log messages describe a
+            // per-recipient skip, which suggests `continue` was intended. Logged loudly rather than changed
+            // here, because altering background-worker control flow is out of scope for this change.
             var hasOutstandingRequest = await _circleNetworkRequestService.HasPendingOrSentRequest(recipient, odinContext);
             if (hasOutstandingRequest)
             {
-                _logger.LogDebug("{recipient} has an incoming or outgoing request; not sending connection request", recipient);
+                _logger.LogInformation(
+                    "Introduction connect: {recipient} has an incoming or outgoing request; abandoning the " +
+                    "remaining {remaining} of {total} outstanding introduction(s) in this batch",
+                    recipient, introductions.Count - processed, introductions.Count);
                 break;
             }
 
             var alreadyConnected = await CircleNetworkService.IsConnectedAsync(recipient, odinContext);
             if (alreadyConnected)
             {
-                _logger.LogDebug("{recipient} is already connected; not sending connection request", recipient);
+                _logger.LogInformation(
+                    "Introduction connect: {recipient} is already connected; abandoning the remaining " +
+                    "{remaining} of {total} outstanding introduction(s) in this batch",
+                    recipient, introductions.Count - processed, introductions.Count);
                 break;
             }
 
+            _logger.LogDebug("Introduction connect: sending connection request to {recipient}", recipient);
             await this.SendIntroductoryConnectionRequestInternalAsync(intro, cancellationToken, newOdinContext);
         }
     }
