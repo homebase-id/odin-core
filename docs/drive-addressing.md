@@ -467,27 +467,42 @@ circle" with **zero behaviour change** — today's evaluator already admits auto
 `Connected` ACLs (`DriveAclAuthorizationService` folds `Connected` and `AutoConnected` into one
 case, and no caller is ever stamped `AutoConnected`).
 
-### App creation ceremony (follow-up-PR behavior)
+### App registration and default circles (follow-up-PR behavior)
 
-Registering an app that declares default circles is a sequence, and two of its steps are easy to
-miss:
+Today's registration request **already declares circle access at install time**:
+`AppRegistrationRequest` carries `AuthorizedCircles` ("circles whose members can work with your
+identity via this app") plus `CircleMemberPermissionGrant` (what those members get) — and the JS
+clients pass exactly the two hardcoded system-circle GUIDs there (chat's `useAuth`:
+`c = [AUTO_CONNECTIONS, CONFIRMED]`, `cd = [ChatDrive Write|React]`, via
+`getExtendAppRegistrationParams`).
 
-1. **App registration row** (slug, `AppId`, `AutoConnectDefaults` declaration) + the consent
-   screen; the consent **seeds the owner-console toggle**.
-2. **Drive creation**, with capability flags (`AllowAnonymousReads`, `AllowSubscriptions`).
-3. **Default-circle registration** — the deposit-only validation fires here for `AUTO_CONNECT`
-   circles, and the definition-write rule (only drives the app can read) for all of them.
-4. **Anonymous-read drives** (easy to miss): the Read + storage-key grant that `HandleDriveAdded`
-   today adds to *both system circles* is instead added to **the app's own `AUTO_CONNECT`
-   circle** — that is how connections keep decrypting public-drive content once the system
-   circles are gone.
-5. **Existing connections** (easy to miss): enrolling them into the new app's auto circle is
-   offered, never automatic — whether as a one-time prompt (default off) or future-connections-only
-   is the remaining detail of open question 5. The same one-time decision covers applying the
-   app's verified default to already-reviewed contacts.
-6. **Circles are also created at runtime**, not only at install: the feed app creates an
-   `AUDIENCE` circle per encrypted channel drive as channels are created — its read grant *is*
-   the subscription (see the per-app table in chat-kmp PR #1062).
+**So the enrollment declaration must be expressible at registration time** — it is the direct
+successor of that field pair. In the follow-up PR the request grows a `DefaultCircles` list
+(name, grants, `Enrollment`, `Designation`, `Emoji`): registering the chat app *creates* its
+"Chat-only" circle with `Enrollment = AUTO_CONNECT` in the same consented act that today
+authorizes the system circles on the chat drive. Why it belongs in the registration payload and
+not a later mutation:
+
+- **No gap** — `AUTO_CONNECT` means unattended enrollment; the first auto-connection after
+  install must already know, or chat installs and introduced strangers cannot message until
+  something else runs.
+- **Consent coverage** — the install consent screen already renders the requested circle-drive
+  access (`cd`); the enrollment declaration must sit inside the consented payload, and it seeds
+  the owner-console toggle.
+- The old fields remain for their other job: authorizing *someone else's* circles on the app's
+  drives.
+
+Install is the typical moment, not the only one: `Enrollment` is a column on the circle row, so
+circles are also created at runtime (the feed app mints an `AUDIENCE` circle per encrypted
+channel drive) and via the extend-registration flow when an app update adds defaults. Two steps
+that are easy to miss either way:
+
+- **Anonymous-read drives**: the Read + storage-key grant that `HandleDriveAdded` today adds to
+  *both system circles* is instead added to **the app's own `AUTO_CONNECT` circle** — that is how
+  connections keep decrypting public-drive content once the system circles are gone.
+- **Existing connections**: enrolling them into a newly installed app's auto circle is offered,
+  never automatic — one-time prompt (default off) vs future-connections-only is the remaining
+  detail of open question 5.
 
 ### Implementation scope — what lands with this PR, and what does not
 
