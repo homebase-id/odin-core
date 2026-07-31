@@ -467,8 +467,10 @@ circle" with **zero behaviour change** — today's evaluator already admits auto
 `Connected` ACLs (`DriveAclAuthorizationService` folds `Connected` and `AutoConnected` into one
 case, and no caller is ever stamped `AutoConnected`).
 
-**App creation ceremony (follow-up-PR behavior).** Registering an app that declares default
-circles is a sequence, and two of its steps are easy to miss:
+### App creation ceremony (follow-up-PR behavior)
+
+Registering an app that declares default circles is a sequence, and two of its steps are easy to
+miss:
 
 1. **App registration row** (slug, `AppId`, `AutoConnectDefaults` declaration) + the consent
    screen; the consent **seeds the owner-console toggle**.
@@ -487,7 +489,9 @@ circles is a sequence, and two of its steps are easy to miss:
    `AUDIENCE` circle per encrypted channel drive as channels are created — its read grant *is*
    the subscription (see the per-app table in chat-kmp PR #1062).
 
-**Implementation scope — what lands with this PR, and what explicitly does not.** Implementing
+### Implementation scope — what lands with this PR, and what does not
+
+Implementing
 the app-circles work must **not** drag in the full connection-model change (chat-kmp PR #1062).
 The boundary is clean because every new column defaults to today's behavior:
 
