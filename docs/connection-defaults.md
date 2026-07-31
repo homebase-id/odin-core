@@ -83,8 +83,10 @@ only App Keys are available — not the master key. That is sufficient, by const
 verified circle is owned by the app whose defaults it carries, an app circle may only reference
 drives its app can already read (the definition-write rule — `drive-addressing.md`, *Circles*), and those are precisely the
 drives whose storage keys its App Key can source. So a well-formed verified circle mints working
-read grants in-app, and never a keyless one. Grants beyond any app's reach remain owner-console
-territory (master key). The feed app's verified circle is the canonical case — secured-feed distribution is read-shaped, which is exactly why it must sit behind
+read grants in-app, and never a keyless one. Grants for apps whose keys the reviewing
+client does not hold are not lost — they queue as pending enrollments and complete when that app
+next runs (see *Cross-app verified enrollment*); only grants beyond *every* app's reach remain
+owner-console territory (master key). The feed app's verified circle is the canonical case — secured-feed distribution is read-shaped, which is exactly why it must sit behind
 the review rather than auto-enrollment. What frodo holds at each stage:
 
 | Stage | Membership | Can | Cannot |
@@ -196,6 +198,18 @@ exactly three events — nothing happens between them:
   2. The server adds the contact as a member of each. Enrollment is idempotent — already a
      member is a no-op.
   Nothing is removed — membership from auto-connect stays.
+
+**Cross-app verified enrollment — the pending queue.** The reviewing client can only mint
+read-bearing grants for apps whose App Keys it holds — its own suite. A checked toggle for any
+*other* app (mail reviewed from the chat client, a third-party vendor app) cannot enroll
+immediately: the keys are not in the process. So the review **records the decision and enqueues a
+pending enrollment** (connection + circle), riding the existing connection-registration record —
+no new schema. The next time that app runs with its App Key context, it processes its pending
+queue: mints the grants, enrolls the connection in its `VERIFIED_CONNECT` circle, clears the
+entry — idempotent and additive like all enrollment. Until processed, the app's toggle shows as
+*pending* rather than active. (`AUTO_CONNECT` enrollment is unaffected: deposit-only grants need
+no read keys — exactly what the invariant guarantees — so the server completes those at any
+time, from any context.)
 
 One refinement to "definitions only at app creation": apps may also create circles at **runtime**
 through the same definition-write path (the feed app mints an `AUDIENCE` circle per encrypted
