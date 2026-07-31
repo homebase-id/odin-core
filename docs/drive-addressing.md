@@ -372,8 +372,8 @@ deposit-only validation ships with the column (unreachable until something sets
 
 Only four places read `Type` as a global vocabulary. Each should become a **capability check**:
 
-- `FollowerService` — asks a *remote* identity for channel drives by Type → should ask for
-  *subscribable* drives.
+- `FollowerService` — asks a *remote* identity for channel drives by Type → should ask for the Feed app's 
+  *subscribable* drives (and / or by feed drive type channel).
 - `FollowerPerimeterService` — validates an *incoming* follow request against `ChannelDriveType`
   → should validate `AllowSubscriptions`.
 - `FeedDriveDistributionRouter` — already checks `AllowSubscriptions && Type == ChannelDriveType`;
