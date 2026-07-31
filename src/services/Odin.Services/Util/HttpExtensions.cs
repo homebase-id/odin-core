@@ -24,4 +24,33 @@ public static class HttpExtensions
         var code = Enum.Parse<OdinClientErrorCode>(codeText!, true);
         return code;
     }
+
+    /// <summary>
+    /// Best-effort version of <see cref="ParseProblemDetails"/> for cases where the response might not be
+    /// problem-details at all (a proxy error page, an older peer, an empty body).
+    /// </summary>
+    public static bool TryParseProblemDetails(this ApiException apiException, out OdinClientErrorCode code)
+    {
+        code = OdinClientErrorCode.NoErrorCode;
+
+        if (string.IsNullOrWhiteSpace(apiException?.Content))
+        {
+            return false;
+        }
+
+        try
+        {
+            var pd = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content);
+            if (pd?.Extensions == null || !pd.Extensions.TryGetValue("errorCode", out var raw))
+            {
+                return false;
+            }
+
+            return Enum.TryParse(raw?.ToString(), true, out code);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 }
