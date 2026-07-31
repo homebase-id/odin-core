@@ -467,6 +467,34 @@ circle" with **zero behaviour change** — today's evaluator already admits auto
 `Connected` ACLs (`DriveAclAuthorizationService` folds `Connected` and `AutoConnected` into one
 case, and no caller is ever stamped `AutoConnected`).
 
+**Implementation scope — what lands with this PR, and what explicitly does not.** Implementing
+the app-circles work must **not** drag in the full connection-model change (chat-kmp PR #1062).
+The boundary is clean because every new column defaults to today's behavior:
+
+*In this PR:*
+
+- The **columns only**: `Enrollment` on `Circle` (default `NONE`), `AutoConnectDefaults` on
+  `AppRegistrations` (default `FALSE`), plus the client proposal's `Designation` and `Emoji`
+  fields. Regenerated CRUD + migration, both databases.
+- The **deposit-only validation** on definition writes — it lands with the column so the invariant
+  is never violable, but it is unreachable until something sets `Enrollment = AUTO_CONNECT`.
+
+*Explicitly NOT in this PR (the follow-up that implements PR #1062):*
+
+- **No startup / provisioning changes.** `CircleConstants`, `EnsureSystemCirclesExistAsync`, and
+  both system circles keep existing and being granted exactly as today.
+- **No connection-establishment changes.** The `CircleNetworkUtils` origin→circle routing, the
+  `ConfirmConnectionAsync` swap, and the 3010 lockout all stay.
+- **No app registers a default circle yet**; `AutoConnectDefaults` stays `FALSE` everywhere; no
+  owner-console toggle.
+- **No `SecurityGroupType` / ACL changes** — `connected`/`autoconnected` evaluation untouched, no
+  ACL sweep.
+- **No connection-review UX changes** in any client.
+
+With every default at "off", the system behaves identically until the follow-up PR registers
+default circles, flips the enrollment pipeline on, and retires the system-circle machinery — at
+which point the schema is already waiting for it.
+
 *Related:* the client-side circles proposal (chat-kmp PR #1062, `CIRCLES_VISIBILITY_PROPOSAL.md`)
 wants two more per-circle fields on this same registration record: a `Designation`
 (`PERSONAL | AUDIENCE | VENDOR` — contact-book presentation and filtering; default circles carry
