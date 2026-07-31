@@ -229,7 +229,7 @@ condition from *"does the caller have the master key"* to *"is the Peer Key actu
   explicitly asserting control, so deferring it is the least comfortable part of this option.
 - **Blocked on:** the membership-row problem above.
 
-### B. Keep the escrow, re-seal it to `OnlineKey`
+### B. Keep the TempWeakKeyStoreKey field, re-seal it to `OnlineKey`
 
 Leave the escrow in place but stop sealing it to a key the host can open.
 
