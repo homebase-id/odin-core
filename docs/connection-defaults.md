@@ -1,4 +1,4 @@
-# Connection defaults: enrollment, default circles, and the review
+# Connection defaults: enrollment, default circles, and the review (part 2/2)
 
 *Status: proposal for the phase **after** the drive-addressing / app-owned-circles work — for
 discussion. The schema columns this doc relies on (`Enrollment` on `Circle`,
