@@ -511,27 +511,29 @@ not a later mutation:
 **Three moments, and what happens at each.** Circle definitions and default membership change at
 exactly three events — nothing happens between them:
 
-- **On app creation** (and app update): the `DefaultCircles` declaration in the registration
-  payload becomes **real rows in the `Circle` table** — `AppId` = the app, `Enrollment` per
-  circle as declared (`AUTO_CONNECT` / `VERIFIED_CONNECT` / `NONE` for ordinary circles), grants
-  in the definition, deposit-only validation firing on the row write. This is one act with the
-  consent: no state exists in which a circle is only JSON awaiting creation. Rows are mandatory
-  because membership, per-connection grants, the connect pipeline's
-  `WHERE Enrollment = AUTO_CONNECT` query, ACL `circleIdList`s, and every UI key on the Circle
-  table. On update, the *incoming* declaration is reconciled against the existing rows (keyed by
-  a stable circle id — update, don't duplicate); the copy kept in the registration record is a
-  record, not a staging area, with exactly two jobs: the **consent record** (what the owner
-  actually approved, alongside grantJson's drives and permissions) and the **server-side repair
-  source** for `EnsureSystemCirclesExistAsync`-style self-heal and version migrations, which run
-  long after creation. Same two-phase shape the system uses today — `CircleConstants` declares,
-  `EnsureSystemCirclesExistAsync` materializes and reconciles — relocated from platform constants
-  to per-app registration data.
-- **On auto-connect**: membership only — the new connection joins the `AUTO_CONNECT` circles of
-  the apps the owner has enabled (or exactly the circles named by an app-consent accept, #1599).
-  No definitions change.
-- **On verify** (the connection review): membership only — the contact joins the
-  `VERIFIED_CONNECT` circles whose toggles were left checked, plus any selected personal circles.
-  Additive; the review never revokes.
+- **On app creation** (register or update):
+  1. The server reads the `DefaultCircles` list from the registration request.
+  2. For each entry it inserts a row in the `Circle` table: `AppId` = the app,
+     `Enrollment` = the declared value, grants = the declared grants.
+  3. If `Enrollment = AUTO_CONNECT`, the insert is rejected unless the grants are deposit-only.
+  4. On update: match incoming entries to existing rows by circle id — update those, insert the
+     missing ones. Never duplicate.
+  5. The request is also saved on the app registration row. It has two uses only: showing what
+     the owner consented to, and re-creating the rows if a repair or migration needs to. It is
+     never read on the hot path — the rows are the truth.
+
+- **On auto-connect** (a connection is created with no app context):
+  1. The server finds every circle with `Enrollment = AUTO_CONNECT` whose app the owner has
+     enabled. (An accept that came through an app's consent flow skips this and names its
+     circles directly, #1599.)
+  2. It adds the new identity as a member of each.
+  Nothing else happens. No circle definition changes.
+
+- **On verify** (the owner completes the connection review):
+  1. The client sends the circles chosen in the dialog: the checked `VERIFIED_CONNECT` toggles
+     plus the selected personal circles.
+  2. The server adds the contact as a member of each.
+  Nothing is removed — membership from auto-connect stays.
 
 One refinement to "definitions only at app creation": apps may also create circles at **runtime**
 through the same definition-write path (the feed app mints an `AUDIENCE` circle per encrypted
