@@ -288,6 +288,39 @@ public class TableOutbox(
 
 
     /// <summary>
+    /// Brings every checked-in item that is scheduled to run in the future forward to now, so the
+    /// next <see cref="CheckOutItemAsync"/> picks it up instead of waiting out its retry backoff.
+    /// Checked-out items are left alone — another worker owns them.
+    /// This is a "send now" kick, used by the test harness's synchronous drain so a transient
+    /// failure (which the worker reschedules minutes into the future) doesn't leave the queue
+    /// looking idle. Normal processing relies on the scheduled backoff and must not call this.
+    /// </summary>
+    /// <returns>Number of items brought forward.</returns>
+    public async Task<int> BringForwardScheduledItemsAsync()
+    {
+        await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText = "UPDATE outbox SET nextRunTime=@now " +
+                          "WHERE identityId=@identityId AND checkOutStamp IS NULL AND nextRunTime > @now";
+
+        var param1 = cmd.CreateParameter();
+        var param2 = cmd.CreateParameter();
+
+        param1.ParameterName = "@now";
+        param2.ParameterName = "@identityId";
+
+        cmd.Parameters.Add(param1);
+        cmd.Parameters.Add(param2);
+
+        param1.Value = UnixTimeUtc.Now().milliseconds;
+        param2.Value = odinIdentity.IdentityIdAsByteArray();
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+
+    /// <summary>
     /// Status on the box.
     /// NOTE: this is not atomic, meaning a parallel update on the box can result in skewed results.
     /// Do NOT use for anything important.
