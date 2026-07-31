@@ -508,6 +508,14 @@ not a later mutation:
 - The old fields remain for their other job: authorizing *someone else's* circles on the app's
   drives.
 
+**Terminology first — a circle is three layers**, all existing in today's schema. The `Circle`
+table holds **definitions** (one row per circle: name, `AppId`, `Enrollment`, the grant
+*specification* — no people in it). `CircleMember` holds **membership** (one row per circle +
+identity). And joining a circle **mints the definition's grants into that identity's connection
+registration**, keys included — that per-connection grant is what actually opens drives; the
+definition row is its recipe. "Add as a member" below always means both writes: the
+`CircleMember` row and the minted grant.
+
 **Three moments, and what happens at each.** Circle definitions and default membership change at
 exactly three events — nothing happens between them:
 
