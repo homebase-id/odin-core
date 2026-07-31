@@ -366,17 +366,24 @@ implemented with the addressing work. What rides along here is **schema only** �
 every default preserving today's behavior:
 
 ```sql
--- Circle (one more column)
-Enrollment  SMALLINT NOT NULL DEFAULT 0,   -- 0 NONE | 1 AUTO_CONNECT | 2 VERIFIED_CONNECT
+-- Circle (three more columns)
+Enrollment   SMALLINT NOT NULL DEFAULT 0,   -- 0 NONE | 1 AUTO_CONNECT | 2 VERIFIED_CONNECT
+Designation  SMALLINT NOT NULL DEFAULT 1,   -- 1 PERSONAL | 2 AUDIENCE | 3 VENDOR
+Emoji        TEXT,                          -- optional user-chosen emoji; store the full string (may be a multi-codepoint ZWJ sequence)
 -- index (identityId, Enrollment)
 
 -- AppRegistrations (one flag)
 AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_CONNECT circles on auto-connections
 ```
 
-plus the client proposal's `Designation` (`PERSONAL | AUDIENCE | VENDOR`) and optional `Emoji`
-fields on the circle record (chat-kmp PR #1062). The deposit-only validation ships with the
-`Enrollment` column (unreachable until something sets `AUTO_CONNECT`).
+`Designation` and `Emoji` semantics are client-side (chat-kmp PR #1062: contact-book presentation
+and filtering); `Enrollment` and `AutoConnectDefaults` semantics are in `connection-defaults.md`.
+The deposit-only validation ships with the `Enrollment` column (unreachable until something sets
+`AUTO_CONNECT`). The owner's per-app auto-connect toggle needs no schema — it persists in the
+existing per-tenant settings store (like the `ConnectedIdentitiesCanView*` flags today).
+
+**This is the complete schema surface for both phases** — `connection-defaults.md` and the client
+proposal introduce no further schema.
 
 ## What this depends on
 

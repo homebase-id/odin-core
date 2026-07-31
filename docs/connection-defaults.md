@@ -233,4 +233,6 @@ none, their rendering keys off `Enrollment`) and an optional user-chosen `Emoji`
 2. **Do `VERIFIED_CONNECT` circles carry permission keys** (`AllowIntroductions`,
    `ReadWhoIFollow`)? Keys are identity-wide, not drive-scoped — either they are allowed on
    verified circles only (never auto — the deposit-only invariant forbids it), or they leave
-   circles entirely and become per-connection settings toggled at review.
+   circles entirely and become per-connection settings toggled at review. Either way, **no new
+   schema**: permission keys already live in circle definitions, and per-connection settings
+   would ride the existing connection-registration record.
