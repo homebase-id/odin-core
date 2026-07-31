@@ -362,11 +362,21 @@ express ownership at all.
 The connection-default model — per-app `AUTO_CONNECT` / `VERIFIED_CONNECT` circles, the
 deposit-only invariant, app installation, and the retirement of the system circles — is specified
 in **`connection-defaults.md`**, next to this file. It is a **later phase**: nothing from it is
-implemented with the addressing work. What rides along here is schema only: the `Enrollment`
-column on `Circle`, `AutoConnectDefaults` on `AppRegistrations`, and the client proposal's
-`Designation` and `Emoji` fields — all dormant, every default preserving today's behavior. The
-deposit-only validation ships with the column (unreachable until something sets
-`Enrollment = AUTO_CONNECT`).
+implemented with the addressing work. What rides along here is **schema only** — all dormant,
+every default preserving today's behavior:
+
+```sql
+-- Circle (one more column)
+Enrollment  SMALLINT NOT NULL DEFAULT 0,   -- 0 NONE | 1 AUTO_CONNECT | 2 VERIFIED_CONNECT
+-- index (identityId, Enrollment)
+
+-- AppRegistrations (one flag)
+AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_CONNECT circles on auto-connections
+```
+
+plus the client proposal's `Designation` (`PERSONAL | AUDIENCE | VENDOR`) and optional `Emoji`
+fields on the circle record (chat-kmp PR #1062). The deposit-only validation ships with the
+`Enrollment` column (unreachable until something sets `AUTO_CONNECT`).
 
 ## What this depends on
 

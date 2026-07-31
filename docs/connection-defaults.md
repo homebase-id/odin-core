@@ -20,18 +20,11 @@ invite them to chat), and "confirm" is a special-cased swap between the two circ
 (`ConfirmConnectionAsync`: revoke auto, grant confirmed) guarded by a lockout
 (`CannotGrantAutoConnectedMoreCircles`, 3010).
 
-App-owned circles can absorb both. `Circle` gets one more column:
-
-```sql
-Enrollment  SMALLINT NOT NULL DEFAULT 0,   -- 0 NONE | 1 AUTO_CONNECT | 2 VERIFIED_CONNECT
--- index (identityId, Enrollment)
-```
-
-and `AppRegistrations` one flag:
-
-```sql
-AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_CONNECT circles on auto-connections
-```
+App-owned circles can absorb both, via two columns that ship (dormant) with the
+drive-addressing schema work: `Circle.Enrollment`
+(`NONE | AUTO_CONNECT | VERIFIED_CONNECT`, indexed) and
+`AppRegistrations.AutoConnectDefaults`. **The DDL lives in `drive-addressing.md`**
+(*Connection defaults* section) — this document defines only what the values mean.
 
 **Semantics.**
 
