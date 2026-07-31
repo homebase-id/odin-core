@@ -469,7 +469,7 @@ case, and no caller is ever stamped `AutoConnected`).
 
 *Related:* the client-side circles proposal (chat-kmp PR #1062, `CIRCLES_VISIBILITY_PROPOSAL.md`)
 wants two more per-circle fields on this same registration record: a `Designation`
-(`PERSONAL | AUDIENCE | SERVICE` — contact-book presentation and filtering; default circles carry
+(`PERSONAL | AUDIENCE | VENDOR` — contact-book presentation and filtering; default circles carry
 none, their rendering keys off `Enrollment`) and an optional user-chosen `Emoji`.
 
 ## What this depends on
