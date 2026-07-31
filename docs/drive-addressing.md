@@ -433,9 +433,13 @@ and "is connected" survives only as the wire-level perimeter check.
 toggles, personal-circle selection — is specified client-side in chat-kmp's
 `CIRCLES_VISIBILITY_PROPOSAL.md`, chat-kmp PR #1062). The dialog surfaces each app's
 `VERIFIED_CONNECT` circles as toggles, checked by default — and these, unlike auto circles, **may
-in principle carry read grants**, because the owner is deliberately acting with the master key
-present: this is the moment storage keys can be minted. The feed app's verified circle is the
-canonical case — secured-feed distribution is read-shaped, which is exactly why it must sit behind
+in principle carry read grants**. Note the key context: the review runs **inside the app**, so
+only App Keys are available — not the master key. That is sufficient, by construction: each
+verified circle is owned by the app whose defaults it carries, an app circle may only reference
+drives its app can already read (the definition-write rule above), and those are precisely the
+drives whose storage keys its App Key can source. So a well-formed verified circle mints working
+read grants in-app, and never a keyless one. Grants beyond any app's reach remain owner-console
+territory (master key). The feed app's verified circle is the canonical case — secured-feed distribution is read-shaped, which is exactly why it must sit behind
 the review rather than auto-enrollment. What frodo holds at each stage:
 
 | Stage | Membership | Can | Cannot |
