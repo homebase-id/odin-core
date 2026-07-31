@@ -186,6 +186,14 @@ definition-write checks:
   its constants). No `UNIQUE` on `Drives` can express this — many drives legitimately share the
   type — but a lookup over tens of rows at creation time enforces it exactly.
 
+The validation is what makes this equivalent to a registry table. The realistic mistake — the
+developer renames the slug in code ("channel" → "funnel") without shipping rename logic — fails
+**loudly in both designs, at the same moment**: here the pair-consistency check rejects the first
+creation under the new name; with a table, the `UNIQUE` on the type row rejects the same call.
+Neither design can write the rename migration for the developer. The only residual difference is
+rename mechanics — one row vs. an `UPDATE … WHERE DriveTypeGuid` over tens of rows in one
+transaction — which does not justify a table.
+
 ## Schema
 
 Three nullable columns on `Drives`, a new `AppRegistrations` table — plus the constraints that
