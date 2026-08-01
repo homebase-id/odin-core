@@ -372,7 +372,9 @@ client — should the drive's data die or persist?* Three buckets:
 Chat, Stickers, Wallet) are bolt-on apps hardcoded for convenience, not system drives.
 
 **Per-drive public key — purpose.** A write-only root of trust for a drive (none
-exists today; drives are purely symmetric). *The public key lets you write, never
+exists today; drives are purely symmetric). *Schema home:* `drive-addressing.md` (part 1) — a
+`WriteOnlyKeyPair` (`EccFullKeyData`) field on `Drives` plus an `AllowDeposits` capability flag,
+with a slug-addressed peer endpoint to retrieve the public key. *The public key lets you write, never
 read.* Uses: writing to a drive with **no connection** (Example #3) and bootstrapping the
 **write side** of a safe connection request (Example #4). Reads (Example #2) need no
 keypair; banking (Example #1) stays read-neutral by construction.

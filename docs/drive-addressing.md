@@ -100,6 +100,34 @@ Two consequences:
 - `AppId` must be an **indexed column**, not a JSON field: this is a per-app enumeration on the
   startup path of every app.
 
+### The drive public key — write-only deposits
+
+Every drive can carry a **write-only keypair**: an ECC-384 public key whose only power is
+*depositing* — encrypt to it and you can write; you can never read. The pattern and the type are
+already shipped: `PeerKeyStore.WriteOnlyKeyPair` is an **`EccFullKeyData`** — one self-contained
+object holding the public half in clear and the private half AES-encrypted under a symmetric key
+(see `app-circle-membership-plan.md`, *Forward-looking: two keypairs, one pattern*). For a drive,
+the escrow key is the drive's own **storage key**, so deposit-collection custody equals existing
+read access — for free.
+
+A remote writer retrieves it by slug:
+
+```
+GET /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/public-key
+```
+
+This endpoint is where slugs earn their keep: the whole point of the Drive PK is a writer with
+**no prior relationship** — no shared Guid constants, possibly no connection at all. A stranger
+deposit needs nothing but a hostname and two slugs.
+
+**Who may ask:** serving the key discloses the drive's existence, and *Scoping* above promises
+callers only see drives they can reach. Resolution by the doc's own capability-flag pattern: a
+drive opts in with a new **`AllowDeposits`** flag (sibling of `AllowAnonymousReads` /
+`AllowSubscriptions`), and the public-key endpoint answers only for drives that set it —
+existence is disclosed exactly where the owner opted into being writable. The deposit mechanics
+themselves (ECIES envelope, conversion on next read) are out of scope here; this doc carries only
+the address, the key, and the flag.
+
 ### Slugs are resolved by the recipient
 
 `/peer/{odinId}/apps/chat/drives/messages` means *"whatever app **that identity** registered under
@@ -198,14 +226,16 @@ transaction — which does not justify a table.
 
 ## Schema
 
-Three nullable columns on `Drives`, a new `AppRegistrations` table — plus the constraints that
+Four nullable fields on `Drives`, a new `AppRegistrations` table — plus the constraints that
 make slug addressing safe.
 
 ```sql
--- Drives (existing table; three new nullable columns)
-AppId          BYTEA,   -- owning app; NULL = not app-owned
-DriveSlug      TEXT,    -- URL/wire segment; NULL when AppId is NULL
-DriveTypeSlug  TEXT,    -- readable form of DriveType, e.g. "channel"; NULL when AppId is NULL
+-- Drives (existing table; four new nullable fields)
+AppId            BYTEA,   -- owning app; NULL = not app-owned
+DriveSlug        TEXT,    -- URL/wire segment; NULL when AppId is NULL
+DriveTypeSlug    TEXT,    -- readable form of DriveType, e.g. "channel"; NULL when AppId is NULL
+WriteOnlyKeyPair BYTEA,   -- serialized EccFullKeyData: Drive PK, private half escrowed under the
+                          -- drive's storage key; NULL = deposits not enabled (see AllowDeposits)
 
 , UNIQUE(identityId, AppId, DriveSlug)   -- one "news" per app
 -- index (identityId, DriveType)         -- legacy by-type lookups
@@ -382,14 +412,22 @@ Emoji        TEXT,                          -- optional user-chosen emoji; store
 AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_CONNECT circles on auto-connections
 ```
 
+`WriteOnlyKeyPair` is **one field, not split columns** — `EccFullKeyData` self-contains the
+public half and the storage-key-encrypted private half, copying the shipped
+`PeerKeyStore.WriteOnlyKeyPair` pattern (name kept for symmetry). It is not passive DDL like the
+other columns: populating it means *minting* a keypair with the storage key in scope — lazily on
+first request, or backfilled in the VersionUpgrade pre-pass exactly as the `PeerKeyStore` keypair
+was. `AllowDeposits` is a capability flag stored with the drive's existing flags, not a column.
+
 `Designation` and `Emoji` semantics are client-side (chat-kmp PR #1062: contact-book presentation
 and filtering); `Enrollment` and `AutoConnectDefaults` semantics are in `connection-defaults.md`.
 The deposit-only validation ships with the `Enrollment` column (unreachable until something sets
 `AUTO_CONNECT`). The owner's per-app auto-connect toggle needs no schema — it persists in the
 existing per-tenant settings store (like the `ConnectedIdentitiesCanView*` flags today).
 
-**This is the complete schema surface for both phases** — `connection-defaults.md` and the client
-proposal introduce no further schema.
+**Together with the addressing fields above (including `WriteOnlyKeyPair` and the
+`AllowDeposits` flag), this is the complete schema surface for both phases** —
+`connection-defaults.md` and the client proposal introduce no further schema.
 
 ## What this depends on
 
@@ -446,3 +484,9 @@ app-private.
    forever. Probably fine, but say so out loud.
 4. **Immutability.** Once a slug is both a URL segment *and* a wire address, renaming breaks links
    and breaks remote senders. Presumably immutable after creation.
+5. **Drive PK — owner recovery.** Should the keypair's private half also carry a master-key escrow
+   copy, or is the storage-key escrow (recoverable via the drive's master-key root) sufficient?
+6. **Drive PK — rotation.** What happens to deposits encrypted to an old public key after
+   rotation — drain-then-rotate, or accept both for a window?
+7. **Drive PK — deleted drives.** In-flight deposits addressed to a deleted drive's key: reject,
+   or tombstone-and-bounce?
