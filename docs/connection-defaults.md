@@ -1,6 +1,7 @@
-# Connection defaults: enrollment, default circles, and the review (part 2/3)
+# Connection defaults: enrollment, default circles, and the review (part 2/4)
 
 Previous doc: odin-core PR#1589 docs/drive-addressing.md
+Next doc: odin-core PR#1589 docs/weak-key-retirement.md
 
 *Status: proposal for the phase **after** the drive-addressing / app-owned-circles work — for
 discussion. The schema columns this doc relies on (`Enrollment` on `Circle`,

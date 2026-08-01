@@ -1,4 +1,4 @@
-# Drive addressing: DriveId, Type, Slug, AppId (part 1/3)
+# Drive addressing: DriveId, Type, Slug, AppId (part 1/4)
 
 This is a continuation of the document docs/app-circle-mmembership-plan.md
 
@@ -118,7 +118,9 @@ GET /api/v2/peer/{odinId}/apps/{appSlug}/drives/{driveSlug}/public-key
 
 This endpoint is where slugs earn their keep: the whole point of the Drive PK is a writer with
 **no prior relationship** — no shared Guid constants, possibly no connection at all. A stranger
-deposit needs nothing but a hostname and two slugs.
+deposit needs nothing but a hostname and two slugs. This key is what makes secretless 3 a.m.
+receiving possible — consumed by part 3's `weak-key-retirement.md` (transfer envelopes and
+pre-connection deposits).
 
 **Who may ask:** serving the key discloses the drive's existence, and *Scoping* above promises
 callers only see drives they can reach. Resolution by the doc's own capability-flag pattern: a

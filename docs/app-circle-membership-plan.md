@@ -139,6 +139,8 @@ flow that motivates the whole feature.
    app's scope** (chat, Moments, location, shared lists), not a weak placeholder that
    only starts working once the owner later comes online.
 
+   *Retirement design:* `weak-key-retirement.md` (part 3/4).
+
    *Prior art — the unsafe stop-gap we already built.* To make app-side accept
    possible at all, the no-master-key path improvises
    (`CircleNetworkRequestService.cs`): it ECC-encrypts the new **Peer Key**
