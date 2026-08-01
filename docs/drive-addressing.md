@@ -420,6 +420,9 @@ public half and the storage-key-encrypted private half, copying the shipped
 other columns: populating it means *minting* a keypair with the storage key in scope — lazily on
 first request, or backfilled in the VersionUpgrade pre-pass exactly as the `PeerKeyStore` keypair
 was. `AllowDeposits` is a capability flag stored with the drive's existing flags, not a column.
+On rotation, `WriteOnlyKeyPair` always holds only the **current** key; the **previous** key and a
+rotation timestamp ride the drive's existing `jsonDetails` column (cold path — consulted only
+when an old-key envelope arrives during the grace window). Still no schema change.
 
 `Designation` and `Emoji` semantics are client-side (chat-kmp PR #1062: contact-book presentation
 and filtering); `Enrollment` and `AutoConnectDefaults` semantics are in `connection-defaults.md`.
