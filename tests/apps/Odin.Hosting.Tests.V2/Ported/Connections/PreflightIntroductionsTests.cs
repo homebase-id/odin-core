@@ -72,6 +72,13 @@ public class PreflightIntroductionsTests : V2Fixture
     /// recipient decided nothing — AllowIntroductions is simply not carried by the Auto-connected circle,
     /// and confirming requires the recipient owner's master key. This must not report as
     /// <see cref="IntroductionPreflightStatus.IntroductionsNotPermitted"/>.
+    ///
+    /// <para>
+    /// Sam's auto-accept is turned off <b>after</b> the auto-connect (auto-connect itself needs it on, or
+    /// it returns PendingManualApproval instead of connecting). A recipient that still auto-accepts
+    /// permits its auto-connections to introduce — see
+    /// <see cref="Preflight_WhenRecipientAutoConnectedAndAutoAccepts_ReturnsReady"/>.
+    /// </para>
     /// </summary>
     [Test]
     public async Task Preflight_WhenRecipientAutoConnectedButNotConfirmed_ReturnsRecipientConnectionNotConfirmed()
@@ -80,6 +87,7 @@ public class PreflightIntroductionsTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
 
         await AutoConnectAsync(frodo, sam);
+        await DisableAutoAcceptAsync(sam);
 
         var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
         {
@@ -100,6 +108,34 @@ public class PreflightIntroductionsTests : V2Fixture
         Assert.That(samStatus.IsTransient, Is.False);
     }
 
+    /// <summary>
+    /// The same unconfirmed auto-connection, but Sam still auto-accepts connection requests (the default).
+    /// Having already decided to connect to whoever asks, Sam has nothing left to withhold from the
+    /// identities that decision auto-connected, so Frodo may introduce without waiting on a confirm.
+    /// </summary>
+    [Test]
+    public async Task Preflight_WhenRecipientAutoConnectedAndAutoAccepts_ReturnsReady()
+    {
+        var frodo = await LoginAsOwner(Identities.Frodo);
+        var sam = await LoginAsOwner(Identities.Sam);
+
+        await AutoConnectAsync(frodo, sam);
+
+        var response = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
+        {
+            Message = "preflight",
+            Recipients = [sam.Identity]
+        });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        AssertStatus(response.Content!, sam.Identity, IntroductionPreflightStatus.Ready);
+
+        var samStatus = response.Content!.Recipients.Single(r => r.Recipient == sam.Identity.DomainName);
+        Assert.That(samStatus.AllowsIntroductions, Is.True);
+        Assert.That(samStatus.IsCallerAutoConnected, Is.True);
+        Assert.That(samStatus.IsCallerConfirmed, Is.False, "still nothing but an auto-connection");
+    }
+
     [Test]
     public async Task Preflight_WhenRecipientConfirmsAutoConnection_FlipsToReady()
     {
@@ -107,6 +143,7 @@ public class PreflightIntroductionsTests : V2Fixture
         var sam = await LoginAsOwner(Identities.Sam);
 
         await AutoConnectAsync(frodo, sam);
+        await DisableAutoAcceptAsync(sam);
 
         var before = await frodo.Connections.PreflightIntroductionsAsync(new IntroductionGroup
         {
@@ -335,6 +372,18 @@ public class PreflightIntroductionsTests : V2Fixture
 
         var icr = await sender.Connections.GetConnectionInfo(recipient.Identity);
         Assert.That(icr.Content!.Status, Is.EqualTo(ConnectionStatus.Connected));
+    }
+
+    /// <summary>
+    /// Turns off the recipient's auto-accept, which is what otherwise lets its auto-connections introduce
+    /// without a confirm. Call it after <see cref="AutoConnectAsync"/> -- auto-connect needs the flag on.
+    /// The fixture restores tenant settings between tests, so there is nothing to undo here.
+    /// </summary>
+    private static async Task DisableAutoAcceptAsync(OwnerSession recipient)
+    {
+        var flagSet = await recipient.Admin.UpdateTenantSettingsFlag(
+            TenantConfigFlagNames.DisableAutoAcceptConnectionRequests, "true");
+        Assert.That(flagSet.IsSuccessStatusCode, Is.True, $"flag update failed: {flagSet.StatusCode}");
     }
 
     private static async Task ConnectAsync(OwnerSession introducer, OwnerSession recipient)
