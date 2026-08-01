@@ -9,49 +9,44 @@ motivating case is app-driven connections: a chat client sends a connection requ
 another chat client accepts it, and the resulting connection works within that app's
 scope — without the owner console or the master key online.
 
-**Status.** The key model, the naming, and three of the four blockers are settled. The
-hard part is **Blocker #3:** an app cannot write into a peer's grant store without also
-gaining read access to the peer's entire scope. A **candidate solution** — a write-only
-deposit via a Peer Key Store keypair — is now in hand but not yet built (see *The current
-blocker*).
+**Status.** See [`app-circle-membership-status.md`](./app-circle-membership-status.md)
+for what has shipped — all four blockers are resolved and the write-only deposit
+(`DepositedGrant`) is on `main`. The rename has been carried out, with a short list of
+remaining gaps recorded in *Key model & naming* below.
 
-## Key model & naming
+## Key model & naming (final)
 
-We do **not** need to invent a new app key to let an app act without the master key —
-**the app key already exists.** It is the shared, per-app hub key on the app's
-exchange grant (today buried under the generic name `keyStoreKey`), and every
-logged-in client (device) already reaches it with no master key. The trouble is purely
-the names. So we lead with the naming and propose a rename.
+We did **not** need to invent a new app key to let an app act without the master key —
+**the app key already existed**; it was merely buried under generic names. The rename has
+been carried out (pure rename, no behavior change). Final vocabulary, as it now stands in
+the code:
 
-| Concept | Today (obscure) | Proposed | Actual                                                                                                |
-|---|---|---|-------------------------------------------------------------------------------------------------------|
-| Per-device key, one per login | `accessKeyStoreKey` / "access key" (`AccessRegistration`) | **App Client Key** *(a.k.a. App Device Key)* | **AppClientKey** Note: I did not rename the class, just the property on AppClientRegistration)        
-| The shared per-app hub key | grant `keyStoreKey` (`ExchangeGrant`) | **App Key** | MasterKeyEncryptedKeyStoreKey -> MasterKeyEncryptedPeerKey                                            |
-| The per-connection hub key — a connected peer's grants | `keyStoreKey` on `AccessExchangeGrant` (the ICR) | **Peer Key** | PeerKey                                                                                               |
-| The connected peer's per-CAT client key (≥1 per connection) | `AccessRegistration` on the ICR | **Peer Client Key** | **PeerClientKey**                                                                                     |
-| The app's grant container (what the App Key unlocks) | `ExchangeGrant` (app grant) | **App Key Store** | **AppKeyStore** Note: just renamed the property AppRegistration.Grant --> AppRegistration.AppKeyStore |
-| A peer's grant container (what the Peer Key unlocks) | `AccessExchangeGrant` (the ICR) | **Peer Key Store** | PeerKeyStore                                                                                          |
-| App Key wrapped per device | `AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey` | **AppClientKeyEncryptedAppKey** | AppClientKeyEncryptedAppKey                                                                           |
-| App Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (app grant) | **MasterKeyEncryptedAppKey** | **MasterKeyEncryptedAppKey**                                                                          |
-| Peer Key wrapped for the owner | `MasterKeyEncryptedKeyStoreKey` (`AccessExchangeGrant`) | **MasterKeyEncryptedPeerKey** | **MasterKeyEncryptedPeerKey**                                                                         |
-| A drive's storage key wrapped under its grant's hub key | `KeyStoreKeyEncryptedStorageKey` | **AppKeyEncryptedStorageKey** / **PeerKeyEncryptedStorageKey** | Left as-is.  neither suggestion makes sense based on the usage
-| The transit/ICR key under a hub key | `KeyStoreKeyEncryptedIcrKey` | **AppKeyEncryptedIcrKey** / **PeerKeyEncryptedIcrKey** | PeerKeyEncryptedIcrKey                                                                                                      |
-| *(#3 candidate)* the Peer Key Store's public key, in clear | *(new)* | **`PeerKeyStorePublicKey`** *(prose: Peer Key Store PK)* |                                                                                                       |
-| *(#3 candidate)* its private key, Peer-Key-encrypted | *(new)* | **`PeerKeyEncryptedStorePrivateKey`** |                                                                                                       |
-| *(#3 candidate)* a grant deposited via the PK, awaiting conversion | `EccEncryptedPayload` (reuse) | **Deposited Grant** |                                                                                                       |
+| Concept | Code today |
+|---|---|
+| **App Key** — the shared per-app hub key | lives in **`KeyStore`** (formerly `ExchangeGrant`); reached via `AppRegistration.AppKeyStore` |
+| **App Client Key** — per device, reconstructed per request | server half in **`ServerHalfOfClientKey`** (formerly `AccessRegistration`); wire `JsonPropertyName`s keep the old `accessKeyStoreKey…` strings for storage compat |
+| **Peer Key** — a connection's hub key | **`PeerKeyStore.MasterKeyEncryptedPeerKey`** (formerly `AccessExchangeGrant`) |
+| **Peer Client Key** — a peer's per-CAT client key | **`PeerClientKey`** |
+| **Deposited Grant** — write-only deposit awaiting conversion (blocker #3) | **`DepositedGrant`** |
+| A drive's storage key wrapped under a hub key | `KeyStoreKeyEncryptedStorageKey` — **left as-is by decision** (neither proposed name matched the usage) |
 
-**Why the old name misleads:** the code calls *every* grant's hub key the same thing —
-`keyStoreKey` — whether it belongs to an app or to a peer connection. That one reused
-name is exactly what hid them as distinct principals. The rename gives each its own: an
-app grant's hub key is the **App Key**; a peer connection's hub key is the **Peer
-Key**. Blocker #3 then states simply: *the app holds its App Key but not the target's
-Peer Key.*
+**Remaining rename gaps** (audited against `main`, 2026-08-01):
+
+- `KeyStore.MasterKeyEncryptedKeyStoreKey` → **`MasterKeyEncryptedAppKey`** (14 sites) —
+  the class rename landed, the property inside it did not.
+- `KeyStore.KeyStoreKeyEncryptedIcrKey` → **`PeerKeyEncryptedIcrKey`** (6 sites).
+- `RedactedExchangeGrant` → **`RedactedKeyStore`** — the redacted twin missed the class rename.
+- *(Decision, not a mechanical fix)*: the per-device class became `ServerHalfOfClientKey`
+  rather than anything from the original table. Either bless that name here, or finish
+  toward an `AppClientKey`-flavored one — but pick once; the wire names stay as they are
+  regardless.
 
 **The App Key *is* the key store** (and likewise the Peer Key). It is the indirection
 that lets each access be stored **once**: every drive/transit key the app can reach is
 wrapped a single time under the App Key — *not* duplicated per device, and *not* wrapped
 again under the master key — while the App Key itself carries the two top-level
-wrappings (`MasterKeyEncryptedAppKey` + one `AppClientKeyEncryptedAppKey` per device).
+wrappings (one under the master key, plus one per device under that device's App
+Client Key).
 So there is no *separate* store object to build. Beneath it the leaves stay wrapped
 **individually**, so each principal reaches only its own subset. The one other copy of a
 drive's storage key — `MasterKeyEncryptedStorageKey` on the drive — is the drive's own
@@ -60,8 +55,8 @@ canonical root (a different level), not an app duplicate.
 ### How the App Key fits together
 
 ```
- owner  ── master key ──────────────►  APP KEY        MasterKeyEncryptedAppKey
- device ── App Client Key ──────────►  APP KEY        AppClientKeyEncryptedAppKey
+ owner  ── master key ──────────────►  APP KEY        (master-key wrapping)
+ device ── App Client Key ──────────►  APP KEY        (per-device wrapping)
                                          │            (same key; one wrapping per device)
                                          ▼  unlocks (each wrapped individually)
                               drive storage keys   +   ICR / transit key
@@ -100,16 +95,6 @@ That is the feature's one unsolved blocker; full treatment in *The current block
 **Takeaway:** the app already has a durable, all-clients-shared, master-key-free key
 (the App Key). Anything we want an app to do without the master key should anchor on
 the App Key — not a newly invented one.
-
-### Do the rename first
-
-**Before any of the feature work below, do the mechanical rename in the code** —
-adopt the **Proposed** column across the codebase (pure rename, no behavior change).
-Two reasons it comes first: the current names actively mislead (they hid the fact
-that the App Key already exists), and every design below is far easier to state — and
-to review — in terms of *which hub key a principal can reach*. The rest of this
-document already uses the new vocabulary (**App Key**, **App Client Key**, **Peer
-Key**); the table above is the only place the old names appear.
 
 ## What we want (worked examples)
 
