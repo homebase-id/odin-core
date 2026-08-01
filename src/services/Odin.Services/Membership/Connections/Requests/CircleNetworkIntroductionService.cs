@@ -234,15 +234,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             _logger.LogDebug(ex, "Preflight incoming: RequiresUpgradeAsync threw; reporting no upgrade signal");
         }
 
-        var allowsIntroductions = odinContext.PermissionsContext != null
-                                  && odinContext.PermissionsContext.HasPermission(PermissionKeys.AllowIntroductions);
-
-        // AllowIntroductions is granted only by the Confirmed Connections circle, so on its own a false
-        // conflates "I revoked you", "I never confirmed you", and "I don't know you at all". Report the
-        // connection and confirmation state alongside it so the caller can tell those apart.
+        // The Confirmed Connections circle is what carries AllowIntroductions, so a false there conflates
+        // "I revoked you", "I never confirmed you", and "I don't know you at all". Report the connection
+        // and confirmation state alongside it so the caller can tell those apart.
         var isCallerConnected = odinContext.Caller.IsConnected;
 
-        var callerCircles = odinContext.Caller.Circles;
+        var callerCircles = odinContext.Caller.Circles?.ToList();
         var isCallerConfirmed = isCallerConnected &&
                                 (callerCircles?.Any(c => c == SystemCircleConstants.ConfirmedConnectionsCircleId) ?? false);
 
@@ -250,6 +247,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         // Confirmed Connections, but only the former is still in Auto-connected.
         var isCallerAutoConnected = isCallerConnected &&
                                     (callerCircles?.Any(c => c == SystemCircleConstants.AutoConnectionsCircleId) ?? false);
+
+        var allowsIntroductions = CallerMayIntroduce(odinContext, isCallerAutoConnected);
 
         var connectionState = isCallerConnected
             ? PeerCallerConnectionState.Connected
@@ -290,6 +289,51 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     }
 
     /// <summary>
+    /// Whether the calling identity is allowed to introduce others to us.
+    ///
+    /// <para>
+    /// The <see cref="PermissionKeys.AllowIntroductions"/> grant itself comes from the Confirmed
+    /// Connections circle. On top of that, an identity that auto-accepts connection requests
+    /// (<see cref="TenantSettings.DisableAutoAcceptConnectionRequests"/> is false) has already decided it
+    /// will connect to whoever asks, so there is nothing left for it to withhold from the identities it
+    /// auto-connected -- treating them as unable to introduce made every auto-connection a dead end until
+    /// the owner confirmed it by hand.
+    /// </para>
+    ///
+    /// <para>
+    /// This is deliberately a policy check rather than a grant added to
+    /// <see cref="SystemCircleConstants.AutoConnectionsSystemCircleDefinition"/>: the condition is a
+    /// per-tenant setting, and evaluating it here takes effect immediately for every existing
+    /// auto-connection instead of requiring each member's stored circle grant to be re-issued (which
+    /// needs the owner's master key). The trade-off is that it does not surface in the circle definition
+    /// or in GetConnectionInfo -- the permission is not really in the caller's
+    /// <see cref="CircleGrant.PermissionSet"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="isCallerAutoConnected">
+    /// Whether the caller is a member of the Auto-connected circle. Passed in because callers have
+    /// usually already computed it.
+    /// </param>
+    private bool CallerMayIntroduce(IOdinContext odinContext, bool isCallerAutoConnected)
+    {
+        if (odinContext.PermissionsContext?.HasPermission(PermissionKeys.AllowIntroductions) ?? false)
+        {
+            return true;
+        }
+
+        return isCallerAutoConnected && !_tenantContext.Settings.DisableAutoAcceptConnectionRequests;
+    }
+
+    /// <summary>
+    /// Whether the caller holds a connected context that sits in the Auto-connected circle.
+    /// </summary>
+    private static bool IsCallerAutoConnected(IOdinContext odinContext)
+    {
+        return odinContext.Caller.IsConnected &&
+               (odinContext.Caller.Circles?.Any(c => c == SystemCircleConstants.AutoConnectionsCircleId) ?? false);
+    }
+
+    /// <summary>
     /// A short, greppable label for why this server is about to report that it will not accept an
     /// introduction. Mirrors the classification the caller will apply to the same fields.
     /// </summary>
@@ -316,6 +360,8 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             return "caller-not-recognized";
         }
 
+        // Only reachable when this identity does NOT auto-accept connection requests -- otherwise
+        // CallerMayIntroduce would have let an auto-connected caller through and we would not be here.
         if (isCallerAutoConnected && !isCallerConfirmed)
         {
             return "auto-connection-not-confirmed";
@@ -553,10 +599,17 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     }
 
     /// <summary>
-    /// Explains a <c>AllowsIntroductions == false</c>. The permission is granted only by the Confirmed
+    /// Explains a <c>AllowsIntroductions == false</c>. The permission comes from the recipient's Confirmed
     /// Connections circle, so on its own the flag says nothing about why -- the connection and confirmation
     /// state the recipient reports alongside it is what separates a pending confirmation from a broken
     /// connection from a deliberate revocation.
+    ///
+    /// <para>
+    /// A recipient that auto-accepts connection requests also permits its auto-connections to introduce
+    /// (see <c>CallerMayIntroduce</c>), so it would have reported <c>true</c> and never reached here. The
+    /// <see cref="IntroductionPreflightStatus.RecipientConnectionNotConfirmed"/> branch below therefore
+    /// now describes a recipient that does not auto-accept.
+    /// </para>
     /// </summary>
     private static (IntroductionPreflightStatus status, string detail) ClassifyMissingPermission(
         PeerIntroductionPreflightResponse payload)
@@ -713,7 +766,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </summary>
     public async Task ReceiveIntroductions(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
     {
-        odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.AllowIntroductions);
+        // Same predicate the preflight endpoint reports on, so a Ready preflight is not followed by a
+        // rejected send. Note this must stay a check rather than the plain AssertHasPermission it replaced:
+        // an auto-connected caller on an auto-accepting identity is permitted without the permission ever
+        // being in their stored grant.
+        if (!CallerMayIntroduce(odinContext, IsCallerAutoConnected(odinContext)))
+        {
+            throw new OdinSecurityException("Does not have permission");
+        }
 
         _logger.LogDebug("Receiving introductions from {sender}", odinContext.GetCallerOdinIdOrFail());
 
