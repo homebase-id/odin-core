@@ -1,5 +1,7 @@
 # Drive addressing: DriveId, Type, Slug, AppId (part 1/3)
 
+This is a continuation of the document docs/app-circle-mmembership-plan.md
+
 *Status: proposal, for discussion. Prompted by the app-owned-drives direction.*
 
 Today a drive is addressed by Guids that both ends must hardcode. We want an app to name its own
