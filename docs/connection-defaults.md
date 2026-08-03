@@ -285,6 +285,35 @@ Mechanics:
   have had, and "Vetted" finally delivers what it always claimed. Call it out as a behavior
   change in release notes.
 
+**Viewer-scoped redaction — a required companion.** The connections-list API currently
+contradicts the "owner-private, never sent to the peer" promise: `CircleNetworkController` is
+mounted on **both the app route and the guest (YouAuth) route**, and both return the same
+`Redacted()` shape — which includes, per connection, the legacy `Vetted` flag (becoming
+`reviewedAt`), `introducerOdinId`, `connectionRequestOrigin`, and a redacted grant with circle
+info. The guest path is gated only by `ReadConnections`, which anonymous viewers can hold when
+the tenant setting allows. So anyone permitted to see the list today also sees the owner's
+*judgments* about each contact. Fix: **two shapes from one record** —
+
+- **Owner/app viewers** (the owner's own clients): the full redacted shape — `reviewedAt`-derived
+  state, origin, introducer, grants. This is what the contact book runs on.
+- **Third-party viewers** (guest, reviewed peers, anonymous where enabled): an **identity list
+  only** — odinId plus the public contact card, nothing else.
+
+*The connections list a peer may see is a list of identities, never a list of my judgments.* The
+"who can see my connections" setting decides **whether** third parties see the list; viewer-scoped
+redaction decides **what** they see — without it, enabling the setting overshares regardless of
+tier. (Today's `omitContactData` flag is the wrong axis: it strips the harmless part and keeps
+the sensitive part.)
+
+**API surface.** The review is **one atomic endpoint on the connections API** — stamp
+`ReviewedAt` + enroll the checked circles in a single call (the accept-with-circle-grants
+endpoint, #1599, is the precedent) — gated by `ManageCircleMembership`: the same trust level as
+granting a circle, which implies a review anyway. The owner/app redacted connection shape
+replaces the legacy `Vetted` boolean with **`reviewedAt`** (V1 compat: `vetted` served as
+`reviewedAt != null` during transition). The server-side **contact** API needs nothing: contact
+records are owner-only and carry no review state — review is connections-API domain, and it
+should stay that way.
+
 ## Sequencing
 
 - The four columns land (dormant) with the drive-addressing schema work — regenerated CRUD +
