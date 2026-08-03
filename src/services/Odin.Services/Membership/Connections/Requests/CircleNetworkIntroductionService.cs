@@ -231,7 +231,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // Config storage can fail on a partially-initialized server. Treat this as
             // "no signal" rather than failing the whole preflight; the IsConfigured flag
             // already tells the caller setup isn't complete.
-            _logger.LogDebug(ex, "Preflight incoming: RequiresUpgradeAsync threw; reporting no upgrade signal");
+            //
+            // Warning, not Debug: this swallows an exception AND silently answers requiresUpgrade=false,
+            // so at production log levels the failure left no trace while still changing what we told
+            // the caller. Same treatment as the connection-state lookup below.
+            _logger.LogWarning(ex, "Preflight incoming: RequiresUpgradeAsync threw; reporting no upgrade signal");
         }
 
         // The Confirmed Connections circle is what carries AllowIntroductions, so a false there conflates
@@ -258,7 +262,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         if (allowsIntroductions)
         {
-            _logger.LogDebug("Preflight incoming: reporting ready for caller {caller}", caller);
+            // Information, not Debug: a preflight that succeeds is the only evidence that the
+            // auto-accept path in CallerMayIntroduce fired, and at production log levels a Debug line
+            // would make "now permitted" indistinguishable from "never asked". The circle flags say
+            // which branch permitted it -- confirmed carries the grant, auto-connected does not.
+            _logger.LogInformation(
+                "Preflight incoming: permitting introductions from {caller}. isCallerConnected={isCallerConnected} " +
+                "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected}",
+                caller, isCallerConnected, isCallerConfirmed, isCallerAutoConnected);
         }
         else
         {
@@ -434,7 +445,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         // requested. Callers must match results by recipient rather than by position or count.
         var targets = recipients.ToOdinIdList().Without(odinContext.Tenant);
 
-        _logger.LogDebug("Preflight: probing {count} recipient(s)", targets.Count());
+        // Information, not Debug: this is the only line that marks a preflight having been requested at
+        // all. Without it, a run where every recipient comes back Ready is indistinguishable from one
+        // that never happened.
+        _logger.LogInformation("Preflight: probing {count} recipient(s)", targets.Count());
 
         var probeTasks = targets.Select(r => ProbeRecipientAsync(r, odinContext, cancellationToken)).ToList();
         var statuses = await Task.WhenAll(probeTasks);
@@ -467,7 +481,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         if (status.Status == IntroductionPreflightStatus.Ready)
         {
-            _logger.LogDebug("Preflight: {recipient} is ready", recipient);
+            // Mirrors the recipient's own permitting line at the same level, so the sender's log alone
+            // shows which side of the auto-connected/confirmed split let the introduction through.
+            _logger.LogInformation(
+                "Preflight: {recipient} is ready. isCallerConfirmed={isCallerConfirmed} " +
+                "isCallerAutoConnected={isCallerAutoConnected}",
+                recipient, status.IsCallerConfirmed, status.IsCallerAutoConnected);
             return status;
         }
 
@@ -766,16 +785,37 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </summary>
     public async Task ReceiveIntroductions(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
     {
+        // Deliberately not GetCallerOdinIdOrFail: this is only for the log lines below, and a refusal
+        // should report the caller it refused rather than throw a different exception on the way. The
+        // call further down still fails hard if there is no caller.
+        var caller = odinContext.Caller.OdinId;
+        var isCallerAutoConnected = IsCallerAutoConnected(odinContext);
+
         // Same predicate the preflight endpoint reports on, so a Ready preflight is not followed by a
         // rejected send. Note this must stay a check rather than the plain AssertHasPermission it replaced:
         // an auto-connected caller on an auto-accepting identity is permitted without the permission ever
         // being in their stored grant.
-        if (!CallerMayIntroduce(odinContext, IsCallerAutoConnected(odinContext)))
+        if (!CallerMayIntroduce(odinContext, isCallerAutoConnected))
         {
+            // The refusal that the preflight endpoint predicts, logged where it actually happens. Without
+            // it this side is silent: the sender gets a security exception and we record nothing, so a
+            // rejected introduction was only visible from the other identity's logs.
+            _logger.LogInformation(
+                "Rejecting introductions from {caller}. isCallerConnected={isCallerConnected} " +
+                "isCallerAutoConnected={isCallerAutoConnected} " +
+                "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests}",
+                caller,
+                odinContext.Caller.IsConnected,
+                isCallerAutoConnected,
+                _tenantContext.Settings.DisableAutoAcceptConnectionRequests);
+
             throw new OdinSecurityException("Does not have permission");
         }
 
-        _logger.LogDebug("Receiving introductions from {sender}", odinContext.GetCallerOdinIdOrFail());
+        // Information, not Debug: this is the introduction actually landing, the event the preflight only
+        // predicts. Paired with the rejection line above, every incoming introduction now has an outcome
+        // in the log at production levels.
+        _logger.LogInformation("Receiving introductions from {sender}", caller);
 
         OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
