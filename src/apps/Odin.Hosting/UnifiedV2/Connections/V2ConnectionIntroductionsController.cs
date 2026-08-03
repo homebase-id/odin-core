@@ -10,7 +10,7 @@ namespace Odin.Hosting.UnifiedV2.Connections;
 
 [ApiController]
 [Route(UnifiedApiRouteConstants.Connections)]
-[UnifiedV2Authorize(UnifiedPolicies.OwnerOrAppOrGuest)]
+[UnifiedV2Authorize(UnifiedPolicies.OwnerOrApp)]
 [ApiExplorerSettings(GroupName = "v2")]
 public class V2ConnectionIntroductionsController(
     CircleNetworkIntroductionService introductionService
