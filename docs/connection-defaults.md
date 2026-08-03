@@ -200,6 +200,9 @@ exactly three events — nothing happens between them:
      unattended*.
   2. The server adds the contact as a member of each. Enrollment is idempotent — already a
      member is a no-op.
+  3. The server stamps **`ReviewedAt`** on the connection registration (a JSON-stored record —
+     no schema). This is what promotes the caller's security level (see *The security ladder,
+     recut* below) and what clients derive the New-vs-reviewed state from.
   Nothing is removed — membership from auto-connect stays.
 
 **Cross-app verified enrollment — the pending queue.** The reviewing client can only mint
@@ -232,6 +235,55 @@ Two steps that are easy to miss:
 wants two more per-circle fields on this same registration record: a `Designation`
 (`PERSONAL | AUDIENCE | VENDOR` — contact-book presentation and filtering; default circles carry
 none, their rendering keys off `Enrollment`) and an optional user-chosen `Emoji`.
+
+## The security ladder, recut
+
+The last gap: after a review, the owner needs ACL-expressible distinctions like *"who can see my
+connections list — reviewed people"*, while a freshly introduced contact must see **nothing**
+extra. Today's ladder cannot say this.
+
+**Today** (`SecurityGroupType.cs`): `Anonymous = 111`, `Authenticated = 444`,
+`AutoConnected = 555`, `Connected = 777`, `Owner = 999`, `System = 1`. Three audited facts drive
+the recut:
+
+- The ACL evaluator folds `Connected`/`AutoConnected` into one case, and **no caller is ever
+  assigned 555** — a `connected` ACL admits every connection, unreviewed included. The tier's
+  promise has always been broken.
+- The "ConnectedIdentitiesCanViewConnections / WhoIFollow" tenant settings are implemented as
+  permission keys **on the Confirmed circle** (`TenantConfigService.cs:293-309`) — the system
+  already treats *reviewed* as the operative tier for exactly this use case; it just has no
+  first-class name, and the Confirmed circle retires with this series.
+- DB filtering is `requiredSecurityGroup BETWEEN 0 AND callerLevel`; the numeric ordering is
+  load-bearing and must be preserved.
+
+**The end state:**
+
+| Level (value) | Who | Use cases |
+|---|---|---|
+| `Anonymous` (111) | anyone on the internet | public profile card, public posts, the drive public-key endpoint, initiating a connection request |
+| `Authenticated` (444) | any logged-in Homebase identity **and every unreviewed connection** | commenting/reacting on public posts; authenticated-tier profile attributes. The must-not case lands here **by construction**: a 3 a.m. introduction can deposit (via circles) but *reads* nothing beyond any stranger identity |
+| `Reviewed` (777 — today's `Connected` slot, recut) | connections the owner completed the review for; **includes every circle member by construction** (adding to a circle requires the review) | "who can see my connections list" / "who I follow" (replaces the Confirmed-circle permission keys — the settings' labels finally match their semantics); react/comment on secured posts; low-sensitivity social metadata. **Not** for high-sensitivity data — the home address stays on enumerated personal-circle ACLs |
+| `circleIdList` (orthogonal, unchanged) | members of named circles | birthday, home address, per-circle photos, feed channels — everything part 4's visibility picker covers |
+| `Owner` (999) / `System` (1) | unchanged | drafts, settings, contact records / internal |
+| ~~`AutoConnected` (555)~~ | **deleted** | never assigned to a caller; its accidental ACL semantics are documented in part 4 |
+
+Mechanics:
+
+- **Assignment, not evaluation, changes.** At transit/YouAuth context build:
+  `ReviewedAt != null` → 777, else → 444. The evaluator and the DB range query are untouched.
+- **"Connected-but-unreviewed" survives as an internal caller classification** (perimeter
+  checks, deposit eligibility) but is not an ACL-targetable level.
+- **Wire compatibility:** the serialized string `connected` keeps the 777 slot; the enum member
+  and every UX label become **Reviewed**.
+- **The reviewed fact lives server-side**: stamped on the connection registration at the review
+  (step 3 above). It is the owner's own recorded act — the ambient-authority objection that
+  killed designation-qualified ACLs (part 4) does not apply. Owner-private, never sent to the
+  peer, visible to all owner clients via GetConnectionInfo.
+- **Migration is intent-restoring, not behavior-identical** (this revises part 4's earlier
+  mapping): existing bare-`connected` ACLs — e.g. today's "Vetted" profile fields — become
+  reviewed-only. A deliberate tightening: unreviewed connections lose access they never should
+  have had, and "Vetted" finally delivers what it always claimed. Call it out as a behavior
+  change in release notes.
 
 ## Sequencing
 

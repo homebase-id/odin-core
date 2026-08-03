@@ -39,7 +39,9 @@ my side at all**:
   none.
 
 **So the 3 a.m. job becomes: store a sealed envelope, record the sender as New 👋. Mint nothing.
-Store no secrets.** There is nothing left for a weak key to protect.
+Store no secrets.** There is nothing left for a weak key to protect. (New = `ReviewedAt == null`
+on the connection registration; until the review, the caller ranks as **Authenticated** on the
+recut security ladder — part 2 — so they can read nothing beyond any stranger identity.)
 
 **The connection's real secrets** — the token for talking back, the read grants — are created
 later, when someone is actually there. The next app session completes the connection: apps with
