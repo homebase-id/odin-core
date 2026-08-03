@@ -200,8 +200,8 @@ exactly three events — nothing happens between them:
      unattended*.
   2. The server adds the contact as a member of each. Enrollment is idempotent — already a
      member is a no-op.
-  3. The server stamps **`ReviewedAt`** on the connection registration (a JSON-stored record —
-     no schema). This is what promotes the caller's security level (see *The security ladder,
+  3. The server stamps **`ReviewedAt`** on the connection registration (a nullable column on the
+     Connections table — DDL in part 1's *Schema*). This is what promotes the caller's security level (see *The security ladder,
      recut* below) and what clients derive the New-vs-reviewed state from.
   Nothing is removed — membership from auto-connect stays.
 
@@ -276,7 +276,8 @@ Mechanics:
 - **Wire compatibility:** the serialized string `connected` keeps the 777 slot; the enum member
   and every UX label become **Reviewed**.
 - **The reviewed fact lives server-side**: stamped on the connection registration at the review
-  (step 3 above). It is the owner's own recorded act — the ambient-authority objection that
+  (step 3 above; a real column — part 1's *Schema* — because the contact book filters and pages
+  on it at audience scale, where blob fields fail). It is the owner's own recorded act — the ambient-authority objection that
   killed designation-qualified ACLs (part 4) does not apply. Owner-private, never sent to the
   peer, visible to all owner clients via GetConnectionInfo.
 - **Migration is intent-restoring, not behavior-identical** (this revises part 4's earlier

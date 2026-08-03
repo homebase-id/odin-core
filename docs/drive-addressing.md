@@ -412,6 +412,11 @@ Emoji        TEXT,                          -- optional user-chosen emoji; store
 
 -- AppRegistrations (one flag)
 AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_CONNECT circles on auto-connections
+
+-- Connections (existing table; one new nullable column)
+ReviewedAt  BIGINT,   -- UnixTimeUtc of the owner's review; NULL = New. Set at the review
+                      -- (part 2, "on verify" step 3); drives the Reviewed caller tier
+-- index (identityId, status, ReviewedAt)
 ```
 
 `WriteOnlyKeyPair` is **one field, not split columns** — `EccFullKeyData` self-contains the
@@ -430,8 +435,16 @@ The deposit-only validation ships with the `Enrollment` column (unreachable unti
 `AUTO_CONNECT`). The owner's per-app auto-connect toggle needs no schema — it persists in the
 existing per-tenant settings store (like the `ConnectedIdentitiesCanView*` flags today).
 
-**Together with the addressing fields above (including `WriteOnlyKeyPair` and the
-`AllowDeposits` flag), this is the complete schema surface for both phases** —
+`ReviewedAt` must be a **column, not a blob field**, for the same reason `Enrollment` is: it is
+queried on filtering paths — the contact book pages "reviewed connections"
+(`ReviewedAt IS NOT NULL`) and "New people" (unreviewed ∩ people-app auto-circle membership, via
+`CircleMember`) over a table that may hold a feed's million unreviewed audience connections.
+Point lookups alone (caller-tier assignment) would not have needed it; pagination does. The
+vetted backfill becomes a plain UPDATE.
+
+**Together with the addressing fields above (including `WriteOnlyKeyPair`, the
+`AllowDeposits` flag, and `Connections.ReviewedAt`), this is the complete schema surface for
+both phases** —
 `connection-defaults.md` and the client proposal introduce no further schema.
 
 ## What this depends on
