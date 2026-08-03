@@ -312,7 +312,12 @@ granting a circle, which implies a review anyway. The owner/app redacted connect
 replaces the legacy `Vetted` boolean with **`reviewedAt`** (V1 compat: `vetted` served as
 `reviewedAt != null` during transition). The server-side **contact** API needs nothing: contact
 records are owner-only and carry no review state — review is connections-API domain, and it
-should stay that way.
+should stay that way. Likewise **no server endpoint** for "is this contact in any personal
+circle" — clients compute it from connection info ∩ circle definitions; a server-side
+personal-circle predicate is the rejected designation-qualified ACL by another door. The review
+endpoint's one designation consultation is **invariant enforcement**: un-review (clearing
+`ReviewedAt`) is rejected while the contact holds any `PERSONAL`-designated membership —
+`circleIdList` ACLs check membership, not tier, so membership must imply review.
 
 ## Sequencing
 
