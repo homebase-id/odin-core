@@ -55,6 +55,15 @@ namespace Odin.Services.Base
         public TenantSettings Settings => _tenantSettings ?? TenantSettings.Default;
 
         /// <summary>
+        /// Whether <see cref="Settings"/> is the shared <see cref="TenantSettings.Default"/> fallback rather
+        /// than this tenant's stored configuration. True means <see cref="UpdateSystemConfig"/> never ran on
+        /// <i>this instance</i> -- either the tenant was not initialized, or the settings were loaded into a
+        /// different TenantContext than the one being read. Both are invisible from the setting's value
+        /// alone, since the fallback silently answers with defaults.
+        /// </summary>
+        public bool IsUsingDefaultSettings => _tenantSettings == null;
+
+        /// <summary>
         /// Set during the first provisioning process which allows for the bearer to set execute on-boarding steps such as setting the owner password
         /// </summary>
         public Guid? FirstRunToken { get; private set; }
