@@ -22,6 +22,11 @@ namespace Odin.Core.Storage.Tests.ObjectStorage;
 
 public class S3AwsStorageTests
 {
+    // Every bucket these tests create carries this prefix, and S3AwsStorage_CleanUpLeakedTestBuckets
+    // deletes everything that carries it -- including buckets leaked by earlier runs. Do not point
+    // these tests at an account holding anything else named this way.
+    private const string TestBucketPrefix = "zzz-ci-test";
+
     private string _accessKey = "";
     private string _secretAccessKey = "";
     private string _bucketName = "";
@@ -36,10 +41,16 @@ public class S3AwsStorageTests
         TestSecrets.Load();
 
         var runTestAgainstHetzner = Environment.GetEnvironmentVariable("ODIN_S3_RUN_HETZNER_TESTS")?.ToLower() == "true";
+        var runTestAgainstOvh = Environment.GetEnvironmentVariable("ODIN_S3_RUN_OVH_TESTS")?.ToLower() == "true";
+        if (runTestAgainstHetzner && runTestAgainstOvh)
+        {
+            throw new Exception("Both runTestAgainstHetzner and runTestAgainstOvh cannot be true at the same time.");
+        }
+
         if (runTestAgainstHetzner)
         {
-            _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_ACCESS_KEY")!;
-            _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_SECRET_ACCESS_KEY")!;
+            _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_HETZNER_ACCESS_KEY")!;
+            _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_HETZNER_SECRET_ACCESS_KEY")!;
 
             _s3Client = new AmazonS3Client(
                 _accessKey,
@@ -48,6 +59,23 @@ public class S3AwsStorageTests
                 {
                     ServiceURL = "https://hel1.your-objectstorage.com",
                     AuthenticationRegion = "hel1",
+                    ForcePathStyle = false,
+                    ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+                    RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
+                });
+        }
+        else if (runTestAgainstOvh)
+        {
+            _accessKey = Environment.GetEnvironmentVariable("ODIN_S3_OVH_ACCESS_KEY")!;
+            _secretAccessKey = Environment.GetEnvironmentVariable("ODIN_S3_OVH_SECRET_ACCESS_KEY")!;
+
+            _s3Client = new AmazonS3Client(
+                _accessKey,
+                _secretAccessKey,
+                new AmazonS3Config
+                {
+                    ServiceURL = "https://s3.us-east-va.io.cloud.ovh.us",
+                    AuthenticationRegion = "us-east-va",
                     ForcePathStyle = false,
                     ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
                     RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED
@@ -79,7 +107,7 @@ public class S3AwsStorageTests
                 });
         }
 
-        _bucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
+        _bucketName = $"{TestBucketPrefix}-{Guid.NewGuid():N}";
         await CreateBucketAndWaitUntilReadyAsync(_bucketName, waitForConsistency: runTestAgainstHetzner);
 
         _testRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -105,6 +133,127 @@ public class S3AwsStorageTests
         {
             await _minioContainer.DisposeAsync();
         }
+    }
+
+    //
+
+    // Runs after every test's TearDown has already removed that test's own bucket, so anything still
+    // carrying the prefix is genuinely leaked and safe to delete. Doing it here rather than from a test
+    // body is what keeps the two from racing: a sweep inside a test would delete the bucket that the
+    // test's own TearDown is about to delete, and TearDown would then fail on a bucket that is gone.
+    [OneTimeTearDown]
+    public async Task OneTimeTearDown()
+    {
+        // Skipped for MinIO: its container is created and disposed per test, so a leaked bucket dies with
+        // it. The endpoint is also gone by now, so sweeping would just log a failure to list buckets.
+        if (_minioContainer == null && _s3Client != null)
+        {
+            await DeleteTestBucketsAsync();
+        }
+    }
+
+    //
+
+    // Sweeps every bucket carrying the test prefix, not just the ones this run created: a run that
+    // crashes or is killed leaks its bucket, and on a shared provider account those pile up and keep
+    // billing. Best-effort per bucket -- one that refuses to go (versioned objects, a provider hiccup)
+    // is logged and skipped rather than failing the run, and the warning is what makes it visible.
+    // Assumes runs are never concurrent against the same account: this cannot tell a leaked bucket from
+    // one another run is using right now.
+    private async Task DeleteTestBucketsAsync()
+    {
+        List<string> bucketNames;
+        try
+        {
+            // Single call, no pagination, matching BucketExistsAsync: an account holding enough test
+            // buckets to truncate this listing has a bigger problem than this sweep can fix.
+            var response = await _s3Client.ListBucketsAsync();
+            bucketNames = (response.Buckets ?? new List<S3Bucket>())
+                .Select(b => b.BucketName)
+                .Where(name => name != null && name.StartsWith(TestBucketPrefix, StringComparison.Ordinal))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Could not list buckets to clean up '{Prefix}*': {Error}", TestBucketPrefix, ex.Message);
+            return;
+        }
+
+        foreach (var bucketName in bucketNames)
+        {
+            try
+            {
+                // A bucket only deletes when it is empty, and "empty" includes incomplete multipart
+                // uploads, which ListObjectsV2 does not report. These tests upload multi-part files, so a
+                // run killed mid-upload leaves parts that block every later attempt to delete the bucket.
+                // That is very likely how such buckets leaked in the first place, so abort those first.
+                await AbortAllMultipartUploadsAsync(bucketName);
+                await DeleteAllObjectsAsync(bucketName);
+                await _s3Client.DeleteBucketAsync(new DeleteBucketRequest { BucketName = bucketName });
+
+                _logger.LogDebug("Deleted test bucket '{Bucket}'", bucketName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Could not delete test bucket '{Bucket}': {Error}. Continuing.",
+                    bucketName, ex.Message);
+            }
+        }
+    }
+
+    //
+
+    private async Task AbortAllMultipartUploadsAsync(string bucketName)
+    {
+        string keyMarker = null;
+        string uploadIdMarker = null;
+
+        do
+        {
+            var response = await _s3Client.ListMultipartUploadsAsync(new ListMultipartUploadsRequest
+            {
+                BucketName     = bucketName,
+                KeyMarker      = keyMarker,
+                UploadIdMarker = uploadIdMarker
+            });
+
+            foreach (var upload in response.MultipartUploads ?? new List<MultipartUpload>())
+            {
+                await _s3Client.AbortMultipartUploadAsync(new AbortMultipartUploadRequest
+                {
+                    BucketName = bucketName,
+                    Key        = upload.Key,
+                    UploadId   = upload.UploadId
+                });
+            }
+
+            if (response.IsTruncated != true)
+            {
+                return;
+            }
+
+            keyMarker = response.NextKeyMarker;
+            uploadIdMarker = response.NextUploadIdMarker;
+        }
+        // Guard against a provider that reports truncation without advancing the markers: without this
+        // the loop would abort the same page forever.
+        while (keyMarker != null || uploadIdMarker != null);
+    }
+
+    //
+
+    // Deliberately empty. The sweep itself lives in OneTimeTearDown, which runs after any selection of
+    // tests; this exists so you can trigger it without sitting through the whole suite:
+    //
+    //   dotnet test tests/core/Odin.Core.Storage.Tests --filter \
+    //     "FullyQualifiedName~S3AwsStorageTests.S3AwsStorage_CleanUpLeakedTestBuckets"
+    //
+    // [Explicit] keeps it out of unfiltered runs. SetUp still creates a bucket for it, as for every test,
+    // and TearDown destroys it again before the sweep looks at anything.
+    [Test, Explicit]
+    public void S3AwsStorage_CleanUpLeakedTestBuckets()
+    {
+        Assert.Pass("Run OneTimeTearDown to sweep all buckets carrying the test prefix, including any leaked by earlier runs.");
     }
 
     //
@@ -152,6 +301,12 @@ public class S3AwsStorageTests
     // MinIO is strongly consistent and skips the wait.
     private async Task CreateBucketAndWaitUntilReadyAsync(string bucketName, bool waitForConsistency)
     {
+        // Which endpoint this run is actually talking to, before anything can fail against it: the
+        // provider is picked from environment variables, so a log full of 404s is otherwise ambiguous
+        // between "the provider misbehaved" and "this ran against a different provider than you think".
+        _logger.LogDebug("Creating bucket '{Bucket}' on {ServiceUrl} (consistency wait: {Wait})",
+            bucketName, _s3Client.Config.ServiceURL, waitForConsistency);
+
         await _s3Client.PutBucketAsync(bucketName);
 
         if (!waitForConsistency)
@@ -223,7 +378,7 @@ public class S3AwsStorageTests
     [Test]
     public async Task S3AwsStorage_ItShouldCreateABucket()
     {
-        var someOtherBucketName = $"zzz-ci-test-{Guid.NewGuid():N}";
+        var someOtherBucketName = $"{TestBucketPrefix}-{Guid.NewGuid():N}";
         var bucket = new S3AwsStorage(_logger, _s3Client, someOtherBucketName);
         // CreateBucketAsync also best-effort installs the abort-incomplete-multipart lifecycle rule.
         // MinIO (the CI backend) rejects bucket-level abort rules by design (it purges stale uploads
