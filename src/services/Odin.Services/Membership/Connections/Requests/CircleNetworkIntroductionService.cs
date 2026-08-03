@@ -275,15 +275,22 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         {
             // The whole point of the extra fields: log why we are about to say no, so the reason
             // distribution is visible in production rather than collapsing into one message.
+            //
+            // disableAutoAcceptConnectionRequests is this identity's own setting, not the caller's, and
+            // it is the other half of the auto-connected branch in CallerMayIntroduce. Without it,
+            // isCallerAutoConnected=true on a refusal is unexplainable from the log alone: it is only
+            // possible when this flag is true, and reading it here beats inferring it from the reason.
             _logger.LogInformation(
                 "Preflight incoming: not permitting introductions from {caller}. reason={reason} " +
                 "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} isCallerConnected={isCallerConnected} " +
                 "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected} " +
+                "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests} " +
                 "connectionState={connectionState}",
                 caller,
                 DescribeIncomingRefusal(isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed,
                     isCallerAutoConnected, connectionState),
                 isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed, isCallerAutoConnected,
+                _tenantContext.Settings.DisableAutoAcceptConnectionRequests,
                 connectionState);
         }
 
