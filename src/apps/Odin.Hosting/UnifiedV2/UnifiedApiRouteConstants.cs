@@ -30,6 +30,11 @@ public static class UnifiedApiRouteConstants
     public const string PeerByUniqueId = PeerFilesRoot + "/by-uid/{uid:guid}";
     public const string PeerByGtid = PeerFilesRoot + "/by-gtid/{gtid:guid}";
 
+    // Reaction reads on a file hosted by another identity. Keyed by globalTransitId because a
+    // followed identity's post lands on the feed drive as a reference: it carries no fileId on the
+    // author's drive and no uniqueId, so the gtid is the only handle the client holds.
+    public const string PeerReactionsByGtid = PeerByGtid + "/reactions";
+
     // Temporal (time-boxed) read of a drive hosted by another identity. Parallels the peer file-read
     // chain above so temporal actions share the same templates as their non-temporal twins.
     public const string PeerTemporalRoot = PeerByDriveId + "/temporal";
