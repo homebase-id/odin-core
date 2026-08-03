@@ -82,12 +82,12 @@ public class S3AwsStorage : IS3Storage
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Log ex.Message (not ex) so this stays a single line: this is the expected outcome on
-            // providers that reject bucket-level abort rules (MinIO purges stale uploads globally;
-            // Vultr needs a manual sweep), not a failure worth a stack trace.
+            // Single line, not a stack trace: this is the expected outcome on providers that reject
+            // bucket-level abort rules (MinIO purges stale uploads globally; Vultr needs a manual sweep).
+            // Not ex.Message though -- see DescribeS3Error for why that is routinely empty here.
             _logger.LogWarning(
                 "Could not install the abort-incomplete-multipart lifecycle rule on bucket '{BucketName}': " +
-                "{Error}. Continuing (expected on MinIO/Vultr).", BucketName, ex.Message);
+                "{Error}. Continuing (expected on MinIO/Vultr).", BucketName, DescribeS3Error(ex));
         }
     }
 
@@ -663,22 +663,73 @@ public class S3AwsStorage : IS3Storage
 
     private S3StorageException CreateS3StorageException(Exception exception, string message)
     {
-        var error = exception.Message;
+        return new S3StorageException($"{message} {DescribeS3Error(exception)}", exception);
+    }
 
-        if (string.IsNullOrEmpty(error))
+    //
+
+    // Renders an S3 failure as one diagnostic line. Never log AmazonS3Exception.Message on its own: the
+    // SDK only fills it in when the provider's error XML carried an <Error><Message> element, and the
+    // Ceph-based providers (Hetzner, Vultr) routinely omit it -- which is how you end up with a log line
+    // reading "...: ." and nothing else. The identifying bits (HTTP status, S3 error code, request id,
+    // host id) live on separate properties and are populated regardless, so always emit those.
+    private static string DescribeS3Error(Exception exception)
+    {
+        var parts = new List<string>();
+
+        var error = exception.Message;
+        if (string.IsNullOrWhiteSpace(error) &&
+            exception.InnerException is not Amazon.Runtime.Internal.HttpErrorResponseException)
         {
-            // This is a freaking weird, Amazon. Wth...
-            if (exception.InnerException is Amazon.Runtime.Internal.HttpErrorResponseException httpException)
+            // Skipped for HttpErrorResponseException: it carries no message of its own, so .NET renders
+            // the "Exception of type '...' was thrown." boilerplate, which reads like information and
+            // is not. Its status code is picked up further down instead.
+            error = exception.InnerException?.Message;
+        }
+        // AmazonS3Exception.Message already appends the raw response body when the SDK could not parse
+        // the error XML at all, so it is never added a second time here, only flattened and capped --
+        // that body can be an entire HTML error page.
+        parts.Add(string.IsNullOrWhiteSpace(error) ? "(provider returned no error message)" : Truncate(error, 1024));
+
+        if (exception is AmazonServiceException ase)
+        {
+            if (ase.StatusCode != default)
             {
-                error = $": S3 HTTP status={httpException.Response.StatusCode}";
+                parts.Add($"httpStatus={(int)ase.StatusCode} {ase.StatusCode}");
             }
-            else
+            // Note: when the provider omits <Error><Code>, the SDK back-fills ErrorCode with the HTTP
+            // status name, so this can echo httpStatus rather than name a real S3 error code.
+            if (!string.IsNullOrWhiteSpace(ase.ErrorCode))
             {
-                error = exception.InnerException?.Message ?? ": Unknown error";
+                parts.Add($"errorCode={ase.ErrorCode}");
+            }
+            if (!string.IsNullOrWhiteSpace(ase.RequestId))
+            {
+                parts.Add($"requestId={ase.RequestId}");
             }
         }
 
-        return new S3StorageException($"{message} {error}", exception);
+        if (exception is AmazonS3Exception { AmazonId2: not null and not "" } s3e)
+        {
+            parts.Add($"hostId={s3e.AmazonId2}");
+        }
+        else if (exception.InnerException is Amazon.Runtime.Internal.HttpErrorResponseException httpException)
+        {
+            var status = httpException.Response.StatusCode;
+            parts.Add($"httpStatus={(int)status} {status}");
+        }
+
+        parts.Add($"exception={exception.GetType().Name}");
+
+        return string.Join(", ", parts);
+    }
+
+    //
+
+    private static string Truncate(string value, int maxLength)
+    {
+        value = value.Replace("\r", "").Replace("\n", " ").Trim();
+        return value.Length <= maxLength ? value : value[..maxLength] + "...[truncated]";
     }
 
     //
