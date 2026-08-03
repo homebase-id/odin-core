@@ -442,6 +442,14 @@ queried on filtering paths — the contact book pages "reviewed connections"
 Point lookups alone (caller-tier assignment) would not have needed it; pagination does. The
 vetted backfill becomes a plain UPDATE.
 
+**One at-rest copy — promote, don't duplicate.** The ICR is serialized into this table's data
+blob, so the column must be the *only* at-rest home: `CircleNetworkStorage` maps it into the
+in-memory ICR object on read and back to the column on write — exactly the existing
+`WeakClientAccessToken` / `WeakKeyStoreKey` pattern on this same table — and the field is
+**excluded from the blob serialization** (ignore-on-persist), or a naive `Serialize(icr)` into
+`data` silently mints a second copy that drifts. A drifted `ReviewedAt` is not cosmetic: the
+pagination query (column) and the caller's security tier (hydrated object) would disagree.
+
 **Together with the addressing fields above (including `WriteOnlyKeyPair`, the
 `AllowDeposits` flag, and `Connections.ReviewedAt`), this is the complete schema surface for
 both phases** —
