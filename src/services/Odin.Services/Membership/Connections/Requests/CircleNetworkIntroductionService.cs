@@ -231,7 +231,11 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
             // Config storage can fail on a partially-initialized server. Treat this as
             // "no signal" rather than failing the whole preflight; the IsConfigured flag
             // already tells the caller setup isn't complete.
-            _logger.LogDebug(ex, "Preflight incoming: RequiresUpgradeAsync threw; reporting no upgrade signal");
+            //
+            // Warning, not Debug: this swallows an exception AND silently answers requiresUpgrade=false,
+            // so at production log levels the failure left no trace while still changing what we told
+            // the caller. Same treatment as the connection-state lookup below.
+            _logger.LogWarning(ex, "Preflight incoming: RequiresUpgradeAsync threw; reporting no upgrade signal");
         }
 
         // The Confirmed Connections circle is what carries AllowIntroductions, so a false there conflates
@@ -441,7 +445,10 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
         // requested. Callers must match results by recipient rather than by position or count.
         var targets = recipients.ToOdinIdList().Without(odinContext.Tenant);
 
-        _logger.LogDebug("Preflight: probing {count} recipient(s)", targets.Count());
+        // Information, not Debug: this is the only line that marks a preflight having been requested at
+        // all. Without it, a run where every recipient comes back Ready is indistinguishable from one
+        // that never happened.
+        _logger.LogInformation("Preflight: probing {count} recipient(s)", targets.Count());
 
         var probeTasks = targets.Select(r => ProbeRecipientAsync(r, odinContext, cancellationToken)).ToList();
         var statuses = await Task.WhenAll(probeTasks);
