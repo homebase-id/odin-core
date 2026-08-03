@@ -258,7 +258,14 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         if (allowsIntroductions)
         {
-            _logger.LogDebug("Preflight incoming: reporting ready for caller {caller}", caller);
+            // Information, not Debug: a preflight that succeeds is the only evidence that the
+            // auto-accept path in CallerMayIntroduce fired, and at production log levels a Debug line
+            // would make "now permitted" indistinguishable from "never asked". The circle flags say
+            // which branch permitted it -- confirmed carries the grant, auto-connected does not.
+            _logger.LogInformation(
+                "Preflight incoming: permitting introductions from {caller}. isCallerConnected={isCallerConnected} " +
+                "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected}",
+                caller, isCallerConnected, isCallerConfirmed, isCallerAutoConnected);
         }
         else
         {
@@ -467,7 +474,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
 
         if (status.Status == IntroductionPreflightStatus.Ready)
         {
-            _logger.LogDebug("Preflight: {recipient} is ready", recipient);
+            // Mirrors the recipient's own permitting line at the same level, so the sender's log alone
+            // shows which side of the auto-connected/confirmed split let the introduction through.
+            _logger.LogInformation(
+                "Preflight: {recipient} is ready. isCallerConfirmed={isCallerConfirmed} " +
+                "isCallerAutoConnected={isCallerAutoConnected}",
+                recipient, status.IsCallerConfirmed, status.IsCallerAutoConnected);
             return status;
         }
 
