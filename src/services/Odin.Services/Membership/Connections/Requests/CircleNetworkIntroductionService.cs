@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
 using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
@@ -286,18 +285,12 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
                 "isConfigured={isConfigured} requiresUpgrade={requiresUpgrade} isCallerConnected={isCallerConnected} " +
                 "isCallerConfirmed={isCallerConfirmed} isCallerAutoConnected={isCallerAutoConnected} " +
                 "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests} " +
-                "usingDefaultSettings={usingDefaultSettings} tenant={tenant} " +
-                "tenantContextInstance={tenantContextInstance} version={version} " +
                 "connectionState={connectionState}",
                 caller,
                 DescribeIncomingRefusal(isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed,
                     isCallerAutoConnected, connectionState),
                 isConfigured, requiresUpgrade, isCallerConnected, isCallerConfirmed, isCallerAutoConnected,
                 _tenantContext.Settings.DisableAutoAcceptConnectionRequests,
-                _tenantContext.IsUsingDefaultSettings,
-                odinContext.Tenant,
-                RuntimeHelpers.GetHashCode(_tenantContext),
-                Version.VersionText,
                 connectionState);
         }
 
