@@ -785,16 +785,37 @@ public class CircleNetworkIntroductionService : PeerServiceBase,
     /// </summary>
     public async Task ReceiveIntroductions(SharedSecretEncryptedPayload payload, IOdinContext odinContext)
     {
+        // Deliberately not GetCallerOdinIdOrFail: this is only for the log lines below, and a refusal
+        // should report the caller it refused rather than throw a different exception on the way. The
+        // call further down still fails hard if there is no caller.
+        var caller = odinContext.Caller.OdinId;
+        var isCallerAutoConnected = IsCallerAutoConnected(odinContext);
+
         // Same predicate the preflight endpoint reports on, so a Ready preflight is not followed by a
         // rejected send. Note this must stay a check rather than the plain AssertHasPermission it replaced:
         // an auto-connected caller on an auto-accepting identity is permitted without the permission ever
         // being in their stored grant.
-        if (!CallerMayIntroduce(odinContext, IsCallerAutoConnected(odinContext)))
+        if (!CallerMayIntroduce(odinContext, isCallerAutoConnected))
         {
+            // The refusal that the preflight endpoint predicts, logged where it actually happens. Without
+            // it this side is silent: the sender gets a security exception and we record nothing, so a
+            // rejected introduction was only visible from the other identity's logs.
+            _logger.LogInformation(
+                "Rejecting introductions from {caller}. isCallerConnected={isCallerConnected} " +
+                "isCallerAutoConnected={isCallerAutoConnected} " +
+                "disableAutoAcceptConnectionRequests={disableAutoAcceptConnectionRequests}",
+                caller,
+                odinContext.Caller.IsConnected,
+                isCallerAutoConnected,
+                _tenantContext.Settings.DisableAutoAcceptConnectionRequests);
+
             throw new OdinSecurityException("Does not have permission");
         }
 
-        _logger.LogDebug("Receiving introductions from {sender}", odinContext.GetCallerOdinIdOrFail());
+        // Information, not Debug: this is the introduction actually landing, the event the preflight only
+        // predicts. Paired with the rejection line above, every incoming introduction now has an outcome
+        // in the log at production levels.
+        _logger.LogInformation("Receiving introductions from {sender}", caller);
 
         OdinValidationUtils.AssertNotNull(payload, nameof(payload));
 
