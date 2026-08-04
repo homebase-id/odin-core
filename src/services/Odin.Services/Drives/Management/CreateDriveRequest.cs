@@ -12,13 +12,11 @@ public class CreateDriveRequest
     public bool AllowSubscriptions { get; set; }
 
     /// <summary>
-    /// Specifies if the CDN may read this drive's payloads.
-    ///
-    /// Defaults to true to match the behaviour this flag replaced: before it existed a new drive
-    /// was CDN-eligible unless someone set the blockcdn attribute on it. Callers that omit the
-    /// field - which is every existing client - therefore get what they got before.
+    /// Specifies if the CDN may read this drive's payloads. Opt-in: a caller that omits this
+    /// gets a drive the CDN cannot read. The Public Posts system drive is seeded with it set
+    /// (see <see cref="SystemDriveConstants"/>); everything else is the owner's choice.
     /// </summary>
-    public bool AllowCdn { get; set; } = true;
+    public bool AllowCdn { get; set; }
 
     public bool OwnerOnly { get; set; }
 

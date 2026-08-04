@@ -3,6 +3,8 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.Tests;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
+using System.Linq;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
@@ -71,7 +73,8 @@ public sealed partial class OwnerAdmin
         bool allowAnonymousReads = true,
         bool ownerOnly = false,
         bool allowSubscriptions = false,
-        System.Collections.Generic.Dictionary<string, string>? attributes = null)
+        System.Collections.Generic.Dictionary<string, string>? attributes = null,
+        bool allowCdn = false)
     {
         var (client, ss) = _owner.NewAdminHttpClient();
         var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
@@ -82,10 +85,39 @@ public sealed partial class OwnerAdmin
             Metadata = string.Empty,
             AllowAnonymousReads = allowAnonymousReads,
             AllowSubscriptions = allowSubscriptions,
+            AllowCdn = allowCdn,
             OwnerOnly = ownerOnly,
             Attributes = attributes,
         });
         EnsureSuccess(response, nameof(CreateDrive));
+        return response;
+    }
+
+    /// <summary>
+    /// Every drive on the identity, system drives included.
+    /// </summary>
+    public async Task<System.Collections.Generic.List<OwnerClientDriveData>> GetDrives()
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
+        var response = await svc.GetDrives(new GetDrivesRequest { PageNumber = 1, PageSize = 1000 });
+        EnsureSuccess(response, nameof(GetDrives));
+        return response.Content!.Results.ToList();
+    }
+
+    /// <summary>
+    /// Toggles whether the CDN may read a drive's payloads.
+    /// </summary>
+    public async Task<ApiResponse<System.Net.Http.HttpContent>> SetAllowCdn(TargetDrive drive, bool allowCdn)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
+        var response = await svc.SetAllowCdn(new UpdateDriveAllowCdnRequest
+        {
+            TargetDrive = drive,
+            AllowCdn = allowCdn,
+        });
+        EnsureSuccess(response, nameof(SetAllowCdn));
         return response;
     }
 

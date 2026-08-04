@@ -154,7 +154,12 @@ public static class SystemDriveConstants
         Metadata = "",
         TargetDrive = PublicPostsChannelDrive,
         OwnerOnly = false,
-        AllowSubscriptions = true
+        AllowSubscriptions = true,
+        // The only system drive seeded CDN-on. Public posts and their media are what the CDN
+        // exists to serve, and having at least one enabled drive is what lets the CDN
+        // authenticate at all - CdnAuthPathHandler fails outright when the set is empty, which
+        // would take the CDN health ping down with it. Every other drive is opt-in.
+        AllowCdn = true
     };
 
     public static readonly CreateDriveRequest CreateContactDriveRequest = new()

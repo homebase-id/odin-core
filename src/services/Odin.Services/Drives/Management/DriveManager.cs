@@ -435,8 +435,6 @@ public class DriveManager : IDriveManager
             IsReadonly = storageDrive.IsReadonly,
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
-            // Always concrete (bool -> bool?), never null: any write settles the legacy
-            // resolution for this drive, so ResolveAllowCdn stops being consulted for it.
             AllowCdn = storageDrive.AllowCdn,
             Attributes = storageDrive.Attributes,
             IsArchived = storageDrive.IsArchived
@@ -537,7 +535,7 @@ public class DriveManager : IDriveManager
             IsReadonly = driveDetails.IsReadonly,
             AllowAnonymousReads = driveDetails.AllowAnonymousReads,
             AllowSubscriptions = driveDetails.AllowSubscriptions,
-            AllowCdn = ResolveAllowCdn(driveDetails),
+            AllowCdn = driveDetails.AllowCdn,
             Attributes = driveDetails.Attributes,
             IsArchived = driveDetails.IsArchived
         };
@@ -550,33 +548,4 @@ public class DriveManager : IDriveManager
         return new StorageDrive(_tenantContext.TenantPathManager, sdd);
     }
 
-    /// <summary>
-    /// The drive attribute that AllowCdn replaced. Read-only and legacy: nothing writes it any
-    /// more, and it is consulted only for drives stored before AllowCdn existed.
-    /// </summary>
-    private const string LegacyBlockCdnAttributeName = "blockcdn";
-
-    /// <summary>
-    /// AllowCdn for a drive whose stored definition predates the flag.
-    ///
-    /// Reproduces the rule this flag replaced - "AllowAnonymousReads OR blockcdn is not true" -
-    /// so an upgrade does not silently drop drives out of the CDN. The result is persisted on the
-    /// next write to the drive, after which this path is no longer reached for it; once no
-    /// AllowCdn-less drives remain, this method and the constant above can be deleted.
-    /// </summary>
-    internal static bool ResolveAllowCdn(StorageDriveDetails driveDetails)
-    {
-        if (driveDetails.AllowCdn.HasValue)
-        {
-            return driveDetails.AllowCdn.Value;
-        }
-
-        var blocked =
-            driveDetails.Attributes != null &&
-            driveDetails.Attributes.TryGetValue(LegacyBlockCdnAttributeName, out var value) &&
-            bool.TryParse(value, out var parsed) &&
-            parsed;
-
-        return driveDetails.AllowAnonymousReads || !blocked;
-    }
 }

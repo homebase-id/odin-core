@@ -137,28 +137,6 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
                flagValue;
     }
 
-    public bool AttributeHasFalseValue(string attribute)
-    {
-        if (null == Attributes)
-        {
-            return false;
-        }
-
-        // if the attribute does not exist, the attribute as a false value
-        if (!Attributes.TryGetValue(attribute, out string value))
-        {
-            return true;
-        }
-
-        // if the attribute value cannot be parsed, it is a false value
-        if (!bool.TryParse(value, out bool flagValue))
-        {
-            return true;
-        }
-
-        return flagValue == false;
-    }
-
     public bool IsCollaborationDrive()
     {
         return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
@@ -168,9 +146,10 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     /// Whether the CDN may read this drive's payloads.
     ///
     /// The single place anything asks that question - go through this rather than reading the
-    /// underlying flag, so the rule can be changed here without touching call sites. For drives
-    /// stored before the flag existed the value was resolved from the old blockcdn attribute at
-    /// load time (see DriveManager.ResolveAllowCdn).
+    /// underlying flag, so the rule can be changed here without touching call sites.
+    ///
+    /// Note this only gates drives that actually need a grant: an AllowAnonymousReads drive's
+    /// payloads are world-readable, so the CDN reaches them whatever this returns.
     /// </summary>
     public bool IsCdnEnabled()
     {

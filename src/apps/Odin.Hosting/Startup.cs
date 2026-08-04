@@ -512,16 +512,26 @@ public static class HostExtensions
             payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
-        // Sanity ping CDN
+        // Sanity ping CDN. Diagnostic only - a CDN that is down, unreachable, or presenting a bad
+        // certificate must not stop the identity from starting, so every failure mode logs and
+        // moves on. Without the catch, GetAsync(..).Result rethrows (DNS, TLS, timeout) and takes
+        // the host down with it.
         if (config.Cdn.Enabled)
         {
-            var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
-            var client = factory.CreateClient("CdnPingClient");
             var url = $"{config.Cdn.PayloadBaseUrl}/ping";
-            var response = client.GetAsync(url).Result;
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                logger.LogError("Cdn enabled, but not responding to ping at {url}", url);
+                var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
+                var client = factory.CreateClient("CdnPingClient");
+                var response = client.GetAsync(url).Result;
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger.LogError("Cdn enabled, but not responding to ping at {url}", url);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Cdn enabled, but ping to {url} failed", url);
             }
         }
 
