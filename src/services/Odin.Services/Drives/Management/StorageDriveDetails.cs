@@ -35,6 +35,16 @@ public class StorageDriveDetails
     /// </summary>
     public virtual bool AllowSubscriptions { get; set; }
 
+    /// <summary>
+    /// Specifies if the CDN may read this drive's payloads.
+    ///
+    /// Nullable on purpose, and only at rest: null means the drive predates this flag and its
+    /// CDN eligibility is still governed by the legacy rule (see DriveManager.ResolveAllowCdn).
+    /// Every write persists a concrete value, so nulls disappear as drives are touched.
+    /// <see cref="StorageDriveData.AllowCdn"/> is the resolved, non-null form everything else uses.
+    /// </summary>
+    public virtual bool? AllowCdn { get; set; }
+
     public virtual Dictionary<string, string> Attributes { get; set; }
     
     public bool IsArchived { get; set; }

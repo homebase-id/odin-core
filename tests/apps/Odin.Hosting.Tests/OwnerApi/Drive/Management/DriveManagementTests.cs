@@ -334,6 +334,115 @@ public class DriveManagementTests
     }
 
     [Test]
+    public async Task NewDriveIsCdnEnabledByDefault_MatchingTheBehaviourAllowCdnReplaced()
+    {
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+
+            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
+
+            // Note AllowCdn is not set: before the flag existed a new drive was CDN-eligible
+            // unless someone set blockcdn on it, and an omitting caller must still get that.
+            var response = await svc.CreateDrive(new CreateDriveRequest()
+            {
+                TargetDrive = targetDrive,
+                Name = "cdn test drive",
+                Metadata = "{some:'json'}"
+            });
+
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            ClassicAssert.IsTrue(getDrivesResponse.IsSuccessStatusCode);
+
+            var theDrive = getDrivesResponse.Content.Results.SingleOrDefault(drive =>
+                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
+            ClassicAssert.NotNull(theDrive);
+            ClassicAssert.IsTrue(theDrive.AllowCdn, "a new drive must stay CDN-enabled by default");
+
+            // The owner can now turn it off - which the old attribute could not actually do on
+            // an anonymous drive, because the old rule OR-ed blockcdn against AllowAnonymousReads
+            var setResponse = await svc.SetAllowCdn(new UpdateDriveAllowCdnRequest()
+            {
+                TargetDrive = targetDrive,
+                AllowCdn = false
+            });
+            ClassicAssert.IsTrue(setResponse.IsSuccessStatusCode);
+
+            var getUpdatedResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            ClassicAssert.IsTrue(getUpdatedResponse.IsSuccessStatusCode);
+            var updatedDrive = getUpdatedResponse.Content.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
+            ClassicAssert.IsFalse(updatedDrive.AllowCdn);
+
+            // ...and back on again
+            var resetResponse = await svc.SetAllowCdn(new UpdateDriveAllowCdnRequest()
+            {
+                TargetDrive = targetDrive,
+                AllowCdn = true
+            });
+            ClassicAssert.IsTrue(resetResponse.IsSuccessStatusCode);
+
+            var getFinalResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            var finalDrive = getFinalResponse.Content.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
+            ClassicAssert.IsTrue(finalDrive.AllowCdn);
+        }
+    }
+
+    [Test]
+    public async Task CanCreateDriveWithCdnExplicitlyDisabled()
+    {
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+
+            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
+
+            var response = await svc.CreateDrive(new CreateDriveRequest()
+            {
+                TargetDrive = targetDrive,
+                Name = "cdn off at creation",
+                Metadata = "{some:'json'}",
+                AllowCdn = false
+            });
+
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            var theDrive = getDrivesResponse.Content.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
+            ClassicAssert.IsFalse(theDrive.AllowCdn);
+        }
+    }
+
+    [Test]
+    public async Task OwnerOnlyDriveStaysCdnEligible_AsItWasBeforeAllowCdn()
+    {
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
+
+            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
+
+            // The old rule listed owner-only drives for the CDN too (the Contacts system drive is
+            // one). Introducing the flag must not start rejecting or excluding them; whether that
+            // *should* change is a separate decision.
+            var response = await svc.CreateDrive(new CreateDriveRequest()
+            {
+                TargetDrive = targetDrive,
+                Name = "owner only + cdn",
+                Metadata = "{some:'json'}",
+                OwnerOnly = true
+            });
+
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+
+            var getDrivesResponse = await svc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
+            var theDrive = getDrivesResponse.Content.Results.Single(dr => dr.TargetDriveInfo == targetDrive);
+            ClassicAssert.IsTrue(theDrive.AllowCdn);
+        }
+    }
+
+    [Test]
     public async Task FailToSetSystemDriveReadMode()
     {
         var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo.OdinId, out var ownerSharedSecret);

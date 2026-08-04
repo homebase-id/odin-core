@@ -36,6 +36,7 @@ internal static class DataImporterSeedHelper
         await SeedDriveReactionsAsync(db);
         await SeedAppNotificationsAsync(db);
         await SeedClientRegistrationsAsync(db);
+        await SeedAppRegistrationsAsync(db);
         await SeedCircleAsync(db);
         await SeedCircleMemberAsync(db);
         await SeedConnectionsAsync(db);
@@ -184,6 +185,20 @@ internal static class DataImporterSeedHelper
             categoryId = Guid.NewGuid(),
             catType = 1,
             value = null,
+        });
+    }
+
+    private static async Task SeedAppRegistrationsAsync(IdentityDatabase db)
+    {
+        await db.AppRegistrations.InsertAsync(new AppRegistrationsRecord
+        {
+            AppId = Guid.NewGuid(),
+            AppSlug = "seed-app",
+            Name = "Seed App",
+            CorsHostName = null,
+            grantJson = "{}",
+            detailsJson = null,
+            AutoConnectDefaults = false,
         });
     }
 

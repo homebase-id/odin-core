@@ -122,6 +122,7 @@ public class DriveManager : IDriveManager
             Metadata = request.Metadata,
             AllowAnonymousReads = request.AllowAnonymousReads,
             AllowSubscriptions = request.AllowSubscriptions,
+            AllowCdn = request.AllowCdn,
             OwnerOnly = request.OwnerOnly,
             Attributes = request.Attributes
         };
@@ -225,6 +226,37 @@ public class DriveManager : IDriveManager
         if (storageDrive.AllowSubscriptions != allowSubscriptions)
         {
             storageDrive.AllowSubscriptions = allowSubscriptions;
+
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext
+            });
+        }
+    }
+
+    public async Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        // Deliberately no system-drive or owner-only guard here, unlike the sibling setters. The
+        // rule this flag replaced put every drive - system drives and owner-only drives included -
+        // in the CDN list, so refusing either here would take away something that already works.
+        // Tightening that is a separate decision, not a side effect of introducing the flag.
+
+        //only change if needed
+        if (storageDrive.IsCdnEnabled() != allowCdn)
+        {
+            storageDrive.SetCdnEnabled(allowCdn);
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
@@ -375,7 +407,7 @@ public class DriveManager : IDriveManager
     public async Task<PagedResult<StorageDrive>> GetCdnEnabledDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
     {
         var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
-        var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads || drive.AttributeHasFalseValue(StorageDrive.BlockCdnAttributeName)).ToList();
+        var storageDrives = page.Results.Where(drive => drive.IsCdnEnabled()).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
@@ -403,6 +435,9 @@ public class DriveManager : IDriveManager
             IsReadonly = storageDrive.IsReadonly,
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
+            // Always concrete (bool -> bool?), never null: any write settles the legacy
+            // resolution for this drive, so ResolveAllowCdn stops being consulted for it.
+            AllowCdn = storageDrive.AllowCdn,
             Attributes = storageDrive.Attributes,
             IsArchived = storageDrive.IsArchived
         };
@@ -502,6 +537,7 @@ public class DriveManager : IDriveManager
             IsReadonly = driveDetails.IsReadonly,
             AllowAnonymousReads = driveDetails.AllowAnonymousReads,
             AllowSubscriptions = driveDetails.AllowSubscriptions,
+            AllowCdn = ResolveAllowCdn(driveDetails),
             Attributes = driveDetails.Attributes,
             IsArchived = driveDetails.IsArchived
         };
@@ -512,5 +548,35 @@ public class DriveManager : IDriveManager
     private StorageDrive ToStorageDrive(StorageDriveData sdd)
     {
         return new StorageDrive(_tenantContext.TenantPathManager, sdd);
+    }
+
+    /// <summary>
+    /// The drive attribute that AllowCdn replaced. Read-only and legacy: nothing writes it any
+    /// more, and it is consulted only for drives stored before AllowCdn existed.
+    /// </summary>
+    private const string LegacyBlockCdnAttributeName = "blockcdn";
+
+    /// <summary>
+    /// AllowCdn for a drive whose stored definition predates the flag.
+    ///
+    /// Reproduces the rule this flag replaced - "AllowAnonymousReads OR blockcdn is not true" -
+    /// so an upgrade does not silently drop drives out of the CDN. The result is persisted on the
+    /// next write to the drive, after which this path is no longer reached for it; once no
+    /// AllowCdn-less drives remain, this method and the constant above can be deleted.
+    /// </summary>
+    internal static bool ResolveAllowCdn(StorageDriveDetails driveDetails)
+    {
+        if (driveDetails.AllowCdn.HasValue)
+        {
+            return driveDetails.AllowCdn.Value;
+        }
+
+        var blocked =
+            driveDetails.Attributes != null &&
+            driveDetails.Attributes.TryGetValue(LegacyBlockCdnAttributeName, out var value) &&
+            bool.TryParse(value, out var parsed) &&
+            parsed;
+
+        return driveDetails.AllowAnonymousReads || !blocked;
     }
 }

@@ -17,7 +17,6 @@ namespace Odin.Services.Drives;
 [DebuggerDisplay("{Name} AllowAnon={AllowAnonymousReads} AllowSubs={AllowSubscriptions} ReadOnly={IsReadonly}")]
 public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDriveData data)
 {
-    public const string BlockCdnAttributeName = "blockcdn";
     internal StorageDriveData Data { get; } = data;
 
     public Guid Id => Data.Id;
@@ -164,6 +163,28 @@ public sealed class StorageDrive(TenantPathManager tenantPathManager, StorageDri
     {
         return this.AttributeHasTrueValue(BuiltInDriveAttributes.IsCollaborativeChannel);
     }
+
+    /// <summary>
+    /// Whether the CDN may read this drive's payloads.
+    ///
+    /// The single place anything asks that question - go through this rather than reading the
+    /// underlying flag, so the rule can be changed here without touching call sites. For drives
+    /// stored before the flag existed the value was resolved from the old blockcdn attribute at
+    /// load time (see DriveManager.ResolveAllowCdn).
+    /// </summary>
+    public bool IsCdnEnabled()
+    {
+        return Data.AllowCdn;
+    }
+
+    /// <summary>
+    /// Sets CDN eligibility on this in-memory drive. Persisting it is
+    /// <see cref="Odin.Services.Drives.Management.DriveManager.SetDriveAllowCdnAsync"/>.
+    /// </summary>
+    public void SetCdnEnabled(bool value)
+    {
+        Data.AllowCdn = value;
+    }
 }
 
 // This guy needs to be serializable
@@ -211,6 +232,11 @@ public sealed class StorageDriveData
     /// for a drive to be marked OwnerOnly == true and AllowSubscriptions === true
     /// </summary>
     public bool AllowSubscriptions { get; set; }
+
+    /// <summary>
+    /// Specifies if the CDN may read this drive's payloads. Opt-in; see <see cref="StorageDriveDetails"/>.
+    /// </summary>
+    public bool AllowCdn { get; set; }
 
     public Dictionary<string, string> Attributes { get; set; }
 
