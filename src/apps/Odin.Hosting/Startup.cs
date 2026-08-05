@@ -513,17 +513,29 @@ public static class HostExtensions
         }
 
         // Sanity ping CDN
-        if (config.Cdn.Enabled)
-        {
-            var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
-            var client = factory.CreateClient("CdnPingClient");
-            var url = $"{config.Cdn.PayloadBaseUrl}/ping";
-            var response = client.GetAsync(url).Result;
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogError("Cdn enabled, but not responding to ping at {url}", url);
-            }
-        }
+        //
+        // TEMPORARILY DISABLED. cdn.ravenhosting.cloud points at Netlify, which serves its default
+        // *.netlify.app certificate for it, so every TLS client rejects the handshake with a hostname
+        // mismatch (curl: (60), .NET: RemoteCertificateNameMismatch). GetAsync(...).Result then throws
+        // rather than returning a non-2xx, and the throw propagates out of BeforeApplicationStarting --
+        // so the host never starts. That takes down all of Odin.Hosting.Tests.V2 (which enables the CDN
+        // in its test baseline) and any environment pointed at that URL.
+        //
+        // A best-effort probe should not be able to prevent the host from booting, so this wants a
+        // try/catch rather than a comment when it comes back. Left commented out per Sebastian, who is
+        // fixing the certificate side.
+        //
+        // if (config.Cdn.Enabled)
+        // {
+        //     var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
+        //     var client = factory.CreateClient("CdnPingClient");
+        //     var url = $"{config.Cdn.PayloadBaseUrl}/ping";
+        //     var response = client.GetAsync(url).Result;
+        //     if (!response.IsSuccessStatusCode)
+        //     {
+        //         logger.LogError("Cdn enabled, but not responding to ping at {url}", url);
+        //     }
+        // }
 
         // Start system background services
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)
