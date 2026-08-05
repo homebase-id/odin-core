@@ -11,6 +11,8 @@ public interface IDriveManager
     Task<StorageDrive> CreateDriveAsync(CreateDriveRequest request, IOdinContext odinContext);
     Task SetDriveReadModeAsync(Guid driveId, bool allowAnonymous, IOdinContext odinContext);
     Task SetDriveAllowSubscriptionsAsync(Guid driveId, bool allowSubscriptions, IOdinContext odinContext);
+
+    Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext);
     Task UpdateMetadataAsync(Guid driveId, string metadata, IOdinContext odinContext);
     Task UpdateAttributesAsync(Guid driveId, Dictionary<string, string> attributes, IOdinContext odinContext);
     Task<StorageDrive> GetDriveAsync(Guid driveId, bool failIfInvalid = false);
