@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Exceptions;
 using Odin.Core.Storage;
 using Odin.Core.Storage.Database.Identity.Abstractions;
 using Odin.Services.Drives.DriveCore.Query;
@@ -19,7 +20,11 @@ public class QueryBatchCollectionRequestV2
     /// Total record budget for the whole call, filled greedily in request order: each section is queried for
     /// whatever is left of the budget, and sections the budget never reaches come back as
     /// <see cref="QueryBatchSectionStatus.BudgetExhausted"/>.  This bounds the response size regardless of how
-    /// many sections were submitted.  Required; must be at least 1.
+    /// many sections were submitted.
+    ///
+    /// Required; must be at least 1, or the call is rejected with <see cref="OdinClientErrorCode.InvalidQuery"/>.
+    /// Values above <see cref="V2BatchCollectionQueryService.MaxRecordCeiling"/> are silently clamped to it rather
+    /// than rejected — the caller simply pages through via <c>hasMoreRows</c>.
     /// </summary>
     public int MaxRecords { get; set; }
 }

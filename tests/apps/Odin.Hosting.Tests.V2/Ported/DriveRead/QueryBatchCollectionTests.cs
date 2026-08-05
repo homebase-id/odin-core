@@ -419,6 +419,23 @@ public class QueryBatchCollectionTests : V2Fixture
             Is.EqualTo(new[] { "s0", "s1", "s2", "s3" }));
     }
 
+    [Test]
+    public async Task BudgetAboveCeilingIsClampedNotRejected()
+    {
+        // An over-large ask is a client that wants everything, not a client error -- it gets the ceiling and
+        // pages through via hasMoreRows. The exact clamp arithmetic is unit-tested in
+        // Odin.Services.Tests QueryBatchWireShapeTests.RecordBudgetIsClampedToTheCeiling; this pins that the
+        // endpoint accepts the request at all rather than 400ing or blowing up on int.MaxValue.
+        var owner = await LoginAsOwner(Identities.Frodo);
+        var drive = await CreateDriveAsync(owner);
+        var file = await UploadAsync(owner, drive);
+
+        var response = await QueryAsync(owner, maxRecords: int.MaxValue, Section("s", drive.Alias));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        AssertOk(response.Content!.Results.Single(), "s", file);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Per-section fileSystemType
     // ---------------------------------------------------------------------------------------------

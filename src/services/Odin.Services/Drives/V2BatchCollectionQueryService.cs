@@ -35,6 +35,24 @@ public class V2BatchCollectionQueryService(
     InboxDrainOnQuery inboxDrainOnQuery,
     ILogger<V2BatchCollectionQueryService> logger)
 {
+    /// <summary>
+    /// Upper bound on <see cref="QueryBatchCollectionRequestV2.MaxRecords"/>.  A larger request is clamped to this
+    /// rather than rejected, so the caller just pages through via <c>hasMoreRows</c>.
+    ///
+    /// This is a safety cap, not an expected value: a normal caller asks for a few hundred, and the cap only exists
+    /// so one request cannot ask for an unbounded response.  At a rough 10KB per header this is ~10MB, which is
+    /// already at the limit of what is sensible for a single response on the high-latency links this endpoint
+    /// exists to serve.  Treat 10KB as optimistic — headers carry preview thumbnails unless the caller excludes
+    /// them, and transfer history grows with recipient count.
+    /// </summary>
+    public const int MaxRecordCeiling = 1000;
+
+    /// <summary>
+    /// Clamps a requested record budget to <see cref="MaxRecordCeiling"/>.  Callers must reject values below 1
+    /// before calling this; it does not validate.
+    /// </summary>
+    public static int ClampRecordBudget(int requested) => Math.Min(requested, MaxRecordCeiling);
+
     /// <param name="request">the collection to run</param>
     /// <param name="defaultFileSystemType">
     /// request-level file system (<c>?xfst=</c> / <c>X-ODIN-FILE-SYSTEM-TYPE</c>), used for any section that does
@@ -67,7 +85,7 @@ public class V2BatchCollectionQueryService(
         }
 
         var collection = new QueryBatchCollectionResponseV2();
-        var remaining = request.MaxRecords;
+        var remaining = ClampRecordBudget(request.MaxRecords);
 
         foreach (var section in request.Queries)
         {

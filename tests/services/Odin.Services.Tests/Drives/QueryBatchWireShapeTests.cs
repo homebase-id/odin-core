@@ -100,6 +100,18 @@ public class QueryBatchWireShapeTests
         Assert.That(keys, Does.Not.Contain(nameof(QueryBatchCollectionRequestV2.MaxRecords)));
     }
 
+    [TestCase(1, 1)]
+    [TestCase(100, 100)]
+    [TestCase(V2BatchCollectionQueryService.MaxRecordCeiling, V2BatchCollectionQueryService.MaxRecordCeiling)]
+    [TestCase(V2BatchCollectionQueryService.MaxRecordCeiling + 1, V2BatchCollectionQueryService.MaxRecordCeiling)]
+    [TestCase(100_000, V2BatchCollectionQueryService.MaxRecordCeiling)]
+    [TestCase(int.MaxValue, V2BatchCollectionQueryService.MaxRecordCeiling)]
+    public void RecordBudgetIsClampedToTheCeiling(int requested, int expected)
+    {
+        // Clamped rather than rejected: an over-large ask just pages through via hasMoreRows.
+        Assert.That(V2BatchCollectionQueryService.ClampRecordBudget(requested), Is.EqualTo(expected));
+    }
+
     private static string[] SerializedKeys(object value) =>
         JsonDocument.Parse(OdinSystemSerializer.Serialize(value))
             .RootElement.EnumerateObject()
