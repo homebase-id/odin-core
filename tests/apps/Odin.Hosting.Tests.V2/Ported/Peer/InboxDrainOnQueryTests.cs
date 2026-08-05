@@ -92,7 +92,7 @@ public class InboxDrainOnQueryTests : V2Fixture
     public async Task QueryBatchCollection_DrainsInbox_PerSection_OnRecipient()
     {
         // Simplified vs the original two-drive collection: a single section still exercises the
-        // per-section drain path in V2DriveBatchQueryController (it calls DrainIfReadyAsync inside
+        // per-section drain path in V2BatchCollectionQueryService (it calls DrainIfReadyAsync inside
         // its foreach over sections). Building a single connection that grants two drives needs a
         // custom circle helper which the in-process framework's PeerFlow doesn't currently expose;
         // skipping the second-drive section keeps the value of the test (drain runs per section
@@ -113,9 +113,10 @@ public class InboxDrainOnQueryTests : V2Fixture
                     Name = "sectionA",
                     DriveId = drive.Alias,
                     QueryParams = new FileQueryParams { GlobalTransitId = [gtid] },
-                    ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+                    ResultOptionsRequest = new QueryBatchCollectionSectionOptionsV2()
                 }
-            ]
+            ],
+            MaxRecords = 100
         });
 
         Assert.That(queryResponse.IsSuccessStatusCode, Is.True, $"got {queryResponse.StatusCode}");

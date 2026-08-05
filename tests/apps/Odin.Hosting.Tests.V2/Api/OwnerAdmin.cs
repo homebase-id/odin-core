@@ -6,6 +6,7 @@ using Odin.Hosting.Tests;
 using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.Configuration;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner.DriveManagement;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
@@ -86,6 +87,23 @@ public sealed partial class OwnerAdmin
             Attributes = attributes,
         });
         EnsureSuccess(response, nameof(CreateDrive));
+        return response;
+    }
+
+    /// <summary>
+    /// Archives (or un-archives) a drive. An archived drive is invisible to every caller except the
+    /// owner, so tests use this to produce a drive that exists but is unreadable by an app or guest.
+    /// </summary>
+    public async Task<ApiResponse<HttpContent>> SetArchiveFlag(TargetDrive drive, bool archived)
+    {
+        var (client, ss) = _owner.NewAdminHttpClient();
+        var svc = RefitCreator.RestServiceFor<IRefitDriveManagement>(client, ss);
+        var response = await svc.SetArchiveDriveFlag(new UpdateDriveArchiveFlag
+        {
+            TargetDrive = drive,
+            Archived = archived,
+        });
+        EnsureSuccess(response, nameof(SetArchiveFlag));
         return response;
     }
 
