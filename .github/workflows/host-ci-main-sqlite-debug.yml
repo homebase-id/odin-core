@@ -36,7 +36,10 @@ jobs:
         run: dotnet build --no-restore --configuration Debug --warnaserror --property:DefineConstants="DEBUG%3BTRACE%3BCI_GITHUB%3BCI_WINDOWS" ./odin-core.sln
 
       - name: Test
-        run: dotnet test --no-build --configuration Debug --verbosity normal ./odin-core.sln
+        # -m:1 keeps MSBuild to a single node so the test projects run one at a time. Running
+        # Odin.Hosting.Tests.V2 and Odin.Hosting.Tests concurrently exhausts the runner's sockets
+        # (SocketException "Resource temporarily unavailable") -- see PR #1631.
+        run: dotnet test --no-build -m:1 --configuration Debug --verbosity normal ./odin-core.sln
         # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket.PeerAppNotificationTests.CanGetMultiplePeerAppNotificationsAcrossAGroupOfIdentitiesWhenUsingACentralIdentity" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
         # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Hosting.Tests._Universal.Peer" --configuration Debug --verbosity normal ./tests/apps/Odin.Hosting.Tests/Odin.Hosting.Tests.csproj
         # run: dotnet test --no-build --filter "FullyQualifiedName=Odin.Core.Storage.Tests.ObjectStorage" --configuration Debug --verbosity normal
