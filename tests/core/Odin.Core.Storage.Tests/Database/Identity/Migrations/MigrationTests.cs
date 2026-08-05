@@ -248,10 +248,10 @@ public class DatabaseMigrationTests : IocTestBase
                 cmd.AddParameter("@identityId", DbType.Binary, IdentityId.ToByteArray());
                 cmd.AddParameter("@circleId", DbType.Binary, Guid.NewGuid().ToByteArray());
             },
-            // Enrollment/Designation are NOT NULL and take their column DEFAULTs of
+            // GrantOn/Designation are NOT NULL and take their column DEFAULTs of
             // 0 (NONE) and 1 (PERSONAL), which preserve today's behaviour.
             "SELECT COUNT(*) FROM Circle WHERE circleName = 'seed circle' " +
-            "AND AppId IS NULL AND Emoji IS NULL AND Enrollment = 0 AND Designation = 1");
+            "AND AppId IS NULL AND Emoji IS NULL AND GrantOn = 0 AND Designation = 1");
     }
 
     [Test]

@@ -198,7 +198,6 @@ internal static class DataImporterSeedHelper
             CorsHostName = null,
             grantJson = "{}",
             detailsJson = null,
-            AutoConnectDefaults = false,
         });
     }
 

@@ -46,7 +46,6 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"CorsHostName TEXT , "
                    +"grantJson TEXT NOT NULL, "
                    +"detailsJson TEXT , "
-                   +"AutoConnectDefaults BOOLEAN NOT NULL DEFAULT FALSE, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,AppId)"
@@ -67,7 +66,6 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             sl.Add("CorsHostName");
             sl.Add("grantJson");
             sl.Add("detailsJson");
-            sl.Add("AutoConnectDefaults");
             sl.Add("created");
             sl.Add("modified");
             return sl;
@@ -79,8 +77,8 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await CheckSqlTableVersion(cn, "AppRegistrations", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
-                copyCommand.CommandText = "INSERT INTO AppRegistrationsMigrationsV0 (rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified) " +
-               $"SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified "+
+                copyCommand.CommandText = "INSERT INTO AppRegistrationsMigrationsV0 (rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified) " +
+               $"SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified "+
                $"FROM AppRegistrations;";
                return await copyCommand.ExecuteNonQueryAsync();
             }

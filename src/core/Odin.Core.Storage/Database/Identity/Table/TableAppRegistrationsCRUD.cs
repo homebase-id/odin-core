@@ -29,7 +29,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public string CorsHostName { get; set; }
         public string grantJson { get; set; }
         public string detailsJson { get; set; }
-        public Boolean AutoConnectDefaults { get; set; }
         public UnixTimeUtc created { get; set; }
         public UnixTimeUtc modified { get; set; }
         public void Validate()
@@ -92,7 +91,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"CorsHostName TEXT , "
                    +"grantJson TEXT NOT NULL, "
                    +"detailsJson TEXT , "
-                   +"AutoConnectDefaults BOOLEAN NOT NULL DEFAULT FALSE, "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,AppId)"
@@ -110,8 +108,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified) " +
-                                           $"VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,@AutoConnectDefaults,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified) " +
+                                           $"VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
@@ -120,7 +118,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@CorsHostName", DbType.String, item.CorsHostName);
                 insertCommand.AddParameter("@grantJson", DbType.String, item.grantJson);
                 insertCommand.AddParameter("@detailsJson", DbType.String, item.detailsJson);
-                insertCommand.AddParameter("@AutoConnectDefaults", DbType.Boolean, item.AutoConnectDefaults);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -142,8 +139,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified) " +
-                                            $"VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,@AutoConnectDefaults,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified) " +
+                                            $"VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -153,7 +150,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@CorsHostName", DbType.String, item.CorsHostName);
                 insertCommand.AddParameter("@grantJson", DbType.String, item.grantJson);
                 insertCommand.AddParameter("@detailsJson", DbType.String, item.detailsJson);
-                insertCommand.AddParameter("@AutoConnectDefaults", DbType.Boolean, item.AutoConnectDefaults);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -175,10 +171,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified) " +
-                                            $"VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,@AutoConnectDefaults,{sqlNowStr},{sqlNowStr})"+
+                upsertCommand.CommandText = "INSERT INTO AppRegistrations (identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified) " +
+                                            $"VALUES (@identityId,@AppId,@AppSlug,@Name,@CorsHostName,@grantJson,@detailsJson,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,AppId) DO UPDATE "+
-                                            $"SET AppSlug = @AppSlug,Name = @Name,CorsHostName = @CorsHostName,grantJson = @grantJson,detailsJson = @detailsJson,AutoConnectDefaults = @AutoConnectDefaults,modified = {upsertCommand.SqlMax()}(AppRegistrations.modified+1,{sqlNowStr}) "+
+                                            $"SET AppSlug = @AppSlug,Name = @Name,CorsHostName = @CorsHostName,grantJson = @grantJson,detailsJson = @detailsJson,modified = {upsertCommand.SqlMax()}(AppRegistrations.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@AppId", DbType.Binary, item.AppId);
@@ -187,7 +183,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.AddParameter("@CorsHostName", DbType.String, item.CorsHostName);
                 upsertCommand.AddParameter("@grantJson", DbType.String, item.grantJson);
                 upsertCommand.AddParameter("@detailsJson", DbType.String, item.detailsJson);
-                upsertCommand.AddParameter("@AutoConnectDefaults", DbType.Boolean, item.AutoConnectDefaults);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -210,7 +205,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE AppRegistrations " +
-                                            $"SET AppSlug = @AppSlug,Name = @Name,CorsHostName = @CorsHostName,grantJson = @grantJson,detailsJson = @detailsJson,AutoConnectDefaults = @AutoConnectDefaults,modified = {updateCommand.SqlMax()}(AppRegistrations.modified+1,{sqlNowStr}) "+
+                                            $"SET AppSlug = @AppSlug,Name = @Name,CorsHostName = @CorsHostName,grantJson = @grantJson,detailsJson = @detailsJson,modified = {updateCommand.SqlMax()}(AppRegistrations.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND AppId = @AppId) "+
                                             "RETURNING created,modified,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -220,7 +215,6 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.AddParameter("@CorsHostName", DbType.String, item.CorsHostName);
                 updateCommand.AddParameter("@grantJson", DbType.String, item.grantJson);
                 updateCommand.AddParameter("@detailsJson", DbType.String, item.detailsJson);
-                updateCommand.AddParameter("@AutoConnectDefaults", DbType.Boolean, item.AutoConnectDefaults);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -261,13 +255,12 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("CorsHostName");
             sl.Add("grantJson");
             sl.Add("detailsJson");
-            sl.Add("AutoConnectDefaults");
             sl.Add("created");
             sl.Add("modified");
             return sl;
         }
 
-        // SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified
+        // SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified
         protected AppRegistrationsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<AppRegistrationsRecord>();
@@ -284,9 +277,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.CorsHostName = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
             item.grantJson = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[6];
             item.detailsJson = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
-            item.AutoConnectDefaults = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[8]);
-            item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
-            item.modified = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             return item;
        }
 
@@ -312,7 +304,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 deleteCommand.CommandText = "DELETE FROM AppRegistrations " +
                                              "WHERE identityId = @identityId AND AppId = @AppId " + 
-                                             "RETURNING rowId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified";
+                                             "RETURNING rowId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified";
 
                 deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 deleteCommand.AddParameter("@AppId", DbType.Binary, AppId);
@@ -346,9 +338,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.CorsHostName = (rdr[3] == DBNull.Value) ? null : (string)rdr[3];
             item.grantJson = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             item.detailsJson = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
-            item.AutoConnectDefaults = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[6]);
-            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
             return item;
        }
 
@@ -357,7 +348,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified FROM AppRegistrations " +
+                get0Command.CommandText = "SELECT rowId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified FROM AppRegistrations " +
                                              "WHERE identityId = @identityId AND AppId = @AppId LIMIT 1 "+
                                              ";";
 
@@ -393,9 +384,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.CorsHostName = (rdr[4] == DBNull.Value) ? null : (string)rdr[4];
             item.grantJson = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[5];
             item.detailsJson = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
-            item.AutoConnectDefaults = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[7]);
-            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
-            item.modified = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
+            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
+            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
             return item;
        }
 
@@ -404,7 +394,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get1Command = cn.CreateCommand();
             {
-                get1Command.CommandText = "SELECT rowId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified FROM AppRegistrations " +
+                get1Command.CommandText = "SELECT rowId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified FROM AppRegistrations " +
                                              "WHERE identityId = @identityId "+
                                              ";";
 
@@ -448,9 +438,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.CorsHostName = (rdr[3] == DBNull.Value) ? null : (string)rdr[3];
             item.grantJson = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : (string)rdr[4];
             item.detailsJson = (rdr[5] == DBNull.Value) ? null : (string)rdr[5];
-            item.AutoConnectDefaults = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[6]);
-            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
             return item;
        }
 
@@ -462,7 +451,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get2Command = cn.CreateCommand();
             {
-                get2Command.CommandText = "SELECT rowId,AppId,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified FROM AppRegistrations " +
+                get2Command.CommandText = "SELECT rowId,AppId,Name,CorsHostName,grantJson,detailsJson,created,modified FROM AppRegistrations " +
                                              "WHERE identityId = @identityId AND AppSlug = @AppSlug LIMIT 1 "+
                                              ";";
 
@@ -494,7 +483,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,AutoConnectDefaults,created,modified FROM AppRegistrations " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,AppId,AppSlug,Name,CorsHostName,grantJson,detailsJson,created,modified FROM AppRegistrations " +
                                             "WHERE (identityId = @identityId) AND rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);

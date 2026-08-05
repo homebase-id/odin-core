@@ -44,13 +44,13 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                    +"circleName TEXT NOT NULL, "
                    +"data BYTEA , "
                    +"AppId BYTEA , "
-                   +"Enrollment BIGINT NOT NULL DEFAULT 0, "
+                   +"GrantOn BIGINT NOT NULL DEFAULT 0, "
                    +"Designation BIGINT NOT NULL DEFAULT 1, "
                    +"Emoji TEXT  "
                    +", UNIQUE(identityId,circleId)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0CircleMigrationsV202608040942 ON CircleMigrationsV202608040942(identityId,AppId);"
-                   +"CREATE INDEX IF NOT EXISTS Idx1CircleMigrationsV202608040942 ON CircleMigrationsV202608040942(identityId,Enrollment);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1CircleMigrationsV202608040942 ON CircleMigrationsV202608040942(identityId,GrantOn);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "CircleMigrationsV202608040942", createSql, commentSql);
         }
@@ -64,7 +64,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             sl.Add("circleName");
             sl.Add("data");
             sl.Add("AppId");
-            sl.Add("Enrollment");
+            sl.Add("GrantOn");
             sl.Add("Designation");
             sl.Add("Emoji");
             return sl;
@@ -76,9 +76,9 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
             await CheckSqlTableVersion(cn, "Circle", PreviousVersion);
             await using var copyCommand = cn.CreateCommand();
             {
-                // AppId, Enrollment, Designation and Emoji are new in this version and are omitted
+                // AppId, GrantOn, Designation and Emoji are new in this version and are omitted
                 // from both lists: they do not exist on the old table. AppId and Emoji are nullable
-                // (NULL = owner circle / no emoji); Enrollment and Designation take their column
+                // (NULL = owner circle / no emoji); GrantOn and Designation take their column
                 // DEFAULTs of 0 (NONE) and 1 (PERSONAL), which preserve today's behaviour.
                 copyCommand.CommandText = "INSERT INTO CircleMigrationsV202608040942 (rowId,identityId,circleId,circleName,data) " +
                $"SELECT rowId,identityId,circleId,circleName,data "+

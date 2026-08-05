@@ -26,7 +26,8 @@ public class AllowCdnTests
 
         var details = OdinSystemSerializer.Deserialize<StorageDriveDetails>(legacyJson);
 
-        Assert.That(details.AllowCdn, Is.False);
+        Assert.That(details, Is.Not.Null);
+        Assert.That(details!.AllowCdn, Is.False);
     }
 
     [Test]
@@ -42,7 +43,8 @@ public class AllowCdnTests
 
         var details = OdinSystemSerializer.Deserialize<StorageDriveDetails>(legacyJson);
 
-        Assert.That(details.AllowCdn, Is.False);
+        Assert.That(details, Is.Not.Null);
+        Assert.That(details!.AllowCdn, Is.False);
     }
 
     [Test]
@@ -52,7 +54,8 @@ public class AllowCdnTests
         var restored = OdinSystemSerializer.Deserialize<StorageDriveDetails>(
             OdinSystemSerializer.Serialize(details));
 
-        Assert.That(restored.AllowCdn, Is.True);
+        Assert.That(restored, Is.Not.Null);
+        Assert.That(restored!.AllowCdn, Is.True);
     }
 
     //
