@@ -79,7 +79,7 @@ namespace Odin.Core.Storage.Database.Identity.Migrations
                 // AppId, GrantOn, Designation and Emoji are new in this version and are omitted
                 // from both lists: they do not exist on the old table. AppId and Emoji are nullable
                 // (NULL = owner circle / no emoji); GrantOn and Designation take their column
-                // DEFAULTs of 0 (NONE) and 1 (PERSONAL), which preserve today's behaviour.
+                // DEFAULTs of 0 (None) and 1 (PERSONAL), which preserve today's behaviour.
                 copyCommand.CommandText = "INSERT INTO CircleMigrationsV202608040942 (rowId,identityId,circleId,circleName,data) " +
                $"SELECT rowId,identityId,circleId,circleName,data "+
                $"FROM Circle;";
