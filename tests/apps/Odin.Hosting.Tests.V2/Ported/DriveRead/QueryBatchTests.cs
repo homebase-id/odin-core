@@ -82,12 +82,12 @@ public class QueryBatchTests : V2Fixture
     [Test, TestCaseSource(nameof(AllCases))]
     public async Task CanQueryBatchCollection(CallerSpec spec, HttpStatusCode singleBatchExpected)
     {
-        // Unlike single-drive Batch/SmartBatch, the V2 BatchCollection controller doesn't 403 on a
-        // drive the caller lacks read access for — it returns the collection with empty result
-        // sections for inaccessible drives (V2DriveBatchQueryController calls fs.Query.GetBatchCollection
-        // which filters by ACL rather than gating at the controller). So callers that single-Batch
-        // would Forbid still get 200 here, with no matching files. We derive "should see results" from
-        // singleBatchExpected — OK means the caller has read access; anything else means they don't.
+        // Unlike single-drive Batch/SmartBatch, the V2 BatchCollection endpoint doesn't 403 on a
+        // drive the caller lacks read access for — a section-level fault never fails the collection,
+        // so it comes back 200 with that section marked noReadGrant and no results. So callers that
+        // single-Batch would Forbid still get 200 here, with no matching files. We derive "should see
+        // results" from singleBatchExpected — OK means the caller has read access; anything else means
+        // they don't. Per-section status is covered in detail by QueryBatchCollectionTests.
         var (caller, owner) = await SetupCallerWithOwner(spec);
 
         var file1 = await UploadSampleFile(owner, spec.TargetDrive, FileType1);
@@ -99,19 +99,20 @@ public class QueryBatchTests : V2Fixture
             Name = "q1",
             DriveId = driveAlias,
             QueryParams = new FileQueryParams { FileType = [FileType1] },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+            ResultOptionsRequest = new QueryBatchCollectionSectionOptionsV2()
         };
         var q2 = new CollectionQueryParamSectionV2
         {
             Name = "q2",
             DriveId = driveAlias,
             QueryParams = new FileQueryParams { FileType = [FileType2] },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+            ResultOptionsRequest = new QueryBatchCollectionSectionOptionsV2()
         };
 
         var response = await caller.Drives.Reader.GetBatchCollectionAsync(new QueryBatchCollectionRequestV2
         {
-            Queries = [q1, q2]
+            Queries = [q1, q2],
+            MaxRecords = 100
         });
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
