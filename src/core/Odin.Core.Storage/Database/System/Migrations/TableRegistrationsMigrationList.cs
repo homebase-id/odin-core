@@ -12,6 +12,7 @@ public class TableRegistrationsMigrationList : MigrationListBase
             new TableRegistrationsMigrationV202508281508(0),
             new TableRegistrationsMigrationV202509090509(202508281508),
             new TableRegistrationsMigrationV202607101000(202509090509),
+            new TableRegistrationsMigrationV202608060617(202607101000),
             // AUTO-INSERT-MARKER
         };
     }
