@@ -75,13 +75,13 @@ namespace Odin.Core.Storage.Database.System.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Registrations IS '{ \"Version\": 202607101000 }';";
+               commentSql = "COMMENT ON TABLE Registrations IS '{ \"Version\": 202608060617 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Registrations( -- { \"Version\": 202607101000 }\n"
+                "CREATE TABLE IF NOT EXISTS Registrations( -- { \"Version\": 202608060617 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL UNIQUE, "
                    +"email TEXT , "
@@ -90,7 +90,7 @@ namespace Odin.Core.Storage.Database.System.Table
                    +"disabled BOOLEAN NOT NULL, "
                    +"markedForDeletionDate BIGINT , "
                    +"planId TEXT , "
-                   +"enablePublicWebPresence BOOLEAN NOT NULL, "
+                   +"enablePublicWebPresence BOOLEAN , "
                    +"json TEXT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
@@ -286,7 +286,7 @@ namespace Odin.Core.Storage.Database.System.Table
             item.disabled = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[5]);
             item.markedForDeletionDate = (rdr[6] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[6]);
             item.planId = (rdr[7] == DBNull.Value) ? null : (string)rdr[7];
-            item.enablePublicWebPresence = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[8]);
+            item.enablePublicWebPresence = (rdr[8] != DBNull.Value) && Convert.ToBoolean(rdr[8]);
             item.json = (rdr[9] == DBNull.Value) ? null : (string)rdr[9];
             item.created = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
             item.modified = (rdr[11] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[11]);
@@ -347,7 +347,7 @@ namespace Odin.Core.Storage.Database.System.Table
             item.disabled = (rdr[4] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[4]);
             item.markedForDeletionDate = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
             item.planId = (rdr[6] == DBNull.Value) ? null : (string)rdr[6];
-            item.enablePublicWebPresence = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : Convert.ToBoolean(rdr[7]);
+            item.enablePublicWebPresence = (rdr[7] != DBNull.Value) && Convert.ToBoolean(rdr[7]);
             item.json = (rdr[8] == DBNull.Value) ? null : (string)rdr[8];
             item.created = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             item.modified = (rdr[10] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[10]);
