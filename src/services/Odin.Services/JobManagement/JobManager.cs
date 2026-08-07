@@ -67,8 +67,10 @@ public class JobManager(
     
     public async Task<Guid> ScheduleJobAsync(AbstractJob job, JobSchedule? schedule = null)
     {
+        const int maxScheduleAttempts = 5;
+
         Guid? result = null;
-        
+
         schedule ??= new JobSchedule();
 
         var record = new JobsRecord
@@ -118,7 +120,7 @@ public class JobManager(
             //
 
             var attempt = 0;
-            while (result == null && attempt < 5)
+            while (result == null && attempt < maxScheduleAttempts)
             {
                 // Check if job already exists by looking up the jobHash
                 var existingRecord = await tableJobs.GetJobByHashAsync(record.jobHash);
@@ -147,7 +149,19 @@ public class JobManager(
 
         if (result == null)
         {
-            var error = $"Could neither insert nor lookup job '{record.name}' with hash:{record.jobHash}. Check logs. Good luck.";
+            // All we actually know is that the insert was rejected by *some* uniqueness constraint
+            // (TryInsertAsync uses a target-less ON CONFLICT DO NOTHING, so it cannot tell us which),
+            // while no row carries this hash. So the conflict is on 'id' or on the rowId primary key,
+            // not on jobHash. A rowId collision means the table's sequence has fallen behind
+            // max(rowId), which is what happens when rows are inserted with explicit rowId values,
+            // e.g. by a migration that copies a populated table on Postgres.
+            var error =
+                $"Failed to schedule job '{record.name}' id:{record.id} hash:{record.jobHash} after " +
+                $"{maxScheduleAttempts} attempts: every insert was rejected by a uniqueness constraint, " +
+                "but no existing job has that hash, so the conflict is not on jobHash. On Postgres, check " +
+                "whether the Jobs rowId sequence is behind the table: SELECT " +
+                "pg_sequence_last_value(pg_get_serial_sequence('jobs','rowid')::regclass), " +
+                "(SELECT max(rowId) FROM jobs);";
             logger.LogError(error);
             throw new JobManagerException(error);
         }
