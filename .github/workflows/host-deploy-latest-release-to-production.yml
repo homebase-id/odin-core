@@ -1,5 +1,13 @@
 name: "Host: Deploy latest release tag to production"
 
+#
+# Resolves the newest published vX.Y.Z tag on the GitHub side and passes it to
+# the controller explicitly. The privileged script never resolves anything over
+# the network, so every deploy is reproducible from its Actions log. See the
+# DevOps repo:
+# docs/superpowers/specs/2026-08-10-github-deploy-button-design.md
+#
+
 on:
   workflow_dispatch:
     inputs:
@@ -13,52 +21,105 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  LATEST_VERSION_TAG: ""
-  REPO: ""
 
 jobs:
-  deploy:
+  resolve:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: read
+
+    outputs:
+      version_tag: ${{ steps.latest.outputs.version_tag }}
 
     steps:
       - name: Only allow main branch
         if: github.ref != 'refs/heads/main'
+        env:
+          GITHUB_REF: ${{ github.ref }}
         run: |
-          echo "Error: Workflow must run on 'main' branch. Current ref: ${{ github.ref }}"
-          exit 1          
+          echo "Error: Workflow must run on 'main' branch. Current ref: ${GITHUB_REF}"
+          exit 1
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4 
-
-      - name: Setup environment variables
-        run: echo "REPO=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3.1.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Get lastest image version tag
+      - name: Resolve the newest release tag in ghcr
+        id: latest
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          set -ex
-          USERNAME=${{ github.actor }}
-          TOKEN=${{ secrets.GITHUB_TOKEN }}
-          registry_token=$(curl -u $USERNAME:$TOKEN -s https://${{ env.REGISTRY }}/token\?scope\="repository:${{ env.REPO }}:pull" | jq -r .token)
-          echo "registry_token: $registry_token"
-          latest_version_tag=$(curl -s -H "Authorization: Bearer $registry_token" "https://${{ env.REGISTRY }}/v2/${{ env.REPO }}/tags/list?n=999999999" | jq -r '.tags[]' | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n1)
-          echo "latest_version_tag: $latest_version_tag"
-          echo "LATEST_VERSION_TAG=$latest_version_tag" >> $GITHUB_ENV
+          repo="$(printf '%s' "$GH_REPO" | tr '[:upper:]' '[:lower:]')"
 
-      - name: Deploy Docker Image    
-        uses: ./.github/actions/host/deploy-image-to-environment
-        with:
-          image_name: ghcr.io/${{ github.repository }}:${{ env.LATEST_VERSION_TAG }}
-          env_name: 'production'
-          force_update: 'true'
-          start_container: ${{ github.event.inputs.start_choice }}
-          ansible_host: ${{ secrets.ANSIBLE_HOST }}
-          ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
-          ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
+          # Never echo the registry token. GitHub masks GITHUB_TOKEN in logs but
+          # not a bearer token minted from it, and the previous version of this
+          # step printed it in cleartext under `set -x`.
+          registry_token="$(curl -fsS -u "${GH_ACTOR}:${GH_TOKEN}" \
+            "https://${REGISTRY}/token?scope=repository:${repo}:pull" | jq -r '.token')"
+          if [ -z "$registry_token" ] || [ "$registry_token" = "null" ]; then
+            echo "could not obtain a pull token for ${repo}"
+            exit 1
+          fi
 
+          tags_json="$(curl -fsS -H "Authorization: Bearer ${registry_token}" \
+            "https://${REGISTRY}/v2/${repo}/tags/list?n=999999999")"
+          tag="$(printf '%s' "$tags_json" | jq -r '.tags[]?' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)"
+          if [ -z "$tag" ]; then
+            echo "no vX.Y.Z tag found in ${repo}"
+            exit 1
+          fi
+
+          echo "Latest release tag: ${tag}"
+          echo "version_tag=${tag}" >>"$GITHUB_OUTPUT"
+
+  deploy:
+    needs: resolve
+    runs-on: ubuntu-latest
+
+    # Environment secrets reach only the job that declares the environment.
+    # That is the whole reason this is a second job. The environment carries no
+    # branch policy and no reviewers.
+    environment: deploy
+
+    # The deploy job needs no GITHUB_TOKEN at all.
+    permissions: {}
+
+    steps:
+      # Deliberately written inline and repeated across the deploy workflows
+      # rather than factored into a composite action. The action this replaced
+      # took the ansible SSH key as an input, and a composite action taking a
+      # key as an input is the shape being removed: it moves the privileged step
+      # out of the file under review. Repeating a dozen lines is the cheaper
+      # half of that trade.
+      #
+      # Every ${{ }} goes through env: and is read back as a shell variable.
+      # GitHub substitutes expressions into the script text before bash parses
+      # it, so an inline tag carrying shell metacharacters would execute inside
+      # the job that holds the deploy key. Do not simplify this.
+      #
+      # The controller validates every field again, independently, in two scripts
+      # running as two different users. It constructs the image reference itself
+      # from REPOSITORY and TAG and will not accept one.
+      - name: Deploy through the ansible controller
+        env:
+          CONTROLLER: deploy@167.235.203.161
+          ENV_NAME: production
+          REPOSITORY: odin-core
+          TAG: ${{ needs.resolve.outputs.version_tag }}
+          START_CONTAINER: ${{ github.event.inputs.start_choice }}
+          DEPLOY_KEY: ${{ secrets.CONTROLLER_DEPLOY_KEY }}
+        run: |
+          key="${RUNNER_TEMP}/controller_deploy_key"
+          trap 'rm -f "$key"' EXIT
+          install -m 600 /dev/null "$key"
+          printf '%s\n' "$DEPLOY_KEY" >"$key"
+          ssh -i "$key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            "$CONTROLLER" \
+            "deploy odin-core ${ENV_NAME} ${REPOSITORY} ${TAG} start_container=${START_CONTAINER}"

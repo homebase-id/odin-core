@@ -1,5 +1,13 @@
 name: "Host: Create release, deploy to production"
 
+#
+# The deploy runs as a separate job declaring `environment: deploy`, which keeps
+# the controller key out of the build job. The environment has no branch policy:
+# production is not a specially protected target, by decision. See the DevOps
+# repo, docs/superpowers/specs/2026-08-10-github-deploy-button-design.md, section
+# "The accepted risk".
+#
+
 on:
   workflow_dispatch:
     inputs:
@@ -19,14 +27,19 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  NEW_VERSION_TAG: "overwritten-below"
-  IMAGE_VERSION_TAG: "overwritten-below"
-  IMAGE_TAGS: "overwritten-below"
-
 
 jobs:
   tag-and-build:
     runs-on: ubuntu-latest
+
+    permissions:
+      # contents: write is required: increment-version-tag-on-git-tip.sh pushes
+      # the new vX.Y.Z tag with the checkout's persisted GITHUB_TOKEN.
+      contents: write
+      packages: write
+
+    outputs:
+      version_tag: ${{ steps.version.outputs.version_tag }}
 
     steps:
       - name: Log all workflow inputs and current branch
@@ -37,13 +50,19 @@ jobs:
           echo "Workflow inputs as JSON: $INPUTS"
         env:
           INPUTS: ${{ toJson(github.event.inputs) }}
-          GITHUB_REF: ${{ github.ref }}    
+          GITHUB_REF: ${{ github.ref }}
 
+      # This guard exists to stop the release TAG being cut off main. It is not a
+      # control on the deploy: host-deploy-image-to-environment.yml reaches
+      # production from any branch, so anyone wanting to skip this would use that
+      # instead. Keep it anyway; a release tag on a feature branch is a mess.
       - name: Only allow main branch
         if: github.ref != 'refs/heads/main'
+        env:
+          GITHUB_REF: ${{ github.ref }}
         run: |
-          echo "Error: Workflow must run on 'main' branch. Current ref: ${{ github.ref }}"
-          exit 1          
+          echo "Error: Workflow must run on 'main' branch. Current ref: ${GITHUB_REF}"
+          exit 1
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,11 +75,13 @@ jobs:
       #
 
       - name: Execute versioning script
+        id: version
         working-directory: odin-core
         run: |
           output=$(./.github/scripts/increment-version-tag-on-git-tip.sh)
           echo "Tagging output: $output"
           echo "NEW_VERSION_TAG=${output}" >> $GITHUB_ENV
+          echo "version_tag=${output}" >>"$GITHUB_OUTPUT"
 
       #
       # Build Frontend
@@ -105,10 +126,8 @@ jobs:
 
       - name: Combine Docker tags
         run: |
-          lowercases_image_version_tag=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_VERSION_TAG=$lowercases_image_version_tag" >> $GITHUB_ENV
-          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.NEW_VERSION_TAG }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_TAGS=$lowercase_image_tags" >> $GITHUB_ENV
+          image="$(printf '%s' "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE_TAGS=${image}:latest,${image}:${NEW_VERSION_TAG}" >>"$GITHUB_ENV"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0
@@ -124,17 +143,60 @@ jobs:
             VERSION_TEXT=${{ env.NEW_VERSION_TAG }}
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
 
-      #
-      # Deploy docker image
-      #
+  #
+  # Deploy docker image
+  #
+  deploy:
+    needs: tag-and-build
+    runs-on: ubuntu-latest
 
-      - name: Deploy Docker Image    
-        uses: ./odin-core/.github/actions/host/deploy-image-to-environment
-        with:
-          image_name: ${{ env.IMAGE_VERSION_TAG }}
-          env_name: 'production'
-          force_update: 'true'
-          start_container: ${{ github.event.inputs.start_choice }}
-          ansible_host: ${{ secrets.ANSIBLE_HOST }}
-          ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
-          ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
+    # Environment secrets reach only the job that declares the environment.
+    # That is the whole reason this is a second job. The environment carries no
+    # branch policy and no reviewers, so it gates nothing: this workflow's
+    # main-only guard is a step in the build job, and it protects the release
+    # TAG being cut off main, not the deploy.
+    environment: deploy
+
+    # The deploy job needs no GITHUB_TOKEN at all.
+    permissions: {}
+
+    steps:
+      # Deliberately written inline and repeated across the deploy workflows
+      # rather than factored into a composite action. The action this replaced
+      # took the ansible SSH key as an input, and a composite action taking a
+      # key as an input is the shape being removed: it moves the privileged step
+      # out of the file under review. Repeating a dozen lines is the cheaper
+      # half of that trade.
+      #
+      # Every ${{ }} goes through env: and is read back as a shell variable.
+      # GitHub substitutes expressions into the script text before bash parses
+      # it, so an inline tag carrying shell metacharacters would execute inside
+      # the job that holds the deploy key. Do not simplify this.
+      #
+      # The controller validates every field again, independently, in two scripts
+      # running as two different users. It constructs the image reference itself
+      # from REPOSITORY and TAG and will not accept one.
+      - name: Deploy through the ansible controller
+        env:
+          CONTROLLER: deploy@167.235.203.161
+          ENV_NAME: production
+          REPOSITORY: odin-core
+          # Index syntax, not needs.tag-and-build: a hyphen in a property name
+          # is ambiguous with the subtraction operator in GitHub expressions.
+          TAG: ${{ needs['tag-and-build'].outputs.version_tag }}
+          START_CONTAINER: ${{ github.event.inputs.start_choice }}
+          DEPLOY_KEY: ${{ secrets.CONTROLLER_DEPLOY_KEY }}
+        run: |
+          key="${RUNNER_TEMP}/controller_deploy_key"
+          trap 'rm -f "$key"' EXIT
+          install -m 600 /dev/null "$key"
+          printf '%s\n' "$DEPLOY_KEY" >"$key"
+          ssh -i "$key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            "$CONTROLLER" \
+            "deploy odin-core ${ENV_NAME} ${REPOSITORY} ${TAG} start_container=${START_CONTAINER}"
