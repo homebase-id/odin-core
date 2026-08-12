@@ -2,7 +2,7 @@ name: "Host: Create release, deploy to production"
 
 #
 # The deploy runs as a separate job declaring `environment: deploy`, which keeps
-# the controller key out of the build job. The environment has no branch policy:
+# the ansible controller key out of the build job. The environment has no branch policy:
 # production is not a specially protected target, by decision. See the DevOps
 # repo, docs/superpowers/specs/2026-08-10-github-deploy-button-design.md, section
 # "The accepted risk".
@@ -173,12 +173,58 @@ jobs:
       # it, so an inline tag carrying shell metacharacters would execute inside
       # the job that holds the deploy key. Do not simplify this.
       #
-      # The controller validates every field again, independently, in two scripts
+      # The ansible controller validates every field again, independently, in two scripts
       # running as two different users. It constructs the image reference itself
       # from REPOSITORY and TAG and will not accept one.
+      #
+      # ABOUT THE `deploy ...` STRING ON THE LAST LINE. It is not a script, a
+      # binary, or anything that exists on the ansible controller's PATH. Reading
+      # it as a remote command is the natural mistake and it is worth a paragraph.
+      #
+      # The key's line in ~deploy/.ssh/authorized_keys on the ansible controller is
+      #
+      #     command="/usr/local/bin/odin-deploy.sh",restrict ssh-ed25519 AAAA...
+      #
+      # and `command=` makes sshd DISCARD whatever command was requested, run
+      # odin-deploy.sh instead, and hand the requested string over untouched in the
+      # environment variable SSH_ORIGINAL_COMMAND. So no shell on the far side ever
+      # parses the line below: odin-deploy.sh splits and validates it itself.
+      #
+      # That is why shell metacharacters in it cannot inject. Send a tag of
+      # `v1.2.3; rm -rf /` and nothing runs and no shell refuses it: the semicolon
+      # simply lands inside the tag field, which becomes `v1.2.3;` and fails the tag
+      # pattern at odin-deploy.sh:85. The trailing `rm`, `-rf` and `/` become three
+      # extra tokens that would each fail the parameter pattern too, but validation
+      # never gets that far. Verified against the live host, 2026-08-11.
+      #
+      # The string is a five-field protocol of our own invention:
+      #
+      #     deploy <service> <env> <repository> <tag> [key=value ...]
+      #
+      #     deploy       a literal verb, compared against the string "deploy".
+      #                  There is exactly one and no dispatch behind it; it exists
+      #                  so a malformed string fails an explicit check with its own
+      #                  syslog line instead of being reinterpreted.
+      #     service      odin-core. The only routable service.
+      #     env          bleeding_edge | sandbox | production
+      #     repository   odin-core | odin-core-internal. The REGISTRY is hardcoded
+      #                  on the ansible controller and is deliberately not a field,
+      #                  which is what keeps a stolen key confined to images we
+      #                  published.
+      #     tag          the docker tag character set,
+      #                  ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$
+      #     key=value    allowlisted parameters, currently only
+      #                  start_container=true|false. Anything starting ansible_ is
+      #                  refused unconditionally.
+      #
+      # Every field is validated twice by two scripts running as two different
+      # users: odin-deploy.sh as the shell-less `deploy` account, then
+      # run-playbook.sh as `ansible`. Both live in the DevOps repo at
+      # ansible/files/controller/, and the design is at
+      # docs/superpowers/specs/2026-08-10-github-deploy-button-design.md
       - name: Deploy through the ansible controller
         env:
-          CONTROLLER: deploy@167.235.203.161
+          ANSIBLE_CONTROLLER: deploy@167.235.203.161
           ENV_NAME: production
           REPOSITORY: odin-core
           # Index syntax, not needs.tag-and-build: a hyphen in a property name
@@ -187,7 +233,7 @@ jobs:
           START_CONTAINER: ${{ github.event.inputs.start_choice }}
           DEPLOY_KEY: ${{ secrets.CONTROLLER_DEPLOY_KEY }}
         run: |
-          key="${RUNNER_TEMP}/controller_deploy_key"
+          key="${RUNNER_TEMP}/ansible_controller_deploy_key"
           trap 'rm -f "$key"' EXIT
           install -m 600 /dev/null "$key"
           printf '%s\n' "$DEPLOY_KEY" >"$key"
@@ -198,5 +244,5 @@ jobs:
             -o ConnectTimeout=30 \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
-            "$CONTROLLER" \
+            "$ANSIBLE_CONTROLLER" \
             "deploy odin-core ${ENV_NAME} ${REPOSITORY} ${TAG} start_container=${START_CONTAINER}"

@@ -94,7 +94,7 @@ jobs:
           FE_REF: ${{ github.event.inputs.fe_ref }}
         run: |
           # Sanitised to the docker tag character set, which is also the
-          # bleeding_edge allowlist run-playbook.sh enforces on the controller:
+          # bleeding_edge allowlist run-playbook.sh enforces on the ansible controller:
           # ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$. Without this, a tag built here
           # cannot be deployed by "Host: Deploy an image tag to an environment".
           tag="$(printf '%s' "${REF_NAME}__${FE_REF}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-')"
