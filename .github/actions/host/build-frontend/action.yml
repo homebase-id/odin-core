@@ -15,6 +15,95 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # Runs before setup-node so a mistyped ref costs seconds, not the whole
+    # toolchain setup.
+    #
+    # actions/checkout turns an unqualified ref into the wildcard refspecs
+    # +refs/heads/<ref>*:... and +refs/tags/<ref>*:..., and a wildcard matching
+    # nothing makes `git fetch` exit 1 while printing NOTHING. checkout then
+    # retries twice and the job dies 40 seconds later on a bare "The process
+    # '/usr/bin/git' failed with exit code 1", which says neither which repo it
+    # was talking to nor what was wrong. A mistyped git_ref
+    # (allow_cdn_drive_checkbox for allow-cdn-drive-checkbox, 2026-08-12) is
+    # indistinguishable from a revoked token in that log. Resolve the ref here
+    # instead, where we can name the repo, the ref and the near misses.
+    #
+    # Duplicated in build-kotlin-wasm rather than factored into a shared
+    # composite action: a nested `uses: ./...` inside a composite action
+    # resolves against GITHUB_WORKSPACE, not the action directory, so a shared
+    # action would have to hardcode the ./odin-core/ checkout path its callers
+    # happen to use.
+    - name: Check that the frontend ref exists
+      shell: bash
+      env:
+        # Read back as shell variables, never interpolated into the script
+        # text: git_ref is free text arriving in a job that holds
+        # DOTYOUCORE_LIB_TOKEN.
+        GIT_REF: ${{ inputs.git_ref }}
+        ODIN_LIB_TOKEN: ${{ inputs.odin_lib_token }}
+        REPO: homebase-id/odin-js
+      run: |
+        set -euo pipefail
+
+        # Empty means checkout takes the repo's default branch; nothing to check.
+        if [ -z "$GIT_REF" ]; then
+          echo "No ref given; checkout will use the default branch of ${REPO}."
+          exit 0
+        fi
+
+        # checkout treats a 40-char hex ref as a commit and fetches it directly,
+        # so there is no ref name for ls-remote to match. Anything shorter is
+        # not a commit to checkout either, so it still has to match a ref here.
+        if [[ "$GIT_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          echo "${GIT_REF} is a commit sha; leaving it to checkout."
+          exit 0
+        fi
+
+        # Feeds the token to git through GIT_ASKPASS so it stays out of argv and
+        # out of any git config left behind for later steps.
+        askpass="$(mktemp)"
+        err="$(mktemp)"
+        trap 'rm -f "$askpass" "$err"' EXIT
+        cat >"$askpass" <<'ASKPASS'
+        #!/usr/bin/env bash
+        case "$1" in
+          Username*) printf '%s\n' "x-access-token" ;;
+          *)         printf '%s\n' "$GIT_TOKEN" ;;
+        esac
+        ASKPASS
+        chmod 700 "$askpass"
+
+        if ! refs="$(GIT_ASKPASS="$askpass" GIT_TOKEN="$ODIN_LIB_TOKEN" GIT_TERMINAL_PROMPT=0 \
+            git ls-remote --heads --tags "https://github.com/${REPO}" 2>"$err")"; then
+          echo "::error::Cannot list the refs of ${REPO}. Check that DOTYOUCORE_LIB_TOKEN has not expired and still has read access."
+          cat "$err" >&2
+          exit 1
+        fi
+
+        names="$(printf '%s\n' "$refs" | sed -n 's#^[0-9a-f]*[[:space:]]*refs/\(heads\|tags\)/##p' | sed 's/\^{}$//' | sort -u)"
+
+        if printf '%s\n' "$names" | grep -qxF -- "$GIT_REF"; then
+          echo "${REPO}: ${GIT_REF} found."
+          exit 0
+        fi
+
+        echo "::error::${REPO} has no branch or tag named '${GIT_REF}'."
+        # Underscores typed for hyphens is the mistake this step exists to
+        # catch, so offer refs differing only in separators or case.
+        want="$(printf '%s' "$GIT_REF" | tr '[:upper:]' '[:lower:]' | tr -d '._/-')"
+        near=""
+        while IFS= read -r name; do
+          [ -n "$name" ] || continue
+          if [ "$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -d '._/-')" = "$want" ]; then
+            near="${near}${name}"$'\n'
+          fi
+        done <<<"$names"
+        if [ -n "$near" ]; then
+          echo "Did you mean:" >&2
+          printf '%s' "$near" | sed 's/^/  /' >&2
+        fi
+        exit 1
+
     - name: Setup Node
       uses: actions/setup-node@v4.0.2
       with:
