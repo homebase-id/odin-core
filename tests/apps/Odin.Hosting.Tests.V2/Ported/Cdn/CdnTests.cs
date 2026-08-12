@@ -129,7 +129,7 @@ public class CdnTests : V2Fixture
         var cdn = CdnSession.Setup(Host, Identities.Sam);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "secured drive", allowAnonymousReads: false);
+        await owner.Admin.CreateDrive(drive, "secured drive", allowAnonymousReads: false, allowCdn: true);
 
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Authenticated);
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
@@ -158,7 +158,7 @@ public class CdnTests : V2Fixture
         var cdn = CdnSession.Setup(Host, Identities.Sam);
 
         var drive = TargetDrive.NewTargetDrive();
-        await owner.Admin.CreateDrive(drive, "secured encrypted drive", allowAnonymousReads: false);
+        await owner.Admin.CreateDrive(drive, "secured encrypted drive", allowAnonymousReads: false, allowCdn: true);
 
         var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
         metadata.AppData.Content = "original content is here";
@@ -212,6 +212,139 @@ public class CdnTests : V2Fixture
     // -----------------------------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------------------------
+
+    //
+    // Denial. Everything above asserts the CDN *can* reach a drive; these assert it cannot.
+    // Before AllowCdn existed the CDN reached every drive unconditionally, so there was nothing
+    // to deny and no coverage for it - which means a regression that quietly re-enabled every
+    // drive would pass every other test in this file.
+    //
+
+    [Test]
+    public async Task CdnCannotReadPayloadOnDriveWithCdnDisabled()
+    {
+        var owner = await LoginAsOwner(Identities.Sam);
+        var cdn = CdnSession.Setup(Host, Identities.Sam);
+
+        // Secured, not anonymous. On an anonymous drive the payload is world-readable and the
+        // CDN's drive grant is never consulted, so AllowCdn would have nothing to gate - see
+        // CdnStillReadsAnonymousDriveEvenWithCdnDisabled below.
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "cdn toggle drive", allowAnonymousReads: false, allowCdn: true);
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Authenticated);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var file = await UploadFile(owner, drive, metadata, payload);
+
+        // Baseline: reachable while enabled, so the assertion below is about the flag and not
+        // about the upload or the drive being broken in some other way.
+        var before = await cdn.Drives.Reader.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
+        Assert.That(before.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {before.StatusCode}");
+
+        await owner.Admin.SetAllowCdn(drive, false);
+
+        var after = await cdn.Drives.Reader.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
+        Assert.That(after.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
+            "the CDN must lose access to a drive once AllowCdn is turned off");
+
+        // And back on again - the switch has to work in both directions.
+        await owner.Admin.SetAllowCdn(drive, true);
+        var again = await cdn.Drives.Reader.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
+        Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {again.StatusCode}");
+    }
+
+    [Test]
+    public async Task CdnSeesOnlyTheEnabledSubsetOfDrives()
+    {
+        var owner = await LoginAsOwner(Identities.Sam);
+        var cdn = CdnSession.Setup(Host, Identities.Sam);
+
+        // Three drives, middle one disabled. Guards the filter in GetCdnEnabledDrivesAsync:
+        // a predicate that ignored the flag, or inverted it, fails here.
+        var driveA = TargetDrive.NewTargetDrive();
+        var driveB = TargetDrive.NewTargetDrive();
+        var driveC = TargetDrive.NewTargetDrive();
+
+        var files = new List<(TargetDrive Drive, CreateFileResult File, TestPayloadDefinition Payload)>();
+        foreach (var (drive, name) in new[] { (driveA, "cdn a"), (driveB, "cdn b"), (driveC, "cdn c") })
+        {
+            await owner.Admin.CreateDrive(drive, name, allowAnonymousReads: false, allowCdn: true);
+            var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Authenticated);
+            var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+            files.Add((drive, await UploadFile(owner, drive, metadata, payload), payload));
+        }
+
+        await owner.Admin.SetAllowCdn(driveB, false);
+
+        foreach (var (drive, file, payload) in files)
+        {
+            var expected = drive == driveB ? "denied" : "allowed";
+            var resp = await cdn.Drives.Reader.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
+
+            if (drive == driveB)
+            {
+                Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden),
+                    $"drive B should be {expected}, got {resp.StatusCode}");
+            }
+            else
+            {
+                Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+                    $"drive should be {expected}, got {resp.StatusCode}");
+            }
+        }
+    }
+
+    [Test]
+    public async Task CdnStillReadsAnonymousDriveEvenWithCdnDisabled()
+    {
+        var owner = await LoginAsOwner(Identities.Sam);
+        var cdn = CdnSession.Setup(Host, Identities.Sam);
+
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "public drive", allowAnonymousReads: true);
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var file = await UploadFile(owner, drive, metadata, payload);
+
+        await owner.Admin.SetAllowCdn(drive, false);
+
+        // Documents a real limit of the flag rather than asserting desired behaviour: AllowCdn
+        // gates the CDN's *drive grant*, and an anonymous drive's payloads need no grant - they
+        // are readable by anyone on the internet, CDN or not. So unchecking the box on a public
+        // drive does not stop CDN reads. Not a hole (the content is already public), but it will
+        // surprise an owner who expects the checkbox to mean "never cache this".
+        var resp = await cdn.Drives.Reader.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK),
+            "an anonymous drive stays readable regardless of AllowCdn; change this test only if " +
+            "that behaviour is deliberately changed");
+    }
+
+    [Test]
+    public async Task CdnAuthFailsWhenNoDriveIsCdnEnabled()
+    {
+        var owner = await LoginAsOwner(Identities.Sam);
+        var cdn = CdnSession.Setup(Host, Identities.Sam);
+
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "last cdn drive", allowAnonymousReads: true, allowCdn: true);
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var file = await UploadFile(owner, drive, metadata, payload);
+
+        // System drives are CDN-enabled by default too, so emptying the set means turning every
+        // drive off. SetDriveAllowCdnAsync deliberately has no system-drive guard, which is what
+        // makes this reachable at all. Exercises the "no drives -> AuthHandlerResult.Fail()"
+        // branch in CdnAuthPathHandler.CreateAuthResult.
+        foreach (var d in await owner.Admin.GetDrives())
+        {
+            await owner.Admin.SetAllowCdn(d.TargetDriveInfo, false);
+        }
+
+        var resp = await cdn.Drives.Reader.GetPayloadAsync(file.DriveId, file.FileId, payload.Key);
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), $"actual {resp.StatusCode}");
+    }
 
     private static async Task<CreateFileResult> UploadFile(
         OwnerSession owner, TargetDrive drive, UploadFileMetadata metadata, TestPayloadDefinition payload)

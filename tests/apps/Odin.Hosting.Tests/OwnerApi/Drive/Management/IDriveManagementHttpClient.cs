@@ -33,6 +33,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.Management
 
         [Post(RootEndpoint + "/set-allow-subscriptions")]
         Task<ApiResponse<HttpContent>> SetAllowSubscriptions([Body] UpdateDriveAllowSubscriptionsRequest request);
+
+        [Post(RootEndpoint + "/set-allow-cdn")]
+        Task<ApiResponse<HttpContent>> SetAllowCdn([Body] UpdateDriveAllowCdnRequest request);
         
         
     }
