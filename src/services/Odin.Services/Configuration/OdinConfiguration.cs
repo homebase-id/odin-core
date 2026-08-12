@@ -618,7 +618,7 @@ public class OdinConfiguration
 
     public class CdnSection
     {
-        public bool Enabled { get; init; }
+        public bool Enabled { get; set; }
         public string PayloadBaseUrl { get; init; } = "";
 
         public ClientAuthenticationToken ExpectedAuthToken { get; init; } = new();

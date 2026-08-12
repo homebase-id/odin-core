@@ -143,6 +143,17 @@ public class DatabaseMigrationTests : IocTestBase
         sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         ClassicAssert.IsTrue(sqlVersion == latest.MigrationVersion);
 
+        // A row written after the migration must get a free rowId. CopyDataAsync carries rows across
+        // with their existing rowId values, which on Postgres does not advance the new table's
+        // sequence, so without a re-seed this insert collides with a copied row's primary key.
+        // Delete it again afterwards so the row counts still line up for the DownAsync check below.
+        var f4 = SequentialGuid.CreateGuid();
+        Assert.DoesNotThrowAsync(
+            async () => await metaIndex.TestAddEntryPassalongToUpsertAsync(driveId, f4, Guid.NewGuid(), 1, 1, s1, t1,
+                null, 42, new UnixTimeUtc(3000), 3, null, null, 1),
+            "Insert after migration failed; the migrated table's rowId sequence was not re-seeded");
+        await metaIndex.DeleteEntryAsync(driveId, f4);
+
         await latest.DownAsync(cn); // Rollback version 20250719 back to 0
         sqlVersion = await SqlHelper.GetTableVersionAsync(cn, "DriveMainIndex");
         ClassicAssert.IsTrue(sqlVersion == latest.PreviousVersion);
