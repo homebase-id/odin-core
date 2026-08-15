@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -173,9 +174,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             {
                 await _dnsRestClient.CreateCnameRecords(zoneId, name, record.Value + ".");
             }
-            else if (record.Type == "ALIAS")
+            else if (record.Type is "ALIAS" or "NS")
             {
-                // IGNORE
+                // IGNORE - ALIAS is an instruction for third-party DNS hosts only;
+                // NS entries describe delegation of own-domains and never apply to managed domains
             }
             else
             {
@@ -211,9 +213,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             {
                 await _dnsRestClient.DeleteCnameRecords(zoneId, name);
             }
-            else if (record.Type == "ALIAS")
+            else if (record.Type is "ALIAS" or "NS")
             {
-                // IGNORE
+                // IGNORE - see CreateManagedDomain
             }
             else
             {
@@ -263,6 +265,114 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
         await _registry.DeleteRegistration(domain);
+        await DeleteOwnDomainZone(domain);
+    }
+
+    //
+
+    /// <summary>
+    /// True when we can host DNS zones for own-domains: PowerDNS is configured and
+    /// our authoritative nameserver hostnames are known.
+    /// </summary>
+    public bool CanHostOwnDomainZones =>
+        !string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey) &&
+        _configuration.Registry.DnsConfigurationSet.NameServers.Count > 0;
+
+    //
+
+    /// <summary>
+    /// Pre-provisions the DNS zone for an own-domain (apex or subdomain alike) in our PowerDNS,
+    /// populated with the same records the user would otherwise create manually. The zone is
+    /// inert until the user delegates the domain to our nameservers (NS records at their DNS
+    /// host, or a registrar nameserver change for apex domains) - so it is always safe to
+    /// create, and the user can switch to delegation at any time. Idempotent.
+    /// </summary>
+    public async Task CreateOwnDomainZone(string domain)
+    {
+        AsciiDomainNameValidator.AssertValidDomain(domain);
+
+        if (!CanHostOwnDomainZones)
+        {
+            _logger.LogDebug("Skipping zone creation for {domain}: PowerDNS or nameservers not configured", domain);
+            return;
+        }
+
+        if (IsManagedDomain(domain))
+        {
+            throw new OdinSystemException($"{domain} is a managed domain; it has no own zone");
+        }
+
+        var dns = _configuration.Registry.DnsConfigurationSet;
+        var zoneId = domain + ".";
+
+        if (!await _dnsRestClient.ZoneExists(zoneId))
+        {
+            _logger.LogInformation("Creating zone {zone}", zoneId);
+            await _dnsRestClient.CreateZone(zoneId, dns.NameServers.Select(x => x + ".").ToArray(), dns.SoaAdminEmail);
+        }
+
+        // Populate (REPLACE semantics, so re-running converges on the correct records)
+        var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
+        foreach (var record in dnsConfig)
+        {
+            if (record.Type == "A")
+            {
+                await _dnsRestClient.CreateARecords(zoneId, record.Name, new[] { record.Value });
+            }
+            else if (record.Type == "CNAME")
+            {
+                await _dnsRestClient.CreateCnameRecords(zoneId, record.Name, record.Value + ".");
+            }
+            else if (record.Type is "ALIAS" or "NS")
+            {
+                // IGNORE - in our own zone the apex A record is authoritative (no ALIAS needed);
+                // the zone's NS records were created by CreateZone
+            }
+            else
+            {
+                // Sanity
+                throw new OdinSystemException($"Unsupported record: {record.Type}");
+            }
+        }
+
+        _logger.LogInformation("Created own-domain zone {zone}", zoneId);
+    }
+
+    //
+
+    /// <summary>
+    /// Best-effort removal of an own-domain's zone. Never throws: a DNS cleanup failure
+    /// must not block account deletion.
+    /// </summary>
+    public async Task DeleteOwnDomainZone(string domain)
+    {
+        if (!CanHostOwnDomainZones || IsManagedDomain(domain))
+        {
+            return;
+        }
+
+        var zoneId = domain + ".";
+        try
+        {
+            if (await _dnsRestClient.ZoneExists(zoneId))
+            {
+                await _dnsRestClient.DeleteZone(zoneId);
+                _logger.LogInformation("Deleted own-domain zone {zone}", zoneId);
+            }
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to delete own-domain zone {zone}; delete it manually", zoneId);
+        }
+    }
+
+    //
+
+    private bool IsManagedDomain(string domain)
+    {
+        return _configuration.Registry.ManagedDomainApexes.Exists(x =>
+            domain.Equals(x.Apex, StringComparison.OrdinalIgnoreCase) ||
+            domain.EndsWith("." + x.Apex, StringComparison.OrdinalIgnoreCase));
     }
 
     //

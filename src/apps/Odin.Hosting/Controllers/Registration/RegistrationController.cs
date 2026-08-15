@@ -208,6 +208,39 @@ public class RegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Pre-provisions the DNS zone for an own-domain on our nameservers so the user can
+    /// delegate to us (via NS records or a registrar nameserver change) instead of creating
+    /// individual DNS records. Always safe to call: the zone is inert until delegated,
+    /// idempotent on repeat, and a no-op when zone hosting is not configured.
+    /// </summary>
+    /// <returns></returns>
+    [HttpPost("create-own-domain-zone/{domain}")]
+    public async Task<IActionResult> CreateOwnDomainZone(
+        string domain,
+        [FromQuery(Name = "invitation-code")] string invitationCode)
+    {
+        domain = domain.Trim();
+        ValidateDomain(domain);
+
+        if (!await _regService.IsValidInvitationCode(invitationCode))
+        {
+            throw new BadRequestException(message: "Invalid or expired Invitation Code");
+        }
+
+        var available = await _regService.IsOwnDomainAvailable(domain);
+        if (!available)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status412PreconditionFailed,
+                title: "Domain name not available"
+            );
+        }
+
+        await _regService.CreateOwnDomainZone(domain);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Gets the status for the ongoing own domain registration
     /// </summary>
     /// <returns></returns>

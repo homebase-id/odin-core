@@ -7,6 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Services.Registry;
+using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Admin.Tenants.Jobs;
 #nullable enable
@@ -16,7 +17,10 @@ public class DeleteTenantJobData
     public string Domain { get; set; } = string.Empty;
 }
 
-public class DeleteTenantJob(ILogger<DeleteTenantJob> logger, IIdentityRegistry identityRegistry) : AbstractJob
+public class DeleteTenantJob(
+    ILogger<DeleteTenantJob> logger,
+    IIdentityRegistry identityRegistry,
+    IIdentityRegistrationService identityRegistrationService) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("324fa88f-2ef6-404a-a511-9ef65ea841af");
     public override string JobType => JobTypeId.ToString();
@@ -34,6 +38,7 @@ public class DeleteTenantJob(ILogger<DeleteTenantJob> logger, IIdentityRegistry 
         var sw = Stopwatch.StartNew();
         await identityRegistry.ToggleDisabled(Data.Domain, true);
         await identityRegistry.DeleteRegistration(Data.Domain);
+        await identityRegistrationService.DeleteOwnDomainZone(Data.Domain); // no-op for managed domains; never throws
         logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);
 
         return JobExecutionResult.Success();

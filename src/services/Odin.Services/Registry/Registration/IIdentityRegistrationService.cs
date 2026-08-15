@@ -59,6 +59,23 @@ public interface IIdentityRegistrationService
 
     public Task<bool> IsOwnDomainAvailable(string domain);
     public Task DeleteOwnDomain(string domain);
+
+    /// <summary>
+    /// True when we can host DNS zones for own-domains (PowerDNS + nameservers configured).
+    /// </summary>
+    bool CanHostOwnDomainZones { get; }
+
+    /// <summary>
+    /// Pre-provisions the DNS zone for an own-domain in our PowerDNS so the user can
+    /// delegate to our nameservers now or later. Idempotent; no-op when zone hosting
+    /// is not configured.
+    /// </summary>
+    Task CreateOwnDomainZone(string domain);
+
+    /// <summary>
+    /// Best-effort removal of an own-domain's zone. Never throws.
+    /// </summary>
+    Task DeleteOwnDomainZone(string domain);
     
     //
     // OldHelpers

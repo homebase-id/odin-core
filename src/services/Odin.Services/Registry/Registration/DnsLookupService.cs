@@ -114,6 +114,21 @@ public class DnsLookupService : IDnsLookupService
             Description = "FILE CNAME"
         });
 
+        // NS delegation (preferred alternative to the records above; we host the zone).
+        // Only offered when our authoritative nameservers are configured.
+        foreach (var nameServer in dns.NameServers)
+        {
+            result.Add(new DnsConfig
+            {
+                Type = "NS",
+                Name = "",
+                Domain = domain,
+                Value = nameServer,
+                AltValue = nameServer,
+                Description = "NS Record (delegates DNS for the domain to us)"
+            });
+        }
+
         return result;
     }
 
@@ -202,9 +217,18 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    private static bool AreDnsLookupsSuccessful(IReadOnlyCollection<DnsConfig> dnsConfigs)
+    // internal for testing
+    internal static bool AreDnsLookupsSuccessful(IReadOnlyCollection<DnsConfig> dnsConfigs)
     {
-        // Only one of records A or ALIAS need to be successful
+        // Delegated mode: the domain's DNS is delegated to our nameservers, which serve
+        // all required records from the zone we host. All NS entries must be successful.
+        var nsRecords = dnsConfigs.Where(x => x.Type == "NS").ToList();
+        if (nsRecords.Count > 0 && nsRecords.TrueForAll(x => x.Status == DnsLookupRecordStatus.Success))
+        {
+            return true;
+        }
+
+        // Manual mode: only one of records A or ALIAS need to be successful
         if (dnsConfigs.Count(x => (x.Type is "A" or "ALIAS") && x.Status == DnsLookupRecordStatus.Success) < 1)
         {
             return false;
@@ -323,6 +347,13 @@ public class DnsLookupService : IDnsLookupService
                     result = VerifyDnsValue(records, expectedValue, expectedAltValue);
                     break;
 
+                case "NS":
+                    recordType = QueryType.NS;
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
+                    records = response?.Answers.NsRecords().Select(x => x.NSDName.ToString()!.TrimEnd('.')).ToList() ?? [];
+                    result = VerifyNsValue(records, expectedValue);
+                    break;
+
                 default:
                     throw new OdinSystemException($"Record type not supported: {type}");
             }
@@ -343,6 +374,26 @@ public class DnsLookupService : IDnsLookupService
         }
 
         return (result, records);
+    }
+
+    //
+
+    // NS records are a set: more than one is expected (one per nameserver), so the
+    // single-record rule from VerifyDnsValue does not apply. Each configured nameserver
+    // is verified as "present in the set".
+    private static DnsLookupRecordStatus VerifyNsValue(
+        IReadOnlyCollection<string> records,
+        string expectedValue)
+    {
+        if (records.Count < 1)
+        {
+            return DnsLookupRecordStatus.DomainOrRecordNotFound;
+        }
+        if (records.Any(x => string.Equals(x, expectedValue, System.StringComparison.OrdinalIgnoreCase)))
+        {
+            return DnsLookupRecordStatus.Success;
+        }
+        return DnsLookupRecordStatus.IncorrectValue;
     }
 
     //

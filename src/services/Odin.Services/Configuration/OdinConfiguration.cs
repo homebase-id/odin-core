@@ -194,7 +194,9 @@ public class OdinConfiguration
             DnsConfigurationSet = new DnsConfigurationSet(
                 config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords")
                     .First(), // SEB:NOTE we currently only allow one A record
-                config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"));
+                config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"),
+                config.GetOrDefault("Registry:DnsRecordValues:NameServers", new List<string>()),
+                config.GetOrDefault("Registry:DnsRecordValues:SoaAdminEmail", ""));
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);
