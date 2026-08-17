@@ -68,9 +68,12 @@ public interface IIdentityRegistrationService
     /// <summary>
     /// Pre-provisions the DNS zone for an own-domain in our PowerDNS so the user can
     /// delegate to our nameservers now or later. Idempotent; no-op when zone hosting
-    /// is not configured.
+    /// is not configured. Requires proof of domain control (registered identity,
+    /// delegation to our nameservers at the parent, or valid manual DNS records) and
+    /// refuses domains inside zones we already host.
     /// </summary>
-    Task CreateOwnDomainZone(string domain);
+    /// <returns>true when the zone exists (created or already present); false when refused</returns>
+    Task<bool> CreateOwnDomainZone(string domain);
 
     /// <summary>
     /// Best-effort removal of an own-domain's zone. Never throws.

@@ -282,19 +282,27 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     /// <summary>
     /// Pre-provisions the DNS zone for an own-domain (apex or subdomain alike) in our PowerDNS,
-    /// populated with the same records the user would otherwise create manually. The zone is
-    /// inert until the user delegates the domain to our nameservers (NS records at their DNS
-    /// host, or a registrar nameserver change for apex domains) - so it is always safe to
-    /// create, and the user can switch to delegation at any time. Idempotent.
+    /// populated with the same records the user would otherwise create manually. Idempotent.
+    ///
+    /// Only creates the zone when control of the domain is proven: an identity is already
+    /// registered for it, OR the parent zone delegates it to our nameservers, OR its manual
+    /// DNS records validate. Without this gate anyone could claim a zone for a domain they
+    /// don't own - including subdomains of zones we host ourselves.
+    ///
+    /// Additionally refuses (defense in depth) any domain that falls inside a zone already
+    /// hosted in our PowerDNS: such a child zone would shadow that part of the parent zone
+    /// (e.g. a hostile demo.id.pub zone would hijack demo.id.pub away from our id.pub zone).
     /// </summary>
-    public async Task CreateOwnDomainZone(string domain)
+    /// <returns>true when the zone exists (created or already present); false when refused</returns>
+    public async Task<bool> CreateOwnDomainZone(string domain)
     {
+        domain = domain.Trim().ToLower();
         AsciiDomainNameValidator.AssertValidDomain(domain);
 
         if (!CanHostOwnDomainZones)
         {
             _logger.LogDebug("Skipping zone creation for {domain}: PowerDNS or nameservers not configured", domain);
-            return;
+            return false;
         }
 
         if (IsManagedDomain(domain))
@@ -304,6 +312,37 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         var dns = _configuration.Registry.DnsConfigurationSet;
         var zoneId = domain + ".";
+
+        // Never create a zone inside a zone we already host - it would shadow the parent
+        var existingZones = await _dnsRestClient.GetZones() ?? [];
+        foreach (var zone in existingZones)
+        {
+            var existingZoneId = zone.name.ToLower();
+            if (zoneId != existingZoneId && zoneId.EndsWith("." + existingZoneId, StringComparison.Ordinal))
+            {
+                _logger.LogWarning("Refusing zone {zone}: it would shadow part of hosted zone {existing}",
+                    zoneId, existingZoneId);
+                return false;
+            }
+        }
+
+        // Domain-control proof
+        var isRegistered = await _registry.GetAsync(domain) != null;
+        if (!isRegistered)
+        {
+            var delegatedToUs = await _dnsLookupService.IsDomainDelegatedToUsAsync(domain);
+            if (!delegatedToUs)
+            {
+                var (manualRecordsValid, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain);
+                if (!manualRecordsValid)
+                {
+                    _logger.LogInformation(
+                        "Not creating zone {zone} yet: no registered identity, no delegation to us, no valid records",
+                        zoneId);
+                    return false;
+                }
+            }
+        }
 
         if (!await _dnsRestClient.ZoneExists(zoneId))
         {
@@ -336,6 +375,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
 
         _logger.LogInformation("Created own-domain zone {zone}", zoneId);
+        return true;
     }
 
     //
@@ -398,6 +438,22 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         try
         {
             var firstRunToken = await _registry.AddRegistration(request);
+
+            // Ensure the domain's zone exists so the owner can switch to NS delegation
+            // later (no-op for managed domains and unconfigured hosts). Ownership is
+            // proven at this point: the registration exists and DNS validation passed.
+            // Best-effort - a DNS host hiccup must not fail the signup.
+            if (!IsManagedDomain(domain))
+            {
+                try
+                {
+                    await CreateOwnDomainZone(domain);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Failed to create zone for {domain}; run create-own-domain-zones to backfill", domain);
+                }
+            }
 
             // Queue background job to send email
             if (_configuration.Mailgun.Enabled)

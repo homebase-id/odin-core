@@ -34,6 +34,7 @@ public static class OwnDomainZones
         var tenants = await registry.GetTenants();
 
         var created = 0;
+        var refused = 0;
         var skipped = 0;
         var failed = 0;
         foreach (var tenant in tenants)
@@ -47,8 +48,17 @@ public static class OwnDomainZones
 
             try
             {
-                await regService.CreateOwnDomainZone(domain);
-                created++;
+                // Registered identities always pass the domain-control gate; a refusal here
+                // means the shadow guard hit (domain inside a zone we host)
+                if (await regService.CreateOwnDomainZone(domain))
+                {
+                    created++;
+                }
+                else
+                {
+                    refused++;
+                    Console.WriteLine($"REFUSED {domain} (see log)");
+                }
             }
             catch (Exception e)
             {
@@ -57,7 +67,7 @@ public static class OwnDomainZones
             }
         }
 
-        Console.WriteLine($"Done. Zones ensured: {created}, managed domains skipped: {skipped}, failed: {failed}");
+        Console.WriteLine($"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, failed: {failed}");
     }
 
     //

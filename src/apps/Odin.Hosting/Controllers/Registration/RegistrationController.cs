@@ -210,8 +210,10 @@ public class RegistrationController : ControllerBase
     /// <summary>
     /// Pre-provisions the DNS zone for an own-domain on our nameservers so the user can
     /// delegate to us (via NS records or a registrar nameserver change) instead of creating
-    /// individual DNS records. Always safe to call: the zone is inert until delegated,
-    /// idempotent on repeat, and a no-op when zone hosting is not configured.
+    /// individual DNS records. The zone is only created once control of the domain is
+    /// proven (delegation to our nameservers at the parent, or valid manual records) -
+    /// call it before each DNS status poll; it is idempotent and returns created=false
+    /// until the proof appears. No-op when zone hosting is not configured.
     /// </summary>
     /// <returns></returns>
     [HttpPost("create-own-domain-zone/{domain}")]
@@ -236,8 +238,8 @@ public class RegistrationController : ControllerBase
             );
         }
 
-        await _regService.CreateOwnDomainZone(domain);
-        return NoContent();
+        var created = await _regService.CreateOwnDomainZone(domain);
+        return new JsonResult(new { created });
     }
 
     /// <summary>

@@ -139,6 +139,60 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
+    public async Task<bool> IsDomainDelegatedToUsAsync(string domain, CancellationToken cancellationToken = default)
+    {
+        domain = domain.Trim().ToLower();
+        AsciiDomainNameValidator.AssertValidDomain(domain);
+
+        var ourNameServers = _configuration.Registry.DnsConfigurationSet.NameServers;
+        if (ourNameServers.Count == 0)
+        {
+            return false;
+        }
+
+        // The delegation records for a domain live in the PARENT zone, so ask the parent's
+        // authority. This deliberately does not query our own nameservers: it must work
+        // before our zone exists, and it must reflect what the domain owner configured.
+        var idx = domain.IndexOf('.');
+        if (idx < 0)
+        {
+            return false;
+        }
+        var parent = domain[(idx + 1)..];
+
+        var authority = await _authoritativeDnsLookup.LookupDomainAuthorityAsync(parent, cancellationToken);
+        if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
+        {
+            return false;
+        }
+
+        var options = new DnsQueryOptions
+        {
+            Recursion = false,
+            UseCache = false,
+        };
+        var response = await _dnsClient.Query(
+            authority.NameServers, domain, QueryType.NS, options, _logger, cancellationToken: cancellationToken);
+
+        // Delegation NS records come back as a referral (Authority section) or, if the
+        // parent's server is also authoritative for the child, as answers
+        var nsNames = (response?.Answers.NsRecords() ?? [])
+            .Concat(response?.Authorities.NsRecords() ?? [])
+            .Select(x => x.NSDName.ToString()!.TrimEnd('.').ToLower())
+            .Distinct()
+            .ToList();
+
+        // Delegated to us = a delegation exists and every nameserver in it is one of ours
+        var result = nsNames.Count > 0 && nsNames.TrueForAll(ns => ourNameServers.Contains(ns));
+
+        _logger.LogDebug("Delegation check {domain}: parent authority {authority}, NS [{ns}] => {result}",
+            domain, authority.AuthoritativeNameServer, string.Join(',', nsNames), result);
+
+        return result;
+    }
+
+    //
+
     public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(string domain, CancellationToken cancellationToken = default)
     {
         AsciiDomainNameValidator.AssertValidDomain(domain);
