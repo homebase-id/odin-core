@@ -301,8 +301,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     /// hosted in our PowerDNS: such a child zone would shadow that part of the parent zone
     /// (e.g. a hostile demo.id.pub zone would hijack demo.id.pub away from our id.pub zone).
     /// </summary>
-    /// <returns>true when the zone exists (created or already present); false when refused</returns>
-    public async Task<bool> CreateOwnDomainZone(string domain)
+    public async Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(string domain, CancellationToken cancellationToken = default)
     {
         domain = domain.Trim().ToLower();
         AsciiDomainNameValidator.AssertValidDomain(domain);
@@ -310,7 +309,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         if (!CanHostOwnDomainZones)
         {
             _logger.LogDebug("Skipping zone creation for {domain}: PowerDNS or nameservers not configured", domain);
-            return false;
+            return CreateOwnDomainZoneResult.NotConfigured;
         }
 
         if (IsManagedDomain(domain))
@@ -321,34 +320,35 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var dns = _configuration.Registry.DnsConfigurationSet;
         var zoneId = domain + ".";
 
-        // Never create a zone inside a zone we already host - it would shadow the parent
-        var existingZones = await _dnsRestClient.GetZones() ?? [];
-        foreach (var zone in existingZones)
-        {
-            var existingZoneId = zone.name.ToLower();
-            if (zoneId != existingZoneId && zoneId.EndsWith("." + existingZoneId, StringComparison.Ordinal))
-            {
-                _logger.LogWarning("Refusing zone {zone}: it would shadow part of hosted zone {existing}",
-                    zoneId, existingZoneId);
-                return false;
-            }
-        }
-
-        // Domain-control proof
+        // Domain-control proof first: it is the cheap-to-fail gate on an anonymous endpoint
         var isRegistered = await _registry.GetAsync(domain) != null;
         if (!isRegistered)
         {
-            var delegatedToUs = await _dnsLookupService.IsDomainDelegatedToUsAsync(domain);
+            var delegatedToUs = await _dnsLookupService.IsDomainDelegatedToUsAsync(domain, cancellationToken);
             if (!delegatedToUs)
             {
-                var (manualRecordsValid, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain);
+                var (manualRecordsValid, _) =
+                    await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
                 if (!manualRecordsValid)
                 {
                     _logger.LogInformation(
                         "Not creating zone {zone} yet: no registered identity, no delegation to us, no valid records",
                         zoneId);
-                    return false;
+                    return CreateOwnDomainZoneResult.ControlNotProven;
                 }
+            }
+        }
+
+        // Never create a zone inside a zone we already host - it would shadow the parent.
+        // Checked via the domain's ancestor suffixes (a handful of ZoneExists lookups)
+        // rather than listing every hosted zone.
+        for (var ancestor = ParentDomain(domain); ancestor != null && ancestor.Contains('.'); ancestor = ParentDomain(ancestor))
+        {
+            if (await _dnsRestClient.ZoneExists(ancestor + "."))
+            {
+                _logger.LogWarning("Refusing zone {zone}: it would shadow part of hosted zone {existing}",
+                    zoneId, ancestor + ".");
+                return CreateOwnDomainZoneResult.ShadowsHostedZone;
             }
         }
 
@@ -383,7 +383,15 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
 
         _logger.LogInformation("Created own-domain zone {zone}", zoneId);
-        return true;
+        return CreateOwnDomainZoneResult.Created;
+    }
+
+    //
+
+    private static string? ParentDomain(string domain)
+    {
+        var idx = domain.IndexOf('.');
+        return idx < 0 ? null : domain[(idx + 1)..];
     }
 
     //
@@ -399,8 +407,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             domain = domain.Trim().ToLower();
 
-            var apex = _configuration.Registry.ManagedDomainApexes
-                .Find(x => domain.EndsWith("." + x.Apex, StringComparison.OrdinalIgnoreCase))?.Apex;
+            var apex = FindManagedApex(domain);
             if (apex == null)
             {
                 await DeleteOwnDomainZone(domain);
@@ -467,9 +474,18 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     private bool IsManagedDomain(string domain)
     {
-        return _configuration.Registry.ManagedDomainApexes.Exists(x =>
-            domain.Equals(x.Apex, StringComparison.OrdinalIgnoreCase) ||
-            domain.EndsWith("." + x.Apex, StringComparison.OrdinalIgnoreCase));
+        return FindManagedApex(domain) != null || _configuration.Registry.ManagedDomainApexes
+            .Exists(x => domain.Equals(x.Apex, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Longest-suffix match so nested apexes (e.g. id.pub and dev.id.pub) resolve to the
+    // most specific zone
+    private string? FindManagedApex(string domain)
+    {
+        return _configuration.Registry.ManagedDomainApexes
+            .Where(x => domain.EndsWith("." + x.Apex, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.Apex.Length)
+            .FirstOrDefault()?.Apex;
     }
 
     //
@@ -538,6 +554,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         catch (Exception)
         {
             await _registry.DeleteRegistration(domain);
+            // The zone may have been created above (or earlier during DNS validation);
+            // without a registration nothing else reclaims it (there is no prune sweep)
+            await DeleteOwnDomainZone(domain);
             throw;
         }
     }

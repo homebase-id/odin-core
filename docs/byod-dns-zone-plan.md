@@ -48,8 +48,8 @@ No TXT/MX/SRV support yet — that's the future email phase.
 
 ### 4. Delegation detection (`DnsLookupService`)
 - `GetDnsConfiguration`: append one `DnsConfig` entry per configured nameserver — `Type = "NS"`, `Name = ""`, `Value = ns host`. Today's frontend ignores unknown types safely (it filters by type/name), but mind the `"Frontend depends on this class layout"` note on `DnsConfig.cs` — additive entries only, no field changes.
-- `VerifyDnsRecordAsync`: handle `QueryType.NS` — success when the domain's NS rrset (queried at the discovered authority, same as other records) contains that entry's `Value` (normalize case + trailing dot). The `MultipleRecordsNotSupported` rule must not apply to NS (two+ records are expected).
-- `AreDnsLookupsSuccessful`: success = **all NS entries Success** (delegated mode) **OR** the existing rule (manual mode). This makes `own-domain-dns-status` naturally report "delegated" via per-record statuses.
+- NS entries are verified against the **parent zone's delegation records** (not the child's authority, which — once delegated — is our own zone echoing our own NS rrset): Success only when the delegation exists and consists exclusively of our nameservers; a mixed set (ours + a stale third party) is `IncorrectValue`. (Revised after review: the original child-authority "contains" check let partial delegations validate green.)
+- `AreDnsLookupsSuccessful` is **unchanged from main** — the record rules (A/ALIAS + all CNAMEs) always decide. NS entries are informational for the UI only: a delegated domain passes because our populated zone serves the records, and a delegated-but-empty zone (record population failed) correctly does not pass. (Revised after review: an earlier NS-only short-circuit skipped the record invariants.)
 
 ### 5. CLI backfill (`src/apps/Odin.Hosting/Cli/Commands/`)
 - New command (e.g. `create-own-domain-zones`): iterate `IIdentityRegistry` registrations, skip domains under `ManagedDomainApexes`, call `CreateOwnDomainZoneAsync` for each; report created/existing/refused/failed. Re-runnable.

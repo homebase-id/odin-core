@@ -237,8 +237,9 @@ public class IdentityRegistrationServiceTest
         var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting(configured: false));
 
         Assert.That(registration.CanHostOwnDomainZones, Is.False);
-        await registration.CreateOwnDomainZone("frodo.example.com");
+        var result = await registration.CreateOwnDomainZone("frodo.example.com");
 
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.NotConfigured));
         _dnsRestClient.VerifyNoOtherCalls();
         _dnsRestClient.Invocations.Clear();
     }
@@ -248,14 +249,14 @@ public class IdentityRegistrationServiceTest
     {
         _dnsRestClient.Invocations.Clear();
         _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(false);
-        _dnsRestClient.Setup(c => c.GetZones()).ReturnsAsync(new List<Odin.Services.Dns.PowerDns.Zone>());
         // Domain-control proof: an identity is registered for the domain
         _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync(new IdentityRegistration());
 
         var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
 
         Assert.That(registration.CanHostOwnDomainZones, Is.True);
-        await registration.CreateOwnDomainZone("frodo.example.com");
+        var result = await registration.CreateOwnDomainZone("frodo.example.com");
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.Created));
 
         _dnsRestClient.Verify(c => c.CreateZone(
             "frodo.example.com.",
@@ -276,11 +277,11 @@ public class IdentityRegistrationServiceTest
     {
         _dnsRestClient.Invocations.Clear();
         _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
-        _dnsRestClient.Setup(c => c.GetZones()).ReturnsAsync(new List<Odin.Services.Dns.PowerDns.Zone>());
         _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync(new IdentityRegistration());
 
         var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
-        await registration.CreateOwnDomainZone("frodo.example.com");
+        var result = await registration.CreateOwnDomainZone("frodo.example.com");
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.Created));
 
         _dnsRestClient.Verify(c => c.CreateZone(
             It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);
@@ -321,14 +322,13 @@ public class IdentityRegistrationServiceTest
         // demo.id.pub must never become its own zone while we host id.pub: the child
         // zone would shadow that part of the parent. Registration state is irrelevant.
         _dnsRestClient.Invocations.Clear();
-        _dnsRestClient.Setup(c => c.GetZones()).ReturnsAsync(
-            new List<Odin.Services.Dns.PowerDns.Zone> { new() { name = "id.pub." } });
+        _dnsRestClient.Setup(c => c.ZoneExists("id.pub.")).ReturnsAsync(true);
         _registry.Setup(r => r.GetAsync("demo.id.pub")).ReturnsAsync(new IdentityRegistration());
 
         var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
-        var created = await registration.CreateOwnDomainZone("demo.id.pub");
+        var result = await registration.CreateOwnDomainZone("demo.id.pub");
 
-        Assert.That(created, Is.False);
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.ShadowsHostedZone));
         _dnsRestClient.Verify(c => c.CreateZone(
             It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);
         _dnsRestClient.Verify(c => c.CreateARecords(
@@ -340,13 +340,12 @@ public class IdentityRegistrationServiceTest
     public async Task ItShouldRefuseZoneCreationWhenDomainControlIsNotProven()
     {
         _dnsRestClient.Invocations.Clear();
-        _dnsRestClient.Setup(c => c.GetZones()).ReturnsAsync(new List<Odin.Services.Dns.PowerDns.Zone>());
         _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync((IdentityRegistration?)null!);
 
         var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
-        var created = await registration.CreateOwnDomainZone("frodo.example.com");
+        var result = await registration.CreateOwnDomainZone("frodo.example.com");
 
-        Assert.That(created, Is.False,
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.ControlNotProven),
             "no registration, no delegation to our nameservers, no valid records -> refused");
         _dnsRestClient.Verify(c => c.CreateZone(
             It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);

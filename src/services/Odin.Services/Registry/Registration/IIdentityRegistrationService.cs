@@ -6,6 +6,21 @@ using Odin.Services.Configuration;
 
 namespace Odin.Services.Registry.Registration;
 
+public enum CreateOwnDomainZoneResult
+{
+    /// <summary>The zone exists: created now or already present</summary>
+    Created,
+
+    /// <summary>Zone hosting is not configured on this deployment (permanent)</summary>
+    NotConfigured,
+
+    /// <summary>The domain lies inside a zone we already host; a child zone would shadow it (permanent)</summary>
+    ShadowsHostedZone,
+
+    /// <summary>No proof of domain control yet - retry after DNS setup (transient)</summary>
+    ControlNotProven,
+}
+
 /// <summary>
 /// Handles registration of a new domain identities; including creating SSL certificates.
 /// </summary>
@@ -72,8 +87,7 @@ public interface IIdentityRegistrationService
     /// delegation to our nameservers at the parent, or valid manual DNS records) and
     /// refuses domains inside zones we already host.
     /// </summary>
-    /// <returns>true when the zone exists (created or already present); false when refused</returns>
-    Task<bool> CreateOwnDomainZone(string domain);
+    Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(string domain, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Best-effort removal of an own-domain's zone. Never throws.

@@ -115,12 +115,11 @@ public class DnsLookupService : IDnsLookupService
         });
 
         // NS delegation (preferred alternative to the records above; we host the zone).
-        // Only offered when this deployment can actually host zones: nameservers are
-        // configured AND PowerDNS is available. Without the PowerDNS gate, a self-hosted
-        // instance would instruct its users to delegate to nameservers that will never
-        // serve their zone (NameServers has a default value pointing at our infrastructure).
+        // Only offered when this deployment can actually host zones (nameservers configured
+        // AND PowerDNS available), and never for managed domains - those live as records in
+        // the shared apex zone and must not be delegated anywhere.
         var canHostZones = !string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey);
-        var nameServers = canHostZones ? dns.NameServers : [];
+        var nameServers = canHostZones && !IsUnderManagedApex(domain) ? dns.NameServers : [];
         foreach (var nameServer in nameServers)
         {
             result.Add(new DnsConfig
@@ -141,29 +140,49 @@ public class DnsLookupService : IDnsLookupService
 
     public async Task<bool> IsDomainDelegatedToUsAsync(string domain, CancellationToken cancellationToken = default)
     {
-        domain = domain.Trim().ToLower();
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
         var ourNameServers = _configuration.Registry.DnsConfigurationSet.NameServers;
         if (ourNameServers.Count == 0)
         {
             return false;
         }
 
-        // The delegation records for a domain live in the PARENT zone, so ask the parent's
-        // authority. This deliberately does not query our own nameservers: it must work
-        // before our zone exists, and it must reflect what the domain owner configured.
+        var nsNames = await GetParentDelegationNameServersAsync(domain, cancellationToken);
+
+        // Delegated to us = a delegation exists and every nameserver in it is one of ours.
+        // A mixed set (ours plus a stale third party) is NOT delegated: part of real
+        // resolver traffic would be referred to a server that does not serve the zone.
+        var result = nsNames.Count > 0 && nsNames.TrueForAll(ns => ourNameServers.Contains(ns));
+
+        _logger.LogDebug("Delegation check {domain}: NS [{ns}] => {result}",
+            domain, string.Join(',', nsNames), result);
+
+        return result;
+    }
+
+    //
+
+    /// <summary>
+    /// The NS names the PARENT zone delegates the domain to (empty when no delegation).
+    /// Deliberately never queries our own nameservers: it must work before our zone exists,
+    /// and it must reflect what the domain owner actually configured at their DNS host -
+    /// asking the child's authority would just echo our own zone's NS rrset.
+    /// </summary>
+    private async Task<List<string>> GetParentDelegationNameServersAsync(string domain, CancellationToken cancellationToken)
+    {
+        domain = domain.Trim().ToLower();
+        AsciiDomainNameValidator.AssertValidDomain(domain);
+
         var idx = domain.IndexOf('.');
         if (idx < 0)
         {
-            return false;
+            return [];
         }
         var parent = domain[(idx + 1)..];
 
         var authority = await _authoritativeDnsLookup.LookupDomainAuthorityAsync(parent, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
         {
-            return false;
+            return [];
         }
 
         var options = new DnsQueryOptions
@@ -176,19 +195,11 @@ public class DnsLookupService : IDnsLookupService
 
         // Delegation NS records come back as a referral (Authority section) or, if the
         // parent's server is also authoritative for the child, as answers
-        var nsNames = (response?.Answers.NsRecords() ?? [])
+        return (response?.Answers.NsRecords() ?? [])
             .Concat(response?.Authorities.NsRecords() ?? [])
             .Select(x => x.NSDName.ToString()!.TrimEnd('.').ToLower())
             .Distinct()
             .ToList();
-
-        // Delegated to us = a delegation exists and every nameserver in it is one of ours
-        var result = nsNames.Count > 0 && nsNames.TrueForAll(ns => ourNameServers.Contains(ns));
-
-        _logger.LogDebug("Delegation check {domain}: parent authority {authority}, NS [{ns}] => {result}",
-            domain, authority.AuthoritativeNameServer, string.Join(',', nsNames), result);
-
-        return result;
     }
 
     //
@@ -208,12 +219,37 @@ public class DnsLookupService : IDnsLookupService
             return (false, dnsConfigs);
         }
 
+        // NS entries are verified against the PARENT's delegation records - the child's
+        // authority (once delegated, our own zone) would just echo our own NS rrset and a
+        // stale extra nameserver in the delegation would go unnoticed.
+        var nsEntries = dnsConfigs.Where(x => x.Type == "NS").ToList();
+        if (nsEntries.Count > 0)
+        {
+            var ourNameServers = _configuration.Registry.DnsConfigurationSet.NameServers;
+            var delegationNs = await GetParentDelegationNameServersAsync(domain, cancellationToken);
+            var allOurs = delegationNs.Count > 0 && delegationNs.TrueForAll(ns => ourNameServers.Contains(ns));
+            foreach (var entry in nsEntries)
+            {
+                var status =
+                    delegationNs.Count == 0 || !delegationNs.Contains(entry.Value)
+                        ? DnsLookupRecordStatus.DomainOrRecordNotFound
+                        : allOurs
+                            ? DnsLookupRecordStatus.Success
+                            // Our NS is present but a foreign one is too - the delegation is wrong
+                            : DnsLookupRecordStatus.IncorrectValue;
+
+                entry.QueryResults["delegation"] = status;
+                entry.Records["delegation"] = delegationNs.ToArray();
+                entry.Status = status;
+            }
+        }
+
         var queryOptions = new DnsQueryOptions
         {
             Recursion = false,
             UseCache = false,
         };
-        foreach (var record in dnsConfigs)
+        foreach (var record in dnsConfigs.Where(x => x.Type != "NS"))
         {
             var (recordStatus, records) = await VerifyDnsRecordAsync(
                 authority.NameServers,
@@ -249,7 +285,10 @@ public class DnsLookupService : IDnsLookupService
         };
         foreach (var resolver in resolvers)
         {
-            foreach (var record in dnsConfigs)
+            // NS entries are excluded: delegation is checked authoritatively at the parent
+            // (GetAuthoritativeDomainDnsStatusAsync); recursive resolvers would just return
+            // the child zone's own NS rrset
+            foreach (var record in dnsConfigs.Where(x => x.Type != "NS"))
             {
                 var (recordStatus, records) = await VerifyDnsRecordAsync(
                     new [] {resolver},
@@ -279,15 +318,13 @@ public class DnsLookupService : IDnsLookupService
     // internal for testing
     internal static bool AreDnsLookupsSuccessful(IReadOnlyCollection<DnsConfig> dnsConfigs)
     {
-        // Delegated mode: the domain's DNS is delegated to our nameservers, which serve
-        // all required records from the zone we host. All NS entries must be successful.
-        var nsRecords = dnsConfigs.Where(x => x.Type == "NS").ToList();
-        if (nsRecords.Count > 0 && nsRecords.TrueForAll(x => x.Status == DnsLookupRecordStatus.Success))
-        {
-            return true;
-        }
+        // NS entries are deliberately NOT part of the success rule: they exist so the UI can
+        // show delegation status. Success always requires the actual records to resolve -
+        // in delegated mode they are served by the zone we host, so a delegated domain only
+        // passes once its zone exists AND is populated. Delegation alone (NS rrset present,
+        // records missing) must not validate: certificates and the identity need the records.
 
-        // Manual mode: only one of records A or ALIAS need to be successful
+        // Only one of records A or ALIAS need to be successful
         if (dnsConfigs.Count(x => (x.Type is "A" or "ALIAS") && x.Status == DnsLookupRecordStatus.Success) < 1)
         {
             return false;
@@ -406,13 +443,6 @@ public class DnsLookupService : IDnsLookupService
                     result = VerifyDnsValue(records, expectedValue, expectedAltValue);
                     break;
 
-                case "NS":
-                    recordType = QueryType.NS;
-                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
-                    records = response?.Answers.NsRecords().Select(x => x.NSDName.ToString()!.TrimEnd('.')).ToList() ?? [];
-                    result = VerifyNsValue(records, expectedValue);
-                    break;
-
                 default:
                     throw new OdinSystemException($"Record type not supported: {type}");
             }
@@ -437,22 +467,11 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    // NS records are a set: more than one is expected (one per nameserver), so the
-    // single-record rule from VerifyDnsValue does not apply. Each configured nameserver
-    // is verified as "present in the set".
-    private static DnsLookupRecordStatus VerifyNsValue(
-        IReadOnlyCollection<string> records,
-        string expectedValue)
+    private bool IsUnderManagedApex(string domain)
     {
-        if (records.Count < 1)
-        {
-            return DnsLookupRecordStatus.DomainOrRecordNotFound;
-        }
-        if (records.Any(x => string.Equals(x, expectedValue, System.StringComparison.OrdinalIgnoreCase)))
-        {
-            return DnsLookupRecordStatus.Success;
-        }
-        return DnsLookupRecordStatus.IncorrectValue;
+        return _configuration.Registry.ManagedDomainApexes.Exists(x =>
+            domain.Equals(x.Apex, System.StringComparison.OrdinalIgnoreCase) ||
+            domain.EndsWith("." + x.Apex, System.StringComparison.OrdinalIgnoreCase));
     }
 
     //

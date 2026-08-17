@@ -238,8 +238,14 @@ public class RegistrationController : ControllerBase
             );
         }
 
-        var created = await _regService.CreateOwnDomainZone(domain);
-        return new JsonResult(new { created });
+        var result = await _regService.CreateOwnDomainZone(domain, HttpContext.RequestAborted);
+        return new JsonResult(new
+        {
+            created = result == CreateOwnDomainZoneResult.Created,
+            // camelCase reason so the frontend can distinguish transient (controlNotProven)
+            // from permanent (shadowsHostedZone, notConfigured) refusals
+            reason = char.ToLowerInvariant(result.ToString()[0]) + result.ToString()[1..],
+        });
     }
 
     /// <summary>

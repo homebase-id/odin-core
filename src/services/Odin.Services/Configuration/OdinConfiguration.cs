@@ -195,9 +195,11 @@ public class OdinConfiguration
                 config.Required<List<string>>("Registry:DnsRecordValues:ApexARecords")
                     .First(), // SEB:NOTE we currently only allow one A record
                 config.Required<string>("Registry:DnsRecordValues:ApexAliasRecord"),
-                config.GetOrDefault("Registry:DnsRecordValues:NameServers",
-                    new List<string> { "ns1.id.pub", "ns2.id.pub" }),
-                config.GetOrDefault("Registry:DnsRecordValues:SoaAdminEmail", "admin@id.pub"));
+                // Deliberately no default nameservers: a deployment that runs its own PowerDNS
+                // but doesn't configure NameServers must NOT instruct its users to delegate to
+                // somebody else's infrastructure. NS delegation is opt-in via config.
+                config.GetOrDefault("Registry:DnsRecordValues:NameServers", new List<string>()),
+                config.GetOrDefault("Registry:DnsRecordValues:SoaAdminEmail", ""));
             InvitationCodes = config.GetOrDefault("Registry:InvitationCodes", InvitationCodes);
             InvitationCodesWithoutPublicWebPresence = config.GetOrDefault(
                 "Registry:InvitationCodesWithoutPublicWebPresence", InvitationCodesWithoutPublicWebPresence);

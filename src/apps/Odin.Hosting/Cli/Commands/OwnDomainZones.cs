@@ -20,15 +20,21 @@ public static class OwnDomainZones
 {
     public static async Task CreateAsync(IServiceProvider services)
     {
-        var regService = services.GetRequiredService<IIdentityRegistrationService>();
-        if (!regService.CanHostOwnDomainZones)
+        // Check config BEFORE resolving IIdentityRegistrationService: resolving it eagerly
+        // constructs the PowerDNS client, whose Uri throws on an empty host address - the
+        // very configuration this guard exists to handle gracefully
+        var config = services.GetRequiredService<OdinConfiguration>();
+        if (string.IsNullOrEmpty(config.Registry.PowerDnsApiKey) ||
+            config.Registry.DnsConfigurationSet.NameServers.Count == 0 ||
+            string.IsNullOrEmpty(config.Registry.PowerDnsHostAddress))
         {
-            Console.WriteLine("Zone hosting is not configured (Registry:PowerDnsApiKey and/or " +
-                              "Registry:DnsRecordValues:NameServers missing). Nothing to do.");
+            Console.WriteLine("Zone hosting is not configured (Registry:PowerDnsApiKey, " +
+                              "Registry:PowerDnsHostAddress and/or Registry:DnsRecordValues:NameServers " +
+                              "missing). Nothing to do.");
             return;
         }
 
-        var config = services.GetRequiredService<OdinConfiguration>();
+        var regService = services.GetRequiredService<IIdentityRegistrationService>();
         var registry = services.GetRequiredService<IIdentityRegistry>();
         await registry.LoadRegistrations();
         var tenants = await registry.GetTenants();
@@ -50,14 +56,15 @@ public static class OwnDomainZones
             {
                 // Registered identities always pass the domain-control gate; a refusal here
                 // means the shadow guard hit (domain inside a zone we host)
-                if (await regService.CreateOwnDomainZone(domain))
+                var result = await regService.CreateOwnDomainZone(domain);
+                if (result == CreateOwnDomainZoneResult.Created)
                 {
                     created++;
                 }
                 else
                 {
                     refused++;
-                    Console.WriteLine($"REFUSED {domain} (see log)");
+                    Console.WriteLine($"REFUSED {domain}: {result}");
                 }
             }
             catch (Exception e)

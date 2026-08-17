@@ -30,6 +30,7 @@ public class DnsLookupServiceTest
             {
                 DnsConfigurationSet = dnsConfigurationSet,
                 PowerDnsApiKey = powerDnsApiKey,
+                ManagedDomainApexes = [new() { Apex = "demo.rocks", PrefixLabels = ["First", "Surname"] }],
             }
         };
     }
@@ -69,6 +70,23 @@ public class DnsLookupServiceTest
     //
 
     [Test]
+    public void ItShouldNotIncludeNsRecordsForManagedDomains()
+    {
+        // Managed domains live as records inside the shared apex zone; delegating one
+        // anywhere is never valid, so no NS instructions for them
+        var configuration = ConfigurationWithDns(new DnsConfigurationSet(
+            "131.164.170.62", "identity-host.example",
+            ["ns1.example", "ns2.example"], "admin@example.com"));
+        var service = CreateDnsLookupService(configuration);
+
+        var dnsConfig = service.GetDnsConfiguration("frodo.baggins.demo.rocks");
+
+        Assert.That(dnsConfig.Any(x => x.Type == "NS"), Is.False);
+    }
+
+    //
+
+    [Test]
     public void ItShouldIncludeOneNsRecordPerConfiguredNameServer()
     {
         var configuration = ConfigurationWithDns(new DnsConfigurationSet(
@@ -95,11 +113,12 @@ public class DnsLookupServiceTest
     }
 
     [Test]
-    public void ItShouldSucceedWhenAllNsRecordsAreSuccessfulRegardlessOfOtherRecords()
+    public void ItShouldRequireActualRecordsEvenWhenDelegationIsComplete()
     {
-        // Delegated mode: our nameservers serve everything; the individual record
-        // checks may point wherever they like (e.g. still unresolved ALIAS)
-        var dnsConfigs = new List<DnsConfig>
+        // NS entries are informational: delegation alone (zone exists, records missing -
+        // e.g. record population failed after CreateZone) must NOT validate, because the
+        // identity and certificate issuance need the records themselves
+        var delegatedButEmptyZone = new List<DnsConfig>
         {
             Record("A", DnsLookupRecordStatus.DomainOrRecordNotFound),
             Record("ALIAS", DnsLookupRecordStatus.DomainOrRecordNotFound),
@@ -107,24 +126,32 @@ public class DnsLookupServiceTest
             Record("NS", DnsLookupRecordStatus.Success),
             Record("NS", DnsLookupRecordStatus.Success),
         };
-
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(dnsConfigs), Is.True);
+        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(delegatedButEmptyZone), Is.False);
     }
 
     [Test]
-    public void ItShouldFallBackToManualRuleWhenNsRecordsAreNotAllSuccessful()
+    public void ItShouldIgnoreNsStatusesInTheSuccessRule()
     {
-        // One NS missing -> not delegated; manual records decide
-        var delegatedButIncomplete = new List<DnsConfig>
+        // Records all good, NS incomplete (manual-records user) -> success
+        var manualUser = new List<DnsConfig>
         {
             Record("A", DnsLookupRecordStatus.Success),
             Record("CNAME", DnsLookupRecordStatus.Success),
             Record("CNAME", DnsLookupRecordStatus.Success),
-            Record("NS", DnsLookupRecordStatus.Success),
+            Record("NS", DnsLookupRecordStatus.DomainOrRecordNotFound),
             Record("NS", DnsLookupRecordStatus.DomainOrRecordNotFound),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(delegatedButIncomplete), Is.True,
-            "manual records are all good, so overall success despite incomplete delegation");
+        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(manualUser), Is.True);
+
+        // Records all good, NS also good (delegated user, populated zone) -> success
+        var delegatedUser = new List<DnsConfig>
+        {
+            Record("A", DnsLookupRecordStatus.Success),
+            Record("CNAME", DnsLookupRecordStatus.Success),
+            Record("NS", DnsLookupRecordStatus.Success),
+            Record("NS", DnsLookupRecordStatus.Success),
+        };
+        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(delegatedUser), Is.True);
 
         var nothingWorks = new List<DnsConfig>
         {
