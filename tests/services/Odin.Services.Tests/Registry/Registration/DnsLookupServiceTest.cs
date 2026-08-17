@@ -20,13 +20,16 @@ public class DnsLookupServiceTest
             new Mock<ILogger<DnsLookupService>>().Object, configuration, new LookupClient(), authoritativeDnsLookup);
     }
 
-    private static OdinConfiguration ConfigurationWithDns(DnsConfigurationSet dnsConfigurationSet)
+    private static OdinConfiguration ConfigurationWithDns(
+        DnsConfigurationSet dnsConfigurationSet,
+        string powerDnsApiKey = "top-secret")
     {
         return new OdinConfiguration
         {
             Registry = new OdinConfiguration.RegistrySection
             {
                 DnsConfigurationSet = dnsConfigurationSet,
+                PowerDnsApiKey = powerDnsApiKey,
             }
         };
     }
@@ -43,6 +46,24 @@ public class DnsLookupServiceTest
 
         Assert.That(dnsConfig.Any(x => x.Type == "NS"), Is.False);
         Assert.That(dnsConfig.Count, Is.EqualTo(4)); // A, ALIAS, capi CNAME, file CNAME - unchanged
+    }
+
+    //
+
+    [Test]
+    public void ItShouldNotIncludeNsRecordsWhenPowerDnsIsNotConfigured()
+    {
+        // Self-hosted case: NameServers has a default value pointing at our infrastructure,
+        // but without PowerDNS this deployment can never host the zone - so no NS instructions
+        var configuration = ConfigurationWithDns(
+            new DnsConfigurationSet(
+                "131.164.170.62", "identity-host.example", ["ns1.example", "ns2.example"], "admin@example.com"),
+            powerDnsApiKey: "");
+        var service = CreateDnsLookupService(configuration);
+
+        var dnsConfig = service.GetDnsConfiguration("frodo.example.com");
+
+        Assert.That(dnsConfig.Any(x => x.Type == "NS"), Is.False);
     }
 
     //

@@ -115,8 +115,13 @@ public class DnsLookupService : IDnsLookupService
         });
 
         // NS delegation (preferred alternative to the records above; we host the zone).
-        // Only offered when our authoritative nameservers are configured.
-        foreach (var nameServer in dns.NameServers)
+        // Only offered when this deployment can actually host zones: nameservers are
+        // configured AND PowerDNS is available. Without the PowerDNS gate, a self-hosted
+        // instance would instruct its users to delegate to nameservers that will never
+        // serve their zone (NameServers has a default value pointing at our infrastructure).
+        var canHostZones = !string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey);
+        var nameServers = canHostZones ? dns.NameServers : [];
+        foreach (var nameServer in nameServers)
         {
             result.Add(new DnsConfig
             {
