@@ -79,6 +79,12 @@ public interface IIdentityRegistrationService
     /// Best-effort removal of an own-domain's zone. Never throws.
     /// </summary>
     Task DeleteOwnDomainZone(string domain);
+
+    /// <summary>
+    /// Best-effort DNS cleanup for a deleted tenant: managed domains get their records
+    /// removed from the shared apex zone, own domains get their zone deleted. Never throws.
+    /// </summary>
+    Task DeleteDnsRecordsForDomain(string domain);
     
     //
     // OldHelpers

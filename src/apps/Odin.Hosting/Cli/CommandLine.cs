@@ -435,20 +435,6 @@ public class CommandLine
             return (true, 0);
         }
 
-        //
-        // Command line: Delete own-domain zones that have no matching identity registration
-        //
-        // Dry-run unless "commit" is passed.
-        //
-        // examples:
-        //   dotnet run -- prune-own-domain-zones
-        //   dotnet run -- prune-own-domain-zones commit
-        //
-        if (args.Length > 0 && args[0] == "prune-own-domain-zones")
-        {
-            OwnDomainZones.PruneAsync(_serviceProvider, args.Length > 1 && args[1] == "commit").BlockingWait();
-            return (true, 0);
-        }
 
         
         return (false, 0);

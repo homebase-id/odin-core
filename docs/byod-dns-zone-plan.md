@@ -44,7 +44,7 @@ No TXT/MX/SRV support yet — that's the future email phase.
 
 ### 3. New registration endpoint (`src/apps/Odin.Hosting/Controllers/Registration/RegistrationController.cs`)
 - `POST /api/registration/v1/registration/create-own-domain-zone/{domain}` — mirrors `create-managed-domain`'s position in the flow. Guards: valid domain (`AsciiDomainNameValidator`), `is-own-domain-available` check, invitation-code assertion when codes are configured (same as managed), PowerDNS configured (else 200 no-op so the frontend needn't branch). Idempotent.
-- Orphan cleanup: extend the backfill CLI command (below) with a `--prune` mode that deletes zones having no matching registration — run periodically by ops. (No automatic reaper in this phase.)
+- Orphan cleanup: deliberately **no prune/sweep command**. On a DNS server shared between environments (demo + production), "no matching registration *here*" does not mean "no registration *anywhere*" — a sweep on one environment would delete the other's zones. Zone/record deletion rides tenant deletion instead (`odin-cli tenant delete` → `DeleteTenantJob` → `DeleteDnsRecordsForDomain`: managed domains get their records removed from the apex zone, own domains get their zone deleted). The rare abandoned-but-control-proven zone is inert; legacy leftovers are removed manually via the PowerDNS API.
 
 ### 4. Delegation detection (`DnsLookupService`)
 - `GetDnsConfiguration`: append one `DnsConfig` entry per configured nameserver — `Type = "NS"`, `Name = ""`, `Value = ns host`. Today's frontend ignores unknown types safely (it filters by type/name), but mind the `"Frontend depends on this class layout"` note on `DnsConfig.cs` — additive entries only, no field changes.
@@ -52,7 +52,7 @@ No TXT/MX/SRV support yet — that's the future email phase.
 - `AreDnsLookupsSuccessful`: success = **all NS entries Success** (delegated mode) **OR** the existing rule (manual mode). This makes `own-domain-dns-status` naturally report "delegated" via per-record statuses.
 
 ### 5. CLI backfill (`src/apps/Odin.Hosting/Cli/Commands/`)
-- New command (e.g. `create-own-domain-zones`): iterate `IIdentityRegistry` registrations, skip domains under `ManagedDomainApexes`, call `CreateOwnDomainZoneAsync` for each; report created/existing/failed. `--prune` flag as above. Re-runnable.
+- New command (e.g. `create-own-domain-zones`): iterate `IIdentityRegistry` registrations, skip domains under `ManagedDomainApexes`, call `CreateOwnDomainZoneAsync` for each; report created/existing/refused/failed. Re-runnable.
 
 ## Changes (odin-js, provisioning-app)
 
@@ -71,5 +71,5 @@ No TXT/MX/SRV support yet — that's the future email phase.
 
 - Email DNS records (MX/SPF/DKIM/DMARC) — the payoff phase this enables; needs TXT/MX support in `IDnsRestClient` when it comes.
 - ACME DNS-01 / wildcard certs.
-- Automatic orphan-zone reaper (manual `--prune` only for now).
+- Any orphan-zone reaper/prune (see §3 — unsafe on a shared DNS server; deletion rides tenant deletion).
 - Importing a user's pre-existing records when an apex delegates (UI warns instead).

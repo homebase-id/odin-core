@@ -389,6 +389,55 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     //
 
     /// <summary>
+    /// Best-effort DNS cleanup when a tenant is deleted. Managed domains get their
+    /// records removed from the shared apex zone; own domains get their zone deleted.
+    /// Never throws: a DNS cleanup failure must not block account deletion.
+    /// </summary>
+    public async Task DeleteDnsRecordsForDomain(string domain)
+    {
+        try
+        {
+            domain = domain.Trim().ToLower();
+
+            var apex = _configuration.Registry.ManagedDomainApexes
+                .Find(x => domain.EndsWith("." + x.Apex, StringComparison.OrdinalIgnoreCase))?.Apex;
+            if (apex == null)
+            {
+                await DeleteOwnDomainZone(domain);
+                return;
+            }
+
+            // Managed domain: remove its records from the apex zone. Deliberately not
+            // DeleteManagedDomain: that re-deletes the registration and asserts the
+            // configured prefix label count, which may have changed since signup.
+            var prefix = domain[..^(apex.Length + 1)];
+            var zoneId = apex + ".";
+            var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
+            foreach (var record in dnsConfig)
+            {
+                var name = record.Name != "" ? record.Name + "." + prefix : prefix;
+                if (record.Type == "A")
+                {
+                    await _dnsRestClient.DeleteARecords(zoneId, name);
+                }
+                else if (record.Type == "CNAME")
+                {
+                    await _dnsRestClient.DeleteCnameRecords(zoneId, name);
+                }
+                // ALIAS/NS: nothing to delete for managed domains
+            }
+
+            _logger.LogInformation("Deleted DNS records for managed domain {domain}", domain);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Failed to delete DNS records for {domain}; clean up manually", domain);
+        }
+    }
+
+    //
+
+    /// <summary>
     /// Best-effort removal of an own-domain's zone. Never throws: a DNS cleanup failure
     /// must not block account deletion.
     /// </summary>

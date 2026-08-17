@@ -354,6 +354,32 @@ public class IdentityRegistrationServiceTest
     }
 
     [Test]
+    public async Task ItShouldDeleteDnsRecordsOrZoneDependingOnDomainKind()
+    {
+        _dnsRestClient.Invocations.Clear();
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+
+        // Managed domain: records removed from the shared apex zone, zone untouched
+        await registration.DeleteDnsRecordsForDomain("frodo.baggins.demo.rocks");
+        _dnsRestClient.Verify(c => c.DeleteARecords("demo.rocks.", "frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteCnameRecords("demo.rocks.", "capi.frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteCnameRecords("demo.rocks.", "file.frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteZone(It.IsAny<string>()), Times.Never);
+
+        // Own domain: zone deleted
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+        await registration.DeleteDnsRecordsForDomain("frodo.example.com");
+        _dnsRestClient.Verify(c => c.DeleteZone("frodo.example.com."), Times.Once);
+
+        // DNS API failure never propagates
+        _dnsRestClient.Setup(c => c.DeleteARecords(It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new System.Exception("boom"));
+        Assert.DoesNotThrowAsync(() => registration.DeleteDnsRecordsForDomain("sam.gamgee.demo.rocks"));
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
     public async Task ItShouldDeleteAnExistingOwnDomainZoneAndNeverThrow()
     {
         _dnsRestClient.Invocations.Clear();

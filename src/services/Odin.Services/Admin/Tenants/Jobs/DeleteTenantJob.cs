@@ -38,7 +38,8 @@ public class DeleteTenantJob(
         var sw = Stopwatch.StartNew();
         await identityRegistry.ToggleDisabled(Data.Domain, true);
         await identityRegistry.DeleteRegistration(Data.Domain);
-        await identityRegistrationService.DeleteOwnDomainZone(Data.Domain); // no-op for managed domains; never throws
+        // Managed domains: records removed from the apex zone; own domains: zone deleted. Never throws.
+        await identityRegistrationService.DeleteDnsRecordsForDomain(Data.Domain);
         logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);
 
         return JobExecutionResult.Success();
