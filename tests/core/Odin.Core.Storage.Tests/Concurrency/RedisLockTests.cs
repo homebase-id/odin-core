@@ -44,8 +44,7 @@ public class RedisLockTests
 
     private async Task RegisterServicesAsync()
     {
-        _redisContainer = new RedisBuilder()
-            .WithImage("redis:latest")
+        _redisContainer = new RedisBuilder("redis:latest")
             .Build();
         await _redisContainer.StartAsync();
 

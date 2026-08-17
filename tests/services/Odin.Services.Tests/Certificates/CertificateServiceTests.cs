@@ -99,8 +99,7 @@ public class CertificateServiceTests
 
         if (databaseType == DatabaseType.Postgres)
         {
-            _postgresContainer = new PostgreSqlBuilder()
-                .WithImage("postgres:latest")
+            _postgresContainer = new PostgreSqlBuilder("postgres:latest")
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")
@@ -110,8 +109,7 @@ public class CertificateServiceTests
 
         if (useRedis)
         {
-            _redisContainer = new RedisBuilder()
-                .WithImage("redis:latest")
+            _redisContainer = new RedisBuilder("redis:latest")
                 .Build();
             await _redisContainer.StartAsync();
         }
