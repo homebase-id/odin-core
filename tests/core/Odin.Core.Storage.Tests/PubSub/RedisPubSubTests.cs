@@ -20,8 +20,7 @@ public class RedisPubSubTests
     [SetUp]
     public void Setup()
     {
-        _redisContainer = new RedisBuilder()
-            .WithImage("redis:latest")
+        _redisContainer = new RedisBuilder("redis:latest")
             .Build();
         _redisContainer!.StartAsync().Wait();
     }

@@ -74,8 +74,7 @@ public class FusionCacheTests
     [OneTimeSetUp]
     public async Task SetUp()
     {
-        _redisContainer = new RedisBuilder()
-            .WithImage("redis:latest")
+        _redisContainer = new RedisBuilder("redis:latest")
             .Build();
         await _redisContainer.StartAsync();
     }

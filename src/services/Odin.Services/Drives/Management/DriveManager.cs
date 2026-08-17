@@ -122,6 +122,7 @@ public class DriveManager : IDriveManager
             Metadata = request.Metadata,
             AllowAnonymousReads = request.AllowAnonymousReads,
             AllowSubscriptions = request.AllowSubscriptions,
+            AllowCdn = request.AllowCdn,
             OwnerOnly = request.OwnerOnly,
             Attributes = request.Attributes
         };
@@ -225,6 +226,37 @@ public class DriveManager : IDriveManager
         if (storageDrive.AllowSubscriptions != allowSubscriptions)
         {
             storageDrive.AllowSubscriptions = allowSubscriptions;
+
+            await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
+
+            await PublishDriveDefinitionAddedAsync(new DriveDefinitionAddedNotification
+            {
+                IsNewDrive = false,
+                Drive = storageDrive,
+                OdinContext = odinContext
+            });
+        }
+    }
+
+    public async Task SetDriveAllowCdnAsync(Guid driveId, bool allowCdn, IOdinContext odinContext)
+    {
+        odinContext.Caller.AssertHasMasterKey();
+
+        var storageDrive = await GetDriveAsync(driveId);
+        if (storageDrive == null)
+        {
+            throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
+        }
+
+        // Deliberately no system-drive or owner-only guard here, unlike the sibling setters. The
+        // rule this flag replaced put every drive - system drives and owner-only drives included -
+        // in the CDN list, so refusing either here would take away something that already works.
+        // Tightening that is a separate decision, not a side effect of introducing the flag.
+
+        //only change if needed
+        if (storageDrive.IsCdnEnabled() != allowCdn)
+        {
+            storageDrive.SetCdnEnabled(allowCdn);
 
             await _tableDrives.UpsertAsync(ToRecord(storageDrive.Data));
 
@@ -375,7 +407,7 @@ public class DriveManager : IDriveManager
     public async Task<PagedResult<StorageDrive>> GetCdnEnabledDrivesAsync(PageOptions pageOptions, IOdinContext odinContext)
     {
         var page = await GetDrivesInternalAsync(false, pageOptions, odinContext);
-        var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads || drive.AttributeHasFalseValue(StorageDrive.BlockCdnAttributeName)).ToList();
+        var storageDrives = page.Results.Where(drive => drive.IsCdnEnabled()).ToList();
         var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
         return results;
     }
@@ -403,6 +435,7 @@ public class DriveManager : IDriveManager
             IsReadonly = storageDrive.IsReadonly,
             AllowAnonymousReads = storageDrive.AllowAnonymousReads,
             AllowSubscriptions = storageDrive.AllowSubscriptions,
+            AllowCdn = storageDrive.AllowCdn,
             Attributes = storageDrive.Attributes,
             IsArchived = storageDrive.IsArchived
         };
@@ -502,6 +535,7 @@ public class DriveManager : IDriveManager
             IsReadonly = driveDetails.IsReadonly,
             AllowAnonymousReads = driveDetails.AllowAnonymousReads,
             AllowSubscriptions = driveDetails.AllowSubscriptions,
+            AllowCdn = driveDetails.AllowCdn,
             Attributes = driveDetails.Attributes,
             IsArchived = driveDetails.IsArchived
         };
@@ -513,4 +547,5 @@ public class DriveManager : IDriveManager
     {
         return new StorageDrive(_tenantContext.TenantPathManager, sdd);
     }
+
 }

@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Drives;
-using Odin.Services.Drives.DriveCore.Query;
-using Odin.Services.Drives.Management;
-using Odin.Services.Peer.Incoming.Drive.Transfer;
 using Odin.Services.Peer.Outgoing.Drive.Transfer;
-using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Drive.Read
@@ -20,76 +14,23 @@ namespace Odin.Hosting.UnifiedV2.Drive.Read
     [ApiExplorerSettings(GroupName = "v2")]
     public class V2DriveBatchQueryController(
         PeerOutgoingTransferService peerOutgoingTransferService,
-        DriveManager driveManager,
         ILogger<V2DriveControllerBase> logger,
-        InboxDrainOnQuery inboxDrainOnQuery) :
+        V2BatchCollectionQueryService batchCollectionQueryService) :
         V2DriveControllerBase(peerOutgoingTransferService, logger)
     {
+        /// <summary>
+        /// Runs several drive queries in one call.  A section-level fault (unknown drive, archived drive, no read
+        /// grant) never fails the collection: it comes back as a section with a
+        /// <see cref="QueryBatchSectionStatus"/> saying why.  <see cref="QueryBatchCollectionRequestV2.MaxRecords"/>
+        /// is a budget for the whole call, filled in request order.
+        /// </summary>
         [HttpPost("query-batch-collection")]
         [SwaggerOperation(Tags = [SwaggerInfo.FileQuery])]
-        public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequestV2 request)
+        public async Task<QueryBatchCollectionResponseV2> QueryBatchCollection([FromBody] QueryBatchCollectionRequestV2 request)
         {
-            var v1Queries = new List<CollectionQueryParamSection>();
-
-            foreach (var section in request.Queries)
-            {
-                section.AssertIsValid();
-
-                await inboxDrainOnQuery.DrainIfReadyAsync(section.DriveId, WebOdinContext);
-
-                var theDrive = await driveManager.GetDriveAsync(section.DriveId);
-                var qp = section.QueryParams;
-                var newSection = new CollectionQueryParamSection
-                {
-                    Name = section.Name,
-                    QueryParams = new FileQueryParamsV1
-                    {
-                        FileType = qp.FileType,
-                        FileState = qp.FileState,
-                        DataType = qp.DataType,
-                        ArchivalStatus = qp.ArchivalStatus,
-                        Sender = qp.Sender,
-                        GroupId = qp.GroupId,
-                        UserDate = qp.UserDate,
-                        ClientUniqueIdAtLeastOne = qp.ClientUniqueIdAtLeastOne,
-                        TagsMatchAtLeastOne = qp.TagsMatchAtLeastOne,
-                        TagsMatchAll = qp.TagsMatchAll,
-                        LocalTagsMatchAtLeastOne = qp.LocalTagsMatchAtLeastOne,
-                        LocalTagsMatchAll = qp.LocalTagsMatchAll,
-                        GlobalTransitId = qp.GlobalTransitId,
-                        TargetDrive = theDrive!.TargetDriveInfo
-                    },
-                    ResultOptionsRequest = section.ResultOptionsRequest
-                };
-
-                v1Queries.Add(newSection);
-            }
-
-            var fs = GetHttpFileSystemResolver().ResolveFileSystem();
-            var collection = await fs.Query.GetBatchCollection(v1Queries, WebOdinContext);
-            return collection;
-        }
-    }
-
-    public class QueryBatchCollectionRequestV2
-    {
-        public List<CollectionQueryParamSectionV2> Queries { get; init; }
-    }
-
-    public class CollectionQueryParamSectionV2
-    {
-        public string Name { get; set; }
-
-        public Guid DriveId { get; init; }
-        
-        public FileQueryParams QueryParams { get; set; }
-
-        public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
-
-        public void AssertIsValid()
-        {
-            OdinValidationUtils.AssertNotNullOrEmpty(this.Name, nameof(this.Name));
-            OdinValidationUtils.AssertNotEmptyGuid(DriveId, "driveId");
+            // Sections may override this individually, so a single collection can mix Standard and Comment.
+            var defaultFileSystemType = GetFileSystemType();
+            return await batchCollectionQueryService.GetBatchCollectionAsync(request, defaultFileSystemType, WebOdinContext);
         }
     }
 }
