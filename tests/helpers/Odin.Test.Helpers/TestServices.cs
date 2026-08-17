@@ -62,8 +62,7 @@ public class TestServices : IDisposable
 
         if (databaseType == DatabaseType.Postgres)
         {
-            _postgresContainer = new PostgreSqlBuilder()
-                .WithImage("postgres:latest")
+            _postgresContainer = new PostgreSqlBuilder("postgres:latest")
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")
@@ -76,7 +75,7 @@ public class TestServices : IDisposable
         var level2CacheType = Level2CacheType.None;
         if (redisEnabled)
         {
-            _redisContainer = new RedisBuilder().WithImage("redis:latest").Build();
+            _redisContainer = new RedisBuilder("redis:latest").Build();
             await _redisContainer.StartAsync();
 
             var redisConfig = _redisContainer?.GetConnectionString() ?? throw new InvalidOperationException();
