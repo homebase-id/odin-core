@@ -426,12 +426,15 @@ public class CommandLine
         //
         // Command line: Backfill pre-provisioned DNS zones for existing own-domain identities
         //
+        // Dry-run unless "commit" is passed.
+        //
         // examples:
         //   dotnet run -- create-own-domain-zones
+        //   dotnet run -- create-own-domain-zones commit
         //
         if (args.Length > 0 && args[0] == "create-own-domain-zones")
         {
-            OwnDomainZones.CreateAsync(_serviceProvider).BlockingWait();
+            OwnDomainZones.CreateAsync(_serviceProvider, args.Length > 1 && args[1] == "commit").BlockingWait();
             return (true, 0);
         }
 

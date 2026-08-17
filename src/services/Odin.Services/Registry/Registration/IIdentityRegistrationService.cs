@@ -90,6 +90,12 @@ public interface IIdentityRegistrationService
     Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(string domain, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// True when a zone for the own-domain exists in our PowerDNS. Read-only probe
+    /// (used by the CLI dry-run); false when zone hosting is not configured.
+    /// </summary>
+    Task<bool> OwnDomainZoneExists(string domain);
+
+    /// <summary>
     /// Best-effort removal of an own-domain's zone. Never throws.
     /// </summary>
     Task DeleteOwnDomainZone(string domain);

@@ -9,7 +9,8 @@ namespace Odin.Hosting.Cli.Commands;
 
 // Backfill of pre-provisioned own-domain zones (see docs/byod-dns-zone-plan.md).
 //
-//   create-own-domain-zones   create missing zones for all existing own-domain identities
+//   create-own-domain-zones          dry-run: list what would be created, change nothing
+//   create-own-domain-zones commit   create missing zones for all existing own-domain identities
 //
 // Zone deletion rides tenant deletion (odin-cli tenant delete -> DeleteTenantJob ->
 // DeleteDnsRecordsForDomain); there is deliberately no orphan-sweeping prune command,
@@ -18,7 +19,7 @@ namespace Odin.Hosting.Cli.Commands;
 //
 public static class OwnDomainZones
 {
-    public static async Task CreateAsync(IServiceProvider services)
+    public static async Task CreateAsync(IServiceProvider services, bool commit)
     {
         // Check config BEFORE resolving IIdentityRegistrationService: resolving it eagerly
         // constructs the PowerDNS client, whose Uri throws on an empty host address - the
@@ -39,7 +40,13 @@ public static class OwnDomainZones
         await registry.LoadRegistrations();
         var tenants = await registry.GetTenants();
 
+        if (!commit)
+        {
+            Console.WriteLine("Dry-run - no changes are made. Pass 'commit' to apply.");
+        }
+
         var created = 0;
+        var existing = 0;
         var refused = 0;
         var skipped = 0;
         var failed = 0;
@@ -54,27 +61,47 @@ public static class OwnDomainZones
 
             try
             {
+                if (!commit)
+                {
+                    // Dry-run reports zone existence only; commit additionally applies the
+                    // shadow guard and (re)populates records
+                    if (await regService.OwnDomainZoneExists(domain))
+                    {
+                        existing++;
+                        Console.WriteLine($"EXISTS       {domain}");
+                    }
+                    else
+                    {
+                        created++;
+                        Console.WriteLine($"WOULD CREATE {domain}");
+                    }
+                    continue;
+                }
+
                 // Registered identities always pass the domain-control gate; a refusal here
                 // means the shadow guard hit (domain inside a zone we host)
                 var result = await regService.CreateOwnDomainZone(domain);
                 if (result == CreateOwnDomainZoneResult.Created)
                 {
                     created++;
+                    Console.WriteLine($"ENSURED      {domain}");
                 }
                 else
                 {
                     refused++;
-                    Console.WriteLine($"REFUSED {domain}: {result}");
+                    Console.WriteLine($"REFUSED      {domain}: {result}");
                 }
             }
             catch (Exception e)
             {
                 failed++;
-                Console.WriteLine($"FAILED {domain}: {e.Message}");
+                Console.WriteLine($"FAILED       {domain}: {e.Message}");
             }
         }
 
-        Console.WriteLine($"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, failed: {failed}");
+        Console.WriteLine(commit
+            ? $"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, failed: {failed}"
+            : $"Dry-run done. Would create: {created}, already exist: {existing}, managed domains skipped: {skipped}, failed: {failed}");
     }
 
     //

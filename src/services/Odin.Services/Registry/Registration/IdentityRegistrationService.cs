@@ -388,6 +388,19 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
+    public async Task<bool> OwnDomainZoneExists(string domain)
+    {
+        domain = domain.Trim().ToLower();
+        AsciiDomainNameValidator.AssertValidDomain(domain);
+        if (!CanHostOwnDomainZones || IsManagedDomain(domain))
+        {
+            return false;
+        }
+        return await _dnsRestClient.ZoneExists(domain + ".");
+    }
+
+    //
+
     private static string? ParentDomain(string domain)
     {
         var idx = domain.IndexOf('.');
