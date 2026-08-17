@@ -357,6 +357,31 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             _logger.LogInformation("Creating zone {zone}", zoneId);
             await _dnsRestClient.CreateZone(zoneId, dns.NameServers.Select(x => x + ".").ToArray(), dns.SoaAdminEmail);
         }
+        else if (!isRegistered)
+        {
+            // The zone exists but this environment has no registration for the domain. On a
+            // DNS server shared between environments this can be another environment's LIVE
+            // zone (delegation proof is ambiguous: both environments answer to the same
+            // nameserver names), and the REPLACE-populate below would hijack its records.
+            // The zone is only ours if its contents already match this environment's values
+            // (the normal signup flow: zone created on Validate, identity registered later) -
+            // each environment writes its own distinct apex A record, so that is the
+            // discriminator. Anything else is refused untouched.
+            var zone = await _dnsRestClient.GetZone(zoneId);
+            var apexARecords = (zone.rrsets ?? [])
+                .Where(x => x.type == "A" && x.name == zoneId)
+                .SelectMany(x => x.records)
+                .Select(x => x.content)
+                .ToList();
+            if (!apexARecords.Contains(dns.ApexARecord))
+            {
+                _logger.LogWarning(
+                    "Refusing zone {zone}: it already exists with foreign records (apex A [{a}], ours would be {ours}) " +
+                    "and no local registration - it likely belongs to another environment",
+                    zoneId, string.Join(',', apexARecords), dns.ApexARecord);
+                return CreateOwnDomainZoneResult.ZoneAlreadyHosted;
+            }
+        }
 
         // Populate (REPLACE semantics, so re-running converges on the correct records)
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);

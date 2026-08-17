@@ -17,6 +17,13 @@ public enum CreateOwnDomainZoneResult
     /// <summary>The domain lies inside a zone we already host; a child zone would shadow it (permanent)</summary>
     ShadowsHostedZone,
 
+    /// <summary>
+    /// A zone for this exact domain already exists in PowerDNS but does not belong to this
+    /// environment (no local registration and its records are not ours) - e.g. it serves a
+    /// live identity in another environment sharing the same DNS server (permanent)
+    /// </summary>
+    ZoneAlreadyHosted,
+
     /// <summary>No proof of domain control yet - retry after DNS setup (transient)</summary>
     ControlNotProven,
 }
