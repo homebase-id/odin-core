@@ -1,0 +1,30 @@
+<Project>
+
+  <!--
+    Legacy BouncyCastle isolation.
+
+    Certes (EOL, last release 2023) and WebPush both depend on Portable.BouncyCastle 1.9.0,
+    which ships the assembly BouncyCastle.Crypto.dll. Our own code uses the current official
+    package, BouncyCastle.Cryptography, which ships BouncyCastle.Cryptography.dll.
+
+    Both assemblies expose the same Org.BouncyCastle.* namespaces, so any file using those
+    types in a project that also sees Certes or WebPush fails to compile with
+    CS0433 (type exists in both assemblies).
+
+    Hiding the legacy assembly behind an extern alias makes Org.BouncyCastle.* bind
+    unambiguously to the current package. This is compile-time only: BouncyCastle.Crypto.dll
+    is still copied to the output and still loaded at runtime by Certes and WebPush, which
+    are compiled against it.
+
+    Drop this target once Certes and WebPush are replaced by packages that reference
+    BouncyCastle.Cryptography directly.
+  -->
+  <Target Name="AliasLegacyBouncyCastle" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <ReferencePath Condition="'%(FileName)' == 'BouncyCastle.Crypto'">
+        <Aliases>legacy_bouncycastle</Aliases>
+      </ReferencePath>
+    </ItemGroup>
+  </Target>
+
+</Project>

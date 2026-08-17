@@ -12,10 +12,6 @@ jobs:
     name: Test ubuntu/postgres/release
     runs-on: ubuntu-latest
 
-    env:
-      ODIN_S3_ACCESS_KEY: ${{ secrets.HETZNER_S3_ACCESS_KEY }}
-      ODIN_S3_SECRET_ACCESS_KEY: ${{ secrets.HETZNER_S3_SECRET_ACCESS_KEY }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

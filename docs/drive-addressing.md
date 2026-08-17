@@ -397,7 +397,7 @@ express ownership at all.
 
 ## Connection defaults (separate document)
 
-The connection-default model — per-app `AUTO_CONNECT` / `VERIFIED_CONNECT` circles, the
+The connection-default model — per-app grant-on-connect / grant-on-review circles, the
 deposit-only invariant, app installation, and the retirement of the system circles — is specified
 in **`connection-defaults.md`**, next to this file. It is a **later phase**: nothing from it is
 implemented with the addressing work. What rides along here is **schema only** — all dormant,
@@ -405,13 +405,10 @@ every default preserving today's behavior:
 
 ```sql
 -- Circle (three more columns)
-Enrollment   SMALLINT NOT NULL DEFAULT 0,   -- 0 NONE | 1 AUTO_CONNECT | 2 VERIFIED_CONNECT
+GrantOn      SMALLINT NOT NULL DEFAULT 0,   -- 0 None | 1 Connect | 2 OwnFlowConnect | 3 Review
 Designation  SMALLINT NOT NULL DEFAULT 1,   -- 1 PERSONAL | 2 AUDIENCE | 3 VENDOR
 Emoji        TEXT,                          -- optional user-chosen emoji; store the full string (may be a multi-codepoint ZWJ sequence)
--- index (identityId, Enrollment)
-
--- AppRegistrations (one flag)
-AutoConnectDefaults  BOOLEAN NOT NULL DEFAULT FALSE   -- enroll this app's AUTO_CONNECT circles on auto-connections
+-- index (identityId, GrantOn)
 
 -- Connections (existing table; one new nullable column)
 ReviewedAt  BIGINT,   -- UnixTimeUtc of the owner's review; NULL = New. Set at the review
@@ -429,13 +426,21 @@ On rotation, `WriteOnlyKeyPair` always holds only the **current** key; the **pre
 rotation timestamp ride the drive's existing `jsonDetails` column (cold path — consulted only
 when an old-key envelope arrives during the grace window). Still no schema change.
 
+`GrantOn` replaces an earlier design that split this policy across two tables (a per-circle
+enum *plus* an app-level "participate in ambient connects" flag). One column now says it all:
+`Connect` grants at **any** connection establishment, ambient introductions included;
+`OwnFlowConnect` grants **only** when the connection is created through the owning app's own
+consent flow (a vendor circle enrolled when the hotel connects via the receipts flow, never when
+a friend is introduced). An app can hold one of each — which the deleted boolean could not
+express. Semantics in `connection-defaults.md`.
+
 `Designation` and `Emoji` semantics are client-side (chat-kmp PR #1062: contact-book presentation
-and filtering); `Enrollment` and `AutoConnectDefaults` semantics are in `connection-defaults.md`.
-The deposit-only validation ships with the `Enrollment` column (unreachable until something sets
-`AUTO_CONNECT`). The owner's per-app auto-connect toggle needs no schema — it persists in the
+and filtering); `GrantOn` semantics are in `connection-defaults.md`.
+The deposit-only validation ships with the `GrantOn` column (unreachable until something sets
+either `Connect` value). The owner's per-app toggle needs no schema — it persists in the
 existing per-tenant settings store (like the `ConnectedIdentitiesCanView*` flags today).
 
-`ReviewedAt` must be a **column, not a blob field**, for the same reason `Enrollment` is: it is
+`ReviewedAt` must be a **column, not a blob field**, for the same reason `GrantOn` is: it is
 queried on filtering paths — the contact book pages "reviewed connections"
 (`ReviewedAt IS NOT NULL`) and "New people" (unreviewed ∩ people-app auto-circle membership, via
 `CircleMember`) over a table that may hold a feed's million unreviewed audience connections.

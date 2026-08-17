@@ -9,10 +9,11 @@ permissions:
 
 #
 # Build and push only. The deploy step is gone: it used secrets.ANSIBLE_SSH_KEY,
-# an SSH key for the `ansible` account on the controller, which is root on every
-# host in the fleet and holds the ansible-vault password. That credential is the
-# 2026 breach path, and sshd on the rebuilt controller now pins `ansible@` to
-# fixed operator addresses, so this step could no longer connect either way.
+# an SSH key for the `ansible` account on the ansible controller, which is root
+# on every host in the fleet and holds the ansible-vault password. That credential
+# is the 2026 breach path, and sshd on the rebuilt ansible controller now pins
+# `ansible@` to fixed operator addresses, so this step could no longer connect
+# either way.
 #
 # The constrained deploy button routes odin-core only, deliberately: the aux
 # service name is not its ghcr repository name and each playbook wants a

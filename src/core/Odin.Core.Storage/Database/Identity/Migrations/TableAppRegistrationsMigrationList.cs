@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
+using Odin.Core.Storage.Database;
 
 namespace Odin.Core.Storage.Database.Identity.Migrations;
 
-public class TableConnectionsMigrationList : MigrationListBase
+public class TableAppRegistrationsMigrationList : MigrationListBase
 {
-    public TableConnectionsMigrationList()
+    public TableAppRegistrationsMigrationList()
     {
         Migrations = new List<MigrationBase>() {
-            new TableConnectionsMigrationV0(-1),
-            new TableConnectionsMigrationV202608040942(0),
+            new TableAppRegistrationsMigrationV0(-1),
             // AUTO-INSERT-MARKER
         };
     }
