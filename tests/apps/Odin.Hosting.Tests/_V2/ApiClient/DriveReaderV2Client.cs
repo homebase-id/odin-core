@@ -111,7 +111,7 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
         return await svc.GetSmartBatch(driveId, request);
     }
 
-    public async Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollectionAsync(QueryBatchCollectionRequestV2 request)
+    public async Task<ApiResponse<QueryBatchCollectionResponseV2>> GetBatchCollectionAsync(QueryBatchCollectionRequestV2 request)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
         var svc = RefitCreator.RestServiceFor<IDriveQueryHttpClientApiV2>(client, sharedSecret);

@@ -512,16 +512,29 @@ public static class HostExtensions
             payloadBucket.CreateBucketAsync().BlockingWait();
         }
 
-        // Sanity ping CDN
+        // Sanity ping CDN, disable it not successful
         if (config.Cdn.Enabled)
         {
             var factory = services.GetRequiredService<IDynamicHttpClientFactory>();
             var client = factory.CreateClient("CdnPingClient");
             var url = $"{config.Cdn.PayloadBaseUrl}/ping";
-            var response = client.GetAsync(url).Result;
-            if (!response.IsSuccessStatusCode)
+            var error = "";
+            try
             {
-                logger.LogError("Cdn enabled, but not responding to ping at {url}", url);
+                var response = client.GetAsync(url).Result;
+                if (!response.IsSuccessStatusCode)
+                {
+                    error = response.ReasonPhrase;
+                }
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+            }
+            if (error != "")
+            {
+                config.Cdn.Enabled = false;
+                logger.LogError("CDN enabled, but not responding to ping at {url}. Error: {error}", url, error);
             }
         }
 

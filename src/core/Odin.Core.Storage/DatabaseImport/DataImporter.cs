@@ -309,6 +309,13 @@ public static class DataImporter
             () => targetIdentityDatabase.CreateScopedConnectionAsync(),
             logger, sourceIdentityDatabase.ClientRegistrations.TableName);
 
+        // AppRegistrations
+        totalRows += await ImportTimestampedTableAsync(sourceIdentityDatabase.AppRegistrations.PagingByRowIdAsync,
+            r => targetIdentityDatabase.AppRegistrations.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetIdentityDatabase.CreateScopedConnectionAsync(),
+            logger, sourceIdentityDatabase.AppRegistrations.TableName);
+
         // Circle
         totalRows += await ImportTableAsync(sourceIdentityDatabase.Circle.PagingByRowIdAsync,
             r => targetIdentityDatabase.Circle.InsertAsync(r), logger, sourceIdentityDatabase.Circle.TableName);

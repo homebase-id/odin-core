@@ -35,6 +35,12 @@ public class StorageDriveDetails
     /// </summary>
     public virtual bool AllowSubscriptions { get; set; }
 
+    /// <summary>
+    /// Specifies if the CDN may read this drive's payloads. Opt-in: a drive is not CDN-readable
+    /// unless this is set, including every drive stored before the flag existed.
+    /// </summary>
+    public virtual bool AllowCdn { get; set; }
+
     public virtual Dictionary<string, string> Attributes { get; set; }
     
     public bool IsArchived { get; set; }

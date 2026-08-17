@@ -222,7 +222,56 @@ public static class SqlHelper
         await using var renameCommand = cn.CreateCommand();
         {
             renameCommand.CommandText = $"ALTER TABLE {oldName} RENAME TO {newName};";
-            return await renameCommand.ExecuteNonQueryAsync();
+            var affected = await renameCommand.ExecuteNonQueryAsync();
+            await ResyncRowIdSequenceAsync(cn, newName);
+            return affected;
+        }
+    }
+
+    /// <summary>
+    /// Postgres only. Renaming a table does not re-seed the sequence behind its rowId column, and
+    /// migrations copy rows across with explicit rowId values, which never advances the new table's
+    /// sequence. Without this the first inserts after a migration collide on the rowId primary key,
+    /// which TryInsertAsync then silently reports as a plain uniqueness conflict.
+    /// Forward-only and idempotent. No-op on Sqlite, where AUTOINCREMENT already tracks the highest
+    /// rowid ever inserted (including explicitly supplied ones), and no-op on empty tables and on
+    /// tables that have no auto-generated rowId column.
+    /// </summary>
+    public static async Task ResyncRowIdSequenceAsync(IConnectionWrapper cn, string tableName)
+    {
+        if (cn.DatabaseType != DatabaseType.Postgres)
+            return;
+
+        // Look the sequence up through pg_depend rather than pg_get_serial_sequence(): the latter
+        // throws when the table has no rowId column, this yields no rows.
+        string? sequenceName;
+        await using (var lookupCommand = cn.CreateCommand())
+        {
+            lookupCommand.CommandText =
+                $"""
+                 SELECT s.oid::regclass::text
+                 FROM pg_class s
+                 JOIN pg_depend d ON d.objid = s.oid AND d.deptype = 'a'
+                 JOIN pg_class t ON t.oid = d.refobjid
+                 JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+                 WHERE s.relkind = 'S' AND t.oid = '{tableName}'::regclass AND lower(a.attname) = 'rowid';
+                 """;
+            sequenceName = await lookupCommand.ExecuteScalarAsync() as string;
+        }
+
+        if (string.IsNullOrEmpty(sequenceName))
+            return;
+
+        await using var setvalCommand = cn.CreateCommand();
+        {
+            setvalCommand.CommandText =
+                $"""
+                 SELECT setval('{sequenceName}', q.mx)
+                 FROM (SELECT max(rowId) AS mx FROM {tableName}) q
+                 WHERE q.mx IS NOT NULL
+                   AND q.mx > COALESCE(pg_sequence_last_value('{sequenceName}'::regclass), 0);
+                 """;
+            await setvalCommand.ExecuteNonQueryAsync();
         }
     }
 

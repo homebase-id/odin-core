@@ -45,8 +45,7 @@ public class LevelXCacheTests
     {
         if (level2CacheType == Level2CacheType.Redis)
         {
-            _redisContainer = new RedisBuilder()
-                .WithImage("redis:latest")
+            _redisContainer = new RedisBuilder("redis:latest")
                 .Build();
             await _redisContainer.StartAsync();
         }

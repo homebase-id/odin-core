@@ -305,6 +305,150 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 r.InvalidDrive == true));
         }
 
+        /// <summary>
+        /// Guard rail on the V2 work in issue #1629: the V2 collection endpoint gained per-section fault
+        /// isolation, but V1 must keep failing the whole call on a bad drive. Nothing pinned that before.
+        /// </summary>
+        [Test]
+        public async Task V1BatchCollectionStillFailsWholeCallOnNonExistentDrive()
+        {
+            var identity = TestIdentities.Pippin;
+            var appId = Guid.NewGuid();
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+
+            var appDrive1 = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Good Drive 1", "", false);
+            var appDrive2 = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Good Drive 2", "", false);
+
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive1.TargetDriveInfo,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    },
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive2.TargetDriveInfo,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    }
+                },
+                PermissionSet = new PermissionSet()
+            };
+
+            await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+            var client = _scaffold.CreateAppClient(identity, appId);
+
+            await UploadStandardRandomFileHeadersUsingOwnerApi(identity, appDrive1.TargetDriveInfo);
+            await UploadStandardRandomFileHeadersUsingOwnerApi(identity, appDrive2.TargetDriveInfo);
+
+            var sections = new List<CollectionQueryParamSection>()
+            {
+                new()
+                {
+                    Name = "s1",
+                    QueryParams = new FileQueryParamsV1() { TargetDrive = appDrive1.TargetDriveInfo }
+                },
+                new()
+                {
+                    Name = "s2",
+                    QueryParams = new FileQueryParamsV1() { TargetDrive = appDrive2.TargetDriveInfo }
+                },
+                new()
+                {
+                    Name = "ghost",
+                    QueryParams = new FileQueryParamsV1() { TargetDrive = TargetDrive.NewTargetDrive() }
+                }
+            };
+
+            var response = await client.Drive.QueryBatchCollection(FileSystemType.Standard, sections);
+
+            ClassicAssert.AreEqual(System.Net.HttpStatusCode.BadRequest, response.StatusCode,
+                "V1 must keep failing the whole call on an unknown drive; per-section isolation is V2-only");
+            ClassicAssert.IsNull(response.Content, "no partial results on a V1 whole-call failure");
+        }
+
+        /// <summary>
+        /// Guard rail on the V2 work in issue #1629: V2 moved to a single request-level record budget.
+        /// V1 keeps per-section budgets, each honoured independently.
+        /// </summary>
+        [Test]
+        public async Task V1BatchCollectionKeepsPerSectionMaxRecords()
+        {
+            var identity = TestIdentities.Pippin;
+            var appId = Guid.NewGuid();
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+
+            var appDrive1 = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Budget Drive 1", "", false);
+            var appDrive2 = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Budget Drive 2", "", false);
+
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive1.TargetDriveInfo,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    },
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive2.TargetDriveInfo,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    }
+                },
+                PermissionSet = new PermissionSet()
+            };
+
+            await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+            var client = _scaffold.CreateAppClient(identity, appId);
+
+            for (var i = 0; i < 3; i++)
+            {
+                await UploadStandardRandomFileHeadersUsingOwnerApi(identity, appDrive1.TargetDriveInfo);
+                await UploadStandardRandomFileHeadersUsingOwnerApi(identity, appDrive2.TargetDriveInfo);
+            }
+
+            var sections = new List<CollectionQueryParamSection>()
+            {
+                new()
+                {
+                    Name = "s1",
+                    QueryParams = new FileQueryParamsV1() { TargetDrive = appDrive1.TargetDriveInfo },
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest() { MaxRecords = 2 }
+                },
+                new()
+                {
+                    Name = "s2",
+                    QueryParams = new FileQueryParamsV1() { TargetDrive = appDrive2.TargetDriveInfo },
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest() { MaxRecords = 3 }
+                }
+            };
+
+            var response = await client.Drive.QueryBatchCollection(FileSystemType.Standard, sections);
+            ClassicAssert.IsTrue(response.IsSuccessStatusCode);
+
+            var s1 = response.Content.Results.Single(r => r.Name == "s1");
+            var s2 = response.Content.Results.Single(r => r.Name == "s2");
+
+            // Each section gets its own budget: the second is not reduced by what the first consumed.
+            ClassicAssert.AreEqual(2, s1.SearchResults.Count());
+            ClassicAssert.AreEqual(3, s2.SearchResults.Count());
+        }
+
         private async Task<(UploadResult uploadResult, UploadFileMetadata uploadedMetadata)> UploadStandardRandomFileHeadersUsingOwnerApi(TestIdentity identity,
             TargetDrive targetDrive, AccessControlList acl = null)
         {

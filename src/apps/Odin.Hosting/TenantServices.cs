@@ -21,6 +21,7 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.DataSubscription;
 using Odin.Services.DataSubscription.Follower;
+using Odin.Services.Drives;
 using Odin.Services.Drives.FileSystem.Comment;
 using Odin.Services.Drives.FileSystem.Comment.Attachments;
 using Odin.Services.Drives.FileSystem.Standard;
@@ -342,6 +343,7 @@ public static class TenantServices
         cb.RegisterType<PeerInboxProcessor>().InstancePerLifetimeScope();
         cb.RegisterType<PeerInboxDriveQueue>().AsSelf().SingleInstance();
         cb.RegisterType<InboxDrainOnQuery>().InstancePerLifetimeScope();
+        cb.RegisterType<V2BatchCollectionQueryService>().InstancePerLifetimeScope();
 
         cb.RegisterType<TransitAuthenticationService>()
             .As<INotificationHandler<ConnectionFinalizedNotification>>()

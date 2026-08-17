@@ -28,6 +28,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
         public Int32 status { get; set; }
         public Int32 accessIsRevoked { get; set; }
         public byte[] data { get; set; }
+        public UnixTimeUtc? ReviewedAt { get; set; }
         public UnixTimeUtc created { get; set; }
         public UnixTimeUtc modified { get; set; }
         public void Validate()
@@ -66,13 +67,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             if (cn.DatabaseType == DatabaseType.Postgres)
             {
                rowid = "rowId BIGSERIAL PRIMARY KEY,";
-               commentSql = "COMMENT ON TABLE Connections IS '{ \"Version\": 0 }';";
+               commentSql = "COMMENT ON TABLE Connections IS '{ \"Version\": 202608040942 }';";
             }
             else
                rowid = "rowId INTEGER PRIMARY KEY AUTOINCREMENT,";
             var wori = "";
             string createSql =
-                "CREATE TABLE IF NOT EXISTS Connections( -- { \"Version\": 0 }\n"
+                "CREATE TABLE IF NOT EXISTS Connections( -- { \"Version\": 202608040942 }\n"
                    +rowid
                    +"identityId BYTEA NOT NULL, "
                    +"identity TEXT NOT NULL, "
@@ -80,11 +81,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
                    +"status BIGINT NOT NULL, "
                    +"accessIsRevoked BIGINT NOT NULL, "
                    +"data BYTEA , "
+                   +"ReviewedAt BIGINT , "
                    +"created BIGINT NOT NULL, "
                    +"modified BIGINT NOT NULL "
                    +", UNIQUE(identityId,identity)"
                    +$"){wori};"
                    +"CREATE INDEX IF NOT EXISTS Idx0Connections ON Connections(identityId,created);"
+                   +"CREATE INDEX IF NOT EXISTS Idx1Connections ON Connections(identityId,status,ReviewedAt);"
                    ;
             await SqlHelper.CreateTableWithCommentAsync(cn, "Connections", createSql, commentSql);
         }
@@ -97,8 +100,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
-                                           $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,{sqlNowStr},{sqlNowStr})"+
+                insertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified) " +
+                                           $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@ReviewedAt,{sqlNowStr},{sqlNowStr})"+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 insertCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
@@ -106,6 +109,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@status", DbType.Int32, item.status);
                 insertCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
                 insertCommand.AddParameter("@data", DbType.Binary, item.data);
+                insertCommand.AddParameter("@ReviewedAt", DbType.Int64, item.ReviewedAt?.milliseconds);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -127,8 +131,8 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var insertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = insertCommand.SqlNow();
-                insertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
-                                            $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,{sqlNowStr},{sqlNowStr}) " +
+                insertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified) " +
+                                            $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@ReviewedAt,{sqlNowStr},{sqlNowStr}) " +
                                             "ON CONFLICT DO NOTHING "+
                                             "RETURNING created,modified,rowId;";
                 insertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -137,6 +141,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 insertCommand.AddParameter("@status", DbType.Int32, item.status);
                 insertCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
                 insertCommand.AddParameter("@data", DbType.Binary, item.data);
+                insertCommand.AddParameter("@ReviewedAt", DbType.Int64, item.ReviewedAt?.milliseconds);
                 await using var rdr = await insertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -158,10 +163,10 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var upsertCommand = cn.CreateCommand();
             {
                 string sqlNowStr = upsertCommand.SqlNow();
-                upsertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,created,modified) " +
-                                            $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,{sqlNowStr},{sqlNowStr})"+
+                upsertCommand.CommandText = "INSERT INTO Connections (identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified) " +
+                                            $"VALUES (@identityId,@identity,@displayName,@status,@accessIsRevoked,@data,@ReviewedAt,{sqlNowStr},{sqlNowStr})"+
                                             "ON CONFLICT (identityId,identity) DO UPDATE "+
-                                            $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = {upsertCommand.SqlMax()}(Connections.modified+1,{sqlNowStr}) "+
+                                            $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,ReviewedAt = @ReviewedAt,modified = {upsertCommand.SqlMax()}(Connections.modified+1,{sqlNowStr}) "+
                                             "RETURNING created,modified,rowId;";
                 upsertCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
                 upsertCommand.AddParameter("@identity", DbType.String, item.identity.DomainName);
@@ -169,6 +174,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 upsertCommand.AddParameter("@status", DbType.Int32, item.status);
                 upsertCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
                 upsertCommand.AddParameter("@data", DbType.Binary, item.data);
+                upsertCommand.AddParameter("@ReviewedAt", DbType.Int64, item.ReviewedAt?.milliseconds);
                 await using var rdr = await upsertCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -191,7 +197,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 string sqlNowStr = updateCommand.SqlNow();
                 updateCommand.CommandText = "UPDATE Connections " +
-                                            $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,modified = {updateCommand.SqlMax()}(Connections.modified+1,{sqlNowStr}) "+
+                                            $"SET displayName = @displayName,status = @status,accessIsRevoked = @accessIsRevoked,data = @data,ReviewedAt = @ReviewedAt,modified = {updateCommand.SqlMax()}(Connections.modified+1,{sqlNowStr}) "+
                                             "WHERE (identityId = @identityId AND identity = @identity) "+
                                             "RETURNING created,modified,rowId;";
                 updateCommand.AddParameter("@identityId", DbType.Binary, item.identityId);
@@ -200,6 +206,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 updateCommand.AddParameter("@status", DbType.Int32, item.status);
                 updateCommand.AddParameter("@accessIsRevoked", DbType.Int32, item.accessIsRevoked);
                 updateCommand.AddParameter("@data", DbType.Binary, item.data);
+                updateCommand.AddParameter("@ReviewedAt", DbType.Int64, item.ReviewedAt?.milliseconds);
                 await using var rdr = await updateCommand.ExecuteReaderAsync(CommandBehavior.SingleRow);
                 if (await rdr.ReadAsync())
                 {
@@ -239,12 +246,13 @@ namespace Odin.Core.Storage.Database.Identity.Table
             sl.Add("status");
             sl.Add("accessIsRevoked");
             sl.Add("data");
+            sl.Add("ReviewedAt");
             sl.Add("created");
             sl.Add("modified");
             return sl;
         }
 
-        // SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified
+        // SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified
         protected ConnectionsRecord ReadRecordFromReaderAll(DbDataReader rdr)
         {
             var result = new List<ConnectionsRecord>();
@@ -262,8 +270,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.data = (rdr[6] == DBNull.Value) ? null : (byte[])(rdr[6]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
-            item.created = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
-            item.modified = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.ReviewedAt = (rdr[7] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[7]);
+            item.created = (rdr[8] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[8]);
+            item.modified = (rdr[9] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[9]);
             return item;
        }
 
@@ -289,7 +298,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             {
                 deleteCommand.CommandText = "DELETE FROM Connections " +
                                              "WHERE identityId = @identityId AND identity = @identity " + 
-                                             "RETURNING rowId,displayName,status,accessIsRevoked,data,created,modified";
+                                             "RETURNING rowId,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified";
 
                 deleteCommand.AddParameter("@identityId", DbType.Binary, identityId);
                 deleteCommand.AddParameter("@identity", DbType.String, identity.DomainName);
@@ -324,8 +333,9 @@ namespace Odin.Core.Storage.Database.Identity.Table
             item.data = (rdr[4] == DBNull.Value) ? null : (byte[])(rdr[4]);
             if (item.data?.Length < 0)
                 throw new Exception("Too little data in data...");
-            item.created = (rdr[5] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[5]);
-            item.modified = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.ReviewedAt = (rdr[5] == DBNull.Value) ? null : new UnixTimeUtc((long)rdr[5]);
+            item.created = (rdr[6] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[6]);
+            item.modified = (rdr[7] == DBNull.Value) ? throw new Exception("item is NULL, but set as NOT NULL") : new UnixTimeUtc((long)rdr[7]);
             return item;
        }
 
@@ -334,7 +344,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var get0Command = cn.CreateCommand();
             {
-                get0Command.CommandText = "SELECT rowId,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
+                get0Command.CommandText = "SELECT rowId,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified FROM Connections " +
                                              "WHERE identityId = @identityId AND identity = @identity LIMIT 1 "+
                                              ";";
 
@@ -366,7 +376,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging2Command = cn.CreateCommand();
             {
-                getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
+                getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId) AND identity > @identity  ORDER BY identity ASC  LIMIT @count;";
 
                 getPaging2Command.AddParameter("@identity", DbType.String, inCursor);
@@ -410,7 +420,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging2Command = cn.CreateCommand();
             {
-                getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
+                getPaging2Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId AND status = @status) AND identity > @identity  ORDER BY identity ASC  LIMIT @count;";
 
                 getPaging2Command.AddParameter("@identity", DbType.String, inCursor);
@@ -455,19 +465,19 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 rowid = long.MaxValue;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var getPaging7Command = cn.CreateCommand();
+            await using var getPaging8Command = cn.CreateCommand();
             {
-                getPaging7Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
+                getPaging8Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId AND status = @status) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
 
-                getPaging7Command.AddParameter("@created", DbType.Int64, inCursor?.milliseconds);
-                getPaging7Command.AddParameter("@rowId", DbType.Int64, rowid);
-                getPaging7Command.AddParameter("@count", DbType.Int64, count+1);
-                getPaging7Command.AddParameter("@identityId", DbType.Binary, identityId);
-                getPaging7Command.AddParameter("@status", DbType.Int32, status);
+                getPaging8Command.AddParameter("@created", DbType.Int64, inCursor?.milliseconds);
+                getPaging8Command.AddParameter("@rowId", DbType.Int64, rowid);
+                getPaging8Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging8Command.AddParameter("@identityId", DbType.Binary, identityId);
+                getPaging8Command.AddParameter("@status", DbType.Int32, status);
 
                 {
-                    await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging8Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         UnixTimeUtc? nextCursor;
@@ -506,18 +516,18 @@ namespace Odin.Core.Storage.Database.Identity.Table
                 rowid = long.MaxValue;
 
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
-            await using var getPaging7Command = cn.CreateCommand();
+            await using var getPaging8Command = cn.CreateCommand();
             {
-                getPaging7Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
+                getPaging8Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId) AND created <= @created AND rowId < @rowId ORDER BY created DESC , rowId DESC LIMIT @count;";
 
-                getPaging7Command.AddParameter("@created", DbType.Int64, inCursor?.milliseconds);
-                getPaging7Command.AddParameter("@rowId", DbType.Int64, rowid);
-                getPaging7Command.AddParameter("@count", DbType.Int64, count+1);
-                getPaging7Command.AddParameter("@identityId", DbType.Binary, identityId);
+                getPaging8Command.AddParameter("@created", DbType.Int64, inCursor?.milliseconds);
+                getPaging8Command.AddParameter("@rowId", DbType.Int64, rowid);
+                getPaging8Command.AddParameter("@count", DbType.Int64, count+1);
+                getPaging8Command.AddParameter("@identityId", DbType.Binary, identityId);
 
                 {
-                    await using (var rdr = await getPaging7Command.ExecuteReaderAsync(CommandBehavior.Default))
+                    await using (var rdr = await getPaging8Command.ExecuteReaderAsync(CommandBehavior.Default))
                     {
                         var result = new List<ConnectionsRecord>();
                         UnixTimeUtc? nextCursor;
@@ -556,7 +566,7 @@ namespace Odin.Core.Storage.Database.Identity.Table
             await using var cn = await _scopedConnectionFactory.CreateScopedConnectionAsync();
             await using var getPaging0Command = cn.CreateCommand();
             {
-                getPaging0Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,created,modified FROM Connections " +
+                getPaging0Command.CommandText = "SELECT rowId,identityId,identity,displayName,status,accessIsRevoked,data,ReviewedAt,created,modified FROM Connections " +
                                             "WHERE (identityId = @identityId) AND rowId > @rowId  ORDER BY rowId ASC  LIMIT @count;";
 
                 getPaging0Command.AddParameter("@rowId", DbType.Int64, inCursor);
