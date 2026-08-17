@@ -12,10 +12,6 @@ jobs:
     name: Test windows/sqlite/debug
     runs-on: windows-latest
 
-    env:
-      ODIN_S3_ACCESS_KEY: ${{ secrets.HETZNER_S3_ACCESS_KEY }}
-      ODIN_S3_SECRET_ACCESS_KEY: ${{ secrets.HETZNER_S3_SECRET_ACCESS_KEY }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

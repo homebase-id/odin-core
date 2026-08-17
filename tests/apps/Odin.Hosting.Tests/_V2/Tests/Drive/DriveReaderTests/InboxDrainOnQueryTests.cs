@@ -177,7 +177,7 @@ public class InboxDrainOnQueryTests
             {
                 GlobalTransitId = [uploadA.GlobalTransitIdFileIdentifier.GlobalTransitId]
             },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+            ResultOptionsRequest = new QueryBatchCollectionSectionOptionsV2()
         };
 
         var sectionB = new CollectionQueryParamSectionV2
@@ -188,12 +188,13 @@ public class InboxDrainOnQueryTests
             {
                 GlobalTransitId = [uploadB.GlobalTransitIdFileIdentifier.GlobalTransitId]
             },
-            ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+            ResultOptionsRequest = new QueryBatchCollectionSectionOptionsV2()
         };
 
         var queryResponse = await v2Reader.GetBatchCollectionAsync(new QueryBatchCollectionRequestV2
         {
-            Queries = [sectionA, sectionB]
+            Queries = [sectionA, sectionB],
+            MaxRecords = 100
         });
 
         ClassicAssert.IsTrue(queryResponse.IsSuccessStatusCode,

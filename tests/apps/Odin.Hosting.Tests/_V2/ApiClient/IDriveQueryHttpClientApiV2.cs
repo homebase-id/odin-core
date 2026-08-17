@@ -15,7 +15,7 @@ public interface IDriveQueryHttpClientApiV2
     Task<ApiResponse<QueryBatchResponse>> GetBatch([AliasAs("driveId:guid")] Guid driveId, [Body] QueryBatchRequest request);
 
     [Post(UnifiedApiRouteConstants.DrivesRoot + "/query-batch-collection")]
-    Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection([Body] QueryBatchCollectionRequestV2 request);
+    Task<ApiResponse<QueryBatchCollectionResponseV2>> GetBatchCollection([Body] QueryBatchCollectionRequestV2 request);
 
     [Post(RootQueryEndpoint + "/query-smart-batch")]
     Task<ApiResponse<QueryBatchResponse>> GetSmartBatch([AliasAs("driveId:guid")] Guid driveId, [Body] QueryBatchRequest request);

@@ -534,8 +534,7 @@ public class S3FileStoreTests : PayloadReaderWriterBaseTestFixture
         BaseSetup();
         TestSecrets.Load();
 
-        _minioContainer = new MinioBuilder()
-            .WithImage("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+        _minioContainer = new MinioBuilder("minio/minio:RELEASE.2025-05-24T17-08-30Z")
             .WithUsername("minioadmin")
             .WithPassword("minioadmin123")
             .Build();
@@ -825,8 +824,7 @@ public class PromoteViaIngestFromTests
     {
         TestSecrets.Load();
 
-        _minioContainer = new MinioBuilder()
-            .WithImage("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+        _minioContainer = new MinioBuilder("minio/minio:RELEASE.2025-05-24T17-08-30Z")
             .WithUsername("minioadmin")
             .WithPassword("minioadmin123")
             .Build();

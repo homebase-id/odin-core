@@ -29,8 +29,7 @@ public class TenantPubSubTests
     public void Setup()
     {
 #if RUN_REDIS_TESTS
-        _redisContainer = new RedisBuilder()
-            .WithImage("redis:latest")
+        _redisContainer = new RedisBuilder("redis:latest")
             .Build();
         _redisContainer!.StartAsync().BlockingWait();
 #endif

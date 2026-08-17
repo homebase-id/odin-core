@@ -18,6 +18,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public bool IsReadonly { get; set; }
         public bool AllowSubscriptions { get; set; }
         public bool AllowAnonymousReads { get; set; }
+
+        /// <summary>
+        /// Whether the CDN may read this drive's payloads. Backs the owner-console checkbox.
+        /// </summary>
+        public bool AllowCdn { get; set; }
+
         public bool OwnerOnly { get; set; }
         public bool IsArchived { get; set; }
         public bool IsSystemDrive { get; set; }
