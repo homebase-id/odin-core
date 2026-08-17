@@ -301,6 +301,21 @@ public class IdentityRegistrationServiceTest
     }
 
     [Test]
+    public async Task ItShouldNotOfferManagedDomainsAsOwnDomains()
+    {
+        // The UI's availability check and the create-own-domain-zone endpoint's guard both
+        // run through IsOwnDomainAvailable - managed apexes and their subdomains must be
+        // rejected there, before any zone logic is reached
+        _registry.Setup(r => r.CanAddNewRegistration(It.IsAny<string>())).ReturnsAsync(true);
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+
+        Assert.That(await registration.IsOwnDomainAvailable("demo.rocks"), Is.False);
+        Assert.That(await registration.IsOwnDomainAvailable("frodo.baggins.demo.rocks"), Is.False);
+        Assert.That(await registration.IsOwnDomainAvailable("FRODO.BAGGINS.DEMO.ROCKS"), Is.False);
+        Assert.That(await registration.IsOwnDomainAvailable("frodo.example.com"), Is.True);
+    }
+
+    [Test]
     public async Task ItShouldRefuseZoneCreationInsideAHostedZone()
     {
         // demo.id.pub must never become its own zone while we host id.pub: the child

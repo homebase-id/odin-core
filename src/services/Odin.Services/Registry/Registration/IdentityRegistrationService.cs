@@ -236,6 +236,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return false;
         }
 
+        // Managed apexes (and anything under them) are never "own domains": they are
+        // provisioned through the managed-domain flow, and an own-domain zone for one
+        // would shadow the apex zone we host
+        if (IsManagedDomain(domain.Trim().ToLower()))
+        {
+            return false;
+        }
+
         // Identity already exists or domain path clash?
         return await _registry.CanAddNewRegistration(domain);
 
