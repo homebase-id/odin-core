@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.V2.Hosting;
 
 /// <summary>
 /// Unit tests for <see cref="SpaFallback"/> — the deep-link fallback guard used by the
-/// statically-served chat-wasm app. These assert
+/// statically-served Kotlin/WASM chat app. These assert
 /// the rule: a navigation gets the SPA shell, but an
 /// asset request gets a clean 404 instead of being masked as <c>200 index.html</c> (the masking
 /// that hid the chat-wasm blank-text bug, where Compose received index.html for its

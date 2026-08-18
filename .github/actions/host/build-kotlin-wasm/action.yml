@@ -1,5 +1,5 @@
 name: "Host: Build Kotlin WASM app"
-description: "Build chat-kmp webApp (Kotlin/WASM) and bundle into Odin.Hosting client assets"
+description: "Build chat-kmp webApp (Kotlin/WASM) and bundle it into Odin.Hosting as the /apps/chat client"
 inputs:
   odin_lib_token:
     description: "Github token for chat-kmp repo"
@@ -104,11 +104,13 @@ runs:
         ref: ${{ inputs.git_ref }}
         path: client/chat-kmp
 
-    - name: Build chat-wasm
+    - name: Build chat app
       shell: bash
       working-directory: ./client/chat-kmp
       run: |
-        ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache -PpublicPath=/apps/chat-wasm/
-        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
+        # publicPath is baked into index.html and the Compose resource loader, so it has to
+        # match the route Odin.Hosting serves the bundle from (/apps/chat in Startup.cs).
+        ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache -PpublicPath=/apps/chat/
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
         mkdir -p ../../odin-core/src/apps/Odin.Hosting/client/apps
-        mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
+        mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat

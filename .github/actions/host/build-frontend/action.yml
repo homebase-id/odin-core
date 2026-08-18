@@ -137,8 +137,6 @@ runs:
         echo VITE_VERSION=$(date +%s) >> packages/apps/owner-app/.env
         touch packages/apps/feed-app/.env
         echo VITE_VERSION=$(date +%s) >> packages/apps/feed-app/.env
-        touch packages/apps/chat-app/.env
-        echo VITE_VERSION=$(date +%s) >> packages/apps/chat-app/.env
         touch packages/apps/mail-app/.env
         echo VITE_VERSION=$(date +%s) >> packages/apps/mail-app/.env
         touch packages/apps/provisioning-app/.env
@@ -170,13 +168,8 @@ runs:
         rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/feed
         mv packages/apps/feed-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/feed
 
-    - name: Build chat-app
-      shell: bash
-      working-directory: ./client/apps
-      run: |
-        npm run build:chat
-        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
-        mv packages/apps/chat-app/dist ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
+    # No chat-app build here: /apps/chat is served from the Kotlin/WASM chat-kmp bundle,
+    # built by ../build-kotlin-wasm into the same client/apps/chat directory.
 
     - name: Build mail-app
       shell: bash
