@@ -19,17 +19,20 @@ public class DnsLookupService : IDnsLookupService
     private readonly OdinConfiguration _configuration;
     private readonly ILookupClient _dnsClient;
     private readonly IAuthoritativeDnsLookup _authoritativeDnsLookup;
+    private readonly IDnssecLookup _dnssecLookup;
 
     public DnsLookupService(
         ILogger<DnsLookupService> logger,
         OdinConfiguration configuration,
         ILookupClient dnsClient,
-        IAuthoritativeDnsLookup authoritativeDnsLookup)
+        IAuthoritativeDnsLookup authoritativeDnsLookup,
+        IDnssecLookup dnssecLookup)
     {
         _logger = logger;
         _configuration = configuration;
         _dnsClient = dnsClient;
         _authoritativeDnsLookup = authoritativeDnsLookup;
+        _dnssecLookup = dnssecLookup;
     }
 
     //
@@ -327,6 +330,24 @@ public class DnsLookupService : IDnsLookupService
         }
 
         return true;
+    }
+
+    //
+
+    // Thin wrappers over the shared generic primitives (Odin.Core.Dns.DnssecLookup):
+    // both are public-DNS data, deliberately NOT PowerDNS - see the architectural
+    // boundary in docs/byod-dnssec-plan.md
+
+    public Task<List<DsRecordData>> GetParentDsRecordsAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
+    {
+        return _dnssecLookup.GetParentDsRecordsAsync(domain.DomainName, cancellationToken);
+    }
+
+    public Task<bool> IsParentZoneSignedAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
+    {
+        var domainName = domain.DomainName;
+        var parent = domainName[(domainName.IndexOf('.') + 1)..];
+        return _dnssecLookup.IsZoneSignedAsync(parent, cancellationToken);
     }
 
     //

@@ -17,8 +17,11 @@ public class DnsLookupServiceTest
     {
         var authoritativeDnsLookup = new AuthoritativeDnsLookup(
             new Mock<ILogger<AuthoritativeDnsLookup>>().Object, new LookupClient());
+        var dnssecLookup = new DnssecLookup(
+            new Mock<ILogger<DnssecLookup>>().Object, new LookupClient(), authoritativeDnsLookup);
         return new DnsLookupService(
-            new Mock<ILogger<DnsLookupService>>().Object, configuration, new LookupClient(), authoritativeDnsLookup);
+            new Mock<ILogger<DnsLookupService>>().Object, configuration, new LookupClient(), authoritativeDnsLookup,
+            dnssecLookup);
     }
 
     private static OdinConfiguration ConfigurationWithDns(

@@ -196,6 +196,7 @@ public static class SystemServices
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
+        services.AddSingleton<IDnssecLookup, DnssecLookup>();
         services.AddSingleton<IDnsLookupService, DnsLookupService>();
 
         services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(

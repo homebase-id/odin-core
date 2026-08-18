@@ -438,6 +438,18 @@ public class CommandLine
             return (true, 0);
         }
 
+        //
+        // Print the DNSSEC verdict for every own-domain identity (read-only).
+        //
+        // example:
+        //   dotnet run -- own-domain-dnssec-status
+        //
+        if (args.Length > 0 && args[0] == "own-domain-dnssec-status")
+        {
+            OwnDomainZones.DnssecStatusAsync(_serviceProvider).BlockingWait();
+            return (true, 0);
+        }
+
 
         
         return (false, 0);

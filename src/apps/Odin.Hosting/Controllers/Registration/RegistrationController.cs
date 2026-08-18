@@ -238,6 +238,27 @@ public class RegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// DNSSEC state of an own-domain's hosted zone: whether it is signed, whether the
+    /// parent zone can carry a DS record, and whether the DS published at the parent
+    /// matches our keys - plus the DS values the user would enter at their registrar
+    /// (apex) or DNS host (subdomain). Read-only; everything returned is public DNS
+    /// material. See docs/byod-dnssec-plan.md.
+    /// </summary>
+    [HttpGet("dnssec-status/{domain}")]
+    public async Task<IActionResult> GetDnssecStatus(string domain)
+    {
+        var result = await _regService.GetDnssecStatusAsync(ParseDomain(domain), HttpContext.RequestAborted);
+        return new JsonResult(new
+        {
+            // camelCase status so the frontend switches on stable string values
+            status = char.ToLowerInvariant(result.Status.ToString()[0]) + result.Status.ToString()[1..],
+            ourDsRecords = result.OurDsRecords,
+            parentDsRecords = result.ParentDsRecords,
+            parentZoneSigned = result.ParentZoneSigned,
+        });
+    }
+
+    /// <summary>
     /// Gets the status for the ongoing own domain registration
     /// </summary>
     /// <returns></returns>
