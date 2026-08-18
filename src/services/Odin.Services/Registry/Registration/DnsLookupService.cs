@@ -345,9 +345,9 @@ public class DnsLookupService : IDnsLookupService
 
     public Task<bool> IsParentZoneSignedAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        var domainName = domain.DomainName;
-        var parent = domainName[(domainName.IndexOf('.') + 1)..];
-        return _dnssecLookup.IsZoneSignedAsync(parent, cancellationToken);
+        // Enclosing-zone semantics (not literally one label up): for a domain below an
+        // empty non-terminal the DS lives in the delegating zone further up
+        return _dnssecLookup.IsParentZoneSignedAsync(domain.DomainName, cancellationToken);
     }
 
     //
