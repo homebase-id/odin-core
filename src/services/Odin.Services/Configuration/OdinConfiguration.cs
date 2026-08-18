@@ -165,7 +165,7 @@ public class OdinConfiguration
         public List<string> InvitationCodesWithoutPublicWebPresence { get; init; } = [];
 
         public string PowerDnsHostAddress { get; init; } = "";
-        public string PowerDnsApiKey { get; init; } = "";
+        public string PowerDnsApiKey { get; set; } = "";
 
         public string ProvisioningDomain { get; init; } = "";
         public bool ProvisioningEnabled { get; init; }
