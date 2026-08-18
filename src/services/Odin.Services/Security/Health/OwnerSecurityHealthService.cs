@@ -36,6 +36,7 @@ public class OwnerSecurityHealthService(
     IDriveManager driveManager,
     ILogger<OwnerSecurityHealthService> logger,
     RecoveryNotifier recoveryNotifier,
+    Odin.Services.Dns.Health.DnsHealthService dnsHealthService,
     TableKeyValueCached keyValueTable)
 {
     private static readonly Guid VerificationStorageId = Guid.Parse("475c72c0-bb9c-4dc9-a565-7e72319ff2b8");
@@ -211,7 +212,9 @@ public class OwnerSecurityHealthService(
     public async Task NotifyUser(IOdinContext odinContext)
     {
         var recoveryInfo = await GetRecoveryInfo(live: true, odinContext);
-        await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext);
+        // Same DNSSEC enrichment as the monthly job; best-effort (null on any failure)
+        var dnssecAttention = await dnsHealthService.GetDnssecAttentionAsync(odinContext.Tenant.AsciiDomain);
+        await recoveryNotifier.NotifyUser(odinContext.Tenant, recoveryInfo, odinContext, dnssecAttention);
     }
 
     public async Task<bool> GetSecurityNeedsAttentionStatus(IOdinContext odinContext)

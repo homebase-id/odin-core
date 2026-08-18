@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Odin.Core.Identity;
+using Odin.Services.Dns.Health;
 using Odin.Services.Security.Health.RiskAnalyzer;
 using Odin.Services.Security.PasswordRecovery.Shamir;
 
@@ -398,10 +399,12 @@ public static class RecoveryEmails
         return Template(sb.ToString());
     }
 
-    public static string FormatRecoveryRiskStatusText(OdinId odinId, RecoveryInfo info)
+    public static string FormatRecoveryRiskStatusText(OdinId odinId, RecoveryInfo info,
+        DnssecHealthResult dnssecAttention = null)
     {
         var risk = info.RecoveryRisk;
         var tenant = odinId;
+        var dnssecSection = DnssecAttentionText(tenant, dnssecAttention);
 
         if (!info.IsConfigured)
         {
@@ -415,7 +418,7 @@ Your account currently has no recovery setup. This means if you lose access, you
 Please set up Account Recovery by adding trusted connections as soon as possible:
 
 👉 https://{tenant}/owner/security/password-recovery
-
+{dnssecSection}
 --
 Team Homebase
 ".Trim();
@@ -453,16 +456,62 @@ We recommend checking your recovery contacts and ensuring that all listed player
 
 You can manage your Account Recovery here:
 👉 https://{tenant}/owner/security/password-recovery
-
+{dnssecSection}
 --
 Team Homebase
 ".Trim();
     }
 
-    public static string FormatRecoveryRiskStatusHtml(OdinId odinId, RecoveryInfo info)
+    // Rendered only when the DNSSEC state is user-actionable (the caller passes null
+    // otherwise): a stale DS that breaks resolution, or a signed parent one DS away
+    private static string DnssecAttentionText(OdinId tenant, DnssecHealthResult dnssec)
+    {
+        if (dnssec == null)
+        {
+            return "";
+        }
+
+        static string Ds(System.Collections.Generic.List<Odin.Core.Dns.DsRecordData> records) =>
+            string.Join("\n", records.ConvertAll(ds =>
+                $"  Key tag: {ds.KeyTag}   Algorithm: {ds.Algorithm}   Digest type: {ds.DigestType}\n  Digest: {ds.Digest}"));
+
+        if (dnssec.Status == DnsHealthDnssecStatus.DsMismatch)
+        {
+            return @$"
+
+🚨 DNSSEC problem detected
+
+The DNSSEC anchor (DS record) published for {tenant} does not match your DNS zone's keys.
+Validating DNS resolvers will refuse to resolve your domain! Remove or replace the DS
+record at your registrar (apex domain) or DNS host (subdomain). It should be:
+
+{Ds(dnssec.DsToPublish)}
+
+Review it here: https://{tenant}/owner/security/dns
+";
+        }
+
+        // DsMissing with a signed parent
+        return @$"
+
+🔒 Optional: protect {tenant} with DNSSEC
+
+Your DNS zone is cryptographically signed, but the chain of trust is not anchored yet.
+Add this DS record at your registrar (apex domain) or as a DS record next to your NS
+records at your DNS host (subdomain):
+
+{Ds(dnssec.DsToPublish)}
+
+Review it here: https://{tenant}/owner/security/dns
+";
+    }
+
+    public static string FormatRecoveryRiskStatusHtml(OdinId odinId, RecoveryInfo info,
+        DnssecHealthResult dnssecAttention = null)
     {
         var risk = info.RecoveryRisk;
         var tenant = odinId;
+        var dnssecSection = DnssecAttentionHtml(tenant, dnssecAttention);
 
         if (!info.IsConfigured)
         {
@@ -484,7 +533,7 @@ Team Homebase
     <p style='margin-bottom: 30px;'>
         <a href='https://{tenant}/owner/security/password-recovery' style='color: #0052cc; text-decoration: none; font-weight: 600;'>Open Account Recovery Settings →</a>
     </p>
-
+{dnssecSection}
     <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>
         Kind regards,<br />Team Homebase
     </p>
@@ -543,11 +592,60 @@ Team Homebase
     <p style='margin-top: 25px;'>
         <a href='https://{tenant}/owner/security/password-recovery' style='color: #0052cc; text-decoration: none; font-weight: 600;'>Manage Account Recovery →</a>
     </p>
-
+{dnssecSection}
     <p style='margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; color: #555; font-size: 14px;'>
         Kind regards,<br />Team Homebase
     </p>
 ");
+    }
+
+    // Rendered only when the DNSSEC state is user-actionable (the caller passes null otherwise)
+    private static string DnssecAttentionHtml(OdinId tenant, DnssecHealthResult dnssec)
+    {
+        if (dnssec == null)
+        {
+            return "";
+        }
+
+        static string DsRows(System.Collections.Generic.List<Odin.Core.Dns.DsRecordData> records) =>
+            string.Join("", records.ConvertAll(ds =>
+                "<tr>" +
+                $"<td style='padding: 4px 12px 4px 0;'>{ds.KeyTag}</td>" +
+                $"<td style='padding: 4px 12px 4px 0;'>{ds.Algorithm}</td>" +
+                $"<td style='padding: 4px 12px 4px 0;'>{ds.DigestType}</td>" +
+                $"<td style='padding: 4px 0; word-break: break-all;'><code>{ds.Digest}</code></td>" +
+                "</tr>"));
+
+        var isMismatch = dnssec.Status == DnsHealthDnssecStatus.DsMismatch;
+        var headline = isMismatch
+            ? "🚨 DNSSEC problem detected"
+            : "🔒 Optional: protect your domain with DNSSEC";
+        var explanation = isMismatch
+            ? $"The DNSSEC anchor (DS record) published for <strong>{tenant}</strong> does not match your DNS zone's keys. " +
+              "<strong>Validating DNS resolvers will refuse to resolve your domain!</strong> " +
+              "Remove or replace the DS record at your registrar (apex domain) or DNS host (subdomain). It should be:"
+            : $"The DNS zone of <strong>{tenant}</strong> is cryptographically signed, but the chain of trust is not anchored yet. " +
+              "Add this DS record at your registrar (apex domain) or as a DS record next to your NS records at your DNS host (subdomain):";
+
+        return @$"
+    <h3 style='margin-top: 25px; margin-bottom: 10px;'>{headline}</h3>
+
+    <p style='margin-bottom: 15px;'>{explanation}</p>
+
+    <table style='border-collapse: collapse; margin-bottom: 15px; font-family: monospace; font-size: 13px;'>
+        <tr style='color: #555;'>
+            <th style='text-align: left; padding: 4px 12px 4px 0; font-weight: normal;'>Key tag</th>
+            <th style='text-align: left; padding: 4px 12px 4px 0; font-weight: normal;'>Algorithm</th>
+            <th style='text-align: left; padding: 4px 12px 4px 0; font-weight: normal;'>Digest type</th>
+            <th style='text-align: left; padding: 4px 0; font-weight: normal;'>Digest</th>
+        </tr>
+        {DsRows(dnssec.DsToPublish)}
+    </table>
+
+    <p style='margin-bottom: 15px;'>
+        <a href='https://{tenant}/owner/security/dns' style='color: #0052cc; text-decoration: none; font-weight: 600;'>Review DNS &amp; DNSSEC status →</a>
+    </p>
+";
     }
 
     public static string VerifyNewRecoveryEmailText(string domain, string link)

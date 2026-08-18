@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Dns;
+using Odin.Core.Exceptions;
+using Odin.Core.Util;
 using Odin.Core.Http;
 using Odin.Services.Configuration;
 using Odin.Services.Dns;
@@ -24,11 +26,17 @@ public class IdentityRegistrationServiceTest
     private readonly Mock<IDynamicHttpClientFactory> _httpClientFactory = new();
     private readonly Mock<IJobManager> _jobManager = new();
 
+    // Shorthand for the typed-domain boundary in tests
+    private static AsciiDomainName D(string domain) => new(domain);
+
     private IdentityRegistrationService CreateIdentityRegistrationService(OdinConfiguration configuration)
     {
         var authorativeDnsLookup = new AuthoritativeDnsLookup(new Mock<ILogger<AuthoritativeDnsLookup>>().Object, new LookupClient());
+        var dnssecLookup = new DnssecLookup(
+            new Mock<ILogger<DnssecLookup>>().Object, new LookupClient(), authorativeDnsLookup);
         var dnsLookupService = new DnsLookupService(
-            new Mock<ILogger<DnsLookupService>>().Object, configuration, new LookupClient(), authorativeDnsLookup);
+            new Mock<ILogger<DnsLookupService>>().Object, configuration, new LookupClient(), authorativeDnsLookup,
+            dnssecLookup);
 
         return new IdentityRegistrationService(
             _loggerMock.Object,
@@ -121,11 +129,11 @@ public class IdentityRegistrationServiceTest
             .Callback<IdentityRegistrationRequest>(r => capturedRequest = r)
             .ReturnsAsync(System.Guid.NewGuid());
 
-        await registration.CreateIdentityOnDomainAsync("frodo.example.com", "frodo@example.com", "free", "no-presence");
+        await registration.CreateIdentityOnDomainAsync(D("frodo.example.com"), "frodo@example.com", "free", "no-presence");
         Assert.That(capturedRequest, Is.Not.Null);
         Assert.That(capturedRequest!.EnablePublicWebPresence, Is.False);
 
-        await registration.CreateIdentityOnDomainAsync("sam.example.com", "sam@example.com", "free", "with-presence");
+        await registration.CreateIdentityOnDomainAsync(D("sam.example.com"), "sam@example.com", "free", "with-presence");
         Assert.That(capturedRequest!.EnablePublicWebPresence, Is.True);
     }
 
@@ -201,10 +209,379 @@ public class IdentityRegistrationServiceTest
 
         if (resolver == Resolver.Authoritative)
         {
-            return await registration.GetAuthoritativeDomainDnsStatus(domain, CancellationToken.None);
+            return await registration.GetAuthoritativeDomainDnsStatus(D(domain), CancellationToken.None);
         }
 
-        return await registration.GetExternalDomainDnsStatus(domain, CancellationToken.None);
+        return await registration.GetExternalDomainDnsStatus(D(domain), CancellationToken.None);
     }
 
+    //
+    // Own-domain zone lifecycle
+    //
+
+    private static OdinConfiguration ConfigurationWithZoneHosting(bool configured = true)
+    {
+        return new OdinConfiguration
+        {
+            Registry = new OdinConfiguration.RegistrySection
+            {
+                PowerDnsApiKey = configured ? "top-secret" : "",
+                DnsConfigurationSet = new DnsConfigurationSet(
+                    "131.164.170.62",
+                    "identity-host.example",
+                    configured ? ["ns1.example", "ns2.example"] : [],
+                    "admin@example.com"),
+                ManagedDomainApexes =
+                [
+                    new() { Apex = "demo.rocks", PrefixLabels = ["First name", "Last name"] }
+                ],
+            }
+        };
+    }
+
+    [Test]
+    public async Task ItShouldSkipZoneCreationWhenZoneHostingIsNotConfigured()
+    {
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting(configured: false));
+
+        Assert.That(registration.CanHostOwnDomainZones, Is.False);
+        var result = await registration.CreateOwnDomainZone(D("frodo.example.com"));
+
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.NotConfigured));
+        _dnsRestClient.VerifyNoOtherCalls();
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldCreateZoneWithNameserversAndRecordsForOwnDomain()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(false);
+        // Domain-control proof: an identity is registered for the domain
+        _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync(new IdentityRegistration());
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+
+        Assert.That(registration.CanHostOwnDomainZones, Is.True);
+        var result = await registration.CreateOwnDomainZone(D("frodo.example.com"));
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.Created));
+
+        _dnsRestClient.Verify(c => c.CreateZone(
+            "frodo.example.com.",
+            It.Is<string[]>(ns => ns.SequenceEqual(new[] { "ns1.example.", "ns2.example." })),
+            "admin@example.com"), Times.Once);
+        // Apex A record (empty name = apex), capi + file CNAMEs; no ALIAS, no NS rrset calls
+        _dnsRestClient.Verify(c => c.CreateARecords(
+            "frodo.example.com.", "", It.Is<IEnumerable<string>>(v => v.Single() == "131.164.170.62")), Times.Once);
+        _dnsRestClient.Verify(c => c.CreateCnameRecords(
+            "frodo.example.com.", "capi", "identity-host.example."), Times.Once);
+        _dnsRestClient.Verify(c => c.CreateCnameRecords(
+            "frodo.example.com.", "file", "identity-host.example."), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldNotRecreateAnExistingZone()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+        _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync(new IdentityRegistration());
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var result = await registration.CreateOwnDomainZone(D("frodo.example.com"));
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.Created));
+
+        _dnsRestClient.Verify(c => c.CreateZone(
+            It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);
+        // Records are still (re)placed so re-running converges
+        _dnsRestClient.Verify(c => c.CreateARecords(
+            "frodo.example.com.", "", It.IsAny<IEnumerable<string>>()), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public void ItShouldRefuseZoneCreationForManagedDomains()
+    {
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+
+        Assert.ThrowsAsync<Odin.Core.Exceptions.OdinSystemException>(
+            () => registration.CreateOwnDomainZone(D("frodo.baggins.demo.rocks")));
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldNotOfferManagedDomainsAsOwnDomains()
+    {
+        // The UI's availability check and the create-own-domain-zone endpoint's guard both
+        // run through IsOwnDomainAvailable - managed apexes and their subdomains must be
+        // rejected there, before any zone logic is reached
+        _registry.Setup(r => r.CanAddNewRegistration(It.IsAny<string>())).ReturnsAsync(true);
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+
+        Assert.That(await registration.IsOwnDomainAvailable(D("demo.rocks")), Is.False);
+        Assert.That(await registration.IsOwnDomainAvailable(D("frodo.baggins.demo.rocks")), Is.False);
+        Assert.That(await registration.IsOwnDomainAvailable(D("FRODO.BAGGINS.DEMO.ROCKS")), Is.False);
+        Assert.That(await registration.IsOwnDomainAvailable(D("frodo.example.com")), Is.True);
+    }
+
+    [Test]
+    public async Task ItShouldRefuseAZoneThatAlreadyExistsWithForeignRecords()
+    {
+        // Shared-PowerDNS scenario: michael.seifert.page is delegated to ns1/ns2 and its
+        // zone serves a LIVE identity in another environment (different apex A). This
+        // environment has no registration for it, and both environments answer to the same
+        // nameserver names, so the delegation proof is ambiguous ("proven" here via a
+        // mocked lookup service). The zone must be refused untouched - repopulating it
+        // would hijack the other environment's identity.
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("michael.seifert.page.")).ReturnsAsync(true);
+        _dnsRestClient.Setup(c => c.GetZone("michael.seifert.page.")).ReturnsAsync(
+            new Odin.Services.Dns.PowerDns.ZoneWithRecords
+            {
+                rrsets =
+                [
+                    new()
+                    {
+                        name = "michael.seifert.page.", type = "A",
+                        records = [new() { content = "203.0.113.99" }] // the OTHER environment's ingress
+                    }
+                ]
+            });
+        // The other environment's registration is invisible to this environment's registry
+        _registry.Setup(r => r.GetAsync("michael.seifert.page")).ReturnsAsync((IdentityRegistration?)null!);
+
+        var dnsLookupService = new Mock<IDnsLookupService>();
+        dnsLookupService
+            .Setup(s => s.IsDomainDelegatedToUsAsync(D("michael.seifert.page"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true); // shared nameserver identity: delegation looks like ours
+
+        var registration = new IdentityRegistrationService(
+            _loggerMock.Object,
+            _registry.Object,
+            ConfigurationWithZoneHosting(),
+            _dnsRestClient.Object,
+            _httpClientFactory.Object,
+            dnsLookupService.Object,
+            _jobManager.Object);
+
+        var result = await registration.CreateOwnDomainZone(D("michael.seifert.page"));
+
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.ZoneAlreadyHosted));
+        _dnsRestClient.Verify(c => c.CreateZone(
+            It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Verify(c => c.CreateARecords(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+        _dnsRestClient.Verify(c => c.CreateCnameRecords(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldTreatAnExistingZoneWithOurRecordsAsOurs()
+    {
+        // Normal same-environment flow: Validate created the zone earlier (apex A already
+        // ours), identity not yet registered - a second Validate must succeed, not refuse
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+        _dnsRestClient.Setup(c => c.GetZone("frodo.example.com.")).ReturnsAsync(
+            new Odin.Services.Dns.PowerDns.ZoneWithRecords
+            {
+                rrsets =
+                [
+                    new()
+                    {
+                        name = "frodo.example.com.", type = "A",
+                        records = [new() { content = "131.164.170.62" }] // OUR apex A
+                    }
+                ]
+            });
+        // Registered locally so the control gate passes without live DNS; the point under
+        // test is that the zone-content branch is not even consulted for owners, and that
+        // an existing zone with our records proceeds to populate
+        _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync(new IdentityRegistration());
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var result = await registration.CreateOwnDomainZone(D("frodo.example.com"));
+
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.Created));
+        _dnsRestClient.Verify(c => c.CreateZone(
+            It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Verify(c => c.CreateARecords(
+            "frodo.example.com.", "", It.IsAny<IEnumerable<string>>()), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldRefuseZoneCreationInsideAHostedZone()
+    {
+        // demo.id.pub must never become its own zone while we host id.pub: the child
+        // zone would shadow that part of the parent. Registration state is irrelevant.
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("id.pub.")).ReturnsAsync(true);
+        _registry.Setup(r => r.GetAsync("demo.id.pub")).ReturnsAsync(new IdentityRegistration());
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var result = await registration.CreateOwnDomainZone(D("demo.id.pub"));
+
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.ShadowsHostedZone));
+        _dnsRestClient.Verify(c => c.CreateZone(
+            It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Verify(c => c.CreateARecords(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test, Explicit] // performs live DNS lookups (delegation + record checks)
+    public async Task ItShouldRefuseZoneCreationWhenDomainControlIsNotProven()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync((IdentityRegistration?)null!);
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var result = await registration.CreateOwnDomainZone(D("frodo.example.com"));
+
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.ControlNotProven),
+            "no registration, no delegation to our nameservers, no valid records -> refused");
+        _dnsRestClient.Verify(c => c.CreateZone(
+            It.IsAny<string>(), It.IsAny<string[]>(), It.IsAny<string>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldDeleteDnsRecordsOrZoneDependingOnDomainKind()
+    {
+        _dnsRestClient.Invocations.Clear();
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+
+        // Managed domain: records removed from the shared apex zone, zone untouched
+        await registration.DeleteDnsRecordsForDomain(D("frodo.baggins.demo.rocks"));
+        _dnsRestClient.Verify(c => c.DeleteARecords("demo.rocks.", "frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteCnameRecords("demo.rocks.", "capi.frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteCnameRecords("demo.rocks.", "file.frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteZone(It.IsAny<string>()), Times.Never);
+
+        // Own domain: zone deleted
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+        await registration.DeleteDnsRecordsForDomain(D("frodo.example.com"));
+        _dnsRestClient.Verify(c => c.DeleteZone("frodo.example.com."), Times.Once);
+
+        // DNS API failure never propagates
+        _dnsRestClient.Setup(c => c.DeleteARecords(It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new System.Exception("boom"));
+        Assert.DoesNotThrowAsync(() => registration.DeleteDnsRecordsForDomain(D("sam.gamgee.demo.rocks")));
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldDeleteAnExistingOwnDomainZoneAndNeverThrow()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        await registration.DeleteOwnDomainZone(D("frodo.example.com"));
+        _dnsRestClient.Verify(c => c.DeleteZone("frodo.example.com."), Times.Once);
+
+        // Managed domain -> no zone deletion
+        await registration.DeleteOwnDomainZone(D("frodo.baggins.demo.rocks"));
+        _dnsRestClient.Verify(c => c.DeleteZone("frodo.baggins.demo.rocks."), Times.Never);
+
+        // DNS API blowing up must not propagate
+        _dnsRestClient.Setup(c => c.ZoneExists("sam.example.com.")).ThrowsAsync(new System.Exception("boom"));
+        Assert.DoesNotThrowAsync(() => registration.DeleteOwnDomainZone(D("sam.example.com")));
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    //
+    // DNSSEC status (docs/byod-dnssec-plan.md)
+    //
+
+    private static DsRecordData Ds(int keyTag, string digest = "aabbcc")
+    {
+        return new DsRecordData(keyTag, 13, 2, digest);
+    }
+
+    [Test]
+    public async Task ItShouldReportDnssecNotConfiguredWithoutZoneHosting()
+    {
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting(configured: false));
+
+        var result = await registration.GetDnssecStatusAsync(D("frodo.example.com"));
+
+        Assert.That(result.Status, Is.EqualTo(DnssecStatus.NotConfigured));
+        _dnsRestClient.VerifyNoOtherCalls();
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldReportDnssecZoneNotHostedForMissingZonesAndManagedDomains()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(false);
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+
+        var noZone = await registration.GetDnssecStatusAsync(D("frodo.example.com"));
+        Assert.That(noZone.Status, Is.EqualTo(DnssecStatus.ZoneNotHosted));
+
+        // Managed domains never have their own zone; PowerDNS is not even consulted
+        var managed = await registration.GetDnssecStatusAsync(D("frodo.baggins.demo.rocks"));
+        Assert.That(managed.Status, Is.EqualTo(DnssecStatus.ZoneNotHosted));
+        _dnsRestClient.Verify(c => c.ZoneExists("frodo.baggins.demo.rocks."), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldComposeTheDnssecVerdictFromZoneAndParentState()
+    {
+        // Zone hosted and signed (PowerDNS side), parent signed, no DS yet (generic
+        // DNS side, mocked at the IDnsLookupService seam) -> DsMissing with the DS
+        // values the user must publish
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+        _dnsRestClient.Setup(c => c.GetZoneDsRecords("frodo.example.com.")).ReturnsAsync([Ds(46082)]);
+
+        var dnsLookupService = new Mock<IDnsLookupService>();
+        dnsLookupService
+            .Setup(x => x.IsParentZoneSignedAsync(D("frodo.example.com"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        dnsLookupService
+            .Setup(x => x.GetParentDsRecordsAsync(D("frodo.example.com"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var registration = new IdentityRegistrationService(
+            _loggerMock.Object,
+            _registry.Object,
+            ConfigurationWithZoneHosting(),
+            _dnsRestClient.Object,
+            _httpClientFactory.Object,
+            dnsLookupService.Object,
+            _jobManager.Object);
+
+        var result = await registration.GetDnssecStatusAsync(D("frodo.example.com"));
+
+        Assert.That(result.Status, Is.EqualTo(DnssecStatus.DsMissing));
+        Assert.That(result.ParentZoneSigned, Is.True);
+        Assert.That(result.OurDsRecords.Single().KeyTag, Is.EqualTo(46082));
+        Assert.That(result.ParentDsRecords, Is.Empty);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldPublishCdsMetadataWhenEnsuringAZone()
+    {
+        // CDS/CDNSKEY publication rides every successful zone ensure (idempotent),
+        // so the CLI backfill upgrades existing zones too
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(false);
+        _registry.Setup(r => r.GetAsync("frodo.example.com")).ReturnsAsync(new IdentityRegistration());
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var result = await registration.CreateOwnDomainZone(D("frodo.example.com"));
+
+        Assert.That(result, Is.EqualTo(CreateOwnDomainZoneResult.Created));
+        _dnsRestClient.Verify(c => c.PublishCdsRecords("frodo.example.com."), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
 }
