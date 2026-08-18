@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Dns;
 using Odin.Core.Util;
 using Odin.Core.Serialization;
 using Odin.Services.Email;
@@ -49,12 +51,31 @@ public class SendProvisioningCompleteEmailJob(
         const string subject = "Your new identity is ready";
         var firstRunlink = $"https://{Data.Domain}/owner/firstrun?frt={Data.FirstRunToken}";
 
+        // DNSSEC is mentioned only when the domain is one DS record away from a fully
+        // validated chain (DsMissing). Strictly best-effort: a DNSSEC lookup problem
+        // must never delay or block the provisioning email.
+        List<DsRecordData>? dnssecDsRecords = null;
+        try
+        {
+            var dnssec = await identityRegistrationService.GetDnssecStatusAsync(
+                new AsciiDomainName(Data.Domain), cancellationToken);
+            if (dnssec.Status == DnssecStatus.DsMissing)
+            {
+                dnssecDsRecords = dnssec.OurDsRecords;
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning("Provisioning email: skipping DNSSEC section for {domain}: {error}",
+                Data.Domain, e.Message);
+        }
+
         var envelope = new Envelope
         {
             To = [new NameAndEmailAddress { Email = Data.Email }],
             Subject = subject,
-            TextMessage = RegistrationEmails.ProvisioningCompletedText(Data.Email, Data.Domain, firstRunlink),
-            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(Data.Domain, firstRunlink)
+            TextMessage = RegistrationEmails.ProvisioningCompletedText(Data.Email, Data.Domain, firstRunlink, dnssecDsRecords),
+            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(Data.Domain, firstRunlink, dnssecDsRecords)
         };
 
         await emailSender.SendAsync(envelope);

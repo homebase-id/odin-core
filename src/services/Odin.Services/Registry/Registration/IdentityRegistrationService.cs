@@ -374,6 +374,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             }
         }
 
+        // Publish CDS/CDNSKEY (RFC 8078) so parents that scan for them install the DS
+        // automatically; harmless elsewhere. Idempotent - re-running (incl. the CLI
+        // backfill) converges, exactly like the record REPLACEs below.
+        await _dnsRestClient.PublishCdsRecords(zoneId);
+
         // Populate (REPLACE semantics, so re-running converges on the correct records)
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
         foreach (var record in dnsConfig)
@@ -411,6 +416,37 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return false;
         }
         return await _dnsRestClient.ZoneExists(domain.DomainName + ".");
+    }
+
+    //
+
+    /// <summary>
+    /// DNSSEC state of an own-domain's hosted zone. The zone-side facts (hosted, our DS
+    /// records) come from PowerDNS - this runs on the provisioning host, which operates
+    /// the DNS server. The parent-side facts (parent signed, published DS) are generic
+    /// public-DNS lookups. Read-only: never creates or repairs anything.
+    /// </summary>
+    public async Task<DnssecStatusResult> GetDnssecStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
+    {
+        if (!await OwnDomainZoneExists(domain))
+        {
+            return new DnssecStatusResult
+            {
+                Status = CanHostOwnDomainZones ? DnssecStatus.ZoneNotHosted : DnssecStatus.NotConfigured,
+            };
+        }
+
+        var ourDsRecords = await _dnsRestClient.GetZoneDsRecords(domain.DomainName + ".");
+        var parentZoneSigned = await _dnsLookupService.IsParentZoneSignedAsync(domain, cancellationToken);
+        var parentDsRecords = await _dnsLookupService.GetParentDsRecordsAsync(domain, cancellationToken);
+
+        return new DnssecStatusResult
+        {
+            Status = DnssecStatusResult.ComputeVerdict(ourDsRecords, parentDsRecords, parentZoneSigned),
+            OurDsRecords = ourDsRecords,
+            ParentDsRecords = parentDsRecords,
+            ParentZoneSigned = parentZoneSigned,
+        };
     }
 
     //

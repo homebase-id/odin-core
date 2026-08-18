@@ -111,6 +111,13 @@ public interface IIdentityRegistrationService
     Task DeleteOwnDomainZone(AsciiDomainName domain);
 
     /// <summary>
+    /// DNSSEC state of an own-domain's hosted zone: whether it is signed, whether the
+    /// parent can carry a DS, and whether the published DS matches our keys.
+    /// Read-only; see docs/byod-dnssec-plan.md.
+    /// </summary>
+    Task<DnssecStatusResult> GetDnssecStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Best-effort DNS cleanup for a deleted tenant: managed domains get their records
     /// removed from the shared apex zone, own domains get their zone deleted. Never throws.
     /// </summary>

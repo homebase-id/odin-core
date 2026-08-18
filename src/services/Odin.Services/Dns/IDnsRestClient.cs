@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core.Dns;
 using Odin.Services.Dns.PowerDns;
 
 namespace Odin.Services.Dns;
@@ -31,5 +32,20 @@ public interface IDnsRestClient
     Task CreateCnameRecords(string zoneId, string name, string alias);
     Task DeleteCnameRecords(string zoneId, string name);
 
+    //
+    // DNSSEC
+    //
 
+    /// <summary>
+    /// The DS records of the zone's active, published signing keys - the values a user
+    /// publishes at the parent (registrar/DNS host) to anchor the chain of trust.
+    /// Empty when the zone has no active keys (i.e. is not signed).
+    /// </summary>
+    Task<List<DsRecordData>> GetZoneDsRecords(string zoneId);
+
+    /// <summary>
+    /// Publishes CDS/CDNSKEY records in the zone (RFC 8078/7344), so parents that scan
+    /// for them install/update the DS automatically. Idempotent.
+    /// </summary>
+    Task PublishCdsRecords(string zoneId);
 }

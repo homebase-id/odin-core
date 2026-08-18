@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Dns;
 using Odin.Core.Util;
 
 namespace Odin.Services.Registry.Registration;
@@ -24,4 +25,16 @@ public interface IDnsLookupService
     Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
     Task<bool> IsManagedDomainAvailableAsync(string prefix, string apex, CancellationToken cancellationToken = default);
     void AssertManagedDomainApexAndPrefix(string prefix, string apex);
+
+    /// <summary>
+    /// The DS records the PARENT zone publishes for the domain (empty when none) -
+    /// generic public-DNS data, queried at the parent's authority (cache-safe).
+    /// </summary>
+    Task<List<DsRecordData>> GetParentDsRecordsAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when the domain's PARENT zone is DNSSEC-signed - the prerequisite for a DS
+    /// to extend the chain of trust down to the domain.
+    /// </summary>
+    Task<bool> IsParentZoneSignedAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
 }

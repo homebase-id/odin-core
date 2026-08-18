@@ -1,6 +1,6 @@
 # BYOD DNSSEC: signing status, DS interchange with the parent, and a status API
 
-Status: design/plan — not yet implemented. Written 2026-08-18. Builds on `docs/byod-dns-zone-plan.md` (shipped: PR #1638) and assumes the typed-domain refactor (PR #1640, `AsciiDomainName` through the registration/DNS services).
+Status: implemented on this branch (2026-08-18) — pending the live verification checklist (§6) against the dev PowerDNS, since the cryptokeys/metadata API shapes had never run against a real server. Builds on `docs/byod-dns-zone-plan.md` (shipped: PR #1638) and the typed-domain refactor (PR #1640, `AsciiDomainName` through the registration/DNS services).
 
 ## Context
 
