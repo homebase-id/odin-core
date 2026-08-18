@@ -4,7 +4,7 @@ Status: design/plan — not yet implemented. Written 2026-08-18. Builds on `docs
 
 ## Context
 
-BYOD identities can now delegate their domain to our PowerDNS (`NS -> ns1.id.pub/ns2.id.pub`). `PowerDnsRestClient.CreateZone` already sends `dnssec: true, api_rectify: true`, so every zone we create should be signed by PowerDNS from day one (auto-created CSK — **assumption from PowerDNS docs, must be verified live**; this flag has never been checked against a real server). What's missing is the other half of DNSSEC: the **DS record at the parent** (registrar for an apex, the user's DNS host for a subdomain). The possible states, which drive everything below:
+BYOD identities can now delegate their domain to our PowerDNS (`NS -> ns1.id.pub/ns2.id.pub`). `PowerDnsRestClient.CreateZone` already sends `dnssec: true, api_rectify: true`, so every zone we create is signed by PowerDNS from day one. **Verified live 2026-08-18** on the first real NS-delegation apex signup (`gabriel.ninja`, delegated at the registrar, zone created at Provision): the fresh zone serves a DNSKEY (flags 257, algorithm 13 = ECDSA P-256 — the auto-created CSK) and RRSIGs on its answers, and validating resolvers (1.1.1.1) resolve it fine in the no-DS "insecure" state. So the signing half needs zero additional work. What's missing is the other half of DNSSEC: the **DS record at the parent** (registrar for an apex, the user's DNS host for a subdomain). The possible states, which drive everything below:
 
 - **No DS at the parent**: the zone is signed but the chain of trust stops at the parent — resolution works everywhere, just "insecure". Harmless default.
 - **Wrong/stale DS at the parent** (e.g. left over from a previous DNS provider before delegating to us): validating resolvers SERVFAIL the domain — the identity goes dark for most of the internet, while our own authoritative-only validation checks still show green.
@@ -79,9 +79,9 @@ Notes:
 2. **DS parsing tests**: cryptokey `ds` strings → typed records; unsigned zone (no keys / inactive keys) → empty.
 3. **Mocked-lookup tests** (pattern from `AuthoritativeDnsLookupTest`): parent authority returns DS answers → parsed KeyTag/Digest; no DS → empty. (Verify `DsRecord` is mock-constructible like `SoaRecord`/`NsRecord` were; else raw-wire mock or `[Explicit]` live case.)
 4. **`[Explicit]` live tests**: DS lookup for a known signed domain; cryptokeys GET against the dev PowerDNS.
-5. **Live verification checklist** (manual, dev PowerDNS — required because none of this API surface has ever run against a real server):
-   - `GET .../zones/<existing-byod-zone>/cryptokeys` → keys exist (confirms `dnssec:true` auto-created them, including for zones created before this work).
-   - `dig +dnssec @ns1.id.pub <zone> SOA` → RRSIG present.
+5. **Live verification checklist** (manual, dev PowerDNS — required because the cryptokeys/metadata API surface has never run against a real server):
+   - ~~`dig +dnssec @ns1.id.pub <zone> SOA` → RRSIG present~~ **DONE 2026-08-18** (`gabriel.ninja`: DNSKEY 257/alg-13 + RRSIGs served — `dnssec:true` auto-creates keys and signs).
+   - `GET .../zones/<existing-byod-zone>/cryptokeys` → confirm the response shape our `Cryptokey` model expects (the signing itself is proven; the API model is not).
    - Metadata PUT + `dig CDS <zone> @ns1.id.pub` shows the CDS record.
    - End-to-end on a real delegated test subdomain whose parent is signed: publish the DS at the parent (or let CDS scanning do it), then `delv <domain>` / `dig +ad` validates.
 
