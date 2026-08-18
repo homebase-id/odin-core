@@ -44,6 +44,16 @@ No PowerDNS states (`NotConfigured`/`ZoneNotHosted`) — they don't exist generi
 ### 3. Shared-code note for `byod-dnssec-plan.md`
 When that phase is implemented, its `DnsLookupService` additions (`GetParentDsRecordsAsync`, `IsParentZoneSignedAsync`) should be thin wrappers over `DnssecLookup` from §1. Whichever plan lands first builds `DnssecLookup`; the other consumes it.
 
+### 3b. Security health email (decided 2026-08-18)
+The existing monthly security health email (`SecurityHealthCheckJob` → `OwnerSecurityHealthService.GetSecurityNeedsAttentionStatus` → `RecoveryNotifier`, `src/services/Odin.Services/Security/`) is only sent when something needs attention — DNSSEC joins it:
+
+- The owner-side DNSSEC status service from §2 (generic lookups — the job runs in tenant scope, so per the architectural boundary the PowerDNS API is off-limits here anyway) is consulted during the health check.
+- **Counts toward needs-attention (and appears in the email):**
+  - `DsMismatch` — always: the domain is (or will be, once delegation is live) SERVFAIL for validating resolvers; the email names the stale DS records to remove/replace.
+  - `DsMissing` — when the parent is signed: the chain is one user-actionable record away; the email carries the DS tuple and points at the Security-tab panel.
+- **Does not trigger or appear:** `Secure`, `Inherited` (managed domains — our responsibility), `ParentUnsigned` and third-party `ZoneUnsigned` (not actionable through us; nagging monthly about a registrar's missing DNSSEC support helps no one).
+- Best-effort, same rule as the provisioning email: a DNSSEC lookup failure must never block or delay the health report, and must not by itself count as needs-attention.
+
 ## Changes — odin-js (owner-app)
 
 ### 4. Security tab → DNSSEC panel (`packages/apps/owner-app/src/templates/Settings/`)
@@ -64,7 +74,8 @@ Independent by design. The backend phase still matters for: CDS **publication** 
 2. **Verdict tests**: pure-function coverage incl. `Inherited` (apex != domain) and `ZoneUnsigned`.
 3. **Mocked-lookup tests** (pattern: `AuthoritativeDnsLookupTest` mocked server tree) for the query orchestration.
 4. **`[Explicit]` live test**: computed DS for a known signed domain equals its published DS (e.g. `internetsociety.org`; later `gabriel.ninja` once its DS is at the registrar).
-5. **Manual E2E**: owner console on a delegated BYOD identity shows DsMissing with values matching `dig DNSKEY` + `dnssec-dsfromkey`; add the DS at the registrar; Verify flips to Secure; a managed-domain identity shows Inherited.
+5. **Security email tests**: needs-attention flips on `DsMismatch` and on signed-parent `DsMissing`; stays quiet on `Secure`/`Inherited`/`ParentUnsigned`; a throwing DNSSEC lookup neither blocks the report nor counts as attention.
+6. **Manual E2E**: owner console on a delegated BYOD identity shows DsMissing with values matching `dig DNSKEY` + `dnssec-dsfromkey`; add the DS at the registrar; Verify flips to Secure; a managed-domain identity shows Inherited.
 
 ## Out of scope
 
