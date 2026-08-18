@@ -845,8 +845,13 @@ public class TryRetryTests
         var endTime = DateTime.UtcNow;
         var duration = endTime - startTime;
         Assert.That(callCount, Is.EqualTo(5));
-        // Total delay should not exceed sum of max delays (rough check with margin)
-        Assert.That(duration, Is.LessThanOrEqualTo(maxDelay * 3 + initialDelay + TimeSpan.FromMilliseconds(100)));
+        // Four Thread.Sleep waits of 100 + 200 + 200 + 200 = 700ms nominal. Thread.Sleep
+        // guarantees a floor, not a ceiling, so each one overshoots by an unbounded amount
+        // under CPU contention — a 100ms total margin gave this ~14% headroom and it failed
+        // on a loaded CI runner at 828ms. The margin only has to stay well under an UNCAPPED
+        // backoff, which would be 100 + 200 + 400 + 800 = 1500ms; at 1100ms this still
+        // catches a missing cap by 400ms.
+        Assert.That(duration, Is.LessThanOrEqualTo(maxDelay * 3 + initialDelay + TimeSpan.FromMilliseconds(400)));
     }
 
     [Test]
