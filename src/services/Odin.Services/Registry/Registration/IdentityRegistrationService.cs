@@ -50,14 +50,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<bool> CanConnectToHostAndPort(string domain, int port)
+    public async Task<bool> CanConnectToHostAndPort(AsciiDomainName domain, int port)
     {
         try
         {
             // SEB:TODO will we get a TIME_WAIT problem here?
             using var tcpClient = new TcpClient();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            await tcpClient.ConnectAsync(domain, port, cts.Token);
+            await tcpClient.ConnectAsync(domain.DomainName, port, cts.Token);
             return true;
         }
         catch (Exception)
@@ -68,7 +68,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<bool> HasValidCertificate(string domain)
+    public async Task<bool> HasValidCertificate(AsciiDomainName domain)
     {
         var httpClient = _httpClientFactory.CreateClient($"{nameof(IdentityRegistrationService)}:{domain}", cfg =>
         {
@@ -91,7 +91,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default)
+    public Task<string> LookupZoneApexAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
         return _dnsLookupService.LookupZoneApexAsync(domain, cancellationToken);
     }
@@ -115,7 +115,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<List<DnsConfig>> GetDnsConfiguration(string domain)
+    public Task<List<DnsConfig>> GetDnsConfiguration(AsciiDomainName domain)
     {
         return Task.FromResult(_dnsLookupService.GetDnsConfiguration(domain));
     }
@@ -153,11 +153,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task CreateManagedDomain(string prefix, string apex)
     {
-        var domain = prefix + "." + apex;
+        var domain = new AsciiDomainName(prefix + "." + apex); // ctor validates
 
         _logger.LogInformation("Creating managed domain {domain}", domain);
 
-        AsciiDomainNameValidator.AssertValidDomain(domain);
         _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
@@ -193,11 +192,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task DeleteManagedDomain(string prefix, string apex)
     {
-        var domain = prefix + "." + apex;
-        AsciiDomainNameValidator.AssertValidDomain(domain);
+        var domain = new AsciiDomainName(prefix + "." + apex); // ctor validates
         _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
-        await _registry.DeleteRegistration(domain);
+        await _registry.DeleteRegistration(domain.DomainName);
 
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
 
@@ -229,23 +227,18 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     // Own Domain
     //
 
-    public async Task<bool> IsOwnDomainAvailable(string domain)
+    public async Task<bool> IsOwnDomainAvailable(AsciiDomainName domain)
     {
-        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
-        {
-            return false;
-        }
-
         // Managed apexes (and anything under them) are never "own domains": they are
         // provisioned through the managed-domain flow, and an own-domain zone for one
         // would shadow the apex zone we host
-        if (IsManagedDomain(domain.Trim().ToLower()))
+        if (IsManagedDomain(domain.DomainName))
         {
             return false;
         }
 
         // Identity already exists or domain path clash?
-        return await _registry.CanAddNewRegistration(domain);
+        return await _registry.CanAddNewRegistration(domain.DomainName);
 
         // SEB:NOTE below removed for now since it's taking too big a toll on the system when called for each key press
         // We can only create new domain if we can find a zone apex
@@ -255,24 +248,23 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain, CancellationToken cancellationToken = default)
+    public Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
         return _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
     }
 
     //
 
-    public Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain, CancellationToken cancellationToken = default)
+    public Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
         return _dnsLookupService.GetExternalDomainDnsStatusAsync(domain, cancellationToken);
     }
 
     //
 
-    public async Task DeleteOwnDomain(string domain)
+    public async Task DeleteOwnDomain(AsciiDomainName domain)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-        await _registry.DeleteRegistration(domain);
+        await _registry.DeleteRegistration(domain.DomainName);
         await DeleteOwnDomainZone(domain);
     }
 
@@ -301,10 +293,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     /// hosted in our PowerDNS: such a child zone would shadow that part of the parent zone
     /// (e.g. a hostile demo.id.pub zone would hijack demo.id.pub away from our id.pub zone).
     /// </summary>
-    public async Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(string domain, CancellationToken cancellationToken = default)
+    public async Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        domain = domain.Trim().ToLower();
-        AsciiDomainNameValidator.AssertValidDomain(domain);
+        var domainName = domain.DomainName;
 
         if (!CanHostOwnDomainZones)
         {
@@ -312,16 +303,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return CreateOwnDomainZoneResult.NotConfigured;
         }
 
-        if (IsManagedDomain(domain))
+        if (IsManagedDomain(domainName))
         {
-            throw new OdinSystemException($"{domain} is a managed domain; it has no own zone");
+            throw new OdinSystemException($"{domainName} is a managed domain; it has no own zone");
         }
 
         var dns = _configuration.Registry.DnsConfigurationSet;
-        var zoneId = domain + ".";
+        var zoneId = domainName + ".";
 
         // Domain-control proof first: it is the cheap-to-fail gate on an anonymous endpoint
-        var isRegistered = await _registry.GetAsync(domain) != null;
+        var isRegistered = await _registry.GetAsync(domainName) != null;
         if (!isRegistered)
         {
             var delegatedToUs = await _dnsLookupService.IsDomainDelegatedToUsAsync(domain, cancellationToken);
@@ -342,7 +333,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         // Never create a zone inside a zone we already host - it would shadow the parent.
         // Checked via the domain's ancestor suffixes (a handful of ZoneExists lookups)
         // rather than listing every hosted zone.
-        for (var ancestor = ParentDomain(domain); ancestor != null && ancestor.Contains('.'); ancestor = ParentDomain(ancestor))
+        for (var ancestor = ParentDomain(domainName); ancestor != null && ancestor.Contains('.'); ancestor = ParentDomain(ancestor))
         {
             if (await _dnsRestClient.ZoneExists(ancestor + "."))
             {
@@ -413,15 +404,13 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<bool> OwnDomainZoneExists(string domain)
+    public async Task<bool> OwnDomainZoneExists(AsciiDomainName domain)
     {
-        domain = domain.Trim().ToLower();
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-        if (!CanHostOwnDomainZones || IsManagedDomain(domain))
+        if (!CanHostOwnDomainZones || IsManagedDomain(domain.DomainName))
         {
             return false;
         }
-        return await _dnsRestClient.ZoneExists(domain + ".");
+        return await _dnsRestClient.ZoneExists(domain.DomainName + ".");
     }
 
     //
@@ -439,13 +428,13 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     /// records removed from the shared apex zone; own domains get their zone deleted.
     /// Never throws: a DNS cleanup failure must not block account deletion.
     /// </summary>
-    public async Task DeleteDnsRecordsForDomain(string domain)
+    public async Task DeleteDnsRecordsForDomain(AsciiDomainName domain)
     {
         try
         {
-            domain = domain.Trim().ToLower();
+            var domainName = domain.DomainName;
 
-            var apex = FindManagedApex(domain);
+            var apex = FindManagedApex(domainName);
             if (apex == null)
             {
                 await DeleteOwnDomainZone(domain);
@@ -455,7 +444,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             // Managed domain: remove its records from the apex zone. Deliberately not
             // DeleteManagedDomain: that re-deletes the registration and asserts the
             // configured prefix label count, which may have changed since signup.
-            var prefix = domain[..^(apex.Length + 1)];
+            var prefix = domainName[..^(apex.Length + 1)];
             var zoneId = apex + ".";
             var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
             foreach (var record in dnsConfig)
@@ -486,14 +475,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     /// Best-effort removal of an own-domain's zone. Never throws: a DNS cleanup failure
     /// must not block account deletion.
     /// </summary>
-    public async Task DeleteOwnDomainZone(string domain)
+    public async Task DeleteOwnDomainZone(AsciiDomainName domain)
     {
-        if (!CanHostOwnDomainZones || IsManagedDomain(domain))
+        if (!CanHostOwnDomainZones || IsManagedDomain(domain.DomainName))
         {
             return;
         }
 
-        var zoneId = domain + ".";
+        var zoneId = domain.DomainName + ".";
         try
         {
             if (await _dnsRestClient.ZoneExists(zoneId))
@@ -528,9 +517,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId, string invitationCode)
+    public async Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string planId, string invitationCode)
     {
-        var identity = await _registry.GetAsync(domain);
+        var identity = await _registry.GetAsync(domain.DomainName);
         if (identity != null)
         {
             throw new OdinSystemException($"Identity {domain} already exists");
@@ -539,7 +528,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var request = new IdentityRegistrationRequest()
         {
             Id = null, // Sanity
-            OdinId = (OdinId)domain,
+            OdinId = new OdinId(domain),
             Email = email,
             PlanId = planId,
             IsCertificateManaged = false, //TODO
@@ -554,7 +543,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             // later (no-op for managed domains and unconfigured hosts). Ownership is
             // proven at this point: the registration exists and DNS validation passed.
             // Best-effort - a DNS host hiccup must not fail the signup.
-            if (!IsManagedDomain(domain))
+            if (!IsManagedDomain(domain.DomainName))
             {
                 try
                 {
@@ -572,7 +561,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 var job = _jobManager.NewJob<SendProvisioningCompleteEmailJob>();
                 job.Data = new SendProvisioningCompleteEmailJobData
                 {
-                    Domain = domain,
+                    Domain = domain.DomainName,
                     Email = email,
                     FirstRunToken = firstRunToken.ToString(),
                 };
@@ -591,7 +580,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
         catch (Exception)
         {
-            await _registry.DeleteRegistration(domain);
+            await _registry.DeleteRegistration(domain.DomainName);
             // The zone may have been created above (or earlier during DNS validation);
             // without a registration nothing else reclaims it (there is no prune sweep)
             await DeleteOwnDomainZone(domain);

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
@@ -61,11 +62,15 @@ public static class OwnDomainZones
 
             try
             {
+                // Registry domains are valid by construction; the try also covers a
+                // hypothetical corrupt entry
+                var asciiDomain = new AsciiDomainName(domain);
+
                 if (!commit)
                 {
                     // Dry-run reports zone existence only; commit additionally applies the
                     // shadow guard and (re)populates records
-                    if (await regService.OwnDomainZoneExists(domain))
+                    if (await regService.OwnDomainZoneExists(asciiDomain))
                     {
                         existing++;
                         Console.WriteLine($"EXISTS       {domain}");
@@ -80,7 +85,7 @@ public static class OwnDomainZones
 
                 // Registered identities always pass the domain-control gate; a refusal here
                 // means the shadow guard hit (domain inside a zone we host)
-                var result = await regService.CreateOwnDomainZone(domain);
+                var result = await regService.CreateOwnDomainZone(asciiDomain);
                 if (result == CreateOwnDomainZoneResult.Created)
                 {
                     created++;
