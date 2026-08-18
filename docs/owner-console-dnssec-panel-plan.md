@@ -1,10 +1,10 @@
-# Owner console: generic DNSSEC panel (DNS section, phase 1)
+# Owner console: generic DNS health + DNSSEC panel (Security tab)
 
 Status: design/plan — not yet implemented. Written 2026-08-18. Companion to `docs/byod-dnssec-plan.md` (the PowerDNS-side backend phase); the two are **independent** — neither blocks the other — but they compose (see "Relationship" below).
 
 ## Context
 
-Decided earlier: DNSSEC has no place in the signup flow (the zone doesn't exist before Provision), so the user-facing surface is the owner console. This plan adds that surface: a DNSSEC panel under the **Security** tab where the owner can **verify** their domain's chain of trust and get the exact DS record to **add** at their registrar/DNS host.
+Decided earlier: DNSSEC has no place in the signup flow (the zone doesn't exist before Provision), so the user-facing surface is the owner console. This plan adds that surface: a panel under the **Security** tab where the owner can **verify** their domain's DNS health — the status of every required DNS record, an optional `www` check, and the DNSSEC chain of trust with the exact DS record to **add** at their registrar/DNS host. (Decided 2026-08-18: record status rides along — the machinery is already generic, and one "is my DNS healthy" surface beats two.)
 
 Design principle (user-set): **generic DNS only — no PowerDNS coupling.** PowerDNS is merely our DNS server; the panel must work identically when the identity's DNS is hosted by us (BYOD delegated zone), by a third party (manual-records BYOD, e.g. Cloudflare), or self-hosted. This is achievable because everything the panel needs is public DNS data:
 
@@ -35,7 +35,13 @@ Generic, config-free primitives — deliberately in Odin.Core so the registratio
 - `GetCdsRecordsAsync(zone)` — best-effort (see CDS caveat above).
 
 ### 2. Owner endpoint (`src/apps/Odin.Hosting/Controllers/OwnerToken/` — new `Dns/` controller)
-`GET /api/owner/v1/dns/dnssec-status` — owner-authenticated, no parameters (the tenant's own domain from `IOdinContext`). Orchestrates: zone-apex lookup → managed/inherited detection (apex != domain) → zone DNSKEY → parent DS → verdict. Response mirrors the DTO from `byod-dnssec-plan.md` (same verdict names where they overlap) plus:
+`GET /api/owner/v1/dns/status` — owner-authenticated, no parameters (the tenant's own domain from `IOdinContext`). One response with three parts:
+
+**a) `records`** — the status of every required DNS record, straight from the existing generic `IDnsLookupService.GetAuthoritativeDomainDnsStatusAsync` (authoritative-only, cache-safe; already registered on identity hosts — `CertificateService` uses it there today). Same `DnsConfig` payload the provisioning screens consume: apex A/ALIAS, capi/file CNAMEs, and the NS rows showing delegation state. Delegated-to-us zones read all-green automatically; manual-records users see exactly which record broke — useful long after signup (changed DNS host, deleted record, etc.).
+
+**b) `optionalRecords`** — the optional `www.{domain}` check. Deliberately NOT added to `GetDnsConfiguration`: that list feeds the signup success rule (`AreDnsLookupsSuccessful`) and certificate checks, and a missing optional record must never fail either. Separate lookup instead: `www` is healthy when it is a CNAME to the domain (or the apex alias) or an A record matching the apex A. Three informational states, none of them errors: `success`, `notSet` ("not set — that's fine"), `pointsElsewhere` ("not pointing at your identity — fine if intentional", e.g. a deliberate separate www site).
+
+**c) `dnssec`** — the chain-of-trust verdict: zone-apex lookup → managed/inherited detection (apex != domain) → zone DNSKEY → parent DS. Mirrors the DTO from `byod-dnssec-plan.md` (same verdict names where they overlap) plus:
 - `Inherited` (not a zone cut; DNSSEC governed by the enclosing zone — terminal, informational),
 - `ZoneUnsigned` replaces the PowerDNS-specific `ZoneNotSigned` ("whoever hosts your DNS does not sign it"),
 - `dsToPublish`: CDS verbatim when present, else computed from the active KSK/CSK DNSKEYs (digest type 2).
@@ -56,13 +62,15 @@ The existing monthly security health email (`SecurityHealthCheckJob` → `OwnerS
 
 ## Changes — odin-js (owner-app)
 
-### 4. Security tab → DNSSEC panel (`packages/apps/owner-app/src/templates/Settings/`)
-The panel lives under the owner console's **Security** tab (decided 2026-08-18) — chain-of-trust verification is a security concern, and the tab already exists. New `DnssecSecuritySettings.tsx` (pattern: existing `*Settings.tsx` files) rendered in the Security section; if a broader "DNS" section materializes later (record overview, email DNS), the panel can move there then.
-- **Status display** per verdict: Secure (green, show matched DS), DsMissing (amber: "signed but not anchored" + the add-DS instructions), DsMismatch (red: stale DS warning + which records to remove/replace), ZoneUnsigned / ParentUnsigned (informational, with "what would need to change" text), Inherited (quiet informational).
+### 4. Security tab → DNS health panel (`packages/apps/owner-app/src/templates/Settings/`)
+The panel lives under the owner console's **Security** tab (decided 2026-08-18) — DNS health and chain-of-trust verification are security concerns, and the tab already exists. New `DnsSecuritySettings.tsx` (pattern: existing `*Settings.tsx` files) rendered in the Security section; if a broader "DNS" section materializes later (record overview editing, email DNS), the panel can move there then. Three stacked blocks fed by the one endpoint:
+- **Records**: the required records with green/orange status rows (rendering modeled on the provisioning `DnsSettingsView`, simplified — read-only, no setup instructions), NS rows shown as delegation state.
+- **Optional www**: one quiet row; `notSet`/`pointsElsewhere` are neutral text, never warning-colored.
+- **DNSSEC status display** per verdict: Secure (green, show matched DS), DsMissing (amber: "signed but not anchored" + the add-DS instructions), DsMismatch (red: stale DS warning + which records to remove/replace), ZoneUnsigned / ParentUnsigned (informational, with "what would need to change" text), Inherited (quiet informational).
 - **DS table**, copyable per-field (Key tag / Algorithm / Digest type / Digest) — matching registrar forms (e.g. Squarespace) column-for-column.
 - **Where-to-add guidance**: apex → "at your registrar"; subdomain → "as a DS record next to your NS records at your DNS host". Apex/subdomain detection reuses the name-based `registrableDomain` helper from the provisioning app — move it to `common-app` (no new npm deps; it is dependency-free).
 - **Verify button** → refetch (react-query), same spinner discipline as the provisioning screens (local state, not background-fetch state).
-- New hook `useDnssecStatus` following the owner-app hook conventions.
+- New hook `useDnsStatus` following the owner-app hook conventions (one query for the whole panel).
 
 ## Relationship to `byod-dnssec-plan.md`
 
@@ -72,13 +80,15 @@ Independent by design. The backend phase still matters for: CDS **publication** 
 
 1. **`ComputeDsFromDnsKey` data-level tests**: RFC 4034 test vectors, plus a fixture captured from a real signed domain (DNSKEY + its published DS must match the computation) — this function is the correctness heart of the generic approach.
 2. **Verdict tests**: pure-function coverage incl. `Inherited` (apex != domain) and `ZoneUnsigned`.
+2b. **Optional-www tests**: healthy via CNAME-to-domain, CNAME-to-alias and matching-A; `notSet` and `pointsElsewhere` are informational; the signup success rule and certificate checks are provably unaffected (www never enters `GetDnsConfiguration`).
 3. **Mocked-lookup tests** (pattern: `AuthoritativeDnsLookupTest` mocked server tree) for the query orchestration.
 4. **`[Explicit]` live test**: computed DS for a known signed domain equals its published DS (e.g. `internetsociety.org`; later `gabriel.ninja` once its DS is at the registrar).
 5. **Security email tests**: needs-attention flips on `DsMismatch` and on signed-parent `DsMissing`; stays quiet on `Secure`/`Inherited`/`ParentUnsigned`; a throwing DNSSEC lookup neither blocks the report nor counts as attention.
-6. **Manual E2E**: owner console on a delegated BYOD identity shows DsMissing with values matching `dig DNSKEY` + `dnssec-dsfromkey`; add the DS at the registrar; Verify flips to Secure; a managed-domain identity shows Inherited.
+6. **Manual E2E**: owner console on a delegated BYOD identity shows all records green + DsMissing with values matching `dig DNSKEY` + `dnssec-dsfromkey`; add the DS at the registrar; Verify flips to Secure; a managed-domain identity shows records green + Inherited; break a manual-records domain's CNAME and see the records block flag exactly that row.
 
 ## Out of scope
 
-- A dedicated DNS section (record overview, propagation checks, email DNS) — if/when it materializes, the DNSSEC panel can migrate there from Security.
+- A dedicated DNS section (record *editing*, propagation checks, email DNS) — if/when it materializes, this panel can migrate there from Security.
+- Creating the optional `www` record in delegated zones (a write path; belongs to future record management).
 - Any write path (we cannot write to registrars; CDS publication is the backend plan's).
 - Key rollover UX.
