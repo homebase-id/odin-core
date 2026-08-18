@@ -318,13 +318,20 @@ public class DnsLookupService : IDnsLookupService
     // internal for testing
     internal static bool AreDnsLookupsSuccessful(IReadOnlyCollection<DnsConfig> dnsConfigs)
     {
-        // NS entries are deliberately NOT part of the success rule: they exist so the UI can
-        // show delegation status. Success always requires the actual records to resolve -
-        // in delegated mode they are served by the zone we host, so a delegated domain only
-        // passes once its zone exists AND is populated. Delegation alone (NS rrset present,
-        // records missing) must not validate: certificates and the identity need the records.
+        // Delegated mode: the NS entries verify the PARENT's delegation records (strict,
+        // all-ours - see GetAuthoritativeDomainDnsStatusAsync). Verified delegation counts
+        // as overall success even before the domain's zone exists on our servers: the zone
+        // is created AND populated at the commit points that consume this verdict (the
+        // provisioning UI's Provision action, CreateIdentityOnDomainAsync's ensure-net,
+        // the CLI backfill), and populate is an idempotent REPLACE, so records exist before
+        // anything (certificates, requests) needs them.
+        var nsRecords = dnsConfigs.Where(x => x.Type == "NS").ToList();
+        if (nsRecords.Count > 0 && nsRecords.TrueForAll(x => x.Status == DnsLookupRecordStatus.Success))
+        {
+            return true;
+        }
 
-        // Only one of records A or ALIAS need to be successful
+        // Manual mode: only one of records A or ALIAS need to be successful
         if (dnsConfigs.Count(x => (x.Type is "A" or "ALIAS") && x.Status == DnsLookupRecordStatus.Success) < 1)
         {
             return false;

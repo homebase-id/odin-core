@@ -113,12 +113,15 @@ public class DnsLookupServiceTest
     }
 
     [Test]
-    public void ItShouldRequireActualRecordsEvenWhenDelegationIsComplete()
+    public void ItShouldSucceedOnVerifiedDelegationAlone()
     {
-        // NS entries are informational: delegation alone (zone exists, records missing -
-        // e.g. record population failed after CreateZone) must NOT validate, because the
-        // identity and certificate issuance need the records themselves
-        var delegatedButEmptyZone = new List<DnsConfig>
+        // Verified delegation (at the PARENT - the strict all-ours check) counts as
+        // success before the zone exists on our servers: the zone is created and
+        // populated at the commit points that consume this verdict (Provision click,
+        // create-identity ensure-net, CLI backfill), so records exist before anything
+        // needs them. This is what lets the Provision button enable before the
+        // Provision click creates the zone.
+        var delegatedNoZoneYet = new List<DnsConfig>
         {
             Record("A", DnsLookupRecordStatus.DomainOrRecordNotFound),
             Record("ALIAS", DnsLookupRecordStatus.DomainOrRecordNotFound),
@@ -126,13 +129,13 @@ public class DnsLookupServiceTest
             Record("NS", DnsLookupRecordStatus.Success),
             Record("NS", DnsLookupRecordStatus.Success),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(delegatedButEmptyZone), Is.False);
+        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(delegatedNoZoneYet), Is.True);
     }
 
     [Test]
-    public void ItShouldIgnoreNsStatusesInTheSuccessRule()
+    public void ItShouldFallBackToTheRecordRuleWhenDelegationIsIncomplete()
     {
-        // Records all good, NS incomplete (manual-records user) -> success
+        // Records all good, NS incomplete (manual-records user) -> success via record rule
         var manualUser = new List<DnsConfig>
         {
             Record("A", DnsLookupRecordStatus.Success),
@@ -143,15 +146,16 @@ public class DnsLookupServiceTest
         };
         Assert.That(DnsLookupService.AreDnsLookupsSuccessful(manualUser), Is.True);
 
-        // Records all good, NS also good (delegated user, populated zone) -> success
-        var delegatedUser = new List<DnsConfig>
+        // Partial delegation (one NS ours, one stale/missing) must NOT count as delegated;
+        // the record rule decides
+        var partialDelegationBrokenRecords = new List<DnsConfig>
         {
-            Record("A", DnsLookupRecordStatus.Success),
+            Record("A", DnsLookupRecordStatus.DomainOrRecordNotFound),
             Record("CNAME", DnsLookupRecordStatus.Success),
             Record("NS", DnsLookupRecordStatus.Success),
-            Record("NS", DnsLookupRecordStatus.Success),
+            Record("NS", DnsLookupRecordStatus.IncorrectValue),
         };
-        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(delegatedUser), Is.True);
+        Assert.That(DnsLookupService.AreDnsLookupsSuccessful(partialDelegationBrokenRecords), Is.False);
 
         var nothingWorks = new List<DnsConfig>
         {
