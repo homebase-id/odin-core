@@ -65,6 +65,10 @@ public class AuthoritativeDnsLookupTest
     [TestCase("not a domain", "", "", "", 0)]
     [TestCase("asdasdsdasd.asdasdasd.asdasdasdqeqwe.dvxcvxcv", "", "", "", 0)]
     [TestCase("ack.ack.demo.rocks", "demo.rocks", "ns1.demo.rocks", "ns2.demo.rocks", 0)]
+    // Live counterparts of the mocked empty-non-terminal tests below: real delegations
+    // to ns1/ns2.id.pub, john.aage having no zone cut at aage (delegated from sebbarg.net)
+    [TestCase("dingdong.sebbarg.net", "dingdong.sebbarg.net", "ns1.id.pub", "ns2.id.pub", 1)]
+    [TestCase("john.aage.sebbarg.net", "john.aage.sebbarg.net", "ns1.id.pub", "ns2.id.pub", 1)]
     public async Task ItShouldLookupAuthoritativeStuff(
         string domain,
         string expectedAuthorityDomain,
