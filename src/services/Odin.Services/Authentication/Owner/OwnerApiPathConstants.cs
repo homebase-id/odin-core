@@ -58,6 +58,8 @@
 
         public const string ConfigurationV1 = BasePathV1 + "/config";
 
+        public const string DnsV1 = BasePathV1 + "/dns";
+
         public const string SecurityV1 = BasePathV1 + "/security";
        
         public const string SecurityRecoveryV1 = BasePathV1 + "/security/recovery";

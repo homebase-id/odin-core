@@ -33,6 +33,7 @@ using Odin.Services.Background;
 using Odin.Services.PublicPage;
 using Odin.Core.Storage.Database.System;
 using Odin.Hosting.Extensions;
+using Odin.Services.Dns;
 using StackExchange.Redis;
 
 namespace Odin.Hosting;
@@ -527,6 +528,23 @@ public static class HostExtensions
                 logger.LogError("CDN enabled, but not responding to ping at {url}. Error: {error}", url, error);
             }
         }
+
+        // Sanity ping PowerDNS, disable it if not successful
+        // SEB:TODO only do this when we have a PowerDnsEnabled flag in config
+        // if (config.Registry.ProvisioningEnabled && config.Registry.PowerDnsApiKey != "")
+        // {
+        //     var pdnsClient = services.GetRequiredService<IDnsRestClient>();
+        //     try
+        //     {
+        //         pdnsClient.GetZones().BlockingWait();
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         config.Registry.PowerDnsApiKey = "";
+        //         logger.LogError("Provisioning enabled, but PowerDNS not responding to ping. Error: {error}",
+        //             ex.Message);
+        //     }
+        // }
 
         // Start system background services
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)

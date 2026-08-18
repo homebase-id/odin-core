@@ -39,6 +39,7 @@ using Odin.Services.Background;
 using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
+using Odin.Services.Dns.Health;
 using Odin.Services.Dns;
 using Odin.Services.Dns.PowerDns;
 using Odin.Services.Drives.DriveCore.Storage;
@@ -196,7 +197,9 @@ public static class SystemServices
         services.AddScoped<IIdentityRegistrationService, IdentityRegistrationService>();
 
         services.AddSingleton<IAuthoritativeDnsLookup, AuthoritativeDnsLookup>();
+        services.AddSingleton<IDnssecLookup, DnssecLookup>();
         services.AddSingleton<IDnsLookupService, DnsLookupService>();
+        services.AddSingleton<DnsHealthService>();
 
         services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
             sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Http;
 using Refit;
 
@@ -59,6 +60,21 @@ public class PowerDnsRestClient : IDnsRestClient
     }
 
     //
+
+    public async Task<bool> ZoneExists(string zoneId)
+    {
+        try
+        {
+            await Api.GetZone(zoneId);
+            return true;
+        }
+        catch (ApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+    }
+
+    //
     
     public Task<ZoneWithRecords> CreateZone(string zoneName, string[] nameServers, string adminEmail)
     {
@@ -101,6 +117,14 @@ public class PowerDnsRestClient : IDnsRestClient
     
     //
 
+    // An empty name addresses the zone apex
+    private static string RecordName(string zoneId, string name)
+    {
+        return name == "" ? zoneId : $"{name}.{zoneId}";
+    }
+
+    //
+
     public Task CreateARecords(string zoneId, string name, IEnumerable<string> ipAddresses)
     {
         var records = ipAddresses.Select(x =>
@@ -117,7 +141,7 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "A",
                     changetype = "REPLACE",
                     ttl = DefaultTtl,
@@ -139,7 +163,7 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "A",
                     changetype = "DELETE",
                 }
@@ -159,7 +183,7 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "CNAME",
                     changetype = "REPLACE",
                     ttl = DefaultTtl,
@@ -186,14 +210,44 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "CNAME",
                     changetype = "DELETE",
                 }
             }
         };
-        
+
         return Api.CreateReplaceDeleteRrsets(zoneId, data);
+    }
+
+    //
+
+    public async Task<List<DsRecordData>> GetZoneDsRecords(string zoneId)
+    {
+        var cryptokeys = await Api.GetCryptokeys(zoneId);
+        return cryptokeys
+            .Where(key => key.active && key.published)
+            .SelectMany(key => key.ds ?? [])
+            .Select(DsRecordData.TryParse)
+            .Where(ds => ds != null)
+            .Select(ds => ds!)
+            // SHA-256 (digest type 2) first: the digest type registrars expect today
+            .OrderByDescending(ds => ds.DigestType == 2)
+            .ThenBy(ds => ds.DigestType)
+            .Distinct()
+            .ToList();
+    }
+
+    //
+
+    public async Task PublishCdsRecords(string zoneId)
+    {
+        // PUBLISH-CDS value = DS digest algorithms to publish; "2" = SHA-256.
+        // PUT replaces, so re-running converges (idempotent).
+        await Api.ReplaceZoneMetadata(zoneId, "PUBLISH-CDS",
+            new { kind = "PUBLISH-CDS", metadata = new[] { "2" }, type = "Metadata" });
+        await Api.ReplaceZoneMetadata(zoneId, "PUBLISH-CDNSKEY",
+            new { kind = "PUBLISH-CDNSKEY", metadata = new[] { "1" }, type = "Metadata" });
     }
 }
 
