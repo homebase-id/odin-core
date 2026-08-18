@@ -1,5 +1,5 @@
 name: "Host: Build Kotlin WASM app"
-description: "Build chat-kmp webApp (Kotlin/WASM) and bundle into Odin.Hosting client assets"
+description: "Build chat-kmp webApp (Kotlin/WASM) and bundle it into Odin.Hosting as the /apps/chat client"
 inputs:
   odin_lib_token:
     description: "Github token for chat-kmp repo"
@@ -12,6 +12,81 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # Runs before the JDK and Gradle setup so a mistyped ref costs seconds, not
+    # the whole toolchain setup. See the long comment in
+    # ../build-frontend/action.yml for why checkout's own failure is unreadable
+    # and why this is duplicated rather than shared.
+    - name: Check that the chat-kmp ref exists
+      shell: bash
+      env:
+        # Read back as shell variables, never interpolated into the script
+        # text: git_ref is free text arriving in a job that holds
+        # DOTYOUCORE_LIB_TOKEN.
+        GIT_REF: ${{ inputs.git_ref }}
+        ODIN_LIB_TOKEN: ${{ inputs.odin_lib_token }}
+        REPO: homebase-id/chat-kmp
+      run: |
+        set -euo pipefail
+
+        # Empty means checkout takes the repo's default branch; nothing to check.
+        if [ -z "$GIT_REF" ]; then
+          echo "No ref given; checkout will use the default branch of ${REPO}."
+          exit 0
+        fi
+
+        # checkout treats a 40-char hex ref as a commit and fetches it directly,
+        # so there is no ref name for ls-remote to match. Anything shorter is
+        # not a commit to checkout either, so it still has to match a ref here.
+        if [[ "$GIT_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          echo "${GIT_REF} is a commit sha; leaving it to checkout."
+          exit 0
+        fi
+
+        # Feeds the token to git through GIT_ASKPASS so it stays out of argv and
+        # out of any git config left behind for later steps.
+        askpass="$(mktemp)"
+        err="$(mktemp)"
+        trap 'rm -f "$askpass" "$err"' EXIT
+        cat >"$askpass" <<'ASKPASS'
+        #!/usr/bin/env bash
+        case "$1" in
+          Username*) printf '%s\n' "x-access-token" ;;
+          *)         printf '%s\n' "$GIT_TOKEN" ;;
+        esac
+        ASKPASS
+        chmod 700 "$askpass"
+
+        if ! refs="$(GIT_ASKPASS="$askpass" GIT_TOKEN="$ODIN_LIB_TOKEN" GIT_TERMINAL_PROMPT=0 \
+            git ls-remote --heads --tags "https://github.com/${REPO}" 2>"$err")"; then
+          echo "::error::Cannot list the refs of ${REPO}. Check that DOTYOUCORE_LIB_TOKEN has not expired and still has read access."
+          cat "$err" >&2
+          exit 1
+        fi
+
+        names="$(printf '%s\n' "$refs" | sed -n 's#^[0-9a-f]*[[:space:]]*refs/\(heads\|tags\)/##p' | sed 's/\^{}$//' | sort -u)"
+
+        if printf '%s\n' "$names" | grep -qxF -- "$GIT_REF"; then
+          echo "${REPO}: ${GIT_REF} found."
+          exit 0
+        fi
+
+        echo "::error::${REPO} has no branch or tag named '${GIT_REF}'."
+        # Underscores typed for hyphens is the mistake this step exists to
+        # catch, so offer refs differing only in separators or case.
+        want="$(printf '%s' "$GIT_REF" | tr '[:upper:]' '[:lower:]' | tr -d '._/-')"
+        near=""
+        while IFS= read -r name; do
+          [ -n "$name" ] || continue
+          if [ "$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -d '._/-')" = "$want" ]; then
+            near="${near}${name}"$'\n'
+          fi
+        done <<<"$names"
+        if [ -n "$near" ]; then
+          echo "Did you mean:" >&2
+          printf '%s' "$near" | sed 's/^/  /' >&2
+        fi
+        exit 1
+
     - name: Setup JDK
       uses: actions/setup-java@v4
       with:
@@ -29,11 +104,13 @@ runs:
         ref: ${{ inputs.git_ref }}
         path: client/chat-kmp
 
-    - name: Build chat-wasm
+    - name: Build chat app
       shell: bash
       working-directory: ./client/chat-kmp
       run: |
-        ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache -PpublicPath=/apps/chat-wasm/
-        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
+        # publicPath is baked into index.html and the Compose resource loader, so it has to
+        # match the route Odin.Hosting serves the bundle from (/apps/chat in Startup.cs).
+        ./gradlew webApp:wasmJsBrowserDistribution --no-configuration-cache -PpublicPath=/apps/chat/
+        rm -rf ../../odin-core/src/apps/Odin.Hosting/client/apps/chat
         mkdir -p ../../odin-core/src/apps/Odin.Hosting/client/apps
-        mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat-wasm
+        mv webApp/build/dist/wasmJs/productionExecutable ../../odin-core/src/apps/Odin.Hosting/client/apps/chat

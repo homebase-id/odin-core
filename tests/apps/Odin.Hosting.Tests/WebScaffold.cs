@@ -122,8 +122,7 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Database__Type", "sqlite");
 #if RUN_POSTGRES_TESTS
-            PostgresContainer = new PostgreSqlBuilder()
-                .WithImage("postgres:latest")
+            PostgresContainer = new PostgreSqlBuilder("postgres:latest")
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")
@@ -137,8 +136,7 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Redis__Enabled", "false");
 #if RUN_REDIS_TESTS
-            RedisContainer = new RedisBuilder()
-                .WithImage("redis:latest")
+            RedisContainer = new RedisBuilder("redis:latest")
                 .Build();
             RedisContainer.StartAsync().GetAwaiter().GetResult();
             Environment.SetEnvironmentVariable("Redis__Enabled", "true");
@@ -150,8 +148,7 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("S3Payload__Enabled", "false");
 #if RUN_S3_TESTS
             Logger.LogInformation("Starting Minio S3 container for tests");
-            MinioContainer = new MinioBuilder()
-                .WithImage("minio/minio:RELEASE.2025-05-24T17-08-30Z")
+            MinioContainer = new MinioBuilder("minio/minio:RELEASE.2025-05-24T17-08-30Z")
                 .WithUsername("minioadmin")
                 .WithPassword("minioadmin123")
                 .Build();

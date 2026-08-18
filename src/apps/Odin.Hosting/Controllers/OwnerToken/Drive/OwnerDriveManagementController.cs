@@ -38,6 +38,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
+                    AllowCdn = drive.IsCdnEnabled(),
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
@@ -87,6 +88,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             return Ok();
         }
 
+        [HttpPost("set-allow-cdn")]
+        public async Task<IActionResult> SetDriveAllowCdn([FromBody] UpdateDriveAllowCdnRequest request)
+        {
+            await driveManager.SetDriveAllowCdnAsync(request.TargetDrive.Alias, request.AllowCdn, WebOdinContext);
+            return Ok();
+        }
+
         [HttpPost("set-archive-drive")]
         public async Task<IActionResult> SetArchiveDriveFlag([FromBody] UpdateDriveArchiveFlag request)
         {
@@ -110,6 +118,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
                     IsReadonly = drive.IsReadonly,
                     AllowAnonymousReads = drive.AllowAnonymousReads,
                     AllowSubscriptions = drive.AllowSubscriptions,
+                    AllowCdn = drive.IsCdnEnabled(),
                     OwnerOnly = drive.OwnerOnly,
                     Attributes = drive.Attributes,
                     IsArchived = drive.IsArchived,
@@ -150,6 +159,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         public bool AllowSubscriptions { get; set; }
     }
     
+    public class UpdateDriveAllowCdnRequest
+    {
+        public TargetDrive TargetDrive { get; set; }
+        public bool AllowCdn { get; set; }
+    }
+
     public class UpdateDriveArchiveFlag
     {
         public TargetDrive TargetDrive { get; set; }

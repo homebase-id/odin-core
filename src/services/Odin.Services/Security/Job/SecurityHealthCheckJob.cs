@@ -16,6 +16,7 @@ using Odin.Services.Base;
 using Odin.Services.Certificate;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
+using Odin.Services.Dns.Health;
 using Odin.Services.Drives.Management;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
@@ -85,12 +86,20 @@ public class SecurityHealthCheckJob(
                 if (settings.SendMonthlySecurityHealthReport)
                 {
                     var service = scope.Resolve<OwnerSecurityHealthService>();
-                    var needsAttention = await service.GetSecurityNeedsAttentionStatus(odinContext);
+                    // DNSSEC joins the needs-attention gate: non-null only when the
+                    // user can act (stale DS, or a signed parent one DS away).
+                    // Best-effort inside - a DNS hiccup neither blocks the report nor
+                    // counts as attention.
+                    var dnsHealthService = scope.Resolve<DnsHealthService>();
+                    var dnssecAttention = await dnsHealthService.GetDnssecAttentionAsync(
+                        Data.Tenant.AsciiDomain, cancellationToken);
+                    var needsAttention =
+                        await service.GetSecurityNeedsAttentionStatus(odinContext) || dnssecAttention != null;
                     if (needsAttention)
                     {
                         // notify the user of health check
                         var recoveryNotifier = scope.Resolve<RecoveryNotifier>();
-                        await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext);
+                        await recoveryNotifier.NotifyUser(Data.Tenant, recoveryInfo, odinContext, dnssecAttention);
                     }
                     else
                     {

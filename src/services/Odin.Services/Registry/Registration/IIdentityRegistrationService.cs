@@ -2,16 +2,41 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Util;
 using Odin.Services.Configuration;
 
 namespace Odin.Services.Registry.Registration;
 
+public enum CreateOwnDomainZoneResult
+{
+    /// <summary>The zone exists: created now or already present</summary>
+    Created,
+
+    /// <summary>Zone hosting is not configured on this deployment (permanent)</summary>
+    NotConfigured,
+
+    /// <summary>The domain lies inside a zone we already host; a child zone would shadow it (permanent)</summary>
+    ShadowsHostedZone,
+
+    /// <summary>
+    /// A zone for this exact domain already exists in PowerDNS but does not belong to this
+    /// environment (no local registration and its records are not ours) - e.g. it serves a
+    /// live identity in another environment sharing the same DNS server (permanent)
+    /// </summary>
+    ZoneAlreadyHosted,
+
+    /// <summary>No proof of domain control yet - retry after DNS setup (transient)</summary>
+    ControlNotProven,
+}
+
 /// <summary>
 /// Handles registration of a new domain identities; including creating SSL certificates.
+/// Full identity domains are typed as <see cref="AsciiDomainName"/> - valid and lowercased
+/// by construction; callers convert (and thereby validate) at their boundary.
 /// </summary>
 public interface IIdentityRegistrationService
 {
-    Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default);
+    Task<string> LookupZoneApexAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns a list of domains managed by this identity host.
@@ -24,26 +49,26 @@ public interface IIdentityRegistrationService
     /// </summary>
     /// <param name="domain"></param>
     /// <returns></returns>
-    Task<List<DnsConfig>> GetDnsConfiguration(string domain);
+    Task<List<DnsConfig>> GetDnsConfiguration(AsciiDomainName domain);
 
     /// <summary>
     /// Verifies if DNS records are correctly configured using authoritative name servers
     /// </summary>
     /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain, CancellationToken cancellationToken = default);
+    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default);
 
 
     /// <summary>
     /// Verifies if DNS records are correctly configured using external name servers
     /// </summary>
     /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain, CancellationToken cancellationToken = default);
+    Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Create identity on own or managed domain
     /// </summary>
     /// <returns>First-run token</returns>
-    Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId, string invitationCode);
+    Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string planId, string invitationCode);
     
     //
     // Managed Domain
@@ -57,14 +82,52 @@ public interface IIdentityRegistrationService
     // Own Domain
     //
 
-    public Task<bool> IsOwnDomainAvailable(string domain);
-    public Task DeleteOwnDomain(string domain);
+    public Task<bool> IsOwnDomainAvailable(AsciiDomainName domain);
+    public Task DeleteOwnDomain(AsciiDomainName domain);
+
+    /// <summary>
+    /// True when we can host DNS zones for own-domains (PowerDNS + nameservers configured).
+    /// </summary>
+    bool CanHostOwnDomainZones { get; }
+
+    /// <summary>
+    /// Pre-provisions the DNS zone for an own-domain in our PowerDNS so the user can
+    /// delegate to our nameservers now or later. Idempotent; no-op when zone hosting
+    /// is not configured. Requires proof of domain control (registered identity,
+    /// delegation to our nameservers at the parent, or valid manual DNS records) and
+    /// refuses domains inside zones we already host.
+    /// </summary>
+    Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(AsciiDomainName domain, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when a zone for the own-domain exists in our PowerDNS. Read-only probe
+    /// (used by the CLI dry-run); false when zone hosting is not configured.
+    /// </summary>
+    Task<bool> OwnDomainZoneExists(AsciiDomainName domain);
+
+    /// <summary>
+    /// Best-effort removal of an own-domain's zone. Never throws.
+    /// </summary>
+    Task DeleteOwnDomainZone(AsciiDomainName domain);
+
+    /// <summary>
+    /// DNSSEC state of an own-domain's hosted zone: whether it is signed, whether the
+    /// parent can carry a DS, and whether the published DS matches our keys.
+    /// Read-only; see docs/byod-dnssec-plan.md.
+    /// </summary>
+    Task<DnssecStatusResult> GetDnssecStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Best-effort DNS cleanup for a deleted tenant: managed domains get their records
+    /// removed from the shared apex zone, own domains get their zone deleted. Never throws.
+    /// </summary>
+    Task DeleteDnsRecordsForDomain(AsciiDomainName domain);
     
     //
     // OldHelpers
     //
-    Task<bool> CanConnectToHostAndPort(string domain, int port);
-    Task<bool> HasValidCertificate(string domain);
+    Task<bool> CanConnectToHostAndPort(AsciiDomainName domain, int port);
+    Task<bool> HasValidCertificate(AsciiDomainName domain);
 
     /// <summary>
     /// Checks if invitation code is needed

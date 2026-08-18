@@ -14,6 +14,7 @@ using Odin.Services.Authentication.Owner;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Configuration;
+using Odin.Services.Dns.Health;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.Peer.Outgoing.Drive;
@@ -170,7 +171,8 @@ public class RecoveryNotifier(
         }
     }
 
-    public async Task NotifyUser(OdinId odinId, RecoveryInfo recoveryInfo, IOdinContext odinContext)
+    public async Task NotifyUser(OdinId odinId, RecoveryInfo recoveryInfo, IOdinContext odinContext,
+        DnssecHealthResult dnssecAttention = null)
     {
         if (configuration.Mailgun.Enabled) //for #debug state
         {
@@ -182,8 +184,8 @@ public class RecoveryNotifier(
                 {
                     To = [new NameAndEmailAddress { Email = email }],
                     Subject = "Your Homebase Account Recovery Risk Report",
-                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo),
-                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo)
+                    TextMessage = RecoveryEmails.FormatRecoveryRiskStatusText(odinId, recoveryInfo, dnssecAttention),
+                    HtmlMessage = RecoveryEmails.FormatRecoveryRiskStatusHtml(odinId, recoveryInfo, dnssecAttention)
                 },
             };
 

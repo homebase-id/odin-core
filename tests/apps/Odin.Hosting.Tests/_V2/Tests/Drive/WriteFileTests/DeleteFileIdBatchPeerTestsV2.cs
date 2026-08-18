@@ -613,9 +613,10 @@ public class DeleteFileIdBatchPeerTestsV2
                     Name = "all-on-drive",
                     DriveId = targetDrive.Alias,
                     QueryParams = new FileQueryParams(),
-                    ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
+                    ResultOptionsRequest = new QueryBatchCollectionSectionOptionsV2()
                 }
-            ]
+            ],
+            MaxRecords = 100
         });
         ClassicAssert.AreEqual(HttpStatusCode.OK, collectionResponse.StatusCode);
 
