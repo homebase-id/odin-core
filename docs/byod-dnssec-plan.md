@@ -11,7 +11,9 @@ BYOD identities can now delegate their domain to our PowerDNS (`NS -> ns1.id.pub
 - **Parent zone itself unsigned** (registrar/DNS host without DNSSEC support): a DS cannot chain at all — nothing the user can do with us; the chain is broken upstream of our zone.
 - **Matching DS at the parent**: fully validated chain.
 
-**Where DNSSEC surfaces (decided 2026-08-18):** nowhere in the signup flow. Before the Provision click the zone — and therefore the signing key and its DS values — does not exist, so there is nothing to show at domain-verification time, and the signup screens stay untouched. DNSSEC lives in (a) the future owner-console "DNS section" (verify/add — the API here is shaped for it) and (b) the **provisioning-complete email**, which is sent after the identity, zone and certificate exist and can therefore include the real DS values (in scope this phase, see §4b).
+**Where DNSSEC surfaces (decided 2026-08-18):** nowhere in the signup flow. Before the Provision click the zone — and therefore the signing key and its DS values — does not exist, so there is nothing to show at domain-verification time, and the signup screens stay untouched. DNSSEC lives in (a) the owner-console Security-tab panel (verify/add — separate plan: `docs/owner-console-dnssec-panel-plan.md`) and (b) the **provisioning-complete email**, which is sent after the identity, zone and certificate exist and can therefore include the real DS values (in scope this phase, see §4b).
+
+**Architectural boundary (decided 2026-08-18): the PowerDNS API belongs to provisioning only.** Everything in THIS plan runs on the provisioning/registration host, which operates the DNS server — using its privileged API there is fine and appropriate (zone existence, cryptokeys, metadata/CDS publication: things only the operator can know or do). Everywhere else in the odin-core backend — owner endpoints, tenant-side services — DNSSEC state must come from **generic DNS lookups** (see the companion plan), because those paths must work identically for third-party DNS and self-hosters. Even within this plan, anything that IS public DNS data (parent DS, parent DNSKEY) is queried generically via the shared `Odin.Core.Dns.DnssecLookup` primitives, never via PowerDNS; the PowerDNS API is reserved for the genuinely privileged parts.
 
 **Both delegation levels are covered by the same model** — the DS always goes into the parent zone, wherever that lives:
 - Apex (e.g. `gabriel.ninja`): parent = the TLD; the DS is entered at the **registrar** (verified 2026-08-18: Squarespace's DNSSEC UI accepts exactly our tuple — key tag, algorithm, digest type, digest).
@@ -56,8 +58,8 @@ Notes:
 - Only if live verification shows `dnssec:true` does NOT auto-create keys: add `POST .../cryptokeys` (`{keytype: "csk", active: true}`) called from `CreateOwnDomainZone`. Not expected to be needed.
 
 ### 2. `DnsLookupService` (`src/services/Odin.Services/Registry/Registration/DnsLookupService.cs`)
-- `GetParentDsRecordsAsync(AsciiDomainName domain, ...)` — clone of `GetParentDelegationNameServersAsync` with `QueryType.DS` (Answers + Authorities, referral edge cases included). Same parent-authority, non-recursive, no-cache discipline.
-- `IsParentZoneSignedAsync(...)` — `QueryType.DNSKEY` for the parent apex at the parent's own authority.
+- `GetParentDsRecordsAsync(AsciiDomainName domain, ...)` — `QueryType.DS` at the parent's authority (Answers + Authorities, referral edge cases included), following `GetParentDelegationNameServersAsync`'s parent-authority, non-recursive, no-cache discipline. Implemented as a thin wrapper over the shared config-free `Odin.Core.Dns.DnssecLookup` primitives defined in `docs/owner-console-dnssec-panel-plan.md` §1 — whichever plan is implemented first builds them.
+- `IsParentZoneSignedAsync(...)` — `QueryType.DNSKEY` for the parent apex at the parent's own authority (same shared primitive).
 - `GetParentChainValidatesAsync(...)` — the best-effort recursive AD check described above (nullable result).
 - These stay lookup-only; PowerDNS access stays in `IdentityRegistrationService` (same split as today).
 
