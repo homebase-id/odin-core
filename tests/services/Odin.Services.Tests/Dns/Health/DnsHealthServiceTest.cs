@@ -323,4 +323,76 @@ public class DnsHealthServiceTest
         Assert.That(result.Single().Status, Is.EqualTo(OptionalRecordStatus.PointsElsewhere));
         Assert.That(result.Single().Found, Is.EquivalentTo(new[] { "some-other-site.example" }));
     }
+
+    //
+    // Security-email attention rule (docs/owner-console-dnssec-panel-plan.md section 3b)
+    //
+
+    private static DnssecHealthResult Health(DnsHealthDnssecStatus status, bool parentSigned = true)
+    {
+        return new DnssecHealthResult { Status = status, ParentZoneSigned = parentSigned };
+    }
+
+    [Test]
+    public void ItShouldFlagOnlyUserActionableDnssecStates()
+    {
+        // DsMismatch always: the SERVFAIL case
+        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.DsMismatch)), Is.True);
+        // DsMissing only when the parent is signed (one actionable record away)
+        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.DsMissing)), Is.True);
+        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.DsMissing, parentSigned: false)), Is.False);
+
+        // Everything else: no monthly nagging about states the user cannot act on
+        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.Secure)), Is.False);
+        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.Inherited)), Is.False);
+        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.ParentUnsigned, parentSigned: false)), Is.False);
+        Assert.That(DnsHealthService.NeedsUserAttention(Health(DnsHealthDnssecStatus.ZoneUnsigned)), Is.False);
+    }
+
+    [Test]
+    public async Task ItShouldReturnNullAttentionOnLookupFailure()
+    {
+        // A DNS hiccup must neither block the health report nor count as attention
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new System.Exception("dns exploded"));
+
+        var result = await CreateService().GetDnssecAttentionAsync(Domain, CancellationToken.None);
+
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public async Task ItShouldReturnAttentionForAStaleDsAndStayQuietWhenSecure()
+    {
+        var key = TestKey();
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Domain.DomainName);
+        _dnssecLookup
+            .Setup(x => x.GetZoneDnsKeysAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([key]);
+        _dnssecLookup
+            .Setup(x => x.IsParentZoneSignedAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _dnssecLookup
+            .Setup(x => x.GetCdsRecordsAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        // Stale DS -> attention with the expected DS values on board
+        _dnssecLookup
+            .Setup(x => x.GetParentDsRecordsAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new DsRecordData(9999, 13, 2, "deadbeef")]);
+        var mismatch = await CreateService().GetDnssecAttentionAsync(Domain, CancellationToken.None);
+        Assert.That(mismatch, Is.Not.Null);
+        Assert.That(mismatch!.Status, Is.EqualTo(DnsHealthDnssecStatus.DsMismatch));
+        Assert.That(mismatch.DsToPublish, Is.Not.Empty);
+
+        // Matching DS -> quiet
+        _dnssecLookup
+            .Setup(x => x.GetParentDsRecordsAsync(Domain.DomainName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([DnssecLookup.ComputeDsFromDnsKey(Domain.DomainName, key)]);
+        var secure = await CreateService().GetDnssecAttentionAsync(Domain, CancellationToken.None);
+        Assert.That(secure, Is.Null);
+    }
 }
