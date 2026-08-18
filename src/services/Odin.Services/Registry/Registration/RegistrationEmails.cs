@@ -4,6 +4,10 @@
 // exchanged with something a bit more professional looking...
 //
 
+using System.Collections.Generic;
+using System.Linq;
+using Odin.Core.Dns;
+
 namespace Odin.Services.Registry.Registration;
 
 public static class RegistrationEmails
@@ -11,7 +15,8 @@ public static class RegistrationEmails
     //
     // Provisioning Completed
     //
-    public static string ProvisioningCompletedText(string email, string domain, string link)
+    public static string ProvisioningCompletedText(string email, string domain, string link,
+        IReadOnlyCollection<DsRecordData> dnssecDsRecords = null)
     {
         return @$"
             Hi {email},
@@ -19,13 +24,38 @@ public static class RegistrationEmails
             Your new {domain} identity is ready.
 
             Please click here {link} to go to it!
-
+{DnssecTextSection(domain, dnssecDsRecords)}
             --
             Team Homebase
         ";
     }
 
-    public static string ProvisioningCompletedHtml(string domain, string link)
+    // Only rendered when the domain is one DS record away from a fully validated DNSSEC
+    // chain (status DsMissing); every other state gets no DNSSEC mention
+    private static string DnssecTextSection(string domain, IReadOnlyCollection<DsRecordData> dsRecords)
+    {
+        if (dsRecords == null || dsRecords.Count == 0)
+        {
+            return "";
+        }
+
+        var records = string.Join("\n", dsRecords.Select(ds =>
+            $"              Key tag: {ds.KeyTag}   Algorithm: {ds.Algorithm}   Digest type: {ds.DigestType}\n" +
+            $"              Digest: {ds.Digest}"));
+
+        return @$"
+            Optional: protect {domain} with DNSSEC.
+            Your DNS zone is already cryptographically signed. To complete the chain of trust,
+            add this DS record where your domain is delegated: at your domain registrar if
+            {domain} is a registered (apex) domain, or as a DS record next to your NS records
+            at your DNS host if it is a subdomain:
+
+{records}
+";
+    }
+
+    public static string ProvisioningCompletedHtml(string domain, string link,
+        IReadOnlyCollection<DsRecordData> dnssecDsRecords = null)
     {
         return @$"
             <!DOCTYPE html>
@@ -184,6 +214,7 @@ public static class RegistrationEmails
                                                                 Click <a href='{link}' style='text-decoration:underlin;'>here</a>  to go to it!<br/><br/>
                                                                 Please note that due to DNS propagation, your new identity may take up to 48 hours to become accessible across the globe.
                                                             </p>
+{DnssecHtmlSection(domain, dnssecDsRecords)}
                                                             <p style='margin-bottom: 15px'>
                                                                 Kind regards<br />Team Homebase
                                                             </p>
@@ -245,5 +276,42 @@ public static class RegistrationEmails
                 </body>
             </html>"
             ;
+    }
+
+    //
+
+    private static string DnssecHtmlSection(string domain, IReadOnlyCollection<DsRecordData> dsRecords)
+    {
+        if (dsRecords == null || dsRecords.Count == 0)
+        {
+            return "";
+        }
+
+        var rows = string.Join("", dsRecords.Select(ds =>
+            $"<tr>" +
+            $"<td style='padding:4px 12px 4px 0'>{ds.KeyTag}</td>" +
+            $"<td style='padding:4px 12px 4px 0'>{ds.Algorithm}</td>" +
+            $"<td style='padding:4px 12px 4px 0'>{ds.DigestType}</td>" +
+            $"<td style='padding:4px 0; word-break:break-all'><code>{ds.Digest}</code></td>" +
+            $"</tr>"));
+
+        return @$"
+                                                            <p style='margin-bottom: 15px'>
+                                                                <strong>Optional: protect {domain} with DNSSEC.</strong><br/>
+                                                                Your DNS zone is already cryptographically signed. To complete the chain of trust,
+                                                                add this DS record where your domain is delegated: at your domain registrar if
+                                                                {domain} is a registered (apex) domain, or as a DS record next to your NS records
+                                                                at your DNS host if it is a subdomain.
+                                                            </p>
+                                                            <table style='font-size:13px; border-collapse:collapse; margin-bottom:15px'>
+                                                                <tr>
+                                                                    <th style='text-align:left; padding:4px 12px 4px 0'>Key tag</th>
+                                                                    <th style='text-align:left; padding:4px 12px 4px 0'>Algorithm</th>
+                                                                    <th style='text-align:left; padding:4px 12px 4px 0'>Digest type</th>
+                                                                    <th style='text-align:left; padding:4px 0'>Digest</th>
+                                                                </tr>
+                                                                {rows}
+                                                            </table>
+";
     }
 }

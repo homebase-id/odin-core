@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
@@ -61,11 +62,15 @@ public static class OwnDomainZones
 
             try
             {
+                // Registry domains are valid by construction; the try also covers a
+                // hypothetical corrupt entry
+                var asciiDomain = new AsciiDomainName(domain);
+
                 if (!commit)
                 {
                     // Dry-run reports zone existence only; commit additionally applies the
                     // shadow guard and (re)populates records
-                    if (await regService.OwnDomainZoneExists(domain))
+                    if (await regService.OwnDomainZoneExists(asciiDomain))
                     {
                         existing++;
                         Console.WriteLine($"EXISTS       {domain}");
@@ -80,7 +85,7 @@ public static class OwnDomainZones
 
                 // Registered identities always pass the domain-control gate; a refusal here
                 // means the shadow guard hit (domain inside a zone we host)
-                var result = await regService.CreateOwnDomainZone(domain);
+                var result = await regService.CreateOwnDomainZone(asciiDomain);
                 if (result == CreateOwnDomainZoneResult.Created)
                 {
                     created++;
@@ -102,6 +107,61 @@ public static class OwnDomainZones
         Console.WriteLine(commit
             ? $"Done. Zones ensured: {created}, refused: {refused}, managed domains skipped: {skipped}, failed: {failed}"
             : $"Dry-run done. Would create: {created}, already exist: {existing}, managed domains skipped: {skipped}, failed: {failed}");
+    }
+
+    //
+
+    // Fleet DNSSEC check: one line per own-domain identity with its DNSSEC verdict and,
+    // when a DS is missing, the values to publish at the parent. Read-only.
+    public static async Task DnssecStatusAsync(IServiceProvider services)
+    {
+        var config = services.GetRequiredService<OdinConfiguration>();
+        if (string.IsNullOrEmpty(config.Registry.PowerDnsApiKey) ||
+            config.Registry.DnsConfigurationSet.NameServers.Count == 0 ||
+            string.IsNullOrEmpty(config.Registry.PowerDnsHostAddress))
+        {
+            Console.WriteLine("Zone hosting is not configured (Registry:PowerDnsApiKey, " +
+                              "Registry:PowerDnsHostAddress and/or Registry:DnsRecordValues:NameServers " +
+                              "missing). Nothing to do.");
+            return;
+        }
+
+        var regService = services.GetRequiredService<IIdentityRegistrationService>();
+        var registry = services.GetRequiredService<IIdentityRegistry>();
+        await registry.LoadRegistrations();
+        var tenants = await registry.GetTenants();
+
+        var skipped = 0;
+        var failed = 0;
+        foreach (var tenant in tenants)
+        {
+            var domain = tenant.PrimaryDomainName;
+            if (IsManagedDomain(config, domain))
+            {
+                skipped++;
+                continue;
+            }
+
+            try
+            {
+                var status = await regService.GetDnssecStatusAsync(new AsciiDomainName(domain));
+                Console.WriteLine($"{status.Status,-14} {domain}");
+                if (status.Status == DnssecStatus.DsMissing)
+                {
+                    foreach (var ds in status.OurDsRecords)
+                    {
+                        Console.WriteLine($"               DS to publish: {ds.KeyTag} {ds.Algorithm} {ds.DigestType} {ds.Digest}");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                failed++;
+                Console.WriteLine($"FAILED         {domain}: {e.Message}");
+            }
+        }
+
+        Console.WriteLine($"Done. Managed domains skipped: {skipped}, failed: {failed}");
     }
 
     //

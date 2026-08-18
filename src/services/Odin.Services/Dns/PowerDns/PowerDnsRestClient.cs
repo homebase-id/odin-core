@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Dns;
 using Odin.Core.Http;
 using Refit;
 
@@ -215,8 +216,38 @@ public class PowerDnsRestClient : IDnsRestClient
                 }
             }
         };
-        
+
         return Api.CreateReplaceDeleteRrsets(zoneId, data);
+    }
+
+    //
+
+    public async Task<List<DsRecordData>> GetZoneDsRecords(string zoneId)
+    {
+        var cryptokeys = await Api.GetCryptokeys(zoneId);
+        return cryptokeys
+            .Where(key => key.active && key.published)
+            .SelectMany(key => key.ds ?? [])
+            .Select(DsRecordData.TryParse)
+            .Where(ds => ds != null)
+            .Select(ds => ds!)
+            // SHA-256 (digest type 2) first: the digest type registrars expect today
+            .OrderByDescending(ds => ds.DigestType == 2)
+            .ThenBy(ds => ds.DigestType)
+            .Distinct()
+            .ToList();
+    }
+
+    //
+
+    public async Task PublishCdsRecords(string zoneId)
+    {
+        // PUBLISH-CDS value = DS digest algorithms to publish; "2" = SHA-256.
+        // PUT replaces, so re-running converges (idempotent).
+        await Api.ReplaceZoneMetadata(zoneId, "PUBLISH-CDS",
+            new { kind = "PUBLISH-CDS", metadata = new[] { "2" }, type = "Metadata" });
+        await Api.ReplaceZoneMetadata(zoneId, "PUBLISH-CDNSKEY",
+            new { kind = "PUBLISH-CDNSKEY", metadata = new[] { "1" }, type = "Metadata" });
     }
 }
 
