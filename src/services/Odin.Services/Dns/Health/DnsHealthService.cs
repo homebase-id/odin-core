@@ -184,7 +184,7 @@ public class DnsHealthService(
 
     //
 
-    internal async Task<DnssecHealthResult> GetDnssecHealthAsync(AsciiDomainName domain, CancellationToken cancellationToken)
+    public async Task<DnssecHealthResult> GetDnssecHealthAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
         var domainName = domain.DomainName;
 
@@ -226,6 +226,38 @@ public class DnsHealthService(
             ParentDsRecords = parentDsRecords,
             ParentZoneSigned = parentZoneSigned,
         };
+    }
+
+    //
+
+    /// <summary>
+    /// The DNSSEC state when - and only when - the user can act on it, for the monthly
+    /// security health email (docs/owner-console-dnssec-panel-plan.md, security email
+    /// section): DsMismatch always (SERVFAIL risk), DsMissing only when the parent is
+    /// signed (one actionable record away). Everything else - Secure, Inherited,
+    /// ParentUnsigned, third-party unsigned zones - returns null: no monthly nagging
+    /// about states the user cannot change through us. Never throws; a lookup failure
+    /// returns null and must not count as attention.
+    /// </summary>
+    public async Task<DnssecHealthResult?> GetDnssecAttentionAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var health = await GetDnssecHealthAsync(domain, cancellationToken);
+            return NeedsUserAttention(health) ? health : null;
+        }
+        catch (System.Exception e)
+        {
+            logger.LogWarning("DNSSEC attention check for {domain} failed: {error}", domain, e.Message);
+            return null;
+        }
+    }
+
+    // Pure trigger rule, data-level testable
+    internal static bool NeedsUserAttention(DnssecHealthResult health)
+    {
+        return health.Status == DnsHealthDnssecStatus.DsMismatch ||
+               (health.Status == DnsHealthDnssecStatus.DsMissing && health.ParentZoneSigned);
     }
 
     //
