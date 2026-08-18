@@ -88,8 +88,7 @@ public class JobManagerTests
 
         if (databaseType == DatabaseType.Postgres)
         {
-            _postgresContainer = new PostgreSqlBuilder()
-                .WithImage("postgres:latest")
+            _postgresContainer = new PostgreSqlBuilder("postgres:latest")
                 .WithDatabase("odin")
                 .WithUsername("odin")
                 .WithPassword("odin")

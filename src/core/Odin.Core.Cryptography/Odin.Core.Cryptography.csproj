@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="BouncyCastle.NetCore" Version="2.2.1" />
+      <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
       <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="9.0.2" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
       <PackageReference Include="System.Security.Cryptography.Cng" Version="5.0.0" />
