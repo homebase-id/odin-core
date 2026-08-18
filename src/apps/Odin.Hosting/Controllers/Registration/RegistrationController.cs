@@ -208,6 +208,47 @@ public class RegistrationController : ControllerBase
     }
 
     /// <summary>
+    /// Pre-provisions the DNS zone for an own-domain on our nameservers so the user can
+    /// delegate to us (via NS records or a registrar nameserver change) instead of creating
+    /// individual DNS records. The zone is only created once control of the domain is
+    /// proven (delegation to our nameservers at the parent, or valid manual records) -
+    /// call it before each DNS status poll; it is idempotent and returns created=false
+    /// until the proof appears. No-op when zone hosting is not configured.
+    /// </summary>
+    /// <returns></returns>
+    [HttpPost("create-own-domain-zone/{domain}")]
+    public async Task<IActionResult> CreateOwnDomainZone(
+        string domain,
+        [FromQuery(Name = "invitation-code")] string invitationCode)
+    {
+        domain = domain.Trim();
+        ValidateDomain(domain);
+
+        if (!await _regService.IsValidInvitationCode(invitationCode))
+        {
+            throw new BadRequestException(message: "Invalid or expired Invitation Code");
+        }
+
+        var available = await _regService.IsOwnDomainAvailable(domain);
+        if (!available)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status412PreconditionFailed,
+                title: "Domain name not available"
+            );
+        }
+
+        var result = await _regService.CreateOwnDomainZone(domain, HttpContext.RequestAborted);
+        return new JsonResult(new
+        {
+            created = result == CreateOwnDomainZoneResult.Created,
+            // camelCase reason so the frontend can distinguish transient (controlNotProven)
+            // from permanent (shadowsHostedZone, notConfigured) refusals
+            reason = char.ToLowerInvariant(result.ToString()[0]) + result.ToString()[1..],
+        });
+    }
+
+    /// <summary>
     /// Gets the status for the ongoing own domain registration
     /// </summary>
     /// <returns></returns>

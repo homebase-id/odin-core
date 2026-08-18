@@ -59,6 +59,21 @@ public class PowerDnsRestClient : IDnsRestClient
     }
 
     //
+
+    public async Task<bool> ZoneExists(string zoneId)
+    {
+        try
+        {
+            await Api.GetZone(zoneId);
+            return true;
+        }
+        catch (ApiException e) when (e.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+    }
+
+    //
     
     public Task<ZoneWithRecords> CreateZone(string zoneName, string[] nameServers, string adminEmail)
     {
@@ -101,6 +116,14 @@ public class PowerDnsRestClient : IDnsRestClient
     
     //
 
+    // An empty name addresses the zone apex
+    private static string RecordName(string zoneId, string name)
+    {
+        return name == "" ? zoneId : $"{name}.{zoneId}";
+    }
+
+    //
+
     public Task CreateARecords(string zoneId, string name, IEnumerable<string> ipAddresses)
     {
         var records = ipAddresses.Select(x =>
@@ -117,7 +140,7 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "A",
                     changetype = "REPLACE",
                     ttl = DefaultTtl,
@@ -139,7 +162,7 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "A",
                     changetype = "DELETE",
                 }
@@ -159,7 +182,7 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "CNAME",
                     changetype = "REPLACE",
                     ttl = DefaultTtl,
@@ -186,7 +209,7 @@ public class PowerDnsRestClient : IDnsRestClient
             {
                 new
                 {
-                    name = $"{name}.{zoneId}",
+                    name = RecordName(zoneId, name),
                     type = "CNAME",
                     changetype = "DELETE",
                 }

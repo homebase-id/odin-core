@@ -6,6 +6,28 @@ using Odin.Services.Configuration;
 
 namespace Odin.Services.Registry.Registration;
 
+public enum CreateOwnDomainZoneResult
+{
+    /// <summary>The zone exists: created now or already present</summary>
+    Created,
+
+    /// <summary>Zone hosting is not configured on this deployment (permanent)</summary>
+    NotConfigured,
+
+    /// <summary>The domain lies inside a zone we already host; a child zone would shadow it (permanent)</summary>
+    ShadowsHostedZone,
+
+    /// <summary>
+    /// A zone for this exact domain already exists in PowerDNS but does not belong to this
+    /// environment (no local registration and its records are not ours) - e.g. it serves a
+    /// live identity in another environment sharing the same DNS server (permanent)
+    /// </summary>
+    ZoneAlreadyHosted,
+
+    /// <summary>No proof of domain control yet - retry after DNS setup (transient)</summary>
+    ControlNotProven,
+}
+
 /// <summary>
 /// Handles registration of a new domain identities; including creating SSL certificates.
 /// </summary>
@@ -59,6 +81,37 @@ public interface IIdentityRegistrationService
 
     public Task<bool> IsOwnDomainAvailable(string domain);
     public Task DeleteOwnDomain(string domain);
+
+    /// <summary>
+    /// True when we can host DNS zones for own-domains (PowerDNS + nameservers configured).
+    /// </summary>
+    bool CanHostOwnDomainZones { get; }
+
+    /// <summary>
+    /// Pre-provisions the DNS zone for an own-domain in our PowerDNS so the user can
+    /// delegate to our nameservers now or later. Idempotent; no-op when zone hosting
+    /// is not configured. Requires proof of domain control (registered identity,
+    /// delegation to our nameservers at the parent, or valid manual DNS records) and
+    /// refuses domains inside zones we already host.
+    /// </summary>
+    Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(string domain, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// True when a zone for the own-domain exists in our PowerDNS. Read-only probe
+    /// (used by the CLI dry-run); false when zone hosting is not configured.
+    /// </summary>
+    Task<bool> OwnDomainZoneExists(string domain);
+
+    /// <summary>
+    /// Best-effort removal of an own-domain's zone. Never throws.
+    /// </summary>
+    Task DeleteOwnDomainZone(string domain);
+
+    /// <summary>
+    /// Best-effort DNS cleanup for a deleted tenant: managed domains get their records
+    /// removed from the shared apex zone, own domains get their zone deleted. Never throws.
+    /// </summary>
+    Task DeleteDnsRecordsForDomain(string domain);
     
     //
     // OldHelpers

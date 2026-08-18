@@ -48,3 +48,4 @@ appsettings.production.json
 
 # "your" local setting files
 appsettings.local.json
+TestResults/

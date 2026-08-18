@@ -15,11 +15,14 @@ public interface IDnsRestClient
     
     Task<IList<Zone>> GetZones();
     Task<ZoneWithRecords> GetZone(string zoneId);
+    Task<bool> ZoneExists(string zoneId);
     Task<ZoneWithRecords> CreateZone(string zoneName, string[] nameServers, string adminEmail);
     Task DeleteZone(string zoneId);
-    
+
     //
     // Rrsets / records
+    //
+    // An empty name addresses the zone apex.
     //
 
     Task CreateARecords(string zoneId, string name, IEnumerable<string> ipAddresses);
@@ -27,6 +30,6 @@ public interface IDnsRestClient
 
     Task CreateCnameRecords(string zoneId, string name, string alias);
     Task DeleteCnameRecords(string zoneId, string name);
-    
-    
+
+
 }
