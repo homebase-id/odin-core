@@ -34,25 +34,16 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default)
+    public async Task<string> LookupZoneApexAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        domain = domain.ToLower();
-        if (!AsciiDomainNameValidator.TryValidateDomain(domain))
-        {
-            return "";
-        }
-
-        var result = await _authoritativeDnsLookup.LookupZoneApexAsync(domain, cancellationToken);
-
-        return result;
+        return await _authoritativeDnsLookup.LookupZoneApexAsync(domain.DomainName, cancellationToken);
     }
 
     //
 
-    public List<DnsConfig> GetDnsConfiguration(string domain)
+    public List<DnsConfig> GetDnsConfiguration(AsciiDomainName domain)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
+        var domainName = domain.DomainName;
         var dns = _configuration.Registry.DnsConfigurationSet;
 
         var result = new List<DnsConfig>();
@@ -75,7 +66,7 @@ public class DnsLookupService : IDnsLookupService
         {
             Type = "A",
             Name = "",
-            Domain = domain,
+            Domain = domainName,
             Value = dns.ApexARecord,
             AltValue = dns.ApexARecord,
             Description = "A Record"
@@ -86,7 +77,7 @@ public class DnsLookupService : IDnsLookupService
         {
             Type = "ALIAS",
             Name = "",
-            Domain = domain,
+            Domain = domainName,
             Value = dns.ApexAliasRecord,
             AltValue = dns.ApexAliasRecord,
             Description = "Apex flattened CNAME / ALIAS / ANAME"
@@ -97,9 +88,9 @@ public class DnsLookupService : IDnsLookupService
         {
             Type = "CNAME",
             Name = DnsConfigurationSet.PrefixCertApi,
-            Domain = $"{DnsConfigurationSet.PrefixCertApi}.{domain}",
+            Domain = $"{DnsConfigurationSet.PrefixCertApi}.{domainName}",
             Value = dns.ApexAliasRecord,
-            AltValue = domain,
+            AltValue = domainName,
             Description = "CAPI CNAME"
         });
 
@@ -108,9 +99,9 @@ public class DnsLookupService : IDnsLookupService
         {
             Type = "CNAME",
             Name = DnsConfigurationSet.PrefixFile,
-            Domain = $"{DnsConfigurationSet.PrefixFile}.{domain}",
+            Domain = $"{DnsConfigurationSet.PrefixFile}.{domainName}",
             Value = dns.ApexAliasRecord,
-            AltValue = domain,
+            AltValue = domainName,
             Description = "FILE CNAME"
         });
 
@@ -119,14 +110,14 @@ public class DnsLookupService : IDnsLookupService
         // AND PowerDNS available), and never for managed domains - those live as records in
         // the shared apex zone and must not be delegated anywhere.
         var canHostZones = !string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey);
-        var nameServers = canHostZones && !IsUnderManagedApex(domain) ? dns.NameServers : [];
+        var nameServers = canHostZones && !IsUnderManagedApex(domainName) ? dns.NameServers : [];
         foreach (var nameServer in nameServers)
         {
             result.Add(new DnsConfig
             {
                 Type = "NS",
                 Name = "",
-                Domain = domain,
+                Domain = domainName,
                 Value = nameServer,
                 AltValue = nameServer,
                 Description = "NS Record (delegates DNS for the domain to us)"
@@ -138,7 +129,7 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<bool> IsDomainDelegatedToUsAsync(string domain, CancellationToken cancellationToken = default)
+    public async Task<bool> IsDomainDelegatedToUsAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
         var ourNameServers = _configuration.Registry.DnsConfigurationSet.NameServers;
         if (ourNameServers.Count == 0)
@@ -167,17 +158,13 @@ public class DnsLookupService : IDnsLookupService
     /// and it must reflect what the domain owner actually configured at their DNS host -
     /// asking the child's authority would just echo our own zone's NS rrset.
     /// </summary>
-    private async Task<List<string>> GetParentDelegationNameServersAsync(string domain, CancellationToken cancellationToken)
+    private async Task<List<string>> GetParentDelegationNameServersAsync(AsciiDomainName domain, CancellationToken cancellationToken)
     {
-        domain = domain.Trim().ToLower();
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
-        var idx = domain.IndexOf('.');
-        if (idx < 0)
-        {
-            return [];
-        }
-        var parent = domain[(idx + 1)..];
+        // A valid domain always has at least two labels, so there is always a parent.
+        // The parent can be a bare TLD - not a valid AsciiDomainName itself - which is
+        // why the authority lookup below deliberately works on plain strings.
+        var domainName = domain.DomainName;
+        var parent = domainName[(domainName.IndexOf('.') + 1)..];
 
         var authority = await _authoritativeDnsLookup.LookupDomainAuthorityAsync(parent, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
@@ -191,7 +178,7 @@ public class DnsLookupService : IDnsLookupService
             UseCache = false,
         };
         var response = await _dnsClient.Query(
-            authority.NameServers, domain, QueryType.NS, options, _logger, cancellationToken: cancellationToken);
+            authority.NameServers, domainName, QueryType.NS, options, _logger, cancellationToken: cancellationToken);
 
         // Delegation NS records come back as a referral (Authority section) or, if the
         // parent's server is also authoritative for the child, as answers
@@ -204,12 +191,10 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(string domain, CancellationToken cancellationToken = default)
+    public async Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
         var dnsConfigs = GetDnsConfiguration(domain);
-        var authority = await _authoritativeDnsLookup.LookupDomainAuthorityAsync(domain, cancellationToken);
+        var authority = await _authoritativeDnsLookup.LookupDomainAuthorityAsync(domain.DomainName, cancellationToken);
         if (string.IsNullOrEmpty(authority.AuthoritativeNameServer))
         {
             foreach (var record in dnsConfigs)
@@ -254,7 +239,7 @@ public class DnsLookupService : IDnsLookupService
             var (recordStatus, records) = await VerifyDnsRecordAsync(
                 authority.NameServers,
                 queryOptions,
-                domain,
+                domain.DomainName,
                 record.Name,
                 record.Type,
                 record.Value,
@@ -272,10 +257,8 @@ public class DnsLookupService : IDnsLookupService
 
     //
 
-    public async Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatusAsync(string domain, CancellationToken cancellationToken = default)
+    public async Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatusAsync(AsciiDomainName domain, CancellationToken cancellationToken = default)
     {
-        AsciiDomainNameValidator.AssertValidDomain(domain);
-
         var dnsConfigs = GetDnsConfiguration(domain);
         var resolvers = new List<string>(_configuration.Registry.DnsResolvers);
         var queryOptions = new DnsQueryOptions
@@ -293,7 +276,7 @@ public class DnsLookupService : IDnsLookupService
                 var (recordStatus, records) = await VerifyDnsRecordAsync(
                     new [] {resolver},
                     queryOptions,
-                    domain,
+                    domain.DomainName,
                     record.Name,
                     record.Type,
                     record.Value,
@@ -350,8 +333,7 @@ public class DnsLookupService : IDnsLookupService
 
     public async Task<bool> IsManagedDomainAvailableAsync(string prefix, string apex, CancellationToken cancellationToken = default)
     {
-        var domain = prefix + "." + apex;
-        AsciiDomainNameValidator.AssertValidDomain(domain);
+        var domain = new AsciiDomainName(prefix + "." + apex); // ctor validates
         AssertManagedDomainApexAndPrefix(prefix, apex);
 
         var resolver = _configuration.Registry.PowerDnsHostAddress;
@@ -359,7 +341,7 @@ public class DnsLookupService : IDnsLookupService
 
         var recordTypes = new[] { QueryType.A, QueryType.CNAME, QueryType.SOA, QueryType.AAAA };
 
-        if (await DnsRecordsOfTypeExists(resolver, domain, recordTypes, cancellationToken))
+        if (await DnsRecordsOfTypeExists(resolver, domain.DomainName, recordTypes, cancellationToken))
         {
             return false;
         }
@@ -368,7 +350,7 @@ public class DnsLookupService : IDnsLookupService
         {
             if (record.Name != "")
             {
-                if (await DnsRecordsOfTypeExists(resolver, record.Name + "." + domain, recordTypes, cancellationToken))
+                if (await DnsRecordsOfTypeExists(resolver, record.Name + "." + domain.DomainName, recordTypes, cancellationToken))
                 {
                     return false;
                 }

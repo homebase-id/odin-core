@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Storage.Concurrency;
+using Odin.Core.Util;
 using Odin.Core.Storage.Database.System.Table;
 using Odin.Services.Registry.Registration;
 
@@ -145,7 +146,7 @@ public class CertificateService : ICertificateService
         {
             if (sans.Length > 0) // don't verify system domains (e.g. provisioning, admin, etc)
             {
-                var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(domain, cancellationToken);
+                var (areDnsRecordsOk, _) = await _dnsLookupService.GetAuthoritativeDomainDnsStatusAsync(new AsciiDomainName(domain), cancellationToken);
                 if (!areDnsRecordsOk)
                 {
                     var error = $"Cannot create certificate for {domain}. One or more DNS records are incorrect.";

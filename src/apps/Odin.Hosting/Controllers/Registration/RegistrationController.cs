@@ -40,9 +40,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("lookup-zone-apex/{domain}")]
     public async Task<IActionResult> LookupZoneApex(string domain)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
-        var zoneApex = await _regService.LookupZoneApexAsync(domain, HttpContext.RequestAborted);
+        var zoneApex = await _regService.LookupZoneApexAsync(ParseDomain(domain), HttpContext.RequestAborted);
         return new JsonResult(zoneApex);
     }
 
@@ -53,9 +51,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("dns-config/{domain}")]
     public async Task<IActionResult> GetDnsConfiguration(string domain, [FromQuery] bool includeAlias = false)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
-        var dnsConfig = await _regService.GetDnsConfiguration(domain);
+        var dnsConfig = await _regService.GetDnsConfiguration(ParseDomain(domain));
         if (!includeAlias)
         {
             dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
@@ -70,9 +66,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("did-dns-records-propagate/{domain}")]
     public async Task<IActionResult> DidDnsRecordsPropagate(string domain)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
-        var (resolved, _) = await _regService.GetExternalDomainDnsStatus(domain, HttpContext.RequestAborted);
+        var (resolved, _) = await _regService.GetExternalDomainDnsStatus(ParseDomain(domain), HttpContext.RequestAborted);
         return new JsonResult(resolved);
     }
 
@@ -83,9 +77,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("can-connect-to/{domain}/{port}")]
     public async Task<IActionResult> CanConnectToHostAndPort(string domain, int port)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
-        var result = await _regService.CanConnectToHostAndPort(domain, port);
+        var result = await _regService.CanConnectToHostAndPort(ParseDomain(domain), port);
         return new JsonResult(result);
     }
 
@@ -96,9 +88,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("has-valid-certificate/{domain}")]
     public async Task<IActionResult> HasValidCertificate(string domain)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
-        var result = await _regService.HasValidCertificate(domain);
+        var result = await _regService.HasValidCertificate(ParseDomain(domain));
         return new JsonResult(result);
     }
 
@@ -195,10 +185,10 @@ public class RegistrationController : ControllerBase
     [HttpGet("is-own-domain-available/{domain}")]
     public async Task<IActionResult> IsOwnDomainAvailable(string domain)
     {
-        domain = domain.Trim();
         try
         {
-            var result = await _regService.IsOwnDomainAvailable(domain);
+            // Inside the try: an invalid domain is "not available", not an error
+            var result = await _regService.IsOwnDomainAvailable(ParseDomain(domain));
             return new JsonResult(result);
         }
         catch (Exception)
@@ -221,15 +211,14 @@ public class RegistrationController : ControllerBase
         string domain,
         [FromQuery(Name = "invitation-code")] string invitationCode)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
+        var asciiDomain = ParseDomain(domain);
 
         if (!await _regService.IsValidInvitationCode(invitationCode))
         {
             throw new BadRequestException(message: "Invalid or expired Invitation Code");
         }
 
-        var available = await _regService.IsOwnDomainAvailable(domain);
+        var available = await _regService.IsOwnDomainAvailable(asciiDomain);
         if (!available)
         {
             return Problem(
@@ -238,7 +227,7 @@ public class RegistrationController : ControllerBase
             );
         }
 
-        var result = await _regService.CreateOwnDomainZone(domain, HttpContext.RequestAborted);
+        var result = await _regService.CreateOwnDomainZone(asciiDomain, HttpContext.RequestAborted);
         return new JsonResult(new
         {
             created = result == CreateOwnDomainZoneResult.Created,
@@ -255,9 +244,7 @@ public class RegistrationController : ControllerBase
     [HttpGet("own-domain-dns-status/{domain}")]
     public async Task<IActionResult> GetOwnDomainDnsStatus(string domain, [FromQuery] bool includeAlias = false)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
-        var (success, dnsConfig) = await _regService.GetAuthoritativeDomainDnsStatus(domain, HttpContext.RequestAborted);
+        var (success, dnsConfig) = await _regService.GetAuthoritativeDomainDnsStatus(ParseDomain(domain), HttpContext.RequestAborted);
         if (!includeAlias)
         {
             dnsConfig = dnsConfig.Where(x => x.Type != "ALIAS").ToList();
@@ -278,9 +265,7 @@ public class RegistrationController : ControllerBase
     [HttpDelete("delete-own-domain/{domain}")]
     public async Task<IActionResult> DeleteOwnDomain(string domain)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
-        await _regService.DeleteOwnDomain(domain);
+        await _regService.DeleteOwnDomain(ParseDomain(domain));
         return NoContent();
     }
 #endif
@@ -294,8 +279,7 @@ public class RegistrationController : ControllerBase
     [HttpPost("create-identity-on-domain/{domain}")]
     public async Task<IActionResult> CreateIdentityOnDomain(string domain, [FromBody] IdentityModel identity)
     {
-        domain = domain.Trim();
-        ValidateDomain(domain);
+        var asciiDomain = ParseDomain(domain);
 
         if (!MailAddress.TryCreate(identity.Email, out _))
         {
@@ -310,7 +294,7 @@ public class RegistrationController : ControllerBase
         //
         // Check that our new domain can be looked up using authoritative nameservers
         //
-        var (resolved, _) = await _regService.GetAuthoritativeDomainDnsStatus(domain, HttpContext.RequestAborted);
+        var (resolved, _) = await _regService.GetAuthoritativeDomainDnsStatus(asciiDomain, HttpContext.RequestAborted);
         if (!resolved)
         {
             return Problem(
@@ -319,7 +303,7 @@ public class RegistrationController : ControllerBase
             );
         }
 
-        var firstRunToken = await _regService.CreateIdentityOnDomainAsync(domain, identity.Email, identity.PlanId, identity.InvitationCode);
+        var firstRunToken = await _regService.CreateIdentityOnDomainAsync(asciiDomain, identity.Email, identity.PlanId, identity.InvitationCode);
         return new JsonResult(firstRunToken);
     }
     
@@ -351,11 +335,17 @@ public class RegistrationController : ControllerBase
 
     //
 
-    private static void ValidateDomain(string domain)
+    /// <summary>
+    /// The string-to-type boundary: trims, validates and converts a route-supplied domain.
+    /// Everything behind the controller works with <see cref="AsciiDomainName"/>.
+    /// </summary>
+    private static AsciiDomainName ParseDomain(string domain)
     {
+        domain = domain.Trim();
         if (!AsciiDomainNameValidator.TryValidateDomain(domain))
         {
             throw new BadRequestException(message: "Invalid domain name");
         }
+        return new AsciiDomainName(domain);
     }
 }

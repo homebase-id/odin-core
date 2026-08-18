@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Dns;
+using Odin.Core.Util;
 using Odin.Services.Configuration;
 using Odin.Services.Registry.Registration;
 
@@ -43,7 +44,7 @@ public class DnsLookupServiceTest
         var configuration = ConfigurationWithDns(new DnsConfigurationSet("131.164.170.62", "identity-host.example"));
         var service = CreateDnsLookupService(configuration);
 
-        var dnsConfig = service.GetDnsConfiguration("frodo.example.com");
+        var dnsConfig = service.GetDnsConfiguration(new AsciiDomainName("frodo.example.com"));
 
         Assert.That(dnsConfig.Any(x => x.Type == "NS"), Is.False);
         Assert.That(dnsConfig.Count, Is.EqualTo(4)); // A, ALIAS, capi CNAME, file CNAME - unchanged
@@ -62,7 +63,7 @@ public class DnsLookupServiceTest
             powerDnsApiKey: "");
         var service = CreateDnsLookupService(configuration);
 
-        var dnsConfig = service.GetDnsConfiguration("frodo.example.com");
+        var dnsConfig = service.GetDnsConfiguration(new AsciiDomainName("frodo.example.com"));
 
         Assert.That(dnsConfig.Any(x => x.Type == "NS"), Is.False);
     }
@@ -79,7 +80,7 @@ public class DnsLookupServiceTest
             ["ns1.example", "ns2.example"], "admin@example.com"));
         var service = CreateDnsLookupService(configuration);
 
-        var dnsConfig = service.GetDnsConfiguration("frodo.baggins.demo.rocks");
+        var dnsConfig = service.GetDnsConfiguration(new AsciiDomainName("frodo.baggins.demo.rocks"));
 
         Assert.That(dnsConfig.Any(x => x.Type == "NS"), Is.False);
     }
@@ -94,7 +95,7 @@ public class DnsLookupServiceTest
             ["NS1.Example.", "ns2.example"], "admin@example.com"));
         var service = CreateDnsLookupService(configuration);
 
-        var dnsConfig = service.GetDnsConfiguration("frodo.example.com");
+        var dnsConfig = service.GetDnsConfiguration(new AsciiDomainName("frodo.example.com"));
 
         var nsRecords = dnsConfig.Where(x => x.Type == "NS").ToList();
         Assert.That(nsRecords.Count, Is.EqualTo(2));
