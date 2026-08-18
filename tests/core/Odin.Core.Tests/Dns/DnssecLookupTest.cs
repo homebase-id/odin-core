@@ -64,6 +64,16 @@ public class DnssecLookupTest
             answers: dsPublished ? [Ds("dingdong.sebbarg.net.", 46082, 13, 2, Digest)] : null,
             authorities: dsPublished ? null : [Soa("sebbarg.net.", "ns1.sebbarg.net.")]);
 
+        // aage.sebbarg.net: EMPTY NON-TERMINAL - no zone cut, NODATA with the enclosing
+        // zone's SOA (the delegation for john.aage lives directly in sebbarg.net)
+        SetupQuery(mock, SebbargNs, "aage.sebbarg.net.", QueryType.SOA,
+            authorities: [Soa("sebbarg.net.", "ns1.sebbarg.net.")]);
+
+        // sebbarg.net publishes CDS (RFC 7344) - raw type-59 rdata sharing the DS wire
+        // format: keytag(2) algorithm(1) digesttype(1) digest
+        SetupQuery(mock, SebbargNs, "sebbarg.net.", (QueryType)59,
+            answers: [Cds("sebbarg.net.", 46082, 13, 2, Digest)]);
+
         return mock;
     }
 
@@ -111,6 +121,92 @@ public class DnssecLookupTest
 
         var unsigned = CreateDnssecLookup(CreateMockedDnsTree(parentSigned: false));
         Assert.That(await unsigned.IsZoneSignedAsync("sebbarg.net", CancellationToken.None), Is.False);
+    }
+
+    [Test]
+    public async Task ItShouldSeeThroughEmptyNonTerminalsForTheParentSignedCheck()
+    {
+        // The DS for john.aage.sebbarg.net lives in sebbarg.net (the delegating zone),
+        // NOT at aage.sebbarg.net, which is an empty non-terminal with no zone of its
+        // own - the check must land on the enclosing zone
+        var lookup = CreateDnssecLookup(CreateMockedDnsTree(parentSigned: true));
+        Assert.That(await lookup.IsParentZoneSignedAsync("john.aage.sebbarg.net", CancellationToken.None), Is.True);
+
+        var unsigned = CreateDnssecLookup(CreateMockedDnsTree(parentSigned: false));
+        Assert.That(await unsigned.IsParentZoneSignedAsync("john.aage.sebbarg.net", CancellationToken.None), Is.False);
+    }
+
+    [Test]
+    public async Task ItShouldParseCdsRecordsFromRawRdata()
+    {
+        var lookup = CreateDnssecLookup(CreateMockedDnsTree());
+
+        var cds = await lookup.GetCdsRecordsAsync("sebbarg.net", CancellationToken.None);
+
+        Assert.That(cds.Count, Is.EqualTo(1));
+        Assert.That(cds[0].KeyTag, Is.EqualTo(46082));
+        Assert.That(cds[0].Algorithm, Is.EqualTo(13));
+        Assert.That(cds[0].DigestType, Is.EqualTo(2));
+        Assert.That(cds[0].Digest, Is.EqualTo("c8f816a7a575bdb2f997f682aab2653b"));
+    }
+
+    //
+    // DS computation from public key material (RFC 4034)
+    //
+
+    // The worked example from RFC 4034 section 5.4: DNSKEY (256 3 5, key id 60485) and
+    // its DS with digest type 1
+    private const string Rfc4034PublicKeyBase64 =
+        "AQOeiiR0GOMYkDshWoSKz9XzfwJr1AYtsmx3TGkJaNXVbfi/2pHm822aJ5iI9BMzNXxeYCmZDRD99WYwYqUSdjMmmAphXdvx" +
+        "egXd/M5+X7OrzKBaMbCVdFLUUh6DhweJBjEVv5f2wwjM9XzcnOf+EPbtG9DMBmADjFDc2w/rljwvFw==";
+
+    [Test]
+    public void ItShouldComputeTheRfc4034ExampleDs()
+    {
+        var info = new ResourceRecordInfo(
+            DnsString.Parse("dskey.example.com."), ResourceRecordType.DNSKEY, QueryClass.IN, 86400, 0);
+        var dnsKey = new DnsKeyRecord(info, 256, 3, 5, System.Convert.FromBase64String(Rfc4034PublicKeyBase64));
+
+        var ds = DnssecLookup.ComputeDsFromDnsKey("dskey.example.com", dnsKey, digestType: 1);
+
+        Assert.That(ds.KeyTag, Is.EqualTo(60485));
+        Assert.That(ds.Algorithm, Is.EqualTo(5));
+        Assert.That(ds.DigestType, Is.EqualTo(1));
+        Assert.That(ds.Digest, Is.EqualTo("2bb183af5f22588179a53b0a98631fad1a292118"));
+    }
+
+    [Test]
+    public void ItShouldComputeDifferentDigestsPerType()
+    {
+        var info = new ResourceRecordInfo(
+            DnsString.Parse("dskey.example.com."), ResourceRecordType.DNSKEY, QueryClass.IN, 86400, 0);
+        var dnsKey = new DnsKeyRecord(info, 256, 3, 5, System.Convert.FromBase64String(Rfc4034PublicKeyBase64));
+
+        var sha256 = DnssecLookup.ComputeDsFromDnsKey("dskey.example.com", dnsKey);
+        Assert.That(sha256.DigestType, Is.EqualTo(2));
+        Assert.That(sha256.Digest.Length, Is.EqualTo(64)); // 32 bytes hex
+        Assert.That(sha256.KeyTag, Is.EqualTo(60485));     // key tag is digest-independent
+
+        var sha384 = DnssecLookup.ComputeDsFromDnsKey("dskey.example.com", dnsKey, digestType: 4);
+        Assert.That(sha384.Digest.Length, Is.EqualTo(96)); // 48 bytes hex
+
+        Assert.Throws<System.ArgumentOutOfRangeException>(
+            () => DnssecLookup.ComputeDsFromDnsKey("dskey.example.com", dnsKey, digestType: 3));
+    }
+
+    [Test]
+    public void ItShouldComputeTheSameDsRegardlessOfNameCasingAndDots()
+    {
+        // RFC 4034 canonical form: the owner name is lowercased; trailing dots are
+        // presentation noise
+        var info = new ResourceRecordInfo(
+            DnsString.Parse("dskey.example.com."), ResourceRecordType.DNSKEY, QueryClass.IN, 86400, 0);
+        var dnsKey = new DnsKeyRecord(info, 256, 3, 5, System.Convert.FromBase64String(Rfc4034PublicKeyBase64));
+
+        var plain = DnssecLookup.ComputeDsFromDnsKey("dskey.example.com", dnsKey, 1);
+        var shouty = DnssecLookup.ComputeDsFromDnsKey("DSKEY.Example.COM.", dnsKey, 1);
+
+        Assert.That(shouty, Is.EqualTo(plain));
     }
 
     //
@@ -184,6 +280,18 @@ public class DnssecLookupTest
     {
         var info = new ResourceRecordInfo(DnsString.Parse(owner), ResourceRecordType.DS, QueryClass.IN, 3600, 0);
         return new DsRecord(info, keyTag, algorithm, digestType, digest);
+    }
+
+    private static UnknownRecord Cds(string owner, int keyTag, byte algorithm, byte digestType, byte[] digest)
+    {
+        var info = new ResourceRecordInfo(DnsString.Parse(owner), (ResourceRecordType)59, QueryClass.IN, 3600, 0);
+        var data = new byte[4 + digest.Length];
+        data[0] = (byte)(keyTag >> 8);
+        data[1] = (byte)(keyTag & 0xFF);
+        data[2] = algorithm;
+        data[3] = digestType;
+        digest.CopyTo(data, 4);
+        return new UnknownRecord(info, data);
     }
 
     private static DnsKeyRecord DnsKey(string owner)
