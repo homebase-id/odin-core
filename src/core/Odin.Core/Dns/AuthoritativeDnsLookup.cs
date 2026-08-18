@@ -71,13 +71,17 @@ public class AuthoritativeDnsLookup(ILogger<AuthoritativeDnsLookup> logger, ILoo
                 // Advance domain, e.g. "com" => "example.com"
                 subdomain = labels[idx] + (string.IsNullOrEmpty(subdomain) ? "" : ".") + subdomain;
 
-                nameServers = await LookUpGlue(nameServers, subdomain, dnsQueryOptions, cancellationToken);
-                if (!nameServers.Any())
+                var glue = await LookUpGlue(nameServers, subdomain, dnsQueryOptions, cancellationToken);
+                if (!glue.Any())
                 {
-                    // Did not find any glue here, get out
-                    break;
+                    // No delegation at this label. That does NOT mean deeper labels have none:
+                    // DNS allows "empty non-terminals", e.g. john.aage.sebbarg.net delegated
+                    // directly from the sebbarg.net zone with no cut at aage.sebbarg.net.
+                    // Keep walking the remaining labels against the current zone's servers.
+                    continue;
                 }
 
+                nameServers = glue;
                 authoritatives.NameServers = new List<string>(nameServers);
                 var (authoritativeDomain, authoritativeNameServer) = await LookUpAuthoritatives(nameServers, subdomain, dnsQueryOptions, cancellationToken);
                 if (authoritativeDomain == "" || authoritativeNameServer == "")
