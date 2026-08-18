@@ -11,7 +11,13 @@ BYOD identities can now delegate their domain to our PowerDNS (`NS -> ns1.id.pub
 - **Parent zone itself unsigned** (registrar/DNS host without DNSSEC support): a DS cannot chain at all — nothing the user can do with us; the chain is broken upstream of our zone.
 - **Matching DS at the parent**: fully validated chain.
 
-Scope of this phase: **backend + API only.** The owner-console "DNS section" where users verify/add DNSSEC is a future phase — the API here is shaped for it. Deliverables: (1) make sure our zones really are signed and we can read their DS records, (2) a DNSSEC status service + anonymous read-only API that reports which state a domain is in and which DS record(s) to publish, (3) CDS/CDNSKEY publication so supporting registries install the DS automatically, (4) ops tooling to check the fleet.
+**Where DNSSEC surfaces (decided 2026-08-18):** nowhere in the signup flow. Before the Provision click the zone — and therefore the signing key and its DS values — does not exist, so there is nothing to show at domain-verification time, and the signup screens stay untouched. DNSSEC lives in (a) the future owner-console "DNS section" (verify/add — the API here is shaped for it) and (b) the **provisioning-complete email**, which is sent after the identity, zone and certificate exist and can therefore include the real DS values (in scope this phase, see §4b).
+
+**Both delegation levels are covered by the same model** — the DS always goes into the parent zone, wherever that lives:
+- Apex (e.g. `gabriel.ninja`): parent = the TLD; the DS is entered at the **registrar** (verified 2026-08-18: Squarespace's DNSSEC UI accepts exactly our tuple — key tag, algorithm, digest type, digest).
+- Delegated subdomain (e.g. `test.seifert.page`): parent = the user's own zone at their DNS host; the DS is added there as a **DS record next to the two NS records**. Precondition: the parent zone must itself be signed and chained (its own DS at its registry), else the domain is `ParentUnsigned`. Caveat: some DNS hosts cannot hold DS records in a zone (Cloudflare can; some basic panels cannot).
+
+Deliverables: (1) make sure our zones really are signed and we can read their DS records, (2) a DNSSEC status service + anonymous read-only API that reports which state a domain is in and which DS record(s) to publish, (3) CDS/CDNSKEY publication so supporting registries install the DS automatically, (4) DS instructions in the provisioning-complete email, (5) ops tooling to check the fleet.
 
 ## Verified starting points (odin-core, 2026-08-18)
 
@@ -62,6 +68,9 @@ Notes:
 ### 4. API endpoint (`src/apps/Odin.Hosting/Controllers/Registration/RegistrationController.cs`)
 - `GET /api/registration/v1/registration/dnssec-status/{domain}` — `ParseDomain` boundary, anonymous read-only (all returned material is public DNS data; it writes nothing, so no invitation-code gate). Returns the DTO with a camelCase verdict, same style as `create-own-domain-zone`. The future owner-console DNS section (and the provisioning app, if we later want it) consume it as-is.
 
+### 4b. Provisioning-complete email (`src/services/Odin.Services/Registry/Registration/SendProvisioningCompleteEmailJob.cs` + `RegistrationEmails`)
+- The job already runs after the certificate is ready (zone + keys exist) and already resolves `IIdentityRegistrationService`. Add a call to `GetDnssecStatusAsync`; when the verdict is `DsMissing`, append an optional DNSSEC section to the email: the DS tuple (key tag, algorithm, digest type, digest) plus one sentence of where to enter it — registrar for an apex, "as a DS record next to your NS records at your DNS host" for a subdomain (the apex/subdomain wording can reuse the managed-apex/registrable-domain distinction already made in the provisioning UI, or simply state both). Any other verdict (`Secure` via CDS automation, `ParentUnsigned`, `NotConfigured`, managed domain) → no DNSSEC section. Best-effort: a DNSSEC lookup failure must not block the email.
+
 ### 5. CLI (`src/apps/Odin.Hosting/Cli/`)
 - `own-domain-dnssec-status`: iterate registrations (skip managed domains), print domain + verdict + our DS records — the fleet check. Same config-before-service-resolution guard as `create-own-domain-zones`.
 
@@ -72,14 +81,17 @@ Notes:
 
 - **CDS/CDNSKEY auto-publication: in scope** (see §3).
 - **Stale DS detection stays out of the signup verdict for now**: `own-domain-dns-status` (200/202) is unchanged this phase; `DsMismatch` is reported only by the new `dnssec-status` endpoint, for the future DNS section to surface. Revisit blocking/warning at signup when that UI lands.
+- **No DNSSEC in the signup flow at all**: the zone (and thus the DS values) only exists after Provision, so there is nothing to show during domain verification. User-facing DNSSEC = owner-console DNS section (future) + provisioning-complete email (§4b, this phase).
+- **Registrar-side feasibility confirmed for the apex case**: Squarespace's DNSSEC UI accepts custom DS records (key tag / algorithm / digest type / digest) alongside third-party nameservers.
 
 ## Tests
 
 1. **Pure verdict tests** (`Odin.Services.Tests`): every `DnssecStatus` outcome from data-level inputs, incl. "extra stale DS + one matching = Secure", "no overlap = DsMismatch", "parent unsigned wins over missing DS".
 2. **DS parsing tests**: cryptokey `ds` strings → typed records; unsigned zone (no keys / inactive keys) → empty.
 3. **Mocked-lookup tests** (pattern from `AuthoritativeDnsLookupTest`): parent authority returns DS answers → parsed KeyTag/Digest; no DS → empty. (Verify `DsRecord` is mock-constructible like `SoaRecord`/`NsRecord` were; else raw-wire mock or `[Explicit]` live case.)
-4. **`[Explicit]` live tests**: DS lookup for a known signed domain; cryptokeys GET against the dev PowerDNS.
-5. **Live verification checklist** (manual, dev PowerDNS — required because the cryptokeys/metadata API surface has never run against a real server):
+4. **Email job tests**: DNSSEC section appended only on `DsMissing`; any other verdict or a lookup failure → unchanged email, never a blocked send.
+5. **`[Explicit]` live tests**: DS lookup for a known signed domain; cryptokeys GET against the dev PowerDNS.
+6. **Live verification checklist** (manual, dev PowerDNS — required because the cryptokeys/metadata API surface has never run against a real server):
    - ~~`dig +dnssec @ns1.id.pub <zone> SOA` → RRSIG present~~ **DONE 2026-08-18** (`gabriel.ninja`: DNSKEY 257/alg-13 + RRSIGs served — `dnssec:true` auto-creates keys and signs).
    - `GET .../zones/<existing-byod-zone>/cryptokeys` → confirm the response shape our `Cryptokey` model expects (the signing itself is proven; the API model is not).
    - Metadata PUT + `dig CDS <zone> @ns1.id.pub` shows the CDS record.
