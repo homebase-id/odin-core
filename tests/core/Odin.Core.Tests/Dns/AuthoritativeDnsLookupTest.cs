@@ -13,6 +13,7 @@ using Odin.Test.Helpers.Logging;
 using Serilog.Events;
 
 namespace Odin.Core.Tests.Dns;
+#nullable enable
 
 public class AuthoritativeDnsLookupTest
 {
