@@ -540,20 +540,21 @@ public static class HostExtensions
         }
 
         // Sanity ping PowerDNS, disable it if not successful
-        if (config.Registry.ProvisioningEnabled && config.Registry.PowerDnsApiKey != "")
-        {
-            var pdnsClient = services.GetRequiredService<IDnsRestClient>();
-            try
-            {
-                pdnsClient.GetZones().BlockingWait();
-            }
-            catch (Exception ex)
-            {
-                config.Registry.PowerDnsApiKey = "";
-                logger.LogError("Provisioning enabled, but PowerDNS not responding to ping. Error: {error}",
-                    ex.Message);
-            }
-        }
+        // SEB:TODO only do this when we have a PowerDnsEnabled flag in config
+        // if (config.Registry.ProvisioningEnabled && config.Registry.PowerDnsApiKey != "")
+        // {
+        //     var pdnsClient = services.GetRequiredService<IDnsRestClient>();
+        //     try
+        //     {
+        //         pdnsClient.GetZones().BlockingWait();
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         config.Registry.PowerDnsApiKey = "";
+        //         logger.LogError("Provisioning enabled, but PowerDNS not responding to ping. Error: {error}",
+        //             ex.Message);
+        //     }
+        // }
 
         // Start system background services
         if (config.BackgroundServices.SystemBackgroundServicesEnabled)
