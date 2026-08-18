@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core.Util;
 using Odin.Services.Configuration;
 
 namespace Odin.Services.Registry.Registration;
@@ -30,10 +31,12 @@ public enum CreateOwnDomainZoneResult
 
 /// <summary>
 /// Handles registration of a new domain identities; including creating SSL certificates.
+/// Full identity domains are typed as <see cref="AsciiDomainName"/> - valid and lowercased
+/// by construction; callers convert (and thereby validate) at their boundary.
 /// </summary>
 public interface IIdentityRegistrationService
 {
-    Task<string> LookupZoneApexAsync(string domain, CancellationToken cancellationToken = default);
+    Task<string> LookupZoneApexAsync(AsciiDomainName domain, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns a list of domains managed by this identity host.
@@ -46,26 +49,26 @@ public interface IIdentityRegistrationService
     /// </summary>
     /// <param name="domain"></param>
     /// <returns></returns>
-    Task<List<DnsConfig>> GetDnsConfiguration(string domain);
+    Task<List<DnsConfig>> GetDnsConfiguration(AsciiDomainName domain);
 
     /// <summary>
     /// Verifies if DNS records are correctly configured using authoritative name servers
     /// </summary>
     /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(string domain, CancellationToken cancellationToken = default);
+    Task<(bool, List<DnsConfig>)> GetAuthoritativeDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default);
 
 
     /// <summary>
     /// Verifies if DNS records are correctly configured using external name servers
     /// </summary>
     /// <returns></returns>
-    Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(string domain, CancellationToken cancellationToken = default);
+    Task<(bool, List<DnsConfig>)> GetExternalDomainDnsStatus(AsciiDomainName domain, CancellationToken cancellationToken = default);
     
     /// <summary>
     /// Create identity on own or managed domain
     /// </summary>
     /// <returns>First-run token</returns>
-    Task<Guid> CreateIdentityOnDomainAsync(string domain, string email, string planId, string invitationCode);
+    Task<Guid> CreateIdentityOnDomainAsync(AsciiDomainName domain, string email, string planId, string invitationCode);
     
     //
     // Managed Domain
@@ -79,8 +82,8 @@ public interface IIdentityRegistrationService
     // Own Domain
     //
 
-    public Task<bool> IsOwnDomainAvailable(string domain);
-    public Task DeleteOwnDomain(string domain);
+    public Task<bool> IsOwnDomainAvailable(AsciiDomainName domain);
+    public Task DeleteOwnDomain(AsciiDomainName domain);
 
     /// <summary>
     /// True when we can host DNS zones for own-domains (PowerDNS + nameservers configured).
@@ -94,30 +97,30 @@ public interface IIdentityRegistrationService
     /// delegation to our nameservers at the parent, or valid manual DNS records) and
     /// refuses domains inside zones we already host.
     /// </summary>
-    Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(string domain, CancellationToken cancellationToken = default);
+    Task<CreateOwnDomainZoneResult> CreateOwnDomainZone(AsciiDomainName domain, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// True when a zone for the own-domain exists in our PowerDNS. Read-only probe
     /// (used by the CLI dry-run); false when zone hosting is not configured.
     /// </summary>
-    Task<bool> OwnDomainZoneExists(string domain);
+    Task<bool> OwnDomainZoneExists(AsciiDomainName domain);
 
     /// <summary>
     /// Best-effort removal of an own-domain's zone. Never throws.
     /// </summary>
-    Task DeleteOwnDomainZone(string domain);
+    Task DeleteOwnDomainZone(AsciiDomainName domain);
 
     /// <summary>
     /// Best-effort DNS cleanup for a deleted tenant: managed domains get their records
     /// removed from the shared apex zone, own domains get their zone deleted. Never throws.
     /// </summary>
-    Task DeleteDnsRecordsForDomain(string domain);
+    Task DeleteDnsRecordsForDomain(AsciiDomainName domain);
     
     //
     // OldHelpers
     //
-    Task<bool> CanConnectToHostAndPort(string domain, int port);
-    Task<bool> HasValidCertificate(string domain);
+    Task<bool> CanConnectToHostAndPort(AsciiDomainName domain, int port);
+    Task<bool> HasValidCertificate(AsciiDomainName domain);
 
     /// <summary>
     /// Checks if invitation code is needed

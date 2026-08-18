@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
+using Odin.Core.Util;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 
@@ -39,7 +40,7 @@ public class DeleteTenantJob(
         await identityRegistry.ToggleDisabled(Data.Domain, true);
         await identityRegistry.DeleteRegistration(Data.Domain);
         // Managed domains: records removed from the apex zone; own domains: zone deleted. Never throws.
-        await identityRegistrationService.DeleteDnsRecordsForDomain(Data.Domain);
+        await identityRegistrationService.DeleteDnsRecordsForDomain(new AsciiDomainName(Data.Domain));
         logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);
 
         return JobExecutionResult.Success();

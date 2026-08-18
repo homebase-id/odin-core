@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
+using Odin.Core.Util;
 using Odin.Core.Serialization;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
@@ -36,7 +37,7 @@ public class SendProvisioningCompleteEmailJob(
         ValidateJobData();
 
         // Certificate is not ready yet?
-        if (!await identityRegistrationService.HasValidCertificate(Data.Domain))
+        if (!await identityRegistrationService.HasValidCertificate(new AsciiDomainName(Data.Domain)))
         {
             // Throw an error so job manager retries the operation later
             logger.LogInformation("Provisioning email: certificate not ready yet, scheduling a later check");
