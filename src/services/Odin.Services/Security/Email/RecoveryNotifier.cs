@@ -66,7 +66,7 @@ public class RecoveryNotifier(
 
         AssertEmailEnabled();
 
-        if (configuration.Mailgun.Enabled)
+        if (configuration.Email.IsProviderConfigured)
         {
             var job = jobManager.NewJob<SendEmailJob>();
             job.Data = new SendEmailJobData()
@@ -119,7 +119,7 @@ public class RecoveryNotifier(
         }
 #endif
 
-        if (configuration.Mailgun.Enabled)
+        if (configuration.Email.IsProviderConfigured)
         {
             await jobManager.ScheduleJobAsync(job, new JobSchedule
             {
@@ -146,7 +146,7 @@ public class RecoveryNotifier(
 
         AssertEmailEnabled();
 
-        if (configuration.Mailgun.Enabled) //for #debug state
+        if (configuration.Email.IsProviderConfigured) //for #debug state
         {
             var job = jobManager.NewJob<SendEmailJob>();
             job.Data = new SendEmailJobData()
@@ -174,7 +174,7 @@ public class RecoveryNotifier(
     public async Task NotifyUser(OdinId odinId, RecoveryInfo recoveryInfo, IOdinContext odinContext,
         DnssecHealthResult dnssecAttention = null)
     {
-        if (configuration.Mailgun.Enabled) //for #debug state
+        if (configuration.Email.IsProviderConfigured) //for #debug state
         {
             var email = recoveryInfo.Email;
             var job = jobManager.NewJob<SendEmailJob>();
@@ -234,7 +234,7 @@ public class RecoveryNotifier(
 
     private void AssertEmailEnabled()
     {
-        if (!configuration.Mailgun.Enabled)
+        if (!configuration.Email.IsProviderConfigured)
         {
 #if !DEBUG
             throw new OdinSystemException("Cannot enter into recovery mode when email is disabled");

@@ -216,12 +216,22 @@ public static class SystemServices
         services.AddSingleton<ICertificateStore, CertificateStore>();
         services.AddSingleton<ICertificateService, CertificateService>();
 
-        services.AddSingleton<IEmailSender>(sp => new MailgunSender(
-            sp.GetRequiredService<ILogger<MailgunSender>>(),
-            sp.GetRequiredService<IDynamicHttpClientFactory>(),
-            config.Mailgun.ApiKey,
-            config.Mailgun.EmailDomain,
-            config.Mailgun.DefaultFrom));
+        services.AddSingleton<IEmailSender>(sp => config.Email.Provider switch
+        {
+            EmailProvider.Mailgun => new MailgunSender(
+                sp.GetRequiredService<ILogger<MailgunSender>>(),
+                sp.GetRequiredService<IDynamicHttpClientFactory>(),
+                config.Email.Mailgun.ApiKey,
+                config.Email.Mailgun.EmailDomain,
+                config.Email.SystemFrom),
+            EmailProvider.SendGrid => new SendGridSender(
+                sp.GetRequiredService<ILogger<SendGridSender>>(),
+                sp.GetRequiredService<IDynamicHttpClientFactory>(),
+                config.Email.SendGrid.ApiKey,
+                config.Email.SystemFrom),
+            // Smtp self-sending arrives with the email-keys phase; None logs and discards
+            _ => new NullEmailSender(sp.GetRequiredService<ILogger<NullEmailSender>>()),
+        });
 
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(
             sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
