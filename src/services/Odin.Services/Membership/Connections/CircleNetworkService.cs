@@ -511,16 +511,13 @@ namespace Odin.Services.Membership.Connections
                 TempWeakKeyStoreKey = keys.Temp.KeyStoreKey,
                 ConnectionRequestOrigin = connectionRequestOrigin,
                 IntroducerOdinId = introducerOdinId,
-                VerificationHash = verificationHash,
-
-                // An owner-driven connection request is the review happening at accept time, so it stamps.
-                // Introductions and app-originated connections form without the owner present -- they stay
-                // New until the owner actually reviews them.  This mirrors the circle each origin lands in
-                // today (Confirmed vs Auto), which is what the legacy Vetted flag was computed from.
-                ReviewedAt = connectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner
-                    ? UnixTimeUtc.Now()
-                    : null
+                VerificationHash = verificationHash
             };
+
+            if (StampsReviewedOnConnect(connectionRequestOrigin))
+            {
+                newConnection.MarkReviewed();
+            }
 
             await this.SaveIcrAsync(newConnection, odinContext);
 
@@ -617,10 +614,8 @@ namespace Odin.Services.Membership.Connections
             }
 
             // Putting someone in a circle is a deliberate act of the owner's, so membership is itself
-            // evidence of review.  Stamping here keeps the two from disagreeing: a circle member who read
-            // as unreviewed would be readable through circleIdList ACLs while ranking below Reviewed, and
-            // UnreviewConnectionAsync relies on membership implying the stamp.
-            icr.ReviewedAt ??= UnixTimeUtc.Now();
+            // evidence of review -- see the Review stamp region.
+            icr.MarkReviewed();
 
             await this.SaveIcrAsync(icr, odinContext);
 
@@ -1092,7 +1087,7 @@ namespace Odin.Services.Membership.Connections
             await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
 
             // Confirming is the review, in its current form -- record it.
-            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, UnixTimeUtc.Now());
+            await this.StampReviewedAsync(odinId);
 
             tx.Commit();
 
@@ -1152,7 +1147,7 @@ namespace Odin.Services.Membership.Connections
                 await this.GrantCircleAsync(circleId, odinId, odinContext);
             }
 
-            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, UnixTimeUtc.Now());
+            await this.StampReviewedAsync(odinId);
 
             tx.Commit();
 
@@ -1194,7 +1189,7 @@ namespace Odin.Services.Membership.Connections
                     OdinClientErrorCode.CannotUnreviewCircleMember);
             }
 
-            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, null);
+            await this.ClearReviewAsync(icr);
 
             await odinContextCache.ResetAsync();
         }
@@ -1303,6 +1298,67 @@ namespace Odin.Services.Membership.Connections
                 odinContext.PermissionsContext.AssertHasPermission(PermissionKeys.ManageCircleMembership);
             }
         }
+
+        #region Review stamp
+
+        // A connection becomes "reviewed" in exactly four situations, and they all funnel through this
+        // region so the policy lives in one place rather than at each write site:
+        //
+        //   1. The owner completes the review          -> ReviewConnectionAsync
+        //   2. The owner confirms an auto-connection   -> ConfirmConnectionAsync (the legacy review)
+        //   3. The owner accepts a request they sent   -> ConnectAsync, via StampsReviewedOnConnect
+        //   4. The owner puts them in a circle         -> GrantCircleAsync (membership implies review)
+        //
+        // Only UnreviewConnectionAsync clears it, and only when no circle membership depends on it.
+        //
+        // Cases 3 and 4 exist to keep the legacy Vetted flag exact: it used to mean "member of the
+        // Confirmed Connections circle", and each of those paths is a way into that circle.  They are not
+        // in the spec's "on verify" list and both retire with the system circles.
+
+        /// <summary>
+        /// Whether a connection being established should count as reviewed.
+        /// </summary>
+        /// <remarks>
+        /// An owner-driven request is the review happening at accept time.  Introductions and
+        /// app-originated connections form without the owner present, so they stay New until the owner
+        /// actually reviews them.  This mirrors the circle each origin lands in today
+        /// (<see cref="CircleNetworkUtils.EnsureSystemCircles"/>: Confirmed vs Auto), which is what the
+        /// legacy Vetted flag was computed from.
+        /// </remarks>
+        private static bool StampsReviewedOnConnect(ConnectionRequestOrigin origin)
+        {
+            return origin == ConnectionRequestOrigin.IdentityOwner;
+        }
+
+        /// <summary>
+        /// Persists the review stamp on its own.  Idempotent - an already-reviewed connection keeps its
+        /// original timestamp, so re-running a review does not rewrite history.
+        /// </summary>
+        private async Task StampReviewedAsync(OdinId odinId)
+        {
+            // Read fresh rather than trusting the caller's copy: GrantCircleAsync stamps as it enrols, so
+            // a registration loaded at the top of ReviewConnectionAsync is already stale by the time the
+            // circles are in place.
+            var current = await circleNetworkStorage.GetAsync(odinId);
+
+            if (current == null || current.IsReviewed())
+            {
+                return;
+            }
+
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, current.Status, UnixTimeUtc.Now());
+        }
+
+        /// <summary>
+        /// Clears the review stamp.  Callers are responsible for the membership invariant - see
+        /// <see cref="UnreviewConnectionAsync"/>.
+        /// </summary>
+        private async Task ClearReviewAsync(IdentityConnectionRegistration icr)
+        {
+            await circleNetworkStorage.UpdateReviewedAtAsync(icr.OdinId, icr.Status, null);
+        }
+
+        #endregion
 
         /// <summary>
         /// Builds a <see cref="DepositedGrant"/> for the circle: drive storage keys are sourced

@@ -65,6 +65,19 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// Records that the owner reviewed this connection.  Idempotent, and never moves an existing
+        /// stamp: the first review is the one that happened.
+        /// </summary>
+        /// <remarks>
+        /// In-memory only - the caller is expected to persist the registration.  Use
+        /// <c>CircleNetworkService.StampReviewedAsync</c> when the stamp is the only thing being written.
+        /// </remarks>
+        public void MarkReviewed(UnixTimeUtc? reviewedAt = null)
+        {
+            this.ReviewedAt ??= reviewedAt ?? UnixTimeUtc.Now();
+        }
+
+        /// <summary>
         /// The drives and permissions granted to this connection
         /// </summary>
         [JsonPropertyName("accessGrant")]
