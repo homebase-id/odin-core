@@ -616,6 +616,12 @@ namespace Odin.Services.Membership.Connections
                 icr.PeerKeyStore.DepositedGrants.Add(deposit);
             }
 
+            // Putting someone in a circle is a deliberate act of the owner's, so membership is itself
+            // evidence of review.  Stamping here keeps the two from disagreeing: a circle member who read
+            // as unreviewed would be readable through circleIdList ACLs while ranking below Reviewed, and
+            // UnreviewConnectionAsync relies on membership implying the stamp.
+            icr.ReviewedAt ??= UnixTimeUtc.Now();
+
             await this.SaveIcrAsync(icr, odinContext);
 
             await mediator.Publish(new ConnectionChangedNotification
