@@ -1,6 +1,6 @@
 # Email phase: DNS records, key discovery via .well-known, and reverse DNS
 
-Status: design/plan — not yet implemented. Scope: the DNS/discovery surface only — the SMTP/inbound server, mailbox storage and key-management UX are separate plans. Outbound sending goes via SendGrid; the tables below also carry the self-sending values in case outbound ever moves in-house. Inbound MX is ours in both cases.
+Status: design/plan — not yet implemented. Scope: the DNS/discovery surface only — the mail server, mailbox storage and key management live in `docs/email-keys-plan.md`. Outbound goes via an external relay (e.g. SendGrid) that forwards **already-signed** mail; the tables also carry self-sending values in case outbound ever moves in-house. Inbound lands at each tenant's own host (local Stalwart) in both cases.
 
 ## Design principles
 
@@ -13,37 +13,37 @@ Example tenant `gabriel.ninja`; `<infra>` = the infra zone, e.g. `id.pub`.
 
 | Record | Name | Value (SendGrid) | Value (self-sending) | Note |
 |---|---|---|---|---|
-| MX | apex | `10 mx1.<infra>.` | same | Inbound is ours either way. MX targets must be A records, not CNAMEs |
+| MX | apex | `10 <node-a>.` `20 <node-b>.` (the 2-3 nodes of the HA group serving this tenant) | same | Inbound lands in the group's shared Stalwart cluster (see `docs/email-keys-plan.md`); multiple MX records are SMTP's native failover. MX targets must be A records, not CNAMEs |
 | TXT (SPF) | apex | `v=spf1 include:_spf.<infra> -all` | same | The `include:` indirection is the point: provider/IP authorization lives in ONE infra record |
-| DKIM | `s1._domainkey`, `s2._domainkey` | CNAME → `s1.domainkey.u<id>.wl.sendgrid.net.` etc. (keys SendGrid-managed; values per tenant from their API) | TXT `v=DKIM1; k=ed25519; p=<key>` (keys Homebase-managed; ed25519 + rsa-2048 selectors) | Two selectors either way — legacy receivers and rotation |
-| CNAME (return path) | `em<id>` | `u<id>.wl.sendgrid.net.` | — (not needed) | SendGrid bounce/return-path domain; gives DMARC its SPF alignment |
+| TXT (DKIM) | `s1._domainkey`, `s2._domainkey` | `v=DKIM1; k=ed25519; p=<key>` | same | Keys are Homebase-held and signing happens IN the Homebase server - the private key never reaches Stalwart or the relay. Two selectors (ed25519 + rsa-2048) for legacy receivers and rotation |
 | TXT (DMARC) | `_dmarc` | `v=DMARC1; p=reject; rua=mailto:...` | same | |
-| TXT (MTA-STS) | `_mta-sts` | `v=STSv1; id=<version>` | same | Plus the policy file at `https://mta-sts.<tenant>/.well-known/mta-sts.txt` (extra CNAME/A + cert on our web tier); policy lists the shared MX |
+| TXT (MTA-STS) | `_mta-sts` | `v=STSv1; id=<version>` | same | Plus the policy file at `https://mta-sts.<tenant>/.well-known/mta-sts.txt` (extra CNAME/A + cert on our web tier); policy lists ALL the tenant's MX nodes |
 | TXT (TLS-RPT) | `_smtp._tls` | `v=TLSRPTv1; rua=mailto:...` | same | |
 
 Deliberately absent:
 
-- **No per-tenant TLSA**: DANE binds to the **MX target hostname**, which is shared — one TLSA record in the infra zone covers all tenants.
+- **No per-tenant TLSA**: DANE binds to the **MX target hostnames** - the HA group's nodes - so one TLSA per NODE covers all its tenants. The TLSA records live in the node names' own zone, which must therefore be signed + anchored (this is what makes the `ravenhosting.cloud` DNSSEC ops item DANE-blocking).
+- **No provider return-path CNAME**: relays act as dumb forwarders of already-signed mail; DMARC alignment comes from the DKIM signature.
 - **No OPENPGPKEY record** — see "Key discovery" below.
 - **No per-tenant PTR** — see "Reverse DNS" below.
 
-## Infra zone records (once, in `<infra>`)
+## Infra/host zone records (once per host or infra zone, never per tenant)
 
-| Record | Name | Value (SendGrid) | Value (self-sending) | Note |
+| Record | Name | Value (relayed) | Value (self-sending) | Note |
 |---|---|---|---|---|
-| A | `mx1` (`mx2`, …) | inbound mail IP(s) | same | |
-| TLSA | `_25._tcp.mx1` | `3 1 1 <SPKI SHA-256>` | same | DANE for every tenant at once; requires `<infra>` signed + anchored (true for `id.pub`). Cert rotation must keep the pinned key stable or update this record first |
-| TXT (SPF target) | `_spf` | `v=spf1 include:sendgrid.net -all` | `v=spf1 ip4:<relay-ip> ip4:<relay-ip2> -all` | The single place outbound is authorized; swapping providers touches this one record |
+| A | each MX node | node IP | same | The node names are the MX targets |
+| TLSA | `_25._tcp.<node>` | `3 1 1 <SPKI SHA-256>` | same | One per node, in the node name's zone (must be signed + anchored - see the ravenhosting.cloud ops item). Cert rotation must keep the pinned key stable or update this record first |
+| TXT (SPF target) | `_spf.<infra>` | `v=spf1 include:<relay-spf> -all` | `v=spf1 ip4:<host-ip> ... -all` | The single place outbound is authorized; swapping relays touches this one record |
 
 ## Emission paths and activation semantics
 
 **Two emission paths, same record set.** BYOD identities own a zone; managed identities are prefixed records inside a shared apex zone (`frodo.baggins.demo.rocks` has no zone of its own). Email records follow the split that already exists for A/capi/file: zone-hosted tenants get them via zone populate, managed tenants get them as prefixed records via the managed-domain path (`MX` at prefix `frodo.baggins`, DKIM at `s1._domainkey.frodo.baggins`, ...). The per-tenant table above applies to both; only the writer differs.
 
-**Static vs on-activation records.** `GetDnsConfiguration` is config-only; SendGrid DKIM values are per-tenant and only exist after onboarding. Split accordingly:
+**Static vs on-activation records.** `GetDnsConfiguration` is config-only; DKIM values are per-tenant and only exist after activation. Split accordingly:
 
 - **Static** (identical for every tenant): MX, SPF include, DMARC, MTA-STS, TLS-RPT - emitted to all zones/prefixes through the normal populate and the existing backfill. Mail addressed to a tenant who has not activated email is rejected at RCPT time by our MX; a resolvable MX with a rejecting server is normal and harmless.
-- **On activation** (per-tenant, provider-issued values): written when the tenant activates email and the provider's domain onboarding runs. The mechanism is provider-specific - SendGrid issues DKIM/return-path CNAMEs, Mailgun issues DKIM TXT records - so the onboarding step is part of the `IEmailSender`-provider abstraction, not hardcoded to one vendor. Side effect: the provider's authenticated-domain count grows with ACTIVE email users, not total tenants, which defuses plan-limit concerns.
-- Manual-records (third-party DNS) tenants cannot be written to: activation for them is a guided flow - the Email tab shows the required records (including their personal SendGrid CNAME values) as instructions with live status, provisioning-style, and onboarding completes when SendGrid validation passes.
+- **On activation** (per-tenant values): the DKIM TXT records, written when the tenant activates email - Homebase generates the tenant's DKIM keypair at that moment (see `docs/email-keys-plan.md`). No provider onboarding exists: relays forward already-signed mail and never learn per-tenant keys, so relay plan limits and per-tenant provider API calls disappear.
+- Manual-records (third-party DNS) tenants cannot be written to: activation for them is a guided flow - the Email tab shows the required records (including their generated DKIM values) as instructions with live status, provisioning-style.
 
 **Addressing model** (which localparts exist - `mail@gabriel.ninja`? `john@doe.id.pub`? one mailbox per identity?) is deliberately deferred to the mailbox plan; WKD and the canary check consume whatever it defines. (The provisioning app's `splitMailFromPrefixAndApex` helper already sketches the managed-domain form `john@doe.id.pub`.)
 
@@ -77,7 +77,8 @@ One consolidated `Email` section replaces today's top-level `Mailgun` section an
                                             // None = a NullEmailSender that logs and discards; replaces today's Mailgun:Enabled flag
 
     // provider credentials (only the selected provider's section is required)
-    "SendGrid": { "ApiKey": "..." },        // also used for per-tenant domain-authentication onboarding
+    "SendGrid": { "ApiKey": "..." },        // submission credentials only - the relay forwards pre-signed mail
+                                            // (verify the chosen relay accepts mail without its own domain onboarding)
     "Mailgun": { "ApiKey": "...", "EmailDomain": "..." },
     "Smtp": {                               // self-sending
       "RelayHost": "mx1.id.pub",            // canonical hostname: HELO, PTR target, TLSA owner
@@ -92,7 +93,7 @@ One consolidated `Email` section replaces today's top-level `Mailgun` section an
     "TenantMail": {
       "Enabled": false,                     // gates tenant mailboxes AND emission of the per-tenant email DNS records
       "CanaryDomain": "canary.id.pub",      // first-party identity used by the startup round-trip check
-      "MailExchangers": [ "mx1.id.pub" ],   // per-tenant MX targets
+      // MX target is the tenant's identity host (same source as ApexAliasRecord) - no separate config
       "SpfIncludeTarget": "_spf.id.pub",    // what tenant SPF records include:
       "DmarcReportEmail": "dmarc-reports@id.pub",
       "TlsReportEmail": "tls-reports@id.pub"
@@ -107,7 +108,7 @@ Notes:
 - **Migration**: existing deployments carry `Mailgun:*` keys - coordinate the rename to `Email:*` with the ansible templating update (same literal-passthrough caveat as the nameserver values), or read the old keys as a fallback for one release.
 - **`Provider: None` instead of an Enabled flag**: an `IEmailSender` is then ALWAYS registered (the None implementation logs and discards), so the `Mailgun.Enabled` guards scattered through the code collapse. `TenantMail.Enabled=true` with `Provider=None` is a contradiction and fails startup validation with ERR.
 - **Self-hosters**: `Provider: None` (default) keeps today's no-email behavior exactly; configuring a provider with their own values assumes nothing about our infrastructure.
-- **Per-tenant SendGrid CNAME values are not config** - they are API-issued per tenant at onboarding and stored per tenant, keeping the config finite at 1000 tenants.
+- **Per-tenant DKIM keys are not config** - they are Homebase-generated at email activation and stored per tenant (see `docs/email-keys-plan.md`), keeping the config finite at 1000 tenants.
 - **Infra zone records** (mx A, TLSA, `_spf` content) derive from this config but are written to the infra zone as an ops/CLI action, not per-tenant.
 
 ## Startup & ongoing verification
@@ -136,10 +137,9 @@ Fire-and-forget background task after startup (not inline - it is DNS-heavy), wi
 The monthly security job already visits every tenant on a rolling schedule - the email check rides along, adding no new traversal:
 
 1. **Has the tenant activated email?** Indicator: presence of the tenant's email drive (the drive is part of the mailbox implementation, out of scope here; until it exists the check no-ops). No email drive -> skip.
-2. Verify the per-tenant zone records are present and correct: MX -> shared target, SPF include, DMARC, DKIM (provider CNAMEs resolving / self-sending TXT keys present), return-path CNAME.
-3. Verify provider state: the provider's domain authentication still valid for this tenant.
-4. Verify the MTA-STS surface: `https://mta-sts.<tenant>/.well-known/mta-sts.txt` fetches with a VALID certificate (i.e. the `mta-sts` SAN made it into the tenant's cert) and the policy lists the current MX. A policy endpoint with a bad cert silently disables MTA-STS protection - this is a security-grade defect, not cosmetics.
-5. Failures: **ERR log always** (ops signal). Included in the tenant's needs-attention health email only when user-actionable - broken records in a zone WE host are our bug, not the user's to-do; manual-records tenants managing their own DNS do get the email item. Same philosophy as the DNSSEC attention rule.
+2. Verify the per-tenant zone records are present and correct: MX -> the tenant's host, SPF include, DMARC, DKIM TXT matching the tenant's current signing key.
+3. Verify the MTA-STS surface: `https://mta-sts.<tenant>/.well-known/mta-sts.txt` fetches with a VALID certificate (i.e. the `mta-sts` SAN made it into the tenant's cert) and the policy lists the current MX. A policy endpoint with a bad cert silently disables MTA-STS protection - this is a security-grade defect, not cosmetics.
+4. Failures: **ERR log always** (ops signal). Included in the tenant's needs-attention health email only when user-actionable - broken records in a zone WE host are our bug, not the user's to-do; manual-records tenants managing their own DNS do get the email item. Same philosophy as the DNSSEC attention rule.
 
 ### Owner console: Email tab
 
@@ -150,7 +150,7 @@ A new **Email** tab beside the DNS tab in the Security section, running the **sa
 - **`IDnsRestClient`/`PowerDnsRestClient`** (`src/services/Odin.Services/Dns/`): today writes A + CNAME rrsets only (plus DNSSEC cryptokeys/CDS). Needs **MX and TXT** rrset support for tenant zones; TLSA only if the infra zone is also managed through this API.
 - **`DnsLookupService.GetDnsConfiguration`** (`src/services/Odin.Services/Registry/Registration/`): gains the per-tenant email entries so zone populate and the owner-console records view pick them up. Additive entries only (`DnsConfig` layout is a frontend contract), and the email records must **not** join the identity-validation success rule (`AreDnsLookupsSuccessful`) or certificate checks — same isolation discipline as the optional `www` record.
 - **`OdinConfiguration`**: the consolidated `Email` section above (replacing `MailgunSection`); `DnsConfigurationSet` gains the `TenantMail` DNS values. `IEmailSender` gets a `SendGridSender` sibling; registration in `SystemServices` becomes provider-switched.
-- **SendGrid onboarding automation**: per tenant, create the authenticated domain via SendGrid's API, fetch the issued CNAMEs, write them into the tenant zone (existing CNAME rrset support suffices), trigger SendGrid's validation. Check SendGrid plan limits on authenticated-domain count (~1000 needed) — outside-repo assumption to verify.
+- **DKIM generation + signing in Homebase**: per-tenant keypair generated at email activation, TXT records written to the zone, outbound mail DKIM-signed inside the Homebase server before hand-off to the relay (see `docs/email-keys-plan.md`). Verify the chosen relay forwards pre-signed mail without requiring its own domain onboarding — outside-repo assumption.
 - **`CertificateService`**: the identity certificate's SAN list gains `mta-sts.<domain>` (today: domain + capi/file), so the MTA-STS policy endpoint serves valid TLS.
 - **Report mailboxes**: `dmarc-reports@<infra>` / `tls-reports@<infra>` must actually receive mail - the infra domain needs its own MX and mailbox (or a provider inbox) before the report addresses go live in tenant records.
 - **WKD controller**: sibling of `WebFingerController`/`DidController` (`src/apps/Odin.Hosting/Controllers/Anonymous/`), serving the Homebase-managed OpenPGP key; DID document gains a `keyAgreement` entry (`DidService`, `src/services/Odin.Services/Fingering/`). OpenPGP certificate packaging needs an OpenPGP library (e.g. BouncyCastle, already referenced by the crypto layer) — use Curve25519 keys, keep the certificate minimal.
