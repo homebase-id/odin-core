@@ -19,6 +19,14 @@ BYOD identities can now delegate their domain to our PowerDNS (`NS -> ns1.id.pub
 - Apex (e.g. `gabriel.ninja`): parent = the TLD; the DS is entered at the **registrar** (verified 2026-08-18: Squarespace's DNSSEC UI accepts exactly our tuple — key tag, algorithm, digest type, digest).
 - Delegated subdomain (e.g. `test.seifert.page`): parent = the user's own zone at their DNS host; the DS is added there as a **DS record next to the two NS records**. Precondition: the parent zone must itself be signed and chained (its own DS at its registry), else the domain is `ParentUnsigned`. Caveat: some DNS hosts cannot hold DS records in a zone (Cloudflare can; some basic panels cannot).
 
+**Verified host/registrar DS support (live testing, 2026-08-18):**
+| Provider | Case | DS entry |
+|---|---|---|
+| Squarespace (registrar) | Apex delegation (`gabriel.ninja`) | ✅ DNSSEC form takes key tag / algorithm / digest type / digest |
+| Namecheap (DNS host) | Subdomain delegation (`test42.seifert.page`) | ❌ No DS record type in the record editor; only a zone-level DNSSEC toggle (signs the user's own zone). Such subdomains stay `DsMissing` permanently - signed and fully functional, but unanchorable while the parent's DNS lives there. Workarounds: move the parent zone's DNS to a DS-capable host, or delegate the apex instead. |
+
+Also verified: DNSSEC validation follows CNAME chains (`michael.seifert.page`), so manual-records identities pointing at `identity-host-1.ravenhosting.cloud` are capped by that zone being unsigned. Ops: enable DNSSEC for `ravenhosting.cloud` at Cloudflare + DS at its registrar - becomes mandatory for DANE/SMTP. `dominion.id`, `id.pub` and `demo.rocks` are signed and anchored.
+
 Deliverables: (1) make sure our zones really are signed and we can read their DS records, (2) a DNSSEC status service + anonymous read-only API that reports which state a domain is in and which DS record(s) to publish, (3) CDS/CDNSKEY publication so supporting registries install the DS automatically, (4) DS instructions in the provisioning-complete email, (5) ops tooling to check the fleet.
 
 ## Verified starting points (odin-core, 2026-08-18)
