@@ -54,11 +54,53 @@ PTR records belong to the IP, not to any tenant domain: reverse DNS is set by wh
 - **Self-sending (if ever)**: per relay IP at OVH — reverse entry → canonical hostname (OVH manager/API `/ip/{ip}/reverse`; OVH validates the forward A first, so create it first), HELO set to the same hostname, port-25 unblock request, dedicated stable IPs. (OVH platform details are outside this repo — verify when relevant.)
 - **Inbound MX on our OVH machines**: receiving requires no PTR; a truthful reverse entry on those IPs is good hygiene, nothing more.
 
+## Config file changes (`OdinConfiguration` + appsettings)
+
+Two additions, following existing patterns: DNS *values* join `Registry:DnsRecordValues` (the section `DnsConfigurationSet` is built from), and the *sending provider* becomes a new top-level `Email` section shaped like the existing `Mailgun` section (enabled-gated, `config.Required` only when enabled). The DNS values are provider-independent; the provider choice never leaks into tenant zones (only the infra `_spf` record reflects it).
+
+```jsonc
+{
+  "Registry": {
+    "DnsRecordValues": {
+      // existing: ApexARecords, ApexAliasRecord, NameServers, SoaAdminEmail
+      "MailExchangers": [ "mx1.id.pub" ],       // per-tenant MX targets; empty list = email records disabled entirely
+      "SpfIncludeTarget": "_spf.id.pub",        // what tenant SPF records include:
+      "DmarcReportEmail": "dmarc-reports@id.pub",
+      "TlsReportEmail": "tls-reports@id.pub"
+    }
+  },
+
+  "Email": {
+    "Enabled": false,                            // master switch; false = no email records emitted, no SMTP
+    "OutboundProvider": "SendGrid",              // "SendGrid" | "Smtp" (self-sending)
+
+    "SendGrid": {                                // required when OutboundProvider = SendGrid
+      "ApiKey": "...",                           // used for submission AND per-tenant domain-authentication onboarding
+      // the per-tenant DKIM/return-path CNAME values come from SendGrid's API at
+      // onboarding time and are stored per tenant, not configured here
+    },
+
+    "Smtp": {                                    // required when OutboundProvider = Smtp
+      "RelayHost": "mx1.id.pub",                 // canonical hostname: HELO, PTR target, TLSA owner
+      "RelayIps": [ "x.x.x.x" ]                  // published in the infra _spf record
+      // per-tenant DKIM keys are Homebase-generated/stored, not configured here
+    }
+  }
+}
+```
+
+Notes:
+
+- **Self-hosters**: `Email:Enabled=false` (the default) keeps everything exactly as today. A self-hoster enabling email supplies their own values; nothing assumes our infrastructure.
+- **The infra zone records** (mx A, TLSA, `_spf` content) are derived from this config but written to the infra zone as an ops/CLI action, not per-tenant — the per-tenant emit path only reads `MailExchangers`/`SpfIncludeTarget`/report addresses.
+- **Ansible templating**: same caveat as the nameserver values — the literal keys must pass through `appsettings.ansible-templating.json` (previously verified working for `NameServers`/`SoaAdminEmail`).
+- Mailgun (transactional system mail) stays as-is and is unrelated to tenant email.
+
 ## What the codebase needs
 
 - **`IDnsRestClient`/`PowerDnsRestClient`** (`src/services/Odin.Services/Dns/`): today writes A + CNAME rrsets only (plus DNSSEC cryptokeys/CDS). Needs **MX and TXT** rrset support for tenant zones; TLSA only if the infra zone is also managed through this API.
 - **`DnsLookupService.GetDnsConfiguration`** (`src/services/Odin.Services/Registry/Registration/`): gains the per-tenant email entries so zone populate and the owner-console records view pick them up. Additive entries only (`DnsConfig` layout is a frontend contract), and the email records must **not** join the identity-validation success rule (`AreDnsLookupsSuccessful`) or certificate checks — same isolation discipline as the optional `www` record.
-- **`DnsConfigurationSet`** (+`OdinConfiguration`): new values — MX target host(s), SPF include target, DMARC/TLS-RPT report addresses.
+- **`DnsConfigurationSet`** (+`OdinConfiguration`): the values from "Config file changes" above.
 - **SendGrid onboarding automation**: per tenant, create the authenticated domain via SendGrid's API, fetch the issued CNAMEs, write them into the tenant zone (existing CNAME rrset support suffices), trigger SendGrid's validation. Check SendGrid plan limits on authenticated-domain count (~1000 needed) — outside-repo assumption to verify.
 - **WKD controller**: sibling of `WebFingerController`/`DidController` (`src/apps/Odin.Hosting/Controllers/Anonymous/`), serving the Homebase-managed OpenPGP key; DID document gains a `keyAgreement` entry (`DidService`, `src/services/Odin.Services/Fingering/`). OpenPGP certificate packaging needs an OpenPGP library (e.g. BouncyCastle, already referenced by the crypto layer) — use Curve25519 keys, keep the certificate minimal.
 - **CLI/backfill**: the existing `create-own-domain-zones commit` re-populate path applies new static records to existing zones once `GetDnsConfiguration` includes them; the SendGrid CNAMEs are per-tenant values and flow through the onboarding automation instead.
