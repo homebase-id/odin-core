@@ -1299,40 +1299,22 @@ namespace Odin.Services.Membership.Connections
             }
         }
 
-        #region Review stamp
-
-        // A connection becomes "reviewed" in exactly four situations, and they all funnel through this
-        // region so the policy lives in one place rather than at each write site:
-        //
-        //   1. The owner completes the review          -> ReviewConnectionAsync
-        //   2. The owner confirms an auto-connection   -> ConfirmConnectionAsync (the legacy review)
-        //   3. The owner accepts a request they sent   -> ConnectAsync, via StampsReviewedOnConnect
-        //   4. The owner puts them in a circle         -> GrantCircleAsync (membership implies review)
-        //
-        // Only UnreviewConnectionAsync clears it, and only when no circle membership depends on it.
-        //
-        // Cases 3 and 4 exist to keep the legacy Vetted flag exact: it used to mean "member of the
-        // Confirmed Connections circle", and each of those paths is a way into that circle.  They are not
-        // in the spec's "on verify" list and both retire with the system circles.
-
         /// <summary>
-        /// Whether a connection being established should count as reviewed.
+        /// Whether a connection being established counts as reviewed.  An owner-driven request is the
+        /// review happening at accept time; introductions and app-originated connections form without the
+        /// owner present, so they stay unreviewed until the owner acts.  Mirrors the circle each origin
+        /// lands in (<see cref="CircleNetworkUtils.EnsureSystemCircles"/>), which is what the legacy
+        /// Vetted flag was computed from.  Retires with the system circles.
         /// </summary>
-        /// <remarks>
-        /// An owner-driven request is the review happening at accept time.  Introductions and
-        /// app-originated connections form without the owner present, so they stay New until the owner
-        /// actually reviews them.  This mirrors the circle each origin lands in today
-        /// (<see cref="CircleNetworkUtils.EnsureSystemCircles"/>: Confirmed vs Auto), which is what the
-        /// legacy Vetted flag was computed from.
-        /// </remarks>
         private static bool StampsReviewedOnConnect(ConnectionRequestOrigin origin)
         {
             return origin == ConnectionRequestOrigin.IdentityOwner;
         }
 
         /// <summary>
-        /// Persists the review stamp on its own.  Idempotent - an already-reviewed connection keeps its
-        /// original timestamp, so re-running a review does not rewrite history.
+        /// Records the review.  Idempotent - an already-reviewed connection keeps its original timestamp.
+        /// Callers that are also mutating the registration should use
+        /// <see cref="IdentityConnectionRegistration.MarkReviewed"/> instead and save once.
         /// </summary>
         private async Task StampReviewedAsync(OdinId odinId)
         {
@@ -1350,15 +1332,13 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
-        /// Clears the review stamp.  Callers are responsible for the membership invariant - see
+        /// Clears the review stamp.  Callers own the membership invariant - see
         /// <see cref="UnreviewConnectionAsync"/>.
         /// </summary>
         private async Task ClearReviewAsync(IdentityConnectionRegistration icr)
         {
             await circleNetworkStorage.UpdateReviewedAtAsync(icr.OdinId, icr.Status, null);
         }
-
-        #endregion
 
         /// <summary>
         /// Builds a <see cref="DepositedGrant"/> for the circle: drive storage keys are sourced
