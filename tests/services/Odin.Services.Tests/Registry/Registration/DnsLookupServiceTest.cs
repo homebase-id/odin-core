@@ -31,7 +31,7 @@ public class DnsLookupServiceTest
     private static OdinConfiguration ConfigurationWithDns(
         DnsConfigurationSet dnsConfigurationSet,
         string powerDnsApiKey = "top-secret",
-        OdinConfiguration.EmailSection email = null)
+        OdinConfiguration.EmailSection? email = null)
     {
         return new OdinConfiguration
         {
