@@ -9,7 +9,7 @@ The private-key perimeter is the Homebase server plus the owner — never the ma
 | Key | Custody class | Given to Stalwart? | Given to relay? | If compromised |
 |---|---|---|---|---|
 | E2E/at-rest encryption keypair (per identity) | **Owner-locked**: encrypted on the email drive, under Shamir recovery; server cannot use it | **Public key only** (encryption-at-rest) | never | all stored mail readable - catastrophic, unrecoverable. Hence the strongest custody |
-| DKIM signing keypair (per identity) | **Server-operational**: AES-encrypted at rest with the server storage key, server-decryptable unattended - the exact custody class of the TLS certificate private key (`CertificateStore`) | never | never (relay forwards already-signed mail) | DMARC-passing spoofs until rotation (new key + TXT - minutes, no data exposed). Strictly less severe than a TLS-key compromise, which the same custody already guards |
+| DKIM signing keypair (per identity) | **Server-operational**: stored like TLS keys (`CertificateStore` pattern - AES at rest, separate config key `Email:DkimStorageKey` as hygiene, same mechanism). NOT on the email drive: DKIM keys are DISPOSABLE (lost = rotate + new TXT, nothing unrecoverable), so Shamir buys nothing and mixing a server-usable secret into the owner-locked domain muddies the boundary | **yes** - provisioned copy; Stalwart is the operational signer for all outbound | never (relay forwards already-signed mail) | DMARC-passing spoofs until rotation (new key + TXT - minutes, no data exposed). Same trust class as the TLS secrets Stalwart already terminates mail-protocol TLS with |
 | Zone DNSSEC keys | PowerDNS-managed (`docs/byod-dnssec-plan.md`) | — | — | — |
 
 **Two signatures, two signers - permanently disambiguated:** DKIM says "this message is authorized by the *domain*" and is verified by receiving *servers* via the DNS TXT record - an inherently server-side function (no MUA can DKIM-sign, and a client-computed signature breaks on any header the submission path touches). The OpenPGP/E2E signature says "this content is from this *person*", is verified by receiving *clients*, and is produced by the **client**, which holds that key. Both travel on the same message. DKIM's public half lives in DNS because that is where its verifiers look (protocol-fixed); `.well-known`/WKD serves the other key to the other audience.
@@ -19,9 +19,10 @@ The private-key perimeter is the Homebase server plus the owner — never the ma
 - **One Stalwart cluster per host group**: up to ~1000 users are served by a group of 2-3 servers for HA; the group runs Stalwart nodes sharing state, so any node accepts mail for any tenant of the group. Each tenant's MX lists the group's nodes (multiple MX records - SMTP's native failover; receivers walk the priority list).
 - **Storage split (hard requirement)**: Stalwart metadata/headers in the existing **PostgreSQL**; message **blobs on disk or (preferred) S3** - Stalwart supports an S3-compatible blob store, which fits the platform's existing S3 payload setup. **No mail blobs in Postgres.** Blobs are ciphertext (encryption-at-rest happens before storage), so S3 holds only encrypted objects.
 - **Encryption at rest**: Stalwart receives the tenant's public key and hybrid-encrypts every arriving plaintext message (random symmetric key, wrapped with the tenant's public key) before storage. Only ciphertext touches disk. This is server-assisted at-rest protection — the server sees plaintext briefly on arrival. True E2E for Homebase↔Homebase is sender-side encryption via DID/WKD discovery (DNS doc); both coexist.
-- **Outbound pipeline** - two entry paths, one signing point (Homebase):
-  - *First-party (chat-kmp)*: the app calls a Homebase send API; Homebase holds the message, DKIM-signs it, hands it to the relay over HTTPS. Stalwart is not involved.
-  - *Legacy clients (Thunderbird/FairEmail)*: they speak SMTP submission to Stalwart (app-password auth) - so Stalwart ends up holding an outgoing message that still needs a DKIM signature it must never be able to produce itself. Preferred mechanic: **Stalwart's MTA-hook/milter callback** - during processing, Stalwart POSTs the message to a Homebase HTTP endpoint, which returns the `DKIM-Signature` header to inject; Stalwart then relays the signed message onward. Homebase stays a pure HTTP service; no SMTP listener needed. Alternatives if the hook capability disappoints (live-verification item): a smarthost hop (Stalwart routes all outbound to a small Homebase SMTP endpoint that signs and forwards) or Homebase owning port 587 outright (most code, cleanest custody). In every variant, Stalwart is deliberately NOT the DKIM signer.
+- **Outbound pipeline** - both entry paths converge on ONE signer, Stalwart (native per-domain DKIM signing; Homebase provisions the key and never sits in the send path):
+  - *First-party (chat-kmp)*: app -> Homebase send API -> submits into Stalwart -> Stalwart DKIM-signs -> relay.
+  - *Legacy clients (Thunderbird/FairEmail)*: SMTP submission to Stalwart (app-password auth) -> Stalwart DKIM-signs -> relay.
+  - Homebase remains the DKIM AUTHORITY (generates at activation, stores the source-of-truth copy TLS-style, publishes the TXT, provisions/rotates the key in Stalwart via the wrapper) but is not a mail hop. The hard custody line stays absolute where it matters: **Stalwart never receives the E2E private key** - encryption-at-rest needs only the public key; decryption is client-side only.
 - Stalwart provides IMAP/SMTP/JMAP for standard clients; webmail (e.g. Bulwark) is a separate deployment, out of scope here.
 
 ## The email drive: activation, key storage, recovery
@@ -39,10 +40,10 @@ Key algorithm: decision point between ECC-384 (P-384 — aligns with Homebase's 
 
 `POST /api/owner/v1/mail/activate` (owner-authenticated), called by the app after drive+key creation:
 
-1. Generate the tenant's **DKIM keypair(s)** (two selectors), stored server-operational per the custody table (TLS-key pattern). Unattended availability is what keeps legacy IMAP/SMTP clients and future scheduled-send working without owner presence.
+1. Generate the tenant's **DKIM keypair(s)** (two selectors), stored server-operational per the custody table (TLS-key pattern; source of truth stays in Homebase for rotation and Stalwart re-provisioning).
 2. Write the **on-activation DNS records** (DKIM TXT) into the tenant's zone / apex prefix (emission paths per the DNS doc); manual-records tenants instead see them as instructions in the Email tab.
 3. Publish the **encryption public key**: DID document `keyAgreement` entry + WKD.
-4. Provision **Stalwart** via the wrapper (below): create the account + domain association, upload the public key, enable encryption-at-rest with it.
+4. Provision **Stalwart** via the wrapper (below): create the account + domain association, upload the E2E public key and enable encryption-at-rest with it, install the DKIM signing key for the domain.
 5. Mark active; the startup/monthly verification (DNS doc) now covers this tenant.
 
 Rotation re-runs 2–4 with the new key (publish new, grace period, retire old from discovery — old keys remain on the drive). Tenant deletion rides `DeleteTenantJob` like DNS cleanup does: delete the Stalwart account + mail data, best-effort, never blocking deletion.
@@ -54,7 +55,8 @@ Abstracted behind an interface, following the `IDnsRestClient`/PowerDNS preceden
 ```
 IMailboxProvider
   CreateMailboxAsync(domain, address)          // account + domain association
-  SetEncryptionKeyAsync(domain, openPgpCert)   // upload public key, enable encryption-at-rest
+  SetEncryptionKeyAsync(domain, openPgpCert)   // upload E2E PUBLIC key, enable encryption-at-rest
+  SetDkimKeyAsync(domain, selector, keyPair)   // install the domain's DKIM signing key
   DeleteMailboxAsync(domain)                   // tenant deletion ride-along
   ProvisionAppPasswordAsync(domain, ...)       // client auth (below)
 ```
