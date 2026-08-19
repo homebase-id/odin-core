@@ -93,7 +93,9 @@ One consolidated `Email` section replaces today's top-level `Mailgun` section an
     "TenantMail": {
       "Enabled": false,                     // gates tenant mailboxes AND emission of the per-tenant email DNS records
       "CanaryDomain": "canary.id.pub",      // first-party identity used by the startup round-trip check
-      // MX target is the tenant's identity host (same source as ApexAliasRecord) - no separate config
+      "MxNodes": [ "node-a.example", "node-b.example" ], // THIS host group's MX nodes - each tenant's
+                                            // MX records list these (a list, not ApexAliasRecord:
+                                            // the HA group has 2-3 nodes)
       "SpfIncludeTarget": "_spf.id.pub",    // what tenant SPF records include:
       "DmarcReportEmail": "dmarc-reports@id.pub",
       "TlsReportEmail": "tls-reports@id.pub"
@@ -109,7 +111,8 @@ Notes:
 - **`Provider: None` instead of an Enabled flag**: an `IEmailSender` is then ALWAYS registered (the None implementation logs and discards), so the `Mailgun.Enabled` guards scattered through the code collapse. `TenantMail.Enabled=true` with `Provider=None` is a contradiction and fails startup validation with ERR.
 - **Self-hosters**: `Provider: None` (default) keeps today's no-email behavior exactly; configuring a provider with their own values assumes nothing about our infrastructure.
 - **Per-tenant DKIM keys are not config** - they are Homebase-generated at email activation and stored per tenant (see `docs/email-keys-plan.md`), keeping the config finite at 1000 tenants.
-- **Infra zone records** (mx A, TLSA, `_spf` content) derive from this config but are written to the infra zone as an ops/CLI action, not per-tenant.
+- **Infra/host zone records** (node A, TLSA, `_spf` content) derive from this config but are written as an ops/CLI action, not per-tenant.
+- **Sequencing**: all record emission is gated on `TenantMail.Enabled`, so the emission CODE can ship long before any mail server exists; flip the flag together with the first Stalwart deployment, so published MX records never point at hosts with nothing listening on port 25.
 
 ## Startup & ongoing verification
 
@@ -151,6 +154,7 @@ A new **Email** tab beside the DNS tab in the Security section, running the **sa
 - **`DnsLookupService.GetDnsConfiguration`** (`src/services/Odin.Services/Registry/Registration/`): gains the per-tenant email entries so zone populate and the owner-console records view pick them up. Additive entries only (`DnsConfig` layout is a frontend contract), and the email records must **not** join the identity-validation success rule (`AreDnsLookupsSuccessful`) or certificate checks — same isolation discipline as the optional `www` record.
 - **`OdinConfiguration`**: the consolidated `Email` section above (replacing `MailgunSection`); `DnsConfigurationSet` gains the `TenantMail` DNS values. `IEmailSender` gets a `SendGridSender` sibling; registration in `SystemServices` becomes provider-switched.
 - **DKIM generation + signing in Homebase**: per-tenant keypair generated at email activation, TXT records written to the zone, outbound mail DKIM-signed inside the Homebase server before hand-off to the relay (see `docs/email-keys-plan.md`). Verify the chosen relay forwards pre-signed mail without requiring its own domain onboarding — outside-repo assumption.
+- **MTA-STS ships as one unit**: the `_mta-sts` TXT record, the policy endpoint (a trivial anonymous controller beside WebFinger/DID serving `.well-known/mta-sts.txt` generated from config), and the certificate SAN - never the TXT alone pointing at a missing or badly-served policy.
 - **`CertificateService`**: the identity certificate's SAN list gains `mta-sts.<domain>` (today: domain + capi/file), so the MTA-STS policy endpoint serves valid TLS.
 - **Report mailboxes**: `dmarc-reports@<infra>` / `tls-reports@<infra>` must actually receive mail - the infra domain needs its own MX and mailbox (or a provider inbox) before the report addresses go live in tenant records.
 - **WKD controller**: sibling of `WebFingerController`/`DidController` (`src/apps/Odin.Hosting/Controllers/Anonymous/`), serving the Homebase-managed OpenPGP key; DID document gains a `keyAgreement` entry (`DidService`, `src/services/Odin.Services/Fingering/`). OpenPGP certificate packaging needs an OpenPGP library (e.g. BouncyCastle, already referenced by the crypto layer) — use Curve25519 keys, keep the certificate minimal.
@@ -163,5 +167,4 @@ A new **Email** tab beside the DNS tab in the Security section, running the **sa
 
 - The SMTP/inbound server itself, outbound submission integration, mailbox storage, client UX.
 - Key management/rotation UX (couple its design with the deferred DNSSEC key-rollover work).
-- MTA-STS policy hosting implementation details.
 - Third-party DNS (manual-records) tenants: they get the same record list as instructions instead of zone writes — the provisioning `dns-config` endpoint already carries unknown record types to the UI safely.
