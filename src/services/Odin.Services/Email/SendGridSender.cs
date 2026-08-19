@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Http;
@@ -74,6 +75,14 @@ public class SendGridSender : IEmailSender
             var reason = await result.Content.ReadAsStringAsync();
             throw new EmailException($"Error sending email. {reason}");
         }
+    }
+
+    public async Task<bool> VerifyCredentialsAsync(CancellationToken cancellationToken = default)
+    {
+        var httpClient = _httpClientFactory.CreateClient("api.sendgrid.com");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        var result = await httpClient.GetAsync("https://api.sendgrid.com/v3/scopes", cancellationToken);
+        return result.IsSuccessStatusCode;
     }
 
     private static Dictionary<string, string> Address(NameAndEmailAddress address)

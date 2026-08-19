@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Http;
@@ -56,5 +57,13 @@ public class MailgunSender : IEmailSender
             var reason = await result.Content.ReadAsStringAsync();
             throw new EmailException($"Error sending email. {reason}");
         }
+    }
+
+    public async Task<bool> VerifyCredentialsAsync(CancellationToken cancellationToken = default)
+    {
+        var httpClient = _httpClientFactory.CreateClient("api.mailgun.net");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", _authToken);
+        var result = await httpClient.GetAsync($"https://api.mailgun.net/v3/domains/{_emailDomain}", cancellationToken);
+        return result.IsSuccessStatusCode;
     }
 }
