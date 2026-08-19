@@ -74,8 +74,12 @@ Configuration joins the `Email` section (DNS doc): Stalwart base address + admin
 
 - Startup canary round-trip exercises this whole plan too: submit → sign in Homebase → relay → canary's MX → Stalwart stores encrypted → verify the stored object is ciphertext (in S3, not Postgres) and the DKIM signature verifies.
 - Startup check verifies each MX node of the host group (A + TLSA + port 25 reachable) - HA only works if all listed nodes actually serve.
-- Monthly per-tenant check adds: Stalwart account exists and its encryption-at-rest key matches the tenant's current published key; DKIM TXT matches the tenant's current signing key. ERR on mismatch.
-- Email tab shows key state: current key created/rotated dates, "encrypted at rest: on", discovery (DID/WKD) serving the current key.
+- Monthly per-tenant check (unattended - may only touch public material and server-operational keys, NEVER the owner-locked E2E private key):
+  - **DKIM pair proof**: sign a test vector with the Homebase source-of-truth private key and verify it against the public key in the live DNS TXT - actual crypto verification that "the DKIM key works", stronger than string-comparing the record.
+  - **Stalwart's provisioned DKIM matches** the source of truth (wrapper read-back if the API supports it; otherwise the canary round-trip covers the signing path systemically).
+  - **Public-key drift**: the E2E PUBLIC key must be identical in all three published places - DID `keyAgreement`, WKD, and Stalwart's encryption-at-rest setting. Drift here is the precursor to the silent-data-loss failure below.
+  - Stalwart account exists, encryption-at-rest enabled. ERR on any mismatch.
+- Owner-console Email tab additionally runs the ONE check only an owner context can (interactive session unlocks the email drive): **an encrypt/decrypt round-trip** - encrypt a test blob to the published public key, decrypt it with the private key from the drive. Failure is critical-grade: it means incoming mail is being encrypted to a key the owner cannot decrypt - silent, compounding data loss invisible to every unattended check. Also shown: current key created/rotated dates, historical key count, "encrypted at rest: on".
 
 ## Out of scope
 
