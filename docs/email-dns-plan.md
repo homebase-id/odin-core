@@ -61,8 +61,8 @@ One consolidated `Email` section replaces today's top-level `Mailgun` section an
 ```jsonc
 {
   "Email": {
-    "Enabled": false,                       // master switch for all sending (today: Mailgun:Enabled)
-    "Provider": "SendGrid",                 // "SendGrid" | "Mailgun" | "Smtp" - used by BOTH system and tenant mail
+    "Provider": "None",                     // "None" | "SendGrid" | "Mailgun" | "Smtp" - used by BOTH system and tenant mail.
+                                            // None = a NullEmailSender that logs and discards; replaces today's Mailgun:Enabled flag
 
     // provider credentials (only the selected provider's section is required)
     "SendGrid": { "ApiKey": "..." },        // also used for per-tenant domain-authentication onboarding
@@ -79,6 +79,7 @@ One consolidated `Email` section replaces today's top-level `Mailgun` section an
 
     "TenantMail": {
       "Enabled": false,                     // gates tenant mailboxes AND emission of the per-tenant email DNS records
+      "CanaryDomain": "canary.id.pub",      // first-party identity used by the startup round-trip check
       "MailExchangers": [ "mx1.id.pub" ],   // per-tenant MX targets
       "SpfIncludeTarget": "_spf.id.pub",    // what tenant SPF records include:
       "DmarcReportEmail": "dmarc-reports@id.pub",
@@ -92,9 +93,44 @@ Notes:
 
 - **Everything email lives under `Email`** - provider, credentials, system-mail sender, tenant-mail DNS values. `DnsConfigurationSet` gains the `TenantMail` values at construction (it already takes plain config keys; the section they come from is immaterial).
 - **Migration**: existing deployments carry `Mailgun:*` keys - coordinate the rename to `Email:*` with the ansible templating update (same literal-passthrough caveat as the nameserver values), or read the old keys as a fallback for one release.
-- **Self-hosters**: `Email:Enabled=false` (default) keeps today's behavior exactly; enabling it with their own values assumes nothing about our infrastructure.
+- **`Provider: None` instead of an Enabled flag**: an `IEmailSender` is then ALWAYS registered (the None implementation logs and discards), so the `Mailgun.Enabled` guards scattered through the code collapse. `TenantMail.Enabled=true` with `Provider=None` is a contradiction and fails startup validation with ERR.
+- **Self-hosters**: `Provider: None` (default) keeps today's no-email behavior exactly; configuring a provider with their own values assumes nothing about our infrastructure.
 - **Per-tenant SendGrid CNAME values are not config** - they are API-issued per tenant at onboarding and stored per tenant, keeping the config finite at 1000 tenants.
 - **Infra zone records** (mx A, TLSA, `_spf` content) derive from this config but are written to the infra zone as an ops/CLI action, not per-tenant.
+
+## Startup & ongoing verification
+
+All checks log failures with **ERR**, so the existing log-monitoring jobs surface misconfiguration without new alerting infrastructure. The design principle: each failure class is caught by the cheapest mechanism that can see it - there is never a full tenant traversal at startup.
+
+| Failure class | Caught by | When |
+|---|---|---|
+| Shared infra broken (MX/TLSA/`_spf`/provider credentials/PTR) | startup background check | boot |
+| Record-emit path broken (systemic) | canary round-trip | boot |
+| Per-tenant drift (one zone ensure failed, one provider validation stuck) | monthly per-tenant job (existing traversal) | rolling 30 days |
+| Anything, on demand | CLI fleet sweep / owner-console Email tab | manual |
+
+### Startup background check
+
+Fire-and-forget background task after startup (not inline - it is DNS-heavy), with a few retries/backoff before the first ERR so a boot-time DNS blip does not false-alarm. Branches on config:
+
+- `Provider=None`: nothing to check (one INF line). `TenantMail.Enabled` with `Provider=None` -> ERR.
+- Any real provider: credentials sanity (one API call for SendGrid/Mailgun).
+- `TenantMail.Enabled`: the shared infrastructure - MX target A resolves to us; TLSA present and matching the certificate actually served on port 25; infra `_spf` contains the expected include/IPs; MTA-STS policy endpoint reachable; in `Smtp` mode additionally PTR/forward/HELO agreement on the relay IPs.
+- **Canary round-trip**: send a message from the canary identity to itself via the configured provider, receive it at our own MX, and verify the received headers show DKIM/SPF/DMARC pass. This is the only test that proves the whole pipeline - no DNS inspection can. A dedicated first-party canary (not a sampled real tenant) because it cannot be user-deleted, has no privacy implications, and is safe to send to.
+- The existing **CDN sanity ping** (currently inline in `Startup.cs`) moves into this background verifier - same pattern, same retry discipline.
+
+### Monthly per-tenant check (piggybacks `SecurityHealthCheckJob`)
+
+The monthly security job already visits every tenant on a rolling schedule - the email check rides along, adding no new traversal:
+
+1. **Has the tenant activated email?** Indicator: presence of the tenant's email drive (the drive is part of the mailbox implementation, out of scope here; until it exists the check no-ops). No email drive -> skip.
+2. Verify the per-tenant zone records are present and correct: MX -> shared target, SPF include, DMARC, DKIM (SendGrid CNAMEs resolving / self-sending TXT keys present), return-path CNAME.
+3. Verify provider state: SendGrid domain authentication still valid for this tenant.
+4. Failures: **ERR log always** (ops signal). Included in the tenant's needs-attention health email only when user-actionable - broken records in a zone WE host are our bug, not the user's to-do; manual-records tenants managing their own DNS do get the email item. Same philosophy as the DNSSEC attention rule.
+
+### Owner console: Email tab
+
+A new **Email** tab beside the DNS tab in the Security section, running the **same checks as the monthly job** for this tenant (records + provider state + the relevant shared-infra summary), on demand with a Refresh button. Implementation reuses the same server-side check service the monthly job calls, so the console and the job cannot drift apart; endpoint pattern mirrors `/api/owner/v1/dns/status`.
 
 ## What the codebase needs
 
@@ -104,7 +140,9 @@ Notes:
 - **SendGrid onboarding automation**: per tenant, create the authenticated domain via SendGrid's API, fetch the issued CNAMEs, write them into the tenant zone (existing CNAME rrset support suffices), trigger SendGrid's validation. Check SendGrid plan limits on authenticated-domain count (~1000 needed) — outside-repo assumption to verify.
 - **WKD controller**: sibling of `WebFingerController`/`DidController` (`src/apps/Odin.Hosting/Controllers/Anonymous/`), serving the Homebase-managed OpenPGP key; DID document gains a `keyAgreement` entry (`DidService`, `src/services/Odin.Services/Fingering/`). OpenPGP certificate packaging needs an OpenPGP library (e.g. BouncyCastle, already referenced by the crypto layer) — use Curve25519 keys, keep the certificate minimal.
 - **CLI/backfill**: the existing `create-own-domain-zones commit` re-populate path applies new static records to existing zones once `GetDnsConfiguration` includes them; the SendGrid CNAMEs are per-tenant values and flow through the onboarding automation instead.
-- **Owner console**: the Security→DNS panel renders whatever the status endpoint returns, so MX/TXT rows appear once emitted; DNSSEC red-dot semantics already cover the DANE era.
+- **Startup verifier**: new background task (pattern: `Odin.Services.Background`) implementing the checks above; absorbs the inline CDN ping from `Startup.cs`. `NullEmailSender : IEmailSender` for `Provider=None`.
+- **Monthly check**: extend `SecurityHealthCheckJob`'s per-tenant visit with the email verification (shared check service, gated on the email drive's presence).
+- **Owner console**: the Security→DNS panel renders whatever the status endpoint returns, so MX/TXT rows appear once emitted; DNSSEC red-dot semantics already cover the DANE era. New **Email tab** beside it, backed by the shared check service (endpoint mirroring `/api/owner/v1/dns/status`).
 
 ## Out of scope
 
