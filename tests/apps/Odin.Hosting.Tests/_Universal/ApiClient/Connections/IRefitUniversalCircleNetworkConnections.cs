@@ -47,5 +47,11 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 
         [Post(RootPath + "/confirm-connection")]
         Task<ApiResponse<IcrVerificationResult>> ConfirmConnection([Body] OdinIdRequest request);
+
+        [Post(RootPath + "/review")]
+        Task<ApiResponse<HttpContent>> ReviewConnection([Body] ReviewConnectionRequest request);
+
+        [Post(RootPath + "/unreview")]
+        Task<ApiResponse<HttpContent>> UnreviewConnection([Body] OdinIdRequest request);
     }
 }

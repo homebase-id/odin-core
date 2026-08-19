@@ -97,7 +97,7 @@ public class CircleNetworkStorage
             }
         }
 
-        var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord);
+        var record = ToConnectionsRecord(icr.OdinId, icr.Status, icrAccessRecord, icr.ReviewedAt);
         await _db.ConnectionsCached.UpsertAsync(record);
 
         tx.Commit();
@@ -111,7 +111,7 @@ public class CircleNetworkStorage
         icrAccessRecord.PeerKeyStore.MasterKeyEncryptedPeerKey = masterKeyEncryptedKsk;
         icrAccessRecord.WeakKeyStoreKey = null;
 
-        var record = ToConnectionsRecord(identity, status, icrAccessRecord);
+        var record = ToConnectionsRecord(identity, status, icrAccessRecord, existingRecord.ReviewedAt);
         await _db.ConnectionsCached.UpdateAsync(record);
     }
 
@@ -123,7 +123,7 @@ public class CircleNetworkStorage
         icrAccessRecord.EncryptedClientAccessToken = encryptedCat.EncryptedData;
         icrAccessRecord.WeakClientAccessToken = null;
 
-        var record = ToConnectionsRecord(identity, status, icrAccessRecord);
+        var record = ToConnectionsRecord(identity, status, icrAccessRecord, existingRecord.ReviewedAt);
         await _db.ConnectionsCached.UpdateAsync(record);
     }
 
@@ -133,7 +133,19 @@ public class CircleNetworkStorage
         var icrAccessRecord = MapToStorageIcrAccessRecord(existingRecord);
 
         icrAccessRecord.VerificationHash64 = hash.ToBase64();
-        var record = ToConnectionsRecord(identity, status, icrAccessRecord);
+        var record = ToConnectionsRecord(identity, status, icrAccessRecord, existingRecord.ReviewedAt);
+        await _db.ConnectionsCached.UpdateAsync(record);
+    }
+
+    /// <summary>
+    /// Stamps or clears the review marker on the connection.  Pass null to un-review.
+    /// </summary>
+    public async Task UpdateReviewedAtAsync(OdinId identity, ConnectionStatus status, UnixTimeUtc? reviewedAt)
+    {
+        var existingRecord = await GetAsync(identity);
+        var icrAccessRecord = MapToStorageIcrAccessRecord(existingRecord);
+
+        var record = ToConnectionsRecord(identity, status, icrAccessRecord, reviewedAt);
         await _db.ConnectionsCached.UpdateAsync(record);
     }
 
@@ -259,11 +271,15 @@ public class CircleNetworkStorage
 
             ConnectionRequestOrigin = connectionOrigin,
             IntroducerOdinId = introducerOdinId,
-            VerificationHash = data.VerificationHash64?.FromBase64() ?? []
+            VerificationHash = data.VerificationHash64?.FromBase64() ?? [],
+
+            // Promoted from the column, never from the blob -- see IdentityConnectionRegistration.ReviewedAt
+            ReviewedAt = record.ReviewedAt
         };
     }
 
-    private static ConnectionsRecord ToConnectionsRecord(OdinId odinId, ConnectionStatus status, IcrAccessRecord icrAccessRecord)
+    private static ConnectionsRecord ToConnectionsRecord(OdinId odinId, ConnectionStatus status, IcrAccessRecord icrAccessRecord,
+        UnixTimeUtc? reviewedAt)
     {
         // Clearing these so they are not serialized on
         // the connections record.  Instead, we give them
@@ -277,7 +293,12 @@ public class CircleNetworkStorage
             status = (int)status,
             modified = UnixTimeUtc.Now(),
             displayName = "",
-            data = OdinSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
+            data = OdinSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray(),
+
+            // Column only.  IcrAccessRecord deliberately has no ReviewedAt field: a second at-rest copy
+            // would let the pagination query (column) and the caller's security tier (hydrated object)
+            // disagree.
+            ReviewedAt = reviewedAt
         };
         return record;
     }

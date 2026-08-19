@@ -56,6 +56,15 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// True when the owner has completed the connection review.  This is the owner's own recorded
+        /// act - it is never sent to the peer and never derived from grants.
+        /// </summary>
+        public bool IsReviewed()
+        {
+            return this.ReviewedAt.HasValue;
+        }
+
+        /// <summary>
         /// The drives and permissions granted to this connection
         /// </summary>
         [JsonPropertyName("accessGrant")]
@@ -100,6 +109,19 @@ namespace Odin.Services.Membership.Connections
         /// </summary>
         public byte[] VerificationHash { get; set; }
 
+        /// <summary>
+        /// When the owner completed the connection review; null means the connection has never been
+        /// reviewed ("New").
+        /// <para>
+        /// This lives in the <c>Connections.ReviewedAt</c> column, not in the ICR data blob.  The column
+        /// is the only at-rest home: <see cref="CircleNetworkStorage"/> maps it in on read and back out on
+        /// write, and it is deliberately absent from <c>IcrAccessRecord</c> so a naive re-serialize cannot
+        /// mint a second copy that drifts from the column the contact book pages on.
+        /// </para>
+        /// </summary>
+        [JsonIgnore]
+        public UnixTimeUtc? ReviewedAt { get; set; }
+
         public ClientAuthenticationToken CreateClientAuthToken(SensitiveByteArray icrDecryptionKey)
         {
             return this.CreateClientAccessToken(icrDecryptionKey).ToAuthenticationToken();
@@ -136,7 +158,29 @@ namespace Odin.Services.Membership.Connections
                 AccessGrant = this.PeerKeyStore?.Redacted(),
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
-                Vetted = this.IsConnected() && this.IsConfirmedConnection()
+                ReviewedAt = this.ReviewedAt,
+                Vetted = this.IsConnected() && this.IsReviewed()
+            };
+        }
+
+        /// <summary>
+        /// The shape served to third parties (guest callers, and anonymous viewers where the tenant
+        /// settings permit it): the identity and its public contact card, nothing else.
+        /// </summary>
+        /// <remarks>
+        /// The connections list a peer may see is a list of identities, never a list of my judgments.
+        /// Everything the owner recorded about this contact -- the review stamp, who introduced them,
+        /// how the connection originated, what they were granted -- is owner-private and is dropped
+        /// here.  The tenant setting decides *whether* a third party sees the list; this decides *what*
+        /// they see.
+        /// </remarks>
+        public RedactedIdentityConnectionRegistration RedactedForThirdParty()
+        {
+            return new RedactedIdentityConnectionRegistration()
+            {
+                OdinId = this.OdinId,
+                Status = this.Status,
+                OriginalContactData = this.OriginalContactData
             };
         }
     }
@@ -163,8 +207,19 @@ namespace Odin.Services.Membership.Connections
         public bool Rku { get; init; }
 
         /// <summary>
-        /// True if the identity is connected and is a member of the Confirmed Connections system circle
+        /// When the owner completed the connection review; null means never reviewed ("New").
+        /// Owner/app viewers only -- always null on the third-party shape.
         /// </summary>
+        public UnixTimeUtc? ReviewedAt { get; init; }
+
+        /// <summary>
+        /// True if the identity is connected and the owner has completed the review.
+        /// </summary>
+        /// <remarks>
+        /// Legacy name, kept so V1 clients keep working through the transition; it is now served as
+        /// <c>ReviewedAt != null</c> rather than Confirmed Connections membership.  New clients should
+        /// read <see cref="ReviewedAt"/>.
+        /// </remarks>
         public bool Vetted { get; init; }
     }
 }

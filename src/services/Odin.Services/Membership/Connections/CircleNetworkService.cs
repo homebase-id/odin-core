@@ -511,7 +511,15 @@ namespace Odin.Services.Membership.Connections
                 TempWeakKeyStoreKey = keys.Temp.KeyStoreKey,
                 ConnectionRequestOrigin = connectionRequestOrigin,
                 IntroducerOdinId = introducerOdinId,
-                VerificationHash = verificationHash
+                VerificationHash = verificationHash,
+
+                // An owner-driven connection request is the review happening at accept time, so it stamps.
+                // Introductions and app-originated connections form without the owner present -- they stay
+                // New until the owner actually reviews them.  This mirrors the circle each origin lands in
+                // today (Confirmed vs Auto), which is what the legacy Vetted flag was computed from.
+                ReviewedAt = connectionRequestOrigin == ConnectionRequestOrigin.IdentityOwner
+                    ? UnixTimeUtc.Now()
+                    : null
             };
 
             await this.SaveIcrAsync(newConnection, odinContext);
@@ -1077,12 +1085,111 @@ namespace Odin.Services.Membership.Connections
             await this.RevokeCircleAccessAsync(SystemCircleConstants.AutoConnectionsCircleId, odinId, odinContext);
             await this.GrantCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinId, odinContext);
 
+            // Confirming is the review, in its current form -- record it.
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, UnixTimeUtc.Now());
+
             tx.Commit();
 
             // Peer contexts are cached for an hour keyed on the caller's token, and only the
             // finalized/blocked/deleted notifications reset that cache. Without this the confirmation
             // is invisible to the identity that was just confirmed -- their calls keep running under the
             // auto-connected circle (no AllowIntroductions) long after the owner acted.
+            await odinContextCache.ResetAsync();
+        }
+
+        /// <summary>
+        /// Completes the connection review: stamps <see cref="IdentityConnectionRegistration.ReviewedAt"/>
+        /// and enrolls the contact in the circles the owner chose, in one atomic act.  Passing no circles
+        /// is the "chat only" outcome -- it records the decision and grants nothing.
+        /// </summary>
+        /// <remarks>
+        /// Enrollment is idempotent: circles the contact already holds are skipped rather than rejected.
+        /// Nothing is revoked -- a declined circle simply never mints.
+        /// <para>
+        /// Interim behavior: an auto-connected identity is confirmed first, because the 3010 lockout still
+        /// blocks granting circles to one.  That confirm step needs the master key, so reviewing an
+        /// auto-connected contact from an app context is not yet possible.  Both go away with the
+        /// enrollment model, which retires the system circles and the lockout together.
+        /// </para>
+        /// </remarks>
+        public async Task ReviewConnectionAsync(OdinId odinId, IEnumerable<GuidId> circleIds, IOdinContext odinContext)
+        {
+            AssertCanManageCircleMembership(odinContext);
+
+            var icr = await this.GetIcrAsync(odinId, odinContext);
+
+            if (!icr.IsConnected())
+            {
+                throw new OdinClientException("Cannot review identity that is not connected",
+                    OdinClientErrorCode.IdentityMustBeConnected);
+            }
+
+            var requestedCircles = (circleIds ?? []).ToList();
+
+            await using var tx = await db.BeginStackedTransactionAsync();
+
+            // The lockout still stands between an auto-connection and any additional circle, so clear it
+            // the way the current code does before enrolling.
+            if (icr.PeerKeyStore.CircleGrants.TryGetValue(SystemCircleConstants.AutoConnectionsCircleId, out _))
+            {
+                await this.ConfirmConnectionAsync(odinId, odinContext);
+                icr = await this.GetIcrAsync(odinId, odinContext);
+            }
+
+            foreach (var circleId in requestedCircles)
+            {
+                if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
+                {
+                    continue;
+                }
+
+                await this.GrantCircleAsync(circleId, odinId, odinContext);
+            }
+
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, UnixTimeUtc.Now());
+
+            tx.Commit();
+
+            await odinContextCache.ResetAsync();
+        }
+
+        /// <summary>
+        /// Clears the review stamp, dropping the contact back to "New".
+        /// </summary>
+        /// <remarks>
+        /// Rejected while the contact holds any circle membership: circle ACLs check membership, not tier,
+        /// so membership must imply review.  Remove them from their circles first.
+        /// <para>
+        /// The two system circles are not a deliberate act of the owner's and do not count here.  Once
+        /// circles carry a designation, this check narrows to PERSONAL membership.
+        /// </para>
+        /// </remarks>
+        public async Task UnreviewConnectionAsync(OdinId odinId, IOdinContext odinContext)
+        {
+            AssertCanManageCircleMembership(odinContext);
+
+            var icr = await this.GetIcrAsync(odinId, odinContext);
+
+            if (!icr.IsReviewed())
+            {
+                return;
+            }
+
+            var heldCircles = icr.PeerKeyStore?.CircleGrants?.Keys
+                                  .Where(c => c != SystemCircleConstants.AutoConnectionsCircleId.Value &&
+                                              c != SystemCircleConstants.ConfirmedConnectionsCircleId.Value)
+                                  .ToList() ?? [];
+
+            if (heldCircles.Count != 0)
+            {
+                throw new OdinClientException(
+                    "Cannot un-review an identity that is a member of one or more circles.  Remove them from " +
+                    "their circles first.",
+                    OdinClientErrorCode.CannotUnreviewCircleMember);
+            }
+
+            await circleNetworkStorage.UpdateReviewedAtAsync(odinId, icr.Status, null);
+
             await odinContextCache.ResetAsync();
         }
 
