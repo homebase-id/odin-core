@@ -35,6 +35,18 @@ Deliberately absent:
 | TLSA | `_25._tcp.mx1` | `3 1 1 <SPKI SHA-256>` | same | DANE for every tenant at once; requires `<infra>` signed + anchored (true for `id.pub`). Cert rotation must keep the pinned key stable or update this record first |
 | TXT (SPF target) | `_spf` | `v=spf1 include:sendgrid.net -all` | `v=spf1 ip4:<relay-ip> ip4:<relay-ip2> -all` | The single place outbound is authorized; swapping providers touches this one record |
 
+## Emission paths and activation semantics
+
+**Two emission paths, same record set.** BYOD identities own a zone; managed identities are prefixed records inside a shared apex zone (`frodo.baggins.demo.rocks` has no zone of its own). Email records follow the split that already exists for A/capi/file: zone-hosted tenants get them via zone populate, managed tenants get them as prefixed records via the managed-domain path (`MX` at prefix `frodo.baggins`, DKIM at `s1._domainkey.frodo.baggins`, ...). The per-tenant table above applies to both; only the writer differs.
+
+**Static vs on-activation records.** `GetDnsConfiguration` is config-only; SendGrid DKIM values are per-tenant and only exist after onboarding. Split accordingly:
+
+- **Static** (identical for every tenant): MX, SPF include, DMARC, MTA-STS, TLS-RPT - emitted to all zones/prefixes through the normal populate and the existing backfill. Mail addressed to a tenant who has not activated email is rejected at RCPT time by our MX; a resolvable MX with a rejecting server is normal and harmless.
+- **On activation** (per-tenant values): DKIM CNAMEs + return-path CNAME, written when the tenant activates email and SendGrid domain-authentication onboarding runs. Side effect: the SendGrid authenticated-domain count grows with ACTIVE email users, not total tenants, which defuses the plan-limit concern.
+- Manual-records (third-party DNS) tenants cannot be written to: activation for them is a guided flow - the Email tab shows the required records (including their personal SendGrid CNAME values) as instructions with live status, provisioning-style, and onboarding completes when SendGrid validation passes.
+
+**Addressing model** (which localparts exist - `mail@gabriel.ninja`? `john@doe.id.pub`? one mailbox per identity?) is deliberately deferred to the mailbox plan; WKD and the canary check consume whatever it defines. (The provisioning app's `splitMailFromPrefixAndApex` helper already sketches the managed-domain form `john@doe.id.pub`.)
+
 ## Key discovery for E2E: .well-known, not DNS
 
 E2E public keys are generated and managed inside Homebase (`PublicPrivateKeyService` already backs the DID document's published key). Discovery goes over HTTPS:
@@ -138,6 +150,8 @@ A new **Email** tab beside the DNS tab in the Security section, running the **sa
 - **`DnsLookupService.GetDnsConfiguration`** (`src/services/Odin.Services/Registry/Registration/`): gains the per-tenant email entries so zone populate and the owner-console records view pick them up. Additive entries only (`DnsConfig` layout is a frontend contract), and the email records must **not** join the identity-validation success rule (`AreDnsLookupsSuccessful`) or certificate checks — same isolation discipline as the optional `www` record.
 - **`OdinConfiguration`**: the consolidated `Email` section above (replacing `MailgunSection`); `DnsConfigurationSet` gains the `TenantMail` DNS values. `IEmailSender` gets a `SendGridSender` sibling; registration in `SystemServices` becomes provider-switched.
 - **SendGrid onboarding automation**: per tenant, create the authenticated domain via SendGrid's API, fetch the issued CNAMEs, write them into the tenant zone (existing CNAME rrset support suffices), trigger SendGrid's validation. Check SendGrid plan limits on authenticated-domain count (~1000 needed) — outside-repo assumption to verify.
+- **`CertificateService`**: the identity certificate's SAN list gains `mta-sts.<domain>` (today: domain + capi/file), so the MTA-STS policy endpoint serves valid TLS.
+- **Report mailboxes**: `dmarc-reports@<infra>` / `tls-reports@<infra>` must actually receive mail - the infra domain needs its own MX and mailbox (or a provider inbox) before the report addresses go live in tenant records.
 - **WKD controller**: sibling of `WebFingerController`/`DidController` (`src/apps/Odin.Hosting/Controllers/Anonymous/`), serving the Homebase-managed OpenPGP key; DID document gains a `keyAgreement` entry (`DidService`, `src/services/Odin.Services/Fingering/`). OpenPGP certificate packaging needs an OpenPGP library (e.g. BouncyCastle, already referenced by the crypto layer) — use Curve25519 keys, keep the certificate minimal.
 - **CLI/backfill**: the existing `create-own-domain-zones commit` re-populate path applies new static records to existing zones once `GetDnsConfiguration` includes them; the SendGrid CNAMEs are per-tenant values and flow through the onboarding automation instead.
 - **Startup verifier**: new background task (pattern: `Odin.Services.Background`) implementing the checks above; absorbs the inline CDN ping from `Startup.cs`. `NullEmailSender : IEmailSender` for `Provider=None`.
