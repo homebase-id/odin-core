@@ -4,13 +4,15 @@ Status: design/plan — not yet implemented. Companion to `docs/email-dns-plan.m
 
 ## Custody principle
 
-The private-key perimeter is the Homebase server plus the owner — never the mail server, never the relay:
+The private-key perimeter is the Homebase server plus the owner — never the mail server, never the relay. Custody strength follows compromise impact:
 
-| Key | Generated/held by | Given to Stalwart? | Given to relay? |
-|---|---|---|---|
-| E2E/at-rest encryption keypair (per identity) | Homebase; stored encrypted on the email drive | **Public key only** (encryption-at-rest) | never |
-| DKIM signing keypair (per identity) | Homebase; signing happens in Homebase code | never | never (relay forwards already-signed mail) |
-| Zone DNSSEC keys | PowerDNS (covered by `docs/byod-dnssec-plan.md`) | — | — |
+| Key | Custody class | Given to Stalwart? | Given to relay? | If compromised |
+|---|---|---|---|---|
+| E2E/at-rest encryption keypair (per identity) | **Owner-locked**: encrypted on the email drive, under Shamir recovery; server cannot use it | **Public key only** (encryption-at-rest) | never | all stored mail readable - catastrophic, unrecoverable. Hence the strongest custody |
+| DKIM signing keypair (per identity) | **Server-operational**: AES-encrypted at rest with the server storage key, server-decryptable unattended - the exact custody class of the TLS certificate private key (`CertificateStore`) | never | never (relay forwards already-signed mail) | DMARC-passing spoofs until rotation (new key + TXT - minutes, no data exposed). Strictly less severe than a TLS-key compromise, which the same custody already guards |
+| Zone DNSSEC keys | PowerDNS-managed (`docs/byod-dnssec-plan.md`) | — | — | — |
+
+**Two signatures, two signers - permanently disambiguated:** DKIM says "this message is authorized by the *domain*" and is verified by receiving *servers* via the DNS TXT record - an inherently server-side function (no MUA can DKIM-sign, and a client-computed signature breaks on any header the submission path touches). The OpenPGP/E2E signature says "this content is from this *person*", is verified by receiving *clients*, and is produced by the **client**, which holds that key. Both travel on the same message. DKIM's public half lives in DNS because that is where its verifiers look (protocol-fixed); `.well-known`/WKD serves the other key to the other audience.
 
 ## Architecture
 
@@ -35,7 +37,7 @@ Key algorithm: decision point between ECC-384 (P-384 — aligns with Homebase's 
 
 `POST /api/owner/v1/mail/activate` (owner-authenticated), called by the app after drive+key creation:
 
-1. Generate the tenant's **DKIM keypair(s)** (two selectors), store them tenant-side (encrypted at rest; these are operational server keys — unlike the E2E key, Homebase must use them unattended for signing, so they are NOT owner-locked).
+1. Generate the tenant's **DKIM keypair(s)** (two selectors), stored server-operational per the custody table (TLS-key pattern). Unattended availability is what keeps legacy IMAP/SMTP clients and future scheduled-send working without owner presence.
 2. Write the **on-activation DNS records** (DKIM TXT) into the tenant's zone / apex prefix (emission paths per the DNS doc); manual-records tenants instead see them as instructions in the Email tab.
 3. Publish the **encryption public key**: DID document `keyAgreement` entry + WKD.
 4. Provision **Stalwart** via the wrapper (below): create the account + domain association, upload the public key, enable encryption-at-rest with it.
