@@ -42,7 +42,7 @@ Deliberately absent:
 **Static vs on-activation records.** `GetDnsConfiguration` is config-only; SendGrid DKIM values are per-tenant and only exist after onboarding. Split accordingly:
 
 - **Static** (identical for every tenant): MX, SPF include, DMARC, MTA-STS, TLS-RPT - emitted to all zones/prefixes through the normal populate and the existing backfill. Mail addressed to a tenant who has not activated email is rejected at RCPT time by our MX; a resolvable MX with a rejecting server is normal and harmless.
-- **On activation** (per-tenant values): DKIM CNAMEs + return-path CNAME, written when the tenant activates email and SendGrid domain-authentication onboarding runs. Side effect: the SendGrid authenticated-domain count grows with ACTIVE email users, not total tenants, which defuses the plan-limit concern.
+- **On activation** (per-tenant, provider-issued values): written when the tenant activates email and the provider's domain onboarding runs. The mechanism is provider-specific - SendGrid issues DKIM/return-path CNAMEs, Mailgun issues DKIM TXT records - so the onboarding step is part of the `IEmailSender`-provider abstraction, not hardcoded to one vendor. Side effect: the provider's authenticated-domain count grows with ACTIVE email users, not total tenants, which defuses plan-limit concerns.
 - Manual-records (third-party DNS) tenants cannot be written to: activation for them is a guided flow - the Email tab shows the required records (including their personal SendGrid CNAME values) as instructions with live status, provisioning-style, and onboarding completes when SendGrid validation passes.
 
 **Addressing model** (which localparts exist - `mail@gabriel.ninja`? `john@doe.id.pub`? one mailbox per identity?) is deliberately deferred to the mailbox plan; WKD and the canary check consume whatever it defines. (The provisioning app's `splitMailFromPrefixAndApex` helper already sketches the managed-domain form `john@doe.id.pub`.)
@@ -136,9 +136,10 @@ Fire-and-forget background task after startup (not inline - it is DNS-heavy), wi
 The monthly security job already visits every tenant on a rolling schedule - the email check rides along, adding no new traversal:
 
 1. **Has the tenant activated email?** Indicator: presence of the tenant's email drive (the drive is part of the mailbox implementation, out of scope here; until it exists the check no-ops). No email drive -> skip.
-2. Verify the per-tenant zone records are present and correct: MX -> shared target, SPF include, DMARC, DKIM (SendGrid CNAMEs resolving / self-sending TXT keys present), return-path CNAME.
-3. Verify provider state: SendGrid domain authentication still valid for this tenant.
-4. Failures: **ERR log always** (ops signal). Included in the tenant's needs-attention health email only when user-actionable - broken records in a zone WE host are our bug, not the user's to-do; manual-records tenants managing their own DNS do get the email item. Same philosophy as the DNSSEC attention rule.
+2. Verify the per-tenant zone records are present and correct: MX -> shared target, SPF include, DMARC, DKIM (provider CNAMEs resolving / self-sending TXT keys present), return-path CNAME.
+3. Verify provider state: the provider's domain authentication still valid for this tenant.
+4. Verify the MTA-STS surface: `https://mta-sts.<tenant>/.well-known/mta-sts.txt` fetches with a VALID certificate (i.e. the `mta-sts` SAN made it into the tenant's cert) and the policy lists the current MX. A policy endpoint with a bad cert silently disables MTA-STS protection - this is a security-grade defect, not cosmetics.
+5. Failures: **ERR log always** (ops signal). Included in the tenant's needs-attention health email only when user-actionable - broken records in a zone WE host are our bug, not the user's to-do; manual-records tenants managing their own DNS do get the email item. Same philosophy as the DNSSEC attention rule.
 
 ### Owner console: Email tab
 
