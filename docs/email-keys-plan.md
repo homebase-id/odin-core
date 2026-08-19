@@ -57,6 +57,7 @@ IMailboxProvider
   CreateMailboxAsync(domain, address)          // account + domain association
   SetEncryptionKeyAsync(domain, openPgpCert)   // upload E2E PUBLIC key, enable encryption-at-rest
   SetDkimKeyAsync(domain, selector, keyPair)   // install the domain's DKIM signing key
+  SetAliasesAsync(domain, localparts)          // the names the one mailbox answers to (chat-kmp EMAIL_APP.md)
   DeleteMailboxAsync(domain)                   // tenant deletion ride-along
   ProvisionAppPasswordAsync(domain, ...)       // client auth (below)
 ```
@@ -84,6 +85,6 @@ Configuration joins the `Email` section (DNS doc): Stalwart base address + admin
 ## Out of scope
 
 - Webmail deployment; spam filtering; mailbox quotas.
-- The addressing model (localparts) — defined with the mailbox implementation; everything here consumes it.
+- The addressing model and alias management UX — defined in chat-kmp `EMAIL_APP.md` (one mailbox, many names); everything here consumes it.
 - OAuth2/youAuth bridging (own work item).
 - Proton-interop key discovery (Proton doesn't publish via standard WKD; nothing to do on our side).
