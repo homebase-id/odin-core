@@ -84,6 +84,8 @@ public class Startup(IConfiguration configuration, IEnumerable<string> args)
         }
 
         app.UseMiddleware<ExceptionHandlingMiddleware>();
+        // Before RedirectIfNotApexMiddleware: RFC 8461 forbids redirects on the policy fetch
+        app.UseMiddleware<MtaStsMiddleware>();
         app.UseMiddleware<RedirectIfNotApexMiddleware>();
         app.UseMiddleware<CertesAcmeMiddleware>();
         app.UseMiddleware<CdnMiddleware>();

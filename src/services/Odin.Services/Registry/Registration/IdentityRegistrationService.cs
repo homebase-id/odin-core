@@ -159,9 +159,35 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
+        await EnsureManagedDomainRecords(prefix, apex);
+
+        _logger.LogInformation("Created managed domain {domain}", domain);
+    }
+
+    //
+
+    /// <summary>
+    /// (Re)writes a managed domain's records in the apex zone (REPLACE semantics, so
+    /// re-running converges - the CLI backfill uses this to apply new record types to
+    /// existing tenants). Deliberately no prefix-label assert: the configured label
+    /// count may have changed since the tenant signed up.
+    /// </summary>
+    public async Task EnsureManagedDomainRecords(string prefix, string apex)
+    {
+        var domain = new AsciiDomainName(prefix + "." + apex); // ctor validates
+
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
 
         var zoneId = apex + ".";
+
+        // An MX rrset REPLACE swaps the whole set, so all of a name's MX values must go
+        // in ONE call - group first, skip MX in the per-record loop below
+        foreach (var mxGroup in dnsConfig.Where(x => x.Type == "MX")
+                     .GroupBy(x => x.Name != "" ? x.Name + "." + prefix : prefix))
+        {
+            await _dnsRestClient.CreateMxRecords(zoneId, mxGroup.Key, mxGroup.Select(x => x.Value + "."));
+        }
+
         foreach (var record in dnsConfig)
         {
             var name = record.Name != "" ? record.Name + "." + prefix : prefix;
@@ -173,10 +199,15 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             {
                 await _dnsRestClient.CreateCnameRecords(zoneId, name, record.Value + ".");
             }
-            else if (record.Type is "ALIAS" or "NS")
+            else if (record.Type == "TXT")
+            {
+                await _dnsRestClient.CreateTxtRecords(zoneId, name, new[] { record.Value });
+            }
+            else if (record.Type is "ALIAS" or "NS" or "MX")
             {
                 // IGNORE - ALIAS is an instruction for third-party DNS hosts only;
-                // NS entries describe delegation of own-domains and never apply to managed domains
+                // NS entries describe delegation of own-domains and never apply to managed domains;
+                // MX records were grouped and written above
             }
             else
             {
@@ -184,8 +215,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 throw new OdinSystemException($"Unsupported record: {record.Type}");
             }
         }
-
-        _logger.LogInformation("Created managed domain {domain}", domain);
     }
 
     //
@@ -210,6 +239,15 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             else if (record.Type == "CNAME")
             {
                 await _dnsRestClient.DeleteCnameRecords(zoneId, name);
+            }
+            else if (record.Type == "MX")
+            {
+                // Deletes the whole rrset; repeating per MX value is a harmless no-op
+                await _dnsRestClient.DeleteMxRecords(zoneId, name);
+            }
+            else if (record.Type == "TXT")
+            {
+                await _dnsRestClient.DeleteTxtRecords(zoneId, name);
             }
             else if (record.Type is "ALIAS" or "NS")
             {
@@ -381,6 +419,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         // Populate (REPLACE semantics, so re-running converges on the correct records)
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
+
+        // An MX rrset REPLACE swaps the whole set, so all of a name's MX values must go
+        // in ONE call - group first, skip MX in the per-record loop below
+        foreach (var mxGroup in dnsConfig.Where(x => x.Type == "MX").GroupBy(x => x.Name))
+        {
+            await _dnsRestClient.CreateMxRecords(zoneId, mxGroup.Key, mxGroup.Select(x => x.Value + "."));
+        }
+
         foreach (var record in dnsConfig)
         {
             if (record.Type == "A")
@@ -391,10 +437,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             {
                 await _dnsRestClient.CreateCnameRecords(zoneId, record.Name, record.Value + ".");
             }
-            else if (record.Type is "ALIAS" or "NS")
+            else if (record.Type == "TXT")
+            {
+                await _dnsRestClient.CreateTxtRecords(zoneId, record.Name, new[] { record.Value });
+            }
+            else if (record.Type is "ALIAS" or "NS" or "MX")
             {
                 // IGNORE - in our own zone the apex A record is authoritative (no ALIAS needed);
-                // the zone's NS records were created by CreateZone
+                // the zone's NS records were created by CreateZone; MX was grouped and written above
             }
             else
             {
@@ -493,6 +543,15 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 else if (record.Type == "CNAME")
                 {
                     await _dnsRestClient.DeleteCnameRecords(zoneId, name);
+                }
+                else if (record.Type == "MX")
+                {
+                    // Deletes the whole rrset; repeating per MX value is a harmless no-op
+                    await _dnsRestClient.DeleteMxRecords(zoneId, name);
+                }
+                else if (record.Type == "TXT")
+                {
+                    await _dnsRestClient.DeleteTxtRecords(zoneId, name);
                 }
                 // ALIAS/NS: nothing to delete for managed domains
             }

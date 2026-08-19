@@ -1,6 +1,6 @@
 # Email phase: DNS records, key discovery via .well-known, and reverse DNS
 
-Status: design/plan — not yet implemented. Part 1 of the email design chain: this doc (DNS/discovery) → `docs/email-keys-plan.md` (keys, Stalwart, activation) → chat-kmp `EMAIL_APP.md` (the setup/key control-panel app). Outbound goes via an external relay (e.g. SendGrid) that forwards **already-signed** mail; the tables also carry self-sending values in case outbound ever moves in-house. Inbound lands at each tenant's own host (local Stalwart) in both cases.
+Status: the odin-core groundwork is implemented (consolidated `Email` config + provider seam, startup verifier, MX/TXT emission + MTA-STS unit — all inert until `Email:TenantMail:Enabled`); the DKIM/activation-time pieces, canary round-trip, monthly ride-along, and Email tab remain design, arriving with `docs/email-keys-plan.md`. Part 1 of the email design chain: this doc (DNS/discovery) → `docs/email-keys-plan.md` (keys, Stalwart, activation) → chat-kmp `EMAIL_APP.md` (the setup/key control-panel app). Outbound goes via an external relay (e.g. SendGrid) that forwards **already-signed** mail; the tables also carry self-sending values in case outbound ever moves in-house. Inbound lands at each tenant's own host (local Stalwart) in both cases.
 
 ## Design principles
 

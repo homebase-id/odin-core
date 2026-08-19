@@ -77,6 +77,12 @@ public interface IIdentityRegistrationService
     Task<bool> IsManagedDomainAvailable(string prefix, string apex, CancellationToken cancellationToken = default);
     public Task DeleteManagedDomain(string prefix, string apex);
     public Task CreateManagedDomain(string prefix, string apex);
+
+    /// <summary>
+    /// (Re)writes a managed domain's records in the apex zone; idempotent, no
+    /// prefix-label assert - the CLI backfill applies new record types with this.
+    /// </summary>
+    public Task EnsureManagedDomainRecords(string prefix, string apex);
     
     //
     // Own Domain

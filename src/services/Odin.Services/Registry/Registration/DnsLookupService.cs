@@ -9,6 +9,7 @@ using Odin.Core.Dns;
 using Odin.Core.Exceptions;
 using Odin.Core.Util;
 using Odin.Services.Configuration;
+using Odin.Services.Email;
 
 namespace Odin.Services.Registry.Registration;
 
@@ -127,7 +128,66 @@ public class DnsLookupService : IDnsLookupService
             });
         }
 
+        // Email records (docs/email-dns-plan.md), only while tenant mail is enabled.
+        // All Optional: they must never join the identity-validation success rule or the
+        // certificate DNS gate - the mta-sts CNAME would otherwise fail both for every
+        // tenant provisioned before the email era.
+        var tenantMail = _configuration.Email.TenantMail;
+        if (tenantMail.Enabled)
+        {
+            for (var i = 0; i < tenantMail.MxNodes.Count; i++)
+            {
+                var value = $"{(i + 1) * 10} {tenantMail.MxNodes[i]}";
+                result.Add(new DnsConfig
+                {
+                    Type = "MX",
+                    Name = "",
+                    Domain = domainName,
+                    Value = value,
+                    AltValue = value,
+                    Description = "MX Record (inbound mail)",
+                    Optional = true,
+                });
+            }
+
+            result.Add(EmailTxt(domainName, "",
+                $"v=spf1 include:{tenantMail.SpfIncludeTarget} -all", "SPF (authorized senders)"));
+            result.Add(EmailTxt(domainName, "_dmarc",
+                $"v=DMARC1; p=reject; rua=mailto:{tenantMail.DmarcReportEmail}", "DMARC policy"));
+            result.Add(EmailTxt(domainName, "_mta-sts",
+                $"v=STSv1; id={MtaStsPolicy.ComputeId(tenantMail.MxNodes)}", "MTA-STS (TLS enforcement)"));
+            result.Add(EmailTxt(domainName, "_smtp._tls",
+                $"v=TLSRPTv1; rua=mailto:{tenantMail.TlsReportEmail}", "TLS-RPT (TLS failure reports)"));
+
+            result.Add(new DnsConfig
+            {
+                Type = "CNAME",
+                Name = DnsConfigurationSet.PrefixMtaSts,
+                Domain = $"{DnsConfigurationSet.PrefixMtaSts}.{domainName}",
+                Value = dns.ApexAliasRecord,
+                AltValue = domainName,
+                Description = "MTA-STS policy host CNAME",
+                Optional = true,
+            });
+        }
+
         return result;
+    }
+
+    //
+
+    private static DnsConfig EmailTxt(string domainName, string name, string value, string description)
+    {
+        return new DnsConfig
+        {
+            Type = "TXT",
+            Name = name,
+            Domain = name == "" ? domainName : $"{name}.{domainName}",
+            Value = value,
+            AltValue = value,
+            Description = description,
+            Optional = true,
+        };
     }
 
     //
@@ -304,6 +364,11 @@ public class DnsLookupService : IDnsLookupService
     // internal for testing
     internal static bool AreDnsLookupsSuccessful(IReadOnlyCollection<DnsConfig> dnsConfigs)
     {
+        // Optional records (www-style extras, email records) never affect the verdict -
+        // this filter is load-bearing: the certificate DNS gate consumes this rule, and a
+        // failing optional CNAME (mta-sts on a manual-records tenant) must not block issuance
+        dnsConfigs = dnsConfigs.Where(x => !x.Optional).ToList();
+
         // Delegated mode: the NS entries verify the PARENT's delegation records (strict,
         // all-ours - see GetAuthoritativeDomainDnsStatusAsync). Verified delegation counts
         // as overall success even before the domain's zone exists on our servers: the zone
@@ -367,7 +432,9 @@ public class DnsLookupService : IDnsLookupService
             return false;
         }
 
-        foreach (var record in dnsConfig)
+        // Optional records (email extras) are excluded: this probe is keystroke-sensitive
+        // and their names (e.g. _dmarc) cannot pre-exist for a fresh managed prefix anyway
+        foreach (var record in dnsConfig.Where(x => !x.Optional))
         {
             if (record.Name != "")
             {
@@ -414,7 +481,7 @@ public class DnsLookupService : IDnsLookupService
         CancellationToken cancellationToken = default)
     {
         var result = DnsLookupRecordStatus.Unknown;
-        List<string> records;
+        List<string> records = [];
 
         var sw = new Stopwatch();
         sw.Start();
@@ -426,15 +493,21 @@ public class DnsLookupService : IDnsLookupService
             domain = label + "." + domain;
         }
 
-        // Bail if any AAAA records on domain
+        // Bail if any AAAA records on domain - address/alias records only: MX/TXT at the
+        // apex legitimately coexist with AAAA records
         var recordType = QueryType.AAAA;
-        var response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
-        if (response?.Answers.AaaaRecords().Any() == true)
+        IDnsQueryResponse? response = null;
+        if (type is "A" or "ALIAS" or "CNAME")
         {
-            records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? [];
-            result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
+            response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
+            if (response?.Answers.AaaaRecords().Any() == true)
+            {
+                records = response.Answers.AaaaRecords().Select(x => x.Address.ToString()).ToList() ?? [];
+                result = DnsLookupRecordStatus.AaaaRecordsNotSupported;
+            }
         }
-        else
+
+        if (result != DnsLookupRecordStatus.AaaaRecordsNotSupported)
         {
             switch (type)
             {
@@ -451,6 +524,23 @@ public class DnsLookupService : IDnsLookupService
                     response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
                     records = response?.Answers.CnameRecords().Select(x => x.CanonicalName.ToString()!.TrimEnd('.')).ToList() ?? [];
                     result = VerifyDnsValue(records, expectedValue, expectedAltValue);
+                    break;
+
+                case "MX":
+                    recordType = QueryType.MX;
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
+                    records = response?.Answers.MxRecords()
+                        .Select(x => $"{x.Preference} {x.Exchange.ToString()!.TrimEnd('.')}").ToList() ?? [];
+                    result = VerifyDnsValueContained(records, expectedValue);
+                    break;
+
+                case "TXT":
+                    recordType = QueryType.TXT;
+                    response = await _dnsClient.Query(resolvers, domain, recordType, options, _logger, cancellationToken: cancellationToken);
+                    // A long TXT value arrives as multiple <=255-byte character strings of one
+                    // record; concatenate before comparing
+                    records = response?.Answers.TxtRecords().Select(x => string.Concat(x.Text)).ToList() ?? [];
+                    result = VerifyDnsValueContained(records, expectedValue);
                     break;
 
                 default:
@@ -505,6 +595,24 @@ public class DnsLookupService : IDnsLookupService
             return DnsLookupRecordStatus.IncorrectValue;
         }
         return DnsLookupRecordStatus.Success;
+    }
+
+    //
+
+    // Set containment for record types where multiple values at one name are normal
+    // (multi-target MX, a foreign verification TXT beside our SPF at the apex): OUR
+    // value must be present; other values are none of our business.
+    private static DnsLookupRecordStatus VerifyDnsValueContained(
+        IReadOnlyCollection<string> records,
+        string expectedValue)
+    {
+        if (records.Count < 1)
+        {
+            return DnsLookupRecordStatus.DomainOrRecordNotFound;
+        }
+        return records.Any(x => string.Equals(x, expectedValue, System.StringComparison.OrdinalIgnoreCase))
+            ? DnsLookupRecordStatus.Success
+            : DnsLookupRecordStatus.IncorrectValue;
     }
 
     //
