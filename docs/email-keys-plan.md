@@ -20,7 +20,7 @@ The private-key perimeter is the Homebase server plus the owner — never the ma
 - **Storage split (hard requirement)**: Stalwart metadata/headers in the existing **PostgreSQL**; message **blobs on disk or (preferred) S3** - Stalwart supports an S3-compatible blob store, which fits the platform's existing S3 payload setup. **No mail blobs in Postgres.** Blobs are ciphertext (encryption-at-rest happens before storage), so S3 holds only encrypted objects.
 - **Encryption at rest**: Stalwart receives the tenant's public key and hybrid-encrypts every arriving plaintext message (random symmetric key, wrapped with the tenant's public key) before storage. Only ciphertext touches disk. This is server-assisted at-rest protection — the server sees plaintext briefly on arrival. True E2E for Homebase↔Homebase is sender-side encryption via DID/WKD discovery (DNS doc); both coexist.
 - **Outbound pipeline** - both entry paths converge on ONE signer, Stalwart (native per-domain DKIM signing; Homebase provisions the key and never sits in the send path):
-  - *First-party (chat-kmp)*: app -> Homebase send API -> submits into Stalwart -> Stalwart DKIM-signs -> relay.
+  - *Homebase-originated* (system mail for the tenant, future in-app sends): Homebase send API -> submits into Stalwart -> Stalwart DKIM-signs -> relay.
   - *Legacy clients (Thunderbird/FairEmail)*: SMTP submission to Stalwart (app-password auth) -> Stalwart DKIM-signs -> relay.
   - Homebase remains the DKIM AUTHORITY (generates at activation, stores the source-of-truth copy TLS-style, publishes the TXT, provisions/rotates the key in Stalwart via the wrapper) but is not a mail hop. The hard custody line stays absolute where it matters: **Stalwart never receives the E2E private key** - encryption-at-rest needs only the public key; decryption is client-side only.
 - Stalwart provides IMAP/SMTP/JMAP for standard clients; webmail (e.g. Bulwark) is a separate deployment, out of scope here.
@@ -69,7 +69,7 @@ Configuration joins the `Email` section (DNS doc): Stalwart base address + admin
 - **Autoconfig**: `https://<tenant>/.well-known/autoconfig/mail/config-v1.1.xml` — another anonymous controller beside WebFinger/DID/WKD. Pre-fills `%EMAILADDRESS%`; never contains secrets.
 - **Auth, short term**: app passwords — generated in Homebase, provisioned into Stalwart via the wrapper, revocable from the owner console.
 - **Auth, longer term**: OAuth2 against youAuth (the autoconfig file can point clients at the issuer). Separate work item.
-- chat-kmp is the first-party client and talks to Homebase/JMAP directly; Thunderbird/FairEmail-class clients use IMAP/SMTP with the above.
+- chat-kmp's email app is the setup/key control panel, not a mail client (chat-kmp `EMAIL_APP.md`): it activates email, manages aliases and keys, and exports the private key so Thunderbird/FairEmail-class clients - which do the actual reading/composing over IMAP/JMAP with the above - can decrypt.
 
 ## Verification hooks (extends the DNS doc's checks)
 
