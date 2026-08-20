@@ -194,6 +194,60 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
 
     //
+
+    /// <summary>
+    /// Writes per-tenant on-activation records (e.g. the DKIM TXT set) into wherever
+    /// the tenant's DNS records live: prefixed into the shared apex zone for managed
+    /// domains, into the tenant's own hosted zone otherwise. Returns false when the
+    /// tenant's DNS is not ours to write (manual-records/BYOD, or this host has no
+    /// PowerDNS access) - the caller then surfaces the records as instructions.
+    /// </summary>
+    public async Task<bool> WriteOnActivationRecords(AsciiDomainName domain, List<DnsConfig> records)
+    {
+        return await DispatchOnActivationRecords(domain, records, WriteDnsRecords);
+    }
+
+    /// <summary>
+    /// The delete counterpart of <see cref="WriteOnActivationRecords"/> (tenant
+    /// deletion / deactivation). Note that own-domain tenant deletion removes the
+    /// whole zone anyway; this matters for managed domains, whose on-activation
+    /// records would otherwise linger in the shared apex zone.
+    /// </summary>
+    public async Task<bool> DeleteOnActivationRecords(AsciiDomainName domain, List<DnsConfig> records)
+    {
+        return await DispatchOnActivationRecords(domain, records, DeleteDnsRecords);
+    }
+
+    private async Task<bool> DispatchOnActivationRecords(
+        AsciiDomainName domain,
+        List<DnsConfig> records,
+        Func<string, List<DnsConfig>, Func<DnsConfig, string>, Task> dispatch)
+    {
+        var domainName = domain.DomainName;
+
+        var apex = FindManagedApex(domainName);
+        if (apex != null)
+        {
+            if (string.IsNullOrEmpty(_configuration.Registry.PowerDnsApiKey))
+            {
+                return false;
+            }
+
+            var prefix = domainName[..^(apex.Length + 1)];
+            await dispatch(apex + ".", records, ManagedName(prefix));
+            return true;
+        }
+
+        if (await OwnDomainZoneExists(domain))
+        {
+            await dispatch(domainName + ".", records, record => record.Name);
+            return true;
+        }
+
+        return false;
+    }
+
+    //
     // Record dispatch - the single place a DnsConfig record type maps to rrset writes.
     // ALL populate/delete paths (own-domain zones, managed domains, tenant-deletion
     // cleanup, CLI backfills) go through these two methods, so a new record type is

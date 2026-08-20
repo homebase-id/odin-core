@@ -124,6 +124,13 @@ public static class DataImporter
             () => targetSystemDatabase.CreateScopedConnectionAsync(),
             logger, sourceSystemDatabase.Certificates.TableName);
 
+        // DkimKeys
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.DkimKeys.PagingByRowIdAsync,
+            r => targetSystemDatabase.DkimKeys.InsertAsync(r),
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.DkimKeys.TableName);
+
         // LastSeen (no created/modified columns -- timestamp column is preserved as a real parameter)
         totalRows += await ImportTableAsync(sourceSystemDatabase.LastSeen.PagingByRowIdAsync,
             r => targetSystemDatabase.LastSeen.InsertAsync(r), logger, sourceSystemDatabase.LastSeen.TableName);
@@ -182,7 +189,8 @@ public static class DataImporter
     }
 
     //
-    // Removes a single identity's footprint from the system database (Registrations + Certificates).
+    // Removes a single identity's footprint from the system database (Registrations +
+    // Certificates + DkimKeys).
     // Use this to undo the system-level rows that ImportAllSystemDataAsync committed for an
     // identity whose subsequent ImportIdentityOnlyAsync failed — restoring the precondition the
     // singular sqlite2pg-identity command needs to retry that identity.
@@ -203,10 +211,11 @@ public static class DataImporter
 
         var registrationRows = await targetSystemDatabase.Registrations.DeleteAsync(identityId);
         var certificateRows = await targetSystemDatabase.Certificates.DeleteAsync(new OdinId(identityDomain));
+        var dkimKeyRows = await targetSystemDatabase.DkimKeys.DeleteByDomainAsync(new OdinId(identityDomain));
 
         logger.LogInformation(
-            "Deleted {registrations} registration row(s) and {certificates} certificate row(s) for {identityDomain}",
-            registrationRows, certificateRows, identityDomain);
+            "Deleted {registrations} registration row(s), {certificates} certificate row(s) and {dkimKeys} DKIM key row(s) for {identityDomain}",
+            registrationRows, certificateRows, dkimKeyRows, identityDomain);
 
         systemTransaction.Commit();
     }
@@ -248,6 +257,20 @@ public static class DataImporter
             r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
             () => targetSystemDatabase.CreateScopedConnectionAsync(),
             logger, sourceSystemDatabase.Certificates.TableName);
+
+        // DkimKeys (only the rows for this identity)
+        totalRows += await ImportTimestampedTableAsync(sourceSystemDatabase.DkimKeys.PagingByRowIdAsync,
+            async r =>
+            {
+                if (r.domain.DomainName.Equals(identityDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    return await targetSystemDatabase.DkimKeys.InsertAsync(r);
+                }
+                return 0;
+            },
+            r => r.created.milliseconds, r => r.modified.milliseconds, r => r.rowId,
+            () => targetSystemDatabase.CreateScopedConnectionAsync(),
+            logger, sourceSystemDatabase.DkimKeys.TableName);
 
         return totalRows;
     }

@@ -473,6 +473,109 @@ public class IdentityRegistrationServiceTest
         _dnsRestClient.Invocations.Clear();
     }
 
+    // --- On-activation records (per-tenant values, e.g. DKIM TXT - docs/email-dns-plan.md) ---
+
+    private static List<DnsConfig> TwoOnActivationTxtRecords(string domainName) =>
+    [
+        new()
+        {
+            Type = "TXT", Name = "s1._domainkey", Domain = $"s1._domainkey.{domainName}",
+            Value = "v=DKIM1; k=ed25519; p=AAAA", AltValue = "v=DKIM1; k=ed25519; p=AAAA",
+            Description = "DKIM key (ed25519)", Optional = true,
+        },
+        new()
+        {
+            Type = "TXT", Name = "s2._domainkey", Domain = $"s2._domainkey.{domainName}",
+            Value = "v=DKIM1; k=rsa; p=BBBB", AltValue = "v=DKIM1; k=rsa; p=BBBB",
+            Description = "DKIM key (rsa)", Optional = true,
+        },
+    ];
+
+    [Test]
+    public async Task ItShouldWriteOnActivationRecordsAsPrefixedEntriesForManagedDomains()
+    {
+        _dnsRestClient.Invocations.Clear();
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var written = await registration.WriteOnActivationRecords(
+            D("frodo.baggins.demo.rocks"), TwoOnActivationTxtRecords("frodo.baggins.demo.rocks"));
+
+        Assert.That(written, Is.True);
+        _dnsRestClient.Verify(c => c.CreateTxtRecords(
+            "demo.rocks.", "s1._domainkey.frodo.baggins",
+            It.Is<IEnumerable<string>>(v => v.Single() == "v=DKIM1; k=ed25519; p=AAAA")), Times.Once);
+        _dnsRestClient.Verify(c => c.CreateTxtRecords(
+            "demo.rocks.", "s2._domainkey.frodo.baggins",
+            It.Is<IEnumerable<string>>(v => v.Single() == "v=DKIM1; k=rsa; p=BBBB")), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldWriteOnActivationRecordsIntoTheOwnDomainZone()
+    {
+        _dnsRestClient.Invocations.Clear();
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(true);
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var written = await registration.WriteOnActivationRecords(
+            D("frodo.example.com"), TwoOnActivationTxtRecords("frodo.example.com"));
+
+        Assert.That(written, Is.True);
+        _dnsRestClient.Verify(c => c.CreateTxtRecords(
+            "frodo.example.com.", "s1._domainkey", It.IsAny<IEnumerable<string>>()), Times.Once);
+        _dnsRestClient.Verify(c => c.CreateTxtRecords(
+            "frodo.example.com.", "s2._domainkey", It.IsAny<IEnumerable<string>>()), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldReportManualDnsTenantsAsNotWritable()
+    {
+        _dnsRestClient.Invocations.Clear();
+        // Not under a managed apex, and no hosted zone for the domain
+        _dnsRestClient.Setup(c => c.ZoneExists("frodo.example.com.")).ReturnsAsync(false);
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var written = await registration.WriteOnActivationRecords(
+            D("frodo.example.com"), TwoOnActivationTxtRecords("frodo.example.com"));
+
+        Assert.That(written, Is.False);
+        _dnsRestClient.Verify(c => c.CreateTxtRecords(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()), Times.Never);
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldReportManagedDomainsAsNotWritableWithoutPowerDnsAccess()
+    {
+        // An identity host without PowerDNS access cannot write the shared apex zone;
+        // the caller must fall back to showing the records as instructions
+        _dnsRestClient.Invocations.Clear();
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting(configured: false));
+        var written = await registration.WriteOnActivationRecords(
+            D("frodo.baggins.demo.rocks"), TwoOnActivationTxtRecords("frodo.baggins.demo.rocks"));
+
+        Assert.That(written, Is.False);
+        _dnsRestClient.VerifyNoOtherCalls();
+        _dnsRestClient.Invocations.Clear();
+    }
+
+    [Test]
+    public async Task ItShouldDeleteOnActivationRecordsForManagedDomains()
+    {
+        _dnsRestClient.Invocations.Clear();
+
+        var registration = CreateIdentityRegistrationService(ConfigurationWithZoneHosting());
+        var deleted = await registration.DeleteOnActivationRecords(
+            D("frodo.baggins.demo.rocks"), TwoOnActivationTxtRecords("frodo.baggins.demo.rocks"));
+
+        Assert.That(deleted, Is.True);
+        _dnsRestClient.Verify(c => c.DeleteTxtRecords("demo.rocks.", "s1._domainkey.frodo.baggins"), Times.Once);
+        _dnsRestClient.Verify(c => c.DeleteTxtRecords("demo.rocks.", "s2._domainkey.frodo.baggins"), Times.Once);
+        _dnsRestClient.Invocations.Clear();
+    }
+
     [Test]
     public async Task ItShouldDeleteAnExistingOwnDomainZoneAndNeverThrow()
     {
