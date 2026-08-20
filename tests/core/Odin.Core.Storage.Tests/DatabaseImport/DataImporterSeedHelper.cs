@@ -59,6 +59,7 @@ internal static class DataImporterSeedHelper
     {
         await SeedJobsAsync(db);
         await SeedCertificatesAsync(db, identityDomain);
+        await SeedDkimKeysAsync(db, identityDomain);
         await SeedLastSeenAsync(db);
         await SeedRegistrationsAsync(db, identityDomain, identityId);
         await SeedSettingsAsync(db);
@@ -378,6 +379,20 @@ internal static class DataImporterSeedHelper
             lastAttempt = UnixTimeUtc.Now(),
             correlationId = "seed-correlation",
             lastError = null,
+        });
+    }
+
+    private static async Task SeedDkimKeysAsync(SystemDatabase db, string identityDomain)
+    {
+        // Same per-identity filter story as Certificates: the domain must match the one
+        // passed to ImportIdentityAsync.
+        await db.DkimKeys.InsertAsync(new DkimKeysRecord
+        {
+            domain = new OdinId(identityDomain),
+            selector = "s1",
+            algorithm = "ed25519",
+            publicKey = "seed-public-key",
+            privateKey = "seed-encrypted-private-key",
         });
     }
 
