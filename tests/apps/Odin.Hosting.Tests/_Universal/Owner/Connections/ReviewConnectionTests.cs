@@ -10,7 +10,11 @@ using Odin.Core.Exceptions;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Base;
 using Odin.Services.Authorization.Permissions;
+using Odin.Hosting.Tests._Universal.ApiClient.Connections;
 using Odin.Hosting.Tests._Universal.ApiClient.Owner;
+using Odin.Services.Drives;
+using Odin.Services.Membership.Connections;
+using Odin.Services.Membership.Connections.Requests;
 using Odin.Services.Membership.Circles;
 
 namespace Odin.Hosting.Tests._Universal.Owner.Connections;
@@ -30,7 +34,8 @@ public class ReviewConnectionTests
         _scaffold.RunBeforeAnyTests(testIdentities: new List<TestIdentity>
         {
             TestIdentities.Frodo,
-            TestIdentities.Samwise
+            TestIdentities.Samwise,
+            TestIdentities.Merry
         });
     }
 
@@ -187,6 +192,108 @@ public class ReviewConnectionTests
         await Cleanup();
     }
 
+    [Test]
+    public async Task IntroducedConnectionIsNotStampedReviewed()
+    {
+        // The negative half of OwnerAcceptedConnectionIsStampedReviewed. An introduction forms without
+        // the owner present, so it must stay unreviewed until they act -- this is what keeps the legacy
+        // Vetted flag exact for auto-connections.
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+
+        await frodo.Connections.SendConnectionRequest(sam.OdinId, []);
+        await frodo.Connections.SendConnectionRequest(merry.OdinId, []);
+        await sam.Connections.AcceptConnectionRequest(frodo.OdinId);
+        await merry.Connections.AcceptConnectionRequest(frodo.OdinId);
+
+        await frodo.Connections.DeleteAllIntroductions();
+        await sam.Connections.DeleteAllIntroductions();
+        await merry.Connections.DeleteAllIntroductions();
+
+        var introResponse = await frodo.Connections.SendIntroductions(new IntroductionGroup
+        {
+            Message = "meet each other",
+            Recipients = [TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId]
+        });
+        ClassicAssert.IsTrue(introResponse.IsSuccessStatusCode);
+
+        await frodo.DriveRedux.WaitForEmptyOutbox(SystemDriveConstants.TransientTempDrive);
+        await sam.Connections.AwaitIntroductionsProcessing();
+        await merry.Connections.AwaitIntroductionsProcessing();
+
+        var samToMerry = await merry.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
+        ClassicAssert.IsTrue(samToMerry.IsSuccessStatusCode);
+        ClassicAssert.AreEqual(ConnectionStatus.Connected, samToMerry.Content.Status);
+
+        // Sanity: this really is the auto-connect path, not a direct accept.
+        ClassicAssert.IsTrue(
+            samToMerry.Content.AccessGrant.CircleGrants.Exists(cg => cg.CircleId == SystemCircleConstants.AutoConnectionsCircleId),
+            "expected the introduced identity to land in the AutoConnections circle");
+
+        ClassicAssert.IsNull(samToMerry.Content.ReviewedAt, "an introduction must not stamp the review");
+        ClassicAssert.IsFalse(samToMerry.Content.Vetted, "an unreviewed auto-connection must not read as vetted");
+
+        // ...and the owner reviewing it is what promotes it.
+        var review = await merry.Network.ReviewConnection(TestIdentities.Samwise.OdinId);
+        ClassicAssert.IsTrue(review.IsSuccessStatusCode, $"review failed: {review.Error?.Content}");
+
+        var afterReview = await merry.Network.GetConnectionInfo(TestIdentities.Samwise.OdinId);
+        ClassicAssert.IsNotNull(afterReview.Content.ReviewedAt);
+
+        await FullCleanup();
+    }
+
+    [Test]
+    public async Task GuestViewerGetsIdentitiesOnlyNotTheOwnersJudgments()
+    {
+        var (frodo, sam) = await Connect();
+
+        // Frodo reviews Sam, so there is a judgment on the record for a guest to leak.
+        await frodo.Network.ReviewConnection(sam.OdinId);
+
+        // Sam logs in to Frodo's guest API holding ReadConnections -- the tier that
+        // AllConnectedIdentitiesCanViewConnections grants by default.
+        var guestContext = new ConnectedIdentityLoggedInOnGuestApi(
+            sam.OdinId,
+            new TestPermissionKeyList(PermissionKeys.ReadConnections));
+
+        await guestContext.Initialize(frodo);
+
+        try
+        {
+            var asGuest = new UniversalCircleNetworkApiClient(frodo.OdinId, guestContext.GetFactory());
+            var guestView = await asGuest.GetConnectedIdentitiesOverGet();
+
+            ClassicAssert.IsTrue(guestView.IsSuccessStatusCode,
+                $"guest read failed: {guestView.StatusCode} {guestView.Error?.Content}");
+
+            var results = guestView.Content.Results;
+            ClassicAssert.IsNotEmpty(results, "the guest should still see the list itself");
+
+            foreach (var row in results)
+            {
+                ClassicAssert.IsNotNull(row.OdinId, "the identity itself is what a guest may see");
+                ClassicAssert.IsNull(row.ReviewedAt, "the review stamp is owner-private");
+                ClassicAssert.IsFalse(row.Vetted, "the legacy flag must not leak the stamp either");
+                ClassicAssert.IsNull(row.IntroducerOdinId, "who introduced them is owner-private");
+                ClassicAssert.IsNull(row.AccessGrant, "what they were granted is owner-private");
+                ClassicAssert.IsFalse(row.HasVerificationHash);
+            }
+
+            // The owner's own view of the same list is unchanged.
+            var ownerView = await frodo.Network.GetConnectionInfo(sam.OdinId);
+            ClassicAssert.IsNotNull(ownerView.Content.ReviewedAt, "the owner still sees the stamp");
+            ClassicAssert.IsNotNull(ownerView.Content.AccessGrant, "the owner still sees the grants");
+        }
+        finally
+        {
+            await guestContext.Cleanup();
+        }
+
+        await Cleanup();
+    }
+
     private async Task<(OwnerApiClientRedux frodo, OwnerApiClientRedux sam)> Connect()
     {
         var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
@@ -205,5 +312,19 @@ public class ReviewConnectionTests
 
         await frodo.Connections.DisconnectFrom(sam.Identity.OdinId);
         await sam.Connections.DisconnectFrom(frodo.Identity.OdinId);
+    }
+
+    private async Task FullCleanup()
+    {
+        var frodo = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Frodo);
+        var sam = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Samwise);
+        var merry = _scaffold.CreateOwnerApiClientRedux(TestIdentities.Merry);
+
+        await frodo.Connections.DisconnectFrom(sam.Identity.OdinId);
+        await frodo.Connections.DisconnectFrom(merry.Identity.OdinId);
+        await sam.Connections.DisconnectFrom(frodo.Identity.OdinId);
+        await sam.Connections.DisconnectFrom(merry.Identity.OdinId);
+        await merry.Connections.DisconnectFrom(frodo.Identity.OdinId);
+        await merry.Connections.DisconnectFrom(sam.Identity.OdinId);
     }
 }

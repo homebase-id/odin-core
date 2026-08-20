@@ -53,5 +53,14 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
 
         [Post(RootPath + "/unreview")]
         Task<ApiResponse<HttpContent>> UnreviewConnection([Body] OdinIdRequest request);
+
+        /// <summary>
+        /// The GET shape served on the guest route (and the app route) by
+        /// <c>ClientToken.Shared.Circles.CircleNetworkController</c>. Distinct from the owner/app POST
+        /// above, and the only way to exercise viewer-scoped redaction from a guest token.
+        /// </summary>
+        [Get(RootPath + "/connected")]
+        Task<ApiResponse<CursoredResult<RedactedIdentityConnectionRegistration>>> GetConnectedIdentitiesOverGet(
+            int count, string cursor);
     }
 }
