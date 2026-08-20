@@ -22,6 +22,12 @@ namespace Odin.Services.Email.Dkim;
 /// </summary>
 public interface IDkimStore
 {
+    /// <summary>
+    /// False when Email:DkimStorageKey is absent - Save/Get then throw loudly.
+    /// Unattended callers (status, deletion ride-alongs) check this first.
+    /// </summary>
+    bool IsConfigured { get; }
+
     /// <summary>Upserts the domain's selector set (activation and rotation).</summary>
     Task SaveKeysAsync(string domain, IReadOnlyCollection<DkimKey> keys);
 
@@ -40,6 +46,8 @@ public class DkimStore(
     DkimStorageKey dkimStorageKey) : IDkimStore
 {
     private readonly byte[] _storageKey = dkimStorageKey.StorageKey;
+
+    public bool IsConfigured => _storageKey.Length > 0;
 
     // Signed on save, verified on load: proves the decrypted private key still
     // pairs with the stored public key (the CertificateStore ThrowIfBadCertificate

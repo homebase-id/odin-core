@@ -408,6 +408,7 @@ public static class TenantServices
         cb.RegisterType<WebfingerService>().As<IWebfingerService>().InstancePerLifetimeScope();
         cb.RegisterType<DidService>().As<IDidService>().InstancePerLifetimeScope();
         cb.RegisterType<EmailPublicKeyService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<MailActivationService>().AsSelf().InstancePerLifetimeScope();
         cb.RegisterType<HomebasePublicPageService>().As<HomebasePublicPageService>().InstancePerLifetimeScope();
         cb.RegisterType<LinkPreviewAuthenticationService>().As<LinkPreviewAuthenticationService>().InstancePerLifetimeScope();
 
