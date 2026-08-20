@@ -19,6 +19,12 @@ public interface IMailTestHttpClientForOwner
 
     [Post(Endpoint + "/app-password")]
     Task<ApiResponse<AppPasswordResponse>> ProvisionAppPassword([Body] AppPasswordRequest request);
+
+    [Get(Endpoint + "/verify")]
+    Task<ApiResponse<EmailHealthVerifier.Result>> Verify();
+
+    [Post(Endpoint + "/challenge")]
+    Task<ApiResponse<MailRoundTripChallenge>> CreateChallenge();
 }
 
 public class MailApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
@@ -50,5 +56,19 @@ public class MailApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
             PrimaryEmailAddress = primaryEmailAddress,
             Label = label,
         });
+    }
+
+    public async Task<ApiResponse<EmailHealthVerifier.Result>> Verify()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IMailTestHttpClientForOwner>(client, sharedSecret);
+        return await svc.Verify();
+    }
+
+    public async Task<ApiResponse<MailRoundTripChallenge>> CreateChallenge()
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IMailTestHttpClientForOwner>(client, sharedSecret);
+        return await svc.CreateChallenge();
     }
 }

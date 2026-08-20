@@ -127,6 +127,32 @@ public class MailActivationService(
         return password;
     }
 
+    /// <summary>
+    /// The server half of the owner-console encrypt/decrypt round-trip check
+    /// (docs/email-keys-plan.md): a random nonce encrypted to the PUBLISHED public
+    /// certificate, plus the nonce's SHA-256. The client decrypts with the private
+    /// keyring from the email drive and compares hashes - failure is critical-grade
+    /// (incoming mail is being encrypted to a key the owner cannot decrypt), and no
+    /// unattended check can catch it. Stateless: the server keeps nothing.
+    /// </summary>
+    public async Task<MailRoundTripChallenge> CreateRoundTripChallengeAsync()
+    {
+        var publishedKey = await emailPublicKeyService.GetPublishedKeyAsync();
+        if (publishedKey == null)
+        {
+            throw new OdinClientException("Email is not activated");
+        }
+
+        var nonce = ByteArrayUtil.GetRndByteArray(32);
+        var encrypted = Odin.Core.Cryptography.Pgp.OpenPgpKeyManagement.Encrypt(nonce, publishedKey.PublicCertificateArmored);
+
+        return new MailRoundTripChallenge
+        {
+            EncryptedNonceBase64 = Convert.ToBase64String(encrypted),
+            NonceSha256Base64 = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(nonce)),
+        };
+    }
+
     //
 
     private void ThrowIfTenantMailDisabled()
@@ -151,6 +177,15 @@ public class MailActivationResult
 {
     public bool DnsRecordsWritten { get; init; }
     public List<DnsConfig> DkimRecords { get; init; } = [];
+}
+
+public class MailRoundTripChallenge
+{
+    /// <summary>OpenPGP message holding the nonce, encrypted to the published certificate.</summary>
+    public string EncryptedNonceBase64 { get; init; } = "";
+
+    /// <summary>SHA-256 of the nonce - what a successful client-side decryption must hash to.</summary>
+    public string NonceSha256Base64 { get; init; } = "";
 }
 
 public class MailStatusResult

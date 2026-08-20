@@ -144,6 +144,41 @@ public class MailActivationTests
     }
 
     [Test]
+    public async Task ItShouldRoundTripTheChallengeAndAnswerVerify()
+    {
+        var client = new MailApiClient(_scaffold.OldOwnerApi, TestIdentities.Frodo);
+
+        // Not activated -> challenge refused
+        var refused = await client.CreateChallenge();
+        Assert.That(refused.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(PrimaryAddress);
+        var activation = await client.Activate(material.PublicCertificateArmored, PrimaryAddress);
+        Assert.That(activation.IsSuccessStatusCode, Is.True);
+
+        // The full owner round-trip check, exactly as the app performs it: decrypt the
+        // challenge with the private keyring and compare hashes
+        var challenge = await client.CreateChallenge();
+        Assert.That(challenge.IsSuccessStatusCode, Is.True);
+
+        var nonce = OpenPgpKeyManagement.Decrypt(
+            Convert.FromBase64String(challenge.Content!.EncryptedNonceBase64), material.SecretKeyArmored);
+        var nonceHash = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(nonce));
+        Assert.That(nonceHash, Is.EqualTo(challenge.Content.NonceSha256Base64));
+
+        // A fresh challenge is a fresh nonce
+        var second = await client.CreateChallenge();
+        Assert.That(second.Content!.EncryptedNonceBase64, Is.Not.EqualTo(challenge.Content.EncryptedNonceBase64));
+
+        // The verify endpoint answers with findings for the activated tenant; the
+        // finding logic itself is unit-tested (EmailHealthVerifierTest) - live DNS
+        // and surface reachability vary by environment, so only the shape is asserted
+        var verify = await client.Verify();
+        Assert.That(verify.IsSuccessStatusCode, Is.True);
+        Assert.That(verify.Content!.Activated, Is.True);
+    }
+
+    [Test]
     public async Task ItShouldRejectBadInput()
     {
         var client = new MailApiClient(_scaffold.OldOwnerApi, TestIdentities.Frodo);

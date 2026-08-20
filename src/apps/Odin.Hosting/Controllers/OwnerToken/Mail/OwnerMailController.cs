@@ -15,7 +15,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Mail
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.MailV1)]
     [ApiExplorerSettings(GroupName = "owner-v1")]
-    public class OwnerMailController(MailActivationService mailActivationService) : OdinControllerBase
+    public class OwnerMailController(
+        MailActivationService mailActivationService,
+        EmailHealthVerifier emailHealthVerifier) : OdinControllerBase
     {
         [HttpPost("activate")]
         public async Task<MailActivationResult> Activate([FromBody] ActivateMailRequest request)
@@ -27,6 +29,27 @@ namespace Odin.Hosting.Controllers.OwnerToken.Mail
         public async Task<MailStatusResult> GetStatus()
         {
             return await mailActivationService.GetStatusAsync();
+        }
+
+        /// <summary>
+        /// On-demand live verification for the Email tab: DKIM pair proof against the
+        /// live DNS TXT + public-key drift across the publication surfaces.
+        /// </summary>
+        [HttpGet("verify")]
+        public async Task<EmailHealthVerifier.Result> Verify()
+        {
+            return await emailHealthVerifier.VerifyAsync(HttpContext.RequestAborted);
+        }
+
+        /// <summary>
+        /// Server half of the encrypt/decrypt round-trip check: the client decrypts
+        /// the returned OpenPGP message with the keyring from the email drive and
+        /// compares the hash. See MailActivationService.CreateRoundTripChallengeAsync.
+        /// </summary>
+        [HttpPost("challenge")]
+        public async Task<MailRoundTripChallenge> CreateChallenge()
+        {
+            return await mailActivationService.CreateRoundTripChallengeAsync();
         }
 
         [HttpPost("app-password")]
