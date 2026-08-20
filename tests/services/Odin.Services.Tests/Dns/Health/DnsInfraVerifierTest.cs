@@ -47,13 +47,18 @@ public class DnsInfraVerifierTest
         _dnssecLookup.Reset();
     }
 
-    private DnsInfraVerifier CreateVerifier(OdinConfiguration.EmailSection? email = null)
+    private DnsInfraVerifier CreateVerifier(
+        OdinConfiguration.EmailSection? email = null,
+        params string[] managedApexes)
     {
         var configuration = new OdinConfiguration
         {
             Registry = new OdinConfiguration.RegistrySection
             {
                 DnsConfigurationSet = new DnsConfigurationSet(ApexIp, Alias),
+                ManagedDomainApexes = managedApexes
+                    .Select(x => new OdinConfiguration.RegistrySection.ManagedDomainApex { Apex = x })
+                    .ToList(),
             },
             Email = email ?? new OdinConfiguration.EmailSection(),
         };
@@ -235,6 +240,39 @@ public class DnsInfraVerifierTest
         Assert.That(result.Errors, Is.Empty);
         Assert.That(result.Warnings.Single(), Does.Contain("enclosing zone"));
         _dnssecLookup.VerifyNoOtherCalls();
+    }
+
+    //
+    // Managed domain apexes
+    //
+
+    [Test]
+    public async Task ItShouldWarnWhenAManagedDomainApexIsNotAnchored()
+    {
+        // Tenants under the apex inherit its DNSSEC state wholesale, so an unanchored
+        // apex silently voids DNSSEC for every one of them
+        SetupHealthyServerHostname();
+        SetupZoneApex("demo.rocks", "demo.rocks");
+        _dnssecLookup
+            .Setup(x => x.GetZoneDnsKeysAsync("demo.rocks", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var result = await CreateVerifier(managedApexes: "demo.rocks").VerifyAsync();
+
+        Assert.That(result.Errors, Is.Empty);
+        Assert.That(result.Warnings.Single(), Does.Contain("managed domain apex 'demo.rocks'"));
+    }
+
+    [Test]
+    public async Task ItShouldPassAnchoredManagedDomainApexes()
+    {
+        SetupHealthyServerHostname();
+        SetupZoneApex("demo.rocks", "demo.rocks");
+        SetupAnchoredZone("demo.rocks");
+
+        var result = await CreateVerifier(managedApexes: "demo.rocks").VerifyAsync();
+
+        Assert.That(result.IsClean, Is.True);
     }
 
     //

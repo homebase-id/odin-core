@@ -15,10 +15,12 @@ namespace Odin.Services.Dns.Health;
 
 /// <summary>
 /// Global DNS infrastructure checks run by StartupVerificationBackgroundService: the
-/// hostname identities alias/CNAME to, and (once tenant mail is enabled) the MX nodes.
-/// DNSSEC validation follows CNAME chains, so an unsigned host zone caps every
-/// manual-records tenant's chain of trust (docs/byod-dnssec-plan.md) and blocks DANE
-/// for SMTP - drift here is invisible until it bites, hence a boot-time check.
+/// hostname identities alias/CNAME to, the managed domain apexes offered at signup,
+/// and (once tenant mail is enabled) the MX nodes. DNSSEC validation follows CNAME
+/// chains, so an unsigned host zone caps every manual-records tenant's chain of trust
+/// (docs/byod-dnssec-plan.md), and a managed-domain tenant's DNSSEC is entirely
+/// Inherited from its apex zone - an unanchored apex silently voids it for every
+/// tenant under it. Drift here is invisible until it bites, hence a boot-time check.
 /// Generic public-DNS lookups only - never the PowerDNS API.
 /// </summary>
 public class DnsInfraVerifier(
@@ -42,6 +44,7 @@ public class DnsInfraVerifier(
     /// <summary>False when configuration gives this verifier nothing to check.</summary>
     public bool HasChecks =>
         !string.IsNullOrWhiteSpace(configuration.Registry.DnsConfigurationSet.ApexAliasRecord) ||
+        configuration.Registry.ManagedDomainApexes.Count > 0 ||
         MxNodesToCheck.Count > 0;
 
     private List<string> MxNodesToCheck =>
@@ -65,6 +68,17 @@ public class DnsInfraVerifier(
         {
             hosts.Add((alias, $"server hostname '{alias}'"));
             await VerifyServerHostnameResolutionAsync(alias, result, cancellationToken);
+        }
+
+        // Tenants under a managed apex are not zone cuts of their own - their DNSSEC
+        // status is Inherited from the apex zone, so the apex is what must be anchored
+        foreach (var apex in configuration.Registry.ManagedDomainApexes)
+        {
+            var domain = apex.Apex.Trim().TrimEnd('.').ToLowerInvariant();
+            if (domain != "")
+            {
+                hosts.Add((domain, $"managed domain apex '{domain}'"));
+            }
         }
 
         foreach (var node in MxNodesToCheck)
