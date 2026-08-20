@@ -5,6 +5,7 @@ ARG TARGETARCH
 WORKDIR /build
 
 COPY ./common-project.props ./
+COPY ./Directory.Build.targets ./
 
 # Copy project files for restoring
 COPY src/core/Odin.Core/Odin.Core.csproj                          src/core/Odin.Core/
