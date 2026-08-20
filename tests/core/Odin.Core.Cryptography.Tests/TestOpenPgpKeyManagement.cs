@@ -101,6 +101,24 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
+        public void EncryptionSubkeyExtractsAsP384SubjectPublicKeyInfo()
+        {
+            var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId);
+
+            var spkiDer = OpenPgpKeyManagement.GetEncryptionSubkeySpkiDer(material.PublicCertificateArmored);
+            var publicKeyParams = (ECPublicKeyParameters)Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(spkiDer);
+
+            ClassicAssert.AreEqual(384, publicKeyParams.Parameters.Curve.FieldSize);
+
+            // And it is the subkey, not the primary: match against the ring's encryption key
+            using var stream = new MemoryStream(Encoding.ASCII.GetBytes(material.PublicCertificateArmored));
+            var ring = new PgpPublicKeyRing(PgpUtilities.GetDecoderStream(stream));
+            var subkey = ring.GetPublicKeys().Cast<PgpPublicKey>().Single(k => !k.IsMasterKey);
+            var subkeyParams = (ECPublicKeyParameters)subkey.GetKey();
+            ClassicAssert.AreEqual(subkeyParams.Q, publicKeyParams.Q);
+        }
+
+        [Test]
         public void TwoGenerationsProduceDistinctKeys()
         {
             var first = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId);
