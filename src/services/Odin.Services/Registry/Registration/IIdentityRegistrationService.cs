@@ -128,6 +128,19 @@ public interface IIdentityRegistrationService
     /// removed from the shared apex zone, own domains get their zone deleted. Never throws.
     /// </summary>
     Task DeleteDnsRecordsForDomain(AsciiDomainName domain);
+
+    /// <summary>
+    /// Writes per-tenant on-activation records (e.g. the DKIM TXT set) into wherever the
+    /// tenant's records live (managed apex zone or own hosted zone). Returns false when
+    /// the tenant's DNS is not ours to write - surface the records as instructions instead.
+    /// </summary>
+    Task<bool> WriteOnActivationRecords(AsciiDomainName domain, List<DnsConfig> records);
+
+    /// <summary>
+    /// Delete counterpart of <see cref="WriteOnActivationRecords"/> (deactivation and
+    /// managed-domain tenant deletion).
+    /// </summary>
+    Task<bool> DeleteOnActivationRecords(AsciiDomainName domain, List<DnsConfig> records);
     
     //
     // OldHelpers
