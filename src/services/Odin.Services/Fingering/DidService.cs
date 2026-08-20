@@ -1,7 +1,10 @@
 using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Pgp;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Services.Base;
+using Odin.Services.Email;
 using Odin.Services.EncryptionKeyService;
 using Odin.Services.Optimization.Cdn;
 using System.Collections.Generic;
@@ -27,7 +30,8 @@ public interface IDidService
 public class DidService(
     OdinContext context,
     StaticFileContentService staticFileContentService,
-    PublicPrivateKeyService publicKeyService)
+    PublicPrivateKeyService publicKeyService,
+    EmailPublicKeyService emailPublicKeyService)
     : IDidService
 {
     public async Task<DidWebResponse?> GetDidWebAsync()
@@ -66,6 +70,24 @@ public class DidService(
             ],
             Authentication = [$"did:web:{domain}#key-authentication"]
         };
+
+        // Email E2E encryption key (docs/email-keys-plan.md): published at email
+        // activation; senders discover it here (and via WKD) for sender-side encryption
+        var publishedEmailKey = await emailPublicKeyService.GetPublishedKeyAsync();
+        if (publishedEmailKey != null)
+        {
+            var spkiDer = OpenPgpKeyManagement.GetEncryptionSubkeySpkiDer(publishedEmailKey.PublicCertificateArmored);
+            var keyAgreementJwk = new EccPublicKeyData { publicKey = spkiDer }.PublicKeyJwk();
+
+            result.VerificationMethod.Add(new DidWebVerificationMethod
+            {
+                Id = $"did:web:{domain}#key-agreement",
+                Type = "JsonWebKey2020",
+                Controller = $"did:web:{domain}",
+                PublicKeyJwk = OdinSystemSerializer.DeserializeOrThrow<DidWebVerificationMethod.TPublicKeyJwk>(keyAgreementJwk)
+            });
+            result.KeyAgreement = [$"did:web:{domain}#key-agreement"];
+        }
 
         if (profile.Name != null)
         {
@@ -159,6 +181,10 @@ public class DidWebResponse
     [JsonPropertyName("authentication")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? Authentication { get; set; }
+
+    [JsonPropertyName("keyAgreement")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? KeyAgreement { get; set; }
 
     [JsonPropertyName("service")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
