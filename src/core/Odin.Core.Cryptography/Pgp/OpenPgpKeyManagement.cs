@@ -8,6 +8,7 @@ using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.X509;
 
 namespace Odin.Core.Cryptography.Pgp;
 
@@ -182,6 +183,16 @@ public static class OpenPgpKeyManagement
     public static string GetFingerprintHex(string publicCertificateArmored)
     {
         return Convert.ToHexString(ParsePublicKeyRing(publicCertificateArmored).GetPublicKey().GetFingerprint());
+    }
+
+    /// <summary>
+    /// The encryption subkey as a standard SubjectPublicKeyInfo DER (P-384 point) -
+    /// the form non-OpenPGP consumers want, e.g. the DID document's keyAgreement JWK.
+    /// </summary>
+    public static byte[] GetEncryptionSubkeySpkiDer(string publicCertificateArmored)
+    {
+        var encryptionKey = FindEncryptionKey(publicCertificateArmored);
+        return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(encryptionKey.GetKey()).GetDerEncoded();
     }
 
     //

@@ -238,7 +238,21 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return true;
         }
 
-        if (await OwnDomainZoneExists(domain))
+        // A failed probe (PowerDNS unreachable or placeholder-configured) degrades to
+        // the instructions path rather than failing activation - activation is
+        // idempotent and the periodic verification flags missing records later
+        bool zoneExists;
+        try
+        {
+            zoneExists = await OwnDomainZoneExists(domain);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "Cannot probe for a hosted zone for {domain}; treating its records as not writable", domain);
+            return false;
+        }
+
+        if (zoneExists)
         {
             await dispatch(domainName + ".", records, record => record.Name);
             return true;

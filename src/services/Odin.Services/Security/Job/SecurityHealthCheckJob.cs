@@ -78,6 +78,27 @@ public class SecurityHealthCheckJob(
 
             var odinContext = BuildOdinContext(Data.Tenant);
 
+            // Email health ride-along (docs/email-keys-plan.md "Verification hooks"):
+            // DKIM pair proof against live DNS + public-key drift across WKD/DID.
+            // Self-gates on activation; best-effort - never blocks the security check.
+            try
+            {
+                var emailHealthVerifier = scope.Resolve<Odin.Services.Email.EmailHealthVerifier>();
+                var emailHealth = await emailHealthVerifier.VerifyAsync(cancellationToken);
+                foreach (var error in emailHealth.Errors)
+                {
+                    logger.LogError("{tenant} email health: {error}", Data.Tenant, error);
+                }
+                foreach (var warning in emailHealth.Warnings)
+                {
+                    logger.LogWarning("{tenant} email health: {warning}", Data.Tenant, warning);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "{tenant} email health check failed to run", Data.Tenant);
+            }
+
             var recoveryInfo = await RunHealthCheck(scope, odinContext);
             if (null != recoveryInfo)
             {

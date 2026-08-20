@@ -33,4 +33,33 @@ public static class DkimDnsRecords
 
         return result;
     }
+
+    /// <summary>
+    /// The record list for DELETING a domain's DKIM records without touching the key
+    /// store: deletion dispatches on record type + name only, and the selector set is
+    /// fixed (s1/s2), so no decryption - and no Email:DkimStorageKey - is needed.
+    /// Used by the tenant-deletion ride-along.
+    /// </summary>
+    public static List<DnsConfig> DeletionConfigs(string domainName)
+    {
+        return
+        [
+            DeletionConfig(domainName, DkimKeyGenerator.Ed25519Selector),
+            DeletionConfig(domainName, DkimKeyGenerator.RsaSelector),
+        ];
+    }
+
+    private static DnsConfig DeletionConfig(string domainName, string selector)
+    {
+        var name = $"{selector}._domainkey";
+        return new DnsConfig
+        {
+            Type = "TXT",
+            Name = name,
+            Domain = $"{name}.{domainName}",
+            Value = "", // unused on delete
+            Description = $"DKIM key ({selector})",
+            Optional = true,
+        };
+    }
 }

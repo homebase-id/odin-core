@@ -7,6 +7,8 @@ using Odin.Core.Serialization;
 using Odin.Services.JobManagement;
 using Odin.Services.JobManagement.Jobs;
 using Odin.Core.Util;
+using Odin.Services.Email.Dkim;
+using Odin.Services.Email.Mailbox;
 using Odin.Services.Registry;
 using Odin.Services.Registry.Registration;
 
@@ -21,7 +23,9 @@ public class DeleteTenantJobData
 public class DeleteTenantJob(
     ILogger<DeleteTenantJob> logger,
     IIdentityRegistry identityRegistry,
-    IIdentityRegistrationService identityRegistrationService) : AbstractJob
+    IIdentityRegistrationService identityRegistrationService,
+    IMailboxProvider mailboxProvider,
+    IDkimStore dkimStore) : AbstractJob
 {
     public static readonly Guid JobTypeId = Guid.Parse("324fa88f-2ef6-404a-a511-9ef65ea841af");
     public override string JobType => JobTypeId.ToString();
@@ -39,6 +43,22 @@ public class DeleteTenantJob(
         var sw = Stopwatch.StartNew();
         await identityRegistry.ToggleDisabled(Data.Domain, true);
         await identityRegistry.DeleteRegistration(Data.Domain);
+        // Email ride-along (docs/email-keys-plan.md): mailbox + DKIM cleanup,
+        // best-effort like the DNS cleanup below - never blocks deletion
+        try
+        {
+            await mailboxProvider.DeleteMailboxAsync(Data.Domain);
+            // Managed domains would otherwise keep their DKIM TXT rows in the shared
+            // apex zone (own-domain zones are deleted wholesale below)
+            await identityRegistrationService.DeleteOnActivationRecords(
+                new AsciiDomainName(Data.Domain), DkimDnsRecords.DeletionConfigs(Data.Domain));
+            await dkimStore.DeleteKeysAsync(Data.Domain);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Email cleanup failed for {domain}; clean up manually", Data.Domain);
+        }
+
         // Managed domains: records removed from the apex zone; own domains: zone deleted. Never throws.
         await identityRegistrationService.DeleteDnsRecordsForDomain(new AsciiDomainName(Data.Domain));
         logger.LogDebug("Finished delete tenant {domain} in {elapsed}s", Data.Domain, sw.ElapsedMilliseconds / 1000.0);

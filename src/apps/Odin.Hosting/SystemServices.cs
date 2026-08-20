@@ -45,6 +45,7 @@ using Odin.Services.Dns.PowerDns;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Email;
 using Odin.Services.Email.Dkim;
+using Odin.Services.Email.Mailbox;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
 using Odin.Services.Registry;
@@ -236,6 +237,8 @@ public static class SystemServices
 
         services.AddSingleton(new DkimStorageKey(config.Email.DkimStorageKey));
         services.AddSingleton<IDkimStore, DkimStore>();
+        // Provider-switched when a real mail server product joins the config
+        services.AddSingleton<IMailboxProvider, NullMailboxProvider>();
 
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(
             sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
