@@ -432,6 +432,14 @@ public class OdinConfiguration
         public bool LegacyMailgunConfig { get; init; }
 
         /// <summary>
+        /// AES key encrypting tenant DKIM private keys at rest (DkimStore) - the
+        /// CertificateRenewal:StorageKey pattern, as a separate key by hygiene.
+        /// Optional until email activation ships to an environment: empty means
+        /// the DkimStore refuses to operate, nothing else is affected.
+        /// </summary>
+        public byte[] DkimStorageKey { get; init; } = [];
+
+        /// <summary>
         /// Gates policy and scheduling decisions (recovery mode, email jobs) - the
         /// replacement for the old Mailgun.Enabled flag. With Provider "None" an
         /// IEmailSender still resolves (NullEmailSender), but nothing should rely
@@ -503,6 +511,16 @@ public class OdinConfiguration
             }
 
             TenantMail = new TenantMailSection(config);
+
+            var dkimStorageKeyHex = config.GetOrDefault("Email:DkimStorageKey", "");
+            if (!string.IsNullOrEmpty(dkimStorageKeyHex))
+            {
+                DkimStorageKey = Convert.FromHexString(dkimStorageKeyHex);
+                if (DkimStorageKey.Length != 32)
+                {
+                    throw new OdinConfigException("Email:DkimStorageKey must be a 32-byte hex string");
+                }
+            }
         }
     }
 

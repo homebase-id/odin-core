@@ -79,51 +79,22 @@ namespace Odin.Core.Storage.Database.System.Migrations
             }
         }
 
-        // Will upgrade from the previous version to version 202608201100
+        // This is the table's first migration (previousVersion -1): there is nothing
+        // to copy or rename away from, so it just creates the table - the same
+        // hand-adjusted shape as TableLastSeenMigrationV202509090509.
         public override async Task UpAsync(IConnectionWrapper cn)
         {
-            await CheckSqlTableVersion(cn, "DkimKeys", PreviousVersion);
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    await CreateTableWithCommentAsync(cn);
-                    await CheckSqlTableVersion(cn, "DkimKeysMigrationsV202608201100", MigrationVersion);
-                    if (await CopyDataAsync(cn) < 0)
-                        throw new MigrationException("Unable to copy the data");
-                    if (await VerifyRowCount(cn, "DkimKeys", "DkimKeysMigrationsV202608201100") == false)
-                        throw new MigrationException("Mismatching row counts");
-                    await SqlHelper.RenameAsync(cn, "DkimKeys", $"DkimKeysMigrationsV{PreviousVersion}");
-                    await SqlHelper.RenameAsync(cn, "DkimKeysMigrationsV202608201100", "DkimKeys");
-                    await CheckSqlTableVersion(cn, "DkimKeys", MigrationVersion);
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
+            // Create the initial table
+            await using var trn = await cn.BeginStackedTransactionAsync();
+            await CreateTableWithCommentAsync(cn);
+            await SqlHelper.RenameAsync(cn, "DkimKeysMigrationsV202608201100", "DkimKeys");
+            trn.Commit();
         }
 
         public override async Task DownAsync(IConnectionWrapper cn)
         {
             await CheckSqlTableVersion(cn, "DkimKeys", MigrationVersion);
-            try
-            {
-                using (var trn = await cn.BeginStackedTransactionAsync())
-                {
-                    if (await VerifyRowCount(cn, $"DkimKeysMigrationsV{PreviousVersion}", "DkimKeys") == false)
-                        throw new MigrationException("Mismatching row counts - bad idea to downgrade");
-                    await SqlHelper.RenameAsync(cn, "DkimKeys", "DkimKeysMigrationsV202608201100");
-                    await SqlHelper.RenameAsync(cn, $"DkimKeysMigrationsV{PreviousVersion}", "DkimKeys");
-                    await CheckSqlTableVersion(cn, "DkimKeys", PreviousVersion);
-                    trn.Commit();
-                }
-            }
-            catch
-            {
-                throw;
-            }
+            await SqlHelper.DeleteTableAsync(cn, "DkimKeys");
         }
 
     }

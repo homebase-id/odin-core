@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -303,6 +304,48 @@ public class OdinConfigurationTest
                 ["Email:TenantMail:Enabled"] = "true",
                 // MxNodes etc. deliberately omitted
             })));
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_DefaultsToEmpty()
+    {
+        var section = new OdinConfiguration.EmailSection(BuildConfig([]));
+        Assert.That(section.DkimStorageKey, Is.Empty);
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_ParsesThirtyTwoByteHex()
+    {
+        var hex = new string('A', 64);
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Email:DkimStorageKey"] = hex,
+        }));
+
+        Assert.That(section.DkimStorageKey, Is.EqualTo(Convert.FromHexString(hex)));
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_RejectsWrongLength()
+    {
+        Assert.Throws<OdinConfigException>(() => _ = new OdinConfiguration.EmailSection(BuildConfig(
+            new Dictionary<string, string?>
+            {
+                ["Email:DkimStorageKey"] = "DECAFBAD",
+            })));
+    }
+
+    [Test]
+    public void EmailSection_DkimStorageKey_IsSkippedOnLegacyMailgunConfig()
+    {
+        // The legacy branch early-returns; the key must simply stay empty, not throw
+        var section = new OdinConfiguration.EmailSection(BuildConfig(new Dictionary<string, string?>
+        {
+            ["Mailgun:Enabled"] = "false",
+        }));
+
+        Assert.That(section.LegacyMailgunConfig, Is.True);
+        Assert.That(section.DkimStorageKey, Is.Empty);
     }
 
     private class OdinConfigurationConsumer

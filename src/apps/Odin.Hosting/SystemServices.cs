@@ -44,6 +44,7 @@ using Odin.Services.Dns;
 using Odin.Services.Dns.PowerDns;
 using Odin.Services.Drives.DriveCore.Storage;
 using Odin.Services.Email;
+using Odin.Services.Email.Dkim;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
 using Odin.Services.Registry;
@@ -232,6 +233,9 @@ public static class SystemServices
             // Smtp self-sending arrives with the email-keys phase; None logs and discards
             _ => new NullEmailSender(sp.GetRequiredService<ILogger<NullEmailSender>>()),
         });
+
+        services.AddSingleton(new DkimStorageKey(config.Email.DkimStorageKey));
+        services.AddSingleton<IDkimStore, DkimStore>();
 
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(
             sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
