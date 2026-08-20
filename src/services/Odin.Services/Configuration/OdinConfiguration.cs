@@ -31,7 +31,7 @@ public class OdinConfiguration
     public BackgroundServicesSection BackgroundServices { get; init; } = new();
     public CertificateRenewalSection CertificateRenewal { get; init; } = new();
 
-    public MailgunSection Mailgun { get; init; } = new();
+    public EmailSection Email { get; init; } = new();
     public AdminSection Admin { get; init; } = new();
 
     public FeedSection Feed { get; init; } = new();
@@ -62,7 +62,7 @@ public class OdinConfiguration
         Logging = new LoggingSection(config);
         BackgroundServices = new BackgroundServicesSection(config);
         Registry = new RegistrySection(config);
-        Mailgun = new MailgunSection(config);
+        Email = new EmailSection(config);
         Admin = new AdminSection(config);
         AccountRecovery = new AccountRecoverySection(config);
         Development = new DevelopmentSection(config);
@@ -416,30 +416,137 @@ public class OdinConfiguration
 
     //
 
-    public class MailgunSection
+    public class EmailSection
     {
-        public string ApiKey { get; init; } = "";
-        public NameAndEmailAddress DefaultFrom { get; init; } = new();
-        public string EmailDomain { get; init; } = "";
-        public bool Enabled { get; init; }
+        public EmailProvider Provider { get; init; } = EmailProvider.None;
+        public NameAndEmailAddress SystemFrom { get; init; } = new();
+        public SendGridProviderSection SendGrid { get; init; } = new();
+        public MailgunProviderSection Mailgun { get; init; } = new();
+        public SmtpProviderSection Smtp { get; init; } = new();
+        public TenantMailSection TenantMail { get; init; } = new();
 
-        public MailgunSection()
+        /// <summary>
+        /// True when the deprecated top-level Mailgun section supplied the values.
+        /// The startup verifier logs a deprecation warning; remove the fallback next release.
+        /// </summary>
+        public bool LegacyMailgunConfig { get; init; }
+
+        /// <summary>
+        /// Gates policy and scheduling decisions (recovery mode, email jobs) - the
+        /// replacement for the old Mailgun.Enabled flag. With Provider "None" an
+        /// IEmailSender still resolves (NullEmailSender), but nothing should rely
+        /// on reaching it.
+        /// </summary>
+        public bool IsProviderConfigured => Provider != EmailProvider.None;
+
+        public EmailSection()
         {
             // Mockable support
         }
 
-        public MailgunSection(IConfiguration config)
+        public EmailSection(IConfiguration config)
         {
-            Enabled = config.GetOrDefault("Mailgun:Enabled", false);
+            if (!config.SectionExists("Email") && config.SectionExists("Mailgun"))
+            {
+                // Deprecated top-level Mailgun section; supported for one release
+                LegacyMailgunConfig = true;
+                if (config.GetOrDefault("Mailgun:Enabled", false))
+                {
+                    Provider = EmailProvider.Mailgun;
+                    Mailgun = new MailgunProviderSection
+                    {
+                        ApiKey = config.Required<string>("Mailgun:ApiKey"),
+                        EmailDomain = config.Required<string>("Mailgun:EmailDomain"),
+                    };
+                    SystemFrom = new NameAndEmailAddress
+                    {
+                        Email = config.Required<string>("Mailgun:DefaultFromEmail"),
+                        Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
+                    };
+                }
+                return;
+            }
+
+            Provider = config.GetOrDefault("Email:Provider", EmailProvider.None);
+            if (Provider != EmailProvider.None)
+            {
+                SystemFrom = new NameAndEmailAddress
+                {
+                    Email = config.Required<string>("Email:SystemFrom:Email"),
+                    Name = config.GetOrDefault("Email:SystemFrom:Name", ""),
+                };
+            }
+
+            // Only the selected provider's credentials are required
+            switch (Provider)
+            {
+                case EmailProvider.SendGrid:
+                    SendGrid = new SendGridProviderSection
+                    {
+                        ApiKey = config.Required<string>("Email:SendGrid:ApiKey"),
+                    };
+                    break;
+                case EmailProvider.Mailgun:
+                    Mailgun = new MailgunProviderSection
+                    {
+                        ApiKey = config.Required<string>("Email:Mailgun:ApiKey"),
+                        EmailDomain = config.Required<string>("Email:Mailgun:EmailDomain"),
+                    };
+                    break;
+                case EmailProvider.Smtp:
+                    Smtp = new SmtpProviderSection
+                    {
+                        RelayHost = config.Required<string>("Email:Smtp:RelayHost"),
+                        RelayIps = config.GetOrDefault("Email:Smtp:RelayIps", new List<string>()),
+                    };
+                    break;
+            }
+
+            TenantMail = new TenantMailSection(config);
+        }
+    }
+
+    public class SendGridProviderSection
+    {
+        public string ApiKey { get; init; } = "";
+    }
+
+    public class MailgunProviderSection
+    {
+        public string ApiKey { get; init; } = "";
+        public string EmailDomain { get; init; } = "";
+    }
+
+    public class SmtpProviderSection
+    {
+        public string RelayHost { get; init; } = "";
+        public List<string> RelayIps { get; init; } = [];
+    }
+
+    public class TenantMailSection
+    {
+        public bool Enabled { get; init; }
+        public string CanaryDomain { get; init; } = "";
+        public List<string> MxNodes { get; init; } = [];
+        public string SpfIncludeTarget { get; init; } = "";
+        public string DmarcReportEmail { get; init; } = "";
+        public string TlsReportEmail { get; init; } = "";
+
+        public TenantMailSection()
+        {
+            // Mockable support
+        }
+
+        public TenantMailSection(IConfiguration config)
+        {
+            Enabled = config.GetOrDefault("Email:TenantMail:Enabled", false);
             if (Enabled)
             {
-                ApiKey = config.Required<string>("Mailgun:ApiKey");
-                DefaultFrom = new NameAndEmailAddress
-                {
-                    Email = config.Required<string>("Mailgun:DefaultFromEmail"),
-                    Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
-                };
-                EmailDomain = config.Required<string>("Mailgun:EmailDomain");
+                CanaryDomain = config.GetOrDefault("Email:TenantMail:CanaryDomain", "");
+                MxNodes = config.Required<List<string>>("Email:TenantMail:MxNodes");
+                SpfIncludeTarget = config.Required<string>("Email:TenantMail:SpfIncludeTarget");
+                DmarcReportEmail = config.Required<string>("Email:TenantMail:DmarcReportEmail");
+                TlsReportEmail = config.Required<string>("Email:TenantMail:TlsReportEmail");
             }
         }
     }

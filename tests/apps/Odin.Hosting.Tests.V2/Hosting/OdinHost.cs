@@ -366,10 +366,7 @@ public sealed partial class OdinHost : IAsyncDisposable
 
     private static void SetMailBaseline()
     {
-        Set("Mailgun__ApiKey", "dontcare");
-        Set("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
-        Set("Mailgun__EmailDomain", "odin.earth");
-        Set("Mailgun__Enabled", "false");
+        Set("Email__Provider", "None");
     }
 
     /// <summary>Admin API disabled — otherwise it would bind a Kestrel port.</summary>

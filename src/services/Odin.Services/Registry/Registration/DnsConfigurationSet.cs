@@ -11,6 +11,13 @@ public class DnsConfigurationSet
     public const string PrefixFile = "file";
     public static readonly string[] WellknownPrefixes = { PrefixCertApi, PrefixFile };
 
+    // Optional prefixes are host names an identity answers on only when the corresponding
+    // feature is enabled (mta-sts: Email:TenantMail). Deliberately NOT in WellknownPrefixes:
+    // that list drives the required-CNAME records and the certificate SAN baseline, and an
+    // optional feature must never make those mandatory.
+    public const string PrefixMtaSts = "mta-sts";
+    public static readonly string[] OptionalPrefixes = { PrefixMtaSts };
+
     public string ApexARecord { get; } // SEB:NOTE we currently only allow one A record
     public string ApexAliasRecord { get; }
 

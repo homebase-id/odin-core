@@ -25,7 +25,7 @@ Today BYOD (bring-your-own-domain) users must create 3–4 DNS records manually;
 2. **`ZoneExistsAsync(zoneId)`** helper (GetZone + catch Refit 404) so zone creation is idempotent.
 3. **First real use of `CreateZone`/`DeleteZone`** — validate against a live PowerDNS: the interplay of the explicit SOA rrset with the `nameservers` field, and the hardcoded SOA serial `1111` (with `api_rectify` PowerDNS manages serials via `SOA-EDIT-API`; adjust content if the server rejects it).
 
-No TXT/MX/SRV support yet — that's the future email phase.
+No SRV support yet. (MX/TXT landed with the email phase — `docs/email-dns-plan.md`.)
 
 ## Changes (odin-core)
 
@@ -69,7 +69,7 @@ No TXT/MX/SRV support yet — that's the future email phase.
 
 ## Out of scope (explicitly)
 
-- Email DNS records (MX/SPF/DKIM/DMARC) — the payoff phase this enables; needs TXT/MX support in `IDnsRestClient` when it comes.
+- Email DNS records (MX/SPF/DKIM/DMARC) — the payoff phase this enables; implemented since via `docs/email-dns-plan.md` (MX/TXT in `IDnsRestClient`, emission gated on `Email:TenantMail:Enabled`).
 - ACME DNS-01 / wildcard certs.
 - Any orphan-zone reaper/prune (see §3 — unsafe on a shared DNS server; deletion rides tenant deletion).
 - Importing a user's pre-existing records when an apex delegates (UI warns instead).

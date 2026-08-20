@@ -159,33 +159,25 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         _dnsLookupService.AssertManagedDomainApexAndPrefix(prefix, apex);
 
-        var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
-
-        var zoneId = apex + ".";
-        foreach (var record in dnsConfig)
-        {
-            var name = record.Name != "" ? record.Name + "." + prefix : prefix;
-            if (record.Type == "A")
-            {
-                await _dnsRestClient.CreateARecords(zoneId, name, new[] { record.Value });
-            }
-            else if (record.Type == "CNAME")
-            {
-                await _dnsRestClient.CreateCnameRecords(zoneId, name, record.Value + ".");
-            }
-            else if (record.Type is "ALIAS" or "NS")
-            {
-                // IGNORE - ALIAS is an instruction for third-party DNS hosts only;
-                // NS entries describe delegation of own-domains and never apply to managed domains
-            }
-            else
-            {
-                // Sanity
-                throw new OdinSystemException($"Unsupported record: {record.Type}");
-            }
-        }
+        await EnsureManagedDomainRecords(prefix, apex);
 
         _logger.LogInformation("Created managed domain {domain}", domain);
+    }
+
+    //
+
+    /// <summary>
+    /// (Re)writes a managed domain's records in the apex zone (REPLACE semantics, so
+    /// re-running converges - the CLI backfill uses this to apply new record types to
+    /// existing tenants). Deliberately no prefix-label assert: the configured label
+    /// count may have changed since the tenant signed up.
+    /// </summary>
+    public async Task EnsureManagedDomainRecords(string prefix, string apex)
+    {
+        var domain = new AsciiDomainName(prefix + "." + apex); // ctor validates
+
+        var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
+        await WriteDnsRecords(apex + ".", dnsConfig, ManagedName(prefix));
     }
 
     //
@@ -198,11 +190,67 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         await _registry.DeleteRegistration(domain.DomainName);
 
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
+        await DeleteDnsRecords(apex + ".", dnsConfig, ManagedName(prefix));
+    }
 
-        var zoneId = apex + ".";
+    //
+    // Record dispatch - the single place a DnsConfig record type maps to rrset writes.
+    // ALL populate/delete paths (own-domain zones, managed domains, tenant-deletion
+    // cleanup, CLI backfills) go through these two methods, so a new record type is
+    // added here once. nameOf maps a record to its rrset name in the target zone:
+    // own-domain zones use record.Name as-is (empty = apex); managed domains append
+    // the tenant prefix (ManagedName).
+    //
+
+    private static Func<DnsConfig, string> ManagedName(string prefix)
+    {
+        return record => record.Name != "" ? record.Name + "." + prefix : prefix;
+    }
+
+    private async Task WriteDnsRecords(string zoneId, List<DnsConfig> dnsConfig, Func<DnsConfig, string> nameOf)
+    {
+        // An MX rrset REPLACE swaps the whole set, so all of a name's MX values must go
+        // in ONE call - group first; MX is skipped in the per-record dispatch below
+        foreach (var mxGroup in dnsConfig.Where(x => x.Type == "MX").GroupBy(nameOf))
+        {
+            await _dnsRestClient.CreateMxRecords(zoneId, mxGroup.Key, mxGroup.Select(x => x.Value + "."));
+        }
+
         foreach (var record in dnsConfig)
         {
-            var name = record.Name != "" ? record.Name + "." + prefix : prefix;
+            var name = nameOf(record);
+            if (record.Type == "A")
+            {
+                await _dnsRestClient.CreateARecords(zoneId, name, new[] { record.Value });
+            }
+            else if (record.Type == "CNAME")
+            {
+                await _dnsRestClient.CreateCnameRecords(zoneId, name, record.Value + ".");
+            }
+            else if (record.Type == "TXT")
+            {
+                await _dnsRestClient.CreateTxtRecords(zoneId, name, new[] { record.Value });
+            }
+            else if (record.Type is "ALIAS" or "NS" or "MX")
+            {
+                // IGNORE - ALIAS is an instruction for third-party DNS hosts only (in our
+                // own zones the apex A record is authoritative); NS entries describe
+                // delegation of own-domains (created by CreateZone) and never apply to
+                // managed domains; MX was grouped and written above
+            }
+            else
+            {
+                // Sanity
+                throw new OdinSystemException($"Unsupported record: {record.Type}");
+            }
+        }
+    }
+
+    private async Task DeleteDnsRecords(string zoneId, List<DnsConfig> dnsConfig, Func<DnsConfig, string> nameOf)
+    {
+        foreach (var record in dnsConfig)
+        {
+            var name = nameOf(record);
             if (record.Type == "A")
             {
                 await _dnsRestClient.DeleteARecords(zoneId, name);
@@ -211,9 +259,18 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             {
                 await _dnsRestClient.DeleteCnameRecords(zoneId, name);
             }
+            else if (record.Type == "MX")
+            {
+                // Deletes the whole rrset; repeating per MX value is a harmless no-op
+                await _dnsRestClient.DeleteMxRecords(zoneId, name);
+            }
+            else if (record.Type == "TXT")
+            {
+                await _dnsRestClient.DeleteTxtRecords(zoneId, name);
+            }
             else if (record.Type is "ALIAS" or "NS")
             {
-                // IGNORE - see CreateManagedDomain
+                // IGNORE - see WriteDnsRecords
             }
             else
             {
@@ -381,27 +438,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         // Populate (REPLACE semantics, so re-running converges on the correct records)
         var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
-        foreach (var record in dnsConfig)
-        {
-            if (record.Type == "A")
-            {
-                await _dnsRestClient.CreateARecords(zoneId, record.Name, new[] { record.Value });
-            }
-            else if (record.Type == "CNAME")
-            {
-                await _dnsRestClient.CreateCnameRecords(zoneId, record.Name, record.Value + ".");
-            }
-            else if (record.Type is "ALIAS" or "NS")
-            {
-                // IGNORE - in our own zone the apex A record is authoritative (no ALIAS needed);
-                // the zone's NS records were created by CreateZone
-            }
-            else
-            {
-                // Sanity
-                throw new OdinSystemException($"Unsupported record: {record.Type}");
-            }
-        }
+        await WriteDnsRecords(zoneId, dnsConfig, record => record.Name);
 
         _logger.LogInformation("Created own-domain zone {zone}", zoneId);
         return CreateOwnDomainZoneResult.Created;
@@ -481,21 +518,8 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             // DeleteManagedDomain: that re-deletes the registration and asserts the
             // configured prefix label count, which may have changed since signup.
             var prefix = domainName[..^(apex.Length + 1)];
-            var zoneId = apex + ".";
             var dnsConfig = _dnsLookupService.GetDnsConfiguration(domain);
-            foreach (var record in dnsConfig)
-            {
-                var name = record.Name != "" ? record.Name + "." + prefix : prefix;
-                if (record.Type == "A")
-                {
-                    await _dnsRestClient.DeleteARecords(zoneId, name);
-                }
-                else if (record.Type == "CNAME")
-                {
-                    await _dnsRestClient.DeleteCnameRecords(zoneId, name);
-                }
-                // ALIAS/NS: nothing to delete for managed domains
-            }
+            await DeleteDnsRecords(apex + ".", dnsConfig, ManagedName(prefix));
 
             _logger.LogInformation("Deleted DNS records for managed domain {domain}", domain);
         }
@@ -592,7 +616,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             }
 
             // Queue background job to send email
-            if (_configuration.Mailgun.Enabled)
+            if (_configuration.Email.IsProviderConfigured)
             {
                 var job = _jobManager.NewJob<SendProvisioningCompleteEmailJob>();
                 job.Data = new SendProvisioningCompleteEmailJobData

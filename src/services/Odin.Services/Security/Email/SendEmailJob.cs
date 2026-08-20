@@ -31,7 +31,7 @@ public class SendEmailJob(
 
     public override async Task<JobExecutionResult> Run(CancellationToken cancellationToken)
     {
-        if (!configuration.Mailgun.Enabled)
+        if (!configuration.Email.IsProviderConfigured)
         {
             return JobExecutionResult.Abort();
         }

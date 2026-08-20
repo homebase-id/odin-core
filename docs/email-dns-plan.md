@@ -1,6 +1,6 @@
 # Email phase: DNS records, key discovery via .well-known, and reverse DNS
 
-Status: design/plan — not yet implemented. Part 1 of the email design chain: this doc (DNS/discovery) → `docs/email-keys-plan.md` (keys, Stalwart, activation) → chat-kmp `EMAIL_APP.md` (the setup/key control-panel app). Outbound goes via an external relay (e.g. SendGrid) that forwards **already-signed** mail; the tables also carry self-sending values in case outbound ever moves in-house. Inbound lands at each tenant's own host (local Stalwart) in both cases.
+Status: the odin-core groundwork is implemented (consolidated `Email` config + provider seam, startup verifier, MX/TXT emission + MTA-STS unit — all inert until `Email:TenantMail:Enabled`); the DKIM/activation-time pieces, canary round-trip, monthly ride-along, and Email tab remain design, arriving with `docs/email-keys-plan.md`. Part 1 of the email design chain: this doc (DNS/discovery) → `docs/email-keys-plan.md` (keys, Stalwart, activation) → chat-kmp `EMAIL_APP.md` (the setup/key control-panel app). Outbound goes via an external relay (e.g. SendGrid) that forwards **already-signed** mail; the tables also carry self-sending values in case outbound ever moves in-house. Inbound lands at each tenant's own host (local Stalwart) in both cases.
 
 ## Design principles
 
@@ -15,7 +15,7 @@ Example tenant `gabriel.ninja`; `<infra>` = the infra zone, e.g. `id.pub`.
 |---|---|---|---|---|
 | MX | apex | `10 <node-a>.` `20 <node-b>.` (the 2-3 nodes of the HA group serving this tenant) | same | Inbound lands in the group's shared Stalwart cluster (see `docs/email-keys-plan.md`); multiple MX records are SMTP's native failover. MX targets must be A records, not CNAMEs |
 | TXT (SPF) | apex | `v=spf1 include:_spf.<infra> -all` | same | The `include:` indirection is the point: provider/IP authorization lives in ONE infra record |
-| TXT (DKIM) | `s1._domainkey`, `s2._domainkey` | `v=DKIM1; k=ed25519; p=<key>` | same | Keys are Homebase-held and signing happens IN the Homebase server - the private key never reaches Stalwart or the relay. Two selectors (ed25519 + rsa-2048) for legacy receivers and rotation |
+| TXT (DKIM) | `s1._domainkey`, `s2._domainkey` | `v=DKIM1; k=ed25519; p=<key>` | same | Homebase is the key authority (generates, stores, publishes); Stalwart signs outbound with a provisioned copy (see `docs/email-keys-plan.md`) - the key never reaches the relay. Two selectors (ed25519 + rsa-2048) for legacy receivers and rotation |
 | TXT (DMARC) | `_dmarc` | `v=DMARC1; p=reject; rua=mailto:...` | same | |
 | TXT (MTA-STS) | `_mta-sts` | `v=STSv1; id=<version>` | same | Plus the policy file at `https://mta-sts.<tenant>/.well-known/mta-sts.txt` (extra CNAME/A + cert on our web tier); policy lists ALL the tenant's MX nodes |
 | TXT (TLS-RPT) | `_smtp._tls` | `v=TLSRPTv1; rua=mailto:...` | same | |
