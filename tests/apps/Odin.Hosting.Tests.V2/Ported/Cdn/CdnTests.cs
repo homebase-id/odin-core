@@ -122,6 +122,40 @@ public class CdnTests : V2Fixture
         Assert.That(ByteArrayUtil.EquiByteArrayCompare(payloadFromHeader!.Iv, payload.Iv), Is.True);
     }
 
+    // The point of the by-gtid route: a follower's feed row carries only the author's
+    // globalTransitId, so this is the only addressing the CDN can use for followed-post media.
+    // CdnAuthPathHandler needs no change to admit it — it matches on path shape, and this path is
+    // under /api/v2/drives with a /payload/ segment.
+    [Test]
+    public async Task CanGetPayloadAndThumbnailByGtidV2()
+    {
+        var owner = await LoginAsOwner(Identities.Sam);
+        var cdn = CdnSession.Setup(Host, Identities.Sam);
+
+        // allowCdn matters here in a way it does not for the by-fileId route: resolving a gtid goes
+        // through the query service, which builds a client file header and so needs an actual drive
+        // grant. The CDN caller's grants come from GetCdnEnabledDrivesAsync, so the drive has to be
+        // CDN-enabled — as PublicPostsChannelDrive and every odin-js channel drive already are.
+        var drive = TargetDrive.NewTargetDrive();
+        await owner.Admin.CreateDrive(drive, "anon cdn drive", allowAnonymousReads: true, allowCdn: true);
+
+        var metadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Anonymous);
+        var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
+        var file = await UploadFile(owner, drive, metadata, payload);
+
+        Assert.That(file.GlobalTransitId, Is.Not.Null, "a standard-file upload always mints a globalTransitId");
+        var gtid = file.GlobalTransitId!.Value;
+
+        var resp = await cdn.Drives.Reader.GetPayloadByGtidAsync(gtid, file.DriveId, payload.Key);
+        Assert.That(resp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {resp.StatusCode}");
+        AssertPlaintextPayloadHeaders(resp.Headers!, payload);
+
+        var thumb = payload.Thumbnails.First();
+        var thumbResp = await cdn.Drives.Reader.GetThumbnailByGtidAsync(
+            gtid, file.DriveId, thumb.PixelWidth, thumb.PixelHeight, payload.Key);
+        Assert.That(thumbResp.StatusCode, Is.EqualTo(HttpStatusCode.OK), $"actual {thumbResp.StatusCode}");
+    }
+
     [Test]
     public async Task CanGetPayloadAndThumbnailsOnSecuredDriveV2()
     {
