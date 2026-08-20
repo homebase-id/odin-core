@@ -106,7 +106,13 @@ public class EmailInfraVerifier(
             try
             {
                 var response = await dnsClient.QueryAsync(node, QueryType.A, cancellationToken: cancellationToken);
-                if (!response.Answers.ARecords().Any())
+                if (response.Answers.CnameRecords().Any())
+                {
+                    // The A query follows the chain and returns addresses anyway, so
+                    // without this inspection a CNAME'd node would silently pass
+                    errors.Add($"MX node '{node}' is a CNAME; RFC 2181 requires MX targets to be address records");
+                }
+                else if (!response.Answers.ARecords().Any())
                 {
                     errors.Add($"MX node '{node}' does not resolve to an A record");
                 }

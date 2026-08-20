@@ -198,6 +198,25 @@ public class EmailInfraVerifierTest
     }
 
     [Test]
+    public async Task ItShouldReportACnameMxNodeEvenThoughItResolves()
+    {
+        // Recursive A resolution follows the CNAME and returns addresses, so without
+        // inspecting the chain an RFC 2181-violating CNAME node would silently pass
+        _dnsClient
+            .Setup(x => x.QueryAsync("node-a.example.com", QueryType.A, It.IsAny<QueryClass>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response([
+                Cname("node-a.example.com.", "real-host.example.com."),
+                A("real-host.example.com.", "10.0.0.1"),
+            ]));
+        SetupARecords("node-b.example.com", "10.0.0.2");
+        SetupTxtRecords("_spf.example.com", ["v=spf1 include:sendgrid.net -all"]);
+
+        var errors = await CreateVerifier(TenantMailSection()).VerifyNetworkAsync();
+
+        Assert.That(errors.Single(), Does.Contain("node-a.example.com").And.Contain("CNAME"));
+    }
+
+    [Test]
     public async Task ItShouldReportAMissingSpfIncludeTarget()
     {
         SetupARecords("node-a.example.com", "10.0.0.1");
@@ -292,6 +311,12 @@ public class EmailInfraVerifierTest
     {
         var info = new ResourceRecordInfo(DnsString.Parse(owner), ResourceRecordType.A, QueryClass.IN, 3600, 0);
         return new ARecord(info, IPAddress.Parse(ip));
+    }
+
+    private static CNameRecord Cname(string owner, string target)
+    {
+        var info = new ResourceRecordInfo(DnsString.Parse(owner), ResourceRecordType.CNAME, QueryClass.IN, 3600, 0);
+        return new CNameRecord(info, DnsString.Parse(target));
     }
 
     private static TxtRecord Txt(string owner, string[] chunks)

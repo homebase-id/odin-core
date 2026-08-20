@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Http;
 using Odin.Services.Configuration;
+using Odin.Services.Dns.Health;
 using Odin.Services.Email;
 
 namespace Odin.Services.Background.BackgroundServices.System;
@@ -21,7 +22,8 @@ public class StartupVerificationBackgroundService(
     ILogger<StartupVerificationBackgroundService> logger,
     OdinConfiguration config,
     IDynamicHttpClientFactory httpClientFactory,
-    EmailInfraVerifier emailInfraVerifier)
+    EmailInfraVerifier emailInfraVerifier,
+    DnsInfraVerifier dnsInfraVerifier)
     : AbstractBackgroundService(logger)
 {
     internal static readonly TimeSpan[] RetryDelays =
@@ -35,7 +37,8 @@ public class StartupVerificationBackgroundService(
     {
         await Task.WhenAll(
             VerifyCdnAsync(stoppingToken),
-            VerifyEmailAsync(stoppingToken));
+            VerifyEmailAsync(stoppingToken),
+            VerifyDnsInfraAsync(stoppingToken));
         // Run-once: the service exits when the checks complete
     }
 
@@ -111,6 +114,43 @@ public class StartupVerificationBackgroundService(
                 foreach (var error in errors)
                 {
                     logger.LogError("Email infrastructure verification failed: {error}", error);
+                }
+                return;
+            }
+        }
+    }
+
+    private async Task VerifyDnsInfraAsync(CancellationToken stoppingToken)
+    {
+        if (!dnsInfraVerifier.HasChecks)
+        {
+            return;
+        }
+
+        for (var attempt = 0;; attempt++)
+        {
+            var result = await dnsInfraVerifier.VerifyAsync(stoppingToken);
+            if (result.IsClean)
+            {
+                logger.LogInformation("DNS infrastructure verification passed");
+                return;
+            }
+
+            if (attempt < RetryDelays.Length)
+            {
+                logger.LogWarning("DNS infrastructure verification found {count} issue(s); retrying in {delay}",
+                    result.Errors.Count + result.Warnings.Count, RetryDelays[attempt]);
+                await Task.Delay(RetryDelays[attempt], stoppingToken);
+            }
+            else
+            {
+                foreach (var error in result.Errors)
+                {
+                    logger.LogError("DNS infrastructure verification failed: {error}", error);
+                }
+                foreach (var warning in result.Warnings)
+                {
+                    logger.LogWarning("DNS infrastructure: {warning}", warning);
                 }
                 return;
             }

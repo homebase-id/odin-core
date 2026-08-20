@@ -7,6 +7,7 @@ using Odin.Services.Background.BackgroundServices;
 using Odin.Services.Background.BackgroundServices.System;
 using Odin.Services.Background.BackgroundServices.Tenant;
 using Odin.Services.Configuration;
+using Odin.Services.Dns.Health;
 using Odin.Services.Email;
 using Odin.Services.JobManagement;
 using Odin.Services.LastSeen;
@@ -39,6 +40,7 @@ public static class BackgroundServiceExtensions
 
         // Non-singleton on purpose: only consumed by StartupVerificationBackgroundService
         cb.RegisterType<EmailInfraVerifier>().AsSelf().InstancePerDependency();
+        cb.RegisterType<DnsInfraVerifier>().AsSelf().InstancePerDependency();
 
         // Add more system background services here
         // ...
