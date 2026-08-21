@@ -19,6 +19,23 @@ namespace Odin.Services.Authorization.Acl
         Authenticated = 444,
 
         /// <summary>
+        /// Legacy. Never assigned to a caller, and no longer meaningful to the evaluator -- but stored
+        /// file headers carry it, so the member has to stay for those to deserialize.
+        /// </summary>
+        /// <remarks>
+        /// The value was only ever set on files by clients (the chat app ACLs messages with it), never by
+        /// a caller context, and the ACL evaluator always folded it into the 777 case. Deleting it would
+        /// throw on every existing header that names it. Retires for real once no stored file references
+        /// it -- with the system circles, in the enrollment phase.
+        /// <para>
+        /// Do not use it for anything new. Keep the value at 555: the indexed
+        /// <c>requiredSecurityGroup</c> column already holds 555 for those rows, and the enum and the
+        /// column must agree.
+        /// </para>
+        /// </remarks>
+        AutoConnected = 555,
+
+        /// <summary>
         /// Connections the owner completed the connection review for.  Includes every circle member by
         /// construction, since being added to a circle implies the review.
         /// <para>
