@@ -58,10 +58,15 @@ namespace Odin.Services.Membership.Connections
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
-        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContextAsync(
-            OdinId odinId,
-            ClientAuthenticationToken remoteIcrToken,
-            IOdinContext odinContext)
+        /// <returns>
+        /// The permission context, the caller's circles, and whether the owner has reviewed this
+        /// connection -- the last of which decides the caller's security level.
+        /// </returns>
+        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds, bool isReviewed)>
+            CreateTransitPermissionContextAsync(
+                OdinId odinId,
+                ClientAuthenticationToken remoteIcrToken,
+                IOdinContext odinContext)
         {
             logger.LogDebug("Creating transit permission context for [{odinId}]", odinId);
 
@@ -101,7 +106,7 @@ namespace Odin.Services.Membership.Connections
                 applyAppCircleGrants: true,
                 odinContext);
 
-            return (permissionContext, enabledCircles);
+            return (permissionContext, enabledCircles, icr.IsReviewed());
         }
 
         /// <summary>
@@ -157,8 +162,9 @@ namespace Odin.Services.Membership.Connections
                     Caller = new CallerContext(
                         odinId: odinId,
                         masterKey: null,
-                        securityLevel: SecurityGroupType.Connected,
-                        circleIds: enabledCircles)
+                        securityLevel: GetSecurityLevel(icr),
+                        circleIds: enabledCircles,
+                        isConnected: true)
                 };
 
                 context.SetPermissionContext(permissionContext);
@@ -1300,6 +1306,20 @@ namespace Odin.Services.Membership.Connections
         }
 
         /// <summary>
+        /// The security level a connected caller is assigned.
+        /// </summary>
+        /// <remarks>
+        /// Only assignment changes with the ladder recut -- the ACL evaluator and the
+        /// <c>requiredSecurityGroup BETWEEN 0 AND callerLevel</c> range query are untouched.  An
+        /// unreviewed connection ranks as <see cref="SecurityGroupType.Authenticated"/>: it can deposit
+        /// (the perimeter is a separate check) but reads nothing beyond any logged-in identity.
+        /// </remarks>
+        public static SecurityGroupType GetSecurityLevel(IdentityConnectionRegistration icr)
+        {
+            return icr.IsReviewed() ? SecurityGroupType.Reviewed : SecurityGroupType.Authenticated;
+        }
+
+        /// <summary>
         /// Whether a connection being established counts as reviewed.  An owner-driven request is the
         /// review happening at accept time; introductions and app-originated connections form without the
         /// owner present, so they stay unreviewed until the owner acts.  Mirrors the circle each origin
@@ -1736,7 +1756,15 @@ namespace Odin.Services.Membership.Connections
 
             grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 
-            var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
+            // "Who can see my connections / who I follow" is a reviewed-tier question, not a
+            // connected-tier one -- which is what the settings always meant, and why they were
+            // implemented as permission keys on the Confirmed circle.  Gate them on the review instead.
+            // (The Confirmed-circle keys written by TenantConfigService are now redundant; they retire
+            // with the circle itself.)
+            var permissionKeys = icr.IsReviewed()
+                ? tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities()
+                : new List<int>();
+
             var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
 
             var permissionCtx = await exchangeGrantService.CreatePermissionContext(

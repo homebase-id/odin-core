@@ -51,12 +51,15 @@ public class TransitAuthenticationService :
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContextAsync(OdinId callerOdinId,
         ClientAuthenticationToken token, IOdinContext odinContext)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
+        var (permissionContext, circleIds, isReviewed) =
+            await _circleNetworkService.CreateTransitPermissionContextAsync(callerOdinId, token, odinContext);
+
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,
-            securityLevel: SecurityGroupType.Connected,
-            circleIds: circleIds);
+            securityLevel: isReviewed ? SecurityGroupType.Reviewed : SecurityGroupType.Authenticated,
+            circleIds: circleIds,
+            isConnected: true);
 
         return (cc, permissionContext);
     }

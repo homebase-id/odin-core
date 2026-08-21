@@ -56,8 +56,11 @@ namespace Odin.Services.Authorization.Acl
                 case SecurityGroupType.Anonymous:
                     return true;
 
-                case SecurityGroupType.Connected:
-                    return (await circleNetwork.GetIcrAsync(odinId, odinContext, true)).IsConnected();
+                // The identity-based path, used for outbound distribution.  It has to test the review
+                // rather than the connection: a Reviewed ACL admits reviewed people, and this path never
+                // sees a caller context to read the level from.
+                case SecurityGroupType.Reviewed:
+                    return (await circleNetwork.GetIcrAsync(odinId, odinContext, true)).IsReviewed();
             }
 
             return false;
@@ -102,9 +105,8 @@ namespace Odin.Services.Authorization.Acl
                 case SecurityGroupType.Authenticated:
                     return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
-                case SecurityGroupType.AutoConnected:
-                case SecurityGroupType.Connected:
-                    return CallerIsConnected(odinContext);
+                case SecurityGroupType.Reviewed:
+                    return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Reviewed);
             }
 
             return Task.FromResult(false);
@@ -118,10 +120,5 @@ namespace Odin.Services.Authorization.Acl
             }
         }
 
-        private Task<bool> CallerIsConnected(IOdinContext odinContext)
-        {
-            //TODO: cache result - 
-            return Task.FromResult(odinContext.Caller.IsConnected);
-        }
     }
 }

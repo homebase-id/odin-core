@@ -694,7 +694,7 @@ public class ProfileAttributeService(
         {
             ProfileAttributeVisibility.Anonymous => AccessControlList.Anonymous,
             ProfileAttributeVisibility.Authenticated => AccessControlList.Authenticated,
-            ProfileAttributeVisibility.Connected => AccessControlList.Connected,
+            ProfileAttributeVisibility.Connected => AccessControlList.Reviewed,
             ProfileAttributeVisibility.Owner => AccessControlList.OwnerOnly,
             _ => throw new OdinClientException($"Unsupported visibility {visibility}", OdinClientErrorCode.ArgumentError)
         };
