@@ -119,6 +119,34 @@ namespace Odin.Core.Cryptography.Tests
         }
 
         [Test]
+        public void CertificateSatisfiesModernPolicyEngines()
+        {
+            // Live-verified against Stalwart 0.16 (sequoia-pgp): SHA-1-bound keys are
+            // discarded wholesale and armor header lines break its parser. BC defaults
+            // to both (hash-less ctor and 3-arg AddSubKey sign with SHA-1;
+            // ArmoredOutputStream emits a Version header) - this pins the fixes.
+            var material = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId);
+
+            ClassicAssert.IsFalse(material.PublicCertificateArmored.Contains("Version:"),
+                "armor must carry no headers");
+            ClassicAssert.IsFalse(material.SecretKeyArmored.Contains("Version:"));
+
+            using var stream = new MemoryStream(Encoding.ASCII.GetBytes(material.PublicCertificateArmored));
+            var ring = new PgpPublicKeyRing(PgpUtilities.GetDecoderStream(stream));
+
+            var primary = ring.GetPublicKeys().Cast<PgpPublicKey>().Single(k => k.IsMasterKey);
+            var subkey = ring.GetPublicKeys().Cast<PgpPublicKey>().Single(k => !k.IsMasterKey);
+
+            var certification = primary.GetSignatures().Cast<PgpSignature>().First();
+            ClassicAssert.AreEqual(HashAlgorithmTag.Sha384, certification.HashAlgorithm,
+                "user-id certification must not fall back to BC's SHA-1 default");
+
+            var binding = subkey.GetSignatures().Cast<PgpSignature>().First();
+            ClassicAssert.AreEqual(HashAlgorithmTag.Sha384, binding.HashAlgorithm,
+                "subkey binding must not fall back to BC's SHA-1 default");
+        }
+
+        [Test]
         public void TwoGenerationsProduceDistinctKeys()
         {
             var first = OpenPgpKeyManagement.GenerateP384KeyMaterial(UserId);

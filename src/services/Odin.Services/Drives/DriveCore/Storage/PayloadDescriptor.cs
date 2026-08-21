@@ -66,6 +66,15 @@ public class PayloadDescriptor
         return string.Equals(Key, other?.Key, StringComparison.InvariantCultureIgnoreCase);
     }
 
+    /// <summary>
+    /// True when this descriptor resolves to the same stored payload (and thumbnail) objects as
+    /// <paramref name="other"/> for a given fileId, since storage paths are built from (fileId, Key, Uid).
+    /// </summary>
+    public bool SharesStorageWith(PayloadDescriptor other)
+    {
+        return other != null && KeyEquals(other) && Uid.uniqueTime == other.Uid.uniqueTime;
+    }
+
     public bool IsValid()
     {
         var hasValidContentType = !(string.IsNullOrEmpty(ContentType) || string.IsNullOrWhiteSpace(ContentType));
