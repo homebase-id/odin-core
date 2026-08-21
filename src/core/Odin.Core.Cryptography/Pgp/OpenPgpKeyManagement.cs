@@ -58,18 +58,25 @@ public static class OpenPgpKeyManagement
 
         // SymmetricKeyAlgorithmTag.Null: the secret keyring is stored on the encrypted
         // email drive, which is the protection layer - see OpenPgpKeyMaterial.
+        // HashAlgorithmTag.Sha384 for the self/binding signatures: BC's hash-less
+        // ctor falls back to SHA-1, which modern policy engines (sequoia's
+        // StandardPolicy, live-verified via Stalwart 0.16) reject wholesale -
+        // the certificate parses but "has no suitable keys"
         var keyRingGenerator = new PgpKeyRingGenerator(
             PgpSignature.PositiveCertification,
             primaryKeyPair,
             userId,
             SymmetricKeyAlgorithmTag.Null,
+            HashAlgorithmTag.Sha384,
             Array.Empty<char>(),
             true,
             primarySubpackets.Generate(),
             null,
             random);
 
-        keyRingGenerator.AddSubKey(encryptionKeyPair, encryptionSubpackets.Generate(), null);
+        // The 3-arg AddSubKey overload hardcodes SHA-1 for the binding signature
+        // (BC 2.7) - same policy rejection as above, so the hash is explicit here too
+        keyRingGenerator.AddSubKey(encryptionKeyPair, encryptionSubpackets.Generate(), null, HashAlgorithmTag.Sha384);
 
         var publicRing = keyRingGenerator.GeneratePublicKeyRing();
         var secretRing = keyRingGenerator.GenerateSecretKeyRing();
@@ -228,7 +235,11 @@ public static class OpenPgpKeyManagement
     private static string Armor(byte[] encoded)
     {
         using var stream = new MemoryStream();
-        using (var armoredStream = new ArmoredOutputStream(stream))
+        // ClearHeaders drops the default "Version: BCPG ..." armor header: modern
+        // OpenPGP practice omits it, and at least one consumer (Stalwart 0.16's
+        // certificate parser, live-verified) treats header lines as base64 and
+        // rejects the armor
+        using (var armoredStream = ArmoredOutputStream.Build().ClearHeaders().Build(stream))
         {
             armoredStream.Write(encoded, 0, encoded.Length);
         }
