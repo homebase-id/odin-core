@@ -17,6 +17,7 @@ using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
+using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Util;
 
@@ -30,6 +31,7 @@ namespace Odin.Services.Authorization.Apps
         IcrKeyService icrKeyService,
         ILogger<AppRegistrationService> logger,
         IdentityDatabase db,
+        CircleDefinitionService circleDefinitionService,
         ClientRegistrationStorage clientRegistrationStorage,
         OdinContextCache cache)
         : IAppRegistrationService
@@ -86,10 +88,12 @@ namespace Odin.Services.Authorization.Apps
 
                 CorsHostName = request.CorsHostName,
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
-                AuthorizedCircles = request.AuthorizedCircles
+                AuthorizedCircles = request.AuthorizedCircles,
+                DefaultCircles = request.DefaultCircles
             };
 
             await SaveAsync(appReg);
+            await ApplyDefaultCirclesAsync(appReg, odinContext);
 
             await NotifyAppChanged(null, appReg, odinContext);
             return appReg.Redacted();
@@ -182,7 +186,8 @@ namespace Odin.Services.Authorization.Apps
                 CorsHostName = oldRegistration.CorsHostName,
 
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
-                AuthorizedCircles = request.AuthorizedCircles
+                AuthorizedCircles = request.AuthorizedCircles,
+                DefaultCircles = oldRegistration.DefaultCircles
             };
 
             await SaveAsync(updatedAppReg);
@@ -504,6 +509,29 @@ namespace Odin.Services.Authorization.Apps
         /// Empties the cache and creates a new instance that can be built
         /// </summary>
         /// <summary>
+        /// Materialises an app's declared circles as real rows.
+        /// </summary>
+        /// <remarks>
+        /// Create-or-update matched on circle id, so re-registering an app updates its circles rather
+        /// than duplicating them.  Circles the app no longer declares are deliberately left alone:
+        /// people may be in them, and silently revoking membership because a registration payload
+        /// changed is not something an install should do.
+        /// </remarks>
+        private async Task ApplyDefaultCirclesAsync(AppRegistration appReg, IOdinContext odinContext)
+        {
+            foreach (var declared in appReg.DefaultCircles ?? [])
+            {
+                await circleDefinitionService.CreateOrUpdateAppCircleAsync(
+                    appReg.AppId,
+                    declared.ToCreateCircleRequest(appReg.AppId));
+
+                logger.LogInformation(
+                    "App [{app}] default circle '{circle}' ({id}) applied with GrantOn={grantOn}",
+                    appReg.Name, declared.Name, declared.Id, declared.GrantOn);
+            }
+        }
+
+        /// <summary>
         /// Picks a slug for a newly registered app, unique against those already registered.
         /// </summary>
         private async Task<string> AssignSlugAsync(Guid appId, string name)
@@ -543,7 +571,12 @@ namespace Odin.Services.Authorization.Apps
                 Name = appReg.Name,
                 CorsHostName = appReg.CorsHostName,
                 grantJson = OdinSystemSerializer.Serialize(appReg),
-                detailsJson = null
+
+                // Consent display and repair only; never read on the hot path -- the Circle rows are the
+                // truth for what an app's defaults actually are.
+                detailsJson = appReg.DefaultCircles == null
+                    ? null
+                    : OdinSystemSerializer.Serialize(appReg.DefaultCircles)
             };
         }
 
@@ -555,6 +588,9 @@ namespace Odin.Services.Authorization.Apps
             appReg.AppSlug = record.AppSlug;
             appReg.Name = record.Name;
             appReg.CorsHostName = record.CorsHostName;
+            appReg.DefaultCircles = string.IsNullOrEmpty(record.detailsJson)
+                ? null
+                : OdinSystemSerializer.Deserialize<List<AppDefaultCircleRequest>>(record.detailsJson);
 
             return appReg;
         }

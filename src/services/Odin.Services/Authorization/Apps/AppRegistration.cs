@@ -50,6 +50,17 @@ namespace Odin.Services.Authorization.Apps
         [JsonIgnore]
         public string CorsHostName { get; set; }
 
+        /// <summary>
+        /// The default circles this app declared at registration.
+        /// </summary>
+        /// <remarks>
+        /// Stored on the row's <c>detailsJson</c>, and used for exactly two things: showing the owner
+        /// what they consented to, and re-creating the circle rows if a repair or migration needs to.
+        /// It is never read on the hot path -- the rows in the Circle table are the truth.
+        /// </remarks>
+        [JsonIgnore]
+        public List<AppDefaultCircleRequest> DefaultCircles { get; set; }
+
         public RedactedAppRegistration Redacted()
         {
             //NOTE: we're not sharing the encrypted app dek, this is crucial

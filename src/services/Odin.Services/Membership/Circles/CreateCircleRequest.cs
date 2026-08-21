@@ -21,4 +21,24 @@ public class CreateCircleRequest
     /// The permissions to be granted to members of this Circle
     /// </summary>
     public PermissionSet Permissions { get; set; }
+
+    /// <summary>
+    /// The app that owns this circle; null means an owner circle.
+    /// </summary>
+    public Guid? AppId { get; set; }
+
+    /// <summary>
+    /// When members are enrolled.  Defaults to manual membership only.
+    /// </summary>
+    public CircleGrantOn GrantOn { get; set; } = CircleGrantOn.None;
+
+    /// <summary>
+    /// What kind of relationship this circle represents.
+    /// </summary>
+    public CircleDesignation Designation { get; set; } = CircleDesignation.Personal;
+
+    /// <summary>
+    /// Optional user- or app-chosen emoji.
+    /// </summary>
+    public string Emoji { get; set; }
 }
