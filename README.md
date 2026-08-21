@@ -72,6 +72,23 @@ curl -sk https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken   # 
 
 > Note: browsing `https://frodo.dotyou.cloud/` directly will 500 until the front-end dev servers (step 2) are running, because the host reverse-proxies the app paths to them.
 
+**Stale environment / "No certificate configured" trap.** The dev certificates from `src/apps/Odin.Hosting/https/` are imported into an environment's certificate store **only when an identity is first registered** — i.e. on the environment's very first run. Renewing the repo certs later does NOT propagate into an existing `$HOME/tmp/dotyou`; the identities keep their old certs, ACME renewal is deliberately impossible for `dotyou.cloud` domains (they resolve to 127.0.0.1), and once those stored certs expire every HTTPS connection dies mid-TLS-handshake ("unexpected eof"). The log symptoms are:
+
+```
+ERR Can't create certificate for frodo.dotyou.cloud because dotyou.cloud domains (should) resolve to 127.0.0.1. Did it expire?
+WRN No certificate configured for frodo.dotyou.cloud
+```
+
+The fix is a fresh environment (this wipes local dev data — identities, passwords, drives):
+
+```bash
+# stop the host first; move aside instead of deleting if you want a way back
+mv ~/tmp/dotyou ~/tmp/dotyou.bak-$(date +%Y%m%d)
+dotnet run --project src/apps/Odin.Hosting   # re-registers all identities with the current repo certs
+```
+
+Rule of thumb: if the repo's dev certs were renewed since your `~/tmp/dotyou` was created (compare `cert-expiry.sh` dates with the environment's age), reset the environment.
+
 ### 2. Start the front-end (odin-js)
 
 In the `odin-js` repo (checked out next to `odin-core`; Node 18+ works):
@@ -80,6 +97,12 @@ In the `odin-js` repo (checked out next to `odin-core`; Node 18+ works):
 npm install && npm run build:libs   # first time only
 npm run start                       # runs all apps concurrently
 ```
+
+> **401 on `@homebase-id/ffmpeg` during install/build?** `build:libs` embeds an `npm i`, and the lockfile pins the auth-gated `@homebase-id/ffmpeg` from GitHub Packages — without registry auth both steps 401. Workaround (details in the odin-js README): stub the package, then skip the embedded install by building directly:
+>
+> ```bash
+> npm run build -w ./packages/libs/js-lib -w ./packages/libs/ui-lib
+> ```
 
 > **Optional `@homebase-id/ffmpeg` dependency.** `js-lib` lazily imports the auth-gated GitHub Packages dependency `@homebase-id/ffmpeg` for video (HLS) processing. `npm install` skips it if you're not authenticated to `npm.pkg.github.com`, but the vite dev server's optimizer still tries to resolve the import at startup and fails with *"@homebase-id/ffmpeg … could not be resolved"* on every app. If you don't need video, provide a tiny no-op stub: create `odin-js/.ffmpeg-stub/` with a `package.json` (`"name": "@homebase-id/ffmpeg"`, `"type": "module"`, `"main": "index.js"`) and an `index.js` that exports a throwing `FFmpeg` class, then symlink `node_modules/@homebase-id/ffmpeg -> ../../.ffmpeg-stub`. (The real package's sources live in the sibling `ffmpeg-kit` / `ffmpeg.wasm` repos if you do need video.)
 
