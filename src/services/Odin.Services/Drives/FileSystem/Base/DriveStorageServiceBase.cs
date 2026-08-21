@@ -902,8 +902,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 {
                     if (!ignorePayload.GetValueOrDefault(false))
                     {
-                        //Since this method is a full overwrite, zombies are all payloads on the file being overwritten
-                        var zombiePayloads = existingServerHeader.FileMetadata.Payloads;
+                        //Since this method is a full overwrite, zombies are all payloads on the file being
+                        //overwritten, except any the incoming header reuses in place: a peer retransmit carries the
+                        //sender's original descriptor, so an incoming payload can share Key and Uid (and therefore
+                        //its stored object) with the one it replaces. Deleting that would destroy live bytes.
+                        var zombiePayloads = PayloadStorage.ExcludeStillLive(
+                            existingServerHeader.FileMetadata.Payloads, payloads);
                         await longTermStorageManager.TryHardDeleteListOfPayloadFiles(drive, targetFile.FileId, zombiePayloads);
                     }
                 }
@@ -943,9 +947,12 @@ namespace Odin.Services.Drives.FileSystem.Base
                 throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            // zombies will be those payloads that we overwrite 
-            var zombiePayloads = existingServerHeader.FileMetadata.Payloads
-                .Where(existingPayload => incomingPayloads.Any(incomingPayload => incomingPayload.KeyEquals(existingPayload))).ToList();
+            // zombies will be those payloads that we overwrite, minus any the incoming set reuses in place
+            // (same Key and Uid resolves to the same stored object, so deleting it would destroy live bytes)
+            var zombiePayloads = PayloadStorage.ExcludeStillLive(
+                existingServerHeader.FileMetadata.Payloads
+                    .Where(existingPayload => incomingPayloads.Any(incomingPayload => incomingPayload.KeyEquals(existingPayload))),
+                incomingPayloads);
 
             try
             {
@@ -1390,9 +1397,12 @@ namespace Odin.Services.Drives.FileSystem.Base
 
             // At this point we have now copied all the files successfully and return
             // the payloads that must be cleaned up. The caller can now do its DB
-            // stuff and then call cleanup
+            // stuff and then call cleanup.
+            // Never hand back a zombie that shares its stored object (Key + Uid) with a payload the resulting
+            // header still points at; deleting it would destroy live bytes rather than a previous version.
+            var deletableZombies = PayloadStorage.ExcludeStillLive(zombies, existingHeader.FileMetadata.Payloads);
 
-            return (existingHeader, copiedPayloads, zombies);
+            return (existingHeader, copiedPayloads, deletableZombies);
         }
 
 
