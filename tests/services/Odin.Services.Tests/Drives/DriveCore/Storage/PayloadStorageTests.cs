@@ -65,15 +65,14 @@ public class PayloadStorageTests
     }
 
     [Test]
-    public void ExcludeStillLive_MatchesKeyCaseInsensitively()
+    public void ExcludeStillLive_KeepsZombieWhenTheKeyMatchesButOnlyOneOfSeveralPayloadsCollides()
     {
-        // PayloadDescriptor.KeyEquals is case-insensitive; path resolution must not disagree with it.
-        var existing = new List<PayloadDescriptor> { Payload("Chat_Web0", Uid) };
+        var existing = new List<PayloadDescriptor> { Payload(Key, Uid), Payload("dropped01", Uid) };
         var live = new List<PayloadDescriptor> { Payload(Key, Uid) };
 
         var deletable = PayloadStorage.ExcludeStillLive(existing, live);
 
-        Assert.That(deletable, Is.Empty);
+        Assert.That(deletable.Single().Key, Is.EqualTo("dropped01"));
     }
 
     [Test]
