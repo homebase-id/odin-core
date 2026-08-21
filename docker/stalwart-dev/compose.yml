@@ -15,9 +15,8 @@ services:
     environment:
       # Deterministic dev admin credentials (skip fishing them out of the logs)
       STALWART_RECOVERY_ADMIN: "admin:devadminpass"
-      # Recovery mode: mail services suspended, management API only - the headless
-      # provisioning path (remove for normal operation once provisioned)
-      STALWART_RECOVERY_MODE: "1"
+      # Recovery mode is OFF (normal operation). Re-add STALWART_RECOVERY_MODE: "1"
+      # for management-API-only provisioning/repair sessions.
     ports:
       - "9080:8080"
       - "9443:443"
