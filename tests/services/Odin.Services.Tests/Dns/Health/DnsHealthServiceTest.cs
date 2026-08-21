@@ -113,6 +113,36 @@ public class DnsHealthServiceTest
     }
 
     //
+    // Record split: Optional-flagged rows (the email record set) must reach clients
+    // as MailRecords, never as failed-looking required Records
+    //
+
+    [Test]
+    public async Task ItShouldSplitOptionalRecordsIntoMailRecords()
+    {
+        _authoritativeDnsLookup
+            .Setup(x => x.LookupZoneApexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("example.com");
+        _dnsLookupService
+            .Setup(x => x.GetAuthoritativeDomainDnsStatusAsync(Domain, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, new List<DnsConfig>
+            {
+                new() { Type = "A", Name = "", Value = "127.0.0.1" },
+                new() { Type = "CNAME", Name = "capi", Value = "alias.example" },
+                new() { Type = "TXT", Name = "_dmarc", Value = "v=DMARC1; p=reject", Optional = true },
+                new() { Type = "CNAME", Name = "mta-sts", Value = "alias.example", Optional = true },
+            }));
+
+        var result = await CreateService().GetDnsHealthAsync(Domain, CancellationToken.None);
+
+        Assert.That(result.RecordsAreValid, Is.True);
+        Assert.That(result.Records.Select(r => r.Name), Is.EqualTo(new[] { "", "capi" }));
+        Assert.That(result.Records.All(r => !r.Optional), Is.True);
+        Assert.That(result.MailRecords.Select(r => r.Name), Is.EqualTo(new[] { "_dmarc", "mta-sts" }));
+        Assert.That(result.MailRecords.All(r => r.Optional), Is.True);
+    }
+
+    //
     // DNSSEC orchestration (mocked seams)
     //
 
