@@ -72,6 +72,23 @@ curl -sk https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken   # 
 
 > Note: browsing `https://frodo.dotyou.cloud/` directly will 500 until the front-end dev servers (step 2) are running, because the host reverse-proxies the app paths to them.
 
+**Running the integration tests?** Stop the dev host first — `Odin.Hosting.Tests`' scaffold and the running host both bind the admin port (4444), so the suites fail with "address already in use" while the host runs. (Ports 8080/8443 must be free too.)
+
+**Why the dev DNS values are real names.** `appsettings.development.json` sets `ApexARecords` to `127.0.0.1` and `ApexAliasRecord` to `provisioning.dotyou.cloud` — the public `*.dotyou.cloud` dev records genuinely resolve to `127.0.0.1`, so the owner console's DNS tab and the boot-time DNS checks verify meaningfully on a dev machine instead of flagging placeholder mismatches. `provisioning.dotyou.cloud` is already in the `/etc/hosts` line above; nothing extra to configure.
+
+**Testing tenant mail locally.** `Email:TenantMail` is off by default (the production posture), and the test suite depends on that default — don't enable it in `appsettings.development.json` (WebScaffold reads that file; the flag-off fixtures and the zero-error log assertions will fail suite-wide). For manual testing, layer it with environment variables for one run instead:
+
+```bash
+Email__TenantMail__Enabled=true \
+Email__TenantMail__MxNodes__0=mx1.dotyou.cloud \
+Email__TenantMail__SpfIncludeTarget=_spf.dotyou.cloud \
+Email__TenantMail__DmarcReportEmail=dmarc@dotyou.cloud \
+Email__TenantMail__TlsReportEmail=tls@dotyou.cloud \
+dotnet run --project src/apps/Odin.Hosting
+```
+
+Expect one deliberate boot ERR — `Email:TenantMail:Enabled is true but Email:Provider is 'None'` — the startup verifier flagging the provider-less combination; tenant mail behavior itself works for testing (record emission, MTA-STS policy, the mail activation API).
+
 **Stale environment / "No certificate configured" trap.** The dev certificates from `src/apps/Odin.Hosting/https/` are imported into an environment's certificate store **only when an identity is first registered** — i.e. on the environment's very first run. Renewing the repo certs later does NOT propagate into an existing `$HOME/tmp/dotyou`; the identities keep their old certs, ACME renewal is deliberately impossible for `dotyou.cloud` domains (they resolve to 127.0.0.1), and once those stored certs expire every HTTPS connection dies mid-TLS-handshake ("unexpected eof"). The log symptoms are:
 
 ```
