@@ -107,10 +107,22 @@ P-384 itself is fully supported (`has_pgp_keys` in
 `crates/common/src/storage/encryption.rs` requires a policy-valid,
 transport-encryption-capable key - algorithm was never the issue).
 
-## Still to verify in normal (non-recovery) mode
+## Normal (non-recovery) mode - VERIFIED 2026-08-21
 
-- User auth with the generated app password against JMAP/IMAP.
-- That provisioned state (domain/account/DKIM/encryption) survives the
-  recovery→normal restart (registry is DB-backed, so it should).
-- SMTP acceptance + actual encryption-at-rest of a delivered message
-  (needs mail-flow ports; part of the canary work, not the provider PR).
+- ✅ Provisioned state (domain/account/DKIM/encryption-at-rest) survives the
+  recovery→normal restart intact.
+- ✅ User auth with the server-generated app password works against JMAP in
+  normal mode (403 in recovery mode is a mode restriction, nothing else) -
+  and works WITHOUT any role assignment on the account.
+- ✅ STALWART_RECOVERY_ADMIN keeps authenticating in normal mode too - it is a
+  standing fallback admin, not recovery-only (the dev instance never creates
+  a permanent admin account and doesn't need one).
+- 🆕 Stalwart AUTO-CREATES a default per-domain DKIM signature
+  (`v1-rsa-<date>` selector) of its own. Our `s1`/`s2` keys coexist with it;
+  the provider's delete path sweeps all signatures by domainId so cleanup
+  still converges. Flag-flip consideration: decide whether the auto
+  signature should be disabled/removed so only Homebase-authored keys sign
+  (its selector has no DNS record, so its signatures would fail DKIM anyway).
+
+Still ahead (canary work, not the provider): SMTP acceptance + actual
+encryption-at-rest of a delivered message (needs mail-flow ports).
