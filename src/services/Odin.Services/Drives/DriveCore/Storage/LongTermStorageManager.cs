@@ -432,8 +432,13 @@ namespace Odin.Services.Drives.DriveCore.Storage
         /// (see <see cref="WriteStreamDirectToLongTermAsync"/>) but processing then resolves it to an
         /// overwrite/update of an existing file whose fileId differs. Implemented as copy-then-delete within the
         /// long-term store (a local file copy on disk, a server-side copy on S3) because
-        /// <see cref="IDriveFileStore"/> has no rename primitive. The incoming payload's <c>uid</c> is unique per
-        /// upload, so the destination never collides with an existing payload on the target file.
+        /// <see cref="IDriveFileStore"/> has no rename primitive.
+        ///
+        /// Note the destination CAN collide with an existing payload on the target file. The <c>uid</c> is unique
+        /// per upload, but the peer receive path preserves the sender's descriptor, so a retransmitted transfer
+        /// arrives carrying the same Key and Uid as the copy already committed and lands on the same object.
+        /// The copy itself is harmless (identical bytes); what must not follow is a "delete the replaced payload"
+        /// cleanup keyed on the same Key and Uid. See <see cref="PayloadStorage.ExcludeStillLive"/>.
         /// </remarks>
         public async Task MovePayloadWithinLongTermAsync(StorageDrive drive, Guid originFileId, Guid targetFileId,
             PayloadDescriptor descriptor)

@@ -235,7 +235,11 @@ public static class OpenPgpKeyManagement
     private static string Armor(byte[] encoded)
     {
         using var stream = new MemoryStream();
-        using (var armoredStream = new ArmoredOutputStream(stream))
+        // ClearHeaders drops the default "Version: BCPG ..." armor header: modern
+        // OpenPGP practice omits it, and at least one consumer (Stalwart 0.16's
+        // certificate parser, live-verified) treats header lines as base64 and
+        // rejects the armor
+        using (var armoredStream = ArmoredOutputStream.Build().ClearHeaders().Build(stream))
         {
             // No "Version: BCPG ..." armor header: modern OpenPGP practice omits it,
             // and at least one consumer (Stalwart 0.16's certificate parser,
