@@ -22,7 +22,7 @@
 - **Dependencies flow downward only:** `Odin.Hosting` → `Odin.Services` → `Odin.Core.*`. Never reference upward.
 - **Generated files are never hand-edited.** Every `Table*CRUD.cs`, `*Database.Generated.cs`, and `*Migrator.Generated.cs` carries `// THIS FILE IS AUTO GENERATED - DO NOT EDIT`. All changes to them come from re-running the generator.
 - **Generated code must contain no JSON types.** No `Utf8JsonWriter`, `JsonElement`, `JsonSerializer`, or `System.Text.Json` using-directive in any generated file. The aggregate deals in `object` and `Type`.
-- **Export and import target two namespaces only:** `Odin.Core.Storage.Database.Identity` and `Odin.Core.Storage.Database.System`. The generator also emits for KeyChain, Attestation, Notarius and SocialSync, which are unrelated applications that happen to share it. No part of this feature may reach into them. The gate is `Program.ExportableNamespaces` plus `IsExportableNamespace(table)`, checked in every generator method this plan adds.
+- **Export and import target two namespaces only:** `Odin.Core.Storage.Database.Identity` and `Odin.Core.Storage.Database.System`. The generator also emits for KeyChain, Attestation, Notarius and SocialSync, which are unrelated applications that happen to share it. No part of this feature may reach into them. The gate is `Program.IdentityHostNamespaces` plus `IsIdentityHostNamespace(table)`, checked in every generator method this plan adds.
 - **Import writes timestamps as-is.** No generated import path may use `{sqlNowStr}`.
 - **Import is all-or-nothing on schema version.** Zero rows written unless every table version matches.
 - **Test framework is NUnit.** Postgres cases go behind `#if RUN_POSTGRES_TESTS`, matching `DataImporterEndToEndTests`.
@@ -201,29 +201,29 @@ Add beside the namespace constants (after `OdinCoreNotaryNamespace`):
     // feature may reach into them. Gating on the namespace rather than on a per-table
     // annotation means a table added to one of those applications stays out of the export
     // even if it happens to carry an identityId column.
-    public static readonly string[] ExportableNamespaces =
+    public static readonly string[] IdentityHostNamespaces =
     [
         OdinCoreIdentityNamespace,
         OdinCoreSystemNamespace,
     ];
 
-    public static bool IsExportableNamespace(Table table)
+    public static bool IsIdentityHostNamespace(Table table)
     {
-        return Array.IndexOf(ExportableNamespaces, table.nameSpace) >= 0;
+        return Array.IndexOf(IdentityHostNamespaces, table.nameSpace) >= 0;
     }
 ```
 
 Then, so a typo in `exportScopeColumn` surfaces at generation time rather than as a confusing SQL error at runtime, add at the top of `GenerateCode(Table table)`, right after the existing `nameSpace` argument check:
 
 ```csharp
-        if (IsExportableNamespace(table)
+        if (IsIdentityHostNamespace(table)
             && table.exportScopeColumn != null
             && !table.columns.Exists(c => c.name == table.exportScopeColumn))
             throw new ArgumentException(
                 $"Table {table.tableName}: exportScopeColumn '{table.exportScopeColumn}' is not a column on this table.");
 ```
 
-The `IsExportableNamespace` guard is what lets the unrelated applications keep the
+The `IsIdentityHostNamespace` guard is what lets the unrelated applications keep the
 default `"identityId"` without tripping the check, since none of their tables has that
 column.
 
@@ -252,7 +252,7 @@ git commit -m "Generator: add Table.exportScopeColumn, annotate System tables
 Export and import target Odin.Core.Storage.Database.Identity and
 Odin.Core.Storage.Database.System only. KeyChain, Attestation, Notarius
 and SocialSync are unrelated applications that share this generator, and
-ExportableNamespaces keeps them out regardless of their columns.
+IdentityHostNamespaces keeps them out regardless of their columns.
 
 Within the two exportable namespaces, exportScopeColumn defaults to
 identityId, which is correct for every Identity table. Certificates and
@@ -281,7 +281,7 @@ Add near `GeneratePagingGet`:
     // multiple statements cannot give a consistent read under READ COMMITTED.
     public static void GenerateExportRows(Table table)
     {
-        if (!IsExportableNamespace(table) || table.exportScopeColumn == null)
+        if (!IsIdentityHostNamespace(table) || table.exportScopeColumn == null)
             return;
 
         var scope = table.columns[table.ColumnIndex(table.exportScopeColumn)];
@@ -402,7 +402,7 @@ Add immediately after `GenerateExportRows`:
     //     assigns its own. Insert order preserves the relative sequence.
     public static void GenerateImportRow(Table table)
     {
-        if (!IsExportableNamespace(table) || table.exportScopeColumn == null)
+        if (!IsIdentityHostNamespace(table) || table.exportScopeColumn == null)
             return;
 
         Output($"        internal virtual async Task<int> ImportRowAsync({table.RecordName()} item)");
@@ -509,7 +509,7 @@ Model it on the existing `GenerateAllGlobalTableLists`. Add immediately after th
     {
         foreach (var tableGroup in GroupedTablesByNamespace)
         {
-            if (Array.IndexOf(ExportableNamespaces, tableGroup.Key) < 0)
+            if (Array.IndexOf(IdentityHostNamespaces, tableGroup.Key) < 0)
                 continue;
 
             var exportable = tableGroup.Value.FindAll(t => t.exportScopeColumn != null);

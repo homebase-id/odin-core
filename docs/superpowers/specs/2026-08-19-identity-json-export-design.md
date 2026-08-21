@@ -99,7 +99,7 @@ Facts established by reading the code, not assumed:
   territory. KeyChain, Notary and Attestation are standalone databases with their own
   connection factories, and SocialSync is a separate database in a separate repo; all
   four are unrelated applications that happen to share the generator. They are excluded
-  by namespace, via `ExportableNamespaces`, rather than by per-table annotation, so a
+  by namespace, via `IdentityHostNamespaces`, rather than by per-table annotation, so a
   table added to any of them stays out of the export even if it carries an `identityId`
   column. Only the 6 System tables need a per-table annotation.
 - **In the System database three tables are identity-scoped**: `Registrations`
@@ -136,7 +136,7 @@ with a named error rather than silently exporting nothing, so the failure direct
 safe, and it is zero-maintenance where it counts.
 
 **The namespace gate is separate from, and stronger than, the annotation.** Every
-generator method this feature adds begins with `IsExportableNamespace(table)`. That is
+generator method this feature adds begins with `IsIdentityHostNamespace(table)`. That is
 what guarantees no export or import code reaches an unrelated application, whatever columns its tables happen to have. The per-table
 `exportScopeColumn` then decides scope *within* the two namespaces that are in
 scope.
