@@ -241,10 +241,6 @@ public static class OpenPgpKeyManagement
         // rejects the armor
         using (var armoredStream = ArmoredOutputStream.Build().ClearHeaders().Build(stream))
         {
-            // No "Version: BCPG ..." armor header: modern OpenPGP practice omits it,
-            // and at least one consumer (Stalwart 0.16's certificate parser,
-            // live-verified) treats header lines as base64 and rejects the armor
-            armoredStream.SetHeader(ArmoredOutputStream.HeaderVersion, null);
             armoredStream.Write(encoded, 0, encoded.Length);
         }
 
