@@ -105,6 +105,12 @@ namespace Odin.Services.Authorization.Acl
                 case SecurityGroupType.Authenticated:
                     return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Authenticated);
 
+                // Legacy 555 files (the chat app ACLs messages with it) evaluate at the same threshold as
+                // 777, exactly as they did when the two shared a case.  Dropping the case would deny them
+                // to every caller including a reviewed one, and would disagree with the index filter --
+                // requiredSecurityGroup BETWEEN 0 AND callerLevel admits 555 to a 777 caller, so the file
+                // would list and then fail to read.
+                case SecurityGroupType.AutoConnected:
                 case SecurityGroupType.Reviewed:
                     return Task.FromResult(((int)caller!.SecurityLevel) >= (int)SecurityGroupType.Reviewed);
             }
