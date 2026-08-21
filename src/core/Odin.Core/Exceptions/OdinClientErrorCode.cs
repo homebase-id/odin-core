@@ -33,6 +33,7 @@ public enum OdinClientErrorCode
     IdentityAlreadyFollowed = 3009,
     CannotGrantAutoConnectedMoreCircles = 3010,
     IncomingRequestNotFound = 3011,
+    CannotUnreviewCircleMember = 3012,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

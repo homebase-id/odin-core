@@ -60,6 +60,24 @@ public class V2ConnectionNetworkController(
         return Ok();
     }
 
+    [HttpPost("review")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Complete the connection review: stamp it and enroll the chosen circles")]
+    public async Task<IActionResult> ReviewConnection([FromBody] ReviewConnectionRequest request)
+    {
+        await circleNetwork.ReviewConnectionAsync(new OdinId(request.OdinId), request.CircleIds, WebOdinContext);
+        return Ok();
+    }
+
+    [HttpPost("unreview")]
+    [SwaggerOperation(Tags = [SwaggerInfo.Connections],
+        Summary = "Clear the review, dropping the contact back to New")]
+    public async Task<IActionResult> UnreviewConnection([FromBody] OdinIdRequest request)
+    {
+        await circleNetwork.UnreviewConnectionAsync((OdinId)request.OdinId, WebOdinContext);
+        return Ok();
+    }
+
     [HttpPost("verify-connection")]
     [SwaggerOperation(Tags = [SwaggerInfo.Connections], Summary = "Verify connection status with an identity")]
     public async Task<IcrVerificationResult> VerifyConnection([FromBody] OdinIdRequest request)
@@ -85,7 +103,7 @@ public class V2ConnectionNetworkController(
     public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromQuery] string odinId)
     {
         var result = await circleNetwork.GetIcrAsync(new OdinId(odinId), WebOdinContext);
-        return result?.Redacted();
+        return WebOdinContext.Caller.IsOwner ? result?.Redacted() : result?.RedactedForThirdParty();
     }
 
     [HttpGet("connected")]
@@ -93,10 +111,11 @@ public class V2ConnectionNetworkController(
     public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, string cursor)
     {
         var result = await circleNetwork.GetConnectedIdentitiesAsync(count, cursor, WebOdinContext);
+        var isOwnerViewer = WebOdinContext.Caller.IsOwner;
         return new CursoredResult<RedactedIdentityConnectionRegistration>()
         {
             Cursor = result.Cursor,
-            Results = result.Results.Select(p => p.Redacted()).ToList()
+            Results = result.Results.Select(p => isOwnerViewer ? p.Redacted() : p.RedactedForThirdParty()).ToList()
         };
     }
 
@@ -105,10 +124,11 @@ public class V2ConnectionNetworkController(
     public async Task<CursoredResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count, string cursor)
     {
         var result = await circleNetwork.GetBlockedProfilesAsync(count, cursor, WebOdinContext);
+        var isOwnerViewer = WebOdinContext.Caller.IsOwner;
         return new CursoredResult<RedactedIdentityConnectionRegistration>()
         {
             Cursor = result.Cursor,
-            Results = result.Results.Select(p => p.Redacted()).ToList()
+            Results = result.Results.Select(p => isOwnerViewer ? p.Redacted() : p.RedactedForThirdParty()).ToList()
         };
     }
 

@@ -201,4 +201,38 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
             return apiResponse;
         }
     }
+
+    public async Task<ApiResponse<HttpContent>> ReviewConnection(OdinId recipient, IEnumerable<GuidId> circleIds = null)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            var apiResponse = await connectionsService.ReviewConnection(new ReviewConnectionRequest()
+            {
+                OdinId = recipient,
+                CircleIds = circleIds
+            });
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<CursoredResult<RedactedIdentityConnectionRegistration>>> GetConnectedIdentitiesOverGet(
+        int count = 100, string cursor = "")
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, sharedSecret);
+            return await connectionsService.GetConnectedIdentitiesOverGet(count, cursor);
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> UnreviewConnection(OdinId recipient)
+    {
+        var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, ownerSharedSecret);
+            var apiResponse = await connectionsService.UnreviewConnection(new OdinIdRequest() { OdinId = recipient });
+            return apiResponse;
+        }
+    }
 }
