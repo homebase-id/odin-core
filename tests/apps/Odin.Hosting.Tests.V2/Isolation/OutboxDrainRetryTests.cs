@@ -45,7 +45,7 @@ public class OutboxDrainRetryTests : V2Fixture
         // the upload's own transfer item — otherwise we'd park an unrelated row and prove nothing.
         await sender.Sync.DrainOutboxAsync();
 
-        var metadata = SampleMetadataData.Create(fileType: 8801, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: 8801, acl: AccessControlList.Reviewed);
         metadata.AllowDistribution = true;
         var upload = await sender.Drives.Writer.UploadNewMetadata(drive.Alias, metadata,
             transitOptions: new TransitOptions { Recipients = [recipient.Identity] });
@@ -98,7 +98,7 @@ public class OutboxDrainRetryTests : V2Fixture
 
         // Sanity check on the loop's exit condition: an ordinary drain of an ordinary transfer still
         // terminates, and a drain over an already-empty outbox is a no-op rather than a spin.
-        var metadata = SampleMetadataData.Create(fileType: 8802, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: 8802, acl: AccessControlList.Reviewed);
         metadata.AllowDistribution = true;
         var upload = await sender.Drives.Writer.UploadNewMetadata(drive.Alias, metadata,
             transitOptions: new TransitOptions { Recipients = new List<string> { recipient.Identity } });

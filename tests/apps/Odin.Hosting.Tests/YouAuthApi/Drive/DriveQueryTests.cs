@@ -61,7 +61,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var targetDrive = TargetDrive.NewTargetDrive();
 
             await _scaffold.CreateOwnerApiClient(identity).Drive.CreateDrive(targetDrive, "test drive", "", allowAnonymousReads: true); //note: must allow anonymous so youauth can read it
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected);
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Reviewed);
             var (anonymousFileUploadResult, _) = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
 
             var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
@@ -110,10 +110,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
                 {
                     circle.Id
                 },
-                RequiredSecurityGroup = SecurityGroupType.Connected
+                RequiredSecurityGroup = SecurityGroupType.Reviewed
             };
 
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected);
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Reviewed);
             var (anonymousFileUploadResult, _) = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
             var securedFileUploadContext2 = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, circleSecuredAcl);
 
@@ -158,14 +158,14 @@ namespace Odin.Hosting.Tests.YouAuthApi.Drive
             var ownerApiClient = _scaffold.CreateOwnerApiClient(identity);
             await ownerApiClient.Drive.CreateDrive(targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
 
-            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Connected);
+            var securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Reviewed);
             var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, AccessControlList.Anonymous);
 
             //overwrite them to ensure the updated timestamp is set
             await this.UploadFile2(identity.OdinId, targetDrive,
                 overwriteFileId: securedFileUploadContext.uploadResult.File.FileId,
                 tag,
-                AccessControlList.Connected, versionTag: securedFileUploadContext.uploadResult.NewVersionTag);
+                AccessControlList.Reviewed, versionTag: securedFileUploadContext.uploadResult.NewVersionTag);
 
             anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive,
                 overwriteFileId: anonymousFileUploadContext.uploadResult.File.FileId,

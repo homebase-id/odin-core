@@ -118,7 +118,7 @@ public class Feed_Post_Tests
         var friendsFile = SampleMetadataData.CreateWithContent(fileType, friendsOnlyContent,
             acl: new AccessControlList()
             {
-                RequiredSecurityGroup = SecurityGroupType.Connected,
+                RequiredSecurityGroup = SecurityGroupType.Reviewed,
                 CircleIdList = [circleId]
             });
 
@@ -236,7 +236,7 @@ public class Feed_Post_Tests
         var friendsFile = SampleMetadataData.CreateWithContent(fileType, friendsOnlyContent,
             acl: new AccessControlList()
             {
-                RequiredSecurityGroup = SecurityGroupType.Connected,
+                RequiredSecurityGroup = SecurityGroupType.Reviewed,
                 CircleIdList = [circleId]
             });
 

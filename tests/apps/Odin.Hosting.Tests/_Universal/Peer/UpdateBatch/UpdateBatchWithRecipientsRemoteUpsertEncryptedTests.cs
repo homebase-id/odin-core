@@ -102,7 +102,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
         var keyHeader = KeyHeader.NewRandom16();
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AllowDistribution = true;
         const string originalUploadedContent = "some content here..";
         uploadedFileMetadata.AppData.Content = originalUploadedContent;
@@ -299,7 +299,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
         var keyHeader = KeyHeader.NewRandom16();
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AllowDistribution = true;
         const string originalUploadedContent = "some content here..";
         uploadedFileMetadata.AppData.Content = originalUploadedContent;
@@ -496,7 +496,7 @@ public class UpdateBatchWithRecipientsRemoteUpsertEncrypted
 
         var keyHeader = KeyHeader.NewRandom16();
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AllowDistribution = true;
         const string originalUploadedContent = "some content here..";
         uploadedFileMetadata.AppData.Content = originalUploadedContent;

@@ -597,7 +597,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var storageOptions = new StorageOptions()
@@ -723,7 +723,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             ApiResponse<UploadResult> uploadResponse;

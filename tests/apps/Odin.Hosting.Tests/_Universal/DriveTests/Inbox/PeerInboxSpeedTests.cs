@@ -200,7 +200,7 @@ namespace Odin.Hosting.Tests._Universal.DriveTests.Inbox
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var storageOptions = new StorageOptions()

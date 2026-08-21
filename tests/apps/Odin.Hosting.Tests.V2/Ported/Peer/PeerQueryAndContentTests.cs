@@ -76,7 +76,7 @@ public class PeerQueryAndContentTests : V2Fixture
     {
         var (member, owner, drive) = await SetupMemberCanReadOwnerDriveAsync();
 
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed);
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var manifest = new UploadManifest
         {
@@ -112,7 +112,7 @@ public class PeerQueryAndContentTests : V2Fixture
     {
         var (member, owner, drive) = await SetupMemberCanReadOwnerDriveAsync();
 
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed);
         var payload = SamplePayloadDefinitions.GetPayloadDefinition1();
         var manifest = new UploadManifest
         {
@@ -180,7 +180,7 @@ public class PeerQueryAndContentTests : V2Fixture
     private static async Task<Odin.Hosting.UnifiedV2.Drive.Write.CreateFileResult> OwnerUploadsMessage(
         OwnerSession owner, TargetDrive drive, string content)
     {
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed);
         metadata.AppData.Content = content;
         var response = await owner.Drives.Writer.UploadNewMetadata(drive.Alias, metadata);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"owner upload failed: {response.StatusCode}");

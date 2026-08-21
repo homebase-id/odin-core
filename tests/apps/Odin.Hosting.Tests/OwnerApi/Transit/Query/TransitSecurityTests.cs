@@ -187,7 +187,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
             //             AdditionalThumbnails = new[] { thumbnail1 }
             //         },
             //         PayloadIsEncrypted = true,
-            //         AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+            //         AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
             //     },
             // };
             //

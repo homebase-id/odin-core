@@ -200,7 +200,7 @@ public class CollaborationChannelTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AllowDistribution = true;
         uploadedFileMetadata.AppData.DataType = 888;
-        uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
+        uploadedFileMetadata.AccessControlList = AccessControlList.Reviewed;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
 
@@ -428,7 +428,7 @@ public class CollaborationChannelTests
         uploadedFileMetadata.AppData.Content = "some content here";
         uploadedFileMetadata.AllowDistribution = true;
         uploadedFileMetadata.AppData.DataType = 7779;
-        uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
+        uploadedFileMetadata.AccessControlList = AccessControlList.Reviewed;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
         payload1.Iv = ByteArrayUtil.GetRndByteArray(16);

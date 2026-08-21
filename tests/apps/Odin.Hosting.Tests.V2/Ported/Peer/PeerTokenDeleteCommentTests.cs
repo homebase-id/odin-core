@@ -51,7 +51,7 @@ public class PeerTokenDeleteCommentTests : V2Fixture
         var drive = await PeerFlow.CreatePeerDriveAsync(member, owner, DrivePermission.Write, "community",
             allowAnonymousReads: false);
 
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected,
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed,
             allowDistribution: true);
         metadata.AppData.Content = "to be deleted over peer";
 
@@ -84,7 +84,7 @@ public class PeerTokenDeleteCommentTests : V2Fixture
             allowAnonymousReads: false);
 
         // Upload a STANDARD file on the owner's drive.
-        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Connected);
+        var metadata = SampleMetadataData.Create(fileType: CommunityMessageFileType, acl: AccessControlList.Reviewed);
         var upload = await owner.Drives.Writer.UploadNewMetadata(drive.Alias, metadata);
         Assert.That(upload.IsSuccessStatusCode, Is.True, $"owner upload failed: {upload.StatusCode}");
         var fileId = upload.Content!.FileId;

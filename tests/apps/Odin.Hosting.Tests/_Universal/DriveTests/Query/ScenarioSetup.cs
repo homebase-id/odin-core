@@ -59,12 +59,12 @@ public static class Scenario
         const int fileType = 1090;
         var file1 = SampleMetadataData.CreateWithContent(fileType: fileType,
             content:"a bit of content",
-            acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected, CircleIdList = [mordorCrewCircle] });
+            acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed, CircleIdList = [mordorCrewCircle] });
         var file1UploadResult = await UploadUnencryptedFileAndValidate(scaffold, file1, targetDrive);
 
         var file1EncryptedUploadResult = await UploadEncryptedFileAndValidate(scaffold, file1, targetDrive);
         // file 2: only connected identities can see it (a circle is not required)
-        // var file2 = SampleMetadataData.Create(fileType: fileType, acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected });
+        // var file2 = SampleMetadataData.Create(fileType: fileType, acl: new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed });
         // var file2UploadResult = await UploadAndValidate(file2, targetDrive);
 
         return (targetDrive, fileType, file1UploadResult, file1EncryptedUploadResult);

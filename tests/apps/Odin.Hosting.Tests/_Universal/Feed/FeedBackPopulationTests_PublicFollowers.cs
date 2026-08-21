@@ -162,7 +162,7 @@ public class FeedBackPopulationTests_PublicFollowers
         // upload one post to friends target drive
         //
         const string friendsOnlyContent = "some secured friends only content";
-        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Connected);
+        var friendsFile = SampleMetadataData.CreateWithContent(postFileType, friendsOnlyContent, AccessControlList.Reviewed);
         friendsFile.AllowDistribution = true;
         var friendsFileUploadResponse = await samOwnerClient.DriveRedux.UploadNewEncryptedMetadata(
             friendsOnlyTargetDrive,

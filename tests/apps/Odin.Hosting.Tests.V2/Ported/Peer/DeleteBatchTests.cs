@@ -158,7 +158,7 @@ public class DeleteBatchTests : V2Fixture
         var recipient = await LoginAsOwner(Identities.Sam);
         var drive = await PeerFlow.CreatePeerDriveAsync(sender, recipient, DrivePermission.Write, "delete-with-payloads");
 
-        var metadata = SampleMetadataData.Create(fileType: 450, acl: AccessControlList.Connected, allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: 450, acl: AccessControlList.Reviewed, allowDistribution: true);
         var payloads = new List<TestPayloadDefinition>
         {
             SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1(),
@@ -262,7 +262,7 @@ public class DeleteBatchTests : V2Fixture
     private static async Task<(Guid fileId, Guid gtid)> UploadAndDistribute(
         OwnerSession sender, OwnerSession recipient, TargetDrive drive, int fileType)
     {
-        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Connected, allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Reviewed, allowDistribution: true);
         var transit = new TransitOptions
         {
             Recipients = new List<string> { recipient.Identity },
@@ -282,7 +282,7 @@ public class DeleteBatchTests : V2Fixture
     private static async Task<(Guid fileId, Guid gtid)> UploadAndDistributeToMany(
         OwnerSession sender, IReadOnlyList<OwnerSession> recipients, TargetDrive drive, int fileType)
     {
-        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Connected, allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: fileType, acl: AccessControlList.Reviewed, allowDistribution: true);
         var transit = new TransitOptions
         {
             Recipients = recipients.Select(r => (string)r.Identity).ToList(),

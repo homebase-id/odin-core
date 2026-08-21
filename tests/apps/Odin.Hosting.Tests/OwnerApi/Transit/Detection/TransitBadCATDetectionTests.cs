@@ -160,7 +160,7 @@ public class TransitBadCATDetectionTests
                 Content = headerContent
             },
             IsEncrypted = false,
-            AccessControlList = AccessControlList.Connected
+            AccessControlList = AccessControlList.Reviewed
         };
 
         var publicFile = await merryOwnerClient.Drive.UploadFile(FileSystemType.Standard, merrySecuredDrive, fileMetadata, payloadContent,

@@ -159,7 +159,7 @@ public class TransitReactionContentOwnerTestsAuthenticatedReactions
                 GroupId = default,
                 Tags = default
             },
-            AccessControlList = acl ?? AccessControlList.Connected
+            AccessControlList = acl ?? AccessControlList.Reviewed
         };
 
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata);
