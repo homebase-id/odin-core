@@ -72,6 +72,40 @@ curl -sk https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken   # 
 
 > Note: browsing `https://frodo.dotyou.cloud/` directly will 500 until the front-end dev servers (step 2) are running, because the host reverse-proxies the app paths to them.
 
+**Running the integration tests?** Stop the dev host first — `Odin.Hosting.Tests`' scaffold and the running host both bind the admin port (4444), so the suites fail with "address already in use" while the host runs. (Ports 8080/8443 must be free too.)
+
+**Why the dev DNS values are real names.** `appsettings.development.json` sets `ApexARecords` to `127.0.0.1` and `ApexAliasRecord` to `provisioning.dotyou.cloud` — the public `*.dotyou.cloud` dev records genuinely resolve to `127.0.0.1`, so the owner console's DNS tab and the boot-time DNS checks verify meaningfully on a dev machine instead of flagging placeholder mismatches. `provisioning.dotyou.cloud` is already in the `/etc/hosts` line above; nothing extra to configure.
+
+**Testing tenant mail locally.** `Email:TenantMail` is off by default (the production posture), and the test suite depends on that default — don't enable it in `appsettings.development.json` (WebScaffold reads that file; the flag-off fixtures and the zero-error log assertions will fail suite-wide). For manual testing, layer it with environment variables for one run instead:
+
+```bash
+Email__TenantMail__Enabled=true \
+Email__TenantMail__MxNodes__0=mx1.dotyou.cloud \
+Email__TenantMail__SpfIncludeTarget=_spf.dotyou.cloud \
+Email__TenantMail__DmarcReportEmail=dmarc@dotyou.cloud \
+Email__TenantMail__TlsReportEmail=tls@dotyou.cloud \
+dotnet run --project src/apps/Odin.Hosting
+```
+
+Expect one deliberate boot ERR — `Email:TenantMail:Enabled is true but Email:Provider is 'None'` — the startup verifier flagging the provider-less combination; tenant mail behavior itself works for testing (record emission, MTA-STS policy, the mail activation API).
+
+**Stale environment / "No certificate configured" trap.** The dev certificates from `src/apps/Odin.Hosting/https/` are imported into an environment's certificate store **only when an identity is first registered** — i.e. on the environment's very first run. Renewing the repo certs later does NOT propagate into an existing `$HOME/tmp/dotyou`; the identities keep their old certs, ACME renewal is deliberately impossible for `dotyou.cloud` domains (they resolve to 127.0.0.1), and once those stored certs expire every HTTPS connection dies mid-TLS-handshake ("unexpected eof"). The log symptoms are:
+
+```
+ERR Can't create certificate for frodo.dotyou.cloud because dotyou.cloud domains (should) resolve to 127.0.0.1. Did it expire?
+WRN No certificate configured for frodo.dotyou.cloud
+```
+
+The fix is a fresh environment (this wipes local dev data — identities, passwords, drives):
+
+```bash
+# stop the host first; move aside instead of deleting if you want a way back
+mv ~/tmp/dotyou ~/tmp/dotyou.bak-$(date +%Y%m%d)
+dotnet run --project src/apps/Odin.Hosting   # re-registers all identities with the current repo certs
+```
+
+Rule of thumb: if the repo's dev certs were renewed since your `~/tmp/dotyou` was created (compare `cert-expiry.sh` dates with the environment's age), reset the environment.
+
 ### 2. Start the front-end (odin-js)
 
 In the `odin-js` repo (checked out next to `odin-core`; Node 18+ works):
@@ -80,6 +114,12 @@ In the `odin-js` repo (checked out next to `odin-core`; Node 18+ works):
 npm install && npm run build:libs   # first time only
 npm run start                       # runs all apps concurrently
 ```
+
+> **401 on `@homebase-id/ffmpeg` during install/build?** `build:libs` embeds an `npm i`, and the lockfile pins the auth-gated `@homebase-id/ffmpeg` from GitHub Packages — without registry auth both steps 401. Workaround (details in the odin-js README): stub the package, then skip the embedded install by building directly:
+>
+> ```bash
+> npm run build -w ./packages/libs/js-lib -w ./packages/libs/ui-lib
+> ```
 
 > **Optional `@homebase-id/ffmpeg` dependency.** `js-lib` lazily imports the auth-gated GitHub Packages dependency `@homebase-id/ffmpeg` for video (HLS) processing. `npm install` skips it if you're not authenticated to `npm.pkg.github.com`, but the vite dev server's optimizer still tries to resolve the import at startup and fails with *"@homebase-id/ffmpeg … could not be resolved"* on every app. If you don't need video, provide a tiny no-op stub: create `odin-js/.ffmpeg-stub/` with a `package.json` (`"name": "@homebase-id/ffmpeg"`, `"type": "module"`, `"main": "index.js"`) and an `index.js` that exports a throwing `FFmpeg` class, then symlink `node_modules/@homebase-id/ffmpeg -> ../../.ffmpeg-stub`. (The real package's sources live in the sibling `ffmpeg-kit` / `ffmpeg.wasm` repos if you do need video.)
 

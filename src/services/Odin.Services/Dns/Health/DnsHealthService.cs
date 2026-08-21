@@ -85,6 +85,14 @@ public sealed class DnsHealthResult
     /// <summary>Required records with live status (same shape the provisioning screens consume)</summary>
     public List<DnsConfig> Records { get; init; } = [];
 
+    /// <summary>
+    /// The Optional-flagged record set (today: the email records, present when
+    /// Email:TenantMail is enabled) with live status. Kept out of Records so
+    /// clients never render them as failed REQUIRED records - they are optional
+    /// until the tenant's mail is actually live.
+    /// </summary>
+    public List<DnsConfig> MailRecords { get; init; } = [];
+
     /// <summary>The server-side success rule over Records (delegation OR record rule)</summary>
     public bool RecordsAreValid { get; init; }
 
@@ -125,7 +133,10 @@ public class DnsHealthService(
 
         return new DnsHealthResult
         {
-            Records = records,
+            // Optional-flagged rows (the email record set) split out: they must never
+            // show up as failed required records in a client
+            Records = records.Where(x => !x.Optional).ToList(),
+            MailRecords = records.Where(x => x.Optional).ToList(),
             RecordsAreValid = recordsAreValid,
             OptionalRecords = optionalRecords,
             Dnssec = dnssec,
