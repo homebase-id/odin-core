@@ -22,6 +22,7 @@
 - **Dependencies flow downward only:** `Odin.Hosting` → `Odin.Services` → `Odin.Core.*`. Never reference upward.
 - **Generated files are never hand-edited.** Every `Table*CRUD.cs`, `*Database.Generated.cs`, and `*Migrator.Generated.cs` carries `// THIS FILE IS AUTO GENERATED - DO NOT EDIT`. All changes to them come from re-running the generator.
 - **Generated code must contain no JSON types.** No `Utf8JsonWriter`, `JsonElement`, `JsonSerializer`, or `System.Text.Json` using-directive in any generated file. The aggregate deals in `object` and `Type`.
+- **Export and import target two namespaces only:** `Odin.Core.Storage.Database.Identity` and `Odin.Core.Storage.Database.System`. The generator also emits for KeyChain, Attestation, Notarius and SocialSync, which are unrelated applications that happen to share it. No part of this feature may reach into them. The gate is `Program.ExportableNamespaces` plus `IsExportableNamespace(table)`, checked in every generator method this plan adds.
 - **Import writes timestamps as-is.** No generated import path may use `{sqlNowStr}`.
 - **Import is all-or-nothing on schema version.** Zero rows written unless every table version matches.
 - **Test framework is NUnit.** Postgres cases go behind `#if RUN_POSTGRES_TESTS`, matching `DataImporterEndToEndTests`.
@@ -136,9 +137,11 @@ USER is unset in containers and CI, where the switch threw outright."
 A field only. No emitted output changes, so the verification is again an empty diff. Keeping this separate from Task 3 means that if Task 3's diff looks wrong, you know the field itself is not the cause.
 
 **Files:**
-- Modify: `/workspace/Odin-SQLite-Generator/Odin-SQLite-Generator/Program.cs` — `Table` class (around line 291, beside `internalsVisibleTo`), and every table definition outside the Identity namespace: `Certificates()`, `DkimKeys()`, `Jobs()`, `Settings()`, `LastSeen()`, `KeyChain()`, `Notarius()`, `AttestationRequest()`, `AttestationStatus()`, `SocialSyncSubscriber()`, `SubscriberClientTokens()`, `SocialSyncSource()`
+- Modify: `/workspace/Odin-SQLite-Generator/Odin-SQLite-Generator/Program.cs` — the namespace constants (around line 57), the `Table` class (around line 291, beside `internalsVisibleTo`), and the `Certificates()`, `DkimKeys()`, `Jobs()`, `Settings()`, `LastSeen()` table definitions
 
-**The generator emits for six namespaces, not two.** Only `OdinCoreIdentityNamespace` (23 tables) has an `identityId` column on every table, so only there is the default correct. The other five are `OdinCoreSystemNamespace` (6 tables), `OdinCoreKeyChainNamespace`, `OdinCoreNotaryNamespace`, `OdinCoreAttestationNamespace` (2 tables), and `SocialSyncNamespace` (3 tables, and note these generate into the separate `/workspace/homebase-social-sync` repo). Every table in those five needs an explicit annotation or Step 3's validation throws.
+**The generator emits for six namespaces, and only two are in scope.** `OdinCoreIdentityNamespace` (23 tables, every one carrying `identityId`) and `OdinCoreSystemNamespace` (6 tables) are this feature's territory. `OdinCoreKeyChainNamespace`, `OdinCoreNotaryNamespace`, `OdinCoreAttestationNamespace` (2 tables) and `SocialSyncNamespace` (3 tables, generated into the separate `/workspace/homebase-social-sync` repo) belong to unrelated applications that share the generator.
+
+Those four are excluded by namespace, not by per-table annotation, so their table definitions stay untouched and a table added to one of them stays out of the export **even if it happens to carry an `identityId` column**. A per-table `null` on each would not give that guarantee.
 
 **Interfaces:**
 - Consumes: Task 1's working generator
@@ -156,11 +159,11 @@ Add immediately after the `internalsVisibleTo` field:
         public string? exportScopeColumn = "identityId";
 ```
 
-- [ ] **Step 2: Annotate every table outside the Identity namespace**
+- [ ] **Step 2: Annotate the System tables**
 
-In each table definition method, add the field to the object initializer. Watch for
-initializers whose last entry has no trailing comma (`SocialSyncSource()` is one); add
-the comma when inserting after it.
+In each table definition method, add the field to the object initializer. Only the
+System namespace needs this: Identity is correct by default, and the other four
+namespaces are excluded by the gate in Step 3 and must not be edited.
 
 In `Certificates()` and `DkimKeys()`:
 
@@ -184,25 +187,45 @@ identity-scoped:
             exportScopeColumn = null,
 ```
 
-Same `null` in `KeyChain()`, `Notarius()`, `AttestationRequest()` and
-`AttestationStatus()`. Each of these is a standalone database with its own connection
-factory (`ScopedKeyChainConnectionFactory`, `ScopedNotaryConnectionFactory`,
-`ScopedAttestationConnectionFactory`), none is per-identity, and none carries an
-`identityId` column.
+`Registrations()` needs no annotation: it is in the System namespace but scopes on
+`identityId`, which is the default.
 
-Same `null` again in `SocialSyncSubscriber()`, `SubscriberClientTokens()` and
-`SocialSyncSource()`. These generate into `/workspace/homebase-social-sync`, a separate
-repo and a separate database, and are not part of an identity at all.
+- [ ] **Step 3: Add the namespace gate and a fail-fast validation**
 
-- [ ] **Step 3: Add a fail-fast validation in `GenerateCode`**
-
-A typo in `exportScopeColumn` would otherwise surface as a confusing SQL error at runtime. Add at the top of `GenerateCode(Table table)`, right after the existing `nameSpace` argument check:
+Add beside the namespace constants (after `OdinCoreNotaryNamespace`):
 
 ```csharp
-        if (table.exportScopeColumn != null && !table.columns.Exists(c => c.name == table.exportScopeColumn))
+    // Identity export and import target these two namespaces and no others. The rest of
+    // what this generator emits (KeyChain, Attestation, Notarius, SocialSync) belongs to
+    // unrelated applications that happen to share the generator, and no part of the export
+    // feature may reach into them. Gating on the namespace rather than on a per-table
+    // annotation means a table added to one of those applications stays out of the export
+    // even if it happens to carry an identityId column.
+    public static readonly string[] ExportableNamespaces =
+    [
+        OdinCoreIdentityNamespace,
+        OdinCoreSystemNamespace,
+    ];
+
+    public static bool IsExportableNamespace(Table table)
+    {
+        return Array.IndexOf(ExportableNamespaces, table.nameSpace) >= 0;
+    }
+```
+
+Then, so a typo in `exportScopeColumn` surfaces at generation time rather than as a confusing SQL error at runtime, add at the top of `GenerateCode(Table table)`, right after the existing `nameSpace` argument check:
+
+```csharp
+        if (IsExportableNamespace(table)
+            && table.exportScopeColumn != null
+            && !table.columns.Exists(c => c.name == table.exportScopeColumn))
             throw new ArgumentException(
                 $"Table {table.tableName}: exportScopeColumn '{table.exportScopeColumn}' is not a column on this table.");
 ```
+
+The `IsExportableNamespace` guard is what lets the unrelated applications keep the
+default `"identityId"` without tripping the check, since none of their tables has that
+column.
 
 - [ ] **Step 4: Verify no output change**
 
@@ -226,11 +249,15 @@ cd /workspace/Odin-SQLite-Generator
 git add Odin-SQLite-Generator/Program.cs
 git commit -m "Generator: add Table.exportScopeColumn, annotate System tables
 
-Defaults to identityId, which is correct for every Identity table and
-only there. Certificates and DkimKeys scope on domain. Jobs, Settings
-and LastSeen are system-wide; KeyChain, NotaryChain, Attestation and the
-SocialSync tables are separate databases. All excluded. Validated
-against the column list at generation time."
+Export and import target Odin.Core.Storage.Database.Identity and
+Odin.Core.Storage.Database.System only. KeyChain, Attestation, Notarius
+and SocialSync are unrelated applications that share this generator, and
+ExportableNamespaces keeps them out regardless of their columns.
+
+Within the two exportable namespaces, exportScopeColumn defaults to
+identityId, which is correct for every Identity table. Certificates and
+DkimKeys scope on domain; Jobs, Settings and LastSeen are system-wide
+and excluded. Validated against the column list at generation time."
 ```
 
 ---
@@ -254,7 +281,7 @@ Add near `GeneratePagingGet`:
     // multiple statements cannot give a consistent read under READ COMMITTED.
     public static void GenerateExportRows(Table table)
     {
-        if (table.exportScopeColumn == null)
+        if (!IsExportableNamespace(table) || table.exportScopeColumn == null)
             return;
 
         var scope = table.columns[table.ColumnIndex(table.exportScopeColumn)];
@@ -296,7 +323,7 @@ cd /workspace/Odin-SQLite-Generator && ODIN_ROOT=/workspace/ dotnet run --projec
 cd /workspace/odin-core && git diff --stat
 ```
 
-Expected: every `Table*CRUD.cs` in Identity, plus `TableCertificatesCRUD.cs`, `TableDkimKeysCRUD.cs` and `TableRegistrationsCRUD.cs`, gains lines. `TableJobsCRUD.cs`, `TableSettingsCRUD.cs`, and `TableLastSeenCRUD.cs` are **unchanged**, because their `exportScopeColumn` is null.
+Expected: every `Table*CRUD.cs` in Identity, plus `TableCertificatesCRUD.cs`, `TableDkimKeysCRUD.cs` and `TableRegistrationsCRUD.cs`, gains lines. `TableJobsCRUD.cs`, `TableSettingsCRUD.cs`, and `TableLastSeenCRUD.cs` are **unchanged**, because their `exportScopeColumn` is null. Nothing under KeyChain, Attestation or Notarius changes, and `/workspace/homebase-social-sync` gains no export code, because the namespace gate excludes all four.
 
 - [ ] **Step 4: Read one generated method and check it by eye**
 
@@ -375,7 +402,7 @@ Add immediately after `GenerateExportRows`:
     //     assigns its own. Insert order preserves the relative sequence.
     public static void GenerateImportRow(Table table)
     {
-        if (table.exportScopeColumn == null)
+        if (!IsExportableNamespace(table) || table.exportScopeColumn == null)
             return;
 
         Output($"        internal virtual async Task<int> ImportRowAsync({table.RecordName()} item)");
@@ -482,6 +509,9 @@ Model it on the existing `GenerateAllGlobalTableLists`. Add immediately after th
     {
         foreach (var tableGroup in GroupedTablesByNamespace)
         {
+            if (Array.IndexOf(ExportableNamespaces, tableGroup.Key) < 0)
+                continue;
+
             var exportable = tableGroup.Value.FindAll(t => t.exportScopeColumn != null);
             if (exportable.Count == 0)
                 continue;
@@ -616,6 +646,10 @@ Model it on the existing `GenerateAllGlobalTableLists`. Add immediately after th
         GenerateAllGlobalExportLists();
     }
 ```
+
+The namespace check comes first and is the load-bearing one. Without it, an unrelated
+application whose tables happen to carry `identityId` would get its own
+`*Database.Export.Generated.cs`.
 
 - [ ] **Step 3: Regenerate and read the Identity aggregate**
 

@@ -94,12 +94,14 @@ Facts established by reading the code, not assumed:
 - **`pagingGet` is optional per table** in the generator (`Program.cs:287`). All 23
   Identity tables declare it today, but a new one need not. Export must not depend
   on it.
-- **The generator emits for six namespaces, not two.** Identity (23 tables) is the
-  only one where every table carries `identityId`, so the `exportScopeColumn` default
-  is correct there and nowhere else. System has 6 tables; KeyChain, Notary and
-  Attestation are standalone databases with their own connection factories; SocialSync
-  is a separate database in a separate repo. All 13 non-Identity tables need an
-  explicit annotation, which the generation-time validation enforces.
+- **The generator emits for six namespaces, and only two are in scope.** Identity
+  (23 tables, every one carrying `identityId`) and System (6 tables) are this feature's
+  territory. KeyChain, Notary and Attestation are standalone databases with their own
+  connection factories, and SocialSync is a separate database in a separate repo; all
+  four are unrelated applications that happen to share the generator. They are excluded
+  by namespace, via `ExportableNamespaces`, rather than by per-table annotation, so a
+  table added to any of them stays out of the export even if it carries an `identityId`
+  column. Only the 6 System tables need a per-table annotation.
 - **In the System database three tables are identity-scoped**: `Registrations`
   (by `identityId`), `Certificates` (by `domain`), and `DkimKeys` (by `domain`).
   `Jobs`, `Settings`, and `LastSeen` are system-wide. `DkimKeys` holds the
@@ -122,14 +124,22 @@ public string? exportScopeColumn = "identityId";
 
 This is the only per-table knowledge the feature needs, it lives next to the
 column definitions it refers to, and it defaults to the correct answer for the
-namespace that matters. Thirteen non-Identity table declarations set it explicitly;
-nothing in the Identity namespace does.
+namespace that matters. Five System table declarations set it explicitly (`Registrations` uses the
+default, since it really does scope on `identityId`); nothing in the Identity
+namespace does, and nothing outside the two exportable namespaces reads
+it at all.
 
 Defaulting to `"identityId"` rather than to `null` is what delivers requirement 6: a
 table added to the Identity namespace is exported with no further edit. A table added
-to any other namespace fails at generation time with a named error rather than
-silently exporting nothing, so the failure direction is safe either way, but only this
-direction is zero-maintenance where it counts.
+to the System namespace without a real `identityId` column fails at generation time
+with a named error rather than silently exporting nothing, so the failure direction is
+safe, and it is zero-maintenance where it counts.
+
+**The namespace gate is separate from, and stronger than, the annotation.** Every
+generator method this feature adds begins with `IsExportableNamespace(table)`. That is
+what guarantees no export or import code reaches an unrelated application, whatever columns its tables happen to have. The per-table
+`exportScopeColumn` then decides scope *within* the two namespaces that are in
+scope.
 
 **1b. `GenerateExportRows(table)` — emitted into each `Table*CRUD.cs`.**
 
