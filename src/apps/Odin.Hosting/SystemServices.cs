@@ -237,8 +237,14 @@ public static class SystemServices
 
         services.AddSingleton(new DkimStorageKey(config.Email.DkimStorageKey));
         services.AddSingleton<IDkimStore, DkimStore>();
-        // Provider-switched when a real mail server product joins the config
-        services.AddSingleton<IMailboxProvider, NullMailboxProvider>();
+        if (config.Email.Stalwart.IsConfigured)
+        {
+            services.AddSingleton<IMailboxProvider, StalwartMailboxProvider>();
+        }
+        else
+        {
+            services.AddSingleton<IMailboxProvider, NullMailboxProvider>();
+        }
 
         services.AddSingleton(sp => new AdminApiRestrictedAttribute(
             sp.GetRequiredService<ILogger<AdminApiRestrictedAttribute>>(),
