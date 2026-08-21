@@ -36,8 +36,8 @@ Decided up front, not open:
    included. Whether a given table's rows are *replayed* is decided by the import
    side. See **Import filtering**.
 2. **Same `identityId` and same domain.** A pure snapshot restore. No remapping.
-3. **Identity database plus the identity's two System rows** (`Registrations`,
-   `Certificates`) in the same file.
+3. **Identity database plus the identity's System rows** (`Registrations`,
+   `Certificates`, `DkimKeys`) in the same file.
 4. **Payloads out of scope.** Bytes and thumbnails move separately.
 5. **One JSON file.**
 6. **Zero per-table maintenance in `odin-core` for reading and writing rows.**
@@ -94,9 +94,12 @@ Facts established by reading the code, not assumed:
 - **`pagingGet` is optional per table** in the generator (`Program.cs:287`). All 23
   Identity tables declare it today, but a new one need not. Export must not depend
   on it.
-- **In the System database only two tables are identity-scoped**: `Registrations`
-  (by `identityId`) and `Certificates` (by `domain`). `Jobs`, `Settings`, and
-  `LastSeen` are system-wide.
+- **In the System database three tables are identity-scoped**: `Registrations`
+  (by `identityId`), `Certificates` (by `domain`), and `DkimKeys` (by `domain`).
+  `Jobs`, `Settings`, and `LastSeen` are system-wide. `DkimKeys` holds the
+  identity's DKIM signing keys, one row per selector, primary key
+  `(domain, selector)`, so unlike `Certificates` it contributes several rows per
+  identity rather than exactly one.
 
 ## Design
 
@@ -106,13 +109,13 @@ Facts established by reading the code, not assumed:
 
 ```csharp
 // Column that scopes a row to a single identity. Default covers every Identity
-// table. Set to "domain" for Certificates. Set to null to exclude the table
-// from identity export entirely (Jobs, Settings, LastSeen).
+// table. Set to "domain" for Certificates and DkimKeys. Set to null to exclude
+// the table from identity export entirely (Jobs, Settings, LastSeen).
 public string? exportScopeColumn = "identityId";
 ```
 
 This is the only per-table knowledge the feature needs, it lives next to the
-column definitions it refers to, and it defaults to the correct answer. Three
+column definitions it refers to, and it defaults to the correct answer. Five
 System table declarations set it explicitly; nothing in the Identity namespace
 does.
 
@@ -222,13 +225,15 @@ public partial class IdentityDatabase
 ```
 
 Only tables with a non-null `exportScopeColumn` appear. `SystemDatabase` gets the
-same pair, covering just `Registrations` and `Certificates`.
+same pair, covering just `Registrations`, `Certificates`, and `DkimKeys`.
 
 **Scope parameters are derived, not fixed.** The generator emits one parameter per
 *distinct* `exportScopeColumn` used in the namespace, typed from that column's
 declaration. Every Identity table scopes on `identityId`, so that namespace gets a
 single `Guid identityId`. The System namespace scopes `Registrations` on
-`identityId` and `Certificates` on `domain`, so it gets both:
+`identityId` and both `Certificates` and `DkimKeys` on `domain`, so it gets both
+parameters. Note the parameter list is one per *distinct* scope column, not one
+per table, so `DkimKeys` joining the namespace adds no parameter:
 
 ```csharp
 public partial class SystemDatabase
@@ -290,7 +295,8 @@ A top-level JSON array whose first element is the header, then one element per r
    "identitySchemaVersion":<IdentityMigrator.GetCurrentVersionAsync>,
    "systemSchemaVersion":<SystemMigrator.GetCurrentVersionAsync>,
    "tableVersions":{"identity":{"Drives":202608040942,"Circle":202608040942},
-                    "system":{"Registrations":...,"Certificates":...}}},
+                    "system":{"Registrations":...,"Certificates":...,
+                              "DkimKeys":...}}},
   {"kind":"row","db":"system","table":"Registrations","data":{ }},
   {"kind":"row","db":"identity","table":"Drives","data":{ }}
 ]
@@ -569,10 +575,16 @@ one of them failing aborts with a message naming what collided:
    by domain rather than by `identityId`, so it can survive independently. This is
    why `DataImporter.DeleteIdentityFromSystemDataAsync` has to delete both rows to
    restore a retryable state.
-3. **The identity tables hold no rows for this `identityId`.** Checks 1 and 2 are
+3. `DkimKeys` contains no rows for the header's domain. Keyed by
+   `(domain, selector)`, so it survives the registration for the same reason
+   `Certificates` does, and `DeleteIdentityFromSystemDataAsync` deletes it by
+   domain alongside the other two. Several rows per domain rather than one, so the
+   check counts rather than testing for a single row, and the message reports the
+   count.
+4. **The identity tables hold no rows for this `identityId`.** Checks 1 to 3 are
    not sufficient on Postgres, for a reason that is easy to miss.
 
-**Why check 3 exists.** The two backends differ in a way that matters here:
+**Why check 4 exists.** The two backends differ in a way that matters here:
 `AddSqliteIdentityDatabaseServices` takes a per-identity `databasePath`, so each
 SQLite identity is its own file. `AddPgsqlIdentityDatabaseServices` takes one
 shared `connectionString` and passes `identityId` only as a constructor parameter
@@ -587,14 +599,14 @@ it. On Postgres the identity's rows stay in the shared tables after its
 registration is gone.
 
 So on a Postgres target, an identity that was previously deleted leaves no trace in
-`Registrations` and passes checks 1 and 2, while its old rows are still sitting in
+`Registrations` and passes checks 1 to 3, while its old rows are still sitting in
 `Drives`, `Circle`, and the rest. That the subsequent import would then collide on
 unique constraints such as `Drives(identityId, DriveId)` is an **inference** from
 the schema, not something observed; what is verified is that `DeleteRegistration`
 leaves those rows behind. Either way the precondition should catch it cleanly
 rather than letting the import discover it mid-write.
 
-Check 3 is served by a generated helper, so it stays zero-maintenance and cannot
+Check 4 is served by a generated helper, so it stays zero-maintenance and cannot
 miss a newly added table:
 
 ```csharp
@@ -640,12 +652,13 @@ scope, so the CLI warns rather than the importer refusing.
   workers and `UnfreezeIdentityAsync` restarts them; that unfreeze restores a
   previously-disabled identity to disabled rather than enabling it; and that export
   refuses against an identity that is not frozen.
-- **Precondition tests.** Four cases, each asserting the import aborts before
+- **Precondition tests.** Five cases, each asserting the import aborts before
   writing anything: a target whose `Registrations` already holds the `identityId`;
   one that holds the domain under different casing; one that holds a leftover
-  `Certificates` row for the domain but no registration; and, on Postgres only, one
+  `Certificates` row for the domain but no registration; one that holds leftover
+  `DkimKeys` rows for the domain but no registration; and, on Postgres only, one
   whose identity tables still hold rows for the `identityId` after its registration
-  was deleted. The last is the case checks 1 and 2 miss.
+  was deleted. The last is the case checks 1 to 3 miss.
 - **Filter tests.** Assert the export file contains `Inbox`, `Outbox`, and `Nonce`
   rows even though the default import drops them; that the default skip list is
   honoured; that `--include Outbox` overrides it; and that every skipped table is
@@ -657,7 +670,8 @@ scope, so the CLI warns rather than the importer refusing.
 The export contains everything needed to be this identity. `KeyValue` holds
 `PasswordData` (`OwnerSecretService.cs`), the ECC key lists and notification keys
 (`PublicPrivateKeyService.cs`), and `Drives` holds
-`MasterKeyEncryptedStorageKeyJson`. `Certificates` holds the TLS private key.
+`MasterKeyEncryptedStorageKeyJson`. `Certificates` holds the TLS private key, and
+`DkimKeys` holds the DKIM signing private keys.
 
 Therefore:
 
@@ -668,11 +682,32 @@ Therefore:
   in the CLI output rather than left implicit. If we later want it built in, the
   natural seam is an `age`-style recipient passed to the export command.
 
+**One exported secret is not portable, and it is the only such case.**
+`DkimKeys.privateKey` is AES-CBC ciphertext under `Email:DkimStorageKey`
+(`DkimStore.cs`), which is a **server-wide** config value rather than anything
+derived from the identity. Every other secret in the file is either plaintext or
+encrypted under a key that travels with the identity, so it survives the move
+untouched. DKIM does not: import replays the ciphertext faithfully, but a target
+configured with a different `Email:DkimStorageKey` gets rows that are intact and
+undecryptable, and `DkimStore` throws the next time the identity signs mail.
+
+The importer cannot detect this. It never holds the storage key, and the key lives
+in `Odin.Services` configuration, which `Odin.Core.Storage` must not reference. So
+this is documented rather than checked. The operator has two ways out: configure
+the target with the same `Email:DkimStorageKey`, or rotate the identity's DKIM keys
+on the target and republish the DNS TXT records, which `MailActivationService`
+already does. Deliberately not solved here, because both remedies are operational
+and the alternative, re-encrypting the column during import, would drag the storage
+key down into the storage layer.
+
 ## Open follow-ups
 
 Deliberately out of this spec:
 
 - Payload transfer, and an import-side check that expected payload files exist.
+- **A portability check for `Email:DkimStorageKey`.** Some `Odin.Hosting`-level
+  probe that warns when the target's storage key cannot decrypt the imported
+  `DkimKeys` rows, which is the layer that can see both. See **Security**.
 - Retiring `DataImportPatcher` once the generated import path proves the
   timestamp handling.
 - Migrating `DataImporter` itself onto the generated `ExportRowsAsync` /

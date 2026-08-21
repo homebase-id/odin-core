@@ -136,7 +136,7 @@ USER is unset in containers and CI, where the switch threw outright."
 A field only. No emitted output changes, so the verification is again an empty diff. Keeping this separate from Task 3 means that if Task 3's diff looks wrong, you know the field itself is not the cause.
 
 **Files:**
-- Modify: `/workspace/Odin-SQLite-Generator/Odin-SQLite-Generator/Program.cs` — `Table` class (around line 283, beside `internalsVisibleTo`), and the `Certificates()`, `Jobs()`, `Settings()`, `LastSeen()` table definitions
+- Modify: `/workspace/Odin-SQLite-Generator/Odin-SQLite-Generator/Program.cs` — `Table` class (around line 283, beside `internalsVisibleTo`), and the `Certificates()`, `DkimKeys()`, `Jobs()`, `Settings()`, `LastSeen()` table definitions
 
 **Interfaces:**
 - Consumes: Task 1's working generator
@@ -148,20 +148,30 @@ Add immediately after the `internalsVisibleTo` field:
 
 ```csharp
         // Column that scopes a row to a single identity. The default is correct for every
-        // table in the Identity namespace. Set to "domain" for Certificates. Set to null to
-        // exclude the table from identity export entirely (Jobs, Settings, LastSeen).
+        // table in the Identity namespace. Set to "domain" for Certificates and DkimKeys.
+        // Set to null to exclude the table from identity export entirely (Jobs, Settings,
+        // LastSeen).
         public string? exportScopeColumn = "identityId";
 ```
 
-- [ ] **Step 2: Annotate the four System tables**
+- [ ] **Step 2: Annotate the five System tables**
 
 In each table definition method, add the field to the object initializer.
 
-In `Certificates()`:
+In `Certificates()` and `DkimKeys()`:
 
 ```csharp
             exportScopeColumn = "domain",
 ```
+
+`DkimKeys` holds this identity's DKIM signing keys, one row per selector, primary
+key `(domain, selector)`. It is identity-scoped by domain for the same reason
+`Certificates` is, so it travels with the identity. Two differences from
+`Certificates` matter downstream: its `domain` column is **not** declared `unique`,
+so one identity owns several `DkimKeys` rows rather than exactly one, and its
+`privateKey` is AES-CBC encrypted under the server-wide `Email:DkimStorageKey`
+config value rather than under anything identity-derived. See the operator note in
+Task 11.
 
 In `Jobs()`, `Settings()`, and `LastSeen()`:
 
@@ -196,8 +206,8 @@ git add Odin-SQLite-Generator/Program.cs
 git commit -m "Generator: add Table.exportScopeColumn, annotate System tables
 
 Defaults to identityId, which is correct for every Identity table.
-Certificates scopes on domain; Jobs, Settings and LastSeen are
-system-wide and excluded. Validated against the column list at
+Certificates and DkimKeys scope on domain; Jobs, Settings and LastSeen
+are system-wide and excluded. Validated against the column list at
 generation time."
 ```
 
@@ -210,7 +220,7 @@ generation time."
 
 **Interfaces:**
 - Consumes: `Table.exportScopeColumn` from Task 2
-- Produces: on each CRUD class, `internal virtual async Task ExportRowsAsync(<scopeType> <scopeName>, Func<XRecord, Task> onRow)`. Task 5's aggregate calls it. For Identity tables the signature is `ExportRowsAsync(Guid identityId, Func<XRecord, Task> onRow)`; for `Certificates` it is `ExportRowsAsync(OdinId domain, Func<CertificatesRecord, Task> onRow)`.
+- Produces: on each CRUD class, `internal virtual async Task ExportRowsAsync(<scopeType> <scopeName>, Func<XRecord, Task> onRow)`. Task 5's aggregate calls it. For Identity tables the signature is `ExportRowsAsync(Guid identityId, Func<XRecord, Task> onRow)`; for `Certificates` and `DkimKeys` it is `ExportRowsAsync(OdinId domain, Func<XRecord, Task> onRow)`.
 
 - [ ] **Step 1: Write the generator method**
 
@@ -264,7 +274,7 @@ cd /workspace/Odin-SQLite-Generator && ODIN_ROOT=/workspace/ dotnet run --projec
 cd /workspace/odin-core && git diff --stat
 ```
 
-Expected: every `Table*CRUD.cs` in Identity, plus `TableCertificatesCRUD.cs` and `TableRegistrationsCRUD.cs`, gains lines. `TableJobsCRUD.cs`, `TableSettingsCRUD.cs`, and `TableLastSeenCRUD.cs` are **unchanged**, because their `exportScopeColumn` is null.
+Expected: every `Table*CRUD.cs` in Identity, plus `TableCertificatesCRUD.cs`, `TableDkimKeysCRUD.cs` and `TableRegistrationsCRUD.cs`, gains lines. `TableJobsCRUD.cs`, `TableSettingsCRUD.cs`, and `TableLastSeenCRUD.cs` are **unchanged**, because their `exportScopeColumn` is null.
 
 - [ ] **Step 4: Read one generated method and check it by eye**
 
@@ -598,7 +608,7 @@ Expected: `ExportableTables` lists 23 names. `ExportAsync` takes `(Guid identity
 
 Run: `cd /workspace/odin-core && cat src/core/Odin.Core.Storage/Database/System/SystemDatabase.Export.Generated.cs`
 
-Expected: `ExportableTables` lists exactly `Certificates` and `Registrations`. `ExportAsync` takes **two** scope parameters, `OdinId domain` and `Guid identityId`, sorted ordinally so `domain` comes first. `CountRowsForIdentityAsync` is **absent**, because the namespace has more than one scope column.
+Expected: `ExportableTables` lists exactly `Certificates`, `DkimKeys` and `Registrations`, in the order the tables are declared in the generator. `ExportAsync` takes **two** scope parameters, `OdinId domain` and `Guid identityId`, sorted ordinally so `domain` comes first. `Certificates` and `DkimKeys` both pass `domain` at their call sites; only `Registrations` passes `identityId`. `CountRowsForIdentityAsync` is **absent**, because the namespace has more than one scope column.
 
 - [ ] **Step 5: Verify no JSON leaked into generated code**
 
@@ -935,7 +945,9 @@ public class IdentityJsonExporterTests
         Assert.That(tablesSeen, Does.Contain("Nonce"));
     }
 
-    // Requirement 3: the two identity-scoped System rows travel in the same file.
+    // Requirement 3: the identity-scoped System rows travel in the same file. Three
+    // tables now, not two: DkimKeys joined Registrations and Certificates.
+    // DataImporterSeedHelper.SeedAllSystemTablesAsync already seeds all three.
     [Test]
     public async Task ExportAsync_IncludesTheIdentitysSystemRows()
     {
@@ -948,6 +960,7 @@ public class IdentityJsonExporterTests
 
         Assert.That(systemTables, Does.Contain("Registrations"));
         Assert.That(systemTables, Does.Contain("Certificates"));
+        Assert.That(systemTables, Does.Contain("DkimKeys"));
     }
 
     // Requirement 9: the exporter cannot check the freeze itself without referencing
@@ -1257,6 +1270,26 @@ public class IdentityImportPreconditionTests
             "Expected a Certificates collision. Got: " + string.Join(" | ", violations));
     }
 
+    // DkimKeys is keyed by (domain, selector), so like Certificates it outlives the
+    // registration and neither of the two checks above would catch it.
+    [Test]
+    public async Task CheckAsync_FailsOnLeftoverDkimKeyRowsWithNoRegistration()
+    {
+        var (sys, id) = await InitAsync();
+        await sys.DkimKeys.InsertAsync(new DkimKeysRecord
+        {
+            domain = new OdinId(IdentityDomain),
+            selector = "s1",
+            algorithm = "ed25519",
+            publicKey = "pub",
+            privateKey = "priv",
+        });
+
+        var violations = await IdentityImportPreconditions.CheckAsync(await MatchingHeaderAsync(sys, id), sys, id);
+        Assert.That(violations.Any(v => v.Contains("DkimKeys")), Is.True,
+            "Expected a DkimKeys collision. Got: " + string.Join(" | ", violations));
+    }
+
     // Requirement 10: one differing table blocks everything, even though the rest match.
     [Test]
     public async Task CheckAsync_FailsWhenASingleTableVersionDiffers()
@@ -1396,7 +1429,17 @@ public static class IdentityImportPreconditions
             violations.Add($"Target already has a Certificates row for domain {header.Domain}.");
         }
 
-        // 3. On Postgres every identity shares one set of physical tables, and
+        // 3. DkimKeys is keyed by (domain, selector) and outlives the registration for
+        //    the same reason Certificates does; DataImporter.DeleteIdentityFromSystemDataAsync
+        //    deletes it by domain too. One identity owns several rows here, so count them
+        //    rather than testing for a single row.
+        var dkimKeys = await targetSystemDatabase.DkimKeys.GetByDomainAsync(new OdinId(header.Domain));
+        if (dkimKeys.Count > 0)
+        {
+            violations.Add($"Target already has {dkimKeys.Count} DkimKeys row(s) for domain {header.Domain}.");
+        }
+
+        // 4. On Postgres every identity shares one set of physical tables, and
         //    DeleteRegistration never purges them, so identity rows can outlive the
         //    registration and checks 1 and 2 would both pass.
         var orphanRows = await targetIdentityDatabase.CountRowsForIdentityAsync(header.IdentityId);
@@ -1406,7 +1449,7 @@ public static class IdentityImportPreconditions
                 $"Target identity tables already hold {orphanRows} row(s) for identityId {header.IdentityId}.");
         }
 
-        // 4. All-or-nothing table version match, in both directions.
+        // 5. All-or-nothing table version match, in both directions.
         violations.AddRange(CompareTableVersions(
             IdentityExportFile.DbSystem,
             header.TableVersions.GetValueOrDefault(IdentityExportFile.DbSystem) ?? new Dictionary<string, long>(),
@@ -1450,7 +1493,7 @@ public static class IdentityImportPreconditions
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd /workspace/odin-core && dotnet test ./tests/core/Odin.Core.Storage.Tests/Odin.Core.Storage.Tests.csproj --filter "FullyQualifiedName~IdentityImportPreconditionTests"`
-Expected: 10 tests PASS.
+Expected: 11 tests PASS.
 
 If `CheckAsync_FailsOnALeftoverCertificateRowWithNoRegistration` fails to compile, check the real name of the single-row getter on `TableCertificates` with:
 `grep -n "public async Task<CertificatesRecord>" src/core/Odin.Core.Storage/Database/System/Table/TableCertificates*.cs`
@@ -1464,10 +1507,10 @@ git add src/core/Odin.Core.Storage/DatabaseImport/IdentityImportPreconditions.cs
         tests/core/Odin.Core.Storage.Tests/IdentityJsonExport/IdentityImportPreconditionTests.cs
 git commit -m "Add identity import preconditions
 
-Refuses on an existing identityId or domain, a leftover Certificates row,
-orphaned identity rows (which outlive DeleteRegistration on Postgres), and
-any table version mismatch in either direction. Reports every violation
-rather than the first."
+Refuses on an existing identityId or domain, leftover Certificates or
+DkimKeys rows, orphaned identity rows (which outlive DeleteRegistration
+on Postgres), and any table version mismatch in either direction. Reports
+every violation rather than the first."
 ```
 
 ---
@@ -2179,9 +2222,9 @@ public static class IdentityJsonTransfer
         }
 
         logger.LogWarning(
-            "The export file contains this identity's password data, private keys and TLS "
-            + "certificate private key. Anyone holding it can become this identity. Store it "
-            + "encrypted and delete it when the migration is done.");
+            "The export file contains this identity's password data, private keys, TLS "
+            + "certificate private key and DKIM signing keys. Anyone holding it can become "
+            + "this identity. Store it encrypted and delete it when the migration is done.");
 
         // Freeze before reading. Disabling alone only closes the HTTP front door; the
         // tenant's background workers do not check the flag and would keep writing.
@@ -2232,6 +2275,18 @@ public static class IdentityJsonTransfer
     }
 }
 ```
+
+**Operator note on `DkimKeys`.** The exported `DkimKeys.privateKey` values are AES-CBC
+ciphertext under the server-wide `Email:DkimStorageKey` config value, not under anything
+derived from the identity (`DkimStore.cs`). The import replays that ciphertext verbatim,
+which is correct and faithful, but the target can only decrypt it if it is configured with
+the **same** `Email:DkimStorageKey`. If the two hosts differ, the imported rows land intact
+and unreadable, and `DkimStore` throws when the identity next signs mail. There is no way
+for the importer to detect this: it never holds the storage key, and that key lives in
+`Odin.Services` configuration which `Odin.Core.Storage` must not reference. The fix in that
+case is to rotate the identity's DKIM keys and republish the DNS TXT records on the target,
+which `MailActivationService` already does. Out of scope for this plan; call it out in the
+runbook that goes with the CLI verbs.
 
 - [ ] **Step 3: Write the import command**
 
