@@ -34,6 +34,12 @@ public interface IMailboxProvider
     /// <summary>Tenant deletion ride-along: remove the account and its mail data.</summary>
     Task DeleteMailboxAsync(string domain);
 
-    /// <summary>Install an app password for client auth (IMAP/SMTP/JMAP).</summary>
-    Task ProvisionAppPasswordAsync(string domain, string primaryAddress, string clearTextPassword, string label);
+    /// <summary>
+    /// Provision an app password for client auth (IMAP/SMTP/JMAP) and RETURN the
+    /// clear-text secret - shown to the owner exactly once, stored nowhere in
+    /// Homebase. The mail server is the generator (live-verified against Stalwart:
+    /// AppPassword.secret is serverSet); implementations without a server generate
+    /// their own.
+    /// </summary>
+    Task<string> ProvisionAppPasswordAsync(string domain, string primaryAddress, string label);
 }

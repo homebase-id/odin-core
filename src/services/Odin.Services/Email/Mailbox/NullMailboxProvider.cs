@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core;
 using Odin.Services.Email.Dkim;
 
 namespace Odin.Services.Email.Mailbox;
@@ -43,9 +45,18 @@ public class NullMailboxProvider(ILogger<NullMailboxProvider> logger) : IMailbox
         return Task.CompletedTask;
     }
 
-    public Task ProvisionAppPasswordAsync(string domain, string primaryAddress, string clearTextPassword, string label)
+    public Task<string> ProvisionAppPasswordAsync(string domain, string primaryAddress, string label)
     {
-        logger.LogDebug("NullMailboxProvider: skipping app password '{label}' for {domain}", label, domain);
-        return Task.CompletedTask;
+        logger.LogDebug("NullMailboxProvider: generating app password '{label}' for {domain} (no mail server to install it on)", label, domain);
+        return Task.FromResult(GenerateAppPassword());
+    }
+
+    // 20 random bytes as 4 blocks of 5 base32 chars - typed into mail clients once
+    private static string GenerateAppPassword()
+    {
+        const string alphabet = "abcdefghijklmnopqrstuvwxyz234567";
+        var random = ByteArrayUtil.GetRndByteArray(20);
+        var chars = random.Select(b => alphabet[b % 32]).ToArray();
+        return string.Join("-", Enumerable.Range(0, 4).Select(i => new string(chars, i * 5, 5)));
     }
 }

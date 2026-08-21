@@ -121,10 +121,10 @@ public class MailActivationService(
             throw new OdinClientException("Email is not activated");
         }
 
-        // Returned exactly once; the mail server is the only place it lives after this
-        var password = GenerateAppPassword();
-        await mailboxProvider.ProvisionAppPasswordAsync(domain, primaryEmailAddress, password, label);
-        return password;
+        // The provider generates and installs the secret (live-verified: Stalwart's
+        // AppPassword.secret is serverSet); returned to the owner exactly once,
+        // stored nowhere in Homebase
+        return await mailboxProvider.ProvisionAppPasswordAsync(domain, primaryEmailAddress, label);
     }
 
     /// <summary>
@@ -163,14 +163,6 @@ public class MailActivationService(
         }
     }
 
-    // 20 random bytes as 4 blocks of 5 base32 chars - typed into mail clients once
-    private static string GenerateAppPassword()
-    {
-        const string alphabet = "abcdefghijklmnopqrstuvwxyz234567";
-        var random = ByteArrayUtil.GetRndByteArray(20);
-        var chars = random.Select(b => alphabet[b % 32]).ToArray();
-        return string.Join("-", Enumerable.Range(0, 4).Select(i => new string(chars, i * 5, 5)));
-    }
 }
 
 public class MailActivationResult
