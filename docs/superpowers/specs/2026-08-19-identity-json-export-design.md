@@ -94,6 +94,12 @@ Facts established by reading the code, not assumed:
 - **`pagingGet` is optional per table** in the generator (`Program.cs:287`). All 23
   Identity tables declare it today, but a new one need not. Export must not depend
   on it.
+- **The generator emits for six namespaces, not two.** Identity (23 tables) is the
+  only one where every table carries `identityId`, so the `exportScopeColumn` default
+  is correct there and nowhere else. System has 6 tables; KeyChain, Notary and
+  Attestation are standalone databases with their own connection factories; SocialSync
+  is a separate database in a separate repo. All 13 non-Identity tables need an
+  explicit annotation, which the generation-time validation enforces.
 - **In the System database three tables are identity-scoped**: `Registrations`
   (by `identityId`), `Certificates` (by `domain`), and `DkimKeys` (by `domain`).
   `Jobs`, `Settings`, and `LastSeen` are system-wide. `DkimKeys` holds the
@@ -115,9 +121,15 @@ public string? exportScopeColumn = "identityId";
 ```
 
 This is the only per-table knowledge the feature needs, it lives next to the
-column definitions it refers to, and it defaults to the correct answer. Five
-System table declarations set it explicitly; nothing in the Identity namespace
-does.
+column definitions it refers to, and it defaults to the correct answer for the
+namespace that matters. Thirteen non-Identity table declarations set it explicitly;
+nothing in the Identity namespace does.
+
+Defaulting to `"identityId"` rather than to `null` is what delivers requirement 6: a
+table added to the Identity namespace is exported with no further edit. A table added
+to any other namespace fails at generation time with a named error rather than
+silently exporting nothing, so the failure direction is safe either way, but only this
+direction is zero-maintenance where it counts.
 
 **1b. `GenerateExportRows(table)` — emitted into each `Table*CRUD.cs`.**
 

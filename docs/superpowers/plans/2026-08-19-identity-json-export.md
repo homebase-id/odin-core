@@ -136,7 +136,9 @@ USER is unset in containers and CI, where the switch threw outright."
 A field only. No emitted output changes, so the verification is again an empty diff. Keeping this separate from Task 3 means that if Task 3's diff looks wrong, you know the field itself is not the cause.
 
 **Files:**
-- Modify: `/workspace/Odin-SQLite-Generator/Odin-SQLite-Generator/Program.cs` — `Table` class (around line 283, beside `internalsVisibleTo`), and the `Certificates()`, `DkimKeys()`, `Jobs()`, `Settings()`, `LastSeen()` table definitions
+- Modify: `/workspace/Odin-SQLite-Generator/Odin-SQLite-Generator/Program.cs` — `Table` class (around line 291, beside `internalsVisibleTo`), and every table definition outside the Identity namespace: `Certificates()`, `DkimKeys()`, `Jobs()`, `Settings()`, `LastSeen()`, `KeyChain()`, `Notarius()`, `AttestationRequest()`, `AttestationStatus()`, `SocialSyncSubscriber()`, `SubscriberClientTokens()`, `SocialSyncSource()`
+
+**The generator emits for six namespaces, not two.** Only `OdinCoreIdentityNamespace` (23 tables) has an `identityId` column on every table, so only there is the default correct. The other five are `OdinCoreSystemNamespace` (6 tables), `OdinCoreKeyChainNamespace`, `OdinCoreNotaryNamespace`, `OdinCoreAttestationNamespace` (2 tables), and `SocialSyncNamespace` (3 tables, and note these generate into the separate `/workspace/homebase-social-sync` repo). Every table in those five needs an explicit annotation or Step 3's validation throws.
 
 **Interfaces:**
 - Consumes: Task 1's working generator
@@ -154,9 +156,11 @@ Add immediately after the `internalsVisibleTo` field:
         public string? exportScopeColumn = "identityId";
 ```
 
-- [ ] **Step 2: Annotate the five System tables**
+- [ ] **Step 2: Annotate every table outside the Identity namespace**
 
-In each table definition method, add the field to the object initializer.
+In each table definition method, add the field to the object initializer. Watch for
+initializers whose last entry has no trailing comma (`SocialSyncSource()` is one); add
+the comma when inserting after it.
 
 In `Certificates()` and `DkimKeys()`:
 
@@ -173,11 +177,22 @@ so one identity owns several `DkimKeys` rows rather than exactly one, and its
 config value rather than under anything identity-derived. See the operator note in
 Task 11.
 
-In `Jobs()`, `Settings()`, and `LastSeen()`:
+In `Jobs()`, `Settings()`, and `LastSeen()`, which are system-wide rather than
+identity-scoped:
 
 ```csharp
             exportScopeColumn = null,
 ```
+
+Same `null` in `KeyChain()`, `Notarius()`, `AttestationRequest()` and
+`AttestationStatus()`. Each of these is a standalone database with its own connection
+factory (`ScopedKeyChainConnectionFactory`, `ScopedNotaryConnectionFactory`,
+`ScopedAttestationConnectionFactory`), none is per-identity, and none carries an
+`identityId` column.
+
+Same `null` again in `SocialSyncSubscriber()`, `SubscriberClientTokens()` and
+`SocialSyncSource()`. These generate into `/workspace/homebase-social-sync`, a separate
+repo and a separate database, and are not part of an identity at all.
 
 - [ ] **Step 3: Add a fail-fast validation in `GenerateCode`**
 
@@ -198,6 +213,12 @@ cd /workspace/odin-core && git diff --stat
 
 Expected: generator completes without throwing (which proves every `exportScopeColumn` names a real column) and the diff is **empty**.
 
+`/workspace/homebase-social-sync` carries pre-existing drift between its committed
+generated files and what the current generator produces, unrelated to this work and
+present before Task 1. Any regenerate step in this plan will dirty that repo. Revert it
+with `git checkout -- .` after each regenerate, or
+resolve the drift separately first.
+
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -205,10 +226,11 @@ cd /workspace/Odin-SQLite-Generator
 git add Odin-SQLite-Generator/Program.cs
 git commit -m "Generator: add Table.exportScopeColumn, annotate System tables
 
-Defaults to identityId, which is correct for every Identity table.
-Certificates and DkimKeys scope on domain; Jobs, Settings and LastSeen
-are system-wide and excluded. Validated against the column list at
-generation time."
+Defaults to identityId, which is correct for every Identity table and
+only there. Certificates and DkimKeys scope on domain. Jobs, Settings
+and LastSeen are system-wide; KeyChain, NotaryChain, Attestation and the
+SocialSync tables are separate databases. All excluded. Validated
+against the column list at generation time."
 ```
 
 ---
