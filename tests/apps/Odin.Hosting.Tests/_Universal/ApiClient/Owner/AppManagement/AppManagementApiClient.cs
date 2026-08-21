@@ -165,6 +165,22 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
     /// </summary>
     /// <returns></returns>
     /// <summary>
+    /// Turns an app's grant-on-connect enrollment on or off.
+    /// </summary>
+    public async Task<ApiResponse<NoResultResponse>> SetConnectEnrollment(Guid appId, bool enabled)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
+            return await svc.SetConnectEnrollment(new SetConnectEnrollmentRequest
+            {
+                AppId = appId,
+                Enabled = enabled
+            });
+        }
+    }
+
+    /// <summary>
     /// Registers an app without asserting success, so a test can inspect a rejection.
     /// </summary>
     public async Task<ApiResponse<RedactedAppRegistration>> TryRegisterApp(AppRegistrationRequest request)

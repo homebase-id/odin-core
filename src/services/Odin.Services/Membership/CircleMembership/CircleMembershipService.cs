@@ -20,6 +20,7 @@ using Odin.Services.Base;
 using Odin.Services.Membership.Circles;
 using Odin.Services.Membership.Connections;
 using Odin.Services.Membership.Connections.Requests;
+using Odin.Services.Util;
 
 namespace Odin.Services.Membership.CircleMembership;
 
@@ -33,8 +34,49 @@ public class CircleMembershipService(
     ExchangeGrantService exchangeGrantService,
     ILogger<CircleMembershipService> logger,
     IMediator mediator,
+    TenantContext tenantContext,
     IdentityDatabase db)
 {
+    /// <summary>
+    /// The circles a connection is enrolled in as it forms: the system circles, plus every
+    /// grant-on-connect circle belonging to an app the owner has left enabled.
+    /// </summary>
+    /// <remarks>
+    /// This replaces the frozen union compiled into <see cref="SystemCircleConstants"/> with one computed
+    /// at connect time from what is actually registered.  The app declares (<c>GrantOn = Connect</c> on
+    /// its circle row); the owner disposes (a per-app toggle in tenant settings).  The effective set is
+    /// declared AND enabled.
+    /// <para>
+    /// The system circles still run alongside during the transition, so a connection lands in both.  That
+    /// is additive and harmless -- and it is also why "an unreviewed connection holds zero read keys" is
+    /// not yet true: the system circles still carry read grants.  It becomes true when they retire.
+    /// </para>
+    /// </remarks>
+    public async Task<List<GuidId>> ResolveEnrollmentCirclesAsync(List<GuidId> circleIds, ConnectionRequestOrigin origin)
+    {
+        var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
+
+        var settings = tenantContext.Settings;
+
+        foreach (var circle in await circleDefinitionService.GetCirclesByGrantOnAsync(CircleGrantOn.Connect))
+        {
+            if (circle.Disabled)
+            {
+                continue;
+            }
+
+            // An owner circle cannot be ambient: there is no app whose toggle would govern it.
+            if (circle.AppId == null || !settings.IsAppConnectEnrollmentEnabled(circle.AppId.Value))
+            {
+                continue;
+            }
+
+            list.EnsureItem(circle.Id);
+        }
+
+        return list;
+    }
+
     public async Task Temp_ReconcileCircleAndAppGrants()
     {
         await using var tx = await db.BeginStackedTransactionAsync();
@@ -191,7 +233,7 @@ public class CircleMembershipService(
         IStorageKeySource storageKeySource,
         IOdinContext odinContext)
     {
-        var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
+        var list = await ResolveEnrollmentCirclesAsync(circleIds, origin);
         return await this.CreateCircleGrantListAsync(keyStoreKey, list, storageKeySource, odinContext);
     }
 

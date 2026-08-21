@@ -15,6 +15,7 @@ using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
 using Odin.Services.Base;
+using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Mediator;
 using Odin.Services.Membership.Circles;
@@ -94,6 +95,11 @@ namespace Odin.Services.Authorization.Apps
 
             await SaveAsync(appReg);
             await ApplyDefaultCirclesAsync(appReg, odinContext);
+
+            // The toggle is not written here. An app absent from the map counts as enabled, which is
+            // exactly the seeding the spec asks for -- the install consent screen is where the owner
+            // agreed to the app's defaults. Writing it explicitly would also make this service depend on
+            // TenantConfigService, which already depends on this one.
 
             await NotifyAppChanged(null, appReg, odinContext);
             return appReg.Redacted();
@@ -508,6 +514,11 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Empties the cache and creates a new instance that can be built
         /// </summary>
+        public async Task<bool> AppExistsAsync(GuidId appId)
+        {
+            return await GetAppRegistrationInternalAsync(appId) != null;
+        }
+
         /// <summary>
         /// Materialises an app's declared circles as real rows.
         /// </summary>

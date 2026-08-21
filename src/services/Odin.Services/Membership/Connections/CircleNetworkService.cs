@@ -676,7 +676,7 @@ namespace Odin.Services.Membership.Connections
             IStorageKeySource storageKeySource,
             IOdinContext odinContext)
         {
-            var list = CircleNetworkUtils.EnsureSystemCircles(circleIds, origin);
+            var list = await circleMembershipService.ResolveEnrollmentCirclesAsync(circleIds, origin);
             return await this.CreateAppCircleGrantList(keyStoreKey, list, storageKeySource, odinContext);
         }
 
@@ -1176,12 +1176,33 @@ namespace Odin.Services.Membership.Connections
                 return;
             }
 
-            var heldCircles = icr.PeerKeyStore?.CircleGrants?.Keys
-                                  .Where(c => c != SystemCircleConstants.AutoConnectionsCircleId.Value &&
-                                              c != SystemCircleConstants.ConfirmedConnectionsCircleId.Value)
-                                  .ToList() ?? [];
+            // Only circles the owner deliberately put them in count.  The system circles do not, and
+            // neither do an app's default circles: those enrol automatically, so being in one is not
+            // evidence of a review and must not stand in the way of undoing one.  Membership implying
+            // review is about the owner's own act.
+            var deliberate = new List<Guid>();
 
-            if (heldCircles.Count != 0)
+            var held = icr.PeerKeyStore?.CircleGrants?.Keys.ToList() ?? [];
+
+            foreach (var circleId in held)
+            {
+                if (circleId == SystemCircleConstants.AutoConnectionsCircleId.Value ||
+                    circleId == SystemCircleConstants.ConfirmedConnectionsCircleId.Value)
+                {
+                    continue;
+                }
+
+                var definition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
+
+                if (definition is { GrantOn: not CircleGrantOn.None })
+                {
+                    continue;
+                }
+
+                deliberate.Add(circleId);
+            }
+
+            if (deliberate.Count != 0)
             {
                 throw new OdinClientException(
                     "Cannot un-review an identity that is a member of one or more circles.  Remove them from " +

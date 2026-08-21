@@ -334,8 +334,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                     ClassicAssert.IsNotNull(getCircleDefinitionsResponse.Content);
                     var definitionList = getCircleDefinitionsResponse.Content.ToList();
 
-                    // The owner's circle list now also includes the built-in circles (e.g. Emergency Location Access).
-                    ClassicAssert.IsTrue(definitionList.Count == 2 + BuiltInCircleConstants.AllBuiltInCircles.Count);
+                    // The list also holds the built-in circles (e.g. Emergency Location Access) and the
+                    // system apps' grant-on-connect circles, so assert on the two we created rather than
+                    // on a total that grows whenever an app declares a default.
+                    ClassicAssert.IsTrue(definitionList.Count >= 2 + BuiltInCircleConstants.AllBuiltInCircles.Count);
 
                     var circle1 = definitionList.Single(x => x.Name == request1.Name);
                     ClassicAssert.AreEqual(request1.Name, circle1.Name);

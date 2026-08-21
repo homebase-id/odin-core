@@ -157,9 +157,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var circleDefs = getCircleDefinitionsResponse.Content?.ToList();
             ClassicAssert.IsNotNull(circleDefs);
 
-            ClassicAssert.IsTrue(
-                circleDefs.Count() == SystemCircleConstants.AllSystemCircles.Count + BuiltInCircleConstants.AllBuiltInCircles.Count,
-                "not all system and built-in circles were created");
+            // Presence, not an exact total: the system apps now declare their own grant-on-connect
+            // circles at registration, so the list is no longer just system + built-in.
+            foreach (var expected in SystemCircleConstants.AllSystemCircles.Concat(BuiltInCircleConstants.AllBuiltInCircles))
+            {
+                ClassicAssert.IsTrue(circleDefs.Exists(c => c.Id == expected),
+                    $"expected circle [{expected}] was not created");
+            }
 
             var connectedIdentitiesSystemCircle = circleDefs.Single(c => c.Id == SystemCircleConstants.ConfirmedConnectionsCircleId);
             ClassicAssert.IsTrue(connectedIdentitiesSystemCircle.Id == GuidId.FromString("we_are_connected"));

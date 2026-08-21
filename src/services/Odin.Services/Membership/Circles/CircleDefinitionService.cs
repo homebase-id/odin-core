@@ -205,6 +205,16 @@ namespace Odin.Services.Membership.Circles
             return record == null ? null : FromRecord(record);
         }
 
+        /// <summary>
+        /// Circles whose owning app wants members enrolled at the given moment.  Served straight from
+        /// the indexed column -- this is the auto-connect hot path.
+        /// </summary>
+        public async Task<List<CircleDefinition>> GetCirclesByGrantOnAsync(CircleGrantOn grantOn)
+        {
+            var records = await db.CircleCached.GetByGrantOnAsync((int)grantOn);
+            return records.Select(FromRecord).ToList();
+        }
+
         public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
         {
             var circles = (await db.CircleCached.GetAllAsync()).Select(FromRecord).ToList();
