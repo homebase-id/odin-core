@@ -64,6 +64,19 @@ namespace Odin.Hosting.Controllers.Base.Membership.Connections
             return Ok();
         }
 
+        /// <summary>
+        /// Completes the review decisions waiting on the calling app, now that its App Key is in scope.
+        /// </summary>
+        /// <remarks>
+        /// An app calls this on start-up.  A review made from another client can only record a decision
+        /// about this app's circles; this is where it becomes real.
+        /// </remarks>
+        [HttpPost("pending-enrollments/process")]
+        public async Task<int> ProcessPendingEnrollments()
+        {
+            return await circleNetwork.ProcessPendingEnrollmentsAsync(WebOdinContext);
+        }
+
         [HttpPost("verify-connection")]
         public async Task<IActionResult> VerifyConnection([FromBody] OdinIdRequest request)
         {

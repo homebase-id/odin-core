@@ -226,6 +226,15 @@ public class UniversalCircleNetworkApiClient(OdinId identity, IApiClientFactory 
         }
     }
 
+    public async Task<ApiResponse<int>> ProcessPendingEnrollments()
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        {
+            var connectionsService = RefitCreator.RestServiceFor<IRefitUniversalCircleNetworkConnections>(client, sharedSecret);
+            return await connectionsService.ProcessPendingEnrollments();
+        }
+    }
+
     public async Task<ApiResponse<HttpContent>> UnreviewConnection(OdinId recipient)
     {
         var client = factory.CreateHttpClient(identity, out var ownerSharedSecret);

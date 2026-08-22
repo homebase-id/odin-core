@@ -51,6 +51,9 @@ namespace Odin.Hosting.Tests._Universal.ApiClient.Connections
         [Post(RootPath + "/review")]
         Task<ApiResponse<HttpContent>> ReviewConnection([Body] ReviewConnectionRequest request);
 
+        [Post(RootPath + "/pending-enrollments/process")]
+        Task<ApiResponse<int>> ProcessPendingEnrollments();
+
         [Post(RootPath + "/unreview")]
         Task<ApiResponse<HttpContent>> UnreviewConnection([Body] OdinIdRequest request);
 

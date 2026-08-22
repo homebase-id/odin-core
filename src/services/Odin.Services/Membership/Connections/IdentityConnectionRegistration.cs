@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text.Json.Serialization;
 using Odin.Core;
 using Odin.Core.Exceptions;
@@ -135,6 +137,12 @@ namespace Odin.Services.Membership.Connections
         [JsonIgnore]
         public UnixTimeUtc? ReviewedAt { get; set; }
 
+        /// <summary>
+        /// Circles the owner chose at review that the reviewing client could not mint.  See
+        /// <see cref="PendingCircleEnrollment"/>.
+        /// </summary>
+        public List<PendingCircleEnrollment> PendingEnrollments { get; set; } = [];
+
         public ClientAuthenticationToken CreateClientAuthToken(SensitiveByteArray icrDecryptionKey)
         {
             return this.CreateClientAccessToken(icrDecryptionKey).ToAuthenticationToken();
@@ -172,6 +180,7 @@ namespace Odin.Services.Membership.Connections
                 Rku = EncryptedClientAccessToken == null,
                 HasVerificationHash = !this.VerificationHash.IsNullOrEmpty(),
                 ReviewedAt = this.ReviewedAt,
+                PendingCircleEnrollments = this.PendingEnrollments?.Select(p => p.CircleId).ToList() ?? [],
                 Vetted = this.IsConnected() && this.IsReviewed()
             };
         }
@@ -224,6 +233,12 @@ namespace Odin.Services.Membership.Connections
         /// Owner/app viewers only -- always null on the third-party shape.
         /// </summary>
         public UnixTimeUtc? ReviewedAt { get; init; }
+
+        /// <summary>
+        /// Circles the owner chose that are recorded but not yet in effect, because the app that owns
+        /// them has not run since.  Owner/app viewers only.
+        /// </summary>
+        public List<Guid> PendingCircleEnrollments { get; init; } = [];
 
         /// <summary>
         /// True if the identity is connected and the owner has completed the review.
