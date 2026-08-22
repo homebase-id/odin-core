@@ -7,8 +7,9 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core;
 using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
-using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Services.Apps;
 using Odin.Services.Authorization.Acl;
 using Odin.Services.Authorization.ExchangeGrants;
@@ -28,17 +29,11 @@ namespace Odin.Services.Authorization.Apps
         IMediator mediator,
         IcrKeyService icrKeyService,
         ILogger<AppRegistrationService> logger,
-        TableKeyThreeValueCached tblKeyThreeValue,
+        IdentityDatabase db,
         ClientRegistrationStorage clientRegistrationStorage,
         OdinContextCache cache)
         : IAppRegistrationService
     {
-        private static readonly byte[] AppRegistrationDataType = Guid.Parse("14c83583-acfd-4368-89ad-6566636ace3d").ToByteArray();
-        private const string AppRegContextKey = "661e097f-6aa5-459f-a445-a9ea65348fde";
-
-        private static readonly ThreeKeyValueStorage AppRegistrationValueStorage =
-            TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(AppRegContextKey));
-
 
         public async Task<RedactedAppRegistration> RegisterAppAsync(AppRegistrationRequest request, IOdinContext odinContext)
         {
@@ -82,6 +77,10 @@ namespace Odin.Services.Authorization.Apps
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
+                // The registration request has no slug field yet -- it grows one with the drive-addressing
+                // work, where an app declares its own address. Until then the slug is derived the same way
+                // the migration derives it, so registering an app and migrating one land on the same value.
+                AppSlug = await AssignSlugAsync(request.AppId, request.Name),
                 Name = request.Name,
                 AppKeyStore = appGrant,
 
@@ -90,7 +89,7 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appReg.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
 
             await NotifyAppChanged(null, appReg, odinContext);
             return appReg.Redacted();
@@ -135,7 +134,7 @@ namespace Odin.Services.Authorization.Apps
             appReg.AppKeyStore = await exchangeGrantService.CreateExchangeGrantAsync(keyStoreKey, request.PermissionSet!, drives,
                 new MasterKeyStorageKeySource(masterKey), masterKey, icrKey);
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -177,6 +176,7 @@ namespace Odin.Services.Authorization.Apps
             var updatedAppReg = new AppRegistration()
             {
                 AppId = oldRegistration.AppId,
+                AppSlug = oldRegistration.AppSlug, // immutable; other identities address the app by it
                 Name = oldRegistration.Name,
                 AppKeyStore = oldRegistration.AppKeyStore,
                 CorsHostName = oldRegistration.CorsHostName,
@@ -185,8 +185,7 @@ namespace Odin.Services.Authorization.Apps
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, request.AppId, GuidId.Empty, AppRegistrationDataType,
-                updatedAppReg);
+            await SaveAsync(updatedAppReg);
 
             //TODO: consider optimize by checking if anything actually changed before calling notify app changed
 
@@ -320,7 +319,7 @@ namespace Odin.Services.Authorization.Apps
 
             //TODO: revoke all clients? or is the one flag enough?
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -334,7 +333,7 @@ namespace Odin.Services.Authorization.Apps
                 appReg.AppKeyStore.IsRevoked = false;
             }
 
-            await AppRegistrationValueStorage.UpsertAsync(tblKeyThreeValue, appId, GuidId.Empty, AppRegistrationDataType, appReg);
+            await SaveAsync(appReg);
 
             await ResetAppPermissionContextCacheAsync();
         }
@@ -448,7 +447,7 @@ namespace Odin.Services.Authorization.Apps
                 throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
             }
 
-            await AppRegistrationValueStorage.DeleteAsync(tblKeyThreeValue, appId);
+            await db.AppRegistrations.DeleteAsync(appId);
 
             //TODO: reenable this after youauth domain work
 
@@ -473,7 +472,7 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task<List<RedactedAppRegistration>> GetRegisteredAppsInternalAsync()
         {
-            var apps = await AppRegistrationValueStorage.GetByCategoryAsync<AppRegistration>(tblKeyThreeValue, AppRegistrationDataType);
+            var apps = (await db.AppRegistrations.GetAllAsync()).Select(FromRecord).ToList();
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return redactedList;
         }
@@ -485,7 +484,8 @@ namespace Odin.Services.Authorization.Apps
 
         private async Task<AppRegistration?> GetAppRegistrationInternalAsync(GuidId appId)
         {
-            var appReg = await AppRegistrationValueStorage.GetAsync<AppRegistration>(tblKeyThreeValue, appId);
+            var record = await db.AppRegistrations.GetAsync(appId);
+            var appReg = record == null ? null : FromRecord(record);
             return appReg;
         }
 
@@ -503,6 +503,62 @@ namespace Odin.Services.Authorization.Apps
         /// <summary>
         /// Empties the cache and creates a new instance that can be built
         /// </summary>
+        /// <summary>
+        /// Picks a slug for a newly registered app, unique against those already registered.
+        /// </summary>
+        private async Task<string> AssignSlugAsync(Guid appId, string name)
+        {
+            var existing = await db.AppRegistrations.GetAllAsync();
+
+            // Seed with the slugs actually stored, not re-derived ones -- an app holding "acme-2" still
+            // holds it whatever its name slugifies to today.
+            var taken = new HashSet<string>(
+                existing.Where(r => r.AppId != appId).Select(r => r.AppSlug),
+                StringComparer.Ordinal);
+
+            return AppSlugGenerator.Generate(appId, name, taken);
+        }
+
+        /// <summary>
+        /// Writes a registration to its row.  AppId, AppSlug, Name and CorsHostName are columns; the rest
+        /// of the registration rides <c>grantJson</c>.
+        /// </summary>
+        private async Task SaveAsync(AppRegistration appReg)
+        {
+            await db.AppRegistrations.UpsertAsync(ToRecord(appReg));
+        }
+
+        internal static AppRegistrationsRecord ToRecord(AppRegistration appReg)
+        {
+            if (!AppSlugGenerator.IsValid(appReg.AppSlug))
+            {
+                throw new OdinSystemException(
+                    $"App {appReg.AppId} has no valid slug ('{appReg.AppSlug}'); it cannot be persisted");
+            }
+
+            return new AppRegistrationsRecord
+            {
+                AppId = appReg.AppId,
+                AppSlug = appReg.AppSlug,
+                Name = appReg.Name,
+                CorsHostName = appReg.CorsHostName,
+                grantJson = OdinSystemSerializer.Serialize(appReg),
+                detailsJson = null
+            };
+        }
+
+        internal static AppRegistration FromRecord(AppRegistrationsRecord record)
+        {
+            var appReg = OdinSystemSerializer.Deserialize<AppRegistration>(record.grantJson);
+
+            appReg.AppId = record.AppId;
+            appReg.AppSlug = record.AppSlug;
+            appReg.Name = record.Name;
+            appReg.CorsHostName = record.CorsHostName;
+
+            return appReg;
+        }
+
         private async Task ResetAppPermissionContextCacheAsync()
         {
             await cache.ResetAsync();
