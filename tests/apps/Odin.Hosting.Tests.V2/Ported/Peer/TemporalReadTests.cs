@@ -72,7 +72,7 @@ public class TemporalReadTests : V2Fixture
 
     private static async Task<Guid> UploadLocalAsync(OwnerSession owner, TargetDrive drive, string content)
     {
-        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Connected, allowDistribution: false);
+        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Reviewed, allowDistribution: false);
         metadata.AppData.Content = content;
         var response = await owner.Drives.Writer.UploadNewMetadata(drive.Alias, metadata);
         Assert.That(response.IsSuccessStatusCode, Is.True, $"local upload failed: {response.StatusCode}");

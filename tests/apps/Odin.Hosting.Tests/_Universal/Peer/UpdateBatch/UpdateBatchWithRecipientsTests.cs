@@ -101,7 +101,7 @@ public class UpdateBatchWithRecipientsTests
 
         await SetupRecipients(sender, recipients, targetDrive);
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AllowDistribution = true;
         var transitOptions = new TransitOptions
         {
@@ -279,7 +279,7 @@ public class UpdateBatchWithRecipientsTests
 
         await SetupRecipients(sender, recipients, targetDrive);
 
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AllowDistribution = true;
         var transitOptions = new TransitOptions
         {

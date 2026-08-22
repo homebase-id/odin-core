@@ -291,9 +291,12 @@ public class TenantConfigService(
                 break;
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
+                // No longer written onto the Confirmed circle: the key is granted from the reviewed tier
+                // now (see CircleNetworkService's permission-context build). Writing it to the circle as
+                // well would hand it to anyone in that circle, reviewed or not, which is the exact hole
+                // the recut closes.
                 cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow,
-                    odinContext);
+                await StripLegacyTierKeysFromConfirmedCircleAsync(odinContext);
                 break;
 
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
@@ -305,9 +308,9 @@ public class TenantConfigService(
                 break;
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
+                // See above -- granted from the reviewed tier, not from circle membership.
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                await UpdateSystemCirclePermissionAsync(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections,
-                    odinContext);
+                await StripLegacyTierKeysFromConfirmedCircleAsync(odinContext);
                 break;
 
             case TenantConfigFlagNames.AuthenticatedIdentitiesCanReactOnAnonymousDrives:
@@ -451,25 +454,32 @@ public class TenantConfigService(
         return false;
     }
 
-    private async Task UpdateSystemCirclePermissionAsync(int key, bool shouldGrantKey, IOdinContext odinContext)
+    /// <summary>
+    /// Removes the connections-list keys from the Confirmed circle, where they used to live.
+    /// </summary>
+    /// <remarks>
+    /// These settings were implemented as permission keys on that circle, which is the system already
+    /// treating <i>reviewed</i> as the operative tier without having a name for it.  They are granted
+    /// from the tier now, so a copy left on the circle is not redundant -- it is a second source that
+    /// hands the key to anyone in the circle, reviewed or not, and defeats the gate entirely.
+    /// <para>
+    /// One-way: this only ever strips.  A tenant that touches either setting is cleaned up here; one
+    /// that never does is cleaned up by <c>EnsureSystemCirclesExistAsync</c>, which reconciles the
+    /// definition against the constant and so drops keys the constant does not declare.  Both go away
+    /// when the circle itself retires.
+    /// </para>
+    /// </remarks>
+    private async Task StripLegacyTierKeysFromConfirmedCircleAsync(IOdinContext odinContext)
     {
-        var systemCircle = await circleMembershipService.GetCircleAsync(SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
+        var systemCircle = await circleMembershipService.GetCircleAsync(
+            SystemCircleConstants.ConfirmedConnectionsCircleId, odinContext);
 
-        if (shouldGrantKey)
-        {
-            if (!systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Add(key);
-            }
-        }
-        else
-        {
-            if (systemCircle.Permissions.Keys.Contains(key))
-            {
-                systemCircle.Permissions.Keys.Remove(key);
-            }
-        }
+        var removed = systemCircle.Permissions.Keys.Remove(PermissionKeys.ReadConnections);
+        removed |= systemCircle.Permissions.Keys.Remove(PermissionKeys.ReadWhoIFollow);
 
-        await dbs.UpdateCircleDefinitionAsync(systemCircle, odinContext);
+        if (removed)
+        {
+            await dbs.UpdateCircleDefinitionAsync(systemCircle, odinContext);
+        }
     }
 }

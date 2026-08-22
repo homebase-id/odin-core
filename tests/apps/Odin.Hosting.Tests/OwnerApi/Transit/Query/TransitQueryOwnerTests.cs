@@ -142,7 +142,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
                 },
             };
 
@@ -414,7 +414,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Content = encryptedJsonContent64
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
                 },
             };
 
@@ -778,7 +778,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
                 },
             };
 
@@ -873,7 +873,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 IsEncrypted = false,
-                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
             };
 
             var postUploadResult =
@@ -921,7 +921,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     IsEncrypted = false,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
                 },
             };
 
@@ -1130,7 +1130,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 IsEncrypted = false,
-                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
             };
 
             var postUploadResult = await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "");
@@ -1190,7 +1190,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Content = json
                     },
                     IsEncrypted = false,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
                 },
             };
 
@@ -1500,7 +1500,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 IsEncrypted = false,
-                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
             };
 
             var postUploadResult =
@@ -1548,7 +1548,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Content = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
                 },
             };
 
@@ -1645,7 +1645,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                     Content = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 IsEncrypted = false,
-                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
             };
 
             var postUploadResult = await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "");
@@ -1707,7 +1707,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
                         Content = encryptedJsonContent64
                     },
                     IsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Reviewed }
                 },
             };
 

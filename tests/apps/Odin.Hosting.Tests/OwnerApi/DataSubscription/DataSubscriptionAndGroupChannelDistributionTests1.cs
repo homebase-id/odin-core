@@ -639,7 +639,7 @@ public class DataSubscriptionAndGroupChannelDistributionTests1
                 GroupId = default,
                 Tags = default
             },
-            AccessControlList = AccessControlList.Connected
+            AccessControlList = AccessControlList.Reviewed
         };
 
         var uploadResponse = await client.DriveRedux.UploadNewEncryptedMetadata(targetDrive, fileMetadata);

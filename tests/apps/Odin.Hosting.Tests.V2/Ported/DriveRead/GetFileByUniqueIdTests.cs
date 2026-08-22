@@ -144,7 +144,7 @@ public class GetFileByUniqueIdTests : V2Fixture
         const string unencryptedContent = "some content here";
         var metadata = SampleMetadataData.Create(fileType: 100);
         metadata.AppData.Content = unencryptedContent;
-        metadata.AccessControlList = AccessControlList.Connected;
+        metadata.AccessControlList = AccessControlList.Reviewed;
         metadata.AppData.UniqueId = uniqueId;
 
         var payload = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();

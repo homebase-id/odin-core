@@ -149,7 +149,7 @@ public class V2PeerAppNotificationWebSocketTests
             AllowDistribution = true,
             IsEncrypted = true,
             AppData = new() { Content = message },
-            AccessControlList = AccessControlList.Connected
+            AccessControlList = AccessControlList.Reviewed
         };
 
         var response = await sender.PeerDirect.TransferMetadata(targetDrive, fileMetadata,

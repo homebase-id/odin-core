@@ -139,7 +139,7 @@ public class PeerUpdateOriginalAuthorTests
         uploadedFileMetadata.AppData.Content = "some content here";
         uploadedFileMetadata.AppData.FileType = 100;
         uploadedFileMetadata.AllowDistribution = true;
-        uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
+        uploadedFileMetadata.AccessControlList = AccessControlList.Reviewed;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
 
         payload1.Iv = ByteArrayUtil.GetRndByteArray(16);
@@ -377,7 +377,7 @@ public class PeerUpdateOriginalAuthorTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.DataType = 111;
         uploadedFileMetadata.AllowDistribution = true;
-        uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
+        uploadedFileMetadata.AccessControlList = AccessControlList.Reviewed;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
 

@@ -246,7 +246,7 @@ public class CollaborationChatPushNotificationTests
         uploadedFileMetadata.AppData.DataType = 7779;
         uploadedFileMetadata.AccessControlList = new AccessControlList
         {
-            RequiredSecurityGroup = SecurityGroupType.Connected,
+            RequiredSecurityGroup = SecurityGroupType.Reviewed,
             CircleIdList = [chatCircleId]
         };
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
@@ -292,7 +292,7 @@ public class CollaborationChatPushNotificationTests
         uploadedFileMetadata.AppData.DataType = 7779;
         uploadedFileMetadata.AccessControlList = new AccessControlList
         {
-            RequiredSecurityGroup = SecurityGroupType.Connected,
+            RequiredSecurityGroup = SecurityGroupType.Reviewed,
             CircleIdList = [chatCircleId]
         };
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();

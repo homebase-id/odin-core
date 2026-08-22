@@ -614,7 +614,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
             Guid? overwriteFile = null,
             Guid? versionTag = null)
         {
-            var fileMetadata = SampleMetadataData.CreateWithContent(default, uploadedContent, AccessControlList.Connected);
+            var fileMetadata = SampleMetadataData.CreateWithContent(default, uploadedContent, AccessControlList.Reviewed);
             fileMetadata.VersionTag = versionTag;
             fileMetadata.AllowDistribution = true;
             fileMetadata.IsEncrypted = encrypted;
@@ -715,7 +715,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.DirectSend
         private async Task<(UploadResult, string encryptedJsonContent64)> UploadStandardFile(OwnerApiClientRedux client, TargetDrive targetDrive,
             string uploadedContent, bool encrypted)
         {
-            var fileMetadata = SampleMetadataData.CreateWithContent(200, uploadedContent, AccessControlList.Connected);
+            var fileMetadata = SampleMetadataData.CreateWithContent(200, uploadedContent, AccessControlList.Reviewed);
             fileMetadata.AllowDistribution = true;
             fileMetadata.IsEncrypted = encrypted;
 

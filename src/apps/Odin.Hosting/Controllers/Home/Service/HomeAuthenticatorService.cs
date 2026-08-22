@@ -126,7 +126,11 @@ namespace Odin.Hosting.Controllers.Home.Service
                 circleMembershipService.MapCircleGrantsToExchangeGrantsAsync(icr.OdinId.AsciiDomain,
                     icr.PeerKeyStore.CircleGrants.Values.ToList(), odinContext);
 
-            var permissionKeys = tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities();
+            // Reviewed-tier question -- see the matching gate in CircleNetworkService.
+            var permissionKeys = icr.IsReviewed()
+                ? tenantContext.Settings.GetAdditionalPermissionKeysForConnectedIdentities()
+                : new List<int>();
+
             var anonDrivePermissions = tenantContext.Settings.GetAnonymousDrivePermissionsForConnectedIdentities();
 
             // added to allow reading of images for reposted content
@@ -354,8 +358,9 @@ namespace Odin.Hosting.Controllers.Home.Service
                 var cc = new CallerContext(
                     odinId: client.OdinId,
                     masterKey: null,
-                    securityLevel: SecurityGroupType.Connected,
+                    securityLevel: CircleNetworkService.GetSecurityLevel(icr),
                     circleIds: enabledCircles,
+                    isConnected: true,
                     odinClientContext: new OdinClientContext()
                     {
                         ClientIdOrDomain = client.OdinId,

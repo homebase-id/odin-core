@@ -264,7 +264,7 @@ namespace Odin.Hosting.Tests._Universal.Peer.PeerAppNotificationsWebSocket
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.Reviewed
             };
 
             var response = await sender.PeerDirect.TransferMetadata(

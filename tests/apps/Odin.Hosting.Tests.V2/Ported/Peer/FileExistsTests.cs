@@ -96,7 +96,7 @@ public class FileExistsTests : V2Fixture
         var (sender, recipient, drive) = await SetupConnectedAsync(DrivePermission.Write);
 
         var uniqueId = Guid.NewGuid();
-        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Connected, allowDistribution: false);
+        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Reviewed, allowDistribution: false);
         metadata.AppData.UniqueId = uniqueId;
         var local = await recipient.Drives.Writer.UploadNewMetadata(drive.Alias, metadata);
         Assert.That(local.IsSuccessStatusCode, Is.True, $"local upload failed: {local.StatusCode}");
@@ -152,7 +152,7 @@ public class FileExistsTests : V2Fixture
     private static async Task<Guid> UploadAndDistributeAsync(
         OwnerSession sender, OwnerSession recipient, TargetDrive drive, Guid uniqueId)
     {
-        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Connected, allowDistribution: true);
+        var metadata = SampleMetadataData.Create(fileType: 9001, acl: AccessControlList.Reviewed, allowDistribution: true);
         metadata.AppData.UniqueId = uniqueId;
 
         var transit = new TransitOptions

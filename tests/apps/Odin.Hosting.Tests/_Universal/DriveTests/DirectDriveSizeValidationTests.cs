@@ -143,7 +143,7 @@ public class DirectDriveSizeValidationTests
         await ownerApiClient.DriveManager.CreateDrive(targetDrive, "Test Drive 001", "", allowAnonymousReads: true);
 
         const string originalContent = "some content here";
-        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         uploadedFileMetadata.AppData.Content = originalContent;
 
         var originalKeyHeader = KeyHeader.NewRandom16();
@@ -161,7 +161,7 @@ public class DirectDriveSizeValidationTests
         await callerContext.Initialize(ownerApiClient);
         var callerDriveClient = new UniversalDriveApiClient(identity.OdinId, callerContext.GetFactory());
         
-        var updatedMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Connected);
+        var updatedMetadata = SampleMetadataData.Create(fileType: 100, acl: AccessControlList.Reviewed);
         updatedMetadata.AppData.Content = new string(Enumerable.Repeat('A', AppFileMetaData.MaxAppDataContentLength + 1).ToArray());;
         updatedMetadata.VersionTag = uploadedFile1.FileMetadata.VersionTag;
         updatedMetadata.IsEncrypted = true;
@@ -224,7 +224,7 @@ public class DirectDriveSizeValidationTests
         var uploadedFileMetadata = SampleMetadataData.Create(fileType: 100);
         uploadedFileMetadata.AppData.DataType = 111;
         uploadedFileMetadata.AllowDistribution = true;
-        uploadedFileMetadata.AccessControlList = AccessControlList.Connected;
+        uploadedFileMetadata.AccessControlList = AccessControlList.Reviewed;
         var payload1 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail1();
         var payload2 = SamplePayloadDefinitions.GetPayloadDefinitionWithThumbnail2();
 
