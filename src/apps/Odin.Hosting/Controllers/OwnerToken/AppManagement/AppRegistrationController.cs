@@ -6,6 +6,7 @@ using Odin.Core.Fluff;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Odin.Services.Authentication.Owner;
+using Odin.Services.Configuration;
 using Odin.Services.Authentication.YouAuth;
 using Odin.Services.Authorization.Apps;
 using Odin.Services.Util;
@@ -16,7 +17,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
     [Route(OwnerApiPathConstants.AppManagementV1)]
     [AuthorizeValidOwnerToken]
     [ApiExplorerSettings(GroupName = "owner-v1")]
-    public class AppRegistrationController(IAppRegistrationService appRegistrationService, IYouAuthUnifiedService youAuthUnifiedService)
+    public class AppRegistrationController(
+        IAppRegistrationService appRegistrationService,
+        TenantConfigService tenantConfigService,
+        IYouAuthUnifiedService youAuthUnifiedService)
         : OdinControllerBase
     {
         /// <summary>
@@ -71,6 +75,17 @@ namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
         public async Task UpdateAuthorizedCircles([FromBody] UpdateAuthorizedCirclesRequest request)
         {
             await appRegistrationService.UpdateAuthorizedCirclesAsync(request, WebOdinContext);
+        }
+
+        /// <summary>
+        /// Turns an app's grant-on-connect enrollment on or off.  The app declares its default circles at
+        /// install; this is the owner's half.  Affects future connections only.
+        /// </summary>
+        [HttpPost("register/connect-enrollment")]
+        public async Task<NoResultResponse> SetConnectEnrollment([FromBody] SetConnectEnrollmentRequest request)
+        {
+            await tenantConfigService.SetAppConnectEnrollmentAsync(request.AppId, request.Enabled, WebOdinContext);
+            return new NoResultResponse(true);
         }
 
         /// <summary>

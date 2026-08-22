@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Odin.Core;
 using Odin.Services.Authorization.ExchangeGrants;
 using Odin.Services.Authorization.Permissions;
@@ -38,6 +39,16 @@ namespace Odin.Services.Authorization.Apps
         /// </summary>
         public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
 
+        /// <summary>
+        /// Circles this app wants to exist, and when their members are enrolled.
+        /// </summary>
+        /// <remarks>
+        /// Declared here rather than through a later call because a grant-on-connect circle enrols
+        /// ambiently -- the first connection after install must already know about it -- and because the
+        /// install consent screen is where the owner agrees to it.
+        /// </remarks>
+        public List<AppDefaultCircleRequest> DefaultCircles { get; set; }
+
         public bool IsValid()
         {
             var driveGrantsValid = this.Drives == null || this.Drives.Count == 0 || this.Drives.TrueForAll(dgr => dgr.PermissionedDrive.Drive.IsValid());
@@ -46,12 +57,17 @@ namespace Odin.Services.Authorization.Apps
             // var circleGrantRequestValid = this.CircleMemberPermissionGrant?.IsValid() ?? true;
             var corsHeaderValid = string.IsNullOrEmpty(this.CorsHostName) || AppUtil.IsValidCorsHeader(this.CorsHostName);
 
+            var defaultCirclesValid = this.DefaultCircles == null ||
+                                      (this.DefaultCircles.TrueForAll(c => c.IsValid()) &&
+                                       this.DefaultCircles.Select(c => c.Id).Distinct().Count() == this.DefaultCircles.Count);
+
             var isValid = this.AppId != Guid.Empty &&
                           !string.IsNullOrEmpty(this.Name) &&
                           !string.IsNullOrWhiteSpace(this.Name) &&
                           driveGrantsValid &&
                           authorizedCirclesValid &&
                           // circleGrantRequestValid &&
+                          defaultCirclesValid &&
                           corsHeaderValid;
 
             return isValid;

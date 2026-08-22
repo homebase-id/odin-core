@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 using Odin.Core.Identity;
 using Odin.Core.Storage.Database.Identity.Connection;
@@ -31,6 +32,33 @@ public class TableCircle(
     internal async Task<int> DeleteAsync(Guid circleId)
     {
         return await base.DeleteAsync(odinIdentity, circleId);
+    }
+
+    /// <summary>
+    /// Circles whose owning app wants members enrolled at the given moment.  Hits Idx1Circle
+    /// (identityId, GrantOn) -- this query is the reason GrantOn is a column and not a blob field.
+    /// </summary>
+    internal async Task<List<CircleRecord>> GetByGrantOnAsync(int grantOn)
+    {
+        await using var cn = await scopedConnectionFactory.CreateScopedConnectionAsync();
+        await using var cmd = cn.CreateCommand();
+
+        cmd.CommandText =
+            "SELECT rowId,identityId,circleId,circleName,data,AppId,GrantOn,Designation,Emoji FROM Circle " +
+            "WHERE identityId = @identityId AND GrantOn = @grantOn;";
+
+        cmd.AddParameter("@identityId", DbType.Binary, odinIdentity.IdentityId);
+        cmd.AddParameter("@grantOn", DbType.Int32, grantOn);
+
+        var results = new List<CircleRecord>();
+
+        await using var rdr = await cmd.ExecuteReaderAsync(CommandBehavior.Default);
+        while (await rdr.ReadAsync())
+        {
+            results.Add(ReadRecordFromReaderAll(rdr));
+        }
+
+        return results;
     }
 
     /// <summary>

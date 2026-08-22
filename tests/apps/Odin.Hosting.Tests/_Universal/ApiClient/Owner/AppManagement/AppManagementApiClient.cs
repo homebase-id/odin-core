@@ -164,11 +164,40 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
     /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
     /// </summary>
     /// <returns></returns>
+    /// <summary>
+    /// Turns an app's grant-on-connect enrollment on or off.
+    /// </summary>
+    public async Task<ApiResponse<NoResultResponse>> SetConnectEnrollment(Guid appId, bool enabled)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
+            return await svc.SetConnectEnrollment(new SetConnectEnrollmentRequest
+            {
+                AppId = appId,
+                Enabled = enabled
+            });
+        }
+    }
+
+    /// <summary>
+    /// Registers an app without asserting success, so a test can inspect a rejection.
+    /// </summary>
+    public async Task<ApiResponse<RedactedAppRegistration>> TryRegisterApp(AppRegistrationRequest request)
+    {
+        var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IRefitAppRegistration>(client, ownerSharedSecret);
+            return await svc.RegisterApp(request);
+        }
+    }
+
     public async Task<ApiResponse<RedactedAppRegistration>> RegisterApp(
         Guid appId,
         PermissionSetGrantRequest appPermissions,
         List<Guid> authorizedCircles = null,
-        PermissionSetGrantRequest circleMemberGrantRequest = null)
+        PermissionSetGrantRequest circleMemberGrantRequest = null,
+        List<AppDefaultCircleRequest> defaultCircles = null)
     {
         var client = ownerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
@@ -181,7 +210,8 @@ public class AppManagementApiClient(OwnerApiTestUtils ownerApi, TestIdentity ide
                 PermissionSet = appPermissions.PermissionSet,
                 Drives = appPermissions.Drives?.ToList(),
                 AuthorizedCircles = authorizedCircles,
-                CircleMemberPermissionGrant = circleMemberGrantRequest
+                CircleMemberPermissionGrant = circleMemberGrantRequest,
+                DefaultCircles = defaultCircles
             };
 
             var response = await svc.RegisterApp(request);
