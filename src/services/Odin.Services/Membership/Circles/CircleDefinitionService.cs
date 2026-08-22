@@ -4,7 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Odin.Core;
 using Odin.Core.Exceptions;
-using Odin.Core.Storage;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.Database.Identity;
 using Odin.Core.Storage.Database.Identity.Table;
 using Odin.Core.Storage.Database.Identity.Wrappers;
 using Odin.Core.Time;
@@ -16,11 +17,22 @@ using Odin.Services.Drives.Management;
 
 namespace Odin.Services.Membership.Circles
 {
-    public class CircleDefinitionService(IDriveManager driveManager, TableKeyThreeValueCached tblKeyThreeValue)
+    /// <summary>
+    /// Circle definitions live in the <c>Circle</c> table, one row per circle.
+    /// </summary>
+    /// <remarks>
+    /// They used to live in the shared key-three-value blob, where <c>AppId</c> and <c>GrantOn</c> could
+    /// not be queried or constrained at all.  The enrollment pipeline has to ask "which circles enrol on
+    /// connect?" on the hot path, which is a <c>WHERE GrantOn = ?</c> against an indexed column, not a
+    /// load-all-and-deserialize.  <see cref="CircleDefinitionMigrationService"/> copies existing rows
+    /// across.
+    /// <para>
+    /// Those four fields are columns and are excluded from the row's <c>data</c> blob, so a query on the
+    /// column can never disagree with the hydrated object.
+    /// </para>
+    /// </remarks>
+    public class CircleDefinitionService(IDriveManager driveManager, IdentityDatabase db)
     {
-        private const string CircleValueContextKey = "dc1c198c-c280-4b9c-93ce-d417d0a58491";
-        private static readonly ThreeKeyValueStorage CircleValueStorage = TenantSystemStorage.CreateThreeKeyValueStorage(Guid.Parse(CircleValueContextKey));
-        private static readonly byte[] CircleDataType = Guid.Parse("2a915ab8-412e-42d8-b157-a123f107f224").ToByteArray();
 
         public async Task<CircleDefinition> CreateAsync(CreateCircleRequest request)
         {
@@ -125,7 +137,13 @@ namespace Odin.Services.Membership.Circles
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            await CircleValueStorage.UpsertAsync(tblKeyThreeValue, existingCircle.Id, GuidId.Empty, CircleDataType, newCircleDefinition);
+            // AppId deliberately not taken from the request: ownership is set when the circle is
+            // created and must not be reassignable by anyone who can PUT a definition.
+            existingCircle.GrantOn = newCircleDefinition.GrantOn;
+            existingCircle.Designation = newCircleDefinition.Designation;
+            existingCircle.Emoji = newCircleDefinition.Emoji;
+
+            await db.CircleCached.UpsertAsync(ToRecord(existingCircle));
         }
 
         public async Task<bool> IsEnabledAsync(GuidId circleId)
@@ -136,13 +154,13 @@ namespace Odin.Services.Membership.Circles
 
         public async Task<CircleDefinition> GetCircleAsync(GuidId circleId)
         {
-            var def = await CircleValueStorage.GetAsync<CircleDefinition>(tblKeyThreeValue, circleId);
-            return def;
+            var record = await db.CircleCached.GetAsync(circleId);
+            return record == null ? null : FromRecord(record);
         }
-        
+
         public async Task<List<CircleDefinition>> GetCirclesAsync(bool includeSystemCircle)
         {
-            var circles = (await CircleValueStorage.GetByCategoryAsync<CircleDefinition>(tblKeyThreeValue, CircleDataType) ?? []).ToList();
+            var circles = (await db.CircleCached.GetAllAsync()).Select(FromRecord).ToList();
             if (!includeSystemCircle)
             {
                 circles.RemoveAll(def => SystemCircleConstants.AllSystemCircles.Exists(sc => sc == def.Id));
@@ -161,7 +179,7 @@ namespace Odin.Services.Membership.Circles
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
-            await CircleValueStorage.DeleteAsync(tblKeyThreeValue, id);
+            await db.CircleCached.DeleteAsync(id);
         }
 
         public async Task AssertValidDriveGrantsAsync(IEnumerable<DriveGrantRequest> driveGrantRequests)
@@ -256,9 +274,63 @@ namespace Odin.Services.Membership.Circles
                 Permissions = request.Permissions
             };
 
-            await CircleValueStorage.UpsertAsync(tblKeyThreeValue, circle.Id, GuidId.Empty, CircleDataType, circle);
+            await db.CircleCached.UpsertAsync(ToRecord(circle));
 
             return circle;
+        }
+
+        //
+
+        internal static CircleRecord ToRecord(CircleDefinition definition)
+        {
+            var appId = definition.AppId;
+            var grantOn = definition.GrantOn;
+            var designation = definition.Designation;
+            var emoji = definition.Emoji;
+
+            // Clear before serializing so the blob holds no second copy of what the columns own -- the
+            // same trick ToConnectionsRecord uses for the grant collections. Restored immediately: the
+            // caller's object is still live.
+            definition.AppId = null;
+            definition.GrantOn = CircleGrantOn.None;
+            definition.Designation = CircleDesignation.Personal;
+            definition.Emoji = null;
+
+            byte[] data;
+            try
+            {
+                data = OdinSystemSerializer.Serialize(definition).ToUtf8ByteArray();
+            }
+            finally
+            {
+                definition.AppId = appId;
+                definition.GrantOn = grantOn;
+                definition.Designation = designation;
+                definition.Emoji = emoji;
+            }
+
+            return new CircleRecord
+            {
+                circleId = definition.Id,
+                circleName = definition.Name,
+                data = data,
+                AppId = appId,
+                GrantOn = (int)grantOn,
+                Designation = (int)designation,
+                Emoji = emoji
+            };
+        }
+
+        internal static CircleDefinition FromRecord(CircleRecord record)
+        {
+            var definition = OdinSystemSerializer.Deserialize<CircleDefinition>(record.data.ToStringFromUtf8Bytes());
+
+            definition.AppId = record.AppId;
+            definition.GrantOn = (CircleGrantOn)record.GrantOn;
+            definition.Designation = (CircleDesignation)record.Designation;
+            definition.Emoji = record.Emoji;
+
+            return definition;
         }
     }
 }
