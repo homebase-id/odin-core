@@ -1137,6 +1137,8 @@ namespace Odin.Services.Membership.Connections
                 icr = await this.GetIcrAsync(odinId, odinContext);
             }
 
+            var queued = new List<PendingCircleEnrollment>();
+
             foreach (var circleId in requestedCircles)
             {
                 if (icr.PeerKeyStore.CircleGrants.ContainsKey(circleId))
@@ -1144,7 +1146,32 @@ namespace Odin.Services.Membership.Connections
                     continue;
                 }
 
-                await this.GrantCircleAsync(circleId, odinId, odinContext);
+                var definition = await circleMembershipService.GetCircleAsync(circleId, odinContext);
+
+                if (CanMintNow(definition, odinContext))
+                {
+                    await this.GrantCircleAsync(circleId, odinId, odinContext);
+                    continue;
+                }
+
+                // The reviewing client does not hold the App Key that could source this circle's storage
+                // keys, so minting here would throw rather than produce a working grant. Record the
+                // decision; the owning app completes it the next time it runs.
+                queued.Add(new PendingCircleEnrollment
+                {
+                    CircleId = circleId,
+                    AppId = definition!.AppId!.Value,
+                    RequestedAt = UnixTimeUtc.Now()
+                });
+
+                logger.LogInformation(
+                    "Review of {identity} queued circle '{circle}' for app {app}; the reviewing client cannot mint it",
+                    odinId, definition.Name, definition.AppId);
+            }
+
+            if (queued.Count > 0)
+            {
+                await this.QueuePendingEnrollmentsAsync(odinId, queued, odinContext);
             }
 
             await this.StampReviewedAsync(odinId);
@@ -1152,6 +1179,136 @@ namespace Odin.Services.Membership.Connections
             tx.Commit();
 
             await odinContextCache.ResetAsync();
+        }
+
+        /// <summary>
+        /// Whether the caller can mint a working grant for this circle right now.
+        /// </summary>
+        /// <remarks>
+        /// The owner can, holding the master key.  An app can for its own circles -- an app circle may
+        /// only reference drives its app can already read, so its App Key sources exactly the storage
+        /// keys involved.  Anything else would need a key the caller does not have, and
+        /// <c>CreateDepositedGrantAsync</c> throws rather than mint a keyless grant.
+        /// <para>
+        /// A circle with nothing read-bearing needs no storage key at all, so it never has to wait --
+        /// which is the deposit-only invariant paying off.
+        /// </para>
+        /// </remarks>
+        private static bool CanMintNow(CircleDefinition definition, IOdinContext odinContext)
+        {
+            if (definition == null)
+            {
+                throw new OdinClientException("Unknown circle", OdinClientErrorCode.UnknownId);
+            }
+
+            if (odinContext.Caller.HasMasterKey)
+            {
+                return true;
+            }
+
+            // No read grants and no keys: nothing here needs sourcing.
+            var needsKeys = (definition.Permissions?.Keys?.Any() ?? false) ||
+                            (definition.DriveGrants ?? []).Any(g =>
+                                g.PermissionedDrive.Permission.HasFlag(DrivePermission.Read) ||
+                                g.PermissionedDrive.Permission.HasFlag(DrivePermission.ConditionalTemporalRead));
+
+            if (!needsKeys)
+            {
+                return true;
+            }
+
+            // An owner circle has no app that could ever complete it -- only the owner console can.
+            if (definition.AppId == null)
+            {
+                throw new OdinClientException(
+                    $"Circle {definition.Id} is owner-managed and cannot be granted from an app context",
+                    OdinClientErrorCode.CircleNotOwnedByApp);
+            }
+
+            return odinContext.Caller.OdinClientContext?.AppId?.Value == definition.AppId.Value;
+        }
+
+        /// <summary>
+        /// Records review decisions the reviewing client could not carry out.  Idempotent: a circle
+        /// already queued or already granted is not queued twice.
+        /// </summary>
+        private async Task QueuePendingEnrollmentsAsync(OdinId odinId, List<PendingCircleEnrollment> pending,
+            IOdinContext odinContext)
+        {
+            var icr = await this.GetIdentityConnectionRegistrationInternalAsync(odinId);
+            icr.PendingEnrollments ??= [];
+
+            foreach (var entry in pending)
+            {
+                if (icr.PendingEnrollments.Exists(p => p.CircleId == entry.CircleId) ||
+                    icr.PeerKeyStore.CircleGrants.ContainsKey(entry.CircleId))
+                {
+                    continue;
+                }
+
+                icr.PendingEnrollments.Add(entry);
+            }
+
+            await this.SaveIcrAsync(icr, odinContext);
+        }
+
+        /// <summary>
+        /// Completes the review decisions waiting on the calling app, now that its App Key is in scope.
+        /// </summary>
+        /// <remarks>
+        /// Idempotent and additive, like all enrollment.  An entry whose circle has since been deleted,
+        /// or whose connection has gone, is dropped rather than retried forever.
+        /// </remarks>
+        public async Task<int> ProcessPendingEnrollmentsAsync(IOdinContext odinContext)
+        {
+            AssertCanManageCircleMembership(odinContext);
+
+            var appId = odinContext.Caller.OdinClientContext?.AppId?.Value;
+
+            if (appId == null)
+            {
+                throw new OdinClientException("Only an app can drain its pending enrollments",
+                    OdinClientErrorCode.NotAnAppContext);
+            }
+
+            var completed = 0;
+            var connections = await this.GetConnectedIdentitiesAsync(int.MaxValue, null, odinContext);
+
+            foreach (var connection in connections.Results)
+            {
+                var mine = (connection.PendingEnrollments ?? [])
+                    .Where(p => p.AppId == appId.Value)
+                    .ToList();
+
+                if (mine.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var entry in mine)
+                {
+                    var definition = await circleMembershipService.GetCircleAsync(entry.CircleId, odinContext);
+
+                    if (definition != null && !connection.PeerKeyStore.CircleGrants.ContainsKey(entry.CircleId))
+                    {
+                        await this.GrantCircleAsync(entry.CircleId, connection.OdinId, odinContext);
+                        completed++;
+                    }
+                }
+
+                // Re-read: GrantCircleAsync saved the registration underneath us.
+                var fresh = await this.GetIdentityConnectionRegistrationInternalAsync(connection.OdinId);
+                fresh.PendingEnrollments?.RemoveAll(p => p.AppId == appId.Value);
+                await this.SaveIcrAsync(fresh, odinContext);
+            }
+
+            if (completed > 0)
+            {
+                logger.LogInformation("App {app} completed {count} pending enrollment(s)", appId, completed);
+                await odinContextCache.ResetAsync();
+            }
+
+            return completed;
         }
 
         /// <summary>
