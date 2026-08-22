@@ -97,6 +97,27 @@ public class DriveReaderV2Client(OdinId identity, IApiClientFactory factory)
         return thumbnailResponse;
     }
 
+    public async Task<ApiResponse<HttpContent>> GetPayloadByGtidAsync(Guid gtid, Guid driveId, string key, FileChunk chunk = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveFileByGtidHttpClientApiV2>(client, sharedSecret);
+        if (chunk == null)
+        {
+            return await svc.GetPayloadByGtid(driveId, gtid, key, fileSystemType);
+        }
+
+        return await svc.GetPayloadByGtid(driveId, gtid, key, chunk?.Start ?? 0, chunk?.Length ?? 0, fileSystemType);
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetThumbnailByGtidAsync(Guid gtid, Guid driveId, int width, int height,
+        string payloadKey, bool directMatchOnly = false, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var client = factory.CreateHttpClient(identity, out var sharedSecret);
+        var svc = RefitCreator.RestServiceFor<IDriveFileByGtidHttpClientApiV2>(client, sharedSecret);
+        return await svc.GetThumbnailByGtid(driveId, gtid, payloadKey, width, height, directMatchOnly, fileSystemType);
+    }
+
     public async Task<ApiResponse<QueryBatchResponse>> GetBatchAsync(Guid driveId, QueryBatchRequest request)
     {
         var client = factory.CreateHttpClient(identity, out var sharedSecret);
