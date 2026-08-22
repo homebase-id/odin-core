@@ -621,9 +621,19 @@ namespace Odin.Services.Membership.Connections
 
             // Putting someone in a circle is a deliberate act of the owner's, so membership is itself
             // evidence of review -- see the Review stamp region.
+            var wasUnreviewed = !icr.IsReviewed();
             icr.MarkReviewed();
 
             await this.SaveIcrAsync(icr, odinContext);
+
+            if (wasUnreviewed)
+            {
+                // The stamp just promoted their caller tier. Peer contexts are cached for an hour keyed
+                // on the presented token, and only the finalized/blocked/deleted notifications reset that
+                // cache -- so without this the owner grants a circle and the contact keeps reading at the
+                // old level until the cache happens to expire.
+                await odinContextCache.ResetAsync();
+            }
 
             await mediator.Publish(new ConnectionChangedNotification
             {
