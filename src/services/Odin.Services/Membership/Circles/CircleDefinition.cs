@@ -28,31 +28,34 @@ namespace Odin.Services.Membership.Circles
         /// delete only its own circles.
         /// </summary>
         /// <remarks>
-        /// Promoted from the <c>Circle.AppId</c> column, and deliberately kept out of the definition blob
-        /// so the column stays the only at-rest home.  Same for <see cref="GrantOn"/>,
-        /// <see cref="Designation"/> and <see cref="Emoji"/> -- a second copy in the blob would let a
-        /// query on the column disagree with the hydrated object.
+        /// Promoted from the <c>Circle.AppId</c> column, along with <see cref="GrantOn"/>,
+        /// <see cref="Designation"/> and <see cref="Emoji"/>.  The column is the only at-rest home:
+        /// <c>CircleDefinitionService.ToRecord</c> clears all four before serializing the blob, because a
+        /// second copy in there would let a query on the column disagree with the hydrated object.
+        /// <para>
+        /// Deliberately not <c>[JsonIgnore]</c>.  This same type is the wire shape -- the circle
+        /// definition API serves it and accepts it as an update body -- so hiding the fields from JSON
+        /// would both starve clients and make every client-side update reset them to their defaults.
+        /// One attribute cannot make one type be both the wire shape and the stored shape; excluding
+        /// them from the blob is done at the single place that writes the blob instead.
+        /// </para>
         /// </remarks>
-        [JsonIgnore]
         public Guid? AppId { get; set; }
 
         /// <summary>
         /// When the owning app wants members enrolled.  See <see cref="CircleGrantOn"/>.
         /// </summary>
-        [JsonIgnore]
         public CircleGrantOn GrantOn { get; set; } = CircleGrantOn.None;
 
         /// <summary>
         /// What kind of relationship this circle represents.  Presentation only.
         /// </summary>
-        [JsonIgnore]
         public CircleDesignation Designation { get; set; } = CircleDesignation.Personal;
 
         /// <summary>
         /// Optional user-chosen emoji.  Stored as the full string -- these are frequently multi-codepoint
         /// ZWJ sequences and must never be substringed.
         /// </summary>
-        [JsonIgnore]
         public string Emoji { get; set; }
 
         /// <summary>

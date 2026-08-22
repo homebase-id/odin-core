@@ -137,7 +137,8 @@ namespace Odin.Services.Membership.Circles
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
             existingCircle.Permissions = newCircleDefinition.Permissions;
 
-            existingCircle.AppId = newCircleDefinition.AppId;
+            // AppId deliberately not taken from the request: ownership is set when the circle is
+            // created and must not be reassignable by anyone who can PUT a definition.
             existingCircle.GrantOn = newCircleDefinition.GrantOn;
             existingCircle.Designation = newCircleDefinition.Designation;
             existingCircle.Emoji = newCircleDefinition.Emoji;
@@ -282,17 +283,41 @@ namespace Odin.Services.Membership.Circles
 
         internal static CircleRecord ToRecord(CircleDefinition definition)
         {
+            var appId = definition.AppId;
+            var grantOn = definition.GrantOn;
+            var designation = definition.Designation;
+            var emoji = definition.Emoji;
+
+            // Clear before serializing so the blob holds no second copy of what the columns own -- the
+            // same trick ToConnectionsRecord uses for the grant collections. Restored immediately: the
+            // caller's object is still live.
+            definition.AppId = null;
+            definition.GrantOn = CircleGrantOn.None;
+            definition.Designation = CircleDesignation.Personal;
+            definition.Emoji = null;
+
+            byte[] data;
+            try
+            {
+                data = OdinSystemSerializer.Serialize(definition).ToUtf8ByteArray();
+            }
+            finally
+            {
+                definition.AppId = appId;
+                definition.GrantOn = grantOn;
+                definition.Designation = designation;
+                definition.Emoji = emoji;
+            }
+
             return new CircleRecord
             {
                 circleId = definition.Id,
                 circleName = definition.Name,
-                data = OdinSystemSerializer.Serialize(definition).ToUtf8ByteArray(),
-
-                // Columns, not blob fields -- see the class remarks.
-                AppId = definition.AppId,
-                GrantOn = (int)definition.GrantOn,
-                Designation = (int)definition.Designation,
-                Emoji = definition.Emoji
+                data = data,
+                AppId = appId,
+                GrantOn = (int)grantOn,
+                Designation = (int)designation,
+                Emoji = emoji
             };
         }
 
