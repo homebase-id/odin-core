@@ -1,5 +1,7 @@
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Hosting.UnifiedV2;
+using Odin.Hosting.UnifiedV2.Mail;
 using Odin.Services.Email;
 using Refit;
 
@@ -14,4 +16,16 @@ public interface IMailHttpClientApiV2
 
     [Post(Root + "/challenge")]
     Task<ApiResponse<MailRoundTripChallenge>> CreateChallenge();
+
+    [Post(Root + "/setup/mailbox")]
+    Task<ApiResponse<MailboxSetupResult>> EnsureMailbox([Body] EnsureMailboxRequest request);
+
+    [Post(Root + "/app-passwords")]
+    Task<ApiResponse<AppPasswordIssueResult>> IssueAppPassword([Body] IssueAppPasswordRequest request);
+
+    [Delete(Root + "/app-passwords/{id}")]
+    Task<ApiResponse<HttpContent>> RevokeAppPassword(string id);
+
+    [Get(Root + "/storage")]
+    Task<ApiResponse<MailStorageResult>> GetStorage();
 }

@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Odin.Services.Email.Dkim;
@@ -34,6 +35,33 @@ public interface IMailboxProvider
     /// <summary>Tenant deletion ride-along: remove the account and its mail data.</summary>
     Task DeleteMailboxAsync(string domain);
 
-    /// <summary>Install an app password for client auth (IMAP/SMTP/JMAP).</summary>
-    Task ProvisionAppPasswordAsync(string domain, string primaryAddress, string clearTextPassword, string label);
+    /// <summary>
+    /// Issue an app password for client auth (IMAP/SMTP/JMAP). The PROVIDER generates the
+    /// secret and returns it exactly once — Stalwart's app passwords are server-generated and
+    /// never readable again, so an interface that accepted a password could not be implemented
+    /// against it honestly.
+    /// </summary>
+    Task<AppPasswordProvision> ProvisionAppPasswordAsync(string domain, string primaryAddress, string label);
+
+    /// <summary>
+    /// Revoke a previously issued app password. Idempotent by contract: an unknown or
+    /// already-revoked id is a no-op, not an error — the caller is usually reconciling its own
+    /// record of what it issued, and a failure there would strand a live credential.
+    /// </summary>
+    Task RevokeAppPasswordAsync(string domain, string appPasswordId);
+
+    /// <summary>
+    /// Mailbox storage in use. Returns null when the provider cannot answer — this feeds a
+    /// line on a status screen, so it must degrade to "not shown" rather than fail the screen.
+    /// </summary>
+    Task<MailboxUsage?> GetUsageAsync(string domain);
 }
+
+/// <summary>
+/// A newly issued app password: the secret, which exists in transit exactly once, plus the
+/// provider's id for it — the only handle a later revoke has.
+/// </summary>
+public sealed record AppPasswordProvision(string Id, string Secret);
+
+/// <summary>Mailbox storage. A null quota means unlimited, or simply not reported.</summary>
+public sealed record MailboxUsage(long UsedBytes, long? QuotaBytes);

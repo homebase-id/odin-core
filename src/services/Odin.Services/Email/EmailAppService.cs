@@ -5,7 +5,9 @@ using Odin.Services.Base;
 using Odin.Services.Configuration;
 using Odin.Services.Drives;
 using Odin.Services.Drives.Management;
+using Odin.Core.Time;
 using Odin.Services.Email.Dkim;
+using Odin.Services.Email.Mailbox;
 using Odin.Services.Registry.Registration;
 
 namespace Odin.Services.Email;
@@ -71,6 +73,89 @@ public class EmailAppService(
     }
 
     /// <summary>
+    /// Creates the mailbox: DKIM keys, their DNS records, the account, and the DKIM signing keys
+    /// on the mail server. Idempotent, so a client that was killed mid-setup simply calls it
+    /// again. Records the chosen address so setup can resume without the client tracking it.
+    ///
+    /// No key yet — that is the last step. Mail can already arrive; it starts being encrypted
+    /// the moment a key exists.
+    /// </summary>
+    public async Task<MailboxSetupResult> EnsureMailboxAsync(string primaryEmailAddress, IOdinContext odinContext)
+    {
+        await AssertEmailDriveAccessAsync(odinContext);
+        AssertTenantMailEnabled();
+
+        var result = await mailActivationService.EnsureMailboxAsync(primaryEmailAddress);
+        await setupStateService.MarkMailboxProvisionedAsync(primaryEmailAddress);
+
+        return new MailboxSetupResult
+        {
+            PrimaryEmailAddress = primaryEmailAddress,
+            DnsRecordsWritten = result.DnsRecordsWritten,
+            DkimRecords = result.DkimRecords,
+        };
+    }
+
+    /// <summary>
+    /// Issues a mail-client credential. The secret crosses this API exactly once — the mail
+    /// server generates it and will not show it again — so the client must write it to the email
+    /// drive before showing it to anyone. The id comes back too: it is the only handle a later
+    /// revoke has.
+    /// </summary>
+    public async Task<AppPasswordIssueResult> IssueAppPasswordAsync(
+        string primaryEmailAddress,
+        string label,
+        IOdinContext odinContext)
+    {
+        await AssertEmailDriveAccessAsync(odinContext);
+        AssertTenantMailEnabled();
+
+        var provision = await mailActivationService.IssueAppPasswordAsync(primaryEmailAddress, label);
+
+        return new AppPasswordIssueResult
+        {
+            Id = provision.Id,
+            Secret = provision.Secret,
+            Label = label,
+            CreatedAt = UnixTimeUtc.Now(),
+        };
+    }
+
+    /// <summary>
+    /// Revokes a credential on the mail server. Deleting the client's own record of it revokes
+    /// nothing — this is the call that actually stops it working.
+    /// </summary>
+    public async Task RevokeAppPasswordAsync(string appPasswordId, IOdinContext odinContext)
+    {
+        await AssertEmailDriveAccessAsync(odinContext);
+        AssertTenantMailEnabled();
+
+        await mailActivationService.RevokeAppPasswordAsync(appPasswordId);
+    }
+
+    /// <summary>
+    /// Mailbox storage for the status screen. A provider that cannot answer yields
+    /// Available = false rather than an error: this is one line on a screen, not a reason to
+    /// fail the screen.
+    /// </summary>
+    public async Task<MailStorageResult> GetStorageAsync(IOdinContext odinContext)
+    {
+        await AssertEmailDriveAccessAsync(odinContext);
+        AssertTenantMailEnabled();
+
+        var usage = await mailActivationService.GetUsageAsync();
+
+        return usage == null
+            ? new MailStorageResult { Available = false }
+            : new MailStorageResult
+            {
+                Available = true,
+                UsedBytes = usage.UsedBytes,
+                QuotaBytes = usage.QuotaBytes,
+            };
+    }
+
+    /// <summary>
     /// The gate every mail ACTION opens with. Order matters and is load-bearing:
     ///
     /// 1. the drive must exist          -> 400, "you have not approved the app's drive yet"
@@ -121,6 +206,40 @@ public class EmailAppService(
         return odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read) &&
                odinContext.PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);
     }
+}
+
+public class MailboxSetupResult
+{
+    public string PrimaryEmailAddress { get; init; } = "";
+
+    /// <summary>False for manual-DNS tenants — the records are shown as instructions instead.</summary>
+    public bool DnsRecordsWritten { get; init; }
+
+    public List<DnsConfig> DkimRecords { get; init; } = [];
+}
+
+/// <summary>
+/// A newly issued mail-client credential. <see cref="Secret"/> is in transit exactly once.
+/// </summary>
+public class AppPasswordIssueResult
+{
+    /// <summary>The mail server's id for this credential — needed to revoke it later.</summary>
+    public string Id { get; init; } = "";
+
+    public string Secret { get; init; } = "";
+    public string Label { get; init; } = "";
+    public Core.Time.UnixTimeUtc CreatedAt { get; init; }
+}
+
+public class MailStorageResult
+{
+    /// <summary>False when the mail server does not report usage; the UI then shows nothing.</summary>
+    public bool Available { get; init; }
+
+    public long UsedBytes { get; init; }
+
+    /// <summary>Null means unlimited, or simply not reported.</summary>
+    public long? QuotaBytes { get; init; }
 }
 
 /// <summary>

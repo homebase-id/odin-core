@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Hosting.Controllers.Base;
 using Odin.Hosting.UnifiedV2.Authentication.Policy;
 using Odin.Services.Email;
+using Odin.Services.Util;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Odin.Hosting.UnifiedV2.Mail;
@@ -36,6 +37,59 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     }
 
     /// <summary>
+    /// Creates the mailbox. Idempotent, so a client killed mid-setup calls it again rather than
+    /// tracking where it got to.
+    /// </summary>
+    [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
+    [HttpPost("setup/mailbox")]
+    [ProducesResponseType(typeof(MailboxSetupResult), 200)]
+    public async Task<MailboxSetupResult> EnsureMailbox([FromBody] EnsureMailboxRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        return await emailAppService.EnsureMailboxAsync(request.PrimaryEmailAddress, WebOdinContext);
+    }
+
+    /// <summary>
+    /// Issues a mail-client credential. The secret is returned exactly once — the mail server
+    /// generates it and will not show it again — so the caller must persist it before showing it.
+    /// </summary>
+    [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
+    [HttpPost("app-passwords")]
+    [ProducesResponseType(typeof(AppPasswordIssueResult), 200)]
+    public async Task<AppPasswordIssueResult> IssueAppPassword([FromBody] IssueAppPasswordRequest request)
+    {
+        OdinValidationUtils.AssertNotNull(request, nameof(request));
+        return await emailAppService.IssueAppPasswordAsync(
+            request.PrimaryEmailAddress, request.Label, WebOdinContext);
+    }
+
+    /// <summary>
+    /// Revokes a credential on the mail server. Deleting the client's own record of it revokes
+    /// nothing. Idempotent: revoking an unknown id succeeds.
+    /// </summary>
+    [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
+    [HttpDelete("app-passwords/{id}")]
+    [ProducesResponseType(204)]
+    public async Task<IActionResult> RevokeAppPassword(string id)
+    {
+        OdinValidationUtils.AssertIsTrue(!string.IsNullOrWhiteSpace(id), "an app password id is required");
+        await emailAppService.RevokeAppPasswordAsync(id, WebOdinContext);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Mailbox storage for the status screen. Answers Available = false when the mail server
+    /// does not report usage.
+    /// </summary>
+    [SwaggerOperation(Tags = [SwaggerInfo.Mail])]
+    [HttpGet("storage")]
+    [ProducesResponseType(typeof(MailStorageResult), 200)]
+    public async Task<MailStorageResult> GetStorage()
+    {
+        return await emailAppService.GetStorageAsync(WebOdinContext);
+    }
+
+    /// <summary>
     /// Proves this device can still read mail encrypted to the published key: the caller decrypts
     /// the returned message with the keyring on its email drive and compares the hash.
     /// </summary>
@@ -46,4 +100,18 @@ public class V2MailController(EmailAppService emailAppService) : OdinControllerB
     {
         return await emailAppService.CreateRoundTripChallengeAsync(WebOdinContext);
     }
+}
+
+public class EnsureMailboxRequest
+{
+    /// <summary>Must be an address at this identity's domain. Defaults to mail@&lt;identity&gt;.</summary>
+    public string PrimaryEmailAddress { get; init; } = "";
+}
+
+public class IssueAppPasswordRequest
+{
+    public string PrimaryEmailAddress { get; init; } = "";
+
+    /// <summary>What the credential is for, e.g. "Thunderbird — laptop". Shown back to the user.</summary>
+    public string Label { get; init; } = "";
 }
