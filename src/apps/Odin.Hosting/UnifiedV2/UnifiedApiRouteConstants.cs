@@ -21,6 +21,7 @@ public static class UnifiedApiRouteConstants
     public const string NotifySocket = BasePath + "/notify/ws-token";
     public const string NotifySocketWasm = BasePath + "/notify/ws-token-wasm";
     public const string Links = BasePath + "/links";
+    public const string Mail = BasePath + "/mail";
     public const string Capi = BasePath + "/capi";
 
     public const string PeerRoot = BasePath + "/peer";
